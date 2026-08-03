@@ -1,0 +1,12 @@
+# Configures the analyzer. Run with `flutter analyze`.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Generated code (Drift, Riverpod, gen-l10n) — not hand-authored, don't lint.
+    - "**/*.g.dart"
+    - "**/*.drift.dart"
+    - lib/src/l10n/generated/**
+
+linter:
+  rules:

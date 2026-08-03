@@ -1,0 +1,76 @@
+/// How a shift pattern repeats (DESIGN.md §4.1).
+enum ShiftCycleType {
+  /// Fixed times on the pattern's base working weekdays; other days are
+  /// non-working unless a calendar exception opens them (the `ABC` case, where
+  /// Saturday is extra hours running the same shift times).
+  fixedWeekly,
+
+  /// Continuous coverage: every calendar day is a working day.
+  ///
+  /// The shifts of a rotating pattern are **time windows, not crews**. `ABCD`
+  /// describes four crews rotating through two 12-hour windows, and capacity
+  /// comes from the windows — storing four shifts would count each day's
+  /// capacity twice. Which crew is on which day changes nothing the
+  /// deterministic model can see (DESIGN.md §4.4), so it is not modelled.
+  rotating,
+}
+
+/// What a calendar exception does to a day (DESIGN.md §4.3).
+enum CalendarExceptionKind {
+  /// Holiday or shutdown: the day is closed.
+  nonWorking,
+
+  /// Extra hours: the day is opened, with its own staffing.
+  extraWorking,
+}
+
+/// Which resources an exception reaches. Most specific wins, so a plant-wide
+/// shutdown can be overridden by opening one workcenter that Saturday.
+enum CalendarExceptionScope { plant, productionLine, workcenter }
+
+/// How a takt is entered and read back.
+///
+/// **`days` here means working days of a workcenter**, not 24 hours — a takt is
+/// resolved against each station's own capacity (DESIGN.md §6.1). That is why
+/// this is a separate type from [DurationUnit], where a day is a day.
+enum TaktUnit { days, hours, minutes, seconds }
+
+/// How a plain duration is entered and read back — a cooling time, a transport
+/// wait.
+///
+/// **`days` here is 24 hours.** Whether that duration is consumed on the wall
+/// clock or only while the plant runs is a separate question, answered by the
+/// inventory node's own working-time flag (DESIGN.md §5.5).
+enum DurationUnit { days, hours, minutes, seconds }
+
+/// What a node on the flow spine is (DESIGN.md §5.1).
+enum FlowNodeKind {
+  /// A process step, targeting one workcenter or one pool.
+  step,
+
+  /// A buffer between steps.
+  inventory,
+}
+
+/// How an inventory node states its wait (DESIGN.md §5.5).
+enum InventoryMode {
+  /// N pieces, shown as days through the takt of the period being viewed.
+  quantity,
+
+  /// A fixed wait — cooling, transport, curing.
+  duration,
+}
+
+/// The decorative VSM symbols (DESIGN.md §5.2). None of these affect a number;
+/// they document intent on the map.
+enum AnnotationSymbol {
+  shipmentTruck,
+  supermarket,
+  kanbanPost,
+  withdrawalKanban,
+  productionControl,
+  informationArrow,
+  kaizenBurst,
+  operator,
+  note,
+}

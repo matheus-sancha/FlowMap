@@ -1,0 +1,296 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "FlowMap",
+  "@appTitle": { "description": "Application name, shown in the window title and the About screen." },
+
+  "navProjects": "Projects",
+  "navTemplates": "Study Templates",
+  "navResources": "Resources",
+  "navSettings": "Settings",
+  "navAbout": "About",
+
+  "actionAdd": "Add",
+  "actionEdit": "Edit",
+  "actionDelete": "Delete",
+  "actionArchive": "Archive",
+  "actionRestore": "Restore",
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionClose": "Close",
+  "actionDuplicate": "Duplicate",
+  "actionRename": "Rename",
+
+  "fieldName": "Name",
+  "fieldCode": "Code",
+  "fieldType": "Type",
+  "fieldNotes": "Notes",
+  "fieldStart": "Start",
+  "fieldEnd": "End",
+
+  "validationRequired": "Required",
+  "validationNameTaken": "That name is already used here",
+
+  "resourcesTitle": "Resources",
+  "resourcesEmpty": "No plant yet. Create one to start building studies.",
+  "resourcesShowArchived": "Show archived",
+  "resourcesArchivedBadge": "Archived",
+
+  "plant": "Plant",
+  "plantNew": "New plant",
+  "plantDeleteBlocked": "This plant has production cells. Archive it instead.",
+
+  "productionCell": "Production cell",
+  "productionCells": "Production cells",
+  "productionCellNew": "New production cell",
+
+  "productionLine": "Production line",
+  "productionLines": "Production lines",
+  "productionLineNew": "New production line",
+
+  "workcenter": "Workcenter",
+  "workcenters": "Workcenters",
+  "workcenterNew": "New workcenter",
+  "workcenterType": "Workcenter type",
+  "workcenterTypes": "Workcenter types",
+  "workcenterTypeNew": "New workcenter type",
+
+  "workcenterPool": "Workcenter pool",
+  "workcenterPools": "Workcenter pools",
+  "workcenterPoolNew": "New pool",
+  "workcenterPoolMembers": "Members",
+  "workcenterPoolEmpty": "A pool needs at least one workcenter.",
+
+  "shiftPattern": "Shift pattern",
+  "shiftPatterns": "Shift patterns",
+  "shiftPatternNew": "New shift pattern",
+  "shiftPatternCycle": "Cycle",
+  "shiftPatternCycleFixedWeekly": "Fixed weekly",
+  "shiftPatternCycleRotating": "Rotating (continuous)",
+  "shiftPatternWorkingDays": "Base working days",
+  "shiftPatternShifts": "Shifts",
+  "shiftPatternShiftNew": "Add shift",
+  "shiftPatternNoShifts": "A pattern needs at least one shift.",
+
+  "shiftLabel": "Label",
+  "shiftStart": "Start",
+  "shiftEnd": "End",
+  "shiftBreak": "Break",
+  "shiftCrossesMidnight": "Crosses midnight",
+  "shiftDuration": "Net duration",
+  "shiftOverlapWarning": "This shift overlaps {other}.",
+  "@shiftOverlapWarning": {
+    "placeholders": { "other": { "type": "String" } }
+  },
+
+  "weekdayMon": "Mon",
+  "weekdayTue": "Tue",
+  "weekdayWed": "Wed",
+  "weekdayThu": "Thu",
+  "weekdayFri": "Fri",
+  "weekdaySat": "Sat",
+  "weekdaySun": "Sun",
+
+  "confirmDeleteTitle": "Delete {name}?",
+  "@confirmDeleteTitle": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "confirmDeleteBody": "This cannot be undone.",
+  "confirmArchiveBody": "It stays available to projects already using it, but is hidden from pickers.",
+
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "aboutBuild": "Build {build}",
+  "@aboutBuild": {
+    "placeholders": { "build": { "type": "String" } }
+  },
+
+  "settingsTitle": "Settings",
+  "settingsLanguage": "Language",
+  "settingsLanguageSystem": "System",
+  "settingsDateFormat": "Date format",
+  "settingsDateFormatLocale": "Follow language",
+
+  "comingSoon": "Coming soon",
+
+  "valueNone": "None",
+
+  "workcenterNameHelp": "What the shop floor calls it, and the label on the process box — e.g. CLAD04.",
+  "workcenterAddExisting": "Add existing",
+  "workcenterAddExistingHelp": "A workcenter belongs to the plant, so this only changes where it appears in the tree. Any study of any line can use it either way.",
+  "workcenterNoneToAdd": "Every workcenter in this plant is already on this line.",
+  "workcenterHomeLine": "Home production line",
+  "workcenterHomeLineHelp": "Where it appears in the tree. Studies on other lines can still use it, and that shared use is what the simulation contends for.",
+  "workcenterTypeUnset": "No type",
+  "workcenterTypeDeleteBody": "Workcenters using this type keep working; their type is cleared.",
+  "workcenterPoolNoCandidates": "This plant has no workcenters yet.",
+
+  "resourcesUnassigned": "Not on a line",
+  "resourcesUnassignedHelp": "Workcenters that belong to the plant but are not drawn under a production line.",
+
+  "shiftPatternRotatingHelp": "Runs every day. Shifts are time windows, not crews — four crews rotating through two 12-hour windows is two shifts here, because capacity comes from the windows covered.",
+  "shiftPatternEveryDay": "Every day",
+  "shiftPatternNoWorkingDays": "No working days",
+  "shiftPatternOpenPerDay": "Open {duration}/day",
+  "@shiftPatternOpenPerDay": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+  "shiftBreakMinutes": "Break (min)",
+  "shiftBreakOf": "Break {duration}",
+  "@shiftBreakOf": {
+    "placeholders": { "duration": { "type": "String" } }
+  },
+
+  "projectNew": "New project",
+  "projectsEmpty": "No projects yet.",
+  "projectMissing": "That project no longer exists.",
+  "projectNeedsPlant": "Create a plant in Resources before starting a project.",
+  "projectPlantHelp": "Cannot be changed later: every study, schedule and flow step in the project points at this plant's workcenters.",
+  "projectPatternHelp": "The shift split every workcenter in this project is staffed against.",
+  "projectDeleteBody": "Its studies, schedules and flows go with it. This cannot be undone.",
+
+  "studyNew": "New study",
+  "studiesEmpty": "No studies in this project yet.",
+  "studyNameHint": "Current state",
+  "studyNeedsLine": "This plant has no production lines yet.",
+  "studyLineHelp": "A study belongs to one line. Several studies of the same line are scenarios; only one can be selected for a simulation.",
+  "studyDeleteBody": "Its flow and annotations go with it. This cannot be undone.",
+  "studyIncludeInSimulation": "Include in simulation",
+  "studyExcludeFromSimulation": "Exclude from simulation",
+  "studyTabFlow": "Flow",
+  "studyTabTakt": "Takt",
+  "studyTabDemand": "Demand",
+  "studyTabSummary": "Summary",
+  "milestoneDemand": "Demand tables arrive with the next milestone.",
+  "milestoneSummary": "The summary arrives with the next milestone.",
+
+  "takt": "Takt",
+  "taktUnit": "Unit",
+  "taktEmpty": "No takt defined for this production line yet.",
+  "taktPeriodNew": "New takt period",
+  "taktPeriodDeleteTitle": "Delete this takt period?",
+  "taktDaysHelp": "Days are relative to each workcenter's own capacity: a 3-day takt is 68 h at a station open 22:40 a day, and 26:24 at one open 8:48.",
+  "taktLiteralHelp": "Resolves to the same duration at every workcenter.",
+
+  "unitDays": "days",
+  "unitHours": "hours",
+  "unitMinutes": "minutes",
+  "unitSeconds": "seconds",
+  "unitDaysShort": "d",
+  "unitHoursShort": "h",
+  "unitMinutesShort": "min",
+  "unitSecondsShort": "s",
+
+  "schedulePeriodNew": "New period",
+  "schedulePeriodDeleteTitle": "Delete this schedule period?",
+  "scheduleShifts": "Shifts",
+  "scheduleOperatorsPerShift": "Operators per shift",
+  "scheduleShiftsDerived": "Shifts: {count} ({operators}) — counted from the shifts with operators, never stored separately.",
+  "@scheduleShiftsDerived": {
+    "placeholders": { "count": { "type": "String" }, "operators": { "type": "String" } }
+  },
+  "availability": "Availability",
+  "availabilityHelp": "Fraction of open time the workcenter can actually run. Applied once, to process time.",
+  "availabilityInvalid": "Must be above 0% and at most 100%",
+  "rework": "Rework",
+  "reworkHelp": "Fraction of work that has to be redone. Inflates process time.",
+  "reworkInvalid": "Must be 0% or more",
+  "occupation": "Occupation",
+  "workcentersTabEmpty": "Add steps to the flow to schedule their workcenters here.",
+  "workcentersTabPattern": "Shift pattern: {shifts}",
+  "@workcentersTabPattern": {
+    "placeholders": { "shifts": { "type": "String" } }
+  },
+
+  "scheduleIssueEmpty": "No periods defined. Nothing here can be costed until there is at least one.",
+  "scheduleIssueOverlap": "Two periods both cover {from} to {to}.",
+  "@scheduleIssueOverlap": {
+    "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } }
+  },
+  "scheduleIssueGap": "No period covers {from} to {to}.",
+  "@scheduleIssueGap": {
+    "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } }
+  },
+  "scheduleIssueInverted": "A period ends ({to}) before it starts ({from}).",
+  "@scheduleIssueInverted": {
+    "placeholders": { "from": { "type": "String" }, "to": { "type": "String" } }
+  },
+
+  "periodPrevious": "Previous period",
+  "periodNext": "Next period",
+  "periodMonth": "Month",
+  "periodQuarterly": "Quarter",
+  "periodSemesterly": "Semester",
+  "periodYearly": "Year",
+  "periodQuarter": "Q{quarter} {year}",
+  "@periodQuarter": {
+    "placeholders": { "quarter": { "type": "String" }, "year": { "type": "String" } }
+  },
+  "periodSemester": "H{half} {year}",
+  "@periodSemester": {
+    "placeholders": { "half": { "type": "String" }, "year": { "type": "String" } }
+  },
+  "periodVariesHelp": "Takt or staffing changes inside this period. The map shows the state on its first day.",
+  "footerTaktHelp": "The rhythm of the production line in this period — one unit leaves the line every takt.",
+  "footerProcessTimeHelp": "Every step's process time added up. Value-adding time only; waiting is not counted.",
+  "footerLeadTimeHelp": "Process time plus every wait between steps — how long one order takes to cross the whole flow.",
+  "footerPceHelp": "Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.",
+  "flowDataSource": "Timeline",
+  "flowSourceEquivalent": "Flow equivalent",
+  "flowSourceSinglePart": "One part (needs demand)",
+  "flowSourceWeighted": "All variants, weighted (needs demand)",
+  "exportPdf": "Export PDF",
+  "flowSupplier": "Supplier",
+  "flowCustomer": "Customer",
+  "flowFitToScreen": "Fit to screen",
+  "flowZoomIn": "Zoom in",
+  "flowZoomOut": "Zoom out",
+  "flowInsertHere": "Insert here",
+  "flowInsertStep": "Process step",
+  "flowInsertStepHelp": "Runs on a workcenter or a pool.",
+  "flowInsertInventory": "Inventory",
+  "flowInsertInventoryHelp": "Where orders wait between steps.",
+  "flowStep": "Process step",
+  "flowInventory": "Inventory",
+  "flowStepTarget": "Workcenter or pool",
+  "flowStepTargetHelp": "A step runs on exactly one. A pool sends each order to whichever member frees first.",
+  "flowNodeLabel": "Label",
+  "flowNodeLabelHelp": "Shown instead of the workcenter code.",
+  "flowMoveLeft": "Move earlier",
+  "flowMoveRight": "Move later",
+  "flowDeleteNodeTitle": "Remove this node from the flow?",
+  "stepProcessTime": "Process time",
+  "stepChangeover": "Changeover",
+  "stepChangeoverHelp": "Charged only when the previous order on this workcenter was a different part.",
+  "stepOperators": "Operators",
+  "stepEquivalentTime": "Equivalent time",
+  "stepEquivalentFollowsTakt": "Follows takt",
+  "stepEquivalentHelp": "The flow equivalent's process time here. Leave blank to use one takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station's productive days, so 1 day equals one takt-day.",
+  "stepProblemUnbound": "No workcenter or pool selected.",
+  "stepProblemArchived": "Its workcenter has been archived or deleted.",
+  "stepProblemNoSchedule": "No schedule period covers this month.",
+  "stepProblemEmptyPool": "This pool has no members.",
+
+  "inventoryModeQuantity": "Pieces",
+  "inventoryModeDuration": "Fixed wait",
+  "inventoryPieces": "Pieces waiting",
+  "inventoryPiecesHelp": "Counted as days of stock: pieces × takt of the period being viewed.",
+  "inventoryWait": "Wait",
+  "inventoryWaitHelp": "A day is 24 hours here. Whether those hours pass on the clock or only while the plant runs is the switch below.",
+  "inventoryWorkingTime": "Working time only",
+  "inventoryWorkingTimeHelp": "Off for cooling or transport, which do not stop for the weekend. On for a queue that only moves while the plant runs.",
+
+  "footerProcessTime": "Process time",
+  "footerLeadTime": "Lead time",
+  "footerPce": "PCE",
+  "pdfGenerated": "FlowMap {build} · generated {timestamp}",
+  "@pdfGenerated": {
+    "placeholders": { "build": { "type": "String" }, "timestamp": { "type": "String" } }
+  },
+  "pdfSaved": "Saved to {path}",
+  "@pdfSaved": {
+    "placeholders": { "path": { "type": "String" } }
+  }
+}
