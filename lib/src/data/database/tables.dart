@@ -233,7 +233,7 @@ class WorkcenterPools extends Table {
   ];
 }
 
-/// Pool membership. A workcenter may belong to several pools (DESIGN.md §17.2),
+/// Pool membership. A workcenter may belong to several pools (DESIGN.md §18.2),
 /// so this is a plain many-to-many with no uniqueness beyond the pair.
 class WorkcenterPoolMembers extends Table {
   TextColumn get poolId =>
