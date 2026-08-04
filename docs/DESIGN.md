@@ -280,9 +280,14 @@ becomes 4 days, and its share of the equivalent shifts.
 override: stock drains at the rate units leave the line.
 
 **Overlapping shifts count once.** The seeded ABC pattern has A running to 15:13
-and B starting at 14:26 — a 47-minute handover overlap. A workcenter is a single
-server (§7.5), so the open time is the *union* of its staffed windows, not their
-sum. ABC with all three shifts staffed is therefore 22:40 a day, not 23:27.
+and B starting at 14:26 — a 47-minute handover overlap, 7 minutes of it after
+A's break is taken off the end. A workcenter is a single server (§7.5), so the
+open time is the *union* of its staffed windows, not their sum. ABC with all
+three shifts staffed is therefore 22:40 a day, not the 22:47 the three net
+windows add up to.
+
+**The union is taken on the 24-hour circle**, so a night shift that overruns the
+next morning's start is counted once too — see §17.3.
 
 _Rejected: a project-level hours-per-day constant._ A 1-shift and a 3-shift workcenter would get
 the same equivalent, hiding exactly the imbalance the method exists to expose.
@@ -728,6 +733,44 @@ The walk starts at the **first day of the viewed period**, since no demand
 exists yet to supply a real start date; M3 replaces that with the first order's.
 It returns nothing rather than a guess when a step cannot be costed or its
 calendar can never open, and the footer shows a dash.
+
+### 17.3 A day is worth a day
+
+The single-server rule (§6.1.1) was applied only within one calendar date. A
+shift window is attributed to the day it starts on, so a night shift running to
+07:00 and the next morning's shift starting at 06:00 were merged in separate
+passes and never compared — the shared hour was counted twice. A pattern of
+`06:00–18:00` and `18:00–07:00` reported **25 hours of open time in a 24-hour
+day**, and `openTimeBetween` said the same across any window containing the
+overlap.
+
+It matters beyond the shift editor's own preview: that figure is the flow
+equivalent's divisor (§6.1), the working day the lead-time ladder renders
+against, and — from M3 — the denominator of Occupation (§8.1). An overstated
+day understates occupation, which is the number the app exists to produce.
+
+Two fixes, because the same rule has two forms:
+
+- `openTimePerWorkingDay` is nominal minute arithmetic over a pattern that
+  repeats daily, so its union is taken **on the 24-hour circle**: a window
+  running past midnight wraps to the start of the cycle and merges with what
+  is already there.
+- `openTimeOnDate` and `openTimeBetween` walk real dates, so each day
+  contributes only what the day before did not already claim. The overrun is
+  credited to the day whose shift reached it first, which is what makes
+  `Σ openTimeOnDate` equal `openTimeBetween` over the same span.
+
+`advance` and `nextOpen` needed no change and deliberately got none: they walk a
+cursor that never moves backwards, so an overlapping interval is already clipped
+to it and the shared time is spent once. Trimming inside `intervalsStartingOn`
+was rejected — it would make a method asked about one day answer about two.
+
+The seeded ABC and ABCD patterns never tripped this (ABC's overlap is inside a
+day; ABCD's windows touch without overlapping), which is why 76 calendar tests
+did not catch it. The regression case is a pattern with an hour of real
+overrun.
+
+---
 
 ## 18. Open assumptions
 
