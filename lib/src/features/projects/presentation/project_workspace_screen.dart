@@ -12,6 +12,7 @@ import '../../resources/data/resources_repository.dart';
 import '../../schedules/presentation/takt_tab.dart';
 import '../../schedules/presentation/workcenters_tab.dart';
 import '../../studies/application/studies_providers.dart';
+import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
 
 /// The project workspace: a studies sidebar, and the five tabs of whichever
@@ -299,30 +300,11 @@ class _StudyTabs extends StatelessWidget {
                 TaktTab(project: project, study: study),
                 WorkcentersTab(project: project, study: study),
                 DemandTab(study: study),
-                _ComingInMilestone(milestone: l10n.milestoneSummary),
+                SummaryTab(study: study),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ComingInMilestone extends StatelessWidget {
-  const _ComingInMilestone({required this.milestone});
-
-  final String milestone;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Text(
-        milestone,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          color: theme.colorScheme.outline,
-        ),
       ),
     );
   }

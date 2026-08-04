@@ -181,6 +181,7 @@ class FlowStepView extends FlowNodeView {
     required this.changeover,
     required this.openPerWorkingDay,
     required this.productivePerWorkingDay,
+    required this.openInPeriod,
     required this.operatorsPerShift,
     required this.availability,
     required this.rework,
@@ -268,6 +269,19 @@ class FlowStepView extends FlowNodeView {
   /// The divisor the ladder renders days against, which is what makes one takt
   /// read as exactly the takt: `50.32 h ÷ 16.77 h = 3.0 d`.
   final Duration productivePerWorkingDay;
+
+  /// What the calendar says the station is open across the **whole** viewed
+  /// span, weekends and exceptions accounted for — a walk of real dates, not
+  /// [openPerWorkingDay] multiplied by a working-day count.
+  ///
+  /// The denominator of Occupation (§8.1, §8.3), which is why it is here rather
+  /// than recomputed: the summary and the process box have to divide by the
+  /// same hours, and the calendars are already loaded at this point.
+  final Duration openInPeriod;
+
+  /// `openInPeriod × availability` — the hours the station can actually run in
+  /// the period.
+  Duration get productiveInPeriod => openInPeriod * (availability ?? 1);
 
   final List<int> operatorsPerShift;
   final double? availability;
@@ -535,6 +549,7 @@ FlowView buildFlowView({
         poolMembers: poolMembers,
         takt: takt,
         asOf: start,
+        periodEnd: end,
         dataSource: dataSource,
         demand: demand,
       ),
@@ -588,6 +603,7 @@ FlowStepView _buildStep({
   required Map<String, List<String>> poolMembers,
   required TaktPeriodSpec? takt,
   required DateTime asOf,
+  required DateTime periodEnd,
   required FlowDataSource dataSource,
   required FlowDemandInput demand,
 }) {
@@ -639,6 +655,7 @@ FlowStepView _buildStep({
   );
 
   var openPerDay = Duration.zero;
+  var openInPeriod = Duration.zero;
   List<int> operators = const [];
   // Availability is read here and folded into the productive day below; rework
   // is read here and charged against a *part's* time, never against the
@@ -657,6 +674,12 @@ FlowStepView _buildStep({
       availability = lookup.period!.availability;
       rework = lookup.period!.rework;
       openPerDay = context.calendar.openTimePerWorkingDay(asOf);
+      // Exclusive upper bound: the span's last date runs to the following
+      // midnight, so a shift that starts on the 31st is counted whole.
+      openInPeriod = context.calendar.openTimeBetween(
+        asOf,
+        DateTime(periodEnd.year, periodEnd.month, periodEnd.day + 1),
+      );
     }
   }
 
@@ -720,6 +743,7 @@ FlowStepView _buildStep({
     changeover: changeover,
     openPerWorkingDay: openPerDay,
     productivePerWorkingDay: productivePerDay,
+    openInPeriod: openInPeriod,
     operatorsPerShift: operators,
     availability: availability,
     rework: rework,

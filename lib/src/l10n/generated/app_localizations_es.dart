@@ -399,9 +399,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get studyTabSummary => 'Resumen';
 
   @override
-  String get milestoneSummary => 'El resumen llega en el próximo hito.';
-
-  @override
   String get actionMoveUp => 'Subir';
 
   @override
@@ -473,6 +470,109 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get mm3Help =>
       'Una media móvil centrada de tres sobre la secuencia, vacía en ambos extremos. Reordene en la pestaña Secuencia y observe cómo se aplana.';
+
+  @override
+  String get summaryOccupation => 'Ocupación por centro de trabajo';
+
+  @override
+  String get summaryDemandTakt => 'Takt de demanda';
+
+  @override
+  String get summaryRequired => 'Requerido';
+
+  @override
+  String get summaryAvailable => 'Disponible';
+
+  @override
+  String get summaryOperatorsAllocated => 'Operarios asignados';
+
+  @override
+  String get summaryOperatorsNeeded => 'Operarios necesarios';
+
+  @override
+  String get summaryNoSteps =>
+      'Este flujo aún no tiene pasos de proceso asignados.';
+
+  @override
+  String get summaryNothingToRank =>
+      'Nada que clasificar todavía: ningún paso tiene horario y demanda a la vez.';
+
+  @override
+  String get summaryOverloaded =>
+      'Por encima del 100 %: esta estación no puede con ello, se ordene como se ordene la secuencia.';
+
+  @override
+  String get summaryWithinCapacity => 'Dentro de la capacidad de este periodo.';
+
+  @override
+  String get summaryNoDemandTakt =>
+      'Aún no hay takt de demanda: hace falta una estación con horas y pedidos con fecha en este periodo.';
+
+  @override
+  String summaryBottleneck(String name, String occupation) {
+    return 'Cuello de botella: $name al $occupation';
+  }
+
+  @override
+  String summaryOrdersDue(String count) {
+    return '$count pedidos requeridos';
+  }
+
+  @override
+  String summaryVisitsHelp(String count) {
+    return 'El flujo pasa $count veces por esta estación, y cada visita la carga.';
+  }
+
+  @override
+  String summaryMissingTimes(String count) {
+    return '$count piezas requeridas aquí no tienen tiempo de proceso, así que las horas requeridas se quedan cortas.';
+  }
+
+  @override
+  String summaryRequiredHelp(
+    String work,
+    String changeovers,
+    String changeover,
+  ) {
+    return '$work de tiempo de proceso más $changeovers cambios por $changeover.';
+  }
+
+  @override
+  String summaryOccupationHelp(
+    String occupation,
+    String required,
+    String available,
+  ) {
+    return '$occupation = $required requeridas sobre $available disponibles.';
+  }
+
+  @override
+  String summaryPaceSetter(String name, String available) {
+    return 'Medido en $name, la estación más cargada, que tiene $available disponibles este periodo.';
+  }
+
+  @override
+  String get summaryTaktConfigured => 'Takt configurado';
+
+  @override
+  String get summaryTaktConfiguredHelp =>
+      'El takt al que está configurada esta línea, resuelto en la estación que marca el ritmo.';
+
+  @override
+  String get summaryTaktRaw => 'Takt de demanda bruto';
+
+  @override
+  String summaryTaktRawHelp(String orders) {
+    return 'Tiempo disponible sobre $orders pedidos requeridos. Lo que espera un visitante.';
+  }
+
+  @override
+  String get summaryTaktAdjusted => 'Takt de demanda ajustado por equivalencia';
+
+  @override
+  String summaryTaktAdjustedHelp(String equivalents) {
+    return 'Tiempo disponible sobre $equivalents equivalentes de pieza requeridos. Lo que de verdad importa con una mezcla variada: un pedido que vale dos takts cuenta doble.';
+  }
 
   @override
   String get demandParts => 'Piezas';

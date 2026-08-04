@@ -400,9 +400,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get studyTabSummary => 'Resumo';
 
   @override
-  String get milestoneSummary => 'O resumo chega no próximo marco.';
-
-  @override
   String get actionMoveUp => 'Subir';
 
   @override
@@ -474,6 +471,109 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get mm3Help =>
       'Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas. Reordene na aba Sequência e veja achatar.';
+
+  @override
+  String get summaryOccupation => 'Ocupação por centro de trabalho';
+
+  @override
+  String get summaryDemandTakt => 'Takt de demanda';
+
+  @override
+  String get summaryRequired => 'Necessário';
+
+  @override
+  String get summaryAvailable => 'Disponível';
+
+  @override
+  String get summaryOperatorsAllocated => 'Operadores alocados';
+
+  @override
+  String get summaryOperatorsNeeded => 'Operadores necessários';
+
+  @override
+  String get summaryNoSteps =>
+      'Este fluxo ainda não tem passos de processo vinculados.';
+
+  @override
+  String get summaryNothingToRank =>
+      'Nada a classificar ainda: nenhum passo tem horário e demanda ao mesmo tempo.';
+
+  @override
+  String get summaryOverloaded =>
+      'Acima de 100 %: esta estação não dá conta, seja qual for a ordem da sequência.';
+
+  @override
+  String get summaryWithinCapacity => 'Dentro da capacidade deste período.';
+
+  @override
+  String get summaryNoDemandTakt =>
+      'Ainda não há takt de demanda: é preciso uma estação com horas e pedidos com data neste período.';
+
+  @override
+  String summaryBottleneck(String name, String occupation) {
+    return 'Gargalo: $name a $occupation';
+  }
+
+  @override
+  String summaryOrdersDue(String count) {
+    return '$count pedidos no período';
+  }
+
+  @override
+  String summaryVisitsHelp(String count) {
+    return 'O fluxo passa $count vezes por esta estação, e cada visita a carrega.';
+  }
+
+  @override
+  String summaryMissingTimes(String count) {
+    return '$count peças do período não têm tempo de processo aqui, então as horas necessárias estão subestimadas.';
+  }
+
+  @override
+  String summaryRequiredHelp(
+    String work,
+    String changeovers,
+    String changeover,
+  ) {
+    return '$work de tempo de processo mais $changeovers setups valendo $changeover.';
+  }
+
+  @override
+  String summaryOccupationHelp(
+    String occupation,
+    String required,
+    String available,
+  ) {
+    return '$occupation = $required necessárias sobre $available disponíveis.';
+  }
+
+  @override
+  String summaryPaceSetter(String name, String available) {
+    return 'Medido em $name, a estação mais carregada, que tem $available disponíveis neste período.';
+  }
+
+  @override
+  String get summaryTaktConfigured => 'Takt configurado';
+
+  @override
+  String get summaryTaktConfiguredHelp =>
+      'O takt para o qual esta linha está configurada, resolvido na estação que dita o ritmo.';
+
+  @override
+  String get summaryTaktRaw => 'Takt de demanda bruto';
+
+  @override
+  String summaryTaktRawHelp(String orders) {
+    return 'Tempo disponível sobre $orders pedidos no período. O que um visitante espera.';
+  }
+
+  @override
+  String get summaryTaktAdjusted => 'Takt de demanda ajustado por equivalência';
+
+  @override
+  String summaryTaktAdjustedHelp(String equivalents) {
+    return 'Tempo disponível sobre $equivalents equivalentes de peça no período. O que realmente importa com um mix variado: um pedido que vale dois takts conta em dobro.';
+  }
 
   @override
   String get demandParts => 'Peças';

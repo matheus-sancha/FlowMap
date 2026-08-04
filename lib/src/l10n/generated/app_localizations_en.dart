@@ -397,9 +397,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studyTabSummary => 'Summary';
 
   @override
-  String get milestoneSummary => 'The summary arrives with the next milestone.';
-
-  @override
   String get actionMoveUp => 'Move up';
 
   @override
@@ -469,6 +466,108 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mm3Help =>
       'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.';
+
+  @override
+  String get summaryOccupation => 'Occupation by workcenter';
+
+  @override
+  String get summaryDemandTakt => 'Demand takt';
+
+  @override
+  String get summaryRequired => 'Required';
+
+  @override
+  String get summaryAvailable => 'Available';
+
+  @override
+  String get summaryOperatorsAllocated => 'Operators allocated';
+
+  @override
+  String get summaryOperatorsNeeded => 'Operators needed';
+
+  @override
+  String get summaryNoSteps => 'This flow has no bound process steps yet.';
+
+  @override
+  String get summaryNothingToRank =>
+      'Nothing to rank yet: no step has both a schedule and demand.';
+
+  @override
+  String get summaryOverloaded =>
+      'Above 100 %: this station cannot do it however the sequence is arranged.';
+
+  @override
+  String get summaryWithinCapacity => 'Within capacity for this period.';
+
+  @override
+  String get summaryNoDemandTakt =>
+      'No demand takt yet: it needs a station with hours and orders due in this period.';
+
+  @override
+  String summaryBottleneck(String name, String occupation) {
+    return 'Bottleneck: $name at $occupation';
+  }
+
+  @override
+  String summaryOrdersDue(String count) {
+    return '$count orders due';
+  }
+
+  @override
+  String summaryVisitsHelp(String count) {
+    return 'The flow routes through this station $count times, and every visit loads it.';
+  }
+
+  @override
+  String summaryMissingTimes(String count) {
+    return '$count parts due here have no process time, so the required hours are an understatement.';
+  }
+
+  @override
+  String summaryRequiredHelp(
+    String work,
+    String changeovers,
+    String changeover,
+  ) {
+    return '$work of process time plus $changeovers changeovers worth $changeover.';
+  }
+
+  @override
+  String summaryOccupationHelp(
+    String occupation,
+    String required,
+    String available,
+  ) {
+    return '$occupation = $required required over $available available.';
+  }
+
+  @override
+  String summaryPaceSetter(String name, String available) {
+    return 'Measured at $name, the busiest station, which has $available available this period.';
+  }
+
+  @override
+  String get summaryTaktConfigured => 'Configured takt';
+
+  @override
+  String get summaryTaktConfiguredHelp =>
+      'The takt this line is set to run at, resolved at the pace-setting station.';
+
+  @override
+  String get summaryTaktRaw => 'Raw demand takt';
+
+  @override
+  String summaryTaktRawHelp(String orders) {
+    return 'Available time over $orders orders due. What a visitor expects.';
+  }
+
+  @override
+  String get summaryTaktAdjusted => 'Equivalent-adjusted demand takt';
+
+  @override
+  String summaryTaktAdjustedHelp(String equivalents) {
+    return 'Available time over $equivalents part-equivalents due. What actually matters under a mixed part mix: an order worth two takts of work counts twice.';
+  }
 
   @override
   String get demandParts => 'Parts';

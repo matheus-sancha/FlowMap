@@ -510,6 +510,41 @@ adjusted one is what actually matters under a mixed part mix.
 Occupation and Utilisation differ whenever sequencing or starvation gets in the way. Defined once
 in an in-app glossary and translated consistently across en/es/pt.
 
+### 8.4 The Summary, as built
+
+```
+required  = Σ (part_pt × batch × (1 + rework)) + changeovers × changeover
+available = open time across the span × availability
+occupation = required ÷ available
+```
+
+- **Availability appears once, in the denominator.** The part's own time is left alone. Applying it
+  to both sides is §4.4's oldest trap and would square the loss.
+- **Ranked by target, not by step.** Two steps of a flow may visit the same station, and the
+  station has one calendar and one set of hours: its load is the sum of both visits, and both
+  process boxes report that same figure. A `×2` on the row says why.
+- **Changeover is charged, because the sequence is known.** An order pays for a changeover when the
+  order before it *at that station* was a different part (§7.6) — walked over the whole sequence,
+  so the first order of the month is compared with the one that really preceded it rather than
+  starting the month clean.
+- **A station with no open hours is not the bottleneck.** Its occupation is a dash: a division by
+  zero dressed up as "infinitely busy" would rank a shut station first and hide the real
+  constraint.
+- **A part due here with no process time is counted and flagged**, not treated as free. Until it is
+  entered the required hours are an understatement, and the table says so rather than looking
+  merely quiet.
+- **Operators needed is occupation restated in people**, and deliberately so. A workcenter is a
+  single server (§7.5) — a second operator on one CNC does not double its output — so the only
+  honest meaning of "operators needed" is the crew the current pattern would have to become to
+  carry this load. Headcount is what makes it actionable.
+- **Available working time for the demand takt is the bottleneck's.** A line is a set of stations
+  with different calendars and no single figure of its own; the constraint is what sets the pace,
+  so its hours are the ones demand has to fit into, and the configured takt is resolved at that
+  same station so all three figures are in the same hours. Recorded as an open assumption (§18.8).
+- **The Summary shares the map's period navigator.** A user who steps the Flow tab to `Sep 2026`
+  and then opens Summary is asking about September; a second period control would be a second
+  answer to the same question.
+
 _Rejected: the mockup's naming ("Utilization 100 %" on the box)._ It conflates an input with an
 output, and the inconsistency becomes permanent once it is in three `.arb` files and every PDF.
 
@@ -957,4 +992,7 @@ it.
    the part alone and treating batch size as invisible to smoothness — would make lot sizing
    unmeasurable by the one tool that should see it. Built the first way; needs a yes/no before M4
    reads the same sequence. (§6.3, M3)
+8. **The demand takt is measured at the bottleneck's available hours.** A line has no single
+   calendar of its own, and the constraint is what sets the pace. The alternative — the longest-open
+   station, or a mean across the flow — would flatter an unbalanced line. (§8.2, M3)
 7. **One plant per project**, per the spec; a project cannot span plants. (§3, M1)

@@ -820,12 +820,6 @@ abstract class AppLocalizations {
   /// **'Summary'**
   String get studyTabSummary;
 
-  /// No description provided for @milestoneSummary.
-  ///
-  /// In en, this message translates to:
-  /// **'The summary arrives with the next milestone.'**
-  String get milestoneSummary;
-
   /// No description provided for @actionMoveUp.
   ///
   /// In en, this message translates to:
@@ -957,6 +951,158 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.'**
   String get mm3Help;
+
+  /// No description provided for @summaryOccupation.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupation by workcenter'**
+  String get summaryOccupation;
+
+  /// No description provided for @summaryDemandTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Demand takt'**
+  String get summaryDemandTakt;
+
+  /// No description provided for @summaryRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get summaryRequired;
+
+  /// No description provided for @summaryAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get summaryAvailable;
+
+  /// No description provided for @summaryOperatorsAllocated.
+  ///
+  /// In en, this message translates to:
+  /// **'Operators allocated'**
+  String get summaryOperatorsAllocated;
+
+  /// No description provided for @summaryOperatorsNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Operators needed'**
+  String get summaryOperatorsNeeded;
+
+  /// No description provided for @summaryNoSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'This flow has no bound process steps yet.'**
+  String get summaryNoSteps;
+
+  /// No description provided for @summaryNothingToRank.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to rank yet: no step has both a schedule and demand.'**
+  String get summaryNothingToRank;
+
+  /// No description provided for @summaryOverloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Above 100 %: this station cannot do it however the sequence is arranged.'**
+  String get summaryOverloaded;
+
+  /// No description provided for @summaryWithinCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Within capacity for this period.'**
+  String get summaryWithinCapacity;
+
+  /// No description provided for @summaryNoDemandTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'No demand takt yet: it needs a station with hours and orders due in this period.'**
+  String get summaryNoDemandTakt;
+
+  /// No description provided for @summaryBottleneck.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottleneck: {name} at {occupation}'**
+  String summaryBottleneck(String name, String occupation);
+
+  /// No description provided for @summaryOrdersDue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} orders due'**
+  String summaryOrdersDue(String count);
+
+  /// No description provided for @summaryVisitsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The flow routes through this station {count} times, and every visit loads it.'**
+  String summaryVisitsHelp(String count);
+
+  /// No description provided for @summaryMissingTimes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} parts due here have no process time, so the required hours are an understatement.'**
+  String summaryMissingTimes(String count);
+
+  /// No description provided for @summaryRequiredHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{work} of process time plus {changeovers} changeovers worth {changeover}.'**
+  String summaryRequiredHelp(
+    String work,
+    String changeovers,
+    String changeover,
+  );
+
+  /// No description provided for @summaryOccupationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{occupation} = {required} required over {available} available.'**
+  String summaryOccupationHelp(
+    String occupation,
+    String required,
+    String available,
+  );
+
+  /// No description provided for @summaryPaceSetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured at {name}, the busiest station, which has {available} available this period.'**
+  String summaryPaceSetter(String name, String available);
+
+  /// No description provided for @summaryTaktConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured takt'**
+  String get summaryTaktConfigured;
+
+  /// No description provided for @summaryTaktConfiguredHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The takt this line is set to run at, resolved at the pace-setting station.'**
+  String get summaryTaktConfiguredHelp;
+
+  /// No description provided for @summaryTaktRaw.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw demand takt'**
+  String get summaryTaktRaw;
+
+  /// No description provided for @summaryTaktRawHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Available time over {orders} orders due. What a visitor expects.'**
+  String summaryTaktRawHelp(String orders);
+
+  /// No description provided for @summaryTaktAdjusted.
+  ///
+  /// In en, this message translates to:
+  /// **'Equivalent-adjusted demand takt'**
+  String get summaryTaktAdjusted;
+
+  /// No description provided for @summaryTaktAdjustedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Available time over {equivalents} part-equivalents due. What actually matters under a mixed part mix: an order worth two takts of work counts twice.'**
+  String summaryTaktAdjustedHelp(String equivalents);
 
   /// No description provided for @demandParts.
   ///

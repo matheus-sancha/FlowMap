@@ -8,6 +8,8 @@ import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/application/demand_providers.dart';
+import '../../demand/application/demand_table.dart' show demandTargetOf;
+import '../../summary/application/summary_providers.dart';
 import '../application/flow_layout.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
@@ -571,10 +573,16 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : '${step.staffedShiftCount}',
                       ),
-                      // Occupation needs demand to divide into capacity, so it
-                      // stays a dash until M3 rather than showing a zero
-                      // someone might read as "idle".
-                      _DataRow(label: l10n.occupation, value: '—'),
+                      // Required hours over available productive hours for
+                      // the period (§8.1). It comes from the Summary because
+                      // that is the only thing that knows what demand asks of
+                      // this station; a station two steps both visit reports
+                      // the load of both, because it is one machine.
+                      _DataRow(
+                        label: l10n.occupation,
+                        value: _occupation(ref, step),
+                        warning: (_occupationValue(ref, step) ?? 0) > 1,
+                      ),
                     ],
                   ),
                 ),
@@ -584,6 +592,21 @@ class _StepBox extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  double? _occupationValue(WidgetRef ref, FlowStepView step) {
+    final targetId = demandTargetOf(step.node);
+    if (targetId == null) return null;
+    return ref
+        .watch(summaryViewProvider(study.id))
+        ?.occupationByTarget[targetId];
+  }
+
+  String _occupation(WidgetRef ref, FlowStepView step) {
+    final value = _occupationValue(ref, step);
+    // A dash, never a zero: a station nobody has given demand to is not idle,
+    // it is unmeasured, and the two must not look alike.
+    return value == null ? '—' : '${(value * 100).round()}%';
   }
 
   /// What the box is, beyond what it is called: the workcenter's type, or how
@@ -617,14 +640,23 @@ class _StepBox extends ConsumerWidget {
 }
 
 class _DataRow extends StatelessWidget {
-  const _DataRow({required this.label, required this.value});
+  const _DataRow({
+    required this.label,
+    required this.value,
+    this.warning = false,
+  });
 
   final String label;
   final String value;
 
+  /// Colours the value, for the one figure on the box that can be a hard
+  /// constraint: occupation above 100 % (DESIGN.md §8.1).
+  final bool warning;
+
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall;
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
@@ -633,7 +665,15 @@ class _DataRow extends StatelessWidget {
           Flexible(
             child: Text(label, style: style, overflow: TextOverflow.ellipsis),
           ),
-          Text(value, style: style),
+          Text(
+            value,
+            style: warning
+                ? style?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  )
+                : style,
+          ),
         ],
       ),
     );
