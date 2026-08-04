@@ -1224,6 +1224,84 @@ abstract class AppLocalizations {
   /// **'Needed before its material arrives'**
   String get importIssueNeedBeforeMaterial;
 
+  /// No description provided for @fieldNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get fieldNote;
+
+  /// No description provided for @exceptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar exceptions'**
+  String get exceptions;
+
+  /// No description provided for @exceptionNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New exception'**
+  String get exceptionNew;
+
+  /// No description provided for @exceptionsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'None. The plant runs its shift pattern every working day.'**
+  String get exceptionsEmpty;
+
+  /// No description provided for @exceptionsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Holidays, shutdowns and extra hours. The most specific scope wins, so a plant-wide shutdown can be overridden by opening one workcenter that Saturday.'**
+  String get exceptionsHelp;
+
+  /// No description provided for @exceptionKindNonWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get exceptionKindNonWorking;
+
+  /// No description provided for @exceptionKindExtraWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra hours'**
+  String get exceptionKindExtraWorking;
+
+  /// No description provided for @exceptionScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to'**
+  String get exceptionScope;
+
+  /// No description provided for @exceptionScopePlant.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole plant'**
+  String get exceptionScopePlant;
+
+  /// No description provided for @exceptionScopeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A pool can be chosen under Workcenter; it is saved as one exception per member.'**
+  String get exceptionScopeHelp;
+
+  /// No description provided for @exceptionOperatorsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Who is on each shift that day. A zero closes that shift.'**
+  String get exceptionOperatorsHelp;
+
+  /// No description provided for @exceptionDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this exception?'**
+  String get exceptionDeleteTitle;
+
+  /// No description provided for @flowEndpointRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename endpoint'**
+  String get flowEndpointRename;
+
   /// No description provided for @demandParts.
   ///
   /// In en, this message translates to:

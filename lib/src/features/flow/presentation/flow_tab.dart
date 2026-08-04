@@ -6,9 +6,11 @@ import '../../../common/formatters.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
+import '../../../common/dialogs.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/application/demand_providers.dart';
 import '../../demand/application/demand_table.dart' show demandTargetOf;
+import '../../studies/application/studies_providers.dart';
 import '../../summary/application/summary_providers.dart';
 import '../application/flow_layout.dart';
 import '../application/flow_providers.dart';
@@ -250,6 +252,32 @@ class _CanvasState extends ConsumerState<_Canvas> {
     });
   }
 
+  /// Renames one endpoint, leaving the other alone.
+  ///
+  /// `updateStudy` takes both names, so passing only the one that changed would
+  /// null the other — the same shape of bug that left these fields unwritable
+  /// in the first place (§17.5).
+  Future<void> _renameEndpoint(
+    WidgetRef ref, {
+    String? supplier,
+    String? customer,
+    bool supplierGiven = false,
+    bool customerGiven = false,
+  }) {
+    final study = widget.study;
+    return ref
+        .read(studiesRepositoryProvider)
+        .updateStudy(
+          study.id,
+          name: study.name,
+          supplierName: supplierGiven ? supplier : study.supplierName,
+          customerName: customerGiven ? customer : study.customerName,
+          wipCap: study.wipCap,
+          priority: study.priority,
+          notes: study.notes,
+        );
+  }
+
   /// Zooms about the centre of [viewport], keeping what is under it there.
   ///
   /// Rebuilt from the current scale rather than from identity: starting over
@@ -360,10 +388,14 @@ class _CanvasState extends ConsumerState<_Canvas> {
             _Endpoint(
               rect: layout.supplier,
               label: view.study.supplierName ?? l10n.flowSupplier,
+              onRename: (name) =>
+                  _renameEndpoint(ref, supplier: name, supplierGiven: true),
             ),
             _Endpoint(
               rect: layout.customer,
               label: view.study.customerName ?? l10n.flowCustomer,
+              onRename: (name) =>
+                  _renameEndpoint(ref, customer: name, customerGiven: true),
             ),
             for (final placed in layout.nodes)
               Positioned(
@@ -419,32 +451,65 @@ class _CanvasState extends ConsumerState<_Canvas> {
 }
 
 /// Supplier and customer: the same factory symbol, told apart by position.
+///
+/// One writer for both, so the field the caller does not name keeps its value
+/// rather than being nulled by an update that was not about it.
 class _Endpoint extends StatelessWidget {
-  const _Endpoint({required this.rect, required this.label});
+  const _Endpoint({
+    required this.rect,
+    required this.label,
+    required this.onRename,
+  });
 
   final Rect rect;
   final String label;
 
+  /// Naming the real supplier and customer is the whole point of the fields
+  /// (§16.2): they were stored and drawn from M2, and until now nothing could
+  /// write them, so both endpoints always read their defaults.
+  final ValueChanged<String?> onRename;
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return Positioned(
       left: rect.left,
       top: rect.top,
       width: rect.width,
       height: rect.height + 24,
-      child: Column(
-        children: [
-          SizedBox(
-            width: rect.width,
-            height: rect.height,
-            child: CustomPaint(
-              painter: _FactoryPainter(color: theme.colorScheme.onSurface),
-            ),
+      child: Tooltip(
+        message: l10n.flowEndpointRename,
+        child: InkWell(
+          onTap: () async {
+            final name = await promptForName(
+              context,
+              title: l10n.flowEndpointRename,
+              label: l10n.fieldName,
+              initialValue: label,
+            );
+            // An emptied name puts the default back, rather than leaving a
+            // blank factory nobody can click.
+            if (name != null) onRename(name.trim().isEmpty ? null : name.trim());
+          },
+          child: Column(
+            children: [
+              SizedBox(
+                width: rect.width,
+                height: rect.height,
+                child: CustomPaint(
+                  painter: _FactoryPainter(color: theme.colorScheme.onSurface),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(label, style: theme.textTheme.bodySmall),
-        ],
+        ),
       ),
     );
   }

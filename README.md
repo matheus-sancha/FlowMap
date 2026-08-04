@@ -14,7 +14,7 @@ section (`DESIGN.md §7.6`).
 |---|---|---|
 | M1 | Resources, shift patterns, calendar engine | ✅ |
 | M2 | Projects, studies, VSM flow canvas, takt & workcenter schedules, PDF map | ✅ |
-| M3 | Demand grids, Excel import, flow equivalent, MM3, Summary | |
+| M3 | Demand grids, Excel import, flow equivalent, MM3, Summary | ✅ |
 | M4 | Simulation engine, run storage, metrics, bottlenecks | |
 | M5 | Reports, run comparison, templates, drop | |
 

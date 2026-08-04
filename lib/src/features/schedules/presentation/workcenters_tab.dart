@@ -13,6 +13,7 @@ import '../application/schedule_problems.dart';
 import '../application/schedules_providers.dart';
 import '../application/workcenter_schedule.dart';
 import 'date_range_field.dart';
+import 'exceptions_view.dart';
 import 'schedule_issues_banner.dart';
 
 /// Staffing, availability and rework for every workcenter this study's flow
@@ -76,6 +77,14 @@ class WorkcentersTab extends ConsumerWidget {
             workcenter: workcenter,
             shiftLabels: shifts.map((s) => s.label).toList(),
           ),
+        const SizedBox(height: 8),
+        // Beside the schedules they override: the two answer one question —
+        // what is this station open for — and separating them would put the
+        // answer in two places (DESIGN.md §4.3).
+        CalendarExceptionsView(
+          project: project,
+          shiftLabels: shifts.map((s) => s.label).toList(),
+        ),
       ],
     );
   }

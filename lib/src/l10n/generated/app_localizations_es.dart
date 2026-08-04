@@ -660,6 +660,49 @@ class AppLocalizationsEs extends AppLocalizations {
       'Requerida antes de que llegue su material';
 
   @override
+  String get fieldNote => 'Nota';
+
+  @override
+  String get exceptions => 'Excepciones de calendario';
+
+  @override
+  String get exceptionNew => 'Nueva excepción';
+
+  @override
+  String get exceptionsEmpty =>
+      'Ninguna. La planta sigue su patrón de turnos todos los días laborables.';
+
+  @override
+  String get exceptionsHelp =>
+      'Festivos, paradas y horas extra. Gana el alcance más específico, así que una parada de toda la planta puede anularse abriendo un centro de trabajo ese sábado.';
+
+  @override
+  String get exceptionKindNonWorking => 'Cerrado';
+
+  @override
+  String get exceptionKindExtraWorking => 'Horas extra';
+
+  @override
+  String get exceptionScope => 'Se aplica a';
+
+  @override
+  String get exceptionScopePlant => 'Toda la planta';
+
+  @override
+  String get exceptionScopeHelp =>
+      'Se puede elegir un grupo en Centro de trabajo; se guarda como una excepción por miembro.';
+
+  @override
+  String get exceptionOperatorsHelp =>
+      'Quién está en cada turno ese día. Un cero cierra ese turno.';
+
+  @override
+  String get exceptionDeleteTitle => '¿Eliminar esta excepción?';
+
+  @override
+  String get flowEndpointRename => 'Renombrar extremo';
+
+  @override
   String get demandParts => 'Piezas';
 
   @override

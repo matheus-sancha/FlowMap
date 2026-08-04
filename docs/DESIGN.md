@@ -3,7 +3,7 @@
 Why the app behaves the way it does. Cited from code by section number, e.g. `(DESIGN.md §6.4)`.
 Read before changing behaviour; update in the same commit that changes it.
 
-Status: agreed 2026-08-03 in design interview. No code yet.
+Status: agreed 2026-08-03 in design interview. M1–M3 built; §16 tracks what each one settled.
 
 ---
 
@@ -744,7 +744,7 @@ the "must not fall over" ceiling.
 |---|---|
 | **M1** ✅ | Resources, shift patterns, calendar engine + its test suite. Everything downstream is wrong if this is. |
 | **M2** ✅ | Project, studies, flow canvas, takt & workcenter schedules, PDF map export. |
-| **M3** | Demand grids, Excel import, flow equivalent, MM3, Summary/occupation. |
+| **M3** ✅ | Demand grids, Excel import, flow equivalent, MM3, Summary/occupation. |
 | **M4** | Simulation engine, run storage, metrics, bottleneck views. |
 | **M5** | Reports, run comparison, templates & binding, polish, drop. |
 
@@ -863,6 +863,36 @@ Decisions taken while building it:
   after the tree comes down — the test hangs rather than failing. The Demand tab's mounting tests
   override the providers with plain values instead; what the writes do is proved against a real
   in-memory database at the repository level, where there is no `fakeAsync`.
+
+### 16.6 M3 as built
+
+Schema v6, the demand layer, the two data sources that read it, MM3, the Summary, the spreadsheet
+import, and the two things §17.5 listed as built-but-unreachable. 350 tests.
+
+The seam M3 adds is `DemandTable` — the study's parts, the flow's steps as columns, and the times
+between them. Everything downstream reads it: the map's two demand data sources (§6.2), MM3 (§6.3),
+the Summary (§8) and, in M4, the engine.
+
+Decisions taken while building it, beyond §9.1, §9.2, §6.2 and §8.4:
+
+- **Splitting `processTime` from `equivalentProcessTime` closed a provider cycle the long way
+  round.** With the map reading demand to show a real part, `demandTableProvider` could no longer
+  read `flowViewProvider` for its column headers. Both now derive a header from one
+  `flowStepTitle`, so a step renamed on the map still renames its column, and the dependency runs
+  one way: `mm3 → flowView → flowDemand → demandTable`.
+- **`FlowStepView.openInPeriod` is computed where the calendars already are.** Occupation's
+  denominator is a walk of real dates across the whole span, not a working-day count times a daily
+  figure; computing it in `buildFlowView` means the Summary and the process box divide by the same
+  hours by construction.
+- **A pool-scoped calendar exception is expanded to its members on entry.** The schema's scopes are
+  plant, line and workcenter, and a pool is a name for a set of workcenters rather than a fourth
+  kind of place — so the picker offers pools and the repository stores one workcenter-scoped row
+  per member. No migration, and every lookup downstream stays a map hit.
+- **The mounting tests paid for themselves three times.** The Import button pushed the Demand
+  header past the bottom of a short window; the import dialog read localizations in `initState`,
+  which is an assertion failure and a blank grey panel in release; and a Drift stream inside
+  `fakeAsync` leaves timers pending that the binding fails on after the tree comes down, which is
+  why the tab tests override providers with plain values instead.
 
 ---
 
@@ -990,11 +1020,11 @@ next milestone plans them rather than rediscovering them:
 
 | What | State | Wanted by |
 |---|---|---|
-| Calendar exceptions (§4.3) | schema, resolution, calendar assembly, tests | **M3** — "Saturday extra hours on CLAD04" is the commonest capacity lever there is, and it cannot currently be entered |
-| Supplier / Customer names (§16.2) | stored, drawn on canvas and PDF | M3 — the only writer is the rename dialog passing the old value back, so the endpoints always read their defaults |
+| ~~Calendar exceptions (§4.3)~~ | **reached in M3** — entered on the Workcenters tab, beside the schedules they override; a pool is expanded to its members on entry | — |
+| ~~Supplier / Customer names (§16.2)~~ | **reached in M3** — the endpoints on the canvas are clickable, and an emptied name puts the default back | — |
 | The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty |
 | `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
-| `wipCap`, `priority`, `reworkOn`, `effectiveProcessTime` | stored / computed | M4, as planned |
+| `wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn` | stored / computed | M4, as planned. M3 reads availability and rework off the schedule period it has already looked up, so the two `…On(date)` accessors are still waiting for the engine, which walks dates rather than periods |
 
 ---
 

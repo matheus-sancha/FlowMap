@@ -653,6 +653,49 @@ class AppLocalizationsEn extends AppLocalizations {
       'Needed before its material arrives';
 
   @override
+  String get fieldNote => 'Note';
+
+  @override
+  String get exceptions => 'Calendar exceptions';
+
+  @override
+  String get exceptionNew => 'New exception';
+
+  @override
+  String get exceptionsEmpty =>
+      'None. The plant runs its shift pattern every working day.';
+
+  @override
+  String get exceptionsHelp =>
+      'Holidays, shutdowns and extra hours. The most specific scope wins, so a plant-wide shutdown can be overridden by opening one workcenter that Saturday.';
+
+  @override
+  String get exceptionKindNonWorking => 'Closed';
+
+  @override
+  String get exceptionKindExtraWorking => 'Extra hours';
+
+  @override
+  String get exceptionScope => 'Applies to';
+
+  @override
+  String get exceptionScopePlant => 'Whole plant';
+
+  @override
+  String get exceptionScopeHelp =>
+      'A pool can be chosen under Workcenter; it is saved as one exception per member.';
+
+  @override
+  String get exceptionOperatorsHelp =>
+      'Who is on each shift that day. A zero closes that shift.';
+
+  @override
+  String get exceptionDeleteTitle => 'Delete this exception?';
+
+  @override
+  String get flowEndpointRename => 'Rename endpoint';
+
+  @override
   String get demandParts => 'Parts';
 
   @override
