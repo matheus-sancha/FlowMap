@@ -151,6 +151,15 @@ class ProductionLines extends Table {
 /// type is an identity attribute and renames must propagate (DESIGN.md §3).
 class WorkcenterTypes extends Table {
   TextColumn get id => text()();
+
+  /// Which of the icon library's glyphs a workcenter of this type is drawn
+  /// with, stored as a [WorkcenterIcon] name.
+  ///
+  /// **A name, not a codepoint.** Flutter's icon tree-shaking drops every glyph
+  /// the compiler cannot see referenced, so an `IconData` built from a stored
+  /// number is a blank box in release and correct in debug. The enum resolves
+  /// through an exhaustive switch, which the compiler does see.
+  TextColumn get icon => textEnum<WorkcenterIcon>().nullable()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
   BoolColumn get isBuiltIn => boolean().withDefault(const Constant(false))();
   DateTimeColumn get archivedAt => dateTime().nullable()();

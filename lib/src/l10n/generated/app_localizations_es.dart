@@ -165,6 +165,85 @@ class AppLocalizationsEs extends AppLocalizations {
       'Esto elimina el centro de trabajo de la planta, no solo de esta línea. Sus horarios se van con él.';
 
   @override
+  String get workcenterTypeIcon => 'Icono';
+
+  @override
+  String get workcenterTypeIconHelp =>
+      'Los centros de trabajo de este tipo se dibujan con él, en el árbol y en los selectores.';
+
+  @override
+  String get workcenterTypeNone => 'Sin icono';
+
+  @override
+  String get workcenterTypeEdit => 'Tipo de centro de trabajo';
+
+  @override
+  String get iconMachining => 'Mecanizado';
+
+  @override
+  String get iconLathe => 'Torno';
+
+  @override
+  String get iconMilling => 'Fresado';
+
+  @override
+  String get iconDrilling => 'Taladrado';
+
+  @override
+  String get iconGrinding => 'Rectificado';
+
+  @override
+  String get iconCutting => 'Corte';
+
+  @override
+  String get iconBending => 'Plegado';
+
+  @override
+  String get iconPress => 'Prensa';
+
+  @override
+  String get iconWelding => 'Soldadura';
+
+  @override
+  String get iconCladding => 'Recubrimiento';
+
+  @override
+  String get iconHeatTreatment => 'Tratamiento térmico';
+
+  @override
+  String get iconCoating => 'Capa';
+
+  @override
+  String get iconPainting => 'Pintura';
+
+  @override
+  String get iconCleaning => 'Limpieza';
+
+  @override
+  String get iconAssembly => 'Montaje';
+
+  @override
+  String get iconRobot => 'Robot';
+
+  @override
+  String get iconConveyor => 'Transportador';
+
+  @override
+  String get iconInspection => 'Inspección';
+
+  @override
+  String get iconTesting => 'Ensayo';
+
+  @override
+  String get iconMeasuring => 'Medición';
+
+  @override
+  String get iconPacking => 'Embalaje';
+
+  @override
+  String get iconStorage => 'Almacén';
+
+  @override
   String get workcenterPool => 'Pool de centros de trabajo';
 
   @override
@@ -410,6 +489,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get studyExcludeFromSimulation => 'Excluir de la simulación';
+
+  @override
+  String get studiesCollapse => 'Ocultar la lista de estudios';
+
+  @override
+  String get studiesExpand => 'Mostrar la lista de estudios';
 
   @override
   String get studyTabFlow => 'Flujo';

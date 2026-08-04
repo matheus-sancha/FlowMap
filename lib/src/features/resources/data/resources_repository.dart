@@ -382,7 +382,10 @@ class ResourcesRepository {
     return query.watch();
   }
 
-  Future<String> createWorkcenterType(String name) async {
+  Future<String> createWorkcenterType(
+    String name, {
+    WorkcenterIcon? icon,
+  }) async {
     final id = newId();
     await _db
         .into(_db.workcenterTypes)
@@ -395,6 +398,14 @@ class ResourcesRepository {
         );
     return id;
   }
+
+  Future<void> updateWorkcenterType(
+    String id, {
+    required String name,
+    WorkcenterIcon? icon,
+  }) => (_db.update(_db.workcenterTypes)..where((t) => t.id.equals(id))).write(
+    WorkcenterTypesCompanion(name: Value(name), icon: Value(icon)),
+  );
 
   Future<void> renameWorkcenterType(String id, String name) =>
       (_db.update(_db.workcenterTypes)..where((t) => t.id.equals(id))).write(

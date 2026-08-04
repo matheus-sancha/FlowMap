@@ -7,6 +7,51 @@ library;
 import 'enums.dart';
 
 /// The workcenter types from the spec. Users add their own.
+/// A guess at the icon for a type the user has just named, so the seeds and
+/// most hand-typed names arrive with a sensible glyph rather than a blank.
+///
+/// Matched on the name as typed, in English, because that is what the seeds are
+/// and what a shop-floor picklist is written in. A wrong guess costs one click
+/// in the picker; no guess costs a click for every type anyone ever creates.
+WorkcenterIcon? guessWorkcenterIcon(String typeName) {
+  final name = typeName.toLowerCase();
+  for (final entry in _iconGuesses.entries) {
+    if (name.contains(entry.key)) return entry.value;
+  }
+  return null;
+}
+
+const _iconGuesses = <String, WorkcenterIcon>{
+  'lathe': WorkcenterIcon.lathe,
+  'turn': WorkcenterIcon.lathe,
+  'mill': WorkcenterIcon.milling,
+  'drill': WorkcenterIcon.drilling,
+  'grind': WorkcenterIcon.grinding,
+  'cut': WorkcenterIcon.cutting,
+  'saw': WorkcenterIcon.cutting,
+  'bend': WorkcenterIcon.bending,
+  'press': WorkcenterIcon.press,
+  'stamp': WorkcenterIcon.press,
+  'weld': WorkcenterIcon.welding,
+  'clad': WorkcenterIcon.cladding,
+  'heat': WorkcenterIcon.heatTreatment,
+  'furnace': WorkcenterIcon.heatTreatment,
+  'oven': WorkcenterIcon.heatTreatment,
+  'coat': WorkcenterIcon.coating,
+  'paint': WorkcenterIcon.painting,
+  'clean': WorkcenterIcon.cleaning,
+  'wash': WorkcenterIcon.cleaning,
+  'assembl': WorkcenterIcon.assembly,
+  'robot': WorkcenterIcon.robot,
+  'conveyor': WorkcenterIcon.conveyor,
+  'inspect': WorkcenterIcon.inspection,
+  'test': WorkcenterIcon.testing,
+  'measur': WorkcenterIcon.measuring,
+  'pack': WorkcenterIcon.packing,
+  'stor': WorkcenterIcon.storage,
+  'machin': WorkcenterIcon.machining,
+};
+
 const workcenterTypeSeeds = <String>[
   'Machining',
   'Cladding',

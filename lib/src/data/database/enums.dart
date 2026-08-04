@@ -15,6 +15,38 @@ enum ShiftCycleType {
   rotating,
 }
 
+/// Which glyph a workcenter type is drawn with (DESIGN.md §12.1).
+///
+/// **Stored as a name, never as a codepoint.** Flutter's icon tree-shaking
+/// removes every glyph the compiler cannot see referenced, so an `IconData`
+/// built from a stored number renders as a blank box in a release build and
+/// looks perfect in debug. `workcenterIconGlyph` resolves this through an
+/// exhaustive switch of constants, which the compiler does see.
+enum WorkcenterIcon {
+  machining,
+  lathe,
+  milling,
+  drilling,
+  grinding,
+  cutting,
+  bending,
+  press,
+  welding,
+  cladding,
+  heatTreatment,
+  coating,
+  painting,
+  cleaning,
+  assembly,
+  robot,
+  conveyor,
+  inspection,
+  testing,
+  measuring,
+  packing,
+  storage,
+}
+
 /// What a calendar exception does to a day (DESIGN.md §4.3).
 enum CalendarExceptionKind {
   /// Holiday or shutdown: the day is closed.

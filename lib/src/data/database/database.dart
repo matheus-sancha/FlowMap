@@ -64,7 +64,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -171,6 +171,12 @@ class AppDatabase extends _$AppDatabase {
         });
       }
 
+      if (from < 8) {
+        // A workcenter type carries an icon. Additive and nullable, so a type
+        // created before this simply draws the default.
+        await m.addColumn(workcenterTypes, workcenterTypes.icon);
+      }
+
       // Reference-data seeding runs outside every version guard, on every
       // upgrade, so content added to a later build reaches the people
       // already running the app — who are exactly who it is for.
@@ -191,6 +197,28 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 
+  /// Gives an icon to any type that has none — the nine seeds on an install
+  /// that predates icons, and anything the user named before them.
+  ///
+  /// Runs with the seeding below rather than in the v8 migration step, so it
+  /// also reaches a type created between builds. Only ever fills a blank; a
+  /// glyph the user picked is never overwritten.
+  Future<void> _guessMissingTypeIcons() async {
+    final blank = await (select(
+      workcenterTypes,
+    )..where((t) => t.icon.isNull())).get();
+
+    for (final type in blank) {
+      final guess = guessWorkcenterIcon(type.name);
+      if (guess == null) continue;
+      await (update(
+        workcenterTypes,
+      )..where((t) => t.id.equals(type.id))).write(
+        WorkcenterTypesCompanion(icon: Value(guess)),
+      );
+    }
+  }
+
   /// Inserts starter workcenter types and shift patterns if they have never
   /// been offered, or if the tables are empty.
   ///
@@ -210,6 +238,7 @@ class AppDatabase extends _$AppDatabase {
     final neverSeeded = stamp == null;
     if (neverSeeded || typesEmpty) await _seedWorkcenterTypes();
     if (neverSeeded || patternsEmpty) await _seedShiftPatterns();
+    await _guessMissingTypeIcons();
 
     // Written even when nothing was seeded above: otherwise emptying a table
     // later would read as "never offered" and silently refill it.
@@ -235,6 +264,9 @@ class AppDatabase extends _$AppDatabase {
             id: _uuid.v4(),
             name: name,
             isBuiltIn: const Value(true),
+            // The seeds are named in English, which is what the guesser reads,
+            // so all nine arrive with the right glyph rather than a default.
+            icon: Value(guessWorkcenterIcon(name)),
             createdAt: now,
           ),
         );

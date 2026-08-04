@@ -686,6 +686,17 @@ Opening a project gives a workspace with a studies sidebar and, per study, tabs
 run spans studies. Resources uses a hierarchical tree (Plant → Cells → Lines → Workcenters, plus
 Pools and Shift Patterns). All routes deep-linkable via go_router.
 
+**A workcenter type carries an icon** from a fixed library, and workcenters are drawn with their
+type's glyph in the tree and the pickers — a lathe and a furnace told apart at a glance in a list of
+fifty. Stored as an **enum name, never a codepoint**: Flutter's icon tree-shaking removes every
+glyph the compiler cannot see referenced, so an `IconData` built from a stored number is a blank box
+in release and correct in debug. `workcenterIconGlyph` is an exhaustive switch of `const Icons.*`,
+which the compiler does see, and which cannot gain a member without gaining a glyph. Naming a type
+guesses its icon until the user picks one by hand.
+
+**The studies sidebar collapses.** A property of the window rather than of the project, so it is
+held in the screen's state and does not follow the user to another machine.
+
 ### 12.2 Canvas
 
 Each node is a real Flutter widget positioned by the layout engine in a `Stack`; connectors, the
@@ -693,6 +704,11 @@ sawtooth lead-time ladder and the VSM symbol shapes are `CustomPaint`. `Interact
 pan, zoom, fit-to-width and the % readout. Hit testing, hover, tooltips, focus and keyboard
 navigation come free from the widget layer. A **separate renderer** draws the same layout model
 into the `pdf` package, so exports are vector and text-selectable rather than screenshots.
+
+**Material flow between nodes is a push arrow**, not a hairline: a striped shaft that spans the
+whole gap, with a barbed head. That is the VSM convention for material that is pushed rather than
+pulled, and it is what `drawPushArrow` has always been named for — the first implementation drew a
+plain line under a doc comment promising the shaft.
 
 ### 12.3 Undo
 

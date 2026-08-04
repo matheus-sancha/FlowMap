@@ -2449,6 +2449,15 @@ class $WorkcenterTypesTable extends WorkcenterTypes
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<WorkcenterIcon?, String> icon =
+      GeneratedColumn<String>(
+        'icon',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<WorkcenterIcon?>($WorkcenterTypesTable.$convertericonn);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -2502,6 +2511,7 @@ class $WorkcenterTypesTable extends WorkcenterTypes
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    icon,
     name,
     isBuiltIn,
     archivedAt,
@@ -2569,6 +2579,12 @@ class $WorkcenterTypesTable extends WorkcenterTypes
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      icon: $WorkcenterTypesTable.$convertericonn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}icon'],
+        ),
+      ),
       name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name'],
@@ -2592,16 +2608,31 @@ class $WorkcenterTypesTable extends WorkcenterTypes
   $WorkcenterTypesTable createAlias(String alias) {
     return $WorkcenterTypesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<WorkcenterIcon, String, String> $convertericon =
+      const EnumNameConverter<WorkcenterIcon>(WorkcenterIcon.values);
+  static JsonTypeConverter2<WorkcenterIcon?, String?, String?> $convertericonn =
+      JsonTypeConverter2.asNullable($convertericon);
 }
 
 class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   final String id;
+
+  /// Which of the icon library's glyphs a workcenter of this type is drawn
+  /// with, stored as a [WorkcenterIcon] name.
+  ///
+  /// **A name, not a codepoint.** Flutter's icon tree-shaking drops every glyph
+  /// the compiler cannot see referenced, so an `IconData` built from a stored
+  /// number is a blank box in release and correct in debug. The enum resolves
+  /// through an exhaustive switch, which the compiler does see.
+  final WorkcenterIcon? icon;
   final String name;
   final bool isBuiltIn;
   final DateTime? archivedAt;
   final DateTime createdAt;
   const WorkcenterType({
     required this.id,
+    this.icon,
     required this.name,
     required this.isBuiltIn,
     this.archivedAt,
@@ -2611,6 +2642,11 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || icon != null) {
+      map['icon'] = Variable<String>(
+        $WorkcenterTypesTable.$convertericonn.toSql(icon),
+      );
+    }
     map['name'] = Variable<String>(name);
     map['is_built_in'] = Variable<bool>(isBuiltIn);
     if (!nullToAbsent || archivedAt != null) {
@@ -2623,6 +2659,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   WorkcenterTypesCompanion toCompanion(bool nullToAbsent) {
     return WorkcenterTypesCompanion(
       id: Value(id),
+      icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
       name: Value(name),
       isBuiltIn: Value(isBuiltIn),
       archivedAt: archivedAt == null && nullToAbsent
@@ -2639,6 +2676,9 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return WorkcenterType(
       id: serializer.fromJson<String>(json['id']),
+      icon: $WorkcenterTypesTable.$convertericonn.fromJson(
+        serializer.fromJson<String?>(json['icon']),
+      ),
       name: serializer.fromJson<String>(json['name']),
       isBuiltIn: serializer.fromJson<bool>(json['isBuiltIn']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
@@ -2650,6 +2690,9 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'icon': serializer.toJson<String?>(
+        $WorkcenterTypesTable.$convertericonn.toJson(icon),
+      ),
       'name': serializer.toJson<String>(name),
       'isBuiltIn': serializer.toJson<bool>(isBuiltIn),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
@@ -2659,12 +2702,14 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
 
   WorkcenterType copyWith({
     String? id,
+    Value<WorkcenterIcon?> icon = const Value.absent(),
     String? name,
     bool? isBuiltIn,
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
   }) => WorkcenterType(
     id: id ?? this.id,
+    icon: icon.present ? icon.value : this.icon,
     name: name ?? this.name,
     isBuiltIn: isBuiltIn ?? this.isBuiltIn,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
@@ -2673,6 +2718,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   WorkcenterType copyWithCompanion(WorkcenterTypesCompanion data) {
     return WorkcenterType(
       id: data.id.present ? data.id.value : this.id,
+      icon: data.icon.present ? data.icon.value : this.icon,
       name: data.name.present ? data.name.value : this.name,
       isBuiltIn: data.isBuiltIn.present ? data.isBuiltIn.value : this.isBuiltIn,
       archivedAt: data.archivedAt.present
@@ -2686,6 +2732,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   String toString() {
     return (StringBuffer('WorkcenterType(')
           ..write('id: $id, ')
+          ..write('icon: $icon, ')
           ..write('name: $name, ')
           ..write('isBuiltIn: $isBuiltIn, ')
           ..write('archivedAt: $archivedAt, ')
@@ -2695,12 +2742,14 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, isBuiltIn, archivedAt, createdAt);
+  int get hashCode =>
+      Object.hash(id, icon, name, isBuiltIn, archivedAt, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is WorkcenterType &&
           other.id == this.id &&
+          other.icon == this.icon &&
           other.name == this.name &&
           other.isBuiltIn == this.isBuiltIn &&
           other.archivedAt == this.archivedAt &&
@@ -2709,6 +2758,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
 
 class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   final Value<String> id;
+  final Value<WorkcenterIcon?> icon;
   final Value<String> name;
   final Value<bool> isBuiltIn;
   final Value<DateTime?> archivedAt;
@@ -2716,6 +2766,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   final Value<int> rowid;
   const WorkcenterTypesCompanion({
     this.id = const Value.absent(),
+    this.icon = const Value.absent(),
     this.name = const Value.absent(),
     this.isBuiltIn = const Value.absent(),
     this.archivedAt = const Value.absent(),
@@ -2724,6 +2775,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   });
   WorkcenterTypesCompanion.insert({
     required String id,
+    this.icon = const Value.absent(),
     required String name,
     this.isBuiltIn = const Value.absent(),
     this.archivedAt = const Value.absent(),
@@ -2734,6 +2786,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
        createdAt = Value(createdAt);
   static Insertable<WorkcenterType> custom({
     Expression<String>? id,
+    Expression<String>? icon,
     Expression<String>? name,
     Expression<bool>? isBuiltIn,
     Expression<DateTime>? archivedAt,
@@ -2742,6 +2795,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (icon != null) 'icon': icon,
       if (name != null) 'name': name,
       if (isBuiltIn != null) 'is_built_in': isBuiltIn,
       if (archivedAt != null) 'archived_at': archivedAt,
@@ -2752,6 +2806,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
 
   WorkcenterTypesCompanion copyWith({
     Value<String>? id,
+    Value<WorkcenterIcon?>? icon,
     Value<String>? name,
     Value<bool>? isBuiltIn,
     Value<DateTime?>? archivedAt,
@@ -2760,6 +2815,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   }) {
     return WorkcenterTypesCompanion(
       id: id ?? this.id,
+      icon: icon ?? this.icon,
       name: name ?? this.name,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
       archivedAt: archivedAt ?? this.archivedAt,
@@ -2773,6 +2829,11 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(
+        $WorkcenterTypesTable.$convertericonn.toSql(icon.value),
+      );
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -2796,6 +2857,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   String toString() {
     return (StringBuffer('WorkcenterTypesCompanion(')
           ..write('id: $id, ')
+          ..write('icon: $icon, ')
           ..write('name: $name, ')
           ..write('isBuiltIn: $isBuiltIn, ')
           ..write('archivedAt: $archivedAt, ')
@@ -13744,6 +13806,7 @@ typedef $$ProductionLinesTableProcessedTableManager =
 typedef $$WorkcenterTypesTableCreateCompanionBuilder =
     WorkcenterTypesCompanion Function({
       required String id,
+      Value<WorkcenterIcon?> icon,
       required String name,
       Value<bool> isBuiltIn,
       Value<DateTime?> archivedAt,
@@ -13753,6 +13816,7 @@ typedef $$WorkcenterTypesTableCreateCompanionBuilder =
 typedef $$WorkcenterTypesTableUpdateCompanionBuilder =
     WorkcenterTypesCompanion Function({
       Value<String> id,
+      Value<WorkcenterIcon?> icon,
       Value<String> name,
       Value<bool> isBuiltIn,
       Value<DateTime?> archivedAt,
@@ -13800,6 +13864,12 @@ class $$WorkcenterTypesTableFilterComposer
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<WorkcenterIcon?, WorkcenterIcon, String>
+  get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get name => $composableBuilder(
@@ -13862,6 +13932,11 @@ class $$WorkcenterTypesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
@@ -13894,6 +13969,9 @@ class $$WorkcenterTypesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<WorkcenterIcon?, String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -13966,6 +14044,7 @@ class $$WorkcenterTypesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<WorkcenterIcon?> icon = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<bool> isBuiltIn = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
@@ -13973,6 +14052,7 @@ class $$WorkcenterTypesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => WorkcenterTypesCompanion(
                 id: id,
+                icon: icon,
                 name: name,
                 isBuiltIn: isBuiltIn,
                 archivedAt: archivedAt,
@@ -13982,6 +14062,7 @@ class $$WorkcenterTypesTableTableManager
           createCompanionCallback:
               ({
                 required String id,
+                Value<WorkcenterIcon?> icon = const Value.absent(),
                 required String name,
                 Value<bool> isBuiltIn = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
@@ -13989,6 +14070,7 @@ class $$WorkcenterTypesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => WorkcenterTypesCompanion.insert(
                 id: id,
+                icon: icon,
                 name: name,
                 isBuiltIn: isBuiltIn,
                 archivedAt: archivedAt,

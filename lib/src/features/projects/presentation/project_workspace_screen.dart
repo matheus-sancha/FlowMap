@@ -20,7 +20,7 @@ import '../application/projects_providers.dart';
 ///
 /// Simulation is a project-level tab rather than a study one, because a run
 /// spans studies (§7.7) — it arrives in M4.
-class ProjectWorkspaceScreen extends ConsumerWidget {
+class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   const ProjectWorkspaceScreen({
     super.key,
     required this.projectId,
@@ -31,7 +31,22 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
   final String? studyId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProjectWorkspaceScreen> createState() =>
+      _ProjectWorkspaceScreenState();
+}
+
+class _ProjectWorkspaceScreenState
+    extends ConsumerState<ProjectWorkspaceScreen> {
+  /// Collapsed to a rail, so the canvas gets the width on a laptop screen.
+  ///
+  /// Held here rather than in a provider: it is a property of this window, not
+  /// of the project, and it should not follow the user to another machine.
+  bool _sidebarCollapsed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final projectId = widget.projectId;
+    final studyId = widget.studyId;
     final l10n = AppLocalizations.of(context);
     final project = ref.watch(projectProvider(projectId));
     final studies = ref.watch(studiesProvider(projectId));
@@ -63,15 +78,39 @@ class ProjectWorkspaceScreen extends ConsumerWidget {
               onPressed: () => context.go('/projects'),
             ),
             title: Text(project.name),
+            actions: [
+              IconButton(
+                tooltip: _sidebarCollapsed
+                    ? l10n.studiesExpand
+                    : l10n.studiesCollapse,
+                icon: Icon(
+                  _sidebarCollapsed
+                      ? Icons.chevron_right
+                      : Icons.chevron_left,
+                ),
+                onPressed: () => setState(
+                  () => _sidebarCollapsed = !_sidebarCollapsed,
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
           body: Row(
             children: [
-              SizedBox(
-                width: 280,
-                child: _StudiesSidebar(
-                  project: project,
-                  studies: studyList,
-                  selectedId: selected?.id,
+              // Animated rather than snapped: a pane that vanishes leaves the
+              // reader hunting for what moved.
+              AnimatedSize(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                child: SizedBox(
+                  width: _sidebarCollapsed ? 0 : 280,
+                  child: _sidebarCollapsed
+                      ? const SizedBox.shrink()
+                      : _StudiesSidebar(
+                          project: project,
+                          studies: studyList,
+                          selectedId: selected?.id,
+                        ),
                 ),
               ),
               const VerticalDivider(width: 1),

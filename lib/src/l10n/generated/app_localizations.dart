@@ -394,6 +394,162 @@ abstract class AppLocalizations {
   /// **'This removes the workcenter from the plant, not just from this line. Its schedules go with it.'**
   String get workcenterDeleteBody;
 
+  /// No description provided for @workcenterTypeIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get workcenterTypeIcon;
+
+  /// No description provided for @workcenterTypeIconHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenters of this type are drawn with it, in the tree and in the pickers.'**
+  String get workcenterTypeIconHelp;
+
+  /// No description provided for @workcenterTypeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No icon'**
+  String get workcenterTypeNone;
+
+  /// No description provided for @workcenterTypeEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter type'**
+  String get workcenterTypeEdit;
+
+  /// No description provided for @iconMachining.
+  ///
+  /// In en, this message translates to:
+  /// **'Machining'**
+  String get iconMachining;
+
+  /// No description provided for @iconLathe.
+  ///
+  /// In en, this message translates to:
+  /// **'Lathe'**
+  String get iconLathe;
+
+  /// No description provided for @iconMilling.
+  ///
+  /// In en, this message translates to:
+  /// **'Milling'**
+  String get iconMilling;
+
+  /// No description provided for @iconDrilling.
+  ///
+  /// In en, this message translates to:
+  /// **'Drilling'**
+  String get iconDrilling;
+
+  /// No description provided for @iconGrinding.
+  ///
+  /// In en, this message translates to:
+  /// **'Grinding'**
+  String get iconGrinding;
+
+  /// No description provided for @iconCutting.
+  ///
+  /// In en, this message translates to:
+  /// **'Cutting'**
+  String get iconCutting;
+
+  /// No description provided for @iconBending.
+  ///
+  /// In en, this message translates to:
+  /// **'Bending'**
+  String get iconBending;
+
+  /// No description provided for @iconPress.
+  ///
+  /// In en, this message translates to:
+  /// **'Press'**
+  String get iconPress;
+
+  /// No description provided for @iconWelding.
+  ///
+  /// In en, this message translates to:
+  /// **'Welding'**
+  String get iconWelding;
+
+  /// No description provided for @iconCladding.
+  ///
+  /// In en, this message translates to:
+  /// **'Cladding'**
+  String get iconCladding;
+
+  /// No description provided for @iconHeatTreatment.
+  ///
+  /// In en, this message translates to:
+  /// **'Heat treatment'**
+  String get iconHeatTreatment;
+
+  /// No description provided for @iconCoating.
+  ///
+  /// In en, this message translates to:
+  /// **'Coating'**
+  String get iconCoating;
+
+  /// No description provided for @iconPainting.
+  ///
+  /// In en, this message translates to:
+  /// **'Painting'**
+  String get iconPainting;
+
+  /// No description provided for @iconCleaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning'**
+  String get iconCleaning;
+
+  /// No description provided for @iconAssembly.
+  ///
+  /// In en, this message translates to:
+  /// **'Assembly'**
+  String get iconAssembly;
+
+  /// No description provided for @iconRobot.
+  ///
+  /// In en, this message translates to:
+  /// **'Robot'**
+  String get iconRobot;
+
+  /// No description provided for @iconConveyor.
+  ///
+  /// In en, this message translates to:
+  /// **'Conveyor'**
+  String get iconConveyor;
+
+  /// No description provided for @iconInspection.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspection'**
+  String get iconInspection;
+
+  /// No description provided for @iconTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing'**
+  String get iconTesting;
+
+  /// No description provided for @iconMeasuring.
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring'**
+  String get iconMeasuring;
+
+  /// No description provided for @iconPacking.
+  ///
+  /// In en, this message translates to:
+  /// **'Packing'**
+  String get iconPacking;
+
+  /// No description provided for @iconStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get iconStorage;
+
   /// No description provided for @workcenterPool.
   ///
   /// In en, this message translates to:
@@ -831,6 +987,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exclude from simulation'**
   String get studyExcludeFromSimulation;
+
+  /// No description provided for @studiesCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the studies list'**
+  String get studiesCollapse;
+
+  /// No description provided for @studiesExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the studies list'**
+  String get studiesExpand;
 
   /// No description provided for @studyTabFlow.
   ///

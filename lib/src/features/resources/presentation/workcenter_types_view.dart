@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/dialogs.dart';
 import '../../../common/resource_row_menu.dart';
+import '../../../common/workcenter_icons.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/resources_providers.dart';
+import 'workcenter_type_editor.dart';
 
 /// The editable workcenter type picklist. Seeded with the spec's nine types;
 /// the user adds their own.
@@ -25,7 +27,11 @@ class WorkcenterTypesView extends ConsumerWidget {
         children: [
           for (final type in types)
             ListTile(
-              leading: const Icon(Icons.category_outlined),
+              leading: Icon(
+                type.icon == null
+                    ? Icons.category_outlined
+                    : workcenterIconGlyph(type.icon!),
+              ),
               title: ResourceTitle(
                 text: type.name,
                 isArchived: type.archivedAt != null,
@@ -34,21 +40,21 @@ class WorkcenterTypesView extends ConsumerWidget {
                 onSelected: (action) async {
                   switch (action) {
                     case 'rename':
-                      final taken = types
-                          .where((t) => t.id != type.id)
-                          .map((t) => t.name.toLowerCase())
-                          .toSet();
-                      final name = await promptForName(
+                      final draft = await showWorkcenterTypeEditor(
                         context,
-                        title: l10n.actionRename,
-                        label: l10n.fieldName,
-                        initialValue: type.name,
-                        validate: (value) => taken.contains(value.toLowerCase())
-                            ? l10n.validationNameTaken
-                            : null,
+                        takenNames: types
+                            .where((t) => t.id != type.id)
+                            .map((t) => t.name.toLowerCase())
+                            .toSet(),
+                        initialName: type.name,
+                        initialIcon: type.icon,
                       );
-                      if (name != null) {
-                        await repository.renameWorkcenterType(type.id, name);
+                      if (draft != null) {
+                        await repository.updateWorkcenterType(
+                          type.id,
+                          name: draft.name,
+                          icon: draft.icon,
+                        );
                       }
                     case 'archive':
                       await repository.setWorkcenterTypeArchived(
@@ -74,7 +80,7 @@ class WorkcenterTypesView extends ConsumerWidget {
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: 'rename',
-                    child: Text(l10n.actionRename),
+                    child: Text(l10n.actionEdit),
                   ),
                   PopupMenuItem(
                     value: 'archive',
@@ -97,17 +103,15 @@ class WorkcenterTypesView extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final taken = types.map((t) => t.name.toLowerCase()).toSet();
-                  final name = await promptForName(
+                  final draft = await showWorkcenterTypeEditor(
                     context,
-                    title: l10n.workcenterTypeNew,
-                    label: l10n.fieldName,
-                    validate: (value) => taken.contains(value.toLowerCase())
-                        ? l10n.validationNameTaken
-                        : null,
+                    takenNames: types.map((t) => t.name.toLowerCase()).toSet(),
                   );
-                  if (name != null) {
-                    await repository.createWorkcenterType(name);
+                  if (draft != null) {
+                    await repository.createWorkcenterType(
+                      draft.name,
+                      icon: draft.icon,
+                    );
                   }
                 },
                 icon: const Icon(Icons.add),

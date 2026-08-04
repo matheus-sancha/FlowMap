@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/dialogs.dart';
 import '../../../common/resource_row_menu.dart';
+import '../../../common/workcenter_icons.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/resources_providers.dart';
@@ -433,7 +434,13 @@ class _WorkcenterTile extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 32),
       child: ListTile(
-        leading: const Icon(Icons.precision_manufacturing_outlined),
+        // The type's own glyph, so a lathe and a furnace are told apart at a
+        // glance in a tree of fifty rows.
+        leading: Icon(
+          type?.icon == null
+              ? fallbackWorkcenterIcon
+              : workcenterIconGlyph(type!.icon!),
+        ),
         title: ResourceTitle(
           text: workcenter.name,
           isArchived: workcenter.archivedAt != null,

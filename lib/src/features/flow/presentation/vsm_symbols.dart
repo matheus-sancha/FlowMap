@@ -46,32 +46,71 @@ abstract final class VsmSymbols {
       ..close();
   }
 
-  /// A push arrow: the striped shaft of a material flow that is not pulled.
-  static void drawArrow(
+  /// A **push arrow**: the striped shaft of a material flow that is not pulled.
+  ///
+  /// Drawn as a shaft that spans the whole gap between two nodes rather than a
+  /// thin line with a head. That is the VSM convention — material being pushed
+  /// downstream is a substantial thing on the map, not a hairline — and it is
+  /// what this method's name has always claimed to draw.
+  ///
+  /// Horizontal only, which the spine always is (DESIGN.md §5.1). Taking the
+  /// general case would mean rotating the stripes for no drawing this app makes.
+  static void drawPushArrow(
     Canvas canvas,
     Offset from,
-    Offset to,
-    Paint paint, {
-    double headSize = 7,
+    Offset to, {
+    required Color color,
+    double thickness = 11,
+    double headLength = 13,
   }) {
-    canvas.drawLine(from, to, paint);
-    final direction = (to - from).direction;
-    final head = Path()
-      ..moveTo(to.dx, to.dy)
-      ..lineTo(
-        to.dx - headSize * 1.6 * _cos(direction - 0.4),
-        to.dy - headSize * 1.6 * _sin(direction - 0.4),
-      )
-      ..lineTo(
-        to.dx - headSize * 1.6 * _cos(direction + 0.4),
-        to.dy - headSize * 1.6 * _sin(direction + 0.4),
-      )
+    final span = to.dx - from.dx;
+    if (span <= 1) return;
+
+    // A gap narrower than the head is all head: better a small arrowhead than
+    // a shaft folded back on itself.
+    final head = math.min(headLength, span);
+    final shaftRight = to.dx - head;
+    final half = thickness / 2;
+    final barb = thickness * 0.42;
+
+    final outline = Path()
+      ..moveTo(from.dx, from.dy - half)
+      ..lineTo(shaftRight, from.dy - half)
+      ..lineTo(shaftRight, from.dy - half - barb)
+      ..lineTo(to.dx, from.dy)
+      ..lineTo(shaftRight, from.dy + half + barb)
+      ..lineTo(shaftRight, from.dy + half)
+      ..lineTo(from.dx, from.dy + half)
       ..close();
-    canvas.drawPath(head, Paint()..color = paint.color);
+
+    canvas.drawPath(
+      outline,
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.1
+        ..style = PaintingStyle.stroke,
+    );
+
+    if (shaftRight <= from.dx) return;
+
+    // The stripes, clipped to the shaft so none of them escapes into the head.
+    canvas.save();
+    canvas.clipRect(
+      Rect.fromLTRB(from.dx, from.dy - half, shaftRight, from.dy + half),
+    );
+    final stripe = Paint()
+      ..color = color.withValues(alpha: 0.45)
+      ..strokeWidth = 1;
+    for (var x = from.dx; x < shaftRight + thickness; x += 7) {
+      canvas.drawLine(
+        Offset(x, from.dy + half),
+        Offset(x - thickness, from.dy - half),
+        stripe,
+      );
+    }
+    canvas.restore();
   }
 
-  static double _cos(double radians) => math.cos(radians);
-  static double _sin(double radians) => math.sin(radians);
 }
 
 /// Draws the arrows and the lead-time ladder behind the node widgets.
@@ -88,12 +127,8 @@ class FlowConnectionsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
     for (final (from, to) in segments) {
-      VsmSymbols.drawArrow(canvas, from, to, paint);
+      VsmSymbols.drawPushArrow(canvas, from, to, color: color);
     }
   }
 

@@ -164,6 +164,85 @@ class AppLocalizationsEn extends AppLocalizations {
       'This removes the workcenter from the plant, not just from this line. Its schedules go with it.';
 
   @override
+  String get workcenterTypeIcon => 'Icon';
+
+  @override
+  String get workcenterTypeIconHelp =>
+      'Workcenters of this type are drawn with it, in the tree and in the pickers.';
+
+  @override
+  String get workcenterTypeNone => 'No icon';
+
+  @override
+  String get workcenterTypeEdit => 'Workcenter type';
+
+  @override
+  String get iconMachining => 'Machining';
+
+  @override
+  String get iconLathe => 'Lathe';
+
+  @override
+  String get iconMilling => 'Milling';
+
+  @override
+  String get iconDrilling => 'Drilling';
+
+  @override
+  String get iconGrinding => 'Grinding';
+
+  @override
+  String get iconCutting => 'Cutting';
+
+  @override
+  String get iconBending => 'Bending';
+
+  @override
+  String get iconPress => 'Press';
+
+  @override
+  String get iconWelding => 'Welding';
+
+  @override
+  String get iconCladding => 'Cladding';
+
+  @override
+  String get iconHeatTreatment => 'Heat treatment';
+
+  @override
+  String get iconCoating => 'Coating';
+
+  @override
+  String get iconPainting => 'Painting';
+
+  @override
+  String get iconCleaning => 'Cleaning';
+
+  @override
+  String get iconAssembly => 'Assembly';
+
+  @override
+  String get iconRobot => 'Robot';
+
+  @override
+  String get iconConveyor => 'Conveyor';
+
+  @override
+  String get iconInspection => 'Inspection';
+
+  @override
+  String get iconTesting => 'Testing';
+
+  @override
+  String get iconMeasuring => 'Measuring';
+
+  @override
+  String get iconPacking => 'Packing';
+
+  @override
+  String get iconStorage => 'Storage';
+
+  @override
   String get workcenterPool => 'Workcenter pool';
 
   @override
@@ -407,6 +486,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get studyExcludeFromSimulation => 'Exclude from simulation';
+
+  @override
+  String get studiesCollapse => 'Hide the studies list';
+
+  @override
+  String get studiesExpand => 'Show the studies list';
 
   @override
   String get studyTabFlow => 'Flow';
