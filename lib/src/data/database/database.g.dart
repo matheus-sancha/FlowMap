@@ -9240,6 +9240,1397 @@ class FlowAnnotationsCompanion extends UpdateCompanion<FlowAnnotation> {
   }
 }
 
+class $DemandPartsTable extends DemandParts
+    with TableInfo<$DemandPartsTable, DemandPart> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DemandPartsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES studies (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _partNumberMeta = const VerificationMeta(
+    'partNumber',
+  );
+  @override
+  late final GeneratedColumn<String> partNumber = GeneratedColumn<String>(
+    'part_number',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 100,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    studyId,
+    partNumber,
+    description,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'demand_parts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DemandPart> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('part_number')) {
+      context.handle(
+        _partNumberMeta,
+        partNumber.isAcceptableOrUnknown(data['part_number']!, _partNumberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_partNumberMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {studyId, partNumber},
+  ];
+  @override
+  DemandPart map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DemandPart(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      partNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_number'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DemandPartsTable createAlias(String alias) {
+    return $DemandPartsTable(attachedDatabase, alias);
+  }
+}
+
+class DemandPart extends DataClass implements Insertable<DemandPart> {
+  final String id;
+  final String studyId;
+
+  /// `PN2` — what the sequence, the MM3 chart and every report call it.
+  final String partNumber;
+  final String? description;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const DemandPart({
+    required this.id,
+    required this.studyId,
+    required this.partNumber,
+    this.description,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['study_id'] = Variable<String>(studyId);
+    map['part_number'] = Variable<String>(partNumber);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DemandPartsCompanion toCompanion(bool nullToAbsent) {
+    return DemandPartsCompanion(
+      id: Value(id),
+      studyId: Value(studyId),
+      partNumber: Value(partNumber),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DemandPart.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DemandPart(
+      id: serializer.fromJson<String>(json['id']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      partNumber: serializer.fromJson<String>(json['partNumber']),
+      description: serializer.fromJson<String?>(json['description']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'studyId': serializer.toJson<String>(studyId),
+      'partNumber': serializer.toJson<String>(partNumber),
+      'description': serializer.toJson<String?>(description),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  DemandPart copyWith({
+    String? id,
+    String? studyId,
+    String? partNumber,
+    Value<String?> description = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => DemandPart(
+    id: id ?? this.id,
+    studyId: studyId ?? this.studyId,
+    partNumber: partNumber ?? this.partNumber,
+    description: description.present ? description.value : this.description,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DemandPart copyWithCompanion(DemandPartsCompanion data) {
+    return DemandPart(
+      id: data.id.present ? data.id.value : this.id,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      partNumber: data.partNumber.present
+          ? data.partNumber.value
+          : this.partNumber,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DemandPart(')
+          ..write('id: $id, ')
+          ..write('studyId: $studyId, ')
+          ..write('partNumber: $partNumber, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, studyId, partNumber, description, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DemandPart &&
+          other.id == this.id &&
+          other.studyId == this.studyId &&
+          other.partNumber == this.partNumber &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
+  final Value<String> id;
+  final Value<String> studyId;
+  final Value<String> partNumber;
+  final Value<String?> description;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const DemandPartsCompanion({
+    this.id = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.partNumber = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DemandPartsCompanion.insert({
+    required String id,
+    required String studyId,
+    required String partNumber,
+    this.description = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       studyId = Value(studyId),
+       partNumber = Value(partNumber),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DemandPart> custom({
+    Expression<String>? id,
+    Expression<String>? studyId,
+    Expression<String>? partNumber,
+    Expression<String>? description,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (studyId != null) 'study_id': studyId,
+      if (partNumber != null) 'part_number': partNumber,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DemandPartsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? studyId,
+    Value<String>? partNumber,
+    Value<String?>? description,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DemandPartsCompanion(
+      id: id ?? this.id,
+      studyId: studyId ?? this.studyId,
+      partNumber: partNumber ?? this.partNumber,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (partNumber.present) {
+      map['part_number'] = Variable<String>(partNumber.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DemandPartsCompanion(')
+          ..write('id: $id, ')
+          ..write('studyId: $studyId, ')
+          ..write('partNumber: $partNumber, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PartProcessTimesTable extends PartProcessTimes
+    with TableInfo<$PartProcessTimesTable, PartProcessTime> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PartProcessTimesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _partIdMeta = const VerificationMeta('partId');
+  @override
+  late final GeneratedColumn<String> partId = GeneratedColumn<String>(
+    'part_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES demand_parts (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
+  @override
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _secondsMeta = const VerificationMeta(
+    'seconds',
+  );
+  @override
+  late final GeneratedColumn<int> seconds = GeneratedColumn<int>(
+    'seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [partId, targetId, seconds];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'part_process_times';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PartProcessTime> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('part_id')) {
+      context.handle(
+        _partIdMeta,
+        partId.isAcceptableOrUnknown(data['part_id']!, _partIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_partIdMeta);
+    }
+    if (data.containsKey('target_id')) {
+      context.handle(
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetIdMeta);
+    }
+    if (data.containsKey('seconds')) {
+      context.handle(
+        _secondsMeta,
+        seconds.isAcceptableOrUnknown(data['seconds']!, _secondsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_secondsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {partId, targetId};
+  @override
+  PartProcessTime map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PartProcessTime(
+      partId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_id'],
+      )!,
+      targetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_id'],
+      )!,
+      seconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seconds'],
+      )!,
+    );
+  }
+
+  @override
+  $PartProcessTimesTable createAlias(String alias) {
+    return $PartProcessTimesTable(attachedDatabase, alias);
+  }
+}
+
+class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
+  final String partId;
+
+  /// The workcenter or pool the step targets.
+  final String targetId;
+
+  /// **Per piece**, in canonical seconds (§7.6, §12.4). An order of batch 10
+  /// occupies its workcenter for ten times this, which is what makes batch size
+  /// a real lever rather than metadata.
+  final int seconds;
+  const PartProcessTime({
+    required this.partId,
+    required this.targetId,
+    required this.seconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['part_id'] = Variable<String>(partId);
+    map['target_id'] = Variable<String>(targetId);
+    map['seconds'] = Variable<int>(seconds);
+    return map;
+  }
+
+  PartProcessTimesCompanion toCompanion(bool nullToAbsent) {
+    return PartProcessTimesCompanion(
+      partId: Value(partId),
+      targetId: Value(targetId),
+      seconds: Value(seconds),
+    );
+  }
+
+  factory PartProcessTime.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PartProcessTime(
+      partId: serializer.fromJson<String>(json['partId']),
+      targetId: serializer.fromJson<String>(json['targetId']),
+      seconds: serializer.fromJson<int>(json['seconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'partId': serializer.toJson<String>(partId),
+      'targetId': serializer.toJson<String>(targetId),
+      'seconds': serializer.toJson<int>(seconds),
+    };
+  }
+
+  PartProcessTime copyWith({String? partId, String? targetId, int? seconds}) =>
+      PartProcessTime(
+        partId: partId ?? this.partId,
+        targetId: targetId ?? this.targetId,
+        seconds: seconds ?? this.seconds,
+      );
+  PartProcessTime copyWithCompanion(PartProcessTimesCompanion data) {
+    return PartProcessTime(
+      partId: data.partId.present ? data.partId.value : this.partId,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      seconds: data.seconds.present ? data.seconds.value : this.seconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PartProcessTime(')
+          ..write('partId: $partId, ')
+          ..write('targetId: $targetId, ')
+          ..write('seconds: $seconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(partId, targetId, seconds);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PartProcessTime &&
+          other.partId == this.partId &&
+          other.targetId == this.targetId &&
+          other.seconds == this.seconds);
+}
+
+class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
+  final Value<String> partId;
+  final Value<String> targetId;
+  final Value<int> seconds;
+  final Value<int> rowid;
+  const PartProcessTimesCompanion({
+    this.partId = const Value.absent(),
+    this.targetId = const Value.absent(),
+    this.seconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PartProcessTimesCompanion.insert({
+    required String partId,
+    required String targetId,
+    required int seconds,
+    this.rowid = const Value.absent(),
+  }) : partId = Value(partId),
+       targetId = Value(targetId),
+       seconds = Value(seconds);
+  static Insertable<PartProcessTime> custom({
+    Expression<String>? partId,
+    Expression<String>? targetId,
+    Expression<int>? seconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (partId != null) 'part_id': partId,
+      if (targetId != null) 'target_id': targetId,
+      if (seconds != null) 'seconds': seconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PartProcessTimesCompanion copyWith({
+    Value<String>? partId,
+    Value<String>? targetId,
+    Value<int>? seconds,
+    Value<int>? rowid,
+  }) {
+    return PartProcessTimesCompanion(
+      partId: partId ?? this.partId,
+      targetId: targetId ?? this.targetId,
+      seconds: seconds ?? this.seconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (partId.present) {
+      map['part_id'] = Variable<String>(partId.value);
+    }
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
+    if (seconds.present) {
+      map['seconds'] = Variable<int>(seconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PartProcessTimesCompanion(')
+          ..write('partId: $partId, ')
+          ..write('targetId: $targetId, ')
+          ..write('seconds: $seconds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DemandOrdersTable extends DemandOrders
+    with TableInfo<$DemandOrdersTable, DemandOrder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DemandOrdersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES studies (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _partIdMeta = const VerificationMeta('partId');
+  @override
+  late final GeneratedColumn<String> partId = GeneratedColumn<String>(
+    'part_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES demand_parts (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sequenceMeta = const VerificationMeta(
+    'sequence',
+  );
+  @override
+  late final GeneratedColumn<int> sequence = GeneratedColumn<int>(
+    'sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orderNumberMeta = const VerificationMeta(
+    'orderNumber',
+  );
+  @override
+  late final GeneratedColumn<String> orderNumber = GeneratedColumn<String>(
+    'order_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _batchSizeMeta = const VerificationMeta(
+    'batchSize',
+  );
+  @override
+  late final GeneratedColumn<int> batchSize = GeneratedColumn<int>(
+    'batch_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _needDateMeta = const VerificationMeta(
+    'needDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> needDate = GeneratedColumn<DateTime>(
+    'need_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _materialDateMeta = const VerificationMeta(
+    'materialDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> materialDate = GeneratedColumn<DateTime>(
+    'material_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    studyId,
+    partId,
+    sequence,
+    orderNumber,
+    batchSize,
+    needDate,
+    materialDate,
+    notes,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'demand_orders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DemandOrder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('part_id')) {
+      context.handle(
+        _partIdMeta,
+        partId.isAcceptableOrUnknown(data['part_id']!, _partIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_partIdMeta);
+    }
+    if (data.containsKey('sequence')) {
+      context.handle(
+        _sequenceMeta,
+        sequence.isAcceptableOrUnknown(data['sequence']!, _sequenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sequenceMeta);
+    }
+    if (data.containsKey('order_number')) {
+      context.handle(
+        _orderNumberMeta,
+        orderNumber.isAcceptableOrUnknown(
+          data['order_number']!,
+          _orderNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('batch_size')) {
+      context.handle(
+        _batchSizeMeta,
+        batchSize.isAcceptableOrUnknown(data['batch_size']!, _batchSizeMeta),
+      );
+    }
+    if (data.containsKey('need_date')) {
+      context.handle(
+        _needDateMeta,
+        needDate.isAcceptableOrUnknown(data['need_date']!, _needDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_needDateMeta);
+    }
+    if (data.containsKey('material_date')) {
+      context.handle(
+        _materialDateMeta,
+        materialDate.isAcceptableOrUnknown(
+          data['material_date']!,
+          _materialDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {studyId, sequence},
+  ];
+  @override
+  DemandOrder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DemandOrder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      partId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_id'],
+      )!,
+      sequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sequence'],
+      )!,
+      orderNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_number'],
+      ),
+      batchSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}batch_size'],
+      )!,
+      needDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}need_date'],
+      )!,
+      materialDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}material_date'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DemandOrdersTable createAlias(String alias) {
+    return $DemandOrdersTable(attachedDatabase, alias);
+  }
+}
+
+class DemandOrder extends DataClass implements Insertable<DemandOrder> {
+  final String id;
+  final String studyId;
+  final String partId;
+
+  /// Position in the release sequence — dense and zero-based, renumbered on
+  /// every structural edit, the same convention the flow spine uses.
+  ///
+  /// The sequence is the thing under study: the engine releases from its head
+  /// and never reorders it (§7.2), and MM3 measures how smooth it is (§6.3).
+  final int sequence;
+
+  /// The user's own reference for the order. Displayed, never matched on.
+  final String? orderNumber;
+
+  /// Pieces in the order. Process times are per piece, so this multiplies the
+  /// work at every step (§7.6).
+  final int batchSize;
+  final DateTime needDate;
+
+  /// When material is on hand. Null means unconstrained — the order may take
+  /// the first release slot it is offered (§7.2).
+  final DateTime? materialDate;
+  final String? notes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const DemandOrder({
+    required this.id,
+    required this.studyId,
+    required this.partId,
+    required this.sequence,
+    this.orderNumber,
+    required this.batchSize,
+    required this.needDate,
+    this.materialDate,
+    this.notes,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['study_id'] = Variable<String>(studyId);
+    map['part_id'] = Variable<String>(partId);
+    map['sequence'] = Variable<int>(sequence);
+    if (!nullToAbsent || orderNumber != null) {
+      map['order_number'] = Variable<String>(orderNumber);
+    }
+    map['batch_size'] = Variable<int>(batchSize);
+    map['need_date'] = Variable<DateTime>(needDate);
+    if (!nullToAbsent || materialDate != null) {
+      map['material_date'] = Variable<DateTime>(materialDate);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  DemandOrdersCompanion toCompanion(bool nullToAbsent) {
+    return DemandOrdersCompanion(
+      id: Value(id),
+      studyId: Value(studyId),
+      partId: Value(partId),
+      sequence: Value(sequence),
+      orderNumber: orderNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(orderNumber),
+      batchSize: Value(batchSize),
+      needDate: Value(needDate),
+      materialDate: materialDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(materialDate),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory DemandOrder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DemandOrder(
+      id: serializer.fromJson<String>(json['id']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      partId: serializer.fromJson<String>(json['partId']),
+      sequence: serializer.fromJson<int>(json['sequence']),
+      orderNumber: serializer.fromJson<String?>(json['orderNumber']),
+      batchSize: serializer.fromJson<int>(json['batchSize']),
+      needDate: serializer.fromJson<DateTime>(json['needDate']),
+      materialDate: serializer.fromJson<DateTime?>(json['materialDate']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'studyId': serializer.toJson<String>(studyId),
+      'partId': serializer.toJson<String>(partId),
+      'sequence': serializer.toJson<int>(sequence),
+      'orderNumber': serializer.toJson<String?>(orderNumber),
+      'batchSize': serializer.toJson<int>(batchSize),
+      'needDate': serializer.toJson<DateTime>(needDate),
+      'materialDate': serializer.toJson<DateTime?>(materialDate),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  DemandOrder copyWith({
+    String? id,
+    String? studyId,
+    String? partId,
+    int? sequence,
+    Value<String?> orderNumber = const Value.absent(),
+    int? batchSize,
+    DateTime? needDate,
+    Value<DateTime?> materialDate = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => DemandOrder(
+    id: id ?? this.id,
+    studyId: studyId ?? this.studyId,
+    partId: partId ?? this.partId,
+    sequence: sequence ?? this.sequence,
+    orderNumber: orderNumber.present ? orderNumber.value : this.orderNumber,
+    batchSize: batchSize ?? this.batchSize,
+    needDate: needDate ?? this.needDate,
+    materialDate: materialDate.present ? materialDate.value : this.materialDate,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  DemandOrder copyWithCompanion(DemandOrdersCompanion data) {
+    return DemandOrder(
+      id: data.id.present ? data.id.value : this.id,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      partId: data.partId.present ? data.partId.value : this.partId,
+      sequence: data.sequence.present ? data.sequence.value : this.sequence,
+      orderNumber: data.orderNumber.present
+          ? data.orderNumber.value
+          : this.orderNumber,
+      batchSize: data.batchSize.present ? data.batchSize.value : this.batchSize,
+      needDate: data.needDate.present ? data.needDate.value : this.needDate,
+      materialDate: data.materialDate.present
+          ? data.materialDate.value
+          : this.materialDate,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DemandOrder(')
+          ..write('id: $id, ')
+          ..write('studyId: $studyId, ')
+          ..write('partId: $partId, ')
+          ..write('sequence: $sequence, ')
+          ..write('orderNumber: $orderNumber, ')
+          ..write('batchSize: $batchSize, ')
+          ..write('needDate: $needDate, ')
+          ..write('materialDate: $materialDate, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    studyId,
+    partId,
+    sequence,
+    orderNumber,
+    batchSize,
+    needDate,
+    materialDate,
+    notes,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DemandOrder &&
+          other.id == this.id &&
+          other.studyId == this.studyId &&
+          other.partId == this.partId &&
+          other.sequence == this.sequence &&
+          other.orderNumber == this.orderNumber &&
+          other.batchSize == this.batchSize &&
+          other.needDate == this.needDate &&
+          other.materialDate == this.materialDate &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
+  final Value<String> id;
+  final Value<String> studyId;
+  final Value<String> partId;
+  final Value<int> sequence;
+  final Value<String?> orderNumber;
+  final Value<int> batchSize;
+  final Value<DateTime> needDate;
+  final Value<DateTime?> materialDate;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const DemandOrdersCompanion({
+    this.id = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.partId = const Value.absent(),
+    this.sequence = const Value.absent(),
+    this.orderNumber = const Value.absent(),
+    this.batchSize = const Value.absent(),
+    this.needDate = const Value.absent(),
+    this.materialDate = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DemandOrdersCompanion.insert({
+    required String id,
+    required String studyId,
+    required String partId,
+    required int sequence,
+    this.orderNumber = const Value.absent(),
+    this.batchSize = const Value.absent(),
+    required DateTime needDate,
+    this.materialDate = const Value.absent(),
+    this.notes = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       studyId = Value(studyId),
+       partId = Value(partId),
+       sequence = Value(sequence),
+       needDate = Value(needDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DemandOrder> custom({
+    Expression<String>? id,
+    Expression<String>? studyId,
+    Expression<String>? partId,
+    Expression<int>? sequence,
+    Expression<String>? orderNumber,
+    Expression<int>? batchSize,
+    Expression<DateTime>? needDate,
+    Expression<DateTime>? materialDate,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (studyId != null) 'study_id': studyId,
+      if (partId != null) 'part_id': partId,
+      if (sequence != null) 'sequence': sequence,
+      if (orderNumber != null) 'order_number': orderNumber,
+      if (batchSize != null) 'batch_size': batchSize,
+      if (needDate != null) 'need_date': needDate,
+      if (materialDate != null) 'material_date': materialDate,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DemandOrdersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? studyId,
+    Value<String>? partId,
+    Value<int>? sequence,
+    Value<String?>? orderNumber,
+    Value<int>? batchSize,
+    Value<DateTime>? needDate,
+    Value<DateTime?>? materialDate,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DemandOrdersCompanion(
+      id: id ?? this.id,
+      studyId: studyId ?? this.studyId,
+      partId: partId ?? this.partId,
+      sequence: sequence ?? this.sequence,
+      orderNumber: orderNumber ?? this.orderNumber,
+      batchSize: batchSize ?? this.batchSize,
+      needDate: needDate ?? this.needDate,
+      materialDate: materialDate ?? this.materialDate,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (partId.present) {
+      map['part_id'] = Variable<String>(partId.value);
+    }
+    if (sequence.present) {
+      map['sequence'] = Variable<int>(sequence.value);
+    }
+    if (orderNumber.present) {
+      map['order_number'] = Variable<String>(orderNumber.value);
+    }
+    if (batchSize.present) {
+      map['batch_size'] = Variable<int>(batchSize.value);
+    }
+    if (needDate.present) {
+      map['need_date'] = Variable<DateTime>(needDate.value);
+    }
+    if (materialDate.present) {
+      map['material_date'] = Variable<DateTime>(materialDate.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DemandOrdersCompanion(')
+          ..write('id: $id, ')
+          ..write('studyId: $studyId, ')
+          ..write('partId: $partId, ')
+          ..write('sequence: $sequence, ')
+          ..write('orderNumber: $orderNumber, ')
+          ..write('batchSize: $batchSize, ')
+          ..write('needDate: $needDate, ')
+          ..write('materialDate: $materialDate, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9273,6 +10664,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FlowAnnotationsTable flowAnnotations = $FlowAnnotationsTable(
     this,
   );
+  late final $DemandPartsTable demandParts = $DemandPartsTable(this);
+  late final $PartProcessTimesTable partProcessTimes = $PartProcessTimesTable(
+    this,
+  );
+  late final $DemandOrdersTable demandOrders = $DemandOrdersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9295,6 +10691,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     studies,
     flowNodes,
     flowAnnotations,
+    demandParts,
+    partProcessTimes,
+    demandOrders,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -9448,6 +10847,34 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('flow_annotations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'studies',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('demand_parts', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'demand_parts',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('part_process_times', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'studies',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('demand_orders', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'demand_parts',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('demand_orders', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -16882,6 +18309,42 @@ final class $$StudiesTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$DemandPartsTable, List<DemandPart>>
+  _demandPartsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.demandParts,
+    aliasName: 'studies__id__demand_parts__study_id',
+  );
+
+  $$DemandPartsTableProcessedTableManager get demandPartsRefs {
+    final manager = $$DemandPartsTableTableManager(
+      $_db,
+      $_db.demandParts,
+    ).filter((f) => f.studyId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_demandPartsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$DemandOrdersTable, List<DemandOrder>>
+  _demandOrdersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.demandOrders,
+    aliasName: 'studies__id__demand_orders__study_id',
+  );
+
+  $$DemandOrdersTableProcessedTableManager get demandOrdersRefs {
+    final manager = $$DemandOrdersTableTableManager(
+      $_db,
+      $_db.demandOrders,
+    ).filter((f) => f.studyId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_demandOrdersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$StudiesTableFilterComposer
@@ -17053,6 +18516,56 @@ class $$StudiesTableFilterComposer
           }) => $$FlowAnnotationsTableFilterComposer(
             $db: $db,
             $table: $db.flowAnnotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> demandPartsRefs(
+    Expression<bool> Function($$DemandPartsTableFilterComposer f) f,
+  ) {
+    final $$DemandPartsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.studyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableFilterComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> demandOrdersRefs(
+    Expression<bool> Function($$DemandOrdersTableFilterComposer f) f,
+  ) {
+    final $$DemandOrdersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.demandOrders,
+      getReferencedColumn: (t) => t.studyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandOrdersTableFilterComposer(
+            $db: $db,
+            $table: $db.demandOrders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17355,6 +18868,56 @@ class $$StudiesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> demandPartsRefs<T extends Object>(
+    Expression<T> Function($$DemandPartsTableAnnotationComposer a) f,
+  ) {
+    final $$DemandPartsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.studyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> demandOrdersRefs<T extends Object>(
+    Expression<T> Function($$DemandOrdersTableAnnotationComposer a) f,
+  ) {
+    final $$DemandOrdersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.demandOrders,
+      getReferencedColumn: (t) => t.studyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandOrdersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.demandOrders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$StudiesTableTableManager
@@ -17376,6 +18939,8 @@ class $$StudiesTableTableManager
             bool productionLineId,
             bool flowNodesRefs,
             bool flowAnnotationsRefs,
+            bool demandPartsRefs,
+            bool demandOrdersRefs,
           })
         > {
   $$StudiesTableTableManager(_$AppDatabase db, $StudiesTable table)
@@ -17468,12 +19033,16 @@ class $$StudiesTableTableManager
                 productionLineId = false,
                 flowNodesRefs = false,
                 flowAnnotationsRefs = false,
+                demandPartsRefs = false,
+                demandOrdersRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (flowNodesRefs) db.flowNodes,
                     if (flowAnnotationsRefs) db.flowAnnotations,
+                    if (demandPartsRefs) db.demandParts,
+                    if (demandOrdersRefs) db.demandOrders,
                   ],
                   addJoins:
                       <
@@ -17577,6 +19146,48 @@ class $$StudiesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (demandPartsRefs)
+                        await $_getPrefetchedData<
+                          Study,
+                          $StudiesTable,
+                          DemandPart
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StudiesTableReferences
+                              ._demandPartsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StudiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).demandPartsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.studyId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (demandOrdersRefs)
+                        await $_getPrefetchedData<
+                          Study,
+                          $StudiesTable,
+                          DemandOrder
+                        >(
+                          currentTable: table,
+                          referencedTable: $$StudiesTableReferences
+                              ._demandOrdersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$StudiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).demandOrdersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.studyId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17603,6 +19214,8 @@ typedef $$StudiesTableProcessedTableManager =
         bool productionLineId,
         bool flowNodesRefs,
         bool flowAnnotationsRefs,
+        bool demandPartsRefs,
+        bool demandOrdersRefs,
       })
     >;
 typedef $$FlowNodesTableCreateCompanionBuilder =
@@ -18750,6 +20363,1354 @@ typedef $$FlowAnnotationsTableProcessedTableManager =
       FlowAnnotation,
       PrefetchHooks Function({bool studyId})
     >;
+typedef $$DemandPartsTableCreateCompanionBuilder =
+    DemandPartsCompanion Function({
+      required String id,
+      required String studyId,
+      required String partNumber,
+      Value<String?> description,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DemandPartsTableUpdateCompanionBuilder =
+    DemandPartsCompanion Function({
+      Value<String> id,
+      Value<String> studyId,
+      Value<String> partNumber,
+      Value<String?> description,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$DemandPartsTableReferences
+    extends BaseReferences<_$AppDatabase, $DemandPartsTable, DemandPart> {
+  $$DemandPartsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $StudiesTable _studyIdTable(_$AppDatabase db) =>
+      db.studies.createAlias('demand_parts__study_id__studies__id');
+
+  $$StudiesTableProcessedTableManager get studyId {
+    final $_column = $_itemColumn<String>('study_id')!;
+
+    final manager = $$StudiesTableTableManager(
+      $_db,
+      $_db.studies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_studyIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$PartProcessTimesTable, List<PartProcessTime>>
+  _partProcessTimesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.partProcessTimes,
+    aliasName: 'demand_parts__id__part_process_times__part_id',
+  );
+
+  $$PartProcessTimesTableProcessedTableManager get partProcessTimesRefs {
+    final manager = $$PartProcessTimesTableTableManager(
+      $_db,
+      $_db.partProcessTimes,
+    ).filter((f) => f.partId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _partProcessTimesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$DemandOrdersTable, List<DemandOrder>>
+  _demandOrdersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.demandOrders,
+    aliasName: 'demand_parts__id__demand_orders__part_id',
+  );
+
+  $$DemandOrdersTableProcessedTableManager get demandOrdersRefs {
+    final manager = $$DemandOrdersTableTableManager(
+      $_db,
+      $_db.demandOrders,
+    ).filter((f) => f.partId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_demandOrdersRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$DemandPartsTableFilterComposer
+    extends Composer<_$AppDatabase, $DemandPartsTable> {
+  $$DemandPartsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partNumber => $composableBuilder(
+    column: $table.partNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StudiesTableFilterComposer get studyId {
+    final $$StudiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.studyId,
+      referencedTable: $db.studies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StudiesTableFilterComposer(
+            $db: $db,
+            $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> partProcessTimesRefs(
+    Expression<bool> Function($$PartProcessTimesTableFilterComposer f) f,
+  ) {
+    final $$PartProcessTimesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.partProcessTimes,
+      getReferencedColumn: (t) => t.partId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartProcessTimesTableFilterComposer(
+            $db: $db,
+            $table: $db.partProcessTimes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> demandOrdersRefs(
+    Expression<bool> Function($$DemandOrdersTableFilterComposer f) f,
+  ) {
+    final $$DemandOrdersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.demandOrders,
+      getReferencedColumn: (t) => t.partId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandOrdersTableFilterComposer(
+            $db: $db,
+            $table: $db.demandOrders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$DemandPartsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DemandPartsTable> {
+  $$DemandPartsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partNumber => $composableBuilder(
+    column: $table.partNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StudiesTableOrderingComposer get studyId {
+    final $$StudiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.studyId,
+      referencedTable: $db.studies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StudiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DemandPartsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DemandPartsTable> {
+  $$DemandPartsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get partNumber => $composableBuilder(
+    column: $table.partNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$StudiesTableAnnotationComposer get studyId {
+    final $$StudiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.studyId,
+      referencedTable: $db.studies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StudiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> partProcessTimesRefs<T extends Object>(
+    Expression<T> Function($$PartProcessTimesTableAnnotationComposer a) f,
+  ) {
+    final $$PartProcessTimesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.partProcessTimes,
+      getReferencedColumn: (t) => t.partId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartProcessTimesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.partProcessTimes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> demandOrdersRefs<T extends Object>(
+    Expression<T> Function($$DemandOrdersTableAnnotationComposer a) f,
+  ) {
+    final $$DemandOrdersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.demandOrders,
+      getReferencedColumn: (t) => t.partId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandOrdersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.demandOrders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$DemandPartsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DemandPartsTable,
+          DemandPart,
+          $$DemandPartsTableFilterComposer,
+          $$DemandPartsTableOrderingComposer,
+          $$DemandPartsTableAnnotationComposer,
+          $$DemandPartsTableCreateCompanionBuilder,
+          $$DemandPartsTableUpdateCompanionBuilder,
+          (DemandPart, $$DemandPartsTableReferences),
+          DemandPart,
+          PrefetchHooks Function({
+            bool studyId,
+            bool partProcessTimesRefs,
+            bool demandOrdersRefs,
+          })
+        > {
+  $$DemandPartsTableTableManager(_$AppDatabase db, $DemandPartsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DemandPartsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DemandPartsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DemandPartsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> partNumber = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DemandPartsCompanion(
+                id: id,
+                studyId: studyId,
+                partNumber: partNumber,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String studyId,
+                required String partNumber,
+                Value<String?> description = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DemandPartsCompanion.insert(
+                id: id,
+                studyId: studyId,
+                partNumber: partNumber,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DemandPartsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                studyId = false,
+                partProcessTimesRefs = false,
+                demandOrdersRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (partProcessTimesRefs) db.partProcessTimes,
+                    if (demandOrdersRefs) db.demandOrders,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (studyId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.studyId,
+                                    referencedTable:
+                                        $$DemandPartsTableReferences
+                                            ._studyIdTable(db),
+                                    referencedColumn:
+                                        $$DemandPartsTableReferences
+                                            ._studyIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (partProcessTimesRefs)
+                        await $_getPrefetchedData<
+                          DemandPart,
+                          $DemandPartsTable,
+                          PartProcessTime
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DemandPartsTableReferences
+                              ._partProcessTimesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DemandPartsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).partProcessTimesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.partId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (demandOrdersRefs)
+                        await $_getPrefetchedData<
+                          DemandPart,
+                          $DemandPartsTable,
+                          DemandOrder
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DemandPartsTableReferences
+                              ._demandOrdersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DemandPartsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).demandOrdersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.partId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$DemandPartsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DemandPartsTable,
+      DemandPart,
+      $$DemandPartsTableFilterComposer,
+      $$DemandPartsTableOrderingComposer,
+      $$DemandPartsTableAnnotationComposer,
+      $$DemandPartsTableCreateCompanionBuilder,
+      $$DemandPartsTableUpdateCompanionBuilder,
+      (DemandPart, $$DemandPartsTableReferences),
+      DemandPart,
+      PrefetchHooks Function({
+        bool studyId,
+        bool partProcessTimesRefs,
+        bool demandOrdersRefs,
+      })
+    >;
+typedef $$PartProcessTimesTableCreateCompanionBuilder =
+    PartProcessTimesCompanion Function({
+      required String partId,
+      required String targetId,
+      required int seconds,
+      Value<int> rowid,
+    });
+typedef $$PartProcessTimesTableUpdateCompanionBuilder =
+    PartProcessTimesCompanion Function({
+      Value<String> partId,
+      Value<String> targetId,
+      Value<int> seconds,
+      Value<int> rowid,
+    });
+
+final class $$PartProcessTimesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $PartProcessTimesTable, PartProcessTime> {
+  $$PartProcessTimesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DemandPartsTable _partIdTable(_$AppDatabase db) => db.demandParts
+      .createAlias('part_process_times__part_id__demand_parts__id');
+
+  $$DemandPartsTableProcessedTableManager get partId {
+    final $_column = $_itemColumn<String>('part_id')!;
+
+    final manager = $$DemandPartsTableTableManager(
+      $_db,
+      $_db.demandParts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_partIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PartProcessTimesTableFilterComposer
+    extends Composer<_$AppDatabase, $PartProcessTimesTable> {
+  $$PartProcessTimesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seconds => $composableBuilder(
+    column: $table.seconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DemandPartsTableFilterComposer get partId {
+    final $$DemandPartsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.partId,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableFilterComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PartProcessTimesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PartProcessTimesTable> {
+  $$PartProcessTimesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get seconds => $composableBuilder(
+    column: $table.seconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DemandPartsTableOrderingComposer get partId {
+    final $$DemandPartsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.partId,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableOrderingComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PartProcessTimesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PartProcessTimesTable> {
+  $$PartProcessTimesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
+
+  GeneratedColumn<int> get seconds =>
+      $composableBuilder(column: $table.seconds, builder: (column) => column);
+
+  $$DemandPartsTableAnnotationComposer get partId {
+    final $$DemandPartsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.partId,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PartProcessTimesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PartProcessTimesTable,
+          PartProcessTime,
+          $$PartProcessTimesTableFilterComposer,
+          $$PartProcessTimesTableOrderingComposer,
+          $$PartProcessTimesTableAnnotationComposer,
+          $$PartProcessTimesTableCreateCompanionBuilder,
+          $$PartProcessTimesTableUpdateCompanionBuilder,
+          (PartProcessTime, $$PartProcessTimesTableReferences),
+          PartProcessTime,
+          PrefetchHooks Function({bool partId})
+        > {
+  $$PartProcessTimesTableTableManager(
+    _$AppDatabase db,
+    $PartProcessTimesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PartProcessTimesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PartProcessTimesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PartProcessTimesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> partId = const Value.absent(),
+                Value<String> targetId = const Value.absent(),
+                Value<int> seconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PartProcessTimesCompanion(
+                partId: partId,
+                targetId: targetId,
+                seconds: seconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String partId,
+                required String targetId,
+                required int seconds,
+                Value<int> rowid = const Value.absent(),
+              }) => PartProcessTimesCompanion.insert(
+                partId: partId,
+                targetId: targetId,
+                seconds: seconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PartProcessTimesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({partId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (partId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.partId,
+                                referencedTable:
+                                    $$PartProcessTimesTableReferences
+                                        ._partIdTable(db),
+                                referencedColumn:
+                                    $$PartProcessTimesTableReferences
+                                        ._partIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PartProcessTimesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PartProcessTimesTable,
+      PartProcessTime,
+      $$PartProcessTimesTableFilterComposer,
+      $$PartProcessTimesTableOrderingComposer,
+      $$PartProcessTimesTableAnnotationComposer,
+      $$PartProcessTimesTableCreateCompanionBuilder,
+      $$PartProcessTimesTableUpdateCompanionBuilder,
+      (PartProcessTime, $$PartProcessTimesTableReferences),
+      PartProcessTime,
+      PrefetchHooks Function({bool partId})
+    >;
+typedef $$DemandOrdersTableCreateCompanionBuilder =
+    DemandOrdersCompanion Function({
+      required String id,
+      required String studyId,
+      required String partId,
+      required int sequence,
+      Value<String?> orderNumber,
+      Value<int> batchSize,
+      required DateTime needDate,
+      Value<DateTime?> materialDate,
+      Value<String?> notes,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DemandOrdersTableUpdateCompanionBuilder =
+    DemandOrdersCompanion Function({
+      Value<String> id,
+      Value<String> studyId,
+      Value<String> partId,
+      Value<int> sequence,
+      Value<String?> orderNumber,
+      Value<int> batchSize,
+      Value<DateTime> needDate,
+      Value<DateTime?> materialDate,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$DemandOrdersTableReferences
+    extends BaseReferences<_$AppDatabase, $DemandOrdersTable, DemandOrder> {
+  $$DemandOrdersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $StudiesTable _studyIdTable(_$AppDatabase db) =>
+      db.studies.createAlias('demand_orders__study_id__studies__id');
+
+  $$StudiesTableProcessedTableManager get studyId {
+    final $_column = $_itemColumn<String>('study_id')!;
+
+    final manager = $$StudiesTableTableManager(
+      $_db,
+      $_db.studies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_studyIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $DemandPartsTable _partIdTable(_$AppDatabase db) =>
+      db.demandParts.createAlias('demand_orders__part_id__demand_parts__id');
+
+  $$DemandPartsTableProcessedTableManager get partId {
+    final $_column = $_itemColumn<String>('part_id')!;
+
+    final manager = $$DemandPartsTableTableManager(
+      $_db,
+      $_db.demandParts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_partIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DemandOrdersTableFilterComposer
+    extends Composer<_$AppDatabase, $DemandOrdersTable> {
+  $$DemandOrdersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get orderNumber => $composableBuilder(
+    column: $table.orderNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get batchSize => $composableBuilder(
+    column: $table.batchSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get needDate => $composableBuilder(
+    column: $table.needDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get materialDate => $composableBuilder(
+    column: $table.materialDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StudiesTableFilterComposer get studyId {
+    final $$StudiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.studyId,
+      referencedTable: $db.studies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StudiesTableFilterComposer(
+            $db: $db,
+            $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DemandPartsTableFilterComposer get partId {
+    final $$DemandPartsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.partId,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableFilterComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DemandOrdersTableOrderingComposer
+    extends Composer<_$AppDatabase, $DemandOrdersTable> {
+  $$DemandOrdersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get orderNumber => $composableBuilder(
+    column: $table.orderNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get batchSize => $composableBuilder(
+    column: $table.batchSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get needDate => $composableBuilder(
+    column: $table.needDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get materialDate => $composableBuilder(
+    column: $table.materialDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StudiesTableOrderingComposer get studyId {
+    final $$StudiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.studyId,
+      referencedTable: $db.studies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StudiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DemandPartsTableOrderingComposer get partId {
+    final $$DemandPartsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.partId,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableOrderingComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DemandOrdersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DemandOrdersTable> {
+  $$DemandOrdersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get sequence =>
+      $composableBuilder(column: $table.sequence, builder: (column) => column);
+
+  GeneratedColumn<String> get orderNumber => $composableBuilder(
+    column: $table.orderNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get batchSize =>
+      $composableBuilder(column: $table.batchSize, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get needDate =>
+      $composableBuilder(column: $table.needDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get materialDate => $composableBuilder(
+    column: $table.materialDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$StudiesTableAnnotationComposer get studyId {
+    final $$StudiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.studyId,
+      referencedTable: $db.studies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StudiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DemandPartsTableAnnotationComposer get partId {
+    final $$DemandPartsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.partId,
+      referencedTable: $db.demandParts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DemandPartsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.demandParts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DemandOrdersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DemandOrdersTable,
+          DemandOrder,
+          $$DemandOrdersTableFilterComposer,
+          $$DemandOrdersTableOrderingComposer,
+          $$DemandOrdersTableAnnotationComposer,
+          $$DemandOrdersTableCreateCompanionBuilder,
+          $$DemandOrdersTableUpdateCompanionBuilder,
+          (DemandOrder, $$DemandOrdersTableReferences),
+          DemandOrder,
+          PrefetchHooks Function({bool studyId, bool partId})
+        > {
+  $$DemandOrdersTableTableManager(_$AppDatabase db, $DemandOrdersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DemandOrdersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DemandOrdersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DemandOrdersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> partId = const Value.absent(),
+                Value<int> sequence = const Value.absent(),
+                Value<String?> orderNumber = const Value.absent(),
+                Value<int> batchSize = const Value.absent(),
+                Value<DateTime> needDate = const Value.absent(),
+                Value<DateTime?> materialDate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DemandOrdersCompanion(
+                id: id,
+                studyId: studyId,
+                partId: partId,
+                sequence: sequence,
+                orderNumber: orderNumber,
+                batchSize: batchSize,
+                needDate: needDate,
+                materialDate: materialDate,
+                notes: notes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String studyId,
+                required String partId,
+                required int sequence,
+                Value<String?> orderNumber = const Value.absent(),
+                Value<int> batchSize = const Value.absent(),
+                required DateTime needDate,
+                Value<DateTime?> materialDate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => DemandOrdersCompanion.insert(
+                id: id,
+                studyId: studyId,
+                partId: partId,
+                sequence: sequence,
+                orderNumber: orderNumber,
+                batchSize: batchSize,
+                needDate: needDate,
+                materialDate: materialDate,
+                notes: notes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$DemandOrdersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({studyId = false, partId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (studyId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.studyId,
+                                referencedTable: $$DemandOrdersTableReferences
+                                    ._studyIdTable(db),
+                                referencedColumn: $$DemandOrdersTableReferences
+                                    ._studyIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (partId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.partId,
+                                referencedTable: $$DemandOrdersTableReferences
+                                    ._partIdTable(db),
+                                referencedColumn: $$DemandOrdersTableReferences
+                                    ._partIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DemandOrdersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DemandOrdersTable,
+      DemandOrder,
+      $$DemandOrdersTableFilterComposer,
+      $$DemandOrdersTableOrderingComposer,
+      $$DemandOrdersTableAnnotationComposer,
+      $$DemandOrdersTableCreateCompanionBuilder,
+      $$DemandOrdersTableUpdateCompanionBuilder,
+      (DemandOrder, $$DemandOrdersTableReferences),
+      DemandOrder,
+      PrefetchHooks Function({bool studyId, bool partId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -18791,4 +21752,10 @@ class $AppDatabaseManager {
       $$FlowNodesTableTableManager(_db, _db.flowNodes);
   $$FlowAnnotationsTableTableManager get flowAnnotations =>
       $$FlowAnnotationsTableTableManager(_db, _db.flowAnnotations);
+  $$DemandPartsTableTableManager get demandParts =>
+      $$DemandPartsTableTableManager(_db, _db.demandParts);
+  $$PartProcessTimesTableTableManager get partProcessTimes =>
+      $$PartProcessTimesTableTableManager(_db, _db.partProcessTimes);
+  $$DemandOrdersTableTableManager get demandOrders =>
+      $$DemandOrdersTableTableManager(_db, _db.demandOrders);
 }

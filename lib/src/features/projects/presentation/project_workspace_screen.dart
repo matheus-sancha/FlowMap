@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../demand/presentation/demand_tab.dart';
 import '../../flow/presentation/flow_tab.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
@@ -297,7 +298,7 @@ class _StudyTabs extends StatelessWidget {
                 FlowTab(study: study),
                 TaktTab(project: project, study: study),
                 WorkcentersTab(project: project, study: study),
-                _ComingInMilestone(milestone: l10n.milestoneDemand),
+                DemandTab(study: study),
                 _ComingInMilestone(milestone: l10n.milestoneSummary),
               ],
             ),

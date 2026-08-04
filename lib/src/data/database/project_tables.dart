@@ -301,6 +301,108 @@ class FlowNodes extends Table {
   ];
 }
 
+/// A part number in a study's demand (DESIGN.md §5.1, §9).
+///
+/// **Study-scoped, not project-scoped.** A part's data here is entirely about
+/// one flow — its process times are keyed by that flow's own step targets — and
+/// §10.2 leaves demand out of a template by default. Two studies of the same
+/// line are scenarios of one reality, so duplicating a study deep-copies its
+/// parts and lets the copy be re-sequenced without disturbing the original.
+class DemandParts extends Table {
+  TextColumn get id => text()();
+  TextColumn get studyId =>
+      text().references(Studies, #id, onDelete: KeyAction.cascade)();
+
+  /// `PN2` — what the sequence, the MM3 chart and every report call it.
+  TextColumn get partNumber => text().withLength(min: 1, max: 100)();
+
+  TextColumn get description => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    // The part number is how an imported row finds its part (§9), so it has to
+    // identify one within the study.
+    {studyId, partNumber},
+  ];
+}
+
+/// One part's process time at one step target — a cell of the demand grid
+/// (DESIGN.md §9).
+///
+/// **Keyed by the target, not by the flow node.** Adding a step to the flow
+/// adds an empty column, and removing one hides its values rather than
+/// destroying them, so a step deleted by mistake costs nothing to restore.
+/// Keying by node id would take the column's data down with the node.
+///
+/// [targetId] is a workcenter id or a pool id, whichever the step targets. It
+/// carries no foreign key for the reason [CalendarExceptions.scopeId] does not:
+/// one column cannot reference two tables, and a column per kind makes "exactly
+/// one is set" a rule the schema still could not express.
+///
+/// **A part that skips a step simply has no row here** (§5.1). That is what
+/// keeps a blank cell and a zero different things — a zero that should have
+/// been a number is the one bug this app cannot afford (§11).
+class PartProcessTimes extends Table {
+  TextColumn get partId =>
+      text().references(DemandParts, #id, onDelete: KeyAction.cascade)();
+
+  /// The workcenter or pool the step targets.
+  TextColumn get targetId => text()();
+
+  /// **Per piece**, in canonical seconds (§7.6, §12.4). An order of batch 10
+  /// occupies its workcenter for ten times this, which is what makes batch size
+  /// a real lever rather than metadata.
+  IntColumn get seconds => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {partId, targetId};
+}
+
+/// One order in the sequence under study (DESIGN.md §7.2, §7.6).
+class DemandOrders extends Table {
+  TextColumn get id => text()();
+  TextColumn get studyId =>
+      text().references(Studies, #id, onDelete: KeyAction.cascade)();
+  TextColumn get partId =>
+      text().references(DemandParts, #id, onDelete: KeyAction.cascade)();
+
+  /// Position in the release sequence — dense and zero-based, renumbered on
+  /// every structural edit, the same convention the flow spine uses.
+  ///
+  /// The sequence is the thing under study: the engine releases from its head
+  /// and never reorders it (§7.2), and MM3 measures how smooth it is (§6.3).
+  IntColumn get sequence => integer()();
+
+  /// The user's own reference for the order. Displayed, never matched on.
+  TextColumn get orderNumber => text().nullable()();
+
+  /// Pieces in the order. Process times are per piece, so this multiplies the
+  /// work at every step (§7.6).
+  IntColumn get batchSize => integer().withDefault(const Constant(1))();
+
+  DateTimeColumn get needDate => dateTime()();
+
+  /// When material is on hand. Null means unconstrained — the order may take
+  /// the first release slot it is offered (§7.2).
+  DateTimeColumn get materialDate => dateTime().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {studyId, sequence},
+  ];
+}
+
 /// The decorative layer (DESIGN.md §5.2): standard VSM symbols that document
 /// intent but take part in no calculation, freely placed at stored coordinates.
 class FlowAnnotations extends Table {

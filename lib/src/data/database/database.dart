@@ -44,6 +44,9 @@ const _seededAtKey = 'reference_data.seeded_at';
     Studies,
     FlowNodes,
     FlowAnnotations,
+    DemandParts,
+    PartProcessTimes,
+    DemandOrders,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -60,7 +63,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -113,6 +116,17 @@ class AppDatabase extends _$AppDatabase {
         // gets `flow_nodes` from the current definition and already has these.
         await m.addColumn(flowNodes, flowNodes.equivalentValue);
         await m.addColumn(flowNodes, flowNodes.equivalentUnit);
+      }
+
+      if (from < 6) {
+        // M3: the demand table. Three new tables and no change to an existing
+        // one, so `createTable` from the current definition is safe at any
+        // starting version — and needs none of the `from >= 2` guarding the
+        // two `addColumn` steps above do, because nothing earlier creates
+        // these.
+        await m.createTable(demandParts);
+        await m.createTable(partProcessTimes);
+        await m.createTable(demandOrders);
       }
 
       // Reference-data seeding runs outside every version guard, on every

@@ -467,12 +467,39 @@ output, and the inconsistency becomes permanent once it is in three `.arb` files
 
 One editable grid per table with keyboard navigation and multi-cell TSV paste from Excel. File
 upload accepts `.xlsx`/`.csv` and opens a **mapping step** (their columns → our fields; workcenter
-columns matched by name or code, unmatched listed) then a **validation preview**: bad dates,
-unknown part numbers, negative times, need date before material date — row by row, accept or
-cancel. Nothing is written until accepted.
+columns matched by name, unmatched listed) then a **validation preview**: bad dates, unknown part
+numbers, negative times, need date before material date — row by row, accept or cancel. Nothing is
+written until accepted.
 
-Process times are stored **keyed by workcenter id**, so adding a step to the flow adds an empty
+Process times are stored **keyed by the step's target**, so adding a step to the flow adds an empty
 column and removing one hides the values without destroying them.
+
+### 9.1 The grid, as built
+
+- **Every column is text.** A dropdown for the part or a date picker for the need date would read
+  better in isolation and would make that column unpasteable — and pasting a block out of the
+  planner's spreadsheet is how this data actually arrives. What a cell means is decided by the
+  parser behind it: `parseDurationInput` accepts `30:00:00`, `1.5h`, `90min`, `2d` and a bare
+  number in hours; `parseDateInput` accepts ISO in every locale and the locale's own form second.
+- **A typed cell and a paste are the same operation** — a 1×1 block and a rectangle. There is one
+  commit path, so a rule proved for one holds for the other.
+- **The reading of a block is a pure function** (`planPartsWrite`, `planSequenceWrite`) that returns
+  what the block *asks for*; the repository resolves part numbers to ids and writes it in one
+  transaction. Which rows append, which renames are refused, what an emptied cell means: all unit
+  tests, none of them widget tests.
+- **A blank cell is not a zero.** A part that skips a step has no row in `part_process_times` at
+  all, and clearing a cell deletes the row rather than storing `0`. This is §11's rule in the one
+  place a user can most easily trip it.
+- **The last row of each grid is blank and appends.** Typing a part number into it adds a part;
+  pasting a block onto it adds as many parts as the block has rows. A row with no part number, or
+  an order row with no part and no need date, is skipped — never defaulted.
+- **Keyed by the step's target, and a pool is a target.** Pool members are interchangeable (§3.1),
+  so a part has one process time at `CNC Lathes`, not one per lathe. Two steps targeting the same
+  workcenter are two columns over one stored value, and a total counts it twice — which is correct,
+  since the part passes twice.
+- **A demand part belongs to a study, not to a project.** Its process times are keyed by that
+  flow's own step targets, and §10.2 leaves demand out of a template by default. Duplicating a
+  study deep-copies its demand, so a scenario can be re-sequenced against the same orders (§6.3).
 
 ---
 
@@ -695,6 +722,33 @@ Decisions taken while building it:
   builds from the *current* definition, so a v1 database arrives at the v4 step already carrying
   `inventory_unit` and the plain `addColumn` failed the whole upgrade. It is guarded on
   `from >= 2`; the next column added to `flow_nodes` needs the same guard.
+
+### 16.5 Schema v6, the demand table
+
+Three tables, additive, so the migration step is unguarded `createTable` at any starting version —
+unlike the two `addColumn` steps above, which a v1 database reaches with the column already present.
+
+- `demand_parts` — part number and description, unique per study.
+- `part_process_times` — `(part, target) → seconds`, **per piece** (§7.6). The primary key is the
+  pair; there is no id, because a cell has no identity beyond which part and which step it is.
+  `target_id` carries no foreign key, for the reason `calendar_exceptions.scope_id` does not: it
+  points at a workcenter *or* a pool, and one column cannot reference two tables.
+- `demand_orders` — the sequence, dense and zero-based like the flow spine, with batch size, need
+  date and an optional material date.
+
+Decisions taken while building it:
+
+- **Deleting a part deletes its orders through the repository, not the cascade.** The foreign key
+  would have left holes in the sequence, and a sequence with holes is one the release slots (§7.2)
+  cannot walk and MM3 (§6.3) cannot average over.
+- **`demand_orders` has no notes column.** It was written and then removed before it shipped:
+  nothing writes it, the order number already carries "their own reference", and §17.5 is the
+  argument against keeping a field ahead of the UI that would justify it.
+- **A Drift stream inside a widget test leaves timers pending.** Disposing a `StreamProvider` over a
+  Drift query schedules a zero-duration timer, and the test binding asserts on `!timersPending`
+  after the tree comes down — the test hangs rather than failing. The Demand tab's mounting tests
+  override the providers with plain values instead; what the writes do is proved against a real
+  in-memory database at the repository level, where there is no `fakeAsync`.
 
 ---
 

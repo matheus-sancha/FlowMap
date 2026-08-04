@@ -208,6 +208,12 @@ void main() {
     expect(await db.select(db.calendarExceptions).get(), isEmpty);
     expect(await db.select(db.flowAnnotations).get(), isEmpty);
 
+    // And the v6 demand tables, which are created at every starting version
+    // rather than guarded like the two `addColumn` steps.
+    expect(await db.select(db.demandParts).get(), isEmpty);
+    expect(await db.select(db.partProcessTimes).get(), isEmpty);
+    expect(await db.select(db.demandOrders).get(), isEmpty);
+
     // Seeding reached a database that already existed.
     expect(patterns.map((p) => p.name), contains('ABCD'));
     expect(await db.select(db.workcenterTypes).get(), isNotEmpty);
@@ -268,6 +274,11 @@ void main() {
     expect(schedules.single.availability, 0.74);
 
     expect((await db.select(db.studies).get()).single.name, 'Current');
+
+    // The v6 demand tables reached a database that already carried studies, so
+    // a part can be keyed to one that existed before them.
+    expect(await db.select(db.demandParts).get(), isEmpty);
+    expect(await db.select(db.demandOrders).get(), isEmpty);
   });
 
   test(

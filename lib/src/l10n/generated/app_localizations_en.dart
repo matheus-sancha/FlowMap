@@ -397,10 +397,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studyTabSummary => 'Summary';
 
   @override
-  String get milestoneDemand => 'Demand tables arrive with the next milestone.';
+  String get milestoneSummary => 'The summary arrives with the next milestone.';
 
   @override
-  String get milestoneSummary => 'The summary arrives with the next milestone.';
+  String get actionMoveUp => 'Move up';
+
+  @override
+  String get actionMoveDown => 'Move down';
+
+  @override
+  String get validationNotADuration => 'Not a time';
+
+  @override
+  String get validationNotADate => 'Not a date';
+
+  @override
+  String get validationPositiveWhole => 'A whole number above zero';
+
+  @override
+  String get validationUnknownPart => 'No part with that number in this study';
+
+  @override
+  String get demandParts => 'Parts';
+
+  @override
+  String get demandSequence => 'Sequence';
+
+  @override
+  String get demandPartNumber => 'Part number';
+
+  @override
+  String get demandDescription => 'Description';
+
+  @override
+  String get demandTotal => 'Total';
+
+  @override
+  String get demandOrderNumber => 'Order';
+
+  @override
+  String get demandBatchSize => 'Batch';
+
+  @override
+  String get demandNeedDate => 'Need date';
+
+  @override
+  String get demandMaterialDate => 'Material date';
+
+  @override
+  String get demandMaterialDateHelp => 'optional';
+
+  @override
+  String get demandUnbound => 'not bound';
+
+  @override
+  String get demandTimesHelp =>
+      'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.';
+
+  @override
+  String get demandSequenceHelp =>
+      'The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.';
+
+  @override
+  String get demandNoSteps =>
+      'This flow has no process steps yet, so there is nothing to cost a part against.';
+
+  @override
+  String get demandNeedsPart => 'Add a part before adding orders.';
+
+  @override
+  String get demandPartDeleteBody =>
+      'Its process times go with it, and every order for it leaves the sequence.';
 
   @override
   String get takt => 'Takt';

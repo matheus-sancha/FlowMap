@@ -820,17 +820,143 @@ abstract class AppLocalizations {
   /// **'Summary'**
   String get studyTabSummary;
 
-  /// No description provided for @milestoneDemand.
-  ///
-  /// In en, this message translates to:
-  /// **'Demand tables arrive with the next milestone.'**
-  String get milestoneDemand;
-
   /// No description provided for @milestoneSummary.
   ///
   /// In en, this message translates to:
   /// **'The summary arrives with the next milestone.'**
   String get milestoneSummary;
+
+  /// No description provided for @actionMoveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get actionMoveUp;
+
+  /// No description provided for @actionMoveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get actionMoveDown;
+
+  /// No description provided for @validationNotADuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a time'**
+  String get validationNotADuration;
+
+  /// No description provided for @validationNotADate.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a date'**
+  String get validationNotADate;
+
+  /// No description provided for @validationPositiveWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'A whole number above zero'**
+  String get validationPositiveWhole;
+
+  /// No description provided for @validationUnknownPart.
+  ///
+  /// In en, this message translates to:
+  /// **'No part with that number in this study'**
+  String get validationUnknownPart;
+
+  /// No description provided for @demandParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts'**
+  String get demandParts;
+
+  /// No description provided for @demandSequence.
+  ///
+  /// In en, this message translates to:
+  /// **'Sequence'**
+  String get demandSequence;
+
+  /// No description provided for @demandPartNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Part number'**
+  String get demandPartNumber;
+
+  /// No description provided for @demandDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get demandDescription;
+
+  /// No description provided for @demandTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get demandTotal;
+
+  /// No description provided for @demandOrderNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Order'**
+  String get demandOrderNumber;
+
+  /// No description provided for @demandBatchSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch'**
+  String get demandBatchSize;
+
+  /// No description provided for @demandNeedDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Need date'**
+  String get demandNeedDate;
+
+  /// No description provided for @demandMaterialDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Material date'**
+  String get demandMaterialDate;
+
+  /// No description provided for @demandMaterialDateHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'optional'**
+  String get demandMaterialDateHelp;
+
+  /// No description provided for @demandUnbound.
+  ///
+  /// In en, this message translates to:
+  /// **'not bound'**
+  String get demandUnbound;
+
+  /// No description provided for @demandTimesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.'**
+  String get demandTimesHelp;
+
+  /// No description provided for @demandSequenceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.'**
+  String get demandSequenceHelp;
+
+  /// No description provided for @demandNoSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'This flow has no process steps yet, so there is nothing to cost a part against.'**
+  String get demandNoSteps;
+
+  /// No description provided for @demandNeedsPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a part before adding orders.'**
+  String get demandNeedsPart;
+
+  /// No description provided for @demandPartDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Its process times go with it, and every order for it leaves the sequence.'**
+  String get demandPartDeleteBody;
 
   /// No description provided for @takt.
   ///

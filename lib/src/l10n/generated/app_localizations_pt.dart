@@ -400,11 +400,78 @@ class AppLocalizationsPt extends AppLocalizations {
   String get studyTabSummary => 'Resumo';
 
   @override
-  String get milestoneDemand =>
-      'As tabelas de demanda chegam no próximo marco.';
+  String get milestoneSummary => 'O resumo chega no próximo marco.';
 
   @override
-  String get milestoneSummary => 'O resumo chega no próximo marco.';
+  String get actionMoveUp => 'Subir';
+
+  @override
+  String get actionMoveDown => 'Descer';
+
+  @override
+  String get validationNotADuration => 'Não é um tempo';
+
+  @override
+  String get validationNotADate => 'Não é uma data';
+
+  @override
+  String get validationPositiveWhole => 'Um número inteiro maior que zero';
+
+  @override
+  String get validationUnknownPart =>
+      'Nenhuma peça com esse número neste estudo';
+
+  @override
+  String get demandParts => 'Peças';
+
+  @override
+  String get demandSequence => 'Sequência';
+
+  @override
+  String get demandPartNumber => 'Número da peça';
+
+  @override
+  String get demandDescription => 'Descrição';
+
+  @override
+  String get demandTotal => 'Total';
+
+  @override
+  String get demandOrderNumber => 'Pedido';
+
+  @override
+  String get demandBatchSize => 'Lote';
+
+  @override
+  String get demandNeedDate => 'Data necessária';
+
+  @override
+  String get demandMaterialDate => 'Data do material';
+
+  @override
+  String get demandMaterialDateHelp => 'opcional';
+
+  @override
+  String get demandUnbound => 'sem vínculo';
+
+  @override
+  String get demandTimesHelp =>
+      'Por peça. Digite 30:00:00, 1.5h, 90min ou 2d; um número sem unidade é lido como horas. Deixe a célula vazia quando a peça não passa pelo passo. Cole um bloco do Excel com Ctrl+V.';
+
+  @override
+  String get demandSequenceHelp =>
+      'A ordem em que a planta vai produzir. Nada a reordena além de você. Cole um bloco do Excel com Ctrl+V.';
+
+  @override
+  String get demandNoSteps =>
+      'Este fluxo ainda não tem passos de processo, então não há contra o que custear uma peça.';
+
+  @override
+  String get demandNeedsPart => 'Adicione uma peça antes de adicionar pedidos.';
+
+  @override
+  String get demandPartDeleteBody =>
+      'Os tempos de processo vão junto, e todos os pedidos dela saem da sequência.';
 
   @override
   String get takt => 'Takt';
