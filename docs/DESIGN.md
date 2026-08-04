@@ -55,6 +55,14 @@ _Rejected: a single `home_line_id`._ It shipped through M3 and was wrong: filing
 a second line silently took it out of the first, so the tree fought the very arrangement the app
 exists to analyse. Reported from the field; replaced by `workcenter_lines` in schema v7.
 
+_Rejected: dropping line membership from Resources altogether._ Raised in the same report — if a
+study names its workcenters anyway, filing them under a line looks like the same work twice. Weighed
+and **kept** (2026-08-04): the duplication was really the bug above, and membership is what makes a
+line-scoped calendar exception resolvable at all (§4.3). Without it that scope either disappears or
+has to resolve through the studies that touch a workcenter, which couples the calendar to flow
+structure. The tree also earns its keep at fifty workcenters. Membership stays optional, so a
+workcenter filed nowhere is a perfectly ordinary one.
+
 - Projects reference resources **by stable id**, so renames and type changes propagate everywhere.
 - Deletion is **soft (archive)**: the row stays, disappears from pickers, and projects still using
   it show it flagged as archived rather than breaking.
@@ -362,8 +370,7 @@ As built:
   releases one order (§7.2), so an order of ten pieces genuinely loads the flow ten times as hard
   as one of one, and lot sizing is exactly a lever this measure should respond to (§7.6). With
   batch 1 throughout it reduces to the per-part equivalence of §6.2 and reproduces the spec's
-  worked example exactly. Recorded as an open assumption (§18.7) because the source spec does not
-  say.
+  worked example exactly. The source spec does not say; confirmed in the field (§18.7).
 - **A blank cell is a skip, not a hole** (§5.1): it contributes nothing to the numerator and the
   part is still measurable. Only a part with no time *anywhere in scope* has no equivalence, and
   its row is blank rather than zero.
@@ -550,7 +557,7 @@ occupation = required ÷ available
 - **Available working time for the demand takt is the bottleneck's.** A line is a set of stations
   with different calendars and no single figure of its own; the constraint is what sets the pace,
   so its hours are the ones demand has to fit into, and the configured takt is resolved at that
-  same station so all three figures are in the same hours. Recorded as an open assumption (§18.8).
+  same station so all three figures are in the same hours. Confirmed in the field (§18.8).
 - **The Summary shares the map's period navigator.** A user who steps the Flow tab to `Sep 2026`
   and then opens Summary is asking about September; a second period control would be a second
   answer to the same question.
@@ -1092,12 +1099,11 @@ it.
    report. (§7.2, M4)
 6. **Rework adds time only.** It does not create additional physical orders, scrap, or material
    consumption. (§4.4, M1)
-7. **MM3 weights an order by its batch size.** An order of ten pieces reads as ten takts of load in
-   the sequence, because one slot releases one order whatever its size. The alternative — measuring
-   the part alone and treating batch size as invisible to smoothness — would make lot sizing
-   unmeasurable by the one tool that should see it. Built the first way; needs a yes/no before M4
-   reads the same sequence. (§6.3, M3)
-8. **The demand takt is measured at the bottleneck's available hours.** A line has no single
-   calendar of its own, and the constraint is what sets the pace. The alternative — the longest-open
-   station, or a mean across the flow — would flatter an unbalanced line. (§8.2, M3)
-7. **One plant per project**, per the spec; a project cannot span plants. (§3, M1)
+7. ~~MM3 batch weighting~~ — **confirmed 2026-08-04**: an order of ten pieces reads as ten takts of
+   load in the sequence, because one slot releases one order whatever its size. Lot sizing is
+   therefore visible to the one tool that should see it, and M4 releases against the same reading.
+   (§6.3, M3)
+8. ~~Demand takt denominator~~ — **confirmed 2026-08-04**: measured at the bottleneck's available
+   hours. A line has no single calendar of its own, and the constraint is what sets the pace.
+   (§8.2, M3)
+9. **One plant per project**, per the spec; a project cannot span plants. (§3, M1)
