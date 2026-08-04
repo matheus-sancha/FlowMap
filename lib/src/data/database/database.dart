@@ -10,6 +10,7 @@ import '../app_directory.dart';
 import 'enums.dart';
 import 'project_tables.dart';
 import 'seed_data.dart';
+import 'simulation_tables.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
@@ -48,6 +49,12 @@ const _seededAtKey = 'reference_data.seeded_at';
     DemandParts,
     PartProcessTimes,
     DemandOrders,
+    SimulationRuns,
+    SimulationRunStudies,
+    SimulationRunOrders,
+    SimulationRunSteps,
+    SimulationRunEmptySlots,
+    SimulationRunWorkcenters,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -64,7 +71,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -216,6 +223,20 @@ class AppDatabase extends _$AppDatabase {
             },
           ),
         );
+      }
+
+      if (from < 11) {
+        // M4: where a run is kept (DESIGN.md §7.10). Six new tables and no
+        // change to an existing one, so `createTable` from the current
+        // definition is safe at any starting version — and needs none of the
+        // guarding the `addColumn` steps above do, because nothing earlier
+        // creates these.
+        await m.createTable(simulationRuns);
+        await m.createTable(simulationRunStudies);
+        await m.createTable(simulationRunOrders);
+        await m.createTable(simulationRunSteps);
+        await m.createTable(simulationRunEmptySlots);
+        await m.createTable(simulationRunWorkcenters);
       }
 
       // Reference-data seeding runs outside every version guard, on every

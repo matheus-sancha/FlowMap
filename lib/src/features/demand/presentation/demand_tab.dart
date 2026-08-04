@@ -248,7 +248,7 @@ class _PartsGrid extends ConsumerWidget {
     if (row >= table.parts.length) return '';
     final part = table.parts[row];
     if (column == partNumberColumn) return part.partNumber;
-    if (column == partProjectColumn) return part.customerProject ?? '';
+    if (column == partProjectColumn) return part.customerProject;
     if (column == partDescriptionColumn) return part.description ?? '';
     if (column == _totalColumn) {
       return formatDurationInput(table.totalFor(part.id));
@@ -348,8 +348,6 @@ class _SequenceGrid extends ConsumerWidget {
         ),
       );
     }
-
-    final partsById = {for (final part in table.parts) part.id: part};
 
     return DataGrid(
       rowCount: orders.length + 1,

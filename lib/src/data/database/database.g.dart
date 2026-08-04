@@ -10882,6 +10882,2977 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
   }
 }
 
+class $SimulationRunsTable extends SimulationRuns
+    with TableInfo<$SimulationRunsTable, SimulationRun> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _projectIdMeta = const VerificationMeta(
+    'projectId',
+  );
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+    'project_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES projects (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _dispatchMeta = const VerificationMeta(
+    'dispatch',
+  );
+  @override
+  late final GeneratedColumn<String> dispatch = GeneratedColumn<String>(
+    'dispatch',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _runStartMeta = const VerificationMeta(
+    'runStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> runStart = GeneratedColumn<DateTime>(
+    'run_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _runEndMeta = const VerificationMeta('runEnd');
+  @override
+  late final GeneratedColumn<DateTime> runEnd = GeneratedColumn<DateTime>(
+    'run_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _guardMeta = const VerificationMeta('guard');
+  @override
+  late final GeneratedColumn<DateTime> guard = GeneratedColumn<DateTime>(
+    'guard',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _abortReasonMeta = const VerificationMeta(
+    'abortReason',
+  );
+  @override
+  late final GeneratedColumn<String> abortReason = GeneratedColumn<String>(
+    'abort_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    projectId,
+    dispatch,
+    runStart,
+    runEnd,
+    guard,
+    abortReason,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_runs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRun> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(
+        _projectIdMeta,
+        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('dispatch')) {
+      context.handle(
+        _dispatchMeta,
+        dispatch.isAcceptableOrUnknown(data['dispatch']!, _dispatchMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dispatchMeta);
+    }
+    if (data.containsKey('run_start')) {
+      context.handle(
+        _runStartMeta,
+        runStart.isAcceptableOrUnknown(data['run_start']!, _runStartMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runStartMeta);
+    }
+    if (data.containsKey('run_end')) {
+      context.handle(
+        _runEndMeta,
+        runEnd.isAcceptableOrUnknown(data['run_end']!, _runEndMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runEndMeta);
+    }
+    if (data.containsKey('guard')) {
+      context.handle(
+        _guardMeta,
+        guard.isAcceptableOrUnknown(data['guard']!, _guardMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_guardMeta);
+    }
+    if (data.containsKey('abort_reason')) {
+      context.handle(
+        _abortReasonMeta,
+        abortReason.isAcceptableOrUnknown(
+          data['abort_reason']!,
+          _abortReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SimulationRun map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRun(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      projectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}project_id'],
+      )!,
+      dispatch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dispatch'],
+      )!,
+      runStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}run_start'],
+      )!,
+      runEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}run_end'],
+      )!,
+      guard: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}guard'],
+      )!,
+      abortReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}abort_reason'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SimulationRunsTable createAlias(String alias) {
+    return $SimulationRunsTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRun extends DataClass implements Insertable<SimulationRun> {
+  final String id;
+  final String projectId;
+
+  /// §7.4's rule, by name.
+  ///
+  /// **A plain text column rather than `textEnum`**, and likewise every other
+  /// enum stored here. Two reasons, and the second is the one that decided it:
+  /// `DispatchRule` belongs to the engine, and reaching it from this file would
+  /// drag the whole calendar feature into the schema definition; and `textEnum`
+  /// *throws* on a name it does not know, so a run written by a later build
+  /// would make an older one fail to open a list of runs rather than show the
+  /// one it cannot read. The repository parses, and falls back.
+  final String dispatch;
+
+  /// Cold start — the plant is empty here (§7.8).
+  final DateTime runStart;
+
+  /// The last event processed.
+  final DateTime runEnd;
+
+  /// Where the run would have been abandoned (§7.8).
+  final DateTime guard;
+
+  /// Why it stopped early, by name. Null means it completed.
+  final String? abortReason;
+  final DateTime createdAt;
+  const SimulationRun({
+    required this.id,
+    required this.projectId,
+    required this.dispatch,
+    required this.runStart,
+    required this.runEnd,
+    required this.guard,
+    this.abortReason,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['project_id'] = Variable<String>(projectId);
+    map['dispatch'] = Variable<String>(dispatch);
+    map['run_start'] = Variable<DateTime>(runStart);
+    map['run_end'] = Variable<DateTime>(runEnd);
+    map['guard'] = Variable<DateTime>(guard);
+    if (!nullToAbsent || abortReason != null) {
+      map['abort_reason'] = Variable<String>(abortReason);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SimulationRunsCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunsCompanion(
+      id: Value(id),
+      projectId: Value(projectId),
+      dispatch: Value(dispatch),
+      runStart: Value(runStart),
+      runEnd: Value(runEnd),
+      guard: Value(guard),
+      abortReason: abortReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(abortReason),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SimulationRun.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRun(
+      id: serializer.fromJson<String>(json['id']),
+      projectId: serializer.fromJson<String>(json['projectId']),
+      dispatch: serializer.fromJson<String>(json['dispatch']),
+      runStart: serializer.fromJson<DateTime>(json['runStart']),
+      runEnd: serializer.fromJson<DateTime>(json['runEnd']),
+      guard: serializer.fromJson<DateTime>(json['guard']),
+      abortReason: serializer.fromJson<String?>(json['abortReason']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'projectId': serializer.toJson<String>(projectId),
+      'dispatch': serializer.toJson<String>(dispatch),
+      'runStart': serializer.toJson<DateTime>(runStart),
+      'runEnd': serializer.toJson<DateTime>(runEnd),
+      'guard': serializer.toJson<DateTime>(guard),
+      'abortReason': serializer.toJson<String?>(abortReason),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SimulationRun copyWith({
+    String? id,
+    String? projectId,
+    String? dispatch,
+    DateTime? runStart,
+    DateTime? runEnd,
+    DateTime? guard,
+    Value<String?> abortReason = const Value.absent(),
+    DateTime? createdAt,
+  }) => SimulationRun(
+    id: id ?? this.id,
+    projectId: projectId ?? this.projectId,
+    dispatch: dispatch ?? this.dispatch,
+    runStart: runStart ?? this.runStart,
+    runEnd: runEnd ?? this.runEnd,
+    guard: guard ?? this.guard,
+    abortReason: abortReason.present ? abortReason.value : this.abortReason,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SimulationRun copyWithCompanion(SimulationRunsCompanion data) {
+    return SimulationRun(
+      id: data.id.present ? data.id.value : this.id,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      dispatch: data.dispatch.present ? data.dispatch.value : this.dispatch,
+      runStart: data.runStart.present ? data.runStart.value : this.runStart,
+      runEnd: data.runEnd.present ? data.runEnd.value : this.runEnd,
+      guard: data.guard.present ? data.guard.value : this.guard,
+      abortReason: data.abortReason.present
+          ? data.abortReason.value
+          : this.abortReason,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRun(')
+          ..write('id: $id, ')
+          ..write('projectId: $projectId, ')
+          ..write('dispatch: $dispatch, ')
+          ..write('runStart: $runStart, ')
+          ..write('runEnd: $runEnd, ')
+          ..write('guard: $guard, ')
+          ..write('abortReason: $abortReason, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    projectId,
+    dispatch,
+    runStart,
+    runEnd,
+    guard,
+    abortReason,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRun &&
+          other.id == this.id &&
+          other.projectId == this.projectId &&
+          other.dispatch == this.dispatch &&
+          other.runStart == this.runStart &&
+          other.runEnd == this.runEnd &&
+          other.guard == this.guard &&
+          other.abortReason == this.abortReason &&
+          other.createdAt == this.createdAt);
+}
+
+class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
+  final Value<String> id;
+  final Value<String> projectId;
+  final Value<String> dispatch;
+  final Value<DateTime> runStart;
+  final Value<DateTime> runEnd;
+  final Value<DateTime> guard;
+  final Value<String?> abortReason;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const SimulationRunsCompanion({
+    this.id = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.dispatch = const Value.absent(),
+    this.runStart = const Value.absent(),
+    this.runEnd = const Value.absent(),
+    this.guard = const Value.absent(),
+    this.abortReason = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunsCompanion.insert({
+    required String id,
+    required String projectId,
+    required String dispatch,
+    required DateTime runStart,
+    required DateTime runEnd,
+    required DateTime guard,
+    this.abortReason = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       projectId = Value(projectId),
+       dispatch = Value(dispatch),
+       runStart = Value(runStart),
+       runEnd = Value(runEnd),
+       guard = Value(guard),
+       createdAt = Value(createdAt);
+  static Insertable<SimulationRun> custom({
+    Expression<String>? id,
+    Expression<String>? projectId,
+    Expression<String>? dispatch,
+    Expression<DateTime>? runStart,
+    Expression<DateTime>? runEnd,
+    Expression<DateTime>? guard,
+    Expression<String>? abortReason,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (projectId != null) 'project_id': projectId,
+      if (dispatch != null) 'dispatch': dispatch,
+      if (runStart != null) 'run_start': runStart,
+      if (runEnd != null) 'run_end': runEnd,
+      if (guard != null) 'guard': guard,
+      if (abortReason != null) 'abort_reason': abortReason,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? projectId,
+    Value<String>? dispatch,
+    Value<DateTime>? runStart,
+    Value<DateTime>? runEnd,
+    Value<DateTime>? guard,
+    Value<String?>? abortReason,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunsCompanion(
+      id: id ?? this.id,
+      projectId: projectId ?? this.projectId,
+      dispatch: dispatch ?? this.dispatch,
+      runStart: runStart ?? this.runStart,
+      runEnd: runEnd ?? this.runEnd,
+      guard: guard ?? this.guard,
+      abortReason: abortReason ?? this.abortReason,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (dispatch.present) {
+      map['dispatch'] = Variable<String>(dispatch.value);
+    }
+    if (runStart.present) {
+      map['run_start'] = Variable<DateTime>(runStart.value);
+    }
+    if (runEnd.present) {
+      map['run_end'] = Variable<DateTime>(runEnd.value);
+    }
+    if (guard.present) {
+      map['guard'] = Variable<DateTime>(guard.value);
+    }
+    if (abortReason.present) {
+      map['abort_reason'] = Variable<String>(abortReason.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunsCompanion(')
+          ..write('id: $id, ')
+          ..write('projectId: $projectId, ')
+          ..write('dispatch: $dispatch, ')
+          ..write('runStart: $runStart, ')
+          ..write('runEnd: $runEnd, ')
+          ..write('guard: $guard, ')
+          ..write('abortReason: $abortReason, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunStudiesTable extends SimulationRunStudies
+    with TableInfo<$SimulationRunStudiesTable, SimulationRunStudy> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunStudiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _releaseSecondsMeta = const VerificationMeta(
+    'releaseSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> releaseSeconds = GeneratedColumn<int>(
+    'release_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _releaseCalendarIdMeta = const VerificationMeta(
+    'releaseCalendarId',
+  );
+  @override
+  late final GeneratedColumn<String> releaseCalendarId =
+      GeneratedColumn<String>(
+        'release_calendar_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _wipCapMeta = const VerificationMeta('wipCap');
+  @override
+  late final GeneratedColumn<int> wipCap = GeneratedColumn<int>(
+    'wip_cap',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    studyId,
+    name,
+    releaseSeconds,
+    releaseCalendarId,
+    priority,
+    wipCap,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_studies';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunStudy> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('release_seconds')) {
+      context.handle(
+        _releaseSecondsMeta,
+        releaseSeconds.isAcceptableOrUnknown(
+          data['release_seconds']!,
+          _releaseSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_releaseSecondsMeta);
+    }
+    if (data.containsKey('release_calendar_id')) {
+      context.handle(
+        _releaseCalendarIdMeta,
+        releaseCalendarId.isAcceptableOrUnknown(
+          data['release_calendar_id']!,
+          _releaseCalendarIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_priorityMeta);
+    }
+    if (data.containsKey('wip_cap')) {
+      context.handle(
+        _wipCapMeta,
+        wipCap.isAcceptableOrUnknown(data['wip_cap']!, _wipCapMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, studyId};
+  @override
+  SimulationRunStudy map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunStudy(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      releaseSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}release_seconds'],
+      )!,
+      releaseCalendarId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}release_calendar_id'],
+      ),
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
+      wipCap: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}wip_cap'],
+      ),
+    );
+  }
+
+  @override
+  $SimulationRunStudiesTable createAlias(String alias) {
+    return $SimulationRunStudiesTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunStudy extends DataClass
+    implements Insertable<SimulationRunStudy> {
+  final String runId;
+
+  /// The study this was, whether or not it still exists.
+  final String studyId;
+  final String name;
+
+  /// The gap between release slots, as resolved at the run's start (§7.2).
+  final int releaseSeconds;
+
+  /// Whose open time that interval was measured in — the pace setter.
+  final String? releaseCalendarId;
+  final int priority;
+  final int? wipCap;
+  const SimulationRunStudy({
+    required this.runId,
+    required this.studyId,
+    required this.name,
+    required this.releaseSeconds,
+    this.releaseCalendarId,
+    required this.priority,
+    this.wipCap,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['study_id'] = Variable<String>(studyId);
+    map['name'] = Variable<String>(name);
+    map['release_seconds'] = Variable<int>(releaseSeconds);
+    if (!nullToAbsent || releaseCalendarId != null) {
+      map['release_calendar_id'] = Variable<String>(releaseCalendarId);
+    }
+    map['priority'] = Variable<int>(priority);
+    if (!nullToAbsent || wipCap != null) {
+      map['wip_cap'] = Variable<int>(wipCap);
+    }
+    return map;
+  }
+
+  SimulationRunStudiesCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunStudiesCompanion(
+      runId: Value(runId),
+      studyId: Value(studyId),
+      name: Value(name),
+      releaseSeconds: Value(releaseSeconds),
+      releaseCalendarId: releaseCalendarId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(releaseCalendarId),
+      priority: Value(priority),
+      wipCap: wipCap == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wipCap),
+    );
+  }
+
+  factory SimulationRunStudy.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunStudy(
+      runId: serializer.fromJson<String>(json['runId']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      name: serializer.fromJson<String>(json['name']),
+      releaseSeconds: serializer.fromJson<int>(json['releaseSeconds']),
+      releaseCalendarId: serializer.fromJson<String?>(
+        json['releaseCalendarId'],
+      ),
+      priority: serializer.fromJson<int>(json['priority']),
+      wipCap: serializer.fromJson<int?>(json['wipCap']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'studyId': serializer.toJson<String>(studyId),
+      'name': serializer.toJson<String>(name),
+      'releaseSeconds': serializer.toJson<int>(releaseSeconds),
+      'releaseCalendarId': serializer.toJson<String?>(releaseCalendarId),
+      'priority': serializer.toJson<int>(priority),
+      'wipCap': serializer.toJson<int?>(wipCap),
+    };
+  }
+
+  SimulationRunStudy copyWith({
+    String? runId,
+    String? studyId,
+    String? name,
+    int? releaseSeconds,
+    Value<String?> releaseCalendarId = const Value.absent(),
+    int? priority,
+    Value<int?> wipCap = const Value.absent(),
+  }) => SimulationRunStudy(
+    runId: runId ?? this.runId,
+    studyId: studyId ?? this.studyId,
+    name: name ?? this.name,
+    releaseSeconds: releaseSeconds ?? this.releaseSeconds,
+    releaseCalendarId: releaseCalendarId.present
+        ? releaseCalendarId.value
+        : this.releaseCalendarId,
+    priority: priority ?? this.priority,
+    wipCap: wipCap.present ? wipCap.value : this.wipCap,
+  );
+  SimulationRunStudy copyWithCompanion(SimulationRunStudiesCompanion data) {
+    return SimulationRunStudy(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      name: data.name.present ? data.name.value : this.name,
+      releaseSeconds: data.releaseSeconds.present
+          ? data.releaseSeconds.value
+          : this.releaseSeconds,
+      releaseCalendarId: data.releaseCalendarId.present
+          ? data.releaseCalendarId.value
+          : this.releaseCalendarId,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunStudy(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('name: $name, ')
+          ..write('releaseSeconds: $releaseSeconds, ')
+          ..write('releaseCalendarId: $releaseCalendarId, ')
+          ..write('priority: $priority, ')
+          ..write('wipCap: $wipCap')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runId,
+    studyId,
+    name,
+    releaseSeconds,
+    releaseCalendarId,
+    priority,
+    wipCap,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunStudy &&
+          other.runId == this.runId &&
+          other.studyId == this.studyId &&
+          other.name == this.name &&
+          other.releaseSeconds == this.releaseSeconds &&
+          other.releaseCalendarId == this.releaseCalendarId &&
+          other.priority == this.priority &&
+          other.wipCap == this.wipCap);
+}
+
+class SimulationRunStudiesCompanion
+    extends UpdateCompanion<SimulationRunStudy> {
+  final Value<String> runId;
+  final Value<String> studyId;
+  final Value<String> name;
+  final Value<int> releaseSeconds;
+  final Value<String?> releaseCalendarId;
+  final Value<int> priority;
+  final Value<int?> wipCap;
+  final Value<int> rowid;
+  const SimulationRunStudiesCompanion({
+    this.runId = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.releaseSeconds = const Value.absent(),
+    this.releaseCalendarId = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.wipCap = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunStudiesCompanion.insert({
+    required String runId,
+    required String studyId,
+    required String name,
+    required int releaseSeconds,
+    this.releaseCalendarId = const Value.absent(),
+    required int priority,
+    this.wipCap = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       studyId = Value(studyId),
+       name = Value(name),
+       releaseSeconds = Value(releaseSeconds),
+       priority = Value(priority);
+  static Insertable<SimulationRunStudy> custom({
+    Expression<String>? runId,
+    Expression<String>? studyId,
+    Expression<String>? name,
+    Expression<int>? releaseSeconds,
+    Expression<String>? releaseCalendarId,
+    Expression<int>? priority,
+    Expression<int>? wipCap,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (studyId != null) 'study_id': studyId,
+      if (name != null) 'name': name,
+      if (releaseSeconds != null) 'release_seconds': releaseSeconds,
+      if (releaseCalendarId != null) 'release_calendar_id': releaseCalendarId,
+      if (priority != null) 'priority': priority,
+      if (wipCap != null) 'wip_cap': wipCap,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunStudiesCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? studyId,
+    Value<String>? name,
+    Value<int>? releaseSeconds,
+    Value<String?>? releaseCalendarId,
+    Value<int>? priority,
+    Value<int?>? wipCap,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunStudiesCompanion(
+      runId: runId ?? this.runId,
+      studyId: studyId ?? this.studyId,
+      name: name ?? this.name,
+      releaseSeconds: releaseSeconds ?? this.releaseSeconds,
+      releaseCalendarId: releaseCalendarId ?? this.releaseCalendarId,
+      priority: priority ?? this.priority,
+      wipCap: wipCap ?? this.wipCap,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (releaseSeconds.present) {
+      map['release_seconds'] = Variable<int>(releaseSeconds.value);
+    }
+    if (releaseCalendarId.present) {
+      map['release_calendar_id'] = Variable<String>(releaseCalendarId.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
+    if (wipCap.present) {
+      map['wip_cap'] = Variable<int>(wipCap.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunStudiesCompanion(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('name: $name, ')
+          ..write('releaseSeconds: $releaseSeconds, ')
+          ..write('releaseCalendarId: $releaseCalendarId, ')
+          ..write('priority: $priority, ')
+          ..write('wipCap: $wipCap, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunOrdersTable extends SimulationRunOrders
+    with TableInfo<$SimulationRunOrdersTable, SimulationRunOrder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunOrdersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  @override
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sequenceMeta = const VerificationMeta(
+    'sequence',
+  );
+  @override
+  late final GeneratedColumn<int> sequence = GeneratedColumn<int>(
+    'sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _partIdMeta = const VerificationMeta('partId');
+  @override
+  late final GeneratedColumn<String> partId = GeneratedColumn<String>(
+    'part_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _partNumberMeta = const VerificationMeta(
+    'partNumber',
+  );
+  @override
+  late final GeneratedColumn<String> partNumber = GeneratedColumn<String>(
+    'part_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _needDateMeta = const VerificationMeta(
+    'needDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> needDate = GeneratedColumn<DateTime>(
+    'need_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _releasedMeta = const VerificationMeta(
+    'released',
+  );
+  @override
+  late final GeneratedColumn<DateTime> released = GeneratedColumn<DateTime>(
+    'released',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deliveredMeta = const VerificationMeta(
+    'delivered',
+  );
+  @override
+  late final GeneratedColumn<DateTime> delivered = GeneratedColumn<DateTime>(
+    'delivered',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _theoreticalSecondsMeta =
+      const VerificationMeta('theoreticalSeconds');
+  @override
+  late final GeneratedColumn<int> theoreticalSeconds = GeneratedColumn<int>(
+    'theoretical_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    studyId,
+    orderId,
+    sequence,
+    partId,
+    partNumber,
+    needDate,
+    released,
+    delivered,
+    theoreticalSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_orders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunOrder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('sequence')) {
+      context.handle(
+        _sequenceMeta,
+        sequence.isAcceptableOrUnknown(data['sequence']!, _sequenceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sequenceMeta);
+    }
+    if (data.containsKey('part_id')) {
+      context.handle(
+        _partIdMeta,
+        partId.isAcceptableOrUnknown(data['part_id']!, _partIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_partIdMeta);
+    }
+    if (data.containsKey('part_number')) {
+      context.handle(
+        _partNumberMeta,
+        partNumber.isAcceptableOrUnknown(data['part_number']!, _partNumberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_partNumberMeta);
+    }
+    if (data.containsKey('need_date')) {
+      context.handle(
+        _needDateMeta,
+        needDate.isAcceptableOrUnknown(data['need_date']!, _needDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_needDateMeta);
+    }
+    if (data.containsKey('released')) {
+      context.handle(
+        _releasedMeta,
+        released.isAcceptableOrUnknown(data['released']!, _releasedMeta),
+      );
+    }
+    if (data.containsKey('delivered')) {
+      context.handle(
+        _deliveredMeta,
+        delivered.isAcceptableOrUnknown(data['delivered']!, _deliveredMeta),
+      );
+    }
+    if (data.containsKey('theoretical_seconds')) {
+      context.handle(
+        _theoreticalSecondsMeta,
+        theoreticalSeconds.isAcceptableOrUnknown(
+          data['theoretical_seconds']!,
+          _theoreticalSecondsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, orderId};
+  @override
+  SimulationRunOrder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunOrder(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      )!,
+      sequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sequence'],
+      )!,
+      partId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_id'],
+      )!,
+      partNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_number'],
+      )!,
+      needDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}need_date'],
+      )!,
+      released: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}released'],
+      ),
+      delivered: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}delivered'],
+      ),
+      theoreticalSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}theoretical_seconds'],
+      ),
+    );
+  }
+
+  @override
+  $SimulationRunOrdersTable createAlias(String alias) {
+    return $SimulationRunOrdersTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunOrder extends DataClass
+    implements Insertable<SimulationRunOrder> {
+  final String runId;
+  final String studyId;
+  final String orderId;
+  final int sequence;
+  final String partId;
+
+  /// `PN2` — copied in, so a part deleted from the demand table does not turn
+  /// every row of a finished run's per-part table into a uuid.
+  final String partNumber;
+  final DateTime needDate;
+
+  /// When it entered the flow. Null means it never did — the sequence ran out
+  /// of slots before the guard stopped the run.
+  final DateTime? released;
+
+  /// When it finished its last semantic step (§18.1). Null if it never did.
+  final DateTime? delivered;
+
+  /// §7.9's queue-free figure, walked from **this order's own release**.
+  ///
+  /// Stored rather than recomputed on read, because the walk needs the plant
+  /// the run happened in — availability, staffing, the shift pattern — and the
+  /// point of a stored run is that it survives all three being edited. Null
+  /// when the order never completed and there was nothing to compare.
+  final int? theoreticalSeconds;
+  const SimulationRunOrder({
+    required this.runId,
+    required this.studyId,
+    required this.orderId,
+    required this.sequence,
+    required this.partId,
+    required this.partNumber,
+    required this.needDate,
+    this.released,
+    this.delivered,
+    this.theoreticalSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['study_id'] = Variable<String>(studyId);
+    map['order_id'] = Variable<String>(orderId);
+    map['sequence'] = Variable<int>(sequence);
+    map['part_id'] = Variable<String>(partId);
+    map['part_number'] = Variable<String>(partNumber);
+    map['need_date'] = Variable<DateTime>(needDate);
+    if (!nullToAbsent || released != null) {
+      map['released'] = Variable<DateTime>(released);
+    }
+    if (!nullToAbsent || delivered != null) {
+      map['delivered'] = Variable<DateTime>(delivered);
+    }
+    if (!nullToAbsent || theoreticalSeconds != null) {
+      map['theoretical_seconds'] = Variable<int>(theoreticalSeconds);
+    }
+    return map;
+  }
+
+  SimulationRunOrdersCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunOrdersCompanion(
+      runId: Value(runId),
+      studyId: Value(studyId),
+      orderId: Value(orderId),
+      sequence: Value(sequence),
+      partId: Value(partId),
+      partNumber: Value(partNumber),
+      needDate: Value(needDate),
+      released: released == null && nullToAbsent
+          ? const Value.absent()
+          : Value(released),
+      delivered: delivered == null && nullToAbsent
+          ? const Value.absent()
+          : Value(delivered),
+      theoreticalSeconds: theoreticalSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(theoreticalSeconds),
+    );
+  }
+
+  factory SimulationRunOrder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunOrder(
+      runId: serializer.fromJson<String>(json['runId']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      orderId: serializer.fromJson<String>(json['orderId']),
+      sequence: serializer.fromJson<int>(json['sequence']),
+      partId: serializer.fromJson<String>(json['partId']),
+      partNumber: serializer.fromJson<String>(json['partNumber']),
+      needDate: serializer.fromJson<DateTime>(json['needDate']),
+      released: serializer.fromJson<DateTime?>(json['released']),
+      delivered: serializer.fromJson<DateTime?>(json['delivered']),
+      theoreticalSeconds: serializer.fromJson<int?>(json['theoreticalSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'studyId': serializer.toJson<String>(studyId),
+      'orderId': serializer.toJson<String>(orderId),
+      'sequence': serializer.toJson<int>(sequence),
+      'partId': serializer.toJson<String>(partId),
+      'partNumber': serializer.toJson<String>(partNumber),
+      'needDate': serializer.toJson<DateTime>(needDate),
+      'released': serializer.toJson<DateTime?>(released),
+      'delivered': serializer.toJson<DateTime?>(delivered),
+      'theoreticalSeconds': serializer.toJson<int?>(theoreticalSeconds),
+    };
+  }
+
+  SimulationRunOrder copyWith({
+    String? runId,
+    String? studyId,
+    String? orderId,
+    int? sequence,
+    String? partId,
+    String? partNumber,
+    DateTime? needDate,
+    Value<DateTime?> released = const Value.absent(),
+    Value<DateTime?> delivered = const Value.absent(),
+    Value<int?> theoreticalSeconds = const Value.absent(),
+  }) => SimulationRunOrder(
+    runId: runId ?? this.runId,
+    studyId: studyId ?? this.studyId,
+    orderId: orderId ?? this.orderId,
+    sequence: sequence ?? this.sequence,
+    partId: partId ?? this.partId,
+    partNumber: partNumber ?? this.partNumber,
+    needDate: needDate ?? this.needDate,
+    released: released.present ? released.value : this.released,
+    delivered: delivered.present ? delivered.value : this.delivered,
+    theoreticalSeconds: theoreticalSeconds.present
+        ? theoreticalSeconds.value
+        : this.theoreticalSeconds,
+  );
+  SimulationRunOrder copyWithCompanion(SimulationRunOrdersCompanion data) {
+    return SimulationRunOrder(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      sequence: data.sequence.present ? data.sequence.value : this.sequence,
+      partId: data.partId.present ? data.partId.value : this.partId,
+      partNumber: data.partNumber.present
+          ? data.partNumber.value
+          : this.partNumber,
+      needDate: data.needDate.present ? data.needDate.value : this.needDate,
+      released: data.released.present ? data.released.value : this.released,
+      delivered: data.delivered.present ? data.delivered.value : this.delivered,
+      theoreticalSeconds: data.theoreticalSeconds.present
+          ? data.theoreticalSeconds.value
+          : this.theoreticalSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunOrder(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('orderId: $orderId, ')
+          ..write('sequence: $sequence, ')
+          ..write('partId: $partId, ')
+          ..write('partNumber: $partNumber, ')
+          ..write('needDate: $needDate, ')
+          ..write('released: $released, ')
+          ..write('delivered: $delivered, ')
+          ..write('theoreticalSeconds: $theoreticalSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runId,
+    studyId,
+    orderId,
+    sequence,
+    partId,
+    partNumber,
+    needDate,
+    released,
+    delivered,
+    theoreticalSeconds,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunOrder &&
+          other.runId == this.runId &&
+          other.studyId == this.studyId &&
+          other.orderId == this.orderId &&
+          other.sequence == this.sequence &&
+          other.partId == this.partId &&
+          other.partNumber == this.partNumber &&
+          other.needDate == this.needDate &&
+          other.released == this.released &&
+          other.delivered == this.delivered &&
+          other.theoreticalSeconds == this.theoreticalSeconds);
+}
+
+class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
+  final Value<String> runId;
+  final Value<String> studyId;
+  final Value<String> orderId;
+  final Value<int> sequence;
+  final Value<String> partId;
+  final Value<String> partNumber;
+  final Value<DateTime> needDate;
+  final Value<DateTime?> released;
+  final Value<DateTime?> delivered;
+  final Value<int?> theoreticalSeconds;
+  final Value<int> rowid;
+  const SimulationRunOrdersCompanion({
+    this.runId = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.sequence = const Value.absent(),
+    this.partId = const Value.absent(),
+    this.partNumber = const Value.absent(),
+    this.needDate = const Value.absent(),
+    this.released = const Value.absent(),
+    this.delivered = const Value.absent(),
+    this.theoreticalSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunOrdersCompanion.insert({
+    required String runId,
+    required String studyId,
+    required String orderId,
+    required int sequence,
+    required String partId,
+    required String partNumber,
+    required DateTime needDate,
+    this.released = const Value.absent(),
+    this.delivered = const Value.absent(),
+    this.theoreticalSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       studyId = Value(studyId),
+       orderId = Value(orderId),
+       sequence = Value(sequence),
+       partId = Value(partId),
+       partNumber = Value(partNumber),
+       needDate = Value(needDate);
+  static Insertable<SimulationRunOrder> custom({
+    Expression<String>? runId,
+    Expression<String>? studyId,
+    Expression<String>? orderId,
+    Expression<int>? sequence,
+    Expression<String>? partId,
+    Expression<String>? partNumber,
+    Expression<DateTime>? needDate,
+    Expression<DateTime>? released,
+    Expression<DateTime>? delivered,
+    Expression<int>? theoreticalSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (studyId != null) 'study_id': studyId,
+      if (orderId != null) 'order_id': orderId,
+      if (sequence != null) 'sequence': sequence,
+      if (partId != null) 'part_id': partId,
+      if (partNumber != null) 'part_number': partNumber,
+      if (needDate != null) 'need_date': needDate,
+      if (released != null) 'released': released,
+      if (delivered != null) 'delivered': delivered,
+      if (theoreticalSeconds != null) 'theoretical_seconds': theoreticalSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunOrdersCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? studyId,
+    Value<String>? orderId,
+    Value<int>? sequence,
+    Value<String>? partId,
+    Value<String>? partNumber,
+    Value<DateTime>? needDate,
+    Value<DateTime?>? released,
+    Value<DateTime?>? delivered,
+    Value<int?>? theoreticalSeconds,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunOrdersCompanion(
+      runId: runId ?? this.runId,
+      studyId: studyId ?? this.studyId,
+      orderId: orderId ?? this.orderId,
+      sequence: sequence ?? this.sequence,
+      partId: partId ?? this.partId,
+      partNumber: partNumber ?? this.partNumber,
+      needDate: needDate ?? this.needDate,
+      released: released ?? this.released,
+      delivered: delivered ?? this.delivered,
+      theoreticalSeconds: theoreticalSeconds ?? this.theoreticalSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (sequence.present) {
+      map['sequence'] = Variable<int>(sequence.value);
+    }
+    if (partId.present) {
+      map['part_id'] = Variable<String>(partId.value);
+    }
+    if (partNumber.present) {
+      map['part_number'] = Variable<String>(partNumber.value);
+    }
+    if (needDate.present) {
+      map['need_date'] = Variable<DateTime>(needDate.value);
+    }
+    if (released.present) {
+      map['released'] = Variable<DateTime>(released.value);
+    }
+    if (delivered.present) {
+      map['delivered'] = Variable<DateTime>(delivered.value);
+    }
+    if (theoreticalSeconds.present) {
+      map['theoretical_seconds'] = Variable<int>(theoreticalSeconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunOrdersCompanion(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('orderId: $orderId, ')
+          ..write('sequence: $sequence, ')
+          ..write('partId: $partId, ')
+          ..write('partNumber: $partNumber, ')
+          ..write('needDate: $needDate, ')
+          ..write('released: $released, ')
+          ..write('delivered: $delivered, ')
+          ..write('theoreticalSeconds: $theoreticalSeconds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunStepsTable extends SimulationRunSteps
+    with TableInfo<$SimulationRunStepsTable, SimulationRunStep> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunStepsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  @override
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  @override
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workcenterIdMeta = const VerificationMeta(
+    'workcenterId',
+  );
+  @override
+  late final GeneratedColumn<String> workcenterId = GeneratedColumn<String>(
+    'workcenter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _queueStartMeta = const VerificationMeta(
+    'queueStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> queueStart = GeneratedColumn<DateTime>(
+    'queue_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _processStartMeta = const VerificationMeta(
+    'processStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> processStart = GeneratedColumn<DateTime>(
+    'process_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _processEndMeta = const VerificationMeta(
+    'processEnd',
+  );
+  @override
+  late final GeneratedColumn<DateTime> processEnd = GeneratedColumn<DateTime>(
+    'process_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _changeoverIncurredMeta =
+      const VerificationMeta('changeoverIncurred');
+  @override
+  late final GeneratedColumn<bool> changeoverIncurred = GeneratedColumn<bool>(
+    'changeover_incurred',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("changeover_incurred" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    studyId,
+    orderId,
+    nodeId,
+    workcenterId,
+    queueStart,
+    processStart,
+    processEnd,
+    changeoverIncurred,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_steps';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunStep> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('node_id')) {
+      context.handle(
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nodeIdMeta);
+    }
+    if (data.containsKey('workcenter_id')) {
+      context.handle(
+        _workcenterIdMeta,
+        workcenterId.isAcceptableOrUnknown(
+          data['workcenter_id']!,
+          _workcenterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workcenterIdMeta);
+    }
+    if (data.containsKey('queue_start')) {
+      context.handle(
+        _queueStartMeta,
+        queueStart.isAcceptableOrUnknown(data['queue_start']!, _queueStartMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_queueStartMeta);
+    }
+    if (data.containsKey('process_start')) {
+      context.handle(
+        _processStartMeta,
+        processStart.isAcceptableOrUnknown(
+          data['process_start']!,
+          _processStartMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_processStartMeta);
+    }
+    if (data.containsKey('process_end')) {
+      context.handle(
+        _processEndMeta,
+        processEnd.isAcceptableOrUnknown(data['process_end']!, _processEndMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_processEndMeta);
+    }
+    if (data.containsKey('changeover_incurred')) {
+      context.handle(
+        _changeoverIncurredMeta,
+        changeoverIncurred.isAcceptableOrUnknown(
+          data['changeover_incurred']!,
+          _changeoverIncurredMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, orderId, nodeId};
+  @override
+  SimulationRunStep map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunStep(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      )!,
+      nodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}node_id'],
+      )!,
+      workcenterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workcenter_id'],
+      )!,
+      queueStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}queue_start'],
+      )!,
+      processStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}process_start'],
+      )!,
+      processEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}process_end'],
+      )!,
+      changeoverIncurred: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}changeover_incurred'],
+      )!,
+    );
+  }
+
+  @override
+  $SimulationRunStepsTable createAlias(String alias) {
+    return $SimulationRunStepsTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunStep extends DataClass
+    implements Insertable<SimulationRunStep> {
+  final String runId;
+  final String studyId;
+  final String orderId;
+  final String nodeId;
+
+  /// The workcenter that **actually** ran it, which for a pool step is only
+  /// known once the run has happened (§3.1).
+  final String workcenterId;
+
+  /// When the order reached this step and started waiting.
+  final DateTime queueStart;
+  final DateTime processStart;
+  final DateTime processEnd;
+
+  /// Whether the order before this one on that workcenter was a different part
+  /// (§7.6).
+  final bool changeoverIncurred;
+  const SimulationRunStep({
+    required this.runId,
+    required this.studyId,
+    required this.orderId,
+    required this.nodeId,
+    required this.workcenterId,
+    required this.queueStart,
+    required this.processStart,
+    required this.processEnd,
+    required this.changeoverIncurred,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['study_id'] = Variable<String>(studyId);
+    map['order_id'] = Variable<String>(orderId);
+    map['node_id'] = Variable<String>(nodeId);
+    map['workcenter_id'] = Variable<String>(workcenterId);
+    map['queue_start'] = Variable<DateTime>(queueStart);
+    map['process_start'] = Variable<DateTime>(processStart);
+    map['process_end'] = Variable<DateTime>(processEnd);
+    map['changeover_incurred'] = Variable<bool>(changeoverIncurred);
+    return map;
+  }
+
+  SimulationRunStepsCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunStepsCompanion(
+      runId: Value(runId),
+      studyId: Value(studyId),
+      orderId: Value(orderId),
+      nodeId: Value(nodeId),
+      workcenterId: Value(workcenterId),
+      queueStart: Value(queueStart),
+      processStart: Value(processStart),
+      processEnd: Value(processEnd),
+      changeoverIncurred: Value(changeoverIncurred),
+    );
+  }
+
+  factory SimulationRunStep.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunStep(
+      runId: serializer.fromJson<String>(json['runId']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      orderId: serializer.fromJson<String>(json['orderId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
+      workcenterId: serializer.fromJson<String>(json['workcenterId']),
+      queueStart: serializer.fromJson<DateTime>(json['queueStart']),
+      processStart: serializer.fromJson<DateTime>(json['processStart']),
+      processEnd: serializer.fromJson<DateTime>(json['processEnd']),
+      changeoverIncurred: serializer.fromJson<bool>(json['changeoverIncurred']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'studyId': serializer.toJson<String>(studyId),
+      'orderId': serializer.toJson<String>(orderId),
+      'nodeId': serializer.toJson<String>(nodeId),
+      'workcenterId': serializer.toJson<String>(workcenterId),
+      'queueStart': serializer.toJson<DateTime>(queueStart),
+      'processStart': serializer.toJson<DateTime>(processStart),
+      'processEnd': serializer.toJson<DateTime>(processEnd),
+      'changeoverIncurred': serializer.toJson<bool>(changeoverIncurred),
+    };
+  }
+
+  SimulationRunStep copyWith({
+    String? runId,
+    String? studyId,
+    String? orderId,
+    String? nodeId,
+    String? workcenterId,
+    DateTime? queueStart,
+    DateTime? processStart,
+    DateTime? processEnd,
+    bool? changeoverIncurred,
+  }) => SimulationRunStep(
+    runId: runId ?? this.runId,
+    studyId: studyId ?? this.studyId,
+    orderId: orderId ?? this.orderId,
+    nodeId: nodeId ?? this.nodeId,
+    workcenterId: workcenterId ?? this.workcenterId,
+    queueStart: queueStart ?? this.queueStart,
+    processStart: processStart ?? this.processStart,
+    processEnd: processEnd ?? this.processEnd,
+    changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
+  );
+  SimulationRunStep copyWithCompanion(SimulationRunStepsCompanion data) {
+    return SimulationRunStep(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+      workcenterId: data.workcenterId.present
+          ? data.workcenterId.value
+          : this.workcenterId,
+      queueStart: data.queueStart.present
+          ? data.queueStart.value
+          : this.queueStart,
+      processStart: data.processStart.present
+          ? data.processStart.value
+          : this.processStart,
+      processEnd: data.processEnd.present
+          ? data.processEnd.value
+          : this.processEnd,
+      changeoverIncurred: data.changeoverIncurred.present
+          ? data.changeoverIncurred.value
+          : this.changeoverIncurred,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunStep(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('orderId: $orderId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('queueStart: $queueStart, ')
+          ..write('processStart: $processStart, ')
+          ..write('processEnd: $processEnd, ')
+          ..write('changeoverIncurred: $changeoverIncurred')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runId,
+    studyId,
+    orderId,
+    nodeId,
+    workcenterId,
+    queueStart,
+    processStart,
+    processEnd,
+    changeoverIncurred,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunStep &&
+          other.runId == this.runId &&
+          other.studyId == this.studyId &&
+          other.orderId == this.orderId &&
+          other.nodeId == this.nodeId &&
+          other.workcenterId == this.workcenterId &&
+          other.queueStart == this.queueStart &&
+          other.processStart == this.processStart &&
+          other.processEnd == this.processEnd &&
+          other.changeoverIncurred == this.changeoverIncurred);
+}
+
+class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
+  final Value<String> runId;
+  final Value<String> studyId;
+  final Value<String> orderId;
+  final Value<String> nodeId;
+  final Value<String> workcenterId;
+  final Value<DateTime> queueStart;
+  final Value<DateTime> processStart;
+  final Value<DateTime> processEnd;
+  final Value<bool> changeoverIncurred;
+  final Value<int> rowid;
+  const SimulationRunStepsCompanion({
+    this.runId = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.nodeId = const Value.absent(),
+    this.workcenterId = const Value.absent(),
+    this.queueStart = const Value.absent(),
+    this.processStart = const Value.absent(),
+    this.processEnd = const Value.absent(),
+    this.changeoverIncurred = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunStepsCompanion.insert({
+    required String runId,
+    required String studyId,
+    required String orderId,
+    required String nodeId,
+    required String workcenterId,
+    required DateTime queueStart,
+    required DateTime processStart,
+    required DateTime processEnd,
+    this.changeoverIncurred = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       studyId = Value(studyId),
+       orderId = Value(orderId),
+       nodeId = Value(nodeId),
+       workcenterId = Value(workcenterId),
+       queueStart = Value(queueStart),
+       processStart = Value(processStart),
+       processEnd = Value(processEnd);
+  static Insertable<SimulationRunStep> custom({
+    Expression<String>? runId,
+    Expression<String>? studyId,
+    Expression<String>? orderId,
+    Expression<String>? nodeId,
+    Expression<String>? workcenterId,
+    Expression<DateTime>? queueStart,
+    Expression<DateTime>? processStart,
+    Expression<DateTime>? processEnd,
+    Expression<bool>? changeoverIncurred,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (studyId != null) 'study_id': studyId,
+      if (orderId != null) 'order_id': orderId,
+      if (nodeId != null) 'node_id': nodeId,
+      if (workcenterId != null) 'workcenter_id': workcenterId,
+      if (queueStart != null) 'queue_start': queueStart,
+      if (processStart != null) 'process_start': processStart,
+      if (processEnd != null) 'process_end': processEnd,
+      if (changeoverIncurred != null) 'changeover_incurred': changeoverIncurred,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunStepsCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? studyId,
+    Value<String>? orderId,
+    Value<String>? nodeId,
+    Value<String>? workcenterId,
+    Value<DateTime>? queueStart,
+    Value<DateTime>? processStart,
+    Value<DateTime>? processEnd,
+    Value<bool>? changeoverIncurred,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunStepsCompanion(
+      runId: runId ?? this.runId,
+      studyId: studyId ?? this.studyId,
+      orderId: orderId ?? this.orderId,
+      nodeId: nodeId ?? this.nodeId,
+      workcenterId: workcenterId ?? this.workcenterId,
+      queueStart: queueStart ?? this.queueStart,
+      processStart: processStart ?? this.processStart,
+      processEnd: processEnd ?? this.processEnd,
+      changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
+    }
+    if (workcenterId.present) {
+      map['workcenter_id'] = Variable<String>(workcenterId.value);
+    }
+    if (queueStart.present) {
+      map['queue_start'] = Variable<DateTime>(queueStart.value);
+    }
+    if (processStart.present) {
+      map['process_start'] = Variable<DateTime>(processStart.value);
+    }
+    if (processEnd.present) {
+      map['process_end'] = Variable<DateTime>(processEnd.value);
+    }
+    if (changeoverIncurred.present) {
+      map['changeover_incurred'] = Variable<bool>(changeoverIncurred.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunStepsCompanion(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('orderId: $orderId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('queueStart: $queueStart, ')
+          ..write('processStart: $processStart, ')
+          ..write('processEnd: $processEnd, ')
+          ..write('changeoverIncurred: $changeoverIncurred, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunEmptySlotsTable extends SimulationRunEmptySlots
+    with TableInfo<$SimulationRunEmptySlotsTable, SimulationRunEmptySlot> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunEmptySlotsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _slotAtMeta = const VerificationMeta('slotAt');
+  @override
+  late final GeneratedColumn<DateTime> slotAt = GeneratedColumn<DateTime>(
+    'slot_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [runId, studyId, slotAt, reason];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_empty_slots';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunEmptySlot> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('slot_at')) {
+      context.handle(
+        _slotAtMeta,
+        slotAt.isAcceptableOrUnknown(data['slot_at']!, _slotAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_slotAtMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, studyId, slotAt};
+  @override
+  SimulationRunEmptySlot map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunEmptySlot(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      slotAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}slot_at'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+    );
+  }
+
+  @override
+  $SimulationRunEmptySlotsTable createAlias(String alias) {
+    return $SimulationRunEmptySlotsTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunEmptySlot extends DataClass
+    implements Insertable<SimulationRunEmptySlot> {
+  final String runId;
+  final String studyId;
+  final DateTime slotAt;
+
+  /// `awaitingMaterial` or `wipCap`, by name.
+  final String reason;
+  const SimulationRunEmptySlot({
+    required this.runId,
+    required this.studyId,
+    required this.slotAt,
+    required this.reason,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['study_id'] = Variable<String>(studyId);
+    map['slot_at'] = Variable<DateTime>(slotAt);
+    map['reason'] = Variable<String>(reason);
+    return map;
+  }
+
+  SimulationRunEmptySlotsCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunEmptySlotsCompanion(
+      runId: Value(runId),
+      studyId: Value(studyId),
+      slotAt: Value(slotAt),
+      reason: Value(reason),
+    );
+  }
+
+  factory SimulationRunEmptySlot.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunEmptySlot(
+      runId: serializer.fromJson<String>(json['runId']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      slotAt: serializer.fromJson<DateTime>(json['slotAt']),
+      reason: serializer.fromJson<String>(json['reason']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'studyId': serializer.toJson<String>(studyId),
+      'slotAt': serializer.toJson<DateTime>(slotAt),
+      'reason': serializer.toJson<String>(reason),
+    };
+  }
+
+  SimulationRunEmptySlot copyWith({
+    String? runId,
+    String? studyId,
+    DateTime? slotAt,
+    String? reason,
+  }) => SimulationRunEmptySlot(
+    runId: runId ?? this.runId,
+    studyId: studyId ?? this.studyId,
+    slotAt: slotAt ?? this.slotAt,
+    reason: reason ?? this.reason,
+  );
+  SimulationRunEmptySlot copyWithCompanion(
+    SimulationRunEmptySlotsCompanion data,
+  ) {
+    return SimulationRunEmptySlot(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      slotAt: data.slotAt.present ? data.slotAt.value : this.slotAt,
+      reason: data.reason.present ? data.reason.value : this.reason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunEmptySlot(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('slotAt: $slotAt, ')
+          ..write('reason: $reason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(runId, studyId, slotAt, reason);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunEmptySlot &&
+          other.runId == this.runId &&
+          other.studyId == this.studyId &&
+          other.slotAt == this.slotAt &&
+          other.reason == this.reason);
+}
+
+class SimulationRunEmptySlotsCompanion
+    extends UpdateCompanion<SimulationRunEmptySlot> {
+  final Value<String> runId;
+  final Value<String> studyId;
+  final Value<DateTime> slotAt;
+  final Value<String> reason;
+  final Value<int> rowid;
+  const SimulationRunEmptySlotsCompanion({
+    this.runId = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.slotAt = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunEmptySlotsCompanion.insert({
+    required String runId,
+    required String studyId,
+    required DateTime slotAt,
+    required String reason,
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       studyId = Value(studyId),
+       slotAt = Value(slotAt),
+       reason = Value(reason);
+  static Insertable<SimulationRunEmptySlot> custom({
+    Expression<String>? runId,
+    Expression<String>? studyId,
+    Expression<DateTime>? slotAt,
+    Expression<String>? reason,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (studyId != null) 'study_id': studyId,
+      if (slotAt != null) 'slot_at': slotAt,
+      if (reason != null) 'reason': reason,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunEmptySlotsCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? studyId,
+    Value<DateTime>? slotAt,
+    Value<String>? reason,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunEmptySlotsCompanion(
+      runId: runId ?? this.runId,
+      studyId: studyId ?? this.studyId,
+      slotAt: slotAt ?? this.slotAt,
+      reason: reason ?? this.reason,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (slotAt.present) {
+      map['slot_at'] = Variable<DateTime>(slotAt.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunEmptySlotsCompanion(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('slotAt: $slotAt, ')
+          ..write('reason: $reason, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
+    with TableInfo<$SimulationRunWorkcentersTable, SimulationRunWorkcenter> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunWorkcentersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _workcenterIdMeta = const VerificationMeta(
+    'workcenterId',
+  );
+  @override
+  late final GeneratedColumn<String> workcenterId = GeneratedColumn<String>(
+    'workcenter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _busySecondsMeta = const VerificationMeta(
+    'busySeconds',
+  );
+  @override
+  late final GeneratedColumn<int> busySeconds = GeneratedColumn<int>(
+    'busy_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openSecondsMeta = const VerificationMeta(
+    'openSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> openSeconds = GeneratedColumn<int>(
+    'open_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    workcenterId,
+    name,
+    busySeconds,
+    openSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_workcenters';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunWorkcenter> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('workcenter_id')) {
+      context.handle(
+        _workcenterIdMeta,
+        workcenterId.isAcceptableOrUnknown(
+          data['workcenter_id']!,
+          _workcenterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workcenterIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('busy_seconds')) {
+      context.handle(
+        _busySecondsMeta,
+        busySeconds.isAcceptableOrUnknown(
+          data['busy_seconds']!,
+          _busySecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_busySecondsMeta);
+    }
+    if (data.containsKey('open_seconds')) {
+      context.handle(
+        _openSecondsMeta,
+        openSeconds.isAcceptableOrUnknown(
+          data['open_seconds']!,
+          _openSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openSecondsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, workcenterId};
+  @override
+  SimulationRunWorkcenter map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunWorkcenter(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      workcenterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workcenter_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      busySeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}busy_seconds'],
+      )!,
+      openSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}open_seconds'],
+      )!,
+    );
+  }
+
+  @override
+  $SimulationRunWorkcentersTable createAlias(String alias) {
+    return $SimulationRunWorkcentersTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunWorkcenter extends DataClass
+    implements Insertable<SimulationRunWorkcenter> {
+  final String runId;
+  final String workcenterId;
+
+  /// `CLAD04` — copied in, so a bottleneck still reads as a station after the
+  /// workcenter is renamed or removed from the plant.
+  final String name;
+
+  /// Open time the station spent running (§8.3's utilisation numerator).
+  final int busySeconds;
+
+  /// Open time it had available across the run — the denominator.
+  final int openSeconds;
+  const SimulationRunWorkcenter({
+    required this.runId,
+    required this.workcenterId,
+    required this.name,
+    required this.busySeconds,
+    required this.openSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['workcenter_id'] = Variable<String>(workcenterId);
+    map['name'] = Variable<String>(name);
+    map['busy_seconds'] = Variable<int>(busySeconds);
+    map['open_seconds'] = Variable<int>(openSeconds);
+    return map;
+  }
+
+  SimulationRunWorkcentersCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunWorkcentersCompanion(
+      runId: Value(runId),
+      workcenterId: Value(workcenterId),
+      name: Value(name),
+      busySeconds: Value(busySeconds),
+      openSeconds: Value(openSeconds),
+    );
+  }
+
+  factory SimulationRunWorkcenter.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunWorkcenter(
+      runId: serializer.fromJson<String>(json['runId']),
+      workcenterId: serializer.fromJson<String>(json['workcenterId']),
+      name: serializer.fromJson<String>(json['name']),
+      busySeconds: serializer.fromJson<int>(json['busySeconds']),
+      openSeconds: serializer.fromJson<int>(json['openSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'workcenterId': serializer.toJson<String>(workcenterId),
+      'name': serializer.toJson<String>(name),
+      'busySeconds': serializer.toJson<int>(busySeconds),
+      'openSeconds': serializer.toJson<int>(openSeconds),
+    };
+  }
+
+  SimulationRunWorkcenter copyWith({
+    String? runId,
+    String? workcenterId,
+    String? name,
+    int? busySeconds,
+    int? openSeconds,
+  }) => SimulationRunWorkcenter(
+    runId: runId ?? this.runId,
+    workcenterId: workcenterId ?? this.workcenterId,
+    name: name ?? this.name,
+    busySeconds: busySeconds ?? this.busySeconds,
+    openSeconds: openSeconds ?? this.openSeconds,
+  );
+  SimulationRunWorkcenter copyWithCompanion(
+    SimulationRunWorkcentersCompanion data,
+  ) {
+    return SimulationRunWorkcenter(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      workcenterId: data.workcenterId.present
+          ? data.workcenterId.value
+          : this.workcenterId,
+      name: data.name.present ? data.name.value : this.name,
+      busySeconds: data.busySeconds.present
+          ? data.busySeconds.value
+          : this.busySeconds,
+      openSeconds: data.openSeconds.present
+          ? data.openSeconds.value
+          : this.openSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunWorkcenter(')
+          ..write('runId: $runId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('name: $name, ')
+          ..write('busySeconds: $busySeconds, ')
+          ..write('openSeconds: $openSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runId, workcenterId, name, busySeconds, openSeconds);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunWorkcenter &&
+          other.runId == this.runId &&
+          other.workcenterId == this.workcenterId &&
+          other.name == this.name &&
+          other.busySeconds == this.busySeconds &&
+          other.openSeconds == this.openSeconds);
+}
+
+class SimulationRunWorkcentersCompanion
+    extends UpdateCompanion<SimulationRunWorkcenter> {
+  final Value<String> runId;
+  final Value<String> workcenterId;
+  final Value<String> name;
+  final Value<int> busySeconds;
+  final Value<int> openSeconds;
+  final Value<int> rowid;
+  const SimulationRunWorkcentersCompanion({
+    this.runId = const Value.absent(),
+    this.workcenterId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.busySeconds = const Value.absent(),
+    this.openSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunWorkcentersCompanion.insert({
+    required String runId,
+    required String workcenterId,
+    required String name,
+    required int busySeconds,
+    required int openSeconds,
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       workcenterId = Value(workcenterId),
+       name = Value(name),
+       busySeconds = Value(busySeconds),
+       openSeconds = Value(openSeconds);
+  static Insertable<SimulationRunWorkcenter> custom({
+    Expression<String>? runId,
+    Expression<String>? workcenterId,
+    Expression<String>? name,
+    Expression<int>? busySeconds,
+    Expression<int>? openSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (workcenterId != null) 'workcenter_id': workcenterId,
+      if (name != null) 'name': name,
+      if (busySeconds != null) 'busy_seconds': busySeconds,
+      if (openSeconds != null) 'open_seconds': openSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunWorkcentersCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? workcenterId,
+    Value<String>? name,
+    Value<int>? busySeconds,
+    Value<int>? openSeconds,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunWorkcentersCompanion(
+      runId: runId ?? this.runId,
+      workcenterId: workcenterId ?? this.workcenterId,
+      name: name ?? this.name,
+      busySeconds: busySeconds ?? this.busySeconds,
+      openSeconds: openSeconds ?? this.openSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (workcenterId.present) {
+      map['workcenter_id'] = Variable<String>(workcenterId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (busySeconds.present) {
+      map['busy_seconds'] = Variable<int>(busySeconds.value);
+    }
+    if (openSeconds.present) {
+      map['open_seconds'] = Variable<int>(openSeconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunWorkcentersCompanion(')
+          ..write('runId: $runId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('name: $name, ')
+          ..write('busySeconds: $busySeconds, ')
+          ..write('openSeconds: $openSeconds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10923,6 +13894,17 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $DemandOrdersTable demandOrders = $DemandOrdersTable(this);
+  late final $SimulationRunsTable simulationRuns = $SimulationRunsTable(this);
+  late final $SimulationRunStudiesTable simulationRunStudies =
+      $SimulationRunStudiesTable(this);
+  late final $SimulationRunOrdersTable simulationRunOrders =
+      $SimulationRunOrdersTable(this);
+  late final $SimulationRunStepsTable simulationRunSteps =
+      $SimulationRunStepsTable(this);
+  late final $SimulationRunEmptySlotsTable simulationRunEmptySlots =
+      $SimulationRunEmptySlotsTable(this);
+  late final $SimulationRunWorkcentersTable simulationRunWorkcenters =
+      $SimulationRunWorkcentersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10949,6 +13931,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     demandParts,
     partProcessTimes,
     demandOrders,
+    simulationRuns,
+    simulationRunStudies,
+    simulationRunOrders,
+    simulationRunSteps,
+    simulationRunEmptySlots,
+    simulationRunWorkcenters,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -11137,6 +14125,52 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('demand_orders', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'projects',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('simulation_runs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('simulation_run_studies', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('simulation_run_orders', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('simulation_run_steps', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('simulation_run_empty_slots', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('simulation_run_workcenters', kind: UpdateKind.delete),
+      ],
     ),
   ]);
 }
@@ -16670,6 +19704,24 @@ final class $$ProjectsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SimulationRunsTable, List<SimulationRun>>
+  _simulationRunsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.simulationRuns,
+    aliasName: 'projects__id__simulation_runs__project_id',
+  );
+
+  $$SimulationRunsTableProcessedTableManager get simulationRunsRefs {
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_simulationRunsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ProjectsTableFilterComposer
@@ -16850,6 +19902,31 @@ class $$ProjectsTableFilterComposer
           }) => $$StudiesTableFilterComposer(
             $db: $db,
             $table: $db.studies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunsRefs(
+    Expression<bool> Function($$SimulationRunsTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.projectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -17123,6 +20200,31 @@ class $$ProjectsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> simulationRunsRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunsTableAnnotationComposer a) f,
+  ) {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.projectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ProjectsTableTableManager
@@ -17145,6 +20247,7 @@ class $$ProjectsTableTableManager
             bool taktPeriodsRefs,
             bool workcenterSchedulePeriodsRefs,
             bool studiesRefs,
+            bool simulationRunsRefs,
           })
         > {
   $$ProjectsTableTableManager(_$AppDatabase db, $ProjectsTable table)
@@ -17218,6 +20321,7 @@ class $$ProjectsTableTableManager
                 taktPeriodsRefs = false,
                 workcenterSchedulePeriodsRefs = false,
                 studiesRefs = false,
+                simulationRunsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -17227,6 +20331,7 @@ class $$ProjectsTableTableManager
                     if (workcenterSchedulePeriodsRefs)
                       db.workcenterSchedulePeriods,
                     if (studiesRefs) db.studies,
+                    if (simulationRunsRefs) db.simulationRuns,
                   ],
                   addJoins:
                       <
@@ -17359,6 +20464,27 @@ class $$ProjectsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (simulationRunsRefs)
+                        await $_getPrefetchedData<
+                          Project,
+                          $ProjectsTable,
+                          SimulationRun
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ProjectsTableReferences
+                              ._simulationRunsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ProjectsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.projectId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17386,6 +20512,7 @@ typedef $$ProjectsTableProcessedTableManager =
         bool taktPeriodsRefs,
         bool workcenterSchedulePeriodsRefs,
         bool studiesRefs,
+        bool simulationRunsRefs,
       })
     >;
 typedef $$CalendarExceptionsTableCreateCompanionBuilder =
@@ -22338,6 +25465,2802 @@ typedef $$DemandOrdersTableProcessedTableManager =
       DemandOrder,
       PrefetchHooks Function({bool studyId, bool partId})
     >;
+typedef $$SimulationRunsTableCreateCompanionBuilder =
+    SimulationRunsCompanion Function({
+      required String id,
+      required String projectId,
+      required String dispatch,
+      required DateTime runStart,
+      required DateTime runEnd,
+      required DateTime guard,
+      Value<String?> abortReason,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunsTableUpdateCompanionBuilder =
+    SimulationRunsCompanion Function({
+      Value<String> id,
+      Value<String> projectId,
+      Value<String> dispatch,
+      Value<DateTime> runStart,
+      Value<DateTime> runEnd,
+      Value<DateTime> guard,
+      Value<String?> abortReason,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunsTableReferences
+    extends BaseReferences<_$AppDatabase, $SimulationRunsTable, SimulationRun> {
+  $$SimulationRunsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
+      db.projects.createAlias('simulation_runs__project_id__projects__id');
+
+  $$ProjectsTableProcessedTableManager get projectId {
+    final $_column = $_itemColumn<String>('project_id')!;
+
+    final manager = $$ProjectsTableTableManager(
+      $_db,
+      $_db.projects,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SimulationRunStudiesTable,
+    List<SimulationRunStudy>
+  >
+  _simulationRunStudiesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunStudies,
+        aliasName: 'simulation_runs__id__simulation_run_studies__run_id',
+      );
+
+  $$SimulationRunStudiesTableProcessedTableManager
+  get simulationRunStudiesRefs {
+    final manager = $$SimulationRunStudiesTableTableManager(
+      $_db,
+      $_db.simulationRunStudies,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunStudiesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SimulationRunOrdersTable,
+    List<SimulationRunOrder>
+  >
+  _simulationRunOrdersRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunOrders,
+        aliasName: 'simulation_runs__id__simulation_run_orders__run_id',
+      );
+
+  $$SimulationRunOrdersTableProcessedTableManager get simulationRunOrdersRefs {
+    final manager = $$SimulationRunOrdersTableTableManager(
+      $_db,
+      $_db.simulationRunOrders,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunOrdersRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SimulationRunStepsTable, List<SimulationRunStep>>
+  _simulationRunStepsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunSteps,
+        aliasName: 'simulation_runs__id__simulation_run_steps__run_id',
+      );
+
+  $$SimulationRunStepsTableProcessedTableManager get simulationRunStepsRefs {
+    final manager = $$SimulationRunStepsTableTableManager(
+      $_db,
+      $_db.simulationRunSteps,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunStepsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SimulationRunEmptySlotsTable,
+    List<SimulationRunEmptySlot>
+  >
+  _simulationRunEmptySlotsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunEmptySlots,
+        aliasName: 'simulation_runs__id__simulation_run_empty_slots__run_id',
+      );
+
+  $$SimulationRunEmptySlotsTableProcessedTableManager
+  get simulationRunEmptySlotsRefs {
+    final manager = $$SimulationRunEmptySlotsTableTableManager(
+      $_db,
+      $_db.simulationRunEmptySlots,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunEmptySlotsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SimulationRunWorkcentersTable,
+    List<SimulationRunWorkcenter>
+  >
+  _simulationRunWorkcentersRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunWorkcenters,
+        aliasName: 'simulation_runs__id__simulation_run_workcenters__run_id',
+      );
+
+  $$SimulationRunWorkcentersTableProcessedTableManager
+  get simulationRunWorkcentersRefs {
+    final manager = $$SimulationRunWorkcentersTableTableManager(
+      $_db,
+      $_db.simulationRunWorkcenters,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunWorkcentersRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SimulationRunsTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunsTable> {
+  $$SimulationRunsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dispatch => $composableBuilder(
+    column: $table.dispatch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get runStart => $composableBuilder(
+    column: $table.runStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get runEnd => $composableBuilder(
+    column: $table.runEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get guard => $composableBuilder(
+    column: $table.guard,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get abortReason => $composableBuilder(
+    column: $table.abortReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ProjectsTableFilterComposer get projectId {
+    final $$ProjectsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableFilterComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> simulationRunStudiesRefs(
+    Expression<bool> Function($$SimulationRunStudiesTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunStudiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.simulationRunStudies,
+      getReferencedColumn: (t) => t.runId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunStudiesTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRunStudies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunOrdersRefs(
+    Expression<bool> Function($$SimulationRunOrdersTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunOrdersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.simulationRunOrders,
+      getReferencedColumn: (t) => t.runId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunOrdersTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRunOrders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunStepsRefs(
+    Expression<bool> Function($$SimulationRunStepsTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunStepsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.simulationRunSteps,
+      getReferencedColumn: (t) => t.runId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunStepsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRunSteps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunEmptySlotsRefs(
+    Expression<bool> Function($$SimulationRunEmptySlotsTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunEmptySlotsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunEmptySlots,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunEmptySlotsTableFilterComposer(
+                $db: $db,
+                $table: $db.simulationRunEmptySlots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunWorkcentersRefs(
+    Expression<bool> Function($$SimulationRunWorkcentersTableFilterComposer f)
+    f,
+  ) {
+    final $$SimulationRunWorkcentersTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunWorkcenters,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunWorkcentersTableFilterComposer(
+                $db: $db,
+                $table: $db.simulationRunWorkcenters,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$SimulationRunsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunsTable> {
+  $$SimulationRunsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dispatch => $composableBuilder(
+    column: $table.dispatch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get runStart => $composableBuilder(
+    column: $table.runStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get runEnd => $composableBuilder(
+    column: $table.runEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get guard => $composableBuilder(
+    column: $table.guard,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get abortReason => $composableBuilder(
+    column: $table.abortReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ProjectsTableOrderingComposer get projectId {
+    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableOrderingComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunsTable> {
+  $$SimulationRunsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dispatch =>
+      $composableBuilder(column: $table.dispatch, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get runStart =>
+      $composableBuilder(column: $table.runStart, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get runEnd =>
+      $composableBuilder(column: $table.runEnd, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get guard =>
+      $composableBuilder(column: $table.guard, builder: (column) => column);
+
+  GeneratedColumn<String> get abortReason => $composableBuilder(
+    column: $table.abortReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ProjectsTableAnnotationComposer get projectId {
+    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> simulationRunStudiesRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunStudiesTableAnnotationComposer a) f,
+  ) {
+    final $$SimulationRunStudiesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunStudies,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunStudiesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunStudies,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> simulationRunOrdersRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunOrdersTableAnnotationComposer a) f,
+  ) {
+    final $$SimulationRunOrdersTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunOrders,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunOrdersTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunOrders,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> simulationRunStepsRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunStepsTableAnnotationComposer a) f,
+  ) {
+    final $$SimulationRunStepsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunSteps,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunStepsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunSteps,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> simulationRunEmptySlotsRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunEmptySlotsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$SimulationRunEmptySlotsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunEmptySlots,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunEmptySlotsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunEmptySlots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> simulationRunWorkcentersRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunWorkcentersTableAnnotationComposer a)
+    f,
+  ) {
+    final $$SimulationRunWorkcentersTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunWorkcenters,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunWorkcentersTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunWorkcenters,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$SimulationRunsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunsTable,
+          SimulationRun,
+          $$SimulationRunsTableFilterComposer,
+          $$SimulationRunsTableOrderingComposer,
+          $$SimulationRunsTableAnnotationComposer,
+          $$SimulationRunsTableCreateCompanionBuilder,
+          $$SimulationRunsTableUpdateCompanionBuilder,
+          (SimulationRun, $$SimulationRunsTableReferences),
+          SimulationRun,
+          PrefetchHooks Function({
+            bool projectId,
+            bool simulationRunStudiesRefs,
+            bool simulationRunOrdersRefs,
+            bool simulationRunStepsRefs,
+            bool simulationRunEmptySlotsRefs,
+            bool simulationRunWorkcentersRefs,
+          })
+        > {
+  $$SimulationRunsTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SimulationRunsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SimulationRunsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> projectId = const Value.absent(),
+                Value<String> dispatch = const Value.absent(),
+                Value<DateTime> runStart = const Value.absent(),
+                Value<DateTime> runEnd = const Value.absent(),
+                Value<DateTime> guard = const Value.absent(),
+                Value<String?> abortReason = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunsCompanion(
+                id: id,
+                projectId: projectId,
+                dispatch: dispatch,
+                runStart: runStart,
+                runEnd: runEnd,
+                guard: guard,
+                abortReason: abortReason,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String projectId,
+                required String dispatch,
+                required DateTime runStart,
+                required DateTime runEnd,
+                required DateTime guard,
+                Value<String?> abortReason = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunsCompanion.insert(
+                id: id,
+                projectId: projectId,
+                dispatch: dispatch,
+                runStart: runStart,
+                runEnd: runEnd,
+                guard: guard,
+                abortReason: abortReason,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                projectId = false,
+                simulationRunStudiesRefs = false,
+                simulationRunOrdersRefs = false,
+                simulationRunStepsRefs = false,
+                simulationRunEmptySlotsRefs = false,
+                simulationRunWorkcentersRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (simulationRunStudiesRefs) db.simulationRunStudies,
+                    if (simulationRunOrdersRefs) db.simulationRunOrders,
+                    if (simulationRunStepsRefs) db.simulationRunSteps,
+                    if (simulationRunEmptySlotsRefs) db.simulationRunEmptySlots,
+                    if (simulationRunWorkcentersRefs)
+                      db.simulationRunWorkcenters,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (projectId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.projectId,
+                                    referencedTable:
+                                        $$SimulationRunsTableReferences
+                                            ._projectIdTable(db),
+                                    referencedColumn:
+                                        $$SimulationRunsTableReferences
+                                            ._projectIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (simulationRunStudiesRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunStudy
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunStudiesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunStudiesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunOrdersRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunOrder
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunOrdersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunOrdersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunStepsRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunStep
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunStepsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunStepsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunEmptySlotsRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunEmptySlot
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunEmptySlotsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunEmptySlotsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunWorkcentersRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunWorkcenter
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunWorkcentersRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunWorkcentersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$SimulationRunsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunsTable,
+      SimulationRun,
+      $$SimulationRunsTableFilterComposer,
+      $$SimulationRunsTableOrderingComposer,
+      $$SimulationRunsTableAnnotationComposer,
+      $$SimulationRunsTableCreateCompanionBuilder,
+      $$SimulationRunsTableUpdateCompanionBuilder,
+      (SimulationRun, $$SimulationRunsTableReferences),
+      SimulationRun,
+      PrefetchHooks Function({
+        bool projectId,
+        bool simulationRunStudiesRefs,
+        bool simulationRunOrdersRefs,
+        bool simulationRunStepsRefs,
+        bool simulationRunEmptySlotsRefs,
+        bool simulationRunWorkcentersRefs,
+      })
+    >;
+typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
+    SimulationRunStudiesCompanion Function({
+      required String runId,
+      required String studyId,
+      required String name,
+      required int releaseSeconds,
+      Value<String?> releaseCalendarId,
+      required int priority,
+      Value<int?> wipCap,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
+    SimulationRunStudiesCompanion Function({
+      Value<String> runId,
+      Value<String> studyId,
+      Value<String> name,
+      Value<int> releaseSeconds,
+      Value<String?> releaseCalendarId,
+      Value<int> priority,
+      Value<int?> wipCap,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunStudiesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunStudiesTable,
+          SimulationRunStudy
+        > {
+  $$SimulationRunStudiesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_studies__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunStudiesTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunStudiesTable> {
+  $$SimulationRunStudiesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get releaseSeconds => $composableBuilder(
+    column: $table.releaseSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get releaseCalendarId => $composableBuilder(
+    column: $table.releaseCalendarId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get wipCap => $composableBuilder(
+    column: $table.wipCap,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunStudiesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunStudiesTable> {
+  $$SimulationRunStudiesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get releaseSeconds => $composableBuilder(
+    column: $table.releaseSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get releaseCalendarId => $composableBuilder(
+    column: $table.releaseCalendarId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get wipCap => $composableBuilder(
+    column: $table.wipCap,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunStudiesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunStudiesTable> {
+  $$SimulationRunStudiesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get studyId =>
+      $composableBuilder(column: $table.studyId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get releaseSeconds => $composableBuilder(
+    column: $table.releaseSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get releaseCalendarId => $composableBuilder(
+    column: $table.releaseCalendarId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<int> get wipCap =>
+      $composableBuilder(column: $table.wipCap, builder: (column) => column);
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunStudiesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunStudiesTable,
+          SimulationRunStudy,
+          $$SimulationRunStudiesTableFilterComposer,
+          $$SimulationRunStudiesTableOrderingComposer,
+          $$SimulationRunStudiesTableAnnotationComposer,
+          $$SimulationRunStudiesTableCreateCompanionBuilder,
+          $$SimulationRunStudiesTableUpdateCompanionBuilder,
+          (SimulationRunStudy, $$SimulationRunStudiesTableReferences),
+          SimulationRunStudy,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunStudiesTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunStudiesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunStudiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SimulationRunStudiesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunStudiesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> releaseSeconds = const Value.absent(),
+                Value<String?> releaseCalendarId = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<int?> wipCap = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunStudiesCompanion(
+                runId: runId,
+                studyId: studyId,
+                name: name,
+                releaseSeconds: releaseSeconds,
+                releaseCalendarId: releaseCalendarId,
+                priority: priority,
+                wipCap: wipCap,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String studyId,
+                required String name,
+                required int releaseSeconds,
+                Value<String?> releaseCalendarId = const Value.absent(),
+                required int priority,
+                Value<int?> wipCap = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunStudiesCompanion.insert(
+                runId: runId,
+                studyId: studyId,
+                name: name,
+                releaseSeconds: releaseSeconds,
+                releaseCalendarId: releaseCalendarId,
+                priority: priority,
+                wipCap: wipCap,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunStudiesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunStudiesTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunStudiesTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunStudiesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunStudiesTable,
+      SimulationRunStudy,
+      $$SimulationRunStudiesTableFilterComposer,
+      $$SimulationRunStudiesTableOrderingComposer,
+      $$SimulationRunStudiesTableAnnotationComposer,
+      $$SimulationRunStudiesTableCreateCompanionBuilder,
+      $$SimulationRunStudiesTableUpdateCompanionBuilder,
+      (SimulationRunStudy, $$SimulationRunStudiesTableReferences),
+      SimulationRunStudy,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$SimulationRunOrdersTableCreateCompanionBuilder =
+    SimulationRunOrdersCompanion Function({
+      required String runId,
+      required String studyId,
+      required String orderId,
+      required int sequence,
+      required String partId,
+      required String partNumber,
+      required DateTime needDate,
+      Value<DateTime?> released,
+      Value<DateTime?> delivered,
+      Value<int?> theoreticalSeconds,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunOrdersTableUpdateCompanionBuilder =
+    SimulationRunOrdersCompanion Function({
+      Value<String> runId,
+      Value<String> studyId,
+      Value<String> orderId,
+      Value<int> sequence,
+      Value<String> partId,
+      Value<String> partNumber,
+      Value<DateTime> needDate,
+      Value<DateTime?> released,
+      Value<DateTime?> delivered,
+      Value<int?> theoreticalSeconds,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunOrdersTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunOrdersTable,
+          SimulationRunOrder
+        > {
+  $$SimulationRunOrdersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_orders__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunOrdersTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunOrdersTable> {
+  $$SimulationRunOrdersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partId => $composableBuilder(
+    column: $table.partId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partNumber => $composableBuilder(
+    column: $table.partNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get needDate => $composableBuilder(
+    column: $table.needDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get released => $composableBuilder(
+    column: $table.released,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get delivered => $composableBuilder(
+    column: $table.delivered,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get theoreticalSeconds => $composableBuilder(
+    column: $table.theoreticalSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunOrdersTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunOrdersTable> {
+  $$SimulationRunOrdersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partId => $composableBuilder(
+    column: $table.partId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partNumber => $composableBuilder(
+    column: $table.partNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get needDate => $composableBuilder(
+    column: $table.needDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get released => $composableBuilder(
+    column: $table.released,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get delivered => $composableBuilder(
+    column: $table.delivered,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get theoreticalSeconds => $composableBuilder(
+    column: $table.theoreticalSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunOrdersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunOrdersTable> {
+  $$SimulationRunOrdersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get studyId =>
+      $composableBuilder(column: $table.studyId, builder: (column) => column);
+
+  GeneratedColumn<String> get orderId =>
+      $composableBuilder(column: $table.orderId, builder: (column) => column);
+
+  GeneratedColumn<int> get sequence =>
+      $composableBuilder(column: $table.sequence, builder: (column) => column);
+
+  GeneratedColumn<String> get partId =>
+      $composableBuilder(column: $table.partId, builder: (column) => column);
+
+  GeneratedColumn<String> get partNumber => $composableBuilder(
+    column: $table.partNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get needDate =>
+      $composableBuilder(column: $table.needDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get released =>
+      $composableBuilder(column: $table.released, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get delivered =>
+      $composableBuilder(column: $table.delivered, builder: (column) => column);
+
+  GeneratedColumn<int> get theoreticalSeconds => $composableBuilder(
+    column: $table.theoreticalSeconds,
+    builder: (column) => column,
+  );
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunOrdersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunOrdersTable,
+          SimulationRunOrder,
+          $$SimulationRunOrdersTableFilterComposer,
+          $$SimulationRunOrdersTableOrderingComposer,
+          $$SimulationRunOrdersTableAnnotationComposer,
+          $$SimulationRunOrdersTableCreateCompanionBuilder,
+          $$SimulationRunOrdersTableUpdateCompanionBuilder,
+          (SimulationRunOrder, $$SimulationRunOrdersTableReferences),
+          SimulationRunOrder,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunOrdersTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunOrdersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunOrdersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SimulationRunOrdersTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunOrdersTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> orderId = const Value.absent(),
+                Value<int> sequence = const Value.absent(),
+                Value<String> partId = const Value.absent(),
+                Value<String> partNumber = const Value.absent(),
+                Value<DateTime> needDate = const Value.absent(),
+                Value<DateTime?> released = const Value.absent(),
+                Value<DateTime?> delivered = const Value.absent(),
+                Value<int?> theoreticalSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunOrdersCompanion(
+                runId: runId,
+                studyId: studyId,
+                orderId: orderId,
+                sequence: sequence,
+                partId: partId,
+                partNumber: partNumber,
+                needDate: needDate,
+                released: released,
+                delivered: delivered,
+                theoreticalSeconds: theoreticalSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String studyId,
+                required String orderId,
+                required int sequence,
+                required String partId,
+                required String partNumber,
+                required DateTime needDate,
+                Value<DateTime?> released = const Value.absent(),
+                Value<DateTime?> delivered = const Value.absent(),
+                Value<int?> theoreticalSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunOrdersCompanion.insert(
+                runId: runId,
+                studyId: studyId,
+                orderId: orderId,
+                sequence: sequence,
+                partId: partId,
+                partNumber: partNumber,
+                needDate: needDate,
+                released: released,
+                delivered: delivered,
+                theoreticalSeconds: theoreticalSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunOrdersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunOrdersTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunOrdersTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunOrdersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunOrdersTable,
+      SimulationRunOrder,
+      $$SimulationRunOrdersTableFilterComposer,
+      $$SimulationRunOrdersTableOrderingComposer,
+      $$SimulationRunOrdersTableAnnotationComposer,
+      $$SimulationRunOrdersTableCreateCompanionBuilder,
+      $$SimulationRunOrdersTableUpdateCompanionBuilder,
+      (SimulationRunOrder, $$SimulationRunOrdersTableReferences),
+      SimulationRunOrder,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$SimulationRunStepsTableCreateCompanionBuilder =
+    SimulationRunStepsCompanion Function({
+      required String runId,
+      required String studyId,
+      required String orderId,
+      required String nodeId,
+      required String workcenterId,
+      required DateTime queueStart,
+      required DateTime processStart,
+      required DateTime processEnd,
+      Value<bool> changeoverIncurred,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunStepsTableUpdateCompanionBuilder =
+    SimulationRunStepsCompanion Function({
+      Value<String> runId,
+      Value<String> studyId,
+      Value<String> orderId,
+      Value<String> nodeId,
+      Value<String> workcenterId,
+      Value<DateTime> queueStart,
+      Value<DateTime> processStart,
+      Value<DateTime> processEnd,
+      Value<bool> changeoverIncurred,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunStepsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunStepsTable,
+          SimulationRunStep
+        > {
+  $$SimulationRunStepsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_steps__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunStepsTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunStepsTable> {
+  $$SimulationRunStepsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get queueStart => $composableBuilder(
+    column: $table.queueStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get processStart => $composableBuilder(
+    column: $table.processStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get processEnd => $composableBuilder(
+    column: $table.processEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get changeoverIncurred => $composableBuilder(
+    column: $table.changeoverIncurred,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunStepsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunStepsTable> {
+  $$SimulationRunStepsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get queueStart => $composableBuilder(
+    column: $table.queueStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get processStart => $composableBuilder(
+    column: $table.processStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get processEnd => $composableBuilder(
+    column: $table.processEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get changeoverIncurred => $composableBuilder(
+    column: $table.changeoverIncurred,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunStepsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunStepsTable> {
+  $$SimulationRunStepsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get studyId =>
+      $composableBuilder(column: $table.studyId, builder: (column) => column);
+
+  GeneratedColumn<String> get orderId =>
+      $composableBuilder(column: $table.orderId, builder: (column) => column);
+
+  GeneratedColumn<String> get nodeId =>
+      $composableBuilder(column: $table.nodeId, builder: (column) => column);
+
+  GeneratedColumn<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get queueStart => $composableBuilder(
+    column: $table.queueStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get processStart => $composableBuilder(
+    column: $table.processStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get processEnd => $composableBuilder(
+    column: $table.processEnd,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get changeoverIncurred => $composableBuilder(
+    column: $table.changeoverIncurred,
+    builder: (column) => column,
+  );
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunStepsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunStepsTable,
+          SimulationRunStep,
+          $$SimulationRunStepsTableFilterComposer,
+          $$SimulationRunStepsTableOrderingComposer,
+          $$SimulationRunStepsTableAnnotationComposer,
+          $$SimulationRunStepsTableCreateCompanionBuilder,
+          $$SimulationRunStepsTableUpdateCompanionBuilder,
+          (SimulationRunStep, $$SimulationRunStepsTableReferences),
+          SimulationRunStep,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunStepsTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunStepsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunStepsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SimulationRunStepsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SimulationRunStepsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> orderId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
+                Value<String> workcenterId = const Value.absent(),
+                Value<DateTime> queueStart = const Value.absent(),
+                Value<DateTime> processStart = const Value.absent(),
+                Value<DateTime> processEnd = const Value.absent(),
+                Value<bool> changeoverIncurred = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunStepsCompanion(
+                runId: runId,
+                studyId: studyId,
+                orderId: orderId,
+                nodeId: nodeId,
+                workcenterId: workcenterId,
+                queueStart: queueStart,
+                processStart: processStart,
+                processEnd: processEnd,
+                changeoverIncurred: changeoverIncurred,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String studyId,
+                required String orderId,
+                required String nodeId,
+                required String workcenterId,
+                required DateTime queueStart,
+                required DateTime processStart,
+                required DateTime processEnd,
+                Value<bool> changeoverIncurred = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunStepsCompanion.insert(
+                runId: runId,
+                studyId: studyId,
+                orderId: orderId,
+                nodeId: nodeId,
+                workcenterId: workcenterId,
+                queueStart: queueStart,
+                processStart: processStart,
+                processEnd: processEnd,
+                changeoverIncurred: changeoverIncurred,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunStepsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunStepsTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunStepsTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunStepsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunStepsTable,
+      SimulationRunStep,
+      $$SimulationRunStepsTableFilterComposer,
+      $$SimulationRunStepsTableOrderingComposer,
+      $$SimulationRunStepsTableAnnotationComposer,
+      $$SimulationRunStepsTableCreateCompanionBuilder,
+      $$SimulationRunStepsTableUpdateCompanionBuilder,
+      (SimulationRunStep, $$SimulationRunStepsTableReferences),
+      SimulationRunStep,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$SimulationRunEmptySlotsTableCreateCompanionBuilder =
+    SimulationRunEmptySlotsCompanion Function({
+      required String runId,
+      required String studyId,
+      required DateTime slotAt,
+      required String reason,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunEmptySlotsTableUpdateCompanionBuilder =
+    SimulationRunEmptySlotsCompanion Function({
+      Value<String> runId,
+      Value<String> studyId,
+      Value<DateTime> slotAt,
+      Value<String> reason,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunEmptySlotsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunEmptySlotsTable,
+          SimulationRunEmptySlot
+        > {
+  $$SimulationRunEmptySlotsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_empty_slots__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunEmptySlotsTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunEmptySlotsTable> {
+  $$SimulationRunEmptySlotsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get slotAt => $composableBuilder(
+    column: $table.slotAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunEmptySlotsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunEmptySlotsTable> {
+  $$SimulationRunEmptySlotsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get slotAt => $composableBuilder(
+    column: $table.slotAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunEmptySlotsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunEmptySlotsTable> {
+  $$SimulationRunEmptySlotsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get studyId =>
+      $composableBuilder(column: $table.studyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get slotAt =>
+      $composableBuilder(column: $table.slotAt, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunEmptySlotsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunEmptySlotsTable,
+          SimulationRunEmptySlot,
+          $$SimulationRunEmptySlotsTableFilterComposer,
+          $$SimulationRunEmptySlotsTableOrderingComposer,
+          $$SimulationRunEmptySlotsTableAnnotationComposer,
+          $$SimulationRunEmptySlotsTableCreateCompanionBuilder,
+          $$SimulationRunEmptySlotsTableUpdateCompanionBuilder,
+          (SimulationRunEmptySlot, $$SimulationRunEmptySlotsTableReferences),
+          SimulationRunEmptySlot,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunEmptySlotsTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunEmptySlotsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunEmptySlotsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SimulationRunEmptySlotsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunEmptySlotsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<DateTime> slotAt = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunEmptySlotsCompanion(
+                runId: runId,
+                studyId: studyId,
+                slotAt: slotAt,
+                reason: reason,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String studyId,
+                required DateTime slotAt,
+                required String reason,
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunEmptySlotsCompanion.insert(
+                runId: runId,
+                studyId: studyId,
+                slotAt: slotAt,
+                reason: reason,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunEmptySlotsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunEmptySlotsTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunEmptySlotsTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunEmptySlotsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunEmptySlotsTable,
+      SimulationRunEmptySlot,
+      $$SimulationRunEmptySlotsTableFilterComposer,
+      $$SimulationRunEmptySlotsTableOrderingComposer,
+      $$SimulationRunEmptySlotsTableAnnotationComposer,
+      $$SimulationRunEmptySlotsTableCreateCompanionBuilder,
+      $$SimulationRunEmptySlotsTableUpdateCompanionBuilder,
+      (SimulationRunEmptySlot, $$SimulationRunEmptySlotsTableReferences),
+      SimulationRunEmptySlot,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$SimulationRunWorkcentersTableCreateCompanionBuilder =
+    SimulationRunWorkcentersCompanion Function({
+      required String runId,
+      required String workcenterId,
+      required String name,
+      required int busySeconds,
+      required int openSeconds,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
+    SimulationRunWorkcentersCompanion Function({
+      Value<String> runId,
+      Value<String> workcenterId,
+      Value<String> name,
+      Value<int> busySeconds,
+      Value<int> openSeconds,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunWorkcentersTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunWorkcentersTable,
+          SimulationRunWorkcenter
+        > {
+  $$SimulationRunWorkcentersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_workcenters__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunWorkcentersTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcentersTable> {
+  $$SimulationRunWorkcentersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get busySeconds => $composableBuilder(
+    column: $table.busySeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcentersTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcentersTable> {
+  $$SimulationRunWorkcentersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get busySeconds => $composableBuilder(
+    column: $table.busySeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcentersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcentersTable> {
+  $$SimulationRunWorkcentersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get busySeconds => $composableBuilder(
+    column: $table.busySeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => column,
+  );
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcentersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunWorkcentersTable,
+          SimulationRunWorkcenter,
+          $$SimulationRunWorkcentersTableFilterComposer,
+          $$SimulationRunWorkcentersTableOrderingComposer,
+          $$SimulationRunWorkcentersTableAnnotationComposer,
+          $$SimulationRunWorkcentersTableCreateCompanionBuilder,
+          $$SimulationRunWorkcentersTableUpdateCompanionBuilder,
+          (SimulationRunWorkcenter, $$SimulationRunWorkcentersTableReferences),
+          SimulationRunWorkcenter,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunWorkcentersTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunWorkcentersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunWorkcentersTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SimulationRunWorkcentersTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunWorkcentersTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> workcenterId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> busySeconds = const Value.absent(),
+                Value<int> openSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunWorkcentersCompanion(
+                runId: runId,
+                workcenterId: workcenterId,
+                name: name,
+                busySeconds: busySeconds,
+                openSeconds: openSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String workcenterId,
+                required String name,
+                required int busySeconds,
+                required int openSeconds,
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunWorkcentersCompanion.insert(
+                runId: runId,
+                workcenterId: workcenterId,
+                name: name,
+                busySeconds: busySeconds,
+                openSeconds: openSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunWorkcentersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunWorkcentersTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunWorkcentersTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunWorkcentersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunWorkcentersTable,
+      SimulationRunWorkcenter,
+      $$SimulationRunWorkcentersTableFilterComposer,
+      $$SimulationRunWorkcentersTableOrderingComposer,
+      $$SimulationRunWorkcentersTableAnnotationComposer,
+      $$SimulationRunWorkcentersTableCreateCompanionBuilder,
+      $$SimulationRunWorkcentersTableUpdateCompanionBuilder,
+      (SimulationRunWorkcenter, $$SimulationRunWorkcentersTableReferences),
+      SimulationRunWorkcenter,
+      PrefetchHooks Function({bool runId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -22387,4 +28310,22 @@ class $AppDatabaseManager {
       $$PartProcessTimesTableTableManager(_db, _db.partProcessTimes);
   $$DemandOrdersTableTableManager get demandOrders =>
       $$DemandOrdersTableTableManager(_db, _db.demandOrders);
+  $$SimulationRunsTableTableManager get simulationRuns =>
+      $$SimulationRunsTableTableManager(_db, _db.simulationRuns);
+  $$SimulationRunStudiesTableTableManager get simulationRunStudies =>
+      $$SimulationRunStudiesTableTableManager(_db, _db.simulationRunStudies);
+  $$SimulationRunOrdersTableTableManager get simulationRunOrders =>
+      $$SimulationRunOrdersTableTableManager(_db, _db.simulationRunOrders);
+  $$SimulationRunStepsTableTableManager get simulationRunSteps =>
+      $$SimulationRunStepsTableTableManager(_db, _db.simulationRunSteps);
+  $$SimulationRunEmptySlotsTableTableManager get simulationRunEmptySlots =>
+      $$SimulationRunEmptySlotsTableTableManager(
+        _db,
+        _db.simulationRunEmptySlots,
+      );
+  $$SimulationRunWorkcentersTableTableManager get simulationRunWorkcenters =>
+      $$SimulationRunWorkcentersTableTableManager(
+        _db,
+        _db.simulationRunWorkcenters,
+      );
 }

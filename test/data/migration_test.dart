@@ -476,6 +476,121 @@ void main() {
     expect(orders.single.sequence, 0);
   });
 
+  test('v10 to v11: run storage arrives and the demand survives', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    // v10's demand tables: `demand_orders` has lost its `order_number` and
+    // `demand_parts` carries a non-null `customer_project` in its unique key.
+    const v10DemandTables = """
+      CREATE TABLE demand_parts (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_number TEXT NOT NULL,
+        customer_project TEXT NOT NULL DEFAULT '',
+        description TEXT NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, customer_project, part_number));
+      CREATE TABLE part_process_times (
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+        PRIMARY KEY (part_id, target_id));
+      CREATE TABLE demand_orders (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+        need_date INTEGER NOT NULL, material_date INTEGER NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, sequence));
+    """;
+
+    final v10 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v6Workcenters)
+      ..execute(projectTables)
+      ..execute(v10DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      ..execute('PRAGMA user_version = 10');
+
+    v10
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_parts (id, study_id, part_number, '
+        'customer_project, created_at, updated_at) '
+        "VALUES ('part-1', 'study-1', 'PN2', 'Wing 7', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+        'batch_size, need_date, created_at, updated_at) '
+        "VALUES ('order-1', 'study-1', 'part-1', 0, 6, $now, $now, $now)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    // The six run-storage tables exist and are usable — six `createTable`s and
+    // no change to an existing table, so nothing above them can have moved.
+    expect(await db.select(db.simulationRuns).get(), isEmpty);
+    expect(await db.select(db.simulationRunStudies).get(), isEmpty);
+    expect(await db.select(db.simulationRunOrders).get(), isEmpty);
+    expect(await db.select(db.simulationRunSteps).get(), isEmpty);
+    expect(await db.select(db.simulationRunEmptySlots).get(), isEmpty);
+    expect(await db.select(db.simulationRunWorkcenters).get(), isEmpty);
+
+    // And the demand the user typed came through untouched — parts keep their
+    // numbers and their project, orders keep their sequence and batch size.
+    final parts = await db.select(db.demandParts).get();
+    expect(parts.single.partNumber, 'PN2');
+    expect(parts.single.customerProject, 'Wing 7');
+
+    final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.sequence, 0);
+    expect(orders.single.batchSize, 6);
+  });
+
   test(
     'a v1 database with no seed stamp still gets its reference data',
     () async {

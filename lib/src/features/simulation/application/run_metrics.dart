@@ -168,9 +168,77 @@ RunMetrics computeRunMetrics({
   required SimRunResult result,
   required List<SimStudy> studies,
   required Map<String, SimWorkcenter> workcenters,
+}) => summariseRun(
+  result: result,
+  partNumbers: {
+    for (final study in studies)
+      for (final part in study.parts.values) part.id: part.partNumber,
+  },
+  workcenterNames: {
+    for (final entry in workcenters.entries) entry.key: entry.value.name,
+  },
+  theoreticalByOrder: theoreticalLeadTimes(
+    result: result,
+    studies: studies,
+    workcenters: workcenters,
+  ),
+);
+
+/// §7.9's queue-free figure for each order that completed, keyed by order id.
+///
+/// Walked from the order's **own release instant**, so the comparison is like
+/// with like: the same order, in the same plant, minus the queueing. An order
+/// that never came out is absent rather than zero — inventing a figure for it
+/// would flatter the run.
+///
+/// Split out from [computeRunMetrics] because it is the one part of a run's
+/// arithmetic that needs the plant rather than the result: a run read back out
+/// of storage has the numbers but not the calendars that produced them
+/// (§7.10), so it is stored per order and handed to [summariseRun] directly.
+Map<String, Duration> theoreticalLeadTimes({
+  required SimRunResult result,
+  required List<SimStudy> studies,
+  required Map<String, SimWorkcenter> workcenters,
 }) {
   final studiesById = {for (final study in studies) study.id: study};
+  final walked = <String, Duration>{};
 
+  for (final outcome in result.orders) {
+    final released = outcome.released;
+    if (released == null || outcome.leadTime == null) continue;
+
+    final study = studiesById[outcome.studyId];
+    final part = study?.parts[outcome.partId];
+    final order = study?.orders.where((o) => o.id == outcome.orderId).firstOrNull;
+    if (study == null || part == null || order == null) continue;
+
+    final theoretical = theoreticalLeadTime(
+      nodes: study.nodes,
+      workcenters: workcenters,
+      part: part,
+      batchSize: order.batchSize,
+      from: released,
+    );
+    if (theoretical != null) walked[outcome.orderId] = theoretical.elapsed;
+  }
+
+  return walked;
+}
+
+/// Everything §8 asks, from a result and the three things that name it.
+///
+/// The entry point a **stored** run comes back through (§7.10): part numbers,
+/// station names and each order's theoretical figure are copied into storage
+/// beside the run precisely so this can be answered without the plant, which
+/// may have been edited since. A fresh run reaches the same code through
+/// [computeRunMetrics], so what a run reports cannot drift from what it
+/// reported when it was made.
+RunMetrics summariseRun({
+  required SimRunResult result,
+  required Map<String, String> partNumbers,
+  required Map<String, String> workcenterNames,
+  required Map<String, Duration> theoreticalByOrder,
+}) {
   var floatTotal = Duration.zero;
   var leadTotal = Duration.zero;
   var theoreticalTotal = Duration.zero;
@@ -181,11 +249,9 @@ RunMetrics computeRunMetrics({
   final byPart = <String, _PartTally>{};
 
   for (final outcome in result.orders) {
-    final study = studiesById[outcome.studyId];
-    final part = study?.parts[outcome.partId];
     final tally = byPart.putIfAbsent(
       outcome.partId,
-      () => _PartTally(part?.partNumber ?? outcome.partId),
+      () => _PartTally(partNumbers[outcome.partId] ?? outcome.partId),
     );
     tally.orders++;
 
@@ -206,23 +272,10 @@ RunMetrics computeRunMetrics({
       tally.leadTotal += lead;
       tally.leadCount++;
 
-      // Walked from the order's own release, so the comparison is like with
-      // like: the same order, the same plant, minus the queueing (§7.9).
-      final order = study?.orders
-          .where((o) => o.id == outcome.orderId)
-          .firstOrNull;
-      if (study != null && part != null && order != null) {
-        final walked = theoreticalLeadTime(
-          nodes: study.nodes,
-          workcenters: workcenters,
-          part: part,
-          batchSize: order.batchSize,
-          from: outcome.released!,
-        );
-        if (walked != null) {
-          theoreticalTotal += walked.elapsed;
-          theoreticalCount++;
-        }
+      final theoretical = theoreticalByOrder[outcome.orderId];
+      if (theoretical != null) {
+        theoreticalTotal += theoretical;
+        theoreticalCount++;
       }
     }
   }
@@ -231,7 +284,7 @@ RunMetrics computeRunMetrics({
   for (final row in result.steps) {
     final tally = stations.putIfAbsent(
       row.workcenterId,
-      () => _StationTally(workcenters[row.workcenterId]?.name ?? row.workcenterId),
+      () => _StationTally(workcenterNames[row.workcenterId] ?? row.workcenterId),
     );
     tally.visits++;
     tally.queue += row.wait;
