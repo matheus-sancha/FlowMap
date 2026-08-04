@@ -506,6 +506,20 @@ total lead time contributed. The headline names one bottleneck; the table shows 
 because their disagreement is itself diagnostic — high queue at a low-occupation station means a
 sequencing problem, not a capacity one.
 
+### 8.1.1 The two rankings, as built
+
+`RunMetrics` ranks stations by **queue time** and, separately, by **share of the flow's total
+time**. They are computed apart and both kept, because §8.1's whole point is that their disagreement
+is the diagnostic — the second ranking would be redundant if it were derived from the first.
+
+- **OTD counts over every order, not the delivered ones.** An order that never came out is not on
+  time, whatever its need date says. Averaging float over the delivered ones alone, on the other
+  hand, is right: an undelivered order has no float, and inventing one would flatter the run.
+- **Lead-time efficiency is `actual ÷ theoretical`**, the direction §8 states — so 1.0 is queue-free
+  and higher is worse. The excess over 1.0 is exactly what §7.9 leaves out: waiting. Each order's
+  theoretical figure is walked from **its own release instant**, so the comparison is the same
+  order in the same plant minus the queueing, not an average against a fixture.
+
 ### 8.2 Demand takt
 
 Two rows on the Summary, per takt-schedule period, with a month/quarter view toggle:
