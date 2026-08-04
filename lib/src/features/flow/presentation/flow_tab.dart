@@ -208,11 +208,29 @@ class _CanvasState extends ConsumerState<_Canvas> {
     });
   }
 
-  void _zoomBy(double factor) {
+  /// Zooms about the centre of [viewport], keeping what is under it there.
+  ///
+  /// Rebuilt from the current scale rather than from identity: starting over
+  /// threw the pan away, so zooming in on the sixth step of a flow jumped back
+  /// to the first. The translation correction is what keeps the centred point
+  /// fixed — scaling alone moves everything away from the canvas origin.
+  void _zoomBy(double factor, Size viewport) {
     final current = _controller.value.getMaxScaleOnAxis();
     final next = (current * factor).clamp(0.2, 3.0);
+    if (next == current) return;
+
+    final translation = _controller.value.getTranslation();
+    final centre = Offset(viewport.width / 2, viewport.height / 2);
+    // Where the viewport's centre falls in canvas coordinates now, and what the
+    // translation has to be for it to fall there again at the new scale.
+    final focus = (centre - Offset(translation.x, translation.y)) / current;
+    final dx = centre.dx - focus.dx * next;
+    final dy = centre.dy - focus.dy * next;
+
     setState(() {
-      _controller.value = Matrix4.identity()..scaleByDouble(next, next, 1, 1);
+      _controller.value = Matrix4.identity()
+        ..translateByDouble(dx, dy, 0, 1)
+        ..scaleByDouble(next, next, 1, 1);
     });
   }
 
@@ -252,8 +270,8 @@ class _CanvasState extends ConsumerState<_Canvas> {
               bottom: 12,
               child: _ZoomControls(
                 onFit: () => _fit(viewport, layout.size),
-                onZoomIn: () => _zoomBy(1.25),
-                onZoomOut: () => _zoomBy(0.8),
+                onZoomIn: () => _zoomBy(1.25, viewport),
+                onZoomOut: () => _zoomBy(0.8, viewport),
               ),
             ),
           ],
@@ -433,7 +451,9 @@ class _StepBox extends ConsumerWidget {
     final hasProblem = step.problems.isNotEmpty;
 
     return Tooltip(
-      message: hasProblem ? _problemText(l10n, step.problems) : step.subtitle,
+      message: hasProblem
+          ? _problemText(l10n, step.problems)
+          : _targetText(l10n, step),
       child: InkWell(
         onTap: () => showStepEditor(context, ref, study: study, step: step),
         child: Container(
@@ -517,6 +537,18 @@ class _StepBox extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// What the box is, beyond what it is called: the workcenter's type, or how
+  /// many workcenters a pool holds.
+  ///
+  /// The name itself is already the box's header, so repeating it in the
+  /// tooltip would answer a question nobody asked.
+  static String _targetText(AppLocalizations l10n, FlowStepView step) {
+    if (step.poolMemberCount != null) {
+      return l10n.stepPoolMembers('${step.poolMemberCount}');
+    }
+    return step.typeName ?? l10n.workcenterTypeUnset;
   }
 
   static String _problemText(

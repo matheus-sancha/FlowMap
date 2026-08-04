@@ -120,7 +120,8 @@ class FlowStepView extends FlowNodeView {
   const FlowStepView(
     super.node, {
     required this.title,
-    required this.subtitle,
+    required this.typeName,
+    required this.poolMemberCount,
     required this.processTime,
     required this.changeover,
     required this.openPerWorkingDay,
@@ -135,8 +136,18 @@ class FlowStepView extends FlowNodeView {
   /// `CLAD04` or the pool's name — what the box is labelled.
   final String title;
 
-  /// The workcenter type, or the pool's member count.
-  final String subtitle;
+  /// The targeted workcenter's type — `Cladding` — which is what the box says
+  /// about itself beyond its name. Null for a pool, and for a workcenter with
+  /// no type set.
+  ///
+  /// Kept as the type's own name rather than a ready-made sentence: this layer
+  /// has no `BuildContext`, so composing anything for the reader here would put
+  /// an untranslated string on the map.
+  final String? typeName;
+
+  /// How many workcenters the pool holds, or null when the step targets one
+  /// workcenter directly.
+  final int? poolMemberCount;
 
   /// The flow equivalent's process time here — one takt of this station's
   /// productive capacity, or the step's own override (DESIGN.md §6.1).
@@ -355,11 +366,16 @@ class WorkcenterContext {
     required this.workcenter,
     required this.calendar,
     required this.schedule,
+    this.typeName,
   });
 
   final Workcenter workcenter;
   final WorkingCalendar calendar;
   final WorkcenterScheduleSpec schedule;
+
+  /// The name of the workcenter's type, resolved by the repository. The
+  /// workcenter itself carries only the type's id, and this layer cannot query.
+  final String? typeName;
 }
 
 /// Builds the map (DESIGN.md §5.4, §6.1).
@@ -460,13 +476,14 @@ FlowStepView _buildStep({
   // something to average away here.
   String? targetId = node.workcenterId;
   var title = '';
-  var subtitle = '';
+  String? typeName;
+  int? poolMemberCount;
 
   if (node.poolId != null) {
     final pool = pools[node.poolId];
     final members = poolMembers[node.poolId] ?? const <String>[];
     title = pool?.name ?? '';
-    subtitle = '${members.length}';
+    poolMemberCount = members.length;
     if (members.isEmpty) {
       problems.add(StepProblem.emptyPool);
     } else {
@@ -481,7 +498,7 @@ FlowStepView _buildStep({
     if (context != null) {
       final workcenter = context.workcenter;
       title = workcenter.name;
-      subtitle = workcenter.name;
+      typeName = context.typeName;
       if (workcenter.archivedAt != null) {
         problems.add(StepProblem.archivedTarget);
       }
@@ -547,7 +564,8 @@ FlowStepView _buildStep({
   return FlowStepView(
     node,
     title: title.isEmpty ? '—' : title,
-    subtitle: subtitle,
+    typeName: typeName,
+    poolMemberCount: poolMemberCount,
     processTime: processTime,
     usesLocalEquivalent: localEquivalent != null,
     changeover: changeover,

@@ -116,6 +116,7 @@ void main() {
     double rework = 0,
     bool scheduled = true,
     DateTime? archivedAt,
+    String? typeName,
   }) {
     final schedule = WorkcenterScheduleSpec([
       if (scheduled)
@@ -131,6 +132,7 @@ void main() {
       workcenter: workcenter(id, archivedAt: archivedAt),
       calendar: WorkingCalendar.scheduled(pattern: abc, staffing: schedule),
       schedule: schedule,
+      typeName: typeName,
     );
   }
 
@@ -503,6 +505,31 @@ void main() {
       expect(step0.title, 'Lathes');
       // Two shifts: 05:45 → 23:00 = 17:15 a day, × 3 days = 51:45.
       expect(step0.processTime, const Duration(hours: 51, minutes: 45));
+      // How many workcenters stand behind the box, not a type — a pool has
+      // none of its own.
+      expect(step0.poolMemberCount, 1);
+      expect(step0.typeName, isNull);
+    });
+  });
+
+  group('what a box says about its target', () {
+    test('a workcenter step carries its type, not its name twice', () {
+      final view = build(
+        nodes: [step(0, workcenterId: 'CLAD04')],
+        contexts: {'CLAD04': context('CLAD04', typeName: 'Cladding')},
+      );
+      final step0 = view.steps.single;
+      expect(step0.title, 'CLAD04');
+      expect(step0.typeName, 'Cladding');
+      expect(step0.poolMemberCount, isNull);
+    });
+
+    test('an untyped workcenter says nothing rather than repeating itself', () {
+      final view = build(
+        nodes: [step(0, workcenterId: 'CLAD04')],
+        contexts: {'CLAD04': context('CLAD04')},
+      );
+      expect(view.steps.single.typeName, isNull);
     });
   });
 

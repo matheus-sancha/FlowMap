@@ -232,6 +232,7 @@
   "stepProblemArchived": "O centro de trabalho foi arquivado ou excluído.",
   "stepProblemNoSchedule": "Nenhum período de programação cobre este mês.",
   "stepProblemEmptyPool": "Este pool não tem membros.",
+  "stepPoolMembers": "Pool · {count} centros de trabalho",
 
   "inventoryModeQuantity": "Peças",
   "inventoryModeDuration": "Espera fixa",

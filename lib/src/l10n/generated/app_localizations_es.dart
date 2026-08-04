@@ -686,6 +686,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stepProblemEmptyPool => 'Este pool no tiene miembros.';
 
   @override
+  String stepPoolMembers(String count) {
+    return 'Pool · $count centros de trabajo';
+  }
+
+  @override
   String get inventoryModeQuantity => 'Piezas';
 
   @override
