@@ -272,6 +272,8 @@
   "stepProblemArchived": "Its workcenter has been archived or deleted.",
   "stepProblemNoSchedule": "No schedule period covers this month.",
   "stepProblemEmptyPool": "This pool has no members.",
+  "stepPoolMembers": "Pool · {count} workcenters",
+  "@stepPoolMembers": { "description": "Tooltip on a process box whose step targets a pool rather than one workcenter.", "placeholders": { "count": { "type": "String" } } },
 
   "inventoryModeQuantity": "Pieces",
   "inventoryModeDuration": "Fixed wait",

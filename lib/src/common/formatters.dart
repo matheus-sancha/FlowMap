@@ -25,21 +25,6 @@ String formatDurationHms(Duration duration) {
   return '${negative ? '-' : ''}${_two(hours)}:${_two(minutes)}:${_two(seconds)}';
 }
 
-/// A rung of the lead-time ladder: `3.8 d` where a working day is known,
-/// `HH:MM:SS` where it is not.
-///
-/// Days are the unit a value-stream map is read in, but a "day" is only
-/// meaningful against a workcenter's own capacity (DESIGN.md §6.1) — so where
-/// no schedule supplies one, the honest answer is hours rather than a day count
-/// against an invented 24.
-String formatLadderTime(Duration duration, [Duration? workingDay]) {
-  if (workingDay == null || workingDay.inSeconds <= 0) {
-    return formatDurationHms(duration);
-  }
-  final days = duration.inSeconds / workingDay.inSeconds;
-  return '${days.toStringAsFixed(1)} d';
-}
-
 /// Parses `HH:MM`, `H:MM` or `HHMM` into minutes since midnight, or null if it
 /// is not a clock reading. Returns null rather than throwing: this runs on
 /// every keystroke in a text field.

@@ -101,6 +101,18 @@ sealed class FlowNodeView {
   /// read `3.8 d` the way a value-stream map draws it. Null — and the rung
   /// falls back to hours — when no schedule gives this node a working day.
   Duration? get referenceWorkingDay;
+
+  /// [ladderTime] in the days its own rung is drawn in: this station's
+  /// productive day, or a plain 24 hours where none applies (a calendar wait,
+  /// or a step with no schedule).
+  ///
+  /// The footer totals are summed from these rather than from the durations,
+  /// so `Lead time` is the sum of the rungs above it even when the steps
+  /// differ in how long their day is (DESIGN.md §17.4).
+  double get ladderDays {
+    final day = referenceWorkingDay ?? const Duration(hours: 24);
+    return day.inSeconds == 0 ? 0 : ladderTime.inSeconds / day.inSeconds;
+  }
 }
 
 /// A process box.
@@ -108,7 +120,8 @@ class FlowStepView extends FlowNodeView {
   const FlowStepView(
     super.node, {
     required this.title,
-    required this.subtitle,
+    required this.typeName,
+    required this.poolMemberCount,
     required this.processTime,
     required this.changeover,
     required this.openPerWorkingDay,
@@ -123,8 +136,18 @@ class FlowStepView extends FlowNodeView {
   /// `CLAD04` or the pool's name — what the box is labelled.
   final String title;
 
-  /// The workcenter type, or the pool's member count.
-  final String subtitle;
+  /// The targeted workcenter's type — `Cladding` — which is what the box says
+  /// about itself beyond its name. Null for a pool, and for a workcenter with
+  /// no type set.
+  ///
+  /// Kept as the type's own name rather than a ready-made sentence: this layer
+  /// has no `BuildContext`, so composing anything for the reader here would put
+  /// an untranslated string on the map.
+  final String? typeName;
+
+  /// How many workcenters the pool holds, or null when the step targets one
+  /// workcenter directly.
+  final int? poolMemberCount;
 
   /// The flow equivalent's process time here — one takt of this station's
   /// productive capacity, or the step's own override (DESIGN.md §6.1).
@@ -170,8 +193,6 @@ class FlowStepView extends FlowNodeView {
   final bool scheduleCarriedForward;
 
   int get staffedShiftCount => operatorsPerShift.where((o) => o > 0).length;
-
-  bool get isCostable => processTime != null;
 
   @override
   Duration get ladderTime => processTime ?? Duration.zero;
@@ -308,12 +329,30 @@ class FlowView {
     return lead == 0 ? 0 : processTime.inSeconds / lead;
   }
 
-  /// Every step's takt, summed — what the flow equivalent's own lead time would
-  /// be with no buffers.
-  Duration get flowEquivalentProcessTime => steps.fold(
-    Duration.zero,
-    (total, step) => total + (step.processTime ?? Duration.zero),
-  );
+  /// The footer totals in ladder days — each node measured against its own
+  /// rung's working day, then added up (DESIGN.md §17.4).
+  double get processTimeInDays =>
+      steps.fold(0, (total, step) => total + step.ladderDays);
+
+  double get leadTimeInDays =>
+      nodes.fold(0, (total, node) => total + node.ladderDays);
+
+  /// The working day that makes [processTime] read as [processTimeInDays], for
+  /// the one formatter the boxes, rungs and footer all share.
+  ///
+  /// A derived divisor rather than a chosen one: the steps of a flow do not
+  /// have to share a working day — a single-shift station and a three-shift one
+  /// legitimately differ — so there is no one day to pick, only the one that
+  /// makes the total agree with the rungs it is a total of. Null for an empty
+  /// flow, where the formatter's own 24-hour fallback is as good an answer as
+  /// any.
+  Duration? get processTimeWorkingDay =>
+      _workingDayFor(processTime, processTimeInDays);
+
+  Duration? get leadTimeWorkingDay => _workingDayFor(leadTime, leadTimeInDays);
+
+  static Duration? _workingDayFor(Duration total, double days) =>
+      days <= 0 ? null : Duration(seconds: (total.inSeconds / days).round());
 
   bool get hasBlockingProblems =>
       taktMissing || steps.any((s) => s.problems.isNotEmpty);
@@ -325,11 +364,16 @@ class WorkcenterContext {
     required this.workcenter,
     required this.calendar,
     required this.schedule,
+    this.typeName,
   });
 
   final Workcenter workcenter;
   final WorkingCalendar calendar;
   final WorkcenterScheduleSpec schedule;
+
+  /// The name of the workcenter's type, resolved by the repository. The
+  /// workcenter itself carries only the type's id, and this layer cannot query.
+  final String? typeName;
 }
 
 /// Builds the map (DESIGN.md §5.4, §6.1).
@@ -430,13 +474,14 @@ FlowStepView _buildStep({
   // something to average away here.
   String? targetId = node.workcenterId;
   var title = '';
-  var subtitle = '';
+  String? typeName;
+  int? poolMemberCount;
 
   if (node.poolId != null) {
     final pool = pools[node.poolId];
     final members = poolMembers[node.poolId] ?? const <String>[];
     title = pool?.name ?? '';
-    subtitle = '${members.length}';
+    poolMemberCount = members.length;
     if (members.isEmpty) {
       problems.add(StepProblem.emptyPool);
     } else {
@@ -451,7 +496,7 @@ FlowStepView _buildStep({
     if (context != null) {
       final workcenter = context.workcenter;
       title = workcenter.name;
-      subtitle = workcenter.name;
+      typeName = context.typeName;
       if (workcenter.archivedAt != null) {
         problems.add(StepProblem.archivedTarget);
       }
@@ -517,7 +562,8 @@ FlowStepView _buildStep({
   return FlowStepView(
     node,
     title: title.isEmpty ? '—' : title,
-    subtitle: subtitle,
+    typeName: typeName,
+    poolMemberCount: poolMemberCount,
     processTime: processTime,
     usesLocalEquivalent: localEquivalent != null,
     changeover: changeover,

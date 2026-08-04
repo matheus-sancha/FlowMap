@@ -17,8 +17,6 @@ class ViewedPeriodState {
   /// The first day of the span.
   final DateTime anchor;
   final PeriodGranularity granularity;
-
-  DateTime get end => granularity.endOf(anchor);
 }
 
 /// The period the map is showing (`Aug 2026`, `Q3 2026`, `2026`).
@@ -92,7 +90,13 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
   final workcenters = ref.watch(workcentersProvider(project.plantId)).value;
   final pools = ref.watch(poolsProvider(project.plantId)).value;
   final membership = ref.watch(poolMembershipProvider(project.plantId)).value;
-  if (workcenters == null || pools == null || membership == null) return null;
+  final types = ref.watch(workcenterTypesProvider).value;
+  if (workcenters == null ||
+      pools == null ||
+      membership == null ||
+      types == null) {
+    return null;
+  }
 
   final taktPeriods = ref.watch(
     taktPeriodsProvider((
@@ -115,6 +119,7 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
   }
 
   final byId = {for (final w in workcenters) w.id: w};
+  final typeNames = {for (final t in types) t.id: t.name};
   final contexts = <String, WorkcenterContext>{};
   for (final id in needed) {
     final workcenter = byId[id];
@@ -128,6 +133,7 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
       workcenter: workcenter,
       calendar: calendar,
       schedule: await schedules.loadWorkcenterSchedule(project.id, id),
+      typeName: typeNames[workcenter.typeId],
     );
   }
 

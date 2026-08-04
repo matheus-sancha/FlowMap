@@ -29,7 +29,8 @@ class OpenInterval {
 /// * **A workcenter is a single server** (DESIGN.md §7.5), so overlapping
 ///   shifts count once. Two crews overlapping for a 47-minute handover do not
 ///   make the machine available twice over, so intervals are merged into a
-///   union rather than summed.
+///   union rather than summed — including across midnight, where a night shift
+///   overruns the next morning's start.
 /// * **A break shortens the end of its shift.** Nothing in this app records
 ///   *when* a break is taken, and inventing a placement would put a fictional
 ///   gap in the middle of every shift. Taking it off the end keeps wall-clock
@@ -76,6 +77,8 @@ class WorkingCalendar {
   /// abort guard (DESIGN.md §7.8) depends on this failing loudly instead.
   static const _searchLimitDays = 3660;
 
+  static const _secondsPerDay = 24 * 60 * 60;
+
   /// Whether the workcenter has any open time at all.
   bool get isEverOpen =>
       staffing.isEverStaffed ||
@@ -95,15 +98,33 @@ class WorkingCalendar {
   /// twice a year because a daylight-saving change fell inside the window.
   /// It is also independent of whether [onDate] is itself a working day.
   ///
+  /// **The union is taken on the 24-hour circle, not on a line.** The pattern
+  /// repeats daily, so a night shift running to 07:00 competes with the next
+  /// morning's 06:00 start for the same single server; laid end to end those
+  /// two windows would claim 25 hours out of a 24-hour day. Wrapping the
+  /// overrun back to the start of the cycle is what keeps a day's capacity a
+  /// day (DESIGN.md §6.1.1).
+  ///
   /// Note it does **not** apply availability. Availability is applied exactly
   /// once in the app, when deriving effective process time (DESIGN.md §4.4);
   /// derating capacity here as well would count it twice.
   Duration openTimePerWorkingDay(DateTime onDate) {
     final spans = <_SecondSpan>[];
     for (final shift in _staffedShifts(staffing.operatorsOn(onDate))) {
+      final length = shift.netDuration.inSeconds;
+      if (length <= 0) continue;
+      // A window at least a whole cycle long covers the circle by itself.
+      if (length >= _secondsPerDay) return const Duration(days: 1);
+
       final start = shift.startMinute * 60;
-      final end = start + shift.netDuration.inSeconds;
-      if (end > start) spans.add(_SecondSpan(start, end));
+      final end = start + length;
+      if (end <= _secondsPerDay) {
+        spans.add(_SecondSpan(start, end));
+      } else {
+        spans
+          ..add(_SecondSpan(start, _secondsPerDay))
+          ..add(_SecondSpan(0, end - _secondsPerDay));
+      }
     }
     return Duration(seconds: _mergedSeconds(spans));
   }
@@ -148,9 +169,15 @@ class WorkingCalendar {
     return _merge(intervals);
   }
 
-  /// Open time attributed to [date] — the capacity of that day's shifts.
-  Duration openTimeOnDate(DateTime date) => intervalsStartingOn(
-    date,
+  /// Open time attributed to [date] — the capacity that day's shifts add.
+  ///
+  /// "Add", not "hold": where the previous night's shift overruns into this
+  /// day, that time was already counted as the previous day's, and a single
+  /// server cannot be open twice over. Crediting it to the day whose shift
+  /// reached it first is what keeps `Σ openTimeOnDate` equal to
+  /// [openTimeBetween] across the same span.
+  Duration openTimeOnDate(DateTime date) => _unclaimedIntervalsOn(
+    dateOnly(date),
   ).fold(Duration.zero, (total, interval) => total + interval.duration);
 
   bool isOpenAt(DateTime t) {
@@ -188,9 +215,11 @@ class WorkingCalendar {
     var day = _previousDay(dateOnly(from));
     final last = dateOnly(to);
     // `to` may fall inside a shift that started on its own day, so the loop
-    // runs through `to`'s date inclusive.
+    // runs through `to`'s date inclusive. Each day contributes only what the
+    // day before did not already claim, so an overrunning night shift is
+    // counted once rather than twice.
     while (!day.isAfter(last)) {
-      for (final interval in intervalsStartingOn(day)) {
+      for (final interval in _unclaimedIntervalsOn(day)) {
         final start = interval.start.isBefore(from) ? from : interval.start;
         final end = interval.end.isAfter(to) ? to : interval.end;
         if (end.isAfter(start)) total += end.difference(start);
@@ -230,6 +259,25 @@ class WorkingCalendar {
       '${pattern.name} within $_searchLimitDays days. Check that at least one '
       'shift has operators assigned.',
     );
+  }
+
+  /// [day]'s intervals, minus whatever the day before already claimed.
+  ///
+  /// Only the previous day can reach in: a shift window is at most 24 hours
+  /// long, so nothing starting earlier survives to touch [day].
+  ///
+  /// [advance] and [nextOpen] deliberately do **not** use this. They walk
+  /// forward from a cursor that never moves backwards, so an overlapping
+  /// interval from the following day is clipped to the cursor and its shared
+  /// time spent once — the trimming here would be redundant, and doing it in
+  /// [intervalsStartingOn] itself would make that method answer a question
+  /// about two days rather than the one it is asked about.
+  List<OpenInterval> _unclaimedIntervalsOn(DateTime day) {
+    final today = intervalsStartingOn(day);
+    if (today.isEmpty) return today;
+    final yesterday = intervalsStartingOn(_previousDay(day));
+    if (yesterday.isEmpty) return today;
+    return _subtract(today, yesterday);
   }
 
   /// Shifts with at least one operator, in position order.
@@ -279,6 +327,34 @@ class WorkingCalendar {
       }
     }
     return merged;
+  }
+
+  /// [from] with every part covered by [remove] cut out. Both are merged and
+  /// sorted; the result is too.
+  static List<OpenInterval> _subtract(
+    List<OpenInterval> from,
+    List<OpenInterval> remove,
+  ) {
+    var pieces = from;
+    for (final cut in remove) {
+      final kept = <OpenInterval>[];
+      for (final piece in pieces) {
+        // Touching at an endpoint is not overlapping: a shift that ends at
+        // 07:00 and one that starts at 07:00 are a handover, not a clash.
+        if (!cut.start.isBefore(piece.end) || !piece.start.isBefore(cut.end)) {
+          kept.add(piece);
+          continue;
+        }
+        if (piece.start.isBefore(cut.start)) {
+          kept.add(OpenInterval(piece.start, cut.start));
+        }
+        if (cut.end.isBefore(piece.end)) {
+          kept.add(OpenInterval(cut.end, piece.end));
+        }
+      }
+      pieces = kept;
+    }
+    return pieces;
   }
 
   static int _mergedSeconds(List<_SecondSpan> spans) {

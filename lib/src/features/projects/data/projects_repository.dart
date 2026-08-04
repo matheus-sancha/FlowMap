@@ -20,10 +20,6 @@ class ProjectsRepository {
     _db.projects,
   )..where((p) => p.id.equals(id))).watchSingleOrNull();
 
-  Future<Project?> loadProject(String id) => (_db.select(
-    _db.projects,
-  )..where((p) => p.id.equals(id))).getSingleOrNull();
-
   Future<String> createProject({
     required String name,
     required String plantId,

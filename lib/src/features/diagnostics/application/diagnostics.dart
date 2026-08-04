@@ -59,12 +59,6 @@ abstract final class Diag {
   static void error(String source, Object error, StackTrace? stack) =>
       _log?.error(source, error, stack);
 
-  /// Shortens a uuid for a breadcrumb. Full uuids make the log unreadable, and
-  /// eight hex characters are plenty to correlate lines within one session.
-  static String shortId(String id) => id.length <= 8 ? id : id.substring(0, 8);
-
-  @visibleForTesting
-  static void installForTest(DiagnosticsLog? log) => _log = log;
 }
 
 /// The third error channel, and the one that matters most here.

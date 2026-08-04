@@ -1318,6 +1318,12 @@ abstract class AppLocalizations {
   /// **'This pool has no members.'**
   String get stepProblemEmptyPool;
 
+  /// Tooltip on a process box whose step targets a pool rather than one workcenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Pool · {count} workcenters'**
+  String stepPoolMembers(String count);
+
   /// No description provided for @inventoryModeQuantity.
   ///
   /// In en, this message translates to:

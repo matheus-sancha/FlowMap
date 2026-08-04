@@ -80,16 +80,11 @@ abstract final class VsmSymbols {
 /// focus and hit testing come from the framework; only the connective tissue is
 /// painted, because none of it is interactive.
 class FlowConnectionsPainter extends CustomPainter {
-  const FlowConnectionsPainter({
-    required this.segments,
-    required this.color,
-    required this.ladderColor,
-  });
+  const FlowConnectionsPainter({required this.segments, required this.color});
 
   /// Straight runs of the spine, as (from, to) pairs.
   final List<(Offset, Offset)> segments;
   final Color color;
-  final Color ladderColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -104,17 +99,18 @@ class FlowConnectionsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(FlowConnectionsPainter old) =>
-      old.segments != segments ||
-      old.color != color ||
-      old.ladderColor != ladderColor;
+      old.segments != segments || old.color != color;
 }
 
 /// The sawtooth timeline under the map: waiting high, processing low.
 class LeadTimeLadderPainter extends CustomPainter {
   const LeadTimeLadderPainter({required this.rungs, required this.color});
 
-  /// Each rung as its rectangle and whether it is waiting time.
-  final List<(Rect, bool)> rungs;
+  /// One rectangle per rung, in flow order. Whether a rung is waiting time is
+  /// already in its `top`: the layout puts waiting high and processing low, so
+  /// a separate flag here would be a second way to say the same thing, and the
+  /// two could disagree.
+  final List<Rect> rungs;
   final Color color;
 
   @override
@@ -128,7 +124,7 @@ class LeadTimeLadderPainter extends CustomPainter {
     final path = Path();
     var started = false;
     Rect? previous;
-    for (final (rect, _) in rungs) {
+    for (final rect in rungs) {
       if (!started) {
         path.moveTo(rect.left, rect.top);
         started = true;

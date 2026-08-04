@@ -115,6 +115,12 @@ class _StudiesSidebar extends ConsumerWidget {
                   study: study,
                   line: linesById[study.productionLineId],
                   selected: study.id == selectedId,
+                  // Its siblings' names, so a rename or a duplicate can refuse
+                  // one the project already holds. Its own is not taken.
+                  takenNames: {
+                    for (final other in studies)
+                      if (other.id != study.id) other.name.toLowerCase(),
+                  },
                 ),
             ],
           ),
@@ -143,16 +149,21 @@ class _StudyTile extends ConsumerWidget {
     required this.study,
     required this.line,
     required this.selected,
+    required this.takenNames,
   });
 
   final Study study;
   final PlantLine? line;
   final bool selected;
 
+  /// Lower-cased names of the other studies in this project.
+  final Set<String> takenNames;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final repository = ref.read(studiesRepositoryProvider);
+    final taken = takenNames;
 
     return ListTile(
       selected: selected,
@@ -185,6 +196,12 @@ class _StudyTile extends ConsumerWidget {
                 title: l10n.actionRename,
                 label: l10n.fieldName,
                 initialValue: study.name,
+                // Study names are unique per project. Without this the write
+                // hits the constraint and throws inside an async callback,
+                // where the user sees the dialog close and nothing happen.
+                validate: (value) => taken.contains(value.toLowerCase())
+                    ? l10n.validationNameTaken
+                    : null,
               );
               if (name != null) {
                 await repository.updateStudy(
@@ -203,6 +220,13 @@ class _StudyTile extends ConsumerWidget {
                 title: l10n.actionDuplicate,
                 label: l10n.fieldName,
                 initialValue: '${study.name} (copy)',
+                // The copy needs a free name too, and here the original's own
+                // name is taken as well.
+                validate: (value) =>
+                    taken.contains(value.toLowerCase()) ||
+                        value.toLowerCase() == study.name.toLowerCase()
+                    ? l10n.validationNameTaken
+                    : null,
               );
               if (name == null) return;
               final copyId = await repository.duplicateStudy(

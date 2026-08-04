@@ -28,10 +28,6 @@ class SchedulePeriodIssue {
   final DateTime? from;
   final DateTime? to;
 
-  /// Every problem here is blocking. Warnings — occupation over 100%, a
-  /// carried-forward tail — are reported elsewhere, because they do not stop a
-  /// study being costed.
-  bool get isBlocking => true;
 }
 
 /// Finds everything wrong with [schedule], in the order a user would fix it.

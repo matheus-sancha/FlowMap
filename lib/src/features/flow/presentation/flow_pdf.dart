@@ -13,6 +13,16 @@ import '../../../data/database/staffing_codec.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../diagnostics/application/diagnostics.dart';
 import '../application/flow_view.dart';
+import 'period_label.dart';
+
+/// How the document renders a duration.
+///
+/// Carries the working day rather than just the duration, because a "day" on a
+/// value-stream map is a station's own productive day, not 24 hours — and a
+/// renderer that could not be told which one would silently print the map in
+/// different units from the screen (DESIGN.md §6.1, §17.4).
+typedef FlowDurationFormat =
+    String Function(Duration duration, {Duration? workingDay});
 
 /// The strings the PDF needs, captured before the export goes async.
 ///
@@ -36,7 +46,14 @@ class FlowPdfStrings {
     required this.generated,
     required this.dataSource,
     required this.taktValue,
+    required this.localEquivalentMark,
   });
+
+  /// What marks a step whose process time is its own Process Specific Takt
+  /// rather than one takt of the line's (DESIGN.md §6.1.1) — the same `*` the
+  /// canvas puts on the box. A reader comparing two boxes on a printed map has
+  /// the same need to know one of them is not measured in takts.
+  final String localEquivalentMark;
 
   /// The takt already rendered — `3 days` — because the unit's localized name
   /// needs a `BuildContext` the document builder does not have.
@@ -87,18 +104,21 @@ Future<void> exportFlowPdf(
     leadTime: l10n.footerLeadTime,
     pce: l10n.footerPce,
     generated: l10n.pdfGenerated(kBuildLabel, timestamp.format(DateTime.now())),
-    dataSource: l10n.flowSourceEquivalent,
+    dataSource: flowDataSourceLabel(l10n, view.dataSource),
     taktValue: view.takt == null
         ? '—'
-        : '${view.takt!.value} ${taktUnitLabel(l10n, view.takt!.unit)}',
+        : '${_number(view.takt!.value)} '
+              '${taktUnitLabel(l10n, view.takt!.unit)}',
+    localEquivalentMark: ' *',
   );
 
-  // The same rendering the screen uses, so an exported map and the app never
-  // state the same duration two different ways.
+  // The same rendering the screen uses, working day and all, so an exported map
+  // and the app never state the same duration two different ways.
   final bytes = await buildFlowPdf(
     view: view,
     strings: strings,
-    formatDuration: (duration) => formatAdaptiveDuration(l10n, duration),
+    formatDuration: (duration, {workingDay}) =>
+        formatAdaptiveDuration(l10n, duration, workingDay: workingDay),
   );
 
   final location = await getSaveLocation(
@@ -127,7 +147,7 @@ Future<void> exportFlowPdf(
 Future<Uint8List> buildFlowPdf({
   required FlowView view,
   required FlowPdfStrings strings,
-  required String Function(Duration) formatDuration,
+  required FlowDurationFormat formatDuration,
 }) async {
   final document = pw.Document(title: strings.title);
 
@@ -225,7 +245,7 @@ pw.Widget _arrow() => pw.Container(
 pw.Widget _stepBox(
   FlowStepView step,
   FlowPdfStrings strings,
-  String Function(Duration) formatDuration,
+  FlowDurationFormat formatDuration,
 ) => pw.Container(
   width: 140,
   decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.8)),
@@ -248,7 +268,9 @@ pw.Widget _stepBox(
         child: pw.Column(
           children: [
             _pdfRow(
-              strings.processTime,
+              step.usesLocalEquivalent
+                  ? '${strings.processTime}${strings.localEquivalentMark}'
+                  : strings.processTime,
               step.processTime == null
                   ? '—'
                   : formatDuration(step.processTime!),
@@ -281,7 +303,7 @@ pw.Widget _stepBox(
 
 pw.Widget _inventory(
   FlowInventoryView buffer,
-  String Function(Duration) formatDuration,
+  FlowDurationFormat formatDuration,
 ) => pw.Container(
   width: 90,
   alignment: pw.Alignment.center,
@@ -294,14 +316,19 @@ pw.Widget _inventory(
           style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
         ),
       pw.Text(
-        buffer.label.isEmpty ? formatDuration(buffer.wait) : buffer.label,
+        buffer.label.isEmpty
+            ? formatDuration(
+                buffer.wait,
+                workingDay: buffer.referenceWorkingDay,
+              )
+            : buffer.label,
         style: const pw.TextStyle(fontSize: 8),
       ),
     ],
   ),
 );
 
-pw.Widget _ladder(FlowView view, String Function(Duration) formatDuration) =>
+pw.Widget _ladder(FlowView view, FlowDurationFormat formatDuration) =>
     pw.Row(
       children: [
         for (final node in view.nodes)
@@ -321,7 +348,12 @@ pw.Widget _ladder(FlowView view, String Function(Duration) formatDuration) =>
               ),
             ),
             child: pw.Text(
-              formatDuration(node.ladderTime),
+              // Against the node's own working day, as on the canvas: one takt
+              // has to read `3.0 d` on paper too.
+              formatDuration(
+                node.ladderTime,
+                workingDay: node.referenceWorkingDay,
+              ),
               // Centred over its rung, as on the canvas.
               textAlign: pw.TextAlign.center,
               style: const pw.TextStyle(fontSize: 8),
@@ -333,13 +365,22 @@ pw.Widget _ladder(FlowView view, String Function(Duration) formatDuration) =>
 pw.Widget _footer(
   FlowView view,
   FlowPdfStrings strings,
-  String Function(Duration) formatDuration,
+  FlowDurationFormat formatDuration,
 ) => pw.Row(
   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
   children: [
     _metric(strings.takt, strings.taktValue),
-    _metric(strings.processTime, formatDuration(view.processTime)),
-    _metric(strings.leadTime, formatDuration(view.leadTime)),
+    _metric(
+      strings.processTime,
+      formatDuration(
+        view.processTime,
+        workingDay: view.processTimeWorkingDay,
+      ),
+    ),
+    _metric(
+      strings.leadTime,
+      formatDuration(view.leadTime, workingDay: view.leadTimeWorkingDay),
+    ),
     _metric(
       strings.pce,
       '${(view.processCycleEfficiency * 100).toStringAsFixed(1)}%',
@@ -368,6 +409,11 @@ pw.Widget _pdfRow(String label, String value) => pw.Row(
     pw.Text(value, style: const pw.TextStyle(fontSize: 7)),
   ],
 );
+
+/// `3` rather than `3.0` — a takt is written the way it is spoken, on paper as
+/// on screen.
+String _number(double value) =>
+    value == value.roundToDouble() ? '${value.round()}' : '$value';
 
 String _safeFileName(String name) =>
     name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');

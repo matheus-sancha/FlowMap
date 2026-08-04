@@ -62,6 +62,32 @@ void main() {
     ],
   );
 
+  // A pattern whose night shift overruns the next morning's start by an hour —
+  // a generous handover, and the case that used to make a day worth 25 hours.
+  //   Day   06:00–18:00           → 12:00
+  //   Night 18:00–07:00 (+1d)     → 13:00
+  // Laid end to end that is 25 hours; the machine is one server, so the real
+  // coverage is the whole 24-hour day and no more.
+  final handover = ShiftPatternSpec(
+    name: 'handover',
+    cycleType: ShiftCycleType.rotating,
+    workingWeekdays: ShiftPatternSpec.weekdayMask([1, 2, 3, 4, 5, 6, 7]),
+    shifts: const [
+      ShiftWindow(
+        label: 'Day',
+        position: 0,
+        startMinute: 6 * 60,
+        endMinute: 18 * 60,
+      ),
+      ShiftWindow(
+        label: 'Night',
+        position: 1,
+        startMinute: 18 * 60,
+        endMinute: 7 * 60,
+      ),
+    ],
+  );
+
   // 2026-08-03 is a Monday; the whole suite is anchored to that week.
   final monday = DateTime(2026, 8, 3);
   final saturday = DateTime(2026, 8, 8);
@@ -465,6 +491,67 @@ void main() {
       const work = Duration(hours: 30);
       final to = calendar.advance(from, work);
       expect(calendar.openTimeBetween(from, to), work);
+    });
+  });
+
+  group('a night shift that overruns the next morning', () {
+    final calendar = WorkingCalendar(
+      pattern: handover,
+      operatorsPerShift: const [1, 1],
+    );
+    final tuesday = DateTime(2026, 8, 4);
+    final wednesday = DateTime(2026, 8, 5);
+
+    test('a day is worth a day, not the sum of its windows', () {
+      // 12:00 + 13:00 = 25:00 laid end to end. One server, so 24:00.
+      expect(calendar.openTimePerWorkingDay(monday), const Duration(hours: 24));
+    });
+
+    test('a 24-hour window cannot hold more than 24 hours of open time', () {
+      expect(
+        calendar.openTimeBetween(tuesday, wednesday),
+        const Duration(hours: 24),
+      );
+    });
+
+    test('the overrun is credited to the day whose shift reached it', () {
+      // Tuesday's own shifts span 06:00 Tue → 07:00 Wed, but Monday's night
+      // shift already claimed 00:00–07:00 on Tuesday.
+      expect(calendar.openTimeOnDate(tuesday), const Duration(hours: 24));
+    });
+
+    test('the days of a week sum to the week', () {
+      var summed = Duration.zero;
+      for (var i = 0; i < 7; i++) {
+        summed += calendar.openTimeOnDate(DateTime(2026, 8, 3 + i));
+      }
+      expect(
+        summed,
+        calendar.openTimeBetween(monday, DateTime(2026, 8, 10)),
+      );
+      expect(summed, const Duration(hours: 24 * 7));
+    });
+
+    test('advance spends the shared hour once', () {
+      // Open continuously, so 24 hours of work is 24 hours of wall clock.
+      expect(
+        calendar.advance(DateTime(2026, 8, 4, 6), const Duration(hours: 24)),
+        DateTime(2026, 8, 5, 6),
+      );
+    });
+
+    test('a handover that only touches loses nothing', () {
+      // The seeded ABCD windows meet exactly at 07:00 and 19:00: nothing
+      // overlaps, so nothing may be trimmed.
+      final touching = WorkingCalendar(
+        pattern: abcd,
+        operatorsPerShift: const [1, 1],
+      );
+      expect(touching.openTimeOnDate(monday), const Duration(hours: 24));
+      expect(
+        touching.openTimeBetween(monday, DateTime(2026, 8, 10)),
+        const Duration(hours: 24 * 7),
+      );
     });
   });
 

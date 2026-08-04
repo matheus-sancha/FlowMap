@@ -71,6 +71,10 @@ class _ProjectTile extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final repository = ref.read(projectsRepositoryProvider);
     final plant = plants.where((p) => p.id == project.plantId).firstOrNull;
+    final taken = {
+      for (final other in ref.watch(projectsListProvider).value ?? const [])
+        if (other.id != project.id) other.name.toLowerCase(),
+    };
     final patterns = ref.watch(shiftPatternsProvider).value ?? const [];
     final pattern = patterns
         .where((p) => p.id == project.shiftPatternId)
@@ -93,6 +97,12 @@ class _ProjectTile extends ConsumerWidget {
             title: l10n.actionRename,
             label: l10n.fieldName,
             initialValue: project.name,
+            // Project names are unique. Without this the write hits the
+            // constraint and throws inside an async callback, where the user
+            // sees the dialog close and nothing happen.
+            validate: (value) => taken.contains(value.toLowerCase())
+                ? l10n.validationNameTaken
+                : null,
           );
           if (name != null) {
             await repository.updateProject(

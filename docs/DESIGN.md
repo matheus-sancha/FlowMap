@@ -280,9 +280,14 @@ becomes 4 days, and its share of the equivalent shifts.
 override: stock drains at the rate units leave the line.
 
 **Overlapping shifts count once.** The seeded ABC pattern has A running to 15:13
-and B starting at 14:26 — a 47-minute handover overlap. A workcenter is a single
-server (§7.5), so the open time is the *union* of its staffed windows, not their
-sum. ABC with all three shifts staffed is therefore 22:40 a day, not 23:27.
+and B starting at 14:26 — a 47-minute handover overlap, 7 minutes of it after
+A's break is taken off the end. A workcenter is a single server (§7.5), so the
+open time is the *union* of its staffed windows, not their sum. ABC with all
+three shifts staffed is therefore 22:40 a day, not the 22:47 the three net
+windows add up to.
+
+**The union is taken on the 24-hour circle**, so a night shift that overruns the
+next morning's start is counted once too — see §17.3.
 
 _Rejected: a project-level hours-per-day constant._ A 1-shift and a 3-shift workcenter would get
 the same equivalent, hiding exactly the imbalance the method exists to expose.
@@ -728,6 +733,102 @@ The walk starts at the **first day of the viewed period**, since no demand
 exists yet to supply a real start date; M3 replaces that with the first order's.
 It returns nothing rather than a guess when a step cannot be costed or its
 calendar can never open, and the footer shows a dash.
+
+### 17.3 A day is worth a day
+
+The single-server rule (§6.1.1) was applied only within one calendar date. A
+shift window is attributed to the day it starts on, so a night shift running to
+07:00 and the next morning's shift starting at 06:00 were merged in separate
+passes and never compared — the shared hour was counted twice. A pattern of
+`06:00–18:00` and `18:00–07:00` reported **25 hours of open time in a 24-hour
+day**, and `openTimeBetween` said the same across any window containing the
+overlap.
+
+It matters beyond the shift editor's own preview: that figure is the flow
+equivalent's divisor (§6.1), the working day the lead-time ladder renders
+against, and — from M3 — the denominator of Occupation (§8.1). An overstated
+day understates occupation, which is the number the app exists to produce.
+
+Two fixes, because the same rule has two forms:
+
+- `openTimePerWorkingDay` is nominal minute arithmetic over a pattern that
+  repeats daily, so its union is taken **on the 24-hour circle**: a window
+  running past midnight wraps to the start of the cycle and merges with what
+  is already there.
+- `openTimeOnDate` and `openTimeBetween` walk real dates, so each day
+  contributes only what the day before did not already claim. The overrun is
+  credited to the day whose shift reached it first, which is what makes
+  `Σ openTimeOnDate` equal `openTimeBetween` over the same span.
+
+`advance` and `nextOpen` needed no change and deliberately got none: they walk a
+cursor that never moves backwards, so an overlapping interval is already clipped
+to it and the shared time is spent once. Trimming inside `intervalsStartingOn`
+was rejected — it would make a method asked about one day answer about two.
+
+The seeded ABC and ABCD patterns never tripped this (ABC's overlap is inside a
+day; ABCD's windows touch without overlapping), which is why 76 calendar tests
+did not catch it. The regression case is a pattern with an hour of real
+overrun.
+
+### 17.4 One kind of day per screen
+
+§6.1 says the box, the ladder and the footer totals all read the one figure.
+Three places did not.
+
+- **The PDF's ladder and buffers were in 24-hour days** while the canvas drew
+  the same rungs in each station's productive day. A one-takt step read `3.0 d`
+  on screen and `2.1 d` on the printed map. The renderer took a
+  `String Function(Duration)`, which simply could not be handed a working day —
+  the type made the bug unfixable at the call site. It now takes a
+  `FlowDurationFormat` that carries one, so the omission would be a compile
+  error rather than a quieter number.
+- **The footer totals were in 24-hour days** while the rungs directly above
+  them were in productive ones: three steps of one 3-day takt showed three
+  rungs of `3.0 d` over a lead time of `6.3 d`. The totals are now summed as
+  ladder days — each node against its own rung's working day — and rendered
+  against the divisor that reproduces that sum. A derived divisor rather than a
+  chosen one, because the steps of a flow legitimately differ in how long their
+  day is, so there is no single station's day to pick; only the one that makes
+  a total agree with what it totals. A calendar wait keeps its plain 24 hours,
+  which is what its own rung reads (§17.1).
+- **The PDF named the data source and the override marker wrongly.** The header
+  was hardcoded to "Flow equivalent" and the `*` on a step carrying its own
+  Process Specific Takt (§6.1.1) was missing, so a printed map could not be read
+  the way §6.1.1 requires. Both now come from the view, through an exhaustive
+  switch that M3's two extra sources cannot be added without updating.
+
+The PDF's numbers live in a compressed content stream and cannot be read back
+out of the bytes, so the tests assert on what the renderer *asks* to be
+formatted — a recording formatter, rather than a golden file that would have to
+be regenerated on every layout tweak.
+
+### 17.5 What is built but cannot be reached
+
+An audit before M3 found two kinds of unused code, and they deserve opposite
+treatment.
+
+**Superseded, and deleted.** `formatLadderTime` (replaced by
+`formatAdaptiveDuration`'s working day in §17.1), `durationUnitShort`,
+`FlowStepView.isCostable`, `FlowView.flowEquivalentProcessTime` — a duplicate of
+`processTime` that would have started lying the moment M3 gave the two different
+meanings — `SchedulePeriodIssue.isBlocking` (a constant `true`),
+`ViewedPeriodState.end`, `linesProvider`, `watchPlant`, `loadProject`,
+`Diag.shortId`, `Diag.installForTest`, and two painter fields nothing painted.
+None had a caller, in the app or in a test.
+
+**Written ahead of its UI, and kept.** These are complete, tested through their
+repositories, and reachable from nothing a user can click. Listed here so the
+next milestone plans them rather than rediscovering them:
+
+| What | State | Wanted by |
+|---|---|---|
+| Calendar exceptions (§4.3) | schema, resolution, calendar assembly, tests | **M3** — "Saturday extra hours on CLAD04" is the commonest capacity lever there is, and it cannot currently be entered |
+| Supplier / Customer names (§16.2) | stored, drawn on canvas and PDF | M3 — the only writer is the rename dialog passing the old value back, so the endpoints always read their defaults |
+| The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty |
+| `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
+| `wipCap`, `priority`, `reworkOn`, `effectiveProcessTime` | stored / computed | M4, as planned |
+
+---
 
 ## 18. Open assumptions
 
