@@ -2,7 +2,6 @@ import 'package:flowmap/src/common/workcenter_icons.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/data/database/seed_data.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The icon library behind a workcenter type (DESIGN.md §12.1).
