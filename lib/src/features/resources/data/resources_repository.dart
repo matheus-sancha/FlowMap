@@ -458,34 +458,39 @@ class ResourcesRepository {
   ///
   /// One query for the whole plant: the flow view needs the members of any pool
   /// a step targets, and a stream per pool would multiply with the map.
-  Stream<Map<String, List<String>>> watchPoolMembership(String plantId) {
-    final query =
-        _db.select(_db.workcenterPoolMembers).join([
-            innerJoin(
-              _db.workcenterPools,
-              _db.workcenterPools.id.equalsExp(
-                _db.workcenterPoolMembers.poolId,
-              ),
+  Stream<Map<String, List<String>>> watchPoolMembership(String plantId) =>
+      _poolMembershipQuery(plantId).watch().map(_toMembership);
+
+  /// The same, once — for a simulation, which assembles a run rather than
+  /// watching one.
+  Future<Map<String, List<String>>> loadPoolMembership(String plantId) async =>
+      _toMembership(await _poolMembershipQuery(plantId).get());
+
+  JoinedSelectStatement<HasResultSet, dynamic> _poolMembershipQuery(
+    String plantId,
+  ) =>
+      _db.select(_db.workcenterPoolMembers).join([
+          innerJoin(
+            _db.workcenterPools,
+            _db.workcenterPools.id.equalsExp(_db.workcenterPoolMembers.poolId),
+          ),
+          innerJoin(
+            _db.workcenters,
+            _db.workcenters.id.equalsExp(
+              _db.workcenterPoolMembers.workcenterId,
             ),
-            innerJoin(
-              _db.workcenters,
-              _db.workcenters.id.equalsExp(
-                _db.workcenterPoolMembers.workcenterId,
-              ),
-            ),
-          ])
-          ..where(_db.workcenterPools.plantId.equals(plantId))
-          ..orderBy([OrderingTerm(expression: _db.workcenters.name)]);
-    return query.watch().map((rows) {
-      final membership = <String, List<String>>{};
-      for (final row in rows) {
-        final member = row.readTable(_db.workcenterPoolMembers);
-        membership
-            .putIfAbsent(member.poolId, () => [])
-            .add(member.workcenterId);
-      }
-      return membership;
-    });
+          ),
+        ])
+        ..where(_db.workcenterPools.plantId.equals(plantId))
+        ..orderBy([OrderingTerm(expression: _db.workcenters.name)]);
+
+  Map<String, List<String>> _toMembership(List<TypedResult> rows) {
+    final membership = <String, List<String>>{};
+    for (final row in rows) {
+      final member = row.readTable(_db.workcenterPoolMembers);
+      membership.putIfAbsent(member.poolId, () => []).add(member.workcenterId);
+    }
+    return membership;
   }
 
   Future<String> createPool({

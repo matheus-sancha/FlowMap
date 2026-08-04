@@ -29,6 +29,64 @@ enum SimAssemblyProblem {
   noPaceSetter,
 }
 
+/// One study's standing to take part in a run (DESIGN.md §11).
+///
+/// Carried per study rather than as one flat list, because the panel has to
+/// name which study is not ready — "a step has no workcenter" is not actionable
+/// until you know whose step it is.
+class StudyReadiness {
+  const StudyReadiness({
+    required this.studyId,
+    required this.name,
+    required this.problems,
+  });
+
+  final String studyId;
+  final String name;
+  final List<SimAssemblyProblem> problems;
+
+  bool get isReady => problems.isEmpty;
+}
+
+/// A project's run, as far as the stored rows allow it to be built.
+///
+/// **One resource model of the plant** (§7.7): each workcenter appears once in
+/// [workcenters] however many of the [studies] point at it, which is what makes
+/// line A's orders genuinely delay line B's.
+class SimRunInput {
+  const SimRunInput({
+    required this.studies,
+    required this.workcenters,
+    required this.readiness,
+  });
+
+  const SimRunInput.empty()
+    : studies = const [],
+      workcenters = const {},
+      readiness = const [];
+
+  /// The studies that assembled. A study with problems is absent here and
+  /// present in [readiness] — the engine is never handed a half-built one.
+  final List<SimStudy> studies;
+
+  final Map<String, SimWorkcenter> workcenters;
+
+  /// Every flagged study, ready or not, in the order the sidebar shows them.
+  final List<StudyReadiness> readiness;
+
+  /// Whether Simulate may be pressed (§11).
+  ///
+  /// Every flagged study has to be ready, not merely one of them: a run the
+  /// user asked for over three studies that quietly ran two would report a
+  /// plant that was never contended for.
+  bool get canRun =>
+      studies.isNotEmpty && readiness.every((study) => study.isReady);
+
+  /// Nothing is flagged for a run (§10.1). Distinct from "not ready" — there
+  /// is nothing wrong, there is just nothing selected.
+  bool get isEmpty => readiness.isEmpty;
+}
+
 /// Everything the assembler needs about the plant, gathered once by the caller.
 class SimResourceContext {
   const SimResourceContext({

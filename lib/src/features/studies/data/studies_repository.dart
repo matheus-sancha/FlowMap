@@ -34,6 +34,27 @@ class StudiesRepository {
     _db.studies,
   )..where((s) => s.id.equals(id))).watchSingleOrNull();
 
+  /// The studies flagged to take part in the next run (DESIGN.md §10.1).
+  ///
+  /// At most one per line, which [setIncludedInSimulation] enforces at the
+  /// moment of the edit rather than the run checking for it — so the user
+  /// always sees which study is selected instead of finding out when they
+  /// press Simulate.
+  Stream<List<Study>> watchFlaggedStudies(String projectId) =>
+      _flaggedQuery(projectId).watch();
+
+  Future<List<Study>> loadFlaggedStudies(String projectId) =>
+      _flaggedQuery(projectId).get();
+
+  SimpleSelectStatement<$StudiesTable, Study> _flaggedQuery(String projectId) =>
+      _db.select(_db.studies)
+        ..where(
+          (s) =>
+              s.projectId.equals(projectId) &
+              s.includeInSimulation.equals(true),
+        )
+        ..orderBy([(s) => OrderingTerm(expression: s.name)]);
+
   Future<Study?> loadStudy(String id) => (_db.select(
     _db.studies,
   )..where((s) => s.id.equals(id))).getSingleOrNull();

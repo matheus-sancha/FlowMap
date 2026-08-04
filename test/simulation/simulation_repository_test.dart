@@ -1,0 +1,408 @@
+import 'package:drift/native.dart';
+import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
+import 'package:flowmap/src/features/demand/data/demand_repository.dart';
+import 'package:flowmap/src/features/projects/data/projects_repository.dart';
+import 'package:flowmap/src/features/resources/data/resources_repository.dart';
+import 'package:flowmap/src/features/schedules/data/schedules_repository.dart';
+import 'package:flowmap/src/features/simulation/application/engine.dart';
+import 'package:flowmap/src/features/simulation/application/sim_assembly.dart';
+import 'package:flowmap/src/features/simulation/data/simulation_repository.dart';
+import 'package:flowmap/src/features/studies/data/studies_repository.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// The seam where a stored project becomes something the engine can run
+/// (DESIGN.md §7.7).
+///
+/// The pure assembler is tested next door against hand-built rows; what these
+/// catch is the wiring the pure suite cannot see — a study that is not flagged
+/// taking part anyway, a pool loaded as one workcenter, a plant model built per
+/// study instead of once.
+void main() {
+  late AppDatabase db;
+  late ResourcesRepository resources;
+  late ProjectsRepository projects;
+  late SchedulesRepository schedules;
+  late StudiesRepository studies;
+  late DemandRepository demand;
+  late SimulationRepository simulation;
+
+  late String plantId;
+  late String cellId;
+  late String lineId;
+  late String otherLineId;
+  late String cladId;
+  late String millId;
+  late String projectId;
+
+  setUp(() async {
+    db = AppDatabase(NativeDatabase.memory());
+    resources = ResourcesRepository(db);
+    projects = ProjectsRepository(db);
+    schedules = SchedulesRepository(db, resources);
+    studies = StudiesRepository(db);
+    demand = DemandRepository(db);
+    simulation = SimulationRepository(
+      db,
+      resources,
+      schedules,
+      studies,
+      demand,
+    );
+
+    plantId = await resources.createPlant(name: 'Werk Nord');
+    cellId = await resources.createCell(plantId: plantId, name: 'Cell A');
+    lineId = await resources.createLine(cellId: cellId, name: 'Line 1');
+    otherLineId = await resources.createLine(cellId: cellId, name: 'Line 2');
+    cladId = await resources.createWorkcenter(
+      plantId: plantId,
+      name: 'CLAD04',
+      lineIds: {lineId},
+    );
+    millId = await resources.createWorkcenter(
+      plantId: plantId,
+      name: 'MILL02',
+      lineIds: {lineId},
+    );
+
+    final patterns = await resources.watchShiftPatterns().first;
+    projectId = await projects.createProject(
+      name: 'H2 2026',
+      plantId: plantId,
+      shiftPatternId: patterns.firstWhere((p) => p.name == 'ABC').id,
+    );
+
+    for (final workcenterId in [cladId, millId]) {
+      await schedules.createWorkcenterSchedulePeriod(
+        projectId: projectId,
+        workcenterId: workcenterId,
+        startDate: DateTime(2026),
+        endDate: DateTime(2026, 12, 31),
+        operatorsPerShift: const [1, 1, 1],
+        availability: 1,
+        rework: 0,
+      );
+    }
+  });
+
+  tearDown(() => db.close());
+
+  Future<void> taktFor(String line, {double hours = 6}) =>
+      schedules.createTaktPeriod(
+        projectId: projectId,
+        productionLineId: line,
+        startDate: DateTime(2026),
+        endDate: DateTime(2026, 12, 31),
+        takt: hours,
+        unit: TaktUnit.hours,
+      );
+
+  /// A two-step study with two orders of one part, flagged for the run.
+  Future<String> seedStudy({
+    required String name,
+    required String line,
+    List<String>? targets,
+    bool flagged = true,
+  }) async {
+    final studyId = await studies.createStudy(
+      projectId: projectId,
+      productionCellId: cellId,
+      productionLineId: line,
+      name: name,
+    );
+    final steps = targets ?? [cladId, millId];
+    for (var i = 0; i < steps.length; i++) {
+      await studies.insertStep(
+        studyId: studyId,
+        atPosition: i,
+        workcenterId: steps[i],
+      );
+    }
+    final partId = await demand.createPart(
+      studyId: studyId,
+      partNumber: 'PN1',
+    );
+    for (final target in steps) {
+      await demand.setProcessTime(
+        partId: partId,
+        targetId: target,
+        time: const Duration(hours: 2),
+      );
+    }
+    for (var i = 0; i < 2; i++) {
+      await demand.createOrder(
+        studyId: studyId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 20 + i),
+      );
+    }
+    if (flagged) await studies.setIncludedInSimulation(studyId, true);
+    return studyId;
+  }
+
+  test('assembles a flagged study into something the engine runs', () async {
+    await taktFor(lineId);
+    final studyId = await seedStudy(name: 'Current state', line: lineId);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.canRun, isTrue);
+    expect(input.studies.single.id, studyId);
+    expect(input.studies.single.name, 'Current state');
+    expect(input.readiness.single.problems, isEmpty);
+
+    // Both stations of the flow are in the model, each once, with the
+    // project's calendar under them.
+    expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
+    expect(
+      input.workcenters.values.map((w) => w.name),
+      unorderedEquals(['CLAD04', 'MILL02']),
+    );
+
+    // And it actually runs: two orders in, two orders out.
+    final result = runSimulation(
+      studies: input.studies,
+      workcenters: input.workcenters,
+    );
+    expect(result.orders, hasLength(2));
+    expect(result.undelivered, isEmpty);
+    expect(result.steps, hasLength(4));
+  });
+
+  test('a study that is not flagged stays out of the run', () async {
+    await taktFor(lineId);
+    await taktFor(otherLineId);
+    final included = await seedStudy(name: 'Current state', line: lineId);
+    await seedStudy(name: 'Idea', line: otherLineId, flagged: false);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.studies.map((s) => s.id), [included]);
+    expect(input.readiness.map((r) => r.name), ['Current state']);
+  });
+
+  test('two lines contend for one plant model', () async {
+    await taktFor(lineId);
+    await taktFor(otherLineId);
+    await seedStudy(name: 'A', line: lineId);
+    await seedStudy(name: 'B', line: otherLineId);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.studies, hasLength(2));
+    // The point of §7.7: CLAD04 exists once however many studies point at it,
+    // which is what makes line A's orders genuinely delay line B's.
+    expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
+    expect(input.canRun, isTrue);
+  });
+
+  test('a pool step brings its members into the model', () async {
+    await taktFor(lineId);
+    final lathe1 = await resources.createWorkcenter(
+      plantId: plantId,
+      name: 'LAT01',
+      lineIds: {lineId},
+    );
+    final lathe2 = await resources.createWorkcenter(
+      plantId: plantId,
+      name: 'LAT02',
+      lineIds: {lineId},
+    );
+    for (final id in [lathe1, lathe2]) {
+      await schedules.createWorkcenterSchedulePeriod(
+        projectId: projectId,
+        workcenterId: id,
+        startDate: DateTime(2026),
+        endDate: DateTime(2026, 12, 31),
+        operatorsPerShift: const [1, 1, 1],
+        availability: 1,
+        rework: 0,
+      );
+    }
+    final poolId = await resources.createPool(
+      plantId: plantId,
+      name: 'CNC Lathes',
+    );
+    await resources.setPoolMembers(poolId, {lathe1, lathe2});
+
+    final studyId = await studies.createStudy(
+      projectId: projectId,
+      productionCellId: cellId,
+      productionLineId: lineId,
+      name: 'With the pool',
+    );
+    await studies.insertStep(studyId: studyId, atPosition: 0, poolId: poolId);
+    final partId = await demand.createPart(studyId: studyId, partNumber: 'PN1');
+    // Keyed by the **pool**, never a member standing in for it (§9).
+    await demand.setProcessTime(
+      partId: partId,
+      targetId: poolId,
+      time: const Duration(hours: 2),
+    );
+    await demand.createOrder(
+      studyId: studyId,
+      partId: partId,
+      needDate: DateTime(2026, 8, 20),
+    );
+    await studies.setIncludedInSimulation(studyId, true);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.canRun, isTrue);
+    expect(input.workcenters.keys, unorderedEquals([lathe1, lathe2]));
+    final step = input.studies.single.steps.single;
+    expect(step.isPool, isTrue);
+    expect(step.candidates, unorderedEquals([lathe1, lathe2]));
+    expect(step.demandKey, poolId);
+  });
+
+  test('an unbound step blocks the run and names the study', () async {
+    await taktFor(lineId);
+    final studyId = await seedStudy(name: 'Current state', line: lineId);
+    // The workcenter goes; §5.1's `ON DELETE SET NULL` leaves the step
+    // pointing at nothing, which is §11's first blocking error.
+    await resources.deleteWorkcenter(millId);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.canRun, isFalse);
+    expect(input.studies, isEmpty);
+    expect(input.readiness.single.studyId, studyId);
+    expect(input.readiness.single.name, 'Current state');
+    expect(
+      input.readiness.single.problems,
+      contains(SimAssemblyProblem.unboundStep),
+    );
+  });
+
+  test('no takt covering the run is a blocking problem, not a guess', () async {
+    await seedStudy(name: 'Current state', line: lineId);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.canRun, isFalse);
+    expect(
+      input.readiness.single.problems,
+      contains(SimAssemblyProblem.noTakt),
+    );
+  });
+
+  test('a study with no sequence has nothing to release', () async {
+    await taktFor(lineId);
+    final studyId = await studies.createStudy(
+      projectId: projectId,
+      productionCellId: cellId,
+      productionLineId: lineId,
+      name: 'Empty',
+    );
+    await studies.insertStep(
+      studyId: studyId,
+      atPosition: 0,
+      workcenterId: cladId,
+    );
+    await studies.setIncludedInSimulation(studyId, true);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.canRun, isFalse);
+    expect(
+      input.readiness.single.problems,
+      contains(SimAssemblyProblem.noOrders),
+    );
+  });
+
+  test('nothing flagged is empty rather than unready', () async {
+    await taktFor(lineId);
+    await seedStudy(name: 'Current state', line: lineId, flagged: false);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.isEmpty, isTrue);
+    expect(input.canRun, isFalse);
+    expect(input.readiness, isEmpty);
+  });
+
+  test('one ready study does not carry an unready one into the run', () async {
+    await taktFor(lineId);
+    await taktFor(otherLineId);
+    final spare = await resources.createWorkcenter(
+      plantId: plantId,
+      name: 'DRIL01',
+      lineIds: {otherLineId},
+    );
+    await schedules.createWorkcenterSchedulePeriod(
+      projectId: projectId,
+      workcenterId: spare,
+      startDate: DateTime(2026),
+      endDate: DateTime(2026, 12, 31),
+      operatorsPerShift: const [1, 1, 1],
+      availability: 1,
+      rework: 0,
+    );
+    await seedStudy(name: 'A', line: lineId);
+    await seedStudy(name: 'B', line: otherLineId, targets: [spare]);
+    // B's only step loses its workcenter; A never used it and still assembles.
+    await resources.deleteWorkcenter(spare);
+
+    final input = await simulation.assembleRun(projectId);
+
+    // A run the user asked for over two studies that quietly ran one would
+    // report a plant that was never contended for (§7.7).
+    expect(input.canRun, isFalse);
+    expect(input.readiness.where((r) => r.isReady).map((r) => r.name), ['A']);
+    expect(input.readiness.where((r) => !r.isReady).map((r) => r.name), ['B']);
+  });
+
+  test('the takt is resolved at the run start, not at the need date', () async {
+    // Two periods, and an order whose theoretical lead time straddles the
+    // boundary: the need date is in the second, the cold start the run
+    // actually begins at is in the first (§7.8). Which of the two the run
+    // takes its cadence from is what the second assembly pass decides.
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026),
+      endDate: DateTime(2026, 8, 15),
+      takt: 3,
+      unit: TaktUnit.hours,
+    );
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026, 8, 16),
+      endDate: DateTime(2026, 12, 31),
+      takt: 9,
+      unit: TaktUnit.hours,
+    );
+
+    final studyId = await studies.createStudy(
+      projectId: projectId,
+      productionCellId: cellId,
+      productionLineId: lineId,
+      name: 'Current state',
+    );
+    await studies.insertStep(
+      studyId: studyId,
+      atPosition: 0,
+      workcenterId: cladId,
+    );
+    final partId = await demand.createPart(studyId: studyId, partNumber: 'PN1');
+    // Weeks of work per order, so the walk back from the need date lands
+    // comfortably inside the earlier period rather than a few hours before it.
+    await demand.setProcessTime(
+      partId: partId,
+      targetId: cladId,
+      time: const Duration(hours: 400),
+    );
+    await demand.createOrder(
+      studyId: studyId,
+      partId: partId,
+      needDate: DateTime(2026, 8, 20),
+    );
+    await studies.setIncludedInSimulation(studyId, true);
+
+    final input = await simulation.assembleRun(projectId);
+
+    expect(input.studies.single.releaseInterval, const Duration(hours: 3));
+  });
+}

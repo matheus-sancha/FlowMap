@@ -90,24 +90,34 @@ class DemandRepository {
   /// One query with a join rather than one per part: a study of ten steps and
   /// five hundred parts is five thousand cells, and the grid reads them all
   /// (§14).
-  Stream<Map<String, Map<String, Duration>>> watchProcessTimes(String studyId) {
-    final query = _db.select(_db.partProcessTimes).join([
-      innerJoin(
-        _db.demandParts,
-        _db.demandParts.id.equalsExp(_db.partProcessTimes.partId),
-      ),
-    ])..where(_db.demandParts.studyId.equals(studyId));
+  Stream<Map<String, Map<String, Duration>>> watchProcessTimes(String studyId) =>
+      _processTimesQuery(studyId).watch().map(_toTimes);
 
-    return query.watch().map((rows) {
-      final times = <String, Map<String, Duration>>{};
-      for (final row in rows) {
-        final cell = row.readTable(_db.partProcessTimes);
-        (times[cell.partId] ??= {})[cell.targetId] = Duration(
-          seconds: cell.seconds,
-        );
-      }
-      return times;
-    });
+  /// The same, once — for a simulation, which assembles a run rather than
+  /// watching one.
+  Future<Map<String, Map<String, Duration>>> loadProcessTimes(
+    String studyId,
+  ) async => _toTimes(await _processTimesQuery(studyId).get());
+
+  JoinedSelectStatement<HasResultSet, dynamic> _processTimesQuery(
+    String studyId,
+  ) =>
+      _db.select(_db.partProcessTimes).join([
+        innerJoin(
+          _db.demandParts,
+          _db.demandParts.id.equalsExp(_db.partProcessTimes.partId),
+        ),
+      ])..where(_db.demandParts.studyId.equals(studyId));
+
+  Map<String, Map<String, Duration>> _toTimes(List<TypedResult> rows) {
+    final times = <String, Map<String, Duration>>{};
+    for (final row in rows) {
+      final cell = row.readTable(_db.partProcessTimes);
+      (times[cell.partId] ??= {})[cell.targetId] = Duration(
+        seconds: cell.seconds,
+      );
+    }
+    return times;
   }
 
   /// Writes one cell, or clears it when [time] is null.
