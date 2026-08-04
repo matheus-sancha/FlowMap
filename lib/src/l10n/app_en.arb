@@ -55,6 +55,15 @@
   "workcenterTypes": "Workcenter types",
   "workcenterTypeNew": "New workcenter type",
 
+  "workcenterLines": "Drawn under these lines",
+  "workcenterLinesHelp": "Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.",
+  "workcenterNoLines": "This plant has no production lines yet.",
+  "workcenterOnLines": "on {count} lines",
+  "@workcenterOnLines": { "placeholders": { "count": { "type": "String" } } },
+  "workcenterRemoveFromLine": "Take out of {line}",
+  "@workcenterRemoveFromLine": { "placeholders": { "line": { "type": "String" } } },
+  "workcenterDeleteBody": "This removes the workcenter from the plant, not just from this line. Its schedules go with it.",
+
   "workcenterPool": "Workcenter pool",
   "workcenterPools": "Workcenter pools",
   "workcenterPoolNew": "New pool",

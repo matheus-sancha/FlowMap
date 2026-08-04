@@ -140,6 +140,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workcenterTypeNew => 'New workcenter type';
 
   @override
+  String get workcenterLines => 'Drawn under these lines';
+
+  @override
+  String get workcenterLinesHelp =>
+      'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.';
+
+  @override
+  String get workcenterNoLines => 'This plant has no production lines yet.';
+
+  @override
+  String workcenterOnLines(String count) {
+    return 'on $count lines';
+  }
+
+  @override
+  String workcenterRemoveFromLine(String line) {
+    return 'Take out of $line';
+  }
+
+  @override
+  String get workcenterDeleteBody =>
+      'This removes the workcenter from the plant, not just from this line. Its schedules go with it.';
+
+  @override
   String get workcenterPool => 'Workcenter pool';
 
   @override

@@ -140,6 +140,31 @@ class AppLocalizationsEs extends AppLocalizations {
   String get workcenterTypeNew => 'Nuevo tipo de centro de trabajo';
 
   @override
+  String get workcenterLines => 'Se muestra bajo estas líneas';
+
+  @override
+  String get workcenterLinesHelp =>
+      'Solo organizativo. Cualquier estudio de cualquier línea puede usar este centro de trabajo marque lo que marque, y una estación que sirve a dos líneas va bajo las dos.';
+
+  @override
+  String get workcenterNoLines =>
+      'Esta planta aún no tiene líneas de producción.';
+
+  @override
+  String workcenterOnLines(String count) {
+    return 'en $count líneas';
+  }
+
+  @override
+  String workcenterRemoveFromLine(String line) {
+    return 'Quitar de $line';
+  }
+
+  @override
+  String get workcenterDeleteBody =>
+      'Esto elimina el centro de trabajo de la planta, no solo de esta línea. Sus horarios se van con él.';
+
+  @override
   String get workcenterPool => 'Pool de centros de trabajo';
 
   @override

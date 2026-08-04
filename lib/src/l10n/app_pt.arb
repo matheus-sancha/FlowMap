@@ -54,6 +54,15 @@
   "workcenterTypes": "Tipos de centro de trabalho",
   "workcenterTypeNew": "Novo tipo de centro de trabalho",
 
+  "workcenterLines": "Exibido sob estas linhas",
+  "workcenterLinesHelp": "Apenas organizacional. Qualquer estudo de qualquer linha pode usar este centro de trabalho, marque o que marcar, e uma estação que atende duas linhas fica sob as duas.",
+  "workcenterNoLines": "Esta planta ainda não tem linhas de produção.",
+  "workcenterOnLines": "em {count} linhas",
+  "@workcenterOnLines": { "placeholders": { "count": { "type": "String" } } },
+  "workcenterRemoveFromLine": "Tirar de {line}",
+  "@workcenterRemoveFromLine": { "placeholders": { "line": { "type": "String" } } },
+  "workcenterDeleteBody": "Isto remove o centro de trabalho da planta, não só desta linha. Os horários vão junto.",
+
   "workcenterPool": "Pool de centros de trabalho",
   "workcenterPools": "Pools de centros de trabalho",
   "workcenterPoolNew": "Novo pool",

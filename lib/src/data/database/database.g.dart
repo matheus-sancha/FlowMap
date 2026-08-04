@@ -2835,20 +2835,6 @@ class $WorkcentersTable extends Workcenters
       'REFERENCES plants (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _homeLineIdMeta = const VerificationMeta(
-    'homeLineId',
-  );
-  @override
-  late final GeneratedColumn<String> homeLineId = GeneratedColumn<String>(
-    'home_line_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES production_lines (id) ON DELETE SET NULL',
-    ),
-  );
   static const VerificationMeta _typeIdMeta = const VerificationMeta('typeId');
   @override
   late final GeneratedColumn<String> typeId = GeneratedColumn<String>(
@@ -2920,7 +2906,6 @@ class $WorkcentersTable extends Workcenters
   List<GeneratedColumn> get $columns => [
     id,
     plantId,
-    homeLineId,
     typeId,
     name,
     notes,
@@ -2952,15 +2937,6 @@ class $WorkcentersTable extends Workcenters
       );
     } else if (isInserting) {
       context.missing(_plantIdMeta);
-    }
-    if (data.containsKey('home_line_id')) {
-      context.handle(
-        _homeLineIdMeta,
-        homeLineId.isAcceptableOrUnknown(
-          data['home_line_id']!,
-          _homeLineIdMeta,
-        ),
-      );
     }
     if (data.containsKey('type_id')) {
       context.handle(
@@ -3025,10 +3001,6 @@ class $WorkcentersTable extends Workcenters
         DriftSqlType.string,
         data['${effectivePrefix}plant_id'],
       )!,
-      homeLineId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}home_line_id'],
-      ),
       typeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}type_id'],
@@ -3065,7 +3037,6 @@ class $WorkcentersTable extends Workcenters
 class Workcenter extends DataClass implements Insertable<Workcenter> {
   final String id;
   final String plantId;
-  final String? homeLineId;
   final String? typeId;
 
   /// What the shop floor calls it, and what the VSM process box is labelled —
@@ -3082,7 +3053,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   const Workcenter({
     required this.id,
     required this.plantId,
-    this.homeLineId,
     this.typeId,
     required this.name,
     this.notes,
@@ -3095,9 +3065,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['plant_id'] = Variable<String>(plantId);
-    if (!nullToAbsent || homeLineId != null) {
-      map['home_line_id'] = Variable<String>(homeLineId);
-    }
     if (!nullToAbsent || typeId != null) {
       map['type_id'] = Variable<String>(typeId);
     }
@@ -3117,9 +3084,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     return WorkcentersCompanion(
       id: Value(id),
       plantId: Value(plantId),
-      homeLineId: homeLineId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(homeLineId),
       typeId: typeId == null && nullToAbsent
           ? const Value.absent()
           : Value(typeId),
@@ -3143,7 +3107,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     return Workcenter(
       id: serializer.fromJson<String>(json['id']),
       plantId: serializer.fromJson<String>(json['plantId']),
-      homeLineId: serializer.fromJson<String?>(json['homeLineId']),
       typeId: serializer.fromJson<String?>(json['typeId']),
       name: serializer.fromJson<String>(json['name']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -3158,7 +3121,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'plantId': serializer.toJson<String>(plantId),
-      'homeLineId': serializer.toJson<String?>(homeLineId),
       'typeId': serializer.toJson<String?>(typeId),
       'name': serializer.toJson<String>(name),
       'notes': serializer.toJson<String?>(notes),
@@ -3171,7 +3133,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   Workcenter copyWith({
     String? id,
     String? plantId,
-    Value<String?> homeLineId = const Value.absent(),
     Value<String?> typeId = const Value.absent(),
     String? name,
     Value<String?> notes = const Value.absent(),
@@ -3181,7 +3142,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   }) => Workcenter(
     id: id ?? this.id,
     plantId: plantId ?? this.plantId,
-    homeLineId: homeLineId.present ? homeLineId.value : this.homeLineId,
     typeId: typeId.present ? typeId.value : this.typeId,
     name: name ?? this.name,
     notes: notes.present ? notes.value : this.notes,
@@ -3193,9 +3153,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     return Workcenter(
       id: data.id.present ? data.id.value : this.id,
       plantId: data.plantId.present ? data.plantId.value : this.plantId,
-      homeLineId: data.homeLineId.present
-          ? data.homeLineId.value
-          : this.homeLineId,
       typeId: data.typeId.present ? data.typeId.value : this.typeId,
       name: data.name.present ? data.name.value : this.name,
       notes: data.notes.present ? data.notes.value : this.notes,
@@ -3212,7 +3169,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     return (StringBuffer('Workcenter(')
           ..write('id: $id, ')
           ..write('plantId: $plantId, ')
-          ..write('homeLineId: $homeLineId, ')
           ..write('typeId: $typeId, ')
           ..write('name: $name, ')
           ..write('notes: $notes, ')
@@ -3227,7 +3183,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   int get hashCode => Object.hash(
     id,
     plantId,
-    homeLineId,
     typeId,
     name,
     notes,
@@ -3241,7 +3196,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
       (other is Workcenter &&
           other.id == this.id &&
           other.plantId == this.plantId &&
-          other.homeLineId == this.homeLineId &&
           other.typeId == this.typeId &&
           other.name == this.name &&
           other.notes == this.notes &&
@@ -3253,7 +3207,6 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
 class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
   final Value<String> id;
   final Value<String> plantId;
-  final Value<String?> homeLineId;
   final Value<String?> typeId;
   final Value<String> name;
   final Value<String?> notes;
@@ -3264,7 +3217,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
   const WorkcentersCompanion({
     this.id = const Value.absent(),
     this.plantId = const Value.absent(),
-    this.homeLineId = const Value.absent(),
     this.typeId = const Value.absent(),
     this.name = const Value.absent(),
     this.notes = const Value.absent(),
@@ -3276,7 +3228,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
   WorkcentersCompanion.insert({
     required String id,
     required String plantId,
-    this.homeLineId = const Value.absent(),
     this.typeId = const Value.absent(),
     required String name,
     this.notes = const Value.absent(),
@@ -3292,7 +3243,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
   static Insertable<Workcenter> custom({
     Expression<String>? id,
     Expression<String>? plantId,
-    Expression<String>? homeLineId,
     Expression<String>? typeId,
     Expression<String>? name,
     Expression<String>? notes,
@@ -3304,7 +3254,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (plantId != null) 'plant_id': plantId,
-      if (homeLineId != null) 'home_line_id': homeLineId,
       if (typeId != null) 'type_id': typeId,
       if (name != null) 'name': name,
       if (notes != null) 'notes': notes,
@@ -3318,7 +3267,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
   WorkcentersCompanion copyWith({
     Value<String>? id,
     Value<String>? plantId,
-    Value<String?>? homeLineId,
     Value<String?>? typeId,
     Value<String>? name,
     Value<String?>? notes,
@@ -3330,7 +3278,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     return WorkcentersCompanion(
       id: id ?? this.id,
       plantId: plantId ?? this.plantId,
-      homeLineId: homeLineId ?? this.homeLineId,
       typeId: typeId ?? this.typeId,
       name: name ?? this.name,
       notes: notes ?? this.notes,
@@ -3349,9 +3296,6 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     }
     if (plantId.present) {
       map['plant_id'] = Variable<String>(plantId.value);
-    }
-    if (homeLineId.present) {
-      map['home_line_id'] = Variable<String>(homeLineId.value);
     }
     if (typeId.present) {
       map['type_id'] = Variable<String>(typeId.value);
@@ -3382,13 +3326,290 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     return (StringBuffer('WorkcentersCompanion(')
           ..write('id: $id, ')
           ..write('plantId: $plantId, ')
-          ..write('homeLineId: $homeLineId, ')
           ..write('typeId: $typeId, ')
           ..write('name: $name, ')
           ..write('notes: $notes, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WorkcenterLinesTable extends WorkcenterLines
+    with TableInfo<$WorkcenterLinesTable, WorkcenterLine> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WorkcenterLinesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _workcenterIdMeta = const VerificationMeta(
+    'workcenterId',
+  );
+  @override
+  late final GeneratedColumn<String> workcenterId = GeneratedColumn<String>(
+    'workcenter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workcenters (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _lineIdMeta = const VerificationMeta('lineId');
+  @override
+  late final GeneratedColumn<String> lineId = GeneratedColumn<String>(
+    'line_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES production_lines (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [workcenterId, lineId, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'workcenter_lines';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WorkcenterLine> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('workcenter_id')) {
+      context.handle(
+        _workcenterIdMeta,
+        workcenterId.isAcceptableOrUnknown(
+          data['workcenter_id']!,
+          _workcenterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workcenterIdMeta);
+    }
+    if (data.containsKey('line_id')) {
+      context.handle(
+        _lineIdMeta,
+        lineId.isAcceptableOrUnknown(data['line_id']!, _lineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lineIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {workcenterId, lineId};
+  @override
+  WorkcenterLine map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WorkcenterLine(
+      workcenterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workcenter_id'],
+      )!,
+      lineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}line_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WorkcenterLinesTable createAlias(String alias) {
+    return $WorkcenterLinesTable(attachedDatabase, alias);
+  }
+}
+
+class WorkcenterLine extends DataClass implements Insertable<WorkcenterLine> {
+  final String workcenterId;
+  final String lineId;
+  final DateTime createdAt;
+  const WorkcenterLine({
+    required this.workcenterId,
+    required this.lineId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['workcenter_id'] = Variable<String>(workcenterId);
+    map['line_id'] = Variable<String>(lineId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  WorkcenterLinesCompanion toCompanion(bool nullToAbsent) {
+    return WorkcenterLinesCompanion(
+      workcenterId: Value(workcenterId),
+      lineId: Value(lineId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory WorkcenterLine.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WorkcenterLine(
+      workcenterId: serializer.fromJson<String>(json['workcenterId']),
+      lineId: serializer.fromJson<String>(json['lineId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'workcenterId': serializer.toJson<String>(workcenterId),
+      'lineId': serializer.toJson<String>(lineId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  WorkcenterLine copyWith({
+    String? workcenterId,
+    String? lineId,
+    DateTime? createdAt,
+  }) => WorkcenterLine(
+    workcenterId: workcenterId ?? this.workcenterId,
+    lineId: lineId ?? this.lineId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  WorkcenterLine copyWithCompanion(WorkcenterLinesCompanion data) {
+    return WorkcenterLine(
+      workcenterId: data.workcenterId.present
+          ? data.workcenterId.value
+          : this.workcenterId,
+      lineId: data.lineId.present ? data.lineId.value : this.lineId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkcenterLine(')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('lineId: $lineId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(workcenterId, lineId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WorkcenterLine &&
+          other.workcenterId == this.workcenterId &&
+          other.lineId == this.lineId &&
+          other.createdAt == this.createdAt);
+}
+
+class WorkcenterLinesCompanion extends UpdateCompanion<WorkcenterLine> {
+  final Value<String> workcenterId;
+  final Value<String> lineId;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const WorkcenterLinesCompanion({
+    this.workcenterId = const Value.absent(),
+    this.lineId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WorkcenterLinesCompanion.insert({
+    required String workcenterId,
+    required String lineId,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : workcenterId = Value(workcenterId),
+       lineId = Value(lineId),
+       createdAt = Value(createdAt);
+  static Insertable<WorkcenterLine> custom({
+    Expression<String>? workcenterId,
+    Expression<String>? lineId,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (workcenterId != null) 'workcenter_id': workcenterId,
+      if (lineId != null) 'line_id': lineId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WorkcenterLinesCompanion copyWith({
+    Value<String>? workcenterId,
+    Value<String>? lineId,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return WorkcenterLinesCompanion(
+      workcenterId: workcenterId ?? this.workcenterId,
+      lineId: lineId ?? this.lineId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (workcenterId.present) {
+      map['workcenter_id'] = Variable<String>(workcenterId.value);
+    }
+    if (lineId.present) {
+      map['line_id'] = Variable<String>(lineId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkcenterLinesCompanion(')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('lineId: $lineId, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10600,6 +10821,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $WorkcentersTable workcenters = $WorkcentersTable(this);
+  late final $WorkcenterLinesTable workcenterLines = $WorkcenterLinesTable(
+    this,
+  );
   late final $WorkcenterPoolsTable workcenterPools = $WorkcenterPoolsTable(
     this,
   );
@@ -10634,6 +10858,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     productionLines,
     workcenterTypes,
     workcenters,
+    workcenterLines,
     workcenterPools,
     workcenterPoolMembers,
     appSettings,
@@ -10680,17 +10905,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
-        'production_lines',
+        'workcenter_types',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('workcenters', kind: UpdateKind.update)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
-        'workcenter_types',
+        'workcenters',
         limitUpdateKind: UpdateKind.delete,
       ),
-      result: [TableUpdate('workcenters', kind: UpdateKind.update)],
+      result: [TableUpdate('workcenter_lines', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'production_lines',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('workcenter_lines', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -12902,19 +13134,21 @@ final class $$ProductionLinesTableReferences
     );
   }
 
-  static MultiTypedResultKey<$WorkcentersTable, List<Workcenter>>
-  _workcentersRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.workcenters,
-    aliasName: 'production_lines__id__workcenters__home_line_id',
+  static MultiTypedResultKey<$WorkcenterLinesTable, List<WorkcenterLine>>
+  _workcenterLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.workcenterLines,
+    aliasName: 'production_lines__id__workcenter_lines__line_id',
   );
 
-  $$WorkcentersTableProcessedTableManager get workcentersRefs {
-    final manager = $$WorkcentersTableTableManager(
+  $$WorkcenterLinesTableProcessedTableManager get workcenterLinesRefs {
+    final manager = $$WorkcenterLinesTableTableManager(
       $_db,
-      $_db.workcenters,
-    ).filter((f) => f.homeLineId.id.sqlEquals($_itemColumn<String>('id')!));
+      $_db.workcenterLines,
+    ).filter((f) => f.lineId.id.sqlEquals($_itemColumn<String>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(_workcentersRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(
+      _workcenterLinesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -13019,22 +13253,22 @@ class $$ProductionLinesTableFilterComposer
     return composer;
   }
 
-  Expression<bool> workcentersRefs(
-    Expression<bool> Function($$WorkcentersTableFilterComposer f) f,
+  Expression<bool> workcenterLinesRefs(
+    Expression<bool> Function($$WorkcenterLinesTableFilterComposer f) f,
   ) {
-    final $$WorkcentersTableFilterComposer composer = $composerBuilder(
+    final $$WorkcenterLinesTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.workcenters,
-      getReferencedColumn: (t) => t.homeLineId,
+      referencedTable: $db.workcenterLines,
+      getReferencedColumn: (t) => t.lineId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$WorkcentersTableFilterComposer(
+          }) => $$WorkcenterLinesTableFilterComposer(
             $db: $db,
-            $table: $db.workcenters,
+            $table: $db.workcenterLines,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -13210,22 +13444,22 @@ class $$ProductionLinesTableAnnotationComposer
     return composer;
   }
 
-  Expression<T> workcentersRefs<T extends Object>(
-    Expression<T> Function($$WorkcentersTableAnnotationComposer a) f,
+  Expression<T> workcenterLinesRefs<T extends Object>(
+    Expression<T> Function($$WorkcenterLinesTableAnnotationComposer a) f,
   ) {
-    final $$WorkcentersTableAnnotationComposer composer = $composerBuilder(
+    final $$WorkcenterLinesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.workcenters,
-      getReferencedColumn: (t) => t.homeLineId,
+      referencedTable: $db.workcenterLines,
+      getReferencedColumn: (t) => t.lineId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$WorkcentersTableAnnotationComposer(
+          }) => $$WorkcenterLinesTableAnnotationComposer(
             $db: $db,
-            $table: $db.workcenters,
+            $table: $db.workcenterLines,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -13301,7 +13535,7 @@ class $$ProductionLinesTableTableManager
           ProductionLine,
           PrefetchHooks Function({
             bool cellId,
-            bool workcentersRefs,
+            bool workcenterLinesRefs,
             bool taktPeriodsRefs,
             bool studiesRefs,
           })
@@ -13370,14 +13604,14 @@ class $$ProductionLinesTableTableManager
           prefetchHooksCallback:
               ({
                 cellId = false,
-                workcentersRefs = false,
+                workcenterLinesRefs = false,
                 taktPeriodsRefs = false,
                 studiesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
-                    if (workcentersRefs) db.workcenters,
+                    if (workcenterLinesRefs) db.workcenterLines,
                     if (taktPeriodsRefs) db.taktPeriods,
                     if (studiesRefs) db.studies,
                   ],
@@ -13417,24 +13651,24 @@ class $$ProductionLinesTableTableManager
                       },
                   getPrefetchedDataCallback: (items) async {
                     return [
-                      if (workcentersRefs)
+                      if (workcenterLinesRefs)
                         await $_getPrefetchedData<
                           ProductionLine,
                           $ProductionLinesTable,
-                          Workcenter
+                          WorkcenterLine
                         >(
                           currentTable: table,
                           referencedTable: $$ProductionLinesTableReferences
-                              ._workcentersRefsTable(db),
+                              ._workcenterLinesRefsTable(db),
                           managerFromTypedResult: (p0) =>
                               $$ProductionLinesTableReferences(
                                 db,
                                 table,
                                 p0,
-                              ).workcentersRefs,
+                              ).workcenterLinesRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
-                                (e) => e.homeLineId == item.id,
+                                (e) => e.lineId == item.id,
                               ),
                           typedResults: items,
                         ),
@@ -13502,7 +13736,7 @@ typedef $$ProductionLinesTableProcessedTableManager =
       ProductionLine,
       PrefetchHooks Function({
         bool cellId,
-        bool workcentersRefs,
+        bool workcenterLinesRefs,
         bool taktPeriodsRefs,
         bool studiesRefs,
       })
@@ -13821,7 +14055,6 @@ typedef $$WorkcentersTableCreateCompanionBuilder =
     WorkcentersCompanion Function({
       required String id,
       required String plantId,
-      Value<String?> homeLineId,
       Value<String?> typeId,
       required String name,
       Value<String?> notes,
@@ -13834,7 +14067,6 @@ typedef $$WorkcentersTableUpdateCompanionBuilder =
     WorkcentersCompanion Function({
       Value<String> id,
       Value<String> plantId,
-      Value<String?> homeLineId,
       Value<String?> typeId,
       Value<String> name,
       Value<String?> notes,
@@ -13865,24 +14097,6 @@ final class $$WorkcentersTableReferences
     );
   }
 
-  static $ProductionLinesTable _homeLineIdTable(_$AppDatabase db) => db
-      .productionLines
-      .createAlias('workcenters__home_line_id__production_lines__id');
-
-  $$ProductionLinesTableProcessedTableManager? get homeLineId {
-    final $_column = $_itemColumn<String>('home_line_id');
-    if ($_column == null) return null;
-    final manager = $$ProductionLinesTableTableManager(
-      $_db,
-      $_db.productionLines,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_homeLineIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
   static $WorkcenterTypesTable _typeIdTable(_$AppDatabase db) => db
       .workcenterTypes
       .createAlias('workcenters__type_id__workcenter_types__id');
@@ -13898,6 +14112,26 @@ final class $$WorkcentersTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$WorkcenterLinesTable, List<WorkcenterLine>>
+  _workcenterLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.workcenterLines,
+    aliasName: 'workcenters__id__workcenter_lines__workcenter_id',
+  );
+
+  $$WorkcenterLinesTableProcessedTableManager get workcenterLinesRefs {
+    final manager = $$WorkcenterLinesTableTableManager(
+      $_db,
+      $_db.workcenterLines,
+    ).filter((f) => f.workcenterId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _workcenterLinesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
@@ -14033,29 +14267,6 @@ class $$WorkcentersTableFilterComposer
     return composer;
   }
 
-  $$ProductionLinesTableFilterComposer get homeLineId {
-    final $$ProductionLinesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.homeLineId,
-      referencedTable: $db.productionLines,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProductionLinesTableFilterComposer(
-            $db: $db,
-            $table: $db.productionLines,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
   $$WorkcenterTypesTableFilterComposer get typeId {
     final $$WorkcenterTypesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -14077,6 +14288,31 @@ class $$WorkcentersTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> workcenterLinesRefs(
+    Expression<bool> Function($$WorkcenterLinesTableFilterComposer f) f,
+  ) {
+    final $$WorkcenterLinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.workcenterLines,
+      getReferencedColumn: (t) => t.workcenterId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkcenterLinesTableFilterComposer(
+            $db: $db,
+            $table: $db.workcenterLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 
   Expression<bool> workcenterPoolMembersRefs(
@@ -14220,29 +14456,6 @@ class $$WorkcentersTableOrderingComposer
     return composer;
   }
 
-  $$ProductionLinesTableOrderingComposer get homeLineId {
-    final $$ProductionLinesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.homeLineId,
-      referencedTable: $db.productionLines,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProductionLinesTableOrderingComposer(
-            $db: $db,
-            $table: $db.productionLines,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
   $$WorkcenterTypesTableOrderingComposer get typeId {
     final $$WorkcenterTypesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -14319,29 +14532,6 @@ class $$WorkcentersTableAnnotationComposer
     return composer;
   }
 
-  $$ProductionLinesTableAnnotationComposer get homeLineId {
-    final $$ProductionLinesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.homeLineId,
-      referencedTable: $db.productionLines,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProductionLinesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.productionLines,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
   $$WorkcenterTypesTableAnnotationComposer get typeId {
     final $$WorkcenterTypesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -14363,6 +14553,31 @@ class $$WorkcentersTableAnnotationComposer
           ),
     );
     return composer;
+  }
+
+  Expression<T> workcenterLinesRefs<T extends Object>(
+    Expression<T> Function($$WorkcenterLinesTableAnnotationComposer a) f,
+  ) {
+    final $$WorkcenterLinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.workcenterLines,
+      getReferencedColumn: (t) => t.workcenterId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkcenterLinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workcenterLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 
   Expression<T> workcenterPoolMembersRefs<T extends Object>(
@@ -14459,8 +14674,8 @@ class $$WorkcentersTableTableManager
           Workcenter,
           PrefetchHooks Function({
             bool plantId,
-            bool homeLineId,
             bool typeId,
+            bool workcenterLinesRefs,
             bool workcenterPoolMembersRefs,
             bool workcenterSchedulePeriodsRefs,
             bool flowNodesRefs,
@@ -14481,7 +14696,6 @@ class $$WorkcentersTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> plantId = const Value.absent(),
-                Value<String?> homeLineId = const Value.absent(),
                 Value<String?> typeId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -14492,7 +14706,6 @@ class $$WorkcentersTableTableManager
               }) => WorkcentersCompanion(
                 id: id,
                 plantId: plantId,
-                homeLineId: homeLineId,
                 typeId: typeId,
                 name: name,
                 notes: notes,
@@ -14505,7 +14718,6 @@ class $$WorkcentersTableTableManager
               ({
                 required String id,
                 required String plantId,
-                Value<String?> homeLineId = const Value.absent(),
                 Value<String?> typeId = const Value.absent(),
                 required String name,
                 Value<String?> notes = const Value.absent(),
@@ -14516,7 +14728,6 @@ class $$WorkcentersTableTableManager
               }) => WorkcentersCompanion.insert(
                 id: id,
                 plantId: plantId,
-                homeLineId: homeLineId,
                 typeId: typeId,
                 name: name,
                 notes: notes,
@@ -14536,8 +14747,8 @@ class $$WorkcentersTableTableManager
           prefetchHooksCallback:
               ({
                 plantId = false,
-                homeLineId = false,
                 typeId = false,
+                workcenterLinesRefs = false,
                 workcenterPoolMembersRefs = false,
                 workcenterSchedulePeriodsRefs = false,
                 flowNodesRefs = false,
@@ -14545,6 +14756,7 @@ class $$WorkcentersTableTableManager
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (workcenterLinesRefs) db.workcenterLines,
                     if (workcenterPoolMembersRefs) db.workcenterPoolMembers,
                     if (workcenterSchedulePeriodsRefs)
                       db.workcenterSchedulePeriods,
@@ -14581,21 +14793,6 @@ class $$WorkcentersTableTableManager
                                   )
                                   as T;
                         }
-                        if (homeLineId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.homeLineId,
-                                    referencedTable:
-                                        $$WorkcentersTableReferences
-                                            ._homeLineIdTable(db),
-                                    referencedColumn:
-                                        $$WorkcentersTableReferences
-                                            ._homeLineIdTable(db)
-                                            .id,
-                                  )
-                                  as T;
-                        }
                         if (typeId) {
                           state =
                               state.withJoin(
@@ -14616,6 +14813,27 @@ class $$WorkcentersTableTableManager
                       },
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (workcenterLinesRefs)
+                        await $_getPrefetchedData<
+                          Workcenter,
+                          $WorkcentersTable,
+                          WorkcenterLine
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkcentersTableReferences
+                              ._workcenterLinesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkcentersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).workcenterLinesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workcenterId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (workcenterPoolMembersRefs)
                         await $_getPrefetchedData<
                           Workcenter,
@@ -14701,12 +14919,390 @@ typedef $$WorkcentersTableProcessedTableManager =
       Workcenter,
       PrefetchHooks Function({
         bool plantId,
-        bool homeLineId,
         bool typeId,
+        bool workcenterLinesRefs,
         bool workcenterPoolMembersRefs,
         bool workcenterSchedulePeriodsRefs,
         bool flowNodesRefs,
       })
+    >;
+typedef $$WorkcenterLinesTableCreateCompanionBuilder =
+    WorkcenterLinesCompanion Function({
+      required String workcenterId,
+      required String lineId,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$WorkcenterLinesTableUpdateCompanionBuilder =
+    WorkcenterLinesCompanion Function({
+      Value<String> workcenterId,
+      Value<String> lineId,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$WorkcenterLinesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $WorkcenterLinesTable, WorkcenterLine> {
+  $$WorkcenterLinesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkcentersTable _workcenterIdTable(_$AppDatabase db) => db
+      .workcenters
+      .createAlias('workcenter_lines__workcenter_id__workcenters__id');
+
+  $$WorkcentersTableProcessedTableManager get workcenterId {
+    final $_column = $_itemColumn<String>('workcenter_id')!;
+
+    final manager = $$WorkcentersTableTableManager(
+      $_db,
+      $_db.workcenters,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workcenterIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ProductionLinesTable _lineIdTable(_$AppDatabase db) => db
+      .productionLines
+      .createAlias('workcenter_lines__line_id__production_lines__id');
+
+  $$ProductionLinesTableProcessedTableManager get lineId {
+    final $_column = $_itemColumn<String>('line_id')!;
+
+    final manager = $$ProductionLinesTableTableManager(
+      $_db,
+      $_db.productionLines,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_lineIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$WorkcenterLinesTableFilterComposer
+    extends Composer<_$AppDatabase, $WorkcenterLinesTable> {
+  $$WorkcenterLinesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkcentersTableFilterComposer get workcenterId {
+    final $$WorkcentersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workcenterId,
+      referencedTable: $db.workcenters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkcentersTableFilterComposer(
+            $db: $db,
+            $table: $db.workcenters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ProductionLinesTableFilterComposer get lineId {
+    final $$ProductionLinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.lineId,
+      referencedTable: $db.productionLines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductionLinesTableFilterComposer(
+            $db: $db,
+            $table: $db.productionLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WorkcenterLinesTableOrderingComposer
+    extends Composer<_$AppDatabase, $WorkcenterLinesTable> {
+  $$WorkcenterLinesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkcentersTableOrderingComposer get workcenterId {
+    final $$WorkcentersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workcenterId,
+      referencedTable: $db.workcenters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkcentersTableOrderingComposer(
+            $db: $db,
+            $table: $db.workcenters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ProductionLinesTableOrderingComposer get lineId {
+    final $$ProductionLinesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.lineId,
+      referencedTable: $db.productionLines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductionLinesTableOrderingComposer(
+            $db: $db,
+            $table: $db.productionLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WorkcenterLinesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WorkcenterLinesTable> {
+  $$WorkcenterLinesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$WorkcentersTableAnnotationComposer get workcenterId {
+    final $$WorkcentersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workcenterId,
+      referencedTable: $db.workcenters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkcentersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workcenters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ProductionLinesTableAnnotationComposer get lineId {
+    final $$ProductionLinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.lineId,
+      referencedTable: $db.productionLines,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProductionLinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.productionLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WorkcenterLinesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WorkcenterLinesTable,
+          WorkcenterLine,
+          $$WorkcenterLinesTableFilterComposer,
+          $$WorkcenterLinesTableOrderingComposer,
+          $$WorkcenterLinesTableAnnotationComposer,
+          $$WorkcenterLinesTableCreateCompanionBuilder,
+          $$WorkcenterLinesTableUpdateCompanionBuilder,
+          (WorkcenterLine, $$WorkcenterLinesTableReferences),
+          WorkcenterLine,
+          PrefetchHooks Function({bool workcenterId, bool lineId})
+        > {
+  $$WorkcenterLinesTableTableManager(
+    _$AppDatabase db,
+    $WorkcenterLinesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WorkcenterLinesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WorkcenterLinesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WorkcenterLinesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> workcenterId = const Value.absent(),
+                Value<String> lineId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WorkcenterLinesCompanion(
+                workcenterId: workcenterId,
+                lineId: lineId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String workcenterId,
+                required String lineId,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WorkcenterLinesCompanion.insert(
+                workcenterId: workcenterId,
+                lineId: lineId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WorkcenterLinesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workcenterId = false, lineId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workcenterId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.workcenterId,
+                                referencedTable:
+                                    $$WorkcenterLinesTableReferences
+                                        ._workcenterIdTable(db),
+                                referencedColumn:
+                                    $$WorkcenterLinesTableReferences
+                                        ._workcenterIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (lineId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.lineId,
+                                referencedTable:
+                                    $$WorkcenterLinesTableReferences
+                                        ._lineIdTable(db),
+                                referencedColumn:
+                                    $$WorkcenterLinesTableReferences
+                                        ._lineIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$WorkcenterLinesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WorkcenterLinesTable,
+      WorkcenterLine,
+      $$WorkcenterLinesTableFilterComposer,
+      $$WorkcenterLinesTableOrderingComposer,
+      $$WorkcenterLinesTableAnnotationComposer,
+      $$WorkcenterLinesTableCreateCompanionBuilder,
+      $$WorkcenterLinesTableUpdateCompanionBuilder,
+      (WorkcenterLine, $$WorkcenterLinesTableReferences),
+      WorkcenterLine,
+      PrefetchHooks Function({bool workcenterId, bool lineId})
     >;
 typedef $$WorkcenterPoolsTableCreateCompanionBuilder =
     WorkcenterPoolsCompanion Function({
@@ -21663,6 +22259,8 @@ class $AppDatabaseManager {
       $$WorkcenterTypesTableTableManager(_db, _db.workcenterTypes);
   $$WorkcentersTableTableManager get workcenters =>
       $$WorkcentersTableTableManager(_db, _db.workcenters);
+  $$WorkcenterLinesTableTableManager get workcenterLines =>
+      $$WorkcenterLinesTableTableManager(_db, _db.workcenterLines);
   $$WorkcenterPoolsTableTableManager get workcenterPools =>
       $$WorkcenterPoolsTableTableManager(_db, _db.workcenterPools);
   $$WorkcenterPoolMembersTableTableManager get workcenterPoolMembers =>

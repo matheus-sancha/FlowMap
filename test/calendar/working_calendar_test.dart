@@ -666,7 +666,7 @@ void main() {
         resolveExceptions(
           [lineExtra],
           workcenterId: 'wc-1',
-          productionLineId: 'line-1',
+          productionLineIds: {'line-1'},
         ),
         isNotEmpty,
       );
@@ -674,7 +674,7 @@ void main() {
         resolveExceptions(
           [lineExtra],
           workcenterId: 'wc-1',
-          productionLineId: 'line-2',
+          productionLineIds: {'line-2'},
         ),
         isEmpty,
       );
@@ -685,7 +685,7 @@ void main() {
       final resolved = resolveExceptions(
         [workcenterExtra, plantShutdown, lineExtra],
         workcenterId: 'wc-1',
-        productionLineId: 'line-1',
+        productionLineIds: {'line-1'},
       );
       final day = resolved[DateTime(2026, 8, 8)]!;
       expect(day.kind, CalendarExceptionKind.extraWorking);

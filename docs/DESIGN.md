@@ -45,6 +45,16 @@ Identity lives in **Resources**; period-scoped numbers live in the **Project**.
 |---|---|
 | Plant, Production Cell, Production Line, Workcenter (name, type), Workcenter Pool, Shift Pattern | Which shift pattern the plant uses, takt schedule per line, workcenter schedule periods, calendar exceptions |
 
+**A workcenter is drawn under a set of production lines, not one.** `CLAD04` genuinely serves two
+lines in a real plant, and membership is **organisational only** — it constrains nothing. Any study
+of any line may target any workcenter of the plant whether it is filed under that line or not,
+which is exactly what cross-line contention needs (§7.7). What membership affects is where the
+workcenter appears in the Resources tree, and which line-scoped calendar exceptions reach it (§4.3).
+
+_Rejected: a single `home_line_id`._ It shipped through M3 and was wrong: filing a workcenter under
+a second line silently took it out of the first, so the tree fought the very arrangement the app
+exists to analyse. Reported from the field; replaced by `workcenter_lines` in schema v7.
+
 - Projects reference resources **by stable id**, so renames and type changes propagate everywhere.
 - Deletion is **soft (archive)**: the row stays, disappears from pickers, and projects still using
   it show it flagged as archived rather than breaking.
@@ -783,10 +793,11 @@ workcenter's staffing over time, and the project's exceptions narrowed to that w
 
 Decisions taken while building it:
 
-- **A workcenter's `homeLineId` is where it is drawn, not what owns it.** The resource tree is
+- **A workcenter's line is where it is drawn, not what owns it.** The resource tree is
   Plant → Cell → Line → Workcenter, but studies on different lines must be able to share a
-  workcenter (§7.7). So the plant owns it and the line is a nullable home; deleting a line leaves
-  its workcenters on the plant rather than destroying them.
+  workcenter (§7.7). So the plant owns it and the line is a filing arrangement; deleting a line
+  leaves its workcenters on the plant rather than destroying them. (Shipped as a single
+  `homeLineId`; §16.7 replaces it with a set.)
 - **Supplier and Customer are fields on the study, not nodes.** They carry no data and take part in
   no calculation, so a row for each would be a row that can only ever be renamed.
 - **Calendar exception ranges are expanded to one row per day** on entry, so every lookup
@@ -893,6 +904,27 @@ Decisions taken while building it, beyond §9.1, §9.2, §6.2 and §8.4:
   which is an assertion failure and a blank grey panel in release; and a Drift stream inside
   `fakeAsync` leaves timers pending that the binding fails on after the tree comes down, which is
   why the tab tests override providers with plain values instead.
+
+### 16.7 Schema v7, from field feedback
+
+- **A workcenter is filed under a *set* of lines.** `workcenters.home_line_id` allowed exactly one,
+  so "add existing" to a second line was a move, not an addition — and a station shared by two
+  lines, the case §7.7 exists for, could not be drawn. Replaced by `workcenter_lines`, a plain
+  join table. The editor offers checkboxes rather than a dropdown, since a single-choice control is
+  what made the removal silent.
+- **The migration harvests `home_line_id` before any step runs, not in its own step.** The v3 step
+  rebuilds `workcenters` from the *current* Dart definition, which no longer has the column — so on
+  a v1 or v2 database it is already gone by the time the v7 step is reached. The rebuild that drops
+  it is then guarded on `from >= 3`, the mirror image of the `from >= 2` guards in §16.4. Both
+  directions of this trap have now been paid for once.
+- **A v6 fixture was added to the migration tests.** v1 and v2 both reach v7 with the column already
+  dropped, so neither of them exercised the branch a real user upgrades through. DATA.md asks for
+  one fixture per version that has been on someone's machine, and v6 is the one that shipped.
+- **A dialog's Save button must derive from its controller, not remember alongside it.** The name
+  prompt cached its validation error and called `setState` only when that error *changed*, so
+  typing a good name into an empty field rebuilt nothing and Save stayed disabled — every resource
+  the prompt creates could only be saved with Enter. It is now built inside a
+  `ValueListenableBuilder` on the controller, which leaves nothing to forget to refresh.
 
 ---
 

@@ -358,6 +358,42 @@ abstract class AppLocalizations {
   /// **'New workcenter type'**
   String get workcenterTypeNew;
 
+  /// No description provided for @workcenterLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawn under these lines'**
+  String get workcenterLines;
+
+  /// No description provided for @workcenterLinesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.'**
+  String get workcenterLinesHelp;
+
+  /// No description provided for @workcenterNoLines.
+  ///
+  /// In en, this message translates to:
+  /// **'This plant has no production lines yet.'**
+  String get workcenterNoLines;
+
+  /// No description provided for @workcenterOnLines.
+  ///
+  /// In en, this message translates to:
+  /// **'on {count} lines'**
+  String workcenterOnLines(String count);
+
+  /// No description provided for @workcenterRemoveFromLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Take out of {line}'**
+  String workcenterRemoveFromLine(String line);
+
+  /// No description provided for @workcenterDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the workcenter from the plant, not just from this line. Its schedules go with it.'**
+  String get workcenterDeleteBody;
+
   /// No description provided for @workcenterPool.
   ///
   /// In en, this message translates to:

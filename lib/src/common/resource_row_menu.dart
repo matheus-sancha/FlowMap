@@ -15,6 +15,7 @@ class ResourceRowMenu extends StatelessWidget {
     required this.onSetArchived,
     required this.onDelete,
     this.editLabel,
+    this.extraActions = const [],
   });
 
   final bool isArchived;
@@ -23,17 +24,36 @@ class ResourceRowMenu extends StatelessWidget {
   final VoidCallback onDelete;
   final String? editLabel;
 
+  /// Row-specific actions, above the three every row has. A workcenter drawn
+  /// under a line offers "take out of this line" here — an action that only
+  /// makes sense on that row, since the same workcenter may be filed elsewhere.
+  final List<ResourceRowAction> extraActions;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return PopupMenuButton<String>(
-      onSelected: (action) => switch (action) {
-        'edit' => onEdit(),
-        'archive' => onSetArchived(!isArchived),
-        _ => onDelete(),
+      onSelected: (action) {
+        if (action.startsWith('extra:')) {
+          extraActions[int.parse(action.substring(6))].onSelected();
+          return;
+        }
+        switch (action) {
+          case 'edit':
+            onEdit();
+          case 'archive':
+            onSetArchived(!isArchived);
+          case _:
+            onDelete();
+        }
       },
       itemBuilder: (context) => [
         PopupMenuItem(value: 'edit', child: Text(editLabel ?? l10n.actionEdit)),
+        for (var i = 0; i < extraActions.length; i++)
+          PopupMenuItem(
+            value: 'extra:$i',
+            child: Text(extraActions[i].label),
+          ),
         PopupMenuItem(
           value: 'archive',
           child: Text(isArchived ? l10n.actionRestore : l10n.actionArchive),
@@ -42,6 +62,14 @@ class ResourceRowMenu extends StatelessWidget {
       ],
     );
   }
+}
+
+/// One row-specific menu entry.
+class ResourceRowAction {
+  const ResourceRowAction({required this.label, required this.onSelected});
+
+  final String label;
+  final VoidCallback onSelected;
 }
 
 /// Marks a row that is only visible because "show archived" is on.

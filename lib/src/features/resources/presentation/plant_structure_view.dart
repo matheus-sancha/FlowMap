@@ -40,11 +40,20 @@ class PlantStructureView extends ConsumerWidget {
     for (final line in lineList) {
       linesByCell.putIfAbsent(line.cell.id, () => []).add(line);
     }
+    // A workcenter is drawn under every line it belongs to, and under
+    // "Not filed under a line" when it belongs to none. Membership is a set,
+    // so `CLAD04` shared by two lines appears twice — which is the point.
+    final membership = ref.watch(workcenterLinesProvider(plantId)).value ?? {};
     final workcentersByLine = <String?, List<Workcenter>>{};
     for (final workcenter in workcenterList) {
-      workcentersByLine
-          .putIfAbsent(workcenter.homeLineId, () => [])
-          .add(workcenter);
+      final lines = membership[workcenter.id] ?? const <String>{};
+      if (lines.isEmpty) {
+        workcentersByLine.putIfAbsent(null, () => []).add(workcenter);
+        continue;
+      }
+      for (final lineId in lines) {
+        workcentersByLine.putIfAbsent(lineId, () => []).add(workcenter);
+      }
     }
 
     return ListView(
@@ -251,6 +260,7 @@ class _LineTile extends ConsumerWidget {
               plantId: plantId,
               workcenter: workcenter,
               allLines: allLines,
+              filedUnder: line,
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(72, 4, 16, 12),
@@ -269,9 +279,9 @@ class _LineTile extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 // A workcenter belongs to the plant, not to this line, so an
-                // existing one can be shown here instead of being recreated
-                // under a second name — which is what a plant-unique name
-                // forces otherwise.
+                // existing one can be shown here **as well as** wherever else
+                // it is filed — a station that genuinely serves two lines is
+                // drawn under both.
                 TextButton.icon(
                   onPressed: () => _showExistingWorkcenter(
                     context,
@@ -291,11 +301,15 @@ class _LineTile extends ConsumerWidget {
   }
 }
 
-/// Moves an existing plant workcenter under this line in the tree.
+/// Also draws an existing plant workcenter under this line.
 ///
-/// This changes **where it is drawn, not what may use it**: any study of any
-/// line can already target any workcenter of the plant, and that sharing is
-/// what a combined simulation contends over (DESIGN.md §7.7).
+/// **Adds, never moves.** Membership is a set: a station that genuinely serves
+/// two lines belongs under both, and the single home line this replaces meant
+/// filing it here silently took it out of the other one.
+///
+/// It changes **where it is drawn, not what may use it**: any study of any line
+/// can already target any workcenter of the plant, and that sharing is what a
+/// combined simulation contends over (DESIGN.md §7.7).
 Future<void> _showExistingWorkcenter(
   BuildContext context,
   WidgetRef ref, {
@@ -304,7 +318,10 @@ Future<void> _showExistingWorkcenter(
 }) async {
   final l10n = AppLocalizations.of(context);
   final all = ref.read(workcentersProvider(plantId)).value ?? const [];
-  final candidates = all.where((w) => w.homeLineId != lineId).toList();
+  final membership = ref.read(workcenterLinesProvider(plantId)).value ?? {};
+  final candidates = all
+      .where((w) => !(membership[w.id] ?? const <String>{}).contains(lineId))
+      .toList();
 
   if (candidates.isEmpty) {
     ScaffoldMessenger.of(
@@ -337,7 +354,7 @@ Future<void> _showExistingWorkcenter(
 
   await ref
       .read(resourcesRepositoryProvider)
-      .setWorkcenterHomeLine(chosen, lineId);
+      .addWorkcenterToLine(chosen, lineId);
 }
 
 class _UnassignedSection extends ConsumerWidget {
@@ -392,11 +409,17 @@ class _WorkcenterTile extends ConsumerWidget {
     required this.plantId,
     required this.workcenter,
     required this.allLines,
+    this.filedUnder,
   });
 
   final String plantId;
   final Workcenter workcenter;
   final List<PlantLine> allLines;
+
+  /// The line this row is drawn under, when it is drawn under one. Only that
+  /// row can offer "take out of this line" — the same workcenter may be filed
+  /// elsewhere, and the row has to be specific about which filing it removes.
+  final PlantLine? filedUnder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -404,6 +427,8 @@ class _WorkcenterTile extends ConsumerWidget {
     final repository = ref.read(resourcesRepositoryProvider);
     final types = ref.watch(workcenterTypesProvider).value ?? const [];
     final type = types.where((t) => t.id == workcenter.typeId).firstOrNull;
+    final membership = ref.watch(workcenterLinesProvider(plantId)).value ?? {};
+    final lines = membership[workcenter.id] ?? const <String>{};
 
     return Padding(
       padding: const EdgeInsets.only(left: 32),
@@ -413,9 +438,26 @@ class _WorkcenterTile extends ConsumerWidget {
           text: workcenter.name,
           isArchived: workcenter.archivedAt != null,
         ),
-        subtitle: Text(type?.name ?? l10n.workcenterTypeUnset),
+        subtitle: Text(
+          [
+            type?.name ?? l10n.workcenterTypeUnset,
+            // Said on the row, so a reader of one line's group knows this
+            // station is shared before they plan around it.
+            if (lines.length > 1) l10n.workcenterOnLines('${lines.length}'),
+          ].join(' · '),
+        ),
         trailing: ResourceRowMenu(
           isArchived: workcenter.archivedAt != null,
+          extraActions: [
+            if (filedUnder != null)
+              ResourceRowAction(
+                label: l10n.workcenterRemoveFromLine(filedUnder!.line.name),
+                onSelected: () => repository.removeWorkcenterFromLine(
+                  workcenter.id,
+                  filedUnder!.line.id,
+                ),
+              ),
+          ],
           onEdit: () async {
             final workcenters =
                 ref.read(workcentersProvider(plantId)).value ?? const [];
@@ -428,13 +470,14 @@ class _WorkcenterTile extends ConsumerWidget {
                   .map((w) => w.name.toLowerCase())
                   .toSet(),
               existing: workcenter,
+              initialLineIds: lines,
             );
             if (draft != null) {
               await repository.updateWorkcenter(
                 workcenter.id,
                 name: draft.name,
                 typeId: draft.typeId,
-                homeLineId: draft.homeLineId,
+                lineIds: draft.lineIds,
               );
             }
           },
@@ -444,7 +487,10 @@ class _WorkcenterTile extends ConsumerWidget {
             final confirmed = await confirmAction(
               context,
               title: l10n.confirmDeleteTitle(workcenter.name),
-              message: l10n.confirmDeleteBody,
+              // Deleting removes the workcenter from the plant, not just from
+              // this line — a distinction the tree now has to make, since a row
+              // here may be one of several.
+              message: l10n.workcenterDeleteBody,
               confirmLabel: l10n.actionDelete,
               destructive: true,
             );
@@ -470,7 +516,7 @@ Future<void> _addWorkcenter(
     lines: allLines,
     types: types,
     takenNames: existing.map((w) => w.name.toLowerCase()).toSet(),
-    initialLineId: initialLineId,
+    initialLineIds: {?initialLineId},
   );
   if (draft == null) return;
   await ref
@@ -479,6 +525,6 @@ Future<void> _addWorkcenter(
         plantId: plantId,
         name: draft.name,
         typeId: draft.typeId,
-        homeLineId: draft.homeLineId,
+        lineIds: draft.lineIds,
       );
 }

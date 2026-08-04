@@ -189,11 +189,11 @@ void main() {
     final workcenters = await db.select(db.workcenters).get();
     expect(workcenters.single.name, 'CLAD04');
     expect(workcenters.single.plantId, 'plant-1');
-    expect(
-      workcenters.single.homeLineId,
-      'line-1',
-      reason: 'the v3 table rebuild must carry every surviving column across',
-    );
+    // v7 moved the single home line into `workcenter_lines`; a v1 row that
+    // named one keeps it, now as a set of one.
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership.single.workcenterId, 'wc-1');
+    expect(membership.single.lineId, 'line-1');
 
     // The v1 pattern survived and was not re-seeded into a duplicate.
     final patterns = await db.select(db.shiftPatterns).get();
@@ -256,7 +256,8 @@ void main() {
 
     final workcenters = await db.select(db.workcenters).get();
     expect(workcenters.single.name, 'CLAD04');
-    expect(workcenters.single.homeLineId, 'line-1');
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership.single.lineId, 'line-1');
 
     // The rebuild recreates the table; rows pointing at it must survive, which
     // is what `legacy_alter_table` during the rename is for.
@@ -279,6 +280,114 @@ void main() {
     // a part can be keyed to one that existed before them.
     expect(await db.select(db.demandParts).get(), isEmpty);
     expect(await db.select(db.demandOrders).get(), isEmpty);
+  });
+
+  /// A **v6** database: what shipped with M3, and what is on a user's machine
+  /// right now. It has been through the v3 rebuild, so `workcenters` has no
+  /// `code` — but it still carries `home_line_id`, which is the column the v7
+  /// step has to harvest before dropping.
+  ///
+  /// This is the branch a real user upgrades through, and it is not the one
+  /// the v1 and v2 fixtures exercise: those reach v7 with the column already
+  /// gone, dropped by the v3 step running against today's definition.
+  const v6Workcenters = """
+    CREATE TABLE workcenters (
+      id TEXT NOT NULL,
+      plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+      home_line_id TEXT NULL REFERENCES production_lines (id) ON DELETE SET NULL,
+      type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+      name TEXT NOT NULL, notes TEXT NULL,
+      archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+  """;
+
+  const v6DemandTables = """
+    CREATE TABLE demand_parts (
+      id TEXT NOT NULL,
+      study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+      part_number TEXT NOT NULL, description TEXT NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      PRIMARY KEY (id), UNIQUE (study_id, part_number));
+    CREATE TABLE part_process_times (
+      part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+      target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+      PRIMARY KEY (part_id, target_id));
+    CREATE TABLE demand_orders (
+      id TEXT NOT NULL,
+      study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+      part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+      sequence INTEGER NOT NULL, order_number TEXT NULL,
+      batch_size INTEGER NOT NULL DEFAULT 1, need_date INTEGER NOT NULL,
+      material_date INTEGER NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      PRIMARY KEY (id), UNIQUE (study_id, sequence));
+  """;
+
+  test('v6 to v7: the home line becomes a set of one', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // `resourceTables` carries the v1 `workcenters`; v6 has its own shape.
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    final v6 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v6Workcenters)
+      ..execute(projectTables)
+      ..execute(v6DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute('PRAGMA user_version = 6');
+
+    v6
+      ..execute(
+        'INSERT INTO plants (id, name, code, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', 'WN', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters '
+        '(id, plant_id, home_line_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'line-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters '
+        '(id, plant_id, home_line_id, name, created_at, updated_at) '
+        "VALUES ('wc-2', 'plant-1', NULL, 'Shared oven', $now, $now)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final workcenters = await db.select(db.workcenters).get();
+    expect(
+      workcenters.map((w) => w.name),
+      containsAll(['CLAD04', 'Shared oven']),
+    );
+
+    // The one that had a home line keeps it, now as a set of one — nobody's
+    // tree rearranges itself under them on upgrade.
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership, hasLength(1));
+    expect(membership.single.workcenterId, 'wc-1');
+    expect(membership.single.lineId, 'line-1');
+
+    // A workcenter that had no home line is filed under nothing, which is now
+    // a first-class state rather than a null.
+    expect(membership.where((m) => m.workcenterId == 'wc-2'), isEmpty);
   });
 
   test(

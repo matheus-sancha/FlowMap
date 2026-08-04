@@ -34,6 +34,7 @@ const _seededAtKey = 'reference_data.seeded_at';
     ProductionLines,
     WorkcenterTypes,
     Workcenters,
+    WorkcenterLines,
     WorkcenterPools,
     WorkcenterPoolMembers,
     AppSettings,
@@ -63,7 +64,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +73,18 @@ class AppDatabase extends _$AppDatabase {
       await seedReferenceData();
     },
     onUpgrade: (m, from, to) async {
+      // Read **before any step below runs**. The v3 step rebuilds
+      // `workcenters` from the *current* Dart definition, which no longer has
+      // `home_line_id` — so on a v1 or v2 database the column is gone by the
+      // time the v7 step is reached. Same lesson as the two `from >= 2` guards
+      // further down, in the other direction (DATA.md).
+      final homeLines = from < 7
+          ? await customSelect(
+              'SELECT id, home_line_id FROM workcenters '
+              'WHERE home_line_id IS NOT NULL',
+            ).get()
+          : const <QueryRow>[];
+
       if (from < 2) {
         // M2: the project layer. Purely additive — every table below is
         // new, so `createTable` from the current definition is safe and no
@@ -127,6 +140,35 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(demandParts);
         await m.createTable(partProcessTimes);
         await m.createTable(demandOrders);
+      }
+
+      if (from < 7) {
+        // A workcenter is drawn under a *set* of lines, not one. The single
+        // `workcenters.home_line_id` this replaces meant filing `CLAD04` under
+        // a second line silently took it out of the first — the tree fought
+        // the very arrangement the app exists to analyse (DESIGN.md §7.7).
+        //
+        // Guarded on `from >= 3`: a v1 or v2 database has already been rebuilt
+        // by the v3 step above, from a definition that no longer carries the
+        // column, so a second rebuild would find nothing to drop.
+        if (from >= 3) await m.alterTable(TableMigration(workcenters));
+        await m.createTable(workcenterLines);
+
+        // The old home line becomes a set of one, so nobody's tree rearranges
+        // itself under them on upgrade.
+        final now = DateTime.now();
+        await batch((b) {
+          for (final row in homeLines) {
+            b.insert(
+              workcenterLines,
+              WorkcenterLinesCompanion.insert(
+                workcenterId: row.read<String>('id'),
+                lineId: row.read<String>('home_line_id'),
+                createdAt: now,
+              ),
+            );
+          }
+        });
       }
 
       // Reference-data seeding runs outside every version guard, on every

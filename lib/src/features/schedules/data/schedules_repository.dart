@@ -346,7 +346,7 @@ class SchedulesRepository {
       exceptions: resolveExceptions(
         scoped,
         workcenterId: workcenterId,
-        productionLineId: workcenter.homeLineId,
+        productionLineIds: await _resources.loadWorkcenterLines(workcenterId),
       ),
     );
   }

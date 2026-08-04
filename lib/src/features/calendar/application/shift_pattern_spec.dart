@@ -125,7 +125,7 @@ class ResolvedCalendarException {
 Map<DateTime, ResolvedCalendarException> resolveExceptions(
   Iterable<ScopedCalendarException> exceptions, {
   required String workcenterId,
-  String? productionLineId,
+  Set<String> productionLineIds = const {},
 }) {
   const rank = {
     CalendarExceptionScope.plant: 0,
@@ -137,8 +137,11 @@ Map<DateTime, ResolvedCalendarException> resolveExceptions(
   for (final exception in exceptions) {
     final applies = switch (exception.scope) {
       CalendarExceptionScope.plant => true,
+      // A workcenter is drawn under a *set* of lines, so a line-scoped
+      // exception reaches it if any of them match. `CLAD04` shared by two
+      // lines is closed when either line shuts.
       CalendarExceptionScope.productionLine =>
-        productionLineId != null && exception.scopeId == productionLineId,
+        productionLineIds.contains(exception.scopeId),
       CalendarExceptionScope.workcenter => exception.scopeId == workcenterId,
     };
     if (!applies) continue;

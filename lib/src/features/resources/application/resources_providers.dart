@@ -39,6 +39,14 @@ final plantLinesProvider = StreamProvider.family<List<PlantLine>, String>(
       ),
 );
 
+/// Which lines each workcenter of a plant is drawn under (DESIGN.md §3).
+final workcenterLinesProvider =
+    StreamProvider.family<Map<String, Set<String>>, String>(
+      (ref, plantId) => ref
+          .watch(resourcesRepositoryProvider)
+          .watchWorkcenterLines(plantId),
+    );
+
 final workcentersProvider = StreamProvider.family<List<Workcenter>, String>(
   (ref, plantId) => ref
       .watch(resourcesRepositoryProvider)
