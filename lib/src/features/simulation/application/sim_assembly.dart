@@ -157,7 +157,6 @@ SimStudy? assembleSimStudy({
           batchSize: order.batchSize,
           needDate: order.needDate,
           materialDate: order.materialDate,
-          orderNumber: order.orderNumber,
         ),
     ],
     releaseInterval: takt.equivalentAt(

@@ -159,6 +159,7 @@ class _Mm3Table extends StatelessWidget {
                   theme.textTheme.labelLarge,
                   width: 110,
                 ),
+                _cell(l10n.mm3SlotLoad, theme.textTheme.labelLarge, width: 110),
                 _cell(l10n.mm3Column, theme.textTheme.labelLarge, width: 110),
               ],
             ),
@@ -178,7 +179,12 @@ class _Mm3Table extends StatelessWidget {
               _cell('${point.batchSize}', theme.textTheme.bodyMedium,
                   width: 80),
               _cell(
-                point.equivalence?.toStringAsFixed(2) ?? '—',
+                point.partEquivalence?.toStringAsFixed(2) ?? '—',
+                theme.textTheme.bodyMedium,
+                width: 110,
+              ),
+              _cell(
+                point.slotLoad?.toStringAsFixed(2) ?? '—',
                 theme.textTheme.bodyMedium,
                 width: 110,
               ),

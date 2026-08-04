@@ -206,6 +206,9 @@
   "mm3WholeFlow": "Todo el flujo",
   "mm3Smoothness": "Desviación media",
   "mm3SmoothnessHelp": "Qué tan lejos de 1,0 queda la media móvil en promedio. 1,0 es un takt de la capacidad del alcance por pedido, es decir una secuencia perfectamente nivelada.",
+  "mm3SlotLoad": "Carga del hueco",
+  "mm3SlotLoadHelp": "El equivalente de la pieza por su tamaño de lote — lo que este hueco de liberación le cuesta al flujo. MM3 promedia esto, no el equivalente.",
+
   "mm3NoSequence": "Aún no hay pedidos en la secuencia.",
   "mm3NotMeasurable": "Nada que medir todavía: las piezas de esta secuencia no tienen tiempos de proceso en este alcance.",
   "mm3Help": "Una media móvil centrada de tres sobre la secuencia, vacía en ambos extremos. Reordene en la pestaña Secuencia y observe cómo se aplana.",
@@ -289,6 +292,11 @@
   "exceptionOperatorsHelp": "Quién está en cada turno ese día. Un cero cierra ese turno.",
   "exceptionDeleteTitle": "¿Eliminar esta excepción?",
   "flowEndpointRename": "Renombrar extremo",
+
+  "demandProject": "Proyecto",
+  "demandDeleteAll": "Eliminar todos los pedidos",
+  "demandDeleteAllBody": "Se van todos los pedidos de la secuencia. Las piezas y sus tiempos de proceso se quedan.",
+  "stepCycleTime": "Tiempo de ciclo",
 
   "demandParts": "Piezas",
   "demandSequence": "Secuencia",

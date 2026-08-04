@@ -32,6 +32,7 @@ class DemandRepository {
   Future<String> createPart({
     required String studyId,
     required String partNumber,
+    String? customerProject,
     String? description,
   }) async {
     final id = newId();
@@ -43,6 +44,7 @@ class DemandRepository {
             id: id,
             studyId: studyId,
             partNumber: partNumber,
+            customerProject: Value(customerProject),
             description: Value(description),
             createdAt: now,
             updatedAt: now,
@@ -54,10 +56,12 @@ class DemandRepository {
   Future<void> updatePart(
     String id, {
     required String partNumber,
+    String? customerProject,
     String? description,
   }) => (_db.update(_db.demandParts)..where((p) => p.id.equals(id))).write(
     DemandPartsCompanion(
       partNumber: Value(partNumber),
+      customerProject: Value(customerProject),
       description: Value(description),
       updatedAt: Value(DateTime.now()),
     ),
@@ -169,7 +173,6 @@ class DemandRepository {
     required DateTime needDate,
     DateTime? materialDate,
     int batchSize = 1,
-    String? orderNumber,
     int? atSequence,
   }) => _db.transaction(() async {
     final orders = await loadOrders(studyId);
@@ -193,7 +196,6 @@ class DemandRepository {
             studyId: studyId,
             partId: partId,
             sequence: position,
-            orderNumber: Value(orderNumber),
             batchSize: Value(batchSize),
             needDate: needDate,
             materialDate: Value(materialDate),
@@ -210,17 +212,24 @@ class DemandRepository {
     required DateTime needDate,
     DateTime? materialDate,
     required int batchSize,
-    String? orderNumber,
   }) => (_db.update(_db.demandOrders)..where((o) => o.id.equals(id))).write(
     DemandOrdersCompanion(
       partId: Value(partId),
       needDate: Value(needDate),
       materialDate: Value(materialDate),
       batchSize: Value(batchSize),
-      orderNumber: Value(orderNumber),
       updatedAt: Value(DateTime.now()),
     ),
   );
+
+  /// Empties the sequence, leaving the parts and their process times.
+  ///
+  /// A separate operation rather than a loop over [deleteOrder]: re-importing a
+  /// month's demand starts by clearing the old one, and renumbering after each
+  /// of two thousand deletions would be two thousand renumbers.
+  Future<void> deleteAllOrders(String studyId) => (_db.delete(
+    _db.demandOrders,
+  )..where((o) => o.studyId.equals(studyId))).go();
 
   Future<void> deleteOrder(String studyId, String id) =>
       _db.transaction(() async {
@@ -285,12 +294,14 @@ class DemandRepository {
             ids[write.partNumber.toLowerCase()] = await createPart(
               studyId: studyId,
               partNumber: write.partNumber,
+              customerProject: write.customerProject,
               description: write.description,
             );
           } else {
             await updatePart(
               write.id!,
               partNumber: write.partNumber,
+              customerProject: write.customerProject,
               description: write.description,
             );
             ids[write.partNumber.toLowerCase()] = write.id!;
@@ -321,7 +332,6 @@ class DemandRepository {
           needDate: write.needDate,
           materialDate: write.materialDate,
           batchSize: write.batchSize,
-          orderNumber: write.orderNumber,
         );
       } else {
         await updateOrder(
@@ -330,7 +340,6 @@ class DemandRepository {
           needDate: write.needDate,
           materialDate: write.materialDate,
           batchSize: write.batchSize,
-          orderNumber: write.orderNumber,
         );
       }
     }
@@ -364,6 +373,7 @@ class DemandRepository {
             id: idMap[part.id]!,
             studyId: toStudyId,
             partNumber: part.partNumber,
+            customerProject: Value(part.customerProject),
             description: Value(part.description),
             createdAt: now,
             updatedAt: now,
@@ -403,7 +413,6 @@ class DemandRepository {
             studyId: toStudyId,
             partId: idMap[order.partId]!,
             sequence: order.sequence,
-            orderNumber: Value(order.orderNumber),
             batchSize: Value(order.batchSize),
             needDate: order.needDate,
             materialDate: Value(order.materialDate),
@@ -442,6 +451,7 @@ class PartWrite {
   const PartWrite({
     required this.id,
     required this.partNumber,
+    required this.customerProject,
     required this.description,
   });
 
@@ -449,6 +459,7 @@ class PartWrite {
   final String? id;
 
   final String partNumber;
+  final String? customerProject;
   final String? description;
 
   bool get isNew => id == null;
@@ -493,7 +504,6 @@ class OrderWrite {
     required this.needDate,
     required this.materialDate,
     required this.batchSize,
-    required this.orderNumber,
   });
 
   /// Null for a row past the end of the sequence — an order to be appended.
@@ -503,7 +513,6 @@ class OrderWrite {
   final DateTime needDate;
   final DateTime? materialDate;
   final int batchSize;
-  final String? orderNumber;
 
   bool get isNew => id == null;
 }

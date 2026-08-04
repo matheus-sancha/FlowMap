@@ -32,12 +32,13 @@ void main() {
   List<ImportColumn> partsColumns(DemandTable table) => partsImportColumns(
     table,
     partNumberTitle: 'Part number',
+    projectTitle: 'Project',
     descriptionTitle: 'Description',
   );
 
   final sequenceColumns = sequenceImportColumns(
-    orderTitle: 'Order',
     partNumberTitle: 'Part number',
+    projectTitle: 'Project',
     batchTitle: 'Batch',
     needDateTitle: 'Need date',
     materialDateTitle: 'Material date',
@@ -89,12 +90,12 @@ void main() {
 
     test('finds the usual export headings through synonyms', () {
       final mapping = guessMapping(
-        headers: ['WO', 'SKU', 'Qty', 'Due date', 'Material'],
+        headers: ['SKU', 'Programme', 'Qty', 'Due date', 'Material'],
         columns: sequenceColumns,
       );
 
-      expect(mapping[orderNumberColumn], 0);
-      expect(mapping[orderPartColumn], 1);
+      expect(mapping[orderPartColumn], 0);
+      expect(mapping[orderProjectColumn], 1);
       expect(mapping[orderBatchColumn], 2);
       expect(mapping[orderNeedColumn], 3);
       expect(mapping[orderMaterialColumn], 4);
@@ -328,15 +329,14 @@ void main() {
       final rows = validateSequenceImport(
         rows: applyMapping(
           dataRows: [
-            ['SO-1', 'PN1', '4', '2026-08-13', '2026-08-01'],
-            ['SO-2', 'PN9', '1', '2026-08-14', ''],
+            ['PN1', '4', '2026-08-13', '2026-08-01'],
+            ['PN9', '1', '2026-08-14', ''],
           ],
           mapping: {
-            orderNumberColumn: 0,
-            orderPartColumn: 1,
-            orderBatchColumn: 2,
-            orderNeedColumn: 3,
-            orderMaterialColumn: 4,
+            orderPartColumn: 0,
+            orderBatchColumn: 1,
+            orderNeedColumn: 2,
+            orderMaterialColumn: 3,
           },
         ),
         table: table,
@@ -352,7 +352,6 @@ void main() {
 
       expect(writes, hasLength(1));
       expect(writes.single.isNew, isTrue);
-      expect(writes.single.orderNumber, 'SO-1');
       expect(writes.single.batchSize, 4);
       expect(writes.single.needDate, DateTime(2026, 8, 13));
       expect(writes.single.materialDate, DateTime(2026, 8, 1));

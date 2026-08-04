@@ -27,6 +27,17 @@ abstract final class FlowMetrics {
   /// The header strip carrying the workcenter code.
   static const nodeHeaderHeight = 34.0;
 
+  /// The inventory triangle's drawn size.
+  ///
+  /// A buffer occupies the same slot as a process box so the spine stays
+  /// evenly spaced, but it *draws* a small symbol — so the arrows either side
+  /// must reach that symbol rather than the empty slot around it, or they
+  /// stop short of nothing.
+  static const bufferSymbol = 56.0;
+
+  /// How far in from a buffer's slot the arrows should stop.
+  static double get bufferInset => (nodeWidth - bufferSymbol) / 2;
+
   /// The supplier and customer factory symbols.
   static const endpointWidth = 104.0;
   static const endpointHeight = 52.0;

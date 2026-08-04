@@ -206,6 +206,9 @@
   "mm3WholeFlow": "Fluxo inteiro",
   "mm3Smoothness": "Desvio médio",
   "mm3SmoothnessHelp": "O quanto a média móvel fica longe de 1,0 em média. 1,0 é um takt da capacidade do escopo por pedido, ou seja, uma sequência perfeitamente nivelada.",
+  "mm3SlotLoad": "Carga do slot",
+  "mm3SlotLoadHelp": "O equivalente da peça vezes o tamanho do lote — o que este slot de liberação custa ao fluxo. O MM3 faz a média disto, não do equivalente.",
+
   "mm3NoSequence": "Ainda não há pedidos na sequência.",
   "mm3NotMeasurable": "Nada a medir ainda: as peças desta sequência não têm tempos de processo neste escopo.",
   "mm3Help": "Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas. Reordene na aba Sequência e veja achatar.",
@@ -289,6 +292,11 @@
   "exceptionOperatorsHelp": "Quem está em cada turno naquele dia. Um zero fecha o turno.",
   "exceptionDeleteTitle": "Excluir esta exceção?",
   "flowEndpointRename": "Renomear extremidade",
+
+  "demandProject": "Projeto",
+  "demandDeleteAll": "Excluir todos os pedidos",
+  "demandDeleteAllBody": "Todos os pedidos da sequência vão embora. As peças e seus tempos de processo ficam.",
+  "stepCycleTime": "Tempo de ciclo",
 
   "demandParts": "Peças",
   "demandSequence": "Sequência",

@@ -292,4 +292,64 @@ void main() {
     expect(await demand.loadOrders(studyId), isEmpty);
     expect(await db.select(db.partProcessTimes).get(), isEmpty);
   });
+
+  group("a part carries the customer's project", () {
+    test('it round-trips, and is not the FlowMap project', () async {
+      final partId = await demand.createPart(
+        studyId: studyId,
+        partNumber: 'PN1',
+        customerProject: 'Wing 7',
+      );
+
+      final parts = await demand.loadParts(studyId);
+      expect(parts.single.customerProject, 'Wing 7');
+      // The study's own project is a different thing entirely.
+      expect(parts.single.studyId, studyId);
+
+      await demand.updatePart(partId, partNumber: 'PN1', customerProject: null);
+      expect((await demand.loadParts(studyId)).single.customerProject, isNull);
+    });
+
+    test('it travels with a duplicated study', () async {
+      await demand.createPart(
+        studyId: studyId,
+        partNumber: 'PN1',
+        customerProject: 'Wing 7',
+      );
+      final copyId = await studies.duplicateStudy(studyId, newName: 'Copy');
+
+      expect(
+        (await demand.loadParts(copyId)).single.customerProject,
+        'Wing 7',
+      );
+    });
+  });
+
+  test('deleting every order leaves the parts and their times', () async {
+    final partId = await demand.createPart(
+      studyId: studyId,
+      partNumber: 'PN1',
+    );
+    await demand.setProcessTime(
+      partId: partId,
+      targetId: workcenterA,
+      time: const Duration(hours: 5),
+    );
+    for (var i = 0; i < 3; i++) {
+      await demand.createOrder(
+        studyId: studyId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 13),
+      );
+    }
+
+    await demand.deleteAllOrders(studyId);
+
+    // Clearing the sequence is what a re-import starts with; it must not take
+    // the process times with it.
+    expect(await demand.loadOrders(studyId), isEmpty);
+    expect(await demand.loadParts(studyId), hasLength(1));
+    expect((await demand.watchProcessTimes(studyId).first)[partId], hasLength(1));
+  });
+
 }

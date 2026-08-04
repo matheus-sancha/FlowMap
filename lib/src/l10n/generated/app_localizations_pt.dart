@@ -572,6 +572,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'O quanto a média móvel fica longe de 1,0 em média. 1,0 é um takt da capacidade do escopo por pedido, ou seja, uma sequência perfeitamente nivelada.';
 
   @override
+  String get mm3SlotLoad => 'Carga do slot';
+
+  @override
+  String get mm3SlotLoadHelp =>
+      'O equivalente da peça vezes o tamanho do lote — o que este slot de liberação custa ao fluxo. O MM3 faz a média disto, não do equivalente.';
+
+  @override
   String get mm3NoSequence => 'Ainda não há pedidos na sequência.';
 
   @override
@@ -812,6 +819,19 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get flowEndpointRename => 'Renomear extremidade';
+
+  @override
+  String get demandProject => 'Projeto';
+
+  @override
+  String get demandDeleteAll => 'Excluir todos os pedidos';
+
+  @override
+  String get demandDeleteAllBody =>
+      'Todos os pedidos da sequência vão embora. As peças e seus tempos de processo ficam.';
+
+  @override
+  String get stepCycleTime => 'Tempo de ciclo';
 
   @override
   String get demandParts => 'Peças';

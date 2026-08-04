@@ -37,7 +37,6 @@ void main() {
     studyId: 'study-1',
     partId: partId,
     sequence: sequence,
-    orderNumber: 'SO-${sequence + 1}',
     batchSize: 4,
     needDate: DateTime(2026, 8, 13),
     createdAt: now,
@@ -171,9 +170,11 @@ void main() {
     await tester.tap(find.text('Sequence'));
     await tester.pumpAndSettle();
 
-    expect(find.text('SO-1'), findsOneWidget);
-    expect(find.text('SO-2'), findsOneWidget);
+    // Two rows of PN1, no order number column: a simulation identifies an
+    // order by the row it is.
+    expect(find.text('PN1'), findsNWidgets(2));
     expect(find.text('Need date'), findsOneWidget);
+    expect(find.text('Order'), findsNothing);
   });
 
   testWidgets('the sequence grid says what it needs before it can be used', (

@@ -47,6 +47,7 @@ class ImportColumn {
 List<ImportColumn> partsImportColumns(
   DemandTable table, {
   required String partNumberTitle,
+  required String projectTitle,
   required String descriptionTitle,
 }) => [
   ImportColumn(
@@ -54,6 +55,11 @@ List<ImportColumn> partsImportColumns(
     title: partNumberTitle,
     required: true,
     synonyms: const ['part', 'part no', 'part number', 'pn', 'item', 'sku'],
+  ),
+  ImportColumn(
+    gridColumn: partProjectColumn,
+    title: projectTitle,
+    synonyms: const ['project', 'programme', 'program', 'job', 'contract'],
   ),
   ImportColumn(
     gridColumn: partDescriptionColumn,
@@ -69,22 +75,22 @@ List<ImportColumn> partsImportColumns(
 
 /// The destination columns of the sequence grid.
 List<ImportColumn> sequenceImportColumns({
-  required String orderTitle,
   required String partNumberTitle,
+  required String projectTitle,
   required String batchTitle,
   required String needDateTitle,
   required String materialDateTitle,
 }) => [
   ImportColumn(
-    gridColumn: orderNumberColumn,
-    title: orderTitle,
-    synonyms: const ['order', 'order no', 'order number', 'so', 'wo'],
-  ),
-  ImportColumn(
     gridColumn: orderPartColumn,
     title: partNumberTitle,
     required: true,
     synonyms: const ['part', 'part no', 'part number', 'pn', 'item', 'sku'],
+  ),
+  ImportColumn(
+    gridColumn: orderProjectColumn,
+    title: projectTitle,
+    synonyms: const ['project', 'programme', 'program', 'job', 'contract'],
   ),
   ImportColumn(
     gridColumn: orderBatchColumn,
@@ -418,17 +424,26 @@ DemandPartsPlan planPartsImport({
 
     final was = existing[partNumber.toLowerCase()];
     final description = row.cell(partDescriptionColumn);
+    final project = row.cell(partProjectColumn);
 
     if (was == null) {
       parts.add(
-        PartWrite(id: null, partNumber: partNumber, description: description),
+        PartWrite(
+          id: null,
+          partNumber: partNumber,
+          customerProject: project,
+          description: description,
+        ),
       );
-    } else if (description != null && description != was.description) {
+    } else if ((description != null && description != was.description) ||
+        (project != null && project != was.customerProject)) {
       parts.add(
         PartWrite(
           id: was.id,
           partNumber: was.partNumber,
-          description: description,
+          // An unmapped column is left alone, never cleared (§9.2).
+          customerProject: project ?? was.customerProject,
+          description: description ?? was.description,
         ),
       );
     }
@@ -484,7 +499,6 @@ List<OrderWrite> planSequenceImport({
             ? null
             : parseDateInput(materialRaw, locale),
         batchSize: int.tryParse(row.cell(orderBatchColumn) ?? '') ?? 1,
-        orderNumber: row.cell(orderNumberColumn),
       ),
     );
   }

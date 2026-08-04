@@ -15,12 +15,17 @@ import 'demand_table.dart';
 
 /// Fixed columns of the parts grid, before the flow's steps begin.
 const partNumberColumn = 0;
-const partDescriptionColumn = 1;
-const firstStepColumn = 2;
+const partProjectColumn = 1;
+const partDescriptionColumn = 2;
+const firstStepColumn = 3;
 
 /// Columns of the sequence grid.
-const orderNumberColumn = 0;
-const orderPartColumn = 1;
+///
+/// There is no order number: a simulation identifies an order by the row it is
+/// (§7.2), and asking a planner to retype a works order number they already
+/// hold in their own system was work for nothing.
+const orderPartColumn = 0;
+const orderProjectColumn = 1;
 const orderBatchColumn = 2;
 const orderNeedColumn = 3;
 const orderMaterialColumn = 4;
@@ -62,6 +67,7 @@ DemandPartsPlan planPartsWrite({
     }
 
     final typedNumber = cellAt(partNumberColumn)?.trim();
+    final typedProject = cellAt(partProjectColumn)?.trim();
     final typedDescription = cellAt(partDescriptionColumn)?.trim();
     final existing = rowIndex < table.parts.length
         ? table.parts[rowIndex]
@@ -78,6 +84,9 @@ DemandPartsPlan planPartsWrite({
           PartWrite(
             id: null,
             partNumber: typedNumber,
+            customerProject: (typedProject?.isEmpty ?? true)
+                ? null
+                : typedProject,
             description: (typedDescription?.isEmpty ?? true)
                 ? null
                 : typedDescription,
@@ -97,14 +106,20 @@ DemandPartsPlan planPartsWrite({
       final redescribed =
           typedDescription != null &&
           typedDescription != (existing.description ?? '');
+      final reprojected =
+          typedProject != null &&
+          typedProject != (existing.customerProject ?? '');
 
       partNumber = renamed && !collides ? typedNumber : existing.partNumber;
 
-      if ((renamed && !collides) || redescribed) {
+      if ((renamed && !collides) || redescribed || reprojected) {
         parts.add(
           PartWrite(
             id: existing.id,
             partNumber: partNumber,
+            customerProject: reprojected
+                ? (typedProject.isEmpty ? null : typedProject)
+                : existing.customerProject,
             description: redescribed
                 ? (typedDescription.isEmpty ? null : typedDescription)
                 : existing.description,
@@ -200,11 +215,6 @@ List<OrderWrite> planSequenceWrite({
         1;
     if (batchSize <= 0) continue;
 
-    final typedNumber = cellAt(orderNumberColumn)?.trim();
-    final orderNumber = typedNumber == null
-        ? existing?.orderNumber
-        : (typedNumber.isEmpty ? null : typedNumber);
-
     writes.add(
       OrderWrite(
         id: existing?.id,
@@ -212,7 +222,6 @@ List<OrderWrite> planSequenceWrite({
         needDate: needDate,
         materialDate: materialDate,
         batchSize: batchSize,
-        orderNumber: orderNumber,
       ),
     );
   }

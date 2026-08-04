@@ -314,8 +314,17 @@ class _CanvasState extends ConsumerState<_Canvas> {
     final segments = <(Offset, Offset)>[];
     var previousRight = Offset(layout.supplier.right, layout.spineY);
     for (final placed in layout.nodes) {
-      segments.add((previousRight, Offset(placed.rect.left, layout.spineY)));
-      previousRight = Offset(placed.rect.right, layout.spineY);
+      // A buffer draws a small triangle inside a full-width slot, so the
+      // arrows stop where the symbol actually starts. Running them to the slot
+      // edge left a gap either side and made the triangle look off centre.
+      final inset = placed.view is FlowInventoryView
+          ? FlowMetrics.bufferInset
+          : 0.0;
+      segments.add((
+        previousRight,
+        Offset(placed.rect.left + inset, layout.spineY),
+      ));
+      previousRight = Offset(placed.rect.right - inset, layout.spineY);
     }
     segments.add((previousRight, Offset(layout.customer.left, layout.spineY)));
 
@@ -580,10 +589,40 @@ class _StepBox extends ConsumerWidget {
                     bottom: BorderSide(color: theme.colorScheme.outline),
                   ),
                 ),
-                child: Text(
-                  step.title,
-                  style: theme.textTheme.titleSmall,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        step.title,
+                        style: theme.textTheme.titleSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // A pool is several machines behind one box, and a reader
+                    // comparing two boxes has to know which one is four
+                    // stations. `#4` is how a shop floor writes it.
+                    if (step.poolMemberCount != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.secondaryContainer,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '#${step.poolMemberCount}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Expanded(
@@ -758,22 +797,36 @@ class _InventoryNode extends ConsumerWidget {
     return InkWell(
       onTap: () =>
           showInventoryEditor(context, ref, study: study, buffer: buffer),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      // A Stack rather than a Column: the triangle has to sit *on* the spine,
+      // and a centred column of symbol-plus-two-labels puts its middle above
+      // the line the arrows run along.
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: CustomPaint(
-              painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+          const SizedBox(
+            width: FlowMetrics.bufferSymbol,
+            height: FlowMetrics.bufferSymbol,
+          ),
+          Center(
+            child: SizedBox(
+              width: FlowMetrics.bufferSymbol,
+              height: FlowMetrics.bufferSymbol,
+              child: CustomPaint(
+                painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            buffer.quantity == null ? '' : '${buffer.quantity}',
-            style: theme.textTheme.titleSmall,
-          ),
-          Text(
+          Positioned(
+            top: FlowMetrics.nodeHeight / 2 + FlowMetrics.bufferSymbol / 2 + 4,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                Text(
+                  buffer.quantity == null ? '' : '${buffer.quantity}',
+                  style: theme.textTheme.titleSmall,
+                ),
+                Text(
             // The same rendering as this node's own rung on the ladder
             // directly below it. Showing the value as typed instead put two
             // different numbers for one wait on the screen at once.
@@ -784,8 +837,12 @@ class _InventoryNode extends ConsumerWidget {
                     buffer.wait,
                     workingDay: buffer.referenceWorkingDay,
                   ),
-            style: theme.textTheme.bodySmall,
-            overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),

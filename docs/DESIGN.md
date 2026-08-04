@@ -928,6 +928,29 @@ Decisions taken while building it:
   override the providers with plain values instead; what the writes do is proved against a real
   in-memory database at the repository level, where there is no `fakeAsync`.
 
+### 16.5.1 Schema v9, from field feedback
+
+- **An order has no order number.** It shipped in M3 and was work for nothing: a simulation
+  identifies an order by the row it is, the planner already holds a works order number in their own
+  system, and retyping it bought nothing any calculation reads. Dropped by a table rebuild, guarded
+  on `from >= 6` for the reason §16.4's guards exist — the v6 step builds `demand_orders` from the
+  *current* definition, so an older database never had the column.
+- **A part carries the customer's project** — their programme or contract, not the FlowMap project
+  the study sits in. Shown beside the part number in both grids and read-only in the sequence,
+  because a project belongs to the part and two rows of one part must not disagree about it. Part
+  numbers stay unique per study; if the same number recurs across two customer projects that key
+  has to change, and it is worth deciding deliberately rather than discovering.
+- **MM3 shows the part's equivalence and the slot's load as two columns.** They were one, headed
+  "Equivalent", carrying `eq(part) × batch` — so §6.2's quantity, which belongs to the part and does
+  not move, appeared to drift between orders. Reported from the field as a calculation bug; it was a
+  labelling one. MM3 still averages the slot load (§18.7), which is the figure levelling is about.
+- **Arrows stop at a buffer's triangle, not at its slot.** An inventory node occupies a full node
+  width so the spine stays evenly spaced, but draws a 56-pixel symbol, and the connectors were
+  running to the empty slot edge — which left a gap either side and made the triangle look off
+  centre. The triangle now also sits *on* the spine rather than above it, with its labels beneath.
+- **A pool's process box is marked `#N`.** A reader comparing two boxes has to know which one is
+  four machines; it was only in a tooltip.
+
 ### 16.6 M3 as built
 
 Schema v6, the demand layer, the two data sources that read it, MM3, the Summary, the spreadsheet

@@ -13,10 +13,16 @@ void main() {
 
   final now = DateTime(2026, 8, 1);
 
-  DemandPart part(String id, String number, {String? description}) => DemandPart(
+  DemandPart part(
+    String id,
+    String number, {
+    String? description,
+    String? project,
+  }) => DemandPart(
     id: id,
     studyId: 'study-1',
     partNumber: number,
+    customerProject: project,
     description: description,
     createdAt: now,
     updatedAt: now,
@@ -28,14 +34,12 @@ void main() {
     String partId, {
     int day = 13,
     int batchSize = 1,
-    String? orderNumber,
     DateTime? materialDate,
   }) => DemandOrder(
     id: id,
     studyId: 'study-1',
     partId: partId,
     sequence: sequence,
-    orderNumber: orderNumber,
     batchSize: batchSize,
     needDate: DateTime(2026, 8, day),
     materialDate: materialDate,
@@ -61,14 +65,16 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', 'Housing', '55:00:00', '3:00:00'],
-          ['PN2', '', '8:00:00', ''],
+          ['PN1', 'Wing 7', 'Housing', '55:00:00', '3:00:00'],
+          ['PN2', '', '', '8:00:00', ''],
         ],
       );
 
       expect(plan.parts.map((p) => p.partNumber), ['PN1', 'PN2']);
       expect(plan.parts.every((p) => p.isNew), isTrue);
+      expect(plan.parts.first.customerProject, 'Wing 7');
       expect(plan.parts.first.description, 'Housing');
+      expect(plan.parts.last.customerProject, isNull);
       expect(plan.parts.last.description, isNull);
 
       expect(
@@ -90,7 +96,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['', '', '55:00:00'],
+          ['', '', '', '55:00:00'],
         ],
       );
 
@@ -104,7 +110,7 @@ void main() {
         row: 1,
         column: 0,
         block: [
-          ['PN1', '', '60:00:00'],
+          ['PN1', '', '', '60:00:00'],
         ],
       );
 
@@ -121,8 +127,8 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', '', '55:00:00'],
-          ['PN1', '', '60:00:00'],
+          ['PN1', '', '', '55:00:00'],
+          ['PN1', '', '', '60:00:00'],
         ],
       );
 
@@ -246,8 +252,8 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['SO-1', 'PN1', '4', '2026-08-13', '2026-08-01'],
-          ['SO-2', 'PN2', '1', '2026-08-14', ''],
+          ['PN1', '', '4', '2026-08-13', '2026-08-01'],
+          ['PN2', '', '1', '2026-08-14', ''],
         ],
         locale: 'en',
       );
@@ -258,7 +264,6 @@ void main() {
       expect(writes.first.needDate, DateTime(2026, 8, 13));
       expect(writes.first.materialDate, DateTime(2026, 8, 1));
       expect(writes.last.materialDate, isNull);
-      expect(writes.last.orderNumber, 'SO-2');
     });
 
     test('a new row without a known part is skipped', () {
@@ -268,7 +273,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['SO-1', 'PN404', '1', '2026-08-13'],
+          ['PN404', '', '1', '2026-08-13'],
         ],
         locale: 'en',
       );
@@ -285,7 +290,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['SO-1', 'PN1', '1', ''],
+          ['PN1', '', '1', ''],
         ],
         locale: 'en',
       );
@@ -295,7 +300,7 @@ void main() {
 
     test('an existing row keeps the columns the block did not touch', () {
       final writes = planSequenceWrite(
-        orders: [order('o1', 0, 'p1', batchSize: 4, orderNumber: 'SO-1')],
+        orders: [order('o1', 0, 'p1', batchSize: 4)],
         parts: parts,
         row: 0,
         column: orderBatchColumn,
@@ -308,7 +313,6 @@ void main() {
       expect(writes.single.id, 'o1');
       expect(writes.single.batchSize, 10);
       expect(writes.single.partId, 'p1');
-      expect(writes.single.orderNumber, 'SO-1');
       expect(writes.single.needDate, DateTime(2026, 8, 13));
     });
 
@@ -351,7 +355,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['', 'PN1', '1', '03/08/2026'],
+          ['PN1', '', '1', '03/08/2026'],
         ],
         locale: 'pt_BR',
       );
@@ -363,7 +367,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['', 'PN1', '1', '03/08/2026'],
+          ['PN1', '', '1', '03/08/2026'],
         ],
         locale: 'en_US',
       );

@@ -120,7 +120,6 @@ class SimOrder {
     required this.needDate,
     this.batchSize = 1,
     this.materialDate,
-    this.orderNumber,
   });
 
   final String id;
@@ -137,8 +136,6 @@ class SimOrder {
 
   /// When material is on hand. Null is unconstrained.
   final DateTime? materialDate;
-
-  final String? orderNumber;
 }
 
 /// How a workcenter chooses which waiting order to run next (DESIGN.md §7.4).

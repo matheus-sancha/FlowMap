@@ -571,6 +571,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Qué tan lejos de 1,0 queda la media móvil en promedio. 1,0 es un takt de la capacidad del alcance por pedido, es decir una secuencia perfectamente nivelada.';
 
   @override
+  String get mm3SlotLoad => 'Carga del hueco';
+
+  @override
+  String get mm3SlotLoadHelp =>
+      'El equivalente de la pieza por su tamaño de lote — lo que este hueco de liberación le cuesta al flujo. MM3 promedia esto, no el equivalente.';
+
+  @override
   String get mm3NoSequence => 'Aún no hay pedidos en la secuencia.';
 
   @override
@@ -811,6 +818,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get flowEndpointRename => 'Renombrar extremo';
+
+  @override
+  String get demandProject => 'Proyecto';
+
+  @override
+  String get demandDeleteAll => 'Eliminar todos los pedidos';
+
+  @override
+  String get demandDeleteAllBody =>
+      'Se van todos los pedidos de la secuencia. Las piezas y sus tiempos de proceso se quedan.';
+
+  @override
+  String get stepCycleTime => 'Tiempo de ciclo';
 
   @override
   String get demandParts => 'Piezas';

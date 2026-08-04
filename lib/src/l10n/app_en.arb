@@ -225,6 +225,9 @@
   "mm3WholeFlow": "Whole flow",
   "mm3Smoothness": "Average deviation",
   "mm3SmoothnessHelp": "How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope's capacity per order, which is a perfectly levelled sequence.",
+  "mm3SlotLoad": "Slot load",
+  "mm3SlotLoadHelp": "The part's equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.",
+
   "mm3NoSequence": "No orders in the sequence yet.",
   "mm3NotMeasurable": "Nothing to measure yet: the parts in this sequence have no process times in this scope.",
   "mm3Help": "A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.",
@@ -308,6 +311,11 @@
   "exceptionOperatorsHelp": "Who is on each shift that day. A zero closes that shift.",
   "exceptionDeleteTitle": "Delete this exception?",
   "flowEndpointRename": "Rename endpoint",
+
+  "demandProject": "Project",
+  "demandDeleteAll": "Delete all orders",
+  "demandDeleteAllBody": "Every order in the sequence goes. The parts and their process times stay.",
+  "stepCycleTime": "Cycle time",
 
   "demandParts": "Parts",
   "demandSequence": "Sequence",

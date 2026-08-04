@@ -64,7 +64,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -175,6 +175,27 @@ class AppDatabase extends _$AppDatabase {
         // A workcenter type carries an icon. Additive and nullable, so a type
         // created before this simply draws the default.
         await m.addColumn(workcenterTypes, workcenterTypes.icon);
+      }
+
+      if (from < 9) {
+        // A part carries the **customer's** project — their programme, not the
+        // FlowMap project the study sits in. Additive and nullable, and
+        // guarded on `from >= 6` for the reason the v4 and v5 steps are
+        // guarded on `from >= 2`: the v6 step creates `demand_parts` from the
+        // *current* definition, so a database older than that already has the
+        // column by the time it reaches here (DATA.md).
+        if (from >= 6) {
+          await m.addColumn(demandParts, demandParts.customerProject);
+        }
+
+        // `demand_orders.order_number` is gone. A simulation identifies an
+        // order by the row it is; asking a planner to type a works order
+        // number they already hold in their own system was work for nothing.
+        // A table rebuild, because SQLite cannot drop a column in place on the
+        // versions this app runs against — and guarded on `from >= 6` because
+        // a database older than that gets `demand_orders` from the *current*
+        // definition at the v6 step and never had the column (DATA.md).
+        if (from >= 6) await m.alterTable(TableMigration(demandOrders));
       }
 
       // Reference-data seeding runs outside every version guard, on every

@@ -1138,6 +1138,18 @@ abstract class AppLocalizations {
   /// **'How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope\'s capacity per order, which is a perfectly levelled sequence.'**
   String get mm3SmoothnessHelp;
 
+  /// No description provided for @mm3SlotLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Slot load'**
+  String get mm3SlotLoad;
+
+  /// No description provided for @mm3SlotLoadHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The part\'s equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.'**
+  String get mm3SlotLoadHelp;
+
   /// No description provided for @mm3NoSequence.
   ///
   /// In en, this message translates to:
@@ -1505,6 +1517,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rename endpoint'**
   String get flowEndpointRename;
+
+  /// No description provided for @demandProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get demandProject;
+
+  /// No description provided for @demandDeleteAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all orders'**
+  String get demandDeleteAll;
+
+  /// No description provided for @demandDeleteAllBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every order in the sequence goes. The parts and their process times stay.'**
+  String get demandDeleteAllBody;
+
+  /// No description provided for @stepCycleTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle time'**
+  String get stepCycleTime;
 
   /// No description provided for @demandParts.
   ///

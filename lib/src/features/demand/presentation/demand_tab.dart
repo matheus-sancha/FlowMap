@@ -34,6 +34,22 @@ enum _DemandView { parts, sequence, mm3 }
 class _DemandTabState extends ConsumerState<DemandTab> {
   _DemandView _view = _DemandView.parts;
 
+  Future<void> _deleteAllOrders(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await confirmAction(
+      context,
+      title: l10n.demandDeleteAll,
+      message: l10n.demandDeleteAllBody,
+      confirmLabel: l10n.actionDelete,
+      destructive: true,
+    );
+    if (confirmed) {
+      await ref
+          .read(demandRepositoryProvider)
+          .deleteAllOrders(widget.study.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -50,7 +66,13 @@ class _DemandTabState extends ConsumerState<DemandTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              // Wraps rather than a Row: three controls do not fit a laptop
+              // window side by side, and a toolbar that overflows is a toolbar
+              // with a button nobody can reach.
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   SegmentedButton<_DemandView>(
                     segments: [
@@ -74,7 +96,6 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                     onSelectionChanged: (selection) =>
                         setState(() => _view = selection.first),
                   ),
-                  const SizedBox(width: 12),
                   // Only the two grids can be imported into; MM3 is a reading
                   // of what they hold.
                   if (_view != _DemandView.mm3)
@@ -90,6 +111,14 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                       ),
                       icon: const Icon(Icons.upload_file_outlined),
                       label: Text(l10n.actionImport),
+                    ),
+                  // Clearing the sequence is what a re-import starts with, so
+                  // it sits beside Import rather than behind a row menu.
+                  if (_view == _DemandView.sequence)
+                    TextButton.icon(
+                      onPressed: () => _deleteAllOrders(context),
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      label: Text(l10n.demandDeleteAll),
                     ),
                 ],
               ),
@@ -185,7 +214,8 @@ class _PartsGrid extends ConsumerWidget {
                   ),
             columns: [
               DataGridColumn(title: l10n.demandPartNumber, width: 150),
-              DataGridColumn(title: l10n.demandDescription, width: 220),
+              DataGridColumn(title: l10n.demandProject, width: 150),
+              DataGridColumn(title: l10n.demandDescription, width: 200),
               for (final column in table.columns)
                 DataGridColumn(
                   title: column.title,
@@ -218,6 +248,7 @@ class _PartsGrid extends ConsumerWidget {
     if (row >= table.parts.length) return '';
     final part = table.parts[row];
     if (column == partNumberColumn) return part.partNumber;
+    if (column == partProjectColumn) return part.customerProject ?? '';
     if (column == partDescriptionColumn) return part.description ?? '';
     if (column == _totalColumn) {
       return formatDurationInput(table.totalFor(part.id));
@@ -242,7 +273,11 @@ class _PartsGrid extends ConsumerWidget {
       );
       return clash >= 0 && clash != row ? l10n.validationNameTaken : null;
     }
-    if (column == partDescriptionColumn || column == _totalColumn) return null;
+    if (column == partProjectColumn ||
+        column == partDescriptionColumn ||
+        column == _totalColumn) {
+      return null;
+    }
     if (text.isEmpty) return null;
     return parseDurationInput(text) == null ? l10n.validationNotADuration : null;
   }
@@ -350,8 +385,14 @@ class _SequenceGrid extends ConsumerWidget {
               ],
             ),
       columns: [
-        DataGridColumn(title: l10n.demandOrderNumber, width: 130),
         DataGridColumn(title: l10n.demandPartNumber, width: 150),
+        // Read-only: a part's project belongs to the part, and editing it here
+        // would let two rows of one part disagree about it.
+        DataGridColumn(
+          title: l10n.demandProject,
+          width: 150,
+          readOnly: true,
+        ),
         DataGridColumn(title: l10n.demandBatchSize, width: 90, numeric: true),
         DataGridColumn(title: l10n.demandNeedDate, width: 130, numeric: true),
         DataGridColumn(
@@ -365,8 +406,9 @@ class _SequenceGrid extends ConsumerWidget {
         if (row >= orders.length) return '';
         final order = orders[row];
         return switch (column) {
-          orderNumberColumn => order.orderNumber ?? '',
           orderPartColumn => partsById[order.partId]?.partNumber ?? '',
+          orderProjectColumn =>
+            partsById[order.partId]?.customerProject ?? '',
           orderBatchColumn => '${order.batchSize}',
           orderNeedColumn => formatDateInput(order.needDate, locale),
           _ => formatDateInput(order.materialDate, locale),
@@ -391,7 +433,7 @@ class _SequenceGrid extends ConsumerWidget {
     final isNewRow = row >= orders.length;
 
     switch (column) {
-      case orderNumberColumn:
+      case orderProjectColumn:
         return null;
       case orderPartColumn:
         if (text.isEmpty) return isNewRow ? null : l10n.validationRequired;

@@ -30,7 +30,8 @@ class Mm3Point {
     required this.sequence,
     required this.partNumber,
     required this.batchSize,
-    required this.equivalence,
+    required this.partEquivalence,
+    required this.slotLoad,
     required this.movingAverage,
   });
 
@@ -42,12 +43,25 @@ class Mm3Point {
   final String partNumber;
   final int batchSize;
 
-  /// How many takts of the scope's capacity this order consumes. Null when the
-  /// part has no process time anywhere in scope — it cannot be placed against
-  /// the yardstick at all, which is different from consuming nothing.
-  final double? equivalence;
+  /// `eq(part, scope)` — how many takts of the scope's capacity **one piece**
+  /// of this part consumes (DESIGN.md §6.2).
+  ///
+  /// A property of the part, so every order of PN1 shows the same figure. Null
+  /// when the part has no process time anywhere in scope: it cannot be placed
+  /// against the yardstick at all, which is different from consuming nothing.
+  final double? partEquivalence;
 
-  /// The centered mean of this order's equivalence and its two neighbours'.
+  /// What this **slot** costs: [partEquivalence] × batch size (§18.7).
+  ///
+  /// The two are separate columns deliberately. §6.2's equivalence belongs to
+  /// the part and must not appear to drift; the load a slot carries is what
+  /// MM3 averages, because one takt slot releases one order whatever its size
+  /// and a batch of ten genuinely loads the flow ten times as hard. Showing
+  /// only the product under a heading of "Equivalent" made §6.2's quantity
+  /// look unstable — reported from the field.
+  final double? slotLoad;
+
+  /// The centered mean of this order's [slotLoad] and its two neighbours'.
   ///
   /// Null at the first and last order, which have no neighbour on one side —
   /// blank rather than averaged over two, because a two-point mean is a
@@ -156,11 +170,13 @@ Mm3Series computeMm3({
     return visited ? work / yardstick : null;
   }
 
-  final equivalences = <double?>[];
+  final perPart = <double?>[];
+  final perSlot = <double?>[];
   for (final order in orders) {
     final part = partsById[order.partId];
     final each = part == null ? null : equivalenceOf(part.id);
-    equivalences.add(each == null ? null : each * order.batchSize);
+    perPart.add(each);
+    perSlot.add(each == null ? null : each * order.batchSize);
   }
 
   final points = <Mm3Point>[];
@@ -169,7 +185,7 @@ Mm3Series computeMm3({
 
     double? average;
     if (i > 0 && i < orders.length - 1) {
-      final window = [equivalences[i - 1], equivalences[i], equivalences[i + 1]];
+      final window = [perSlot[i - 1], perSlot[i], perSlot[i + 1]];
       // Blank if any of the three is missing: a mean over two of them is a
       // different number wearing the same column heading.
       if (!window.contains(null)) {
@@ -183,7 +199,8 @@ Mm3Series computeMm3({
         sequence: i,
         partNumber: partsById[order.partId]?.partNumber ?? '—',
         batchSize: order.batchSize,
-        equivalence: equivalences[i],
+        partEquivalence: perPart[i],
+        slotLoad: perSlot[i],
         movingAverage: average,
       ),
     );

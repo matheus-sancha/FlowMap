@@ -566,6 +566,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope\'s capacity per order, which is a perfectly levelled sequence.';
 
   @override
+  String get mm3SlotLoad => 'Slot load';
+
+  @override
+  String get mm3SlotLoadHelp =>
+      'The part\'s equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.';
+
+  @override
   String get mm3NoSequence => 'No orders in the sequence yet.';
 
   @override
@@ -803,6 +810,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flowEndpointRename => 'Rename endpoint';
+
+  @override
+  String get demandProject => 'Project';
+
+  @override
+  String get demandDeleteAll => 'Delete all orders';
+
+  @override
+  String get demandDeleteAllBody =>
+      'Every order in the sequence goes. The parts and their process times stay.';
+
+  @override
+  String get stepCycleTime => 'Cycle time';
 
   @override
   String get demandParts => 'Parts';

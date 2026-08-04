@@ -77,23 +77,31 @@ class _ProjectWorkspaceScreenState
               icon: const Icon(Icons.arrow_back),
               onPressed: () => context.go('/projects'),
             ),
-            title: Text(project.name),
-            actions: [
-              IconButton(
-                tooltip: _sidebarCollapsed
-                    ? l10n.studiesExpand
-                    : l10n.studiesCollapse,
-                icon: Icon(
-                  _sidebarCollapsed
-                      ? Icons.chevron_right
-                      : Icons.chevron_left,
+            // Beside the pane it collapses, not across the window from it: a
+            // control on the right that moves something on the left reads as
+            // belonging to whatever is under it.
+            titleSpacing: 0,
+            title: Row(
+              children: [
+                IconButton(
+                  tooltip: _sidebarCollapsed
+                      ? l10n.studiesExpand
+                      : l10n.studiesCollapse,
+                  icon: Icon(
+                    _sidebarCollapsed
+                        ? Icons.menu_open
+                        : Icons.chevron_left,
+                  ),
+                  onPressed: () => setState(
+                    () => _sidebarCollapsed = !_sidebarCollapsed,
+                  ),
                 ),
-                onPressed: () => setState(
-                  () => _sidebarCollapsed = !_sidebarCollapsed,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(project.name, overflow: TextOverflow.ellipsis),
                 ),
-              ),
-              const SizedBox(width: 4),
-            ],
+              ],
+            ),
           ),
           body: Row(
             children: [

@@ -66,7 +66,7 @@ void main() {
     );
 
     expect(
-      series.points.map((p) => p.equivalence),
+      series.points.map((p) => p.slotLoad),
       [1.20, 1.13, 1.00, 0.90, 1.01],
     );
     expect(series.points.first.movingAverage, isNull);
@@ -112,8 +112,11 @@ void main() {
     );
 
     // One takt slot releases one order (§7.2), so lot sizing is a lever this
-    // measure has to respond to (§7.6).
-    expect(series.points.single.equivalence, 10.0);
+    // measure has to respond to (§7.6). The part's own equivalence does not
+    // move, though: §6.2's quantity belongs to the part, and showing only the
+    // product made it look as if it drifted.
+    expect(series.points.single.slotLoad, 10.0);
+    expect(series.points.single.partEquivalence, 1.0);
   });
 
   test('rework is charged against the part, not against the yardstick', () {
@@ -136,7 +139,7 @@ void main() {
       ],
     );
 
-    expect(series.points.single.equivalence, closeTo(1.037, 0.0001));
+    expect(series.points.single.slotLoad, closeTo(1.037, 0.0001));
   });
 
   group('scope', () {
@@ -180,11 +183,11 @@ void main() {
       );
 
       // PN1: (120 + 40) ÷ (100 + 50) = 1.0667.
-      expect(series.points.first.equivalence, closeTo(160 / 150, 0.0001));
+      expect(series.points.first.slotLoad, closeTo(160 / 150, 0.0001));
       // PN2 skips TTAT, so it contributes nothing there — but the yardstick is
       // the flow's, because that is the capacity a slot of the flow is worth
       // (§5.1).
-      expect(series.points.last.equivalence, closeTo(80 / 150, 0.0001));
+      expect(series.points.last.slotLoad, closeTo(80 / 150, 0.0001));
     });
 
     test('one step measures only that step', () {
@@ -195,10 +198,10 @@ void main() {
         steps: steps,
       );
 
-      expect(series.points.first.equivalence, closeTo(40 / 50, 0.0001));
+      expect(series.points.first.slotLoad, closeTo(40 / 50, 0.0001));
       // A part that does not visit the step has no equivalence there at all —
       // blank, not zero.
-      expect(series.points.last.equivalence, isNull);
+      expect(series.points.last.slotLoad, isNull);
     });
 
     test('a part with no time anywhere in scope is blank', () {
@@ -213,7 +216,7 @@ void main() {
         steps: steps,
       );
 
-      expect(series.points.single.equivalence, isNull);
+      expect(series.points.single.slotLoad, isNull);
     });
 
     test('a missing neighbour blanks the moving average', () {

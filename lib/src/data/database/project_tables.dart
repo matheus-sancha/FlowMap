@@ -316,6 +316,13 @@ class DemandParts extends Table {
   /// `PN2` — what the sequence, the MM3 chart and every report call it.
   TextColumn get partNumber => text().withLength(min: 1, max: 100)();
 
+  /// The **customer's** project this part belongs to — their programme or
+  /// contract, not the FlowMap project this study sits in.
+  ///
+  /// Displayed beside the part number wherever the sequence is read, because a
+  /// planner recognises a part by the job it is for as much as by its number.
+  TextColumn get customerProject => text().nullable()();
+
   TextColumn get description => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -377,9 +384,6 @@ class DemandOrders extends Table {
   /// The sequence is the thing under study: the engine releases from its head
   /// and never reorders it (§7.2), and MM3 measures how smooth it is (§6.3).
   IntColumn get sequence => integer()();
-
-  /// The user's own reference for the order. Displayed, never matched on.
-  TextColumn get orderNumber => text().nullable()();
 
   /// Pieces in the order. Process times are per piece, so this multiplies the
   /// work at every step (§7.6).

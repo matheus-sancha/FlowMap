@@ -9567,6 +9567,17 @@ class $DemandPartsTable extends DemandParts
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _customerProjectMeta = const VerificationMeta(
+    'customerProject',
+  );
+  @override
+  late final GeneratedColumn<String> customerProject = GeneratedColumn<String>(
+    'customer_project',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
   );
@@ -9605,6 +9616,7 @@ class $DemandPartsTable extends DemandParts
     id,
     studyId,
     partNumber,
+    customerProject,
     description,
     createdAt,
     updatedAt,
@@ -9641,6 +9653,15 @@ class $DemandPartsTable extends DemandParts
       );
     } else if (isInserting) {
       context.missing(_partNumberMeta);
+    }
+    if (data.containsKey('customer_project')) {
+      context.handle(
+        _customerProjectMeta,
+        customerProject.isAcceptableOrUnknown(
+          data['customer_project']!,
+          _customerProjectMeta,
+        ),
+      );
     }
     if (data.containsKey('description')) {
       context.handle(
@@ -9692,6 +9713,10 @@ class $DemandPartsTable extends DemandParts
         DriftSqlType.string,
         data['${effectivePrefix}part_number'],
       )!,
+      customerProject: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_project'],
+      ),
       description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}description'],
@@ -9719,6 +9744,13 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
 
   /// `PN2` — what the sequence, the MM3 chart and every report call it.
   final String partNumber;
+
+  /// The **customer's** project this part belongs to — their programme or
+  /// contract, not the FlowMap project this study sits in.
+  ///
+  /// Displayed beside the part number wherever the sequence is read, because a
+  /// planner recognises a part by the job it is for as much as by its number.
+  final String? customerProject;
   final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9726,6 +9758,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     required this.id,
     required this.studyId,
     required this.partNumber,
+    this.customerProject,
     this.description,
     required this.createdAt,
     required this.updatedAt,
@@ -9736,6 +9769,9 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     map['id'] = Variable<String>(id);
     map['study_id'] = Variable<String>(studyId);
     map['part_number'] = Variable<String>(partNumber);
+    if (!nullToAbsent || customerProject != null) {
+      map['customer_project'] = Variable<String>(customerProject);
+    }
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
@@ -9749,6 +9785,9 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       id: Value(id),
       studyId: Value(studyId),
       partNumber: Value(partNumber),
+      customerProject: customerProject == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerProject),
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
@@ -9766,6 +9805,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       id: serializer.fromJson<String>(json['id']),
       studyId: serializer.fromJson<String>(json['studyId']),
       partNumber: serializer.fromJson<String>(json['partNumber']),
+      customerProject: serializer.fromJson<String?>(json['customerProject']),
       description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -9778,6 +9818,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       'id': serializer.toJson<String>(id),
       'studyId': serializer.toJson<String>(studyId),
       'partNumber': serializer.toJson<String>(partNumber),
+      'customerProject': serializer.toJson<String?>(customerProject),
       'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -9788,6 +9829,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     String? id,
     String? studyId,
     String? partNumber,
+    Value<String?> customerProject = const Value.absent(),
     Value<String?> description = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -9795,6 +9837,9 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     id: id ?? this.id,
     studyId: studyId ?? this.studyId,
     partNumber: partNumber ?? this.partNumber,
+    customerProject: customerProject.present
+        ? customerProject.value
+        : this.customerProject,
     description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -9806,6 +9851,9 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       partNumber: data.partNumber.present
           ? data.partNumber.value
           : this.partNumber,
+      customerProject: data.customerProject.present
+          ? data.customerProject.value
+          : this.customerProject,
       description: data.description.present
           ? data.description.value
           : this.description,
@@ -9820,6 +9868,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
           ..write('id: $id, ')
           ..write('studyId: $studyId, ')
           ..write('partNumber: $partNumber, ')
+          ..write('customerProject: $customerProject, ')
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -9828,8 +9877,15 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, studyId, partNumber, description, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    studyId,
+    partNumber,
+    customerProject,
+    description,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -9837,6 +9893,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
           other.id == this.id &&
           other.studyId == this.studyId &&
           other.partNumber == this.partNumber &&
+          other.customerProject == this.customerProject &&
           other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -9846,6 +9903,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
   final Value<String> id;
   final Value<String> studyId;
   final Value<String> partNumber;
+  final Value<String?> customerProject;
   final Value<String?> description;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -9854,6 +9912,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
     this.id = const Value.absent(),
     this.studyId = const Value.absent(),
     this.partNumber = const Value.absent(),
+    this.customerProject = const Value.absent(),
     this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -9863,6 +9922,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
     required String id,
     required String studyId,
     required String partNumber,
+    this.customerProject = const Value.absent(),
     this.description = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -9876,6 +9936,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
     Expression<String>? id,
     Expression<String>? studyId,
     Expression<String>? partNumber,
+    Expression<String>? customerProject,
     Expression<String>? description,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -9885,6 +9946,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
       if (id != null) 'id': id,
       if (studyId != null) 'study_id': studyId,
       if (partNumber != null) 'part_number': partNumber,
+      if (customerProject != null) 'customer_project': customerProject,
       if (description != null) 'description': description,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -9896,6 +9958,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
     Value<String>? id,
     Value<String>? studyId,
     Value<String>? partNumber,
+    Value<String?>? customerProject,
     Value<String?>? description,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -9905,6 +9968,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
       id: id ?? this.id,
       studyId: studyId ?? this.studyId,
       partNumber: partNumber ?? this.partNumber,
+      customerProject: customerProject ?? this.customerProject,
       description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -9923,6 +9987,9 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
     }
     if (partNumber.present) {
       map['part_number'] = Variable<String>(partNumber.value);
+    }
+    if (customerProject.present) {
+      map['customer_project'] = Variable<String>(customerProject.value);
     }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
@@ -9945,6 +10012,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
           ..write('id: $id, ')
           ..write('studyId: $studyId, ')
           ..write('partNumber: $partNumber, ')
+          ..write('customerProject: $customerProject, ')
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -10279,17 +10347,6 @@ class $DemandOrdersTable extends DemandOrders
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _orderNumberMeta = const VerificationMeta(
-    'orderNumber',
-  );
-  @override
-  late final GeneratedColumn<String> orderNumber = GeneratedColumn<String>(
-    'order_number',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _batchSizeMeta = const VerificationMeta(
     'batchSize',
   );
@@ -10352,7 +10409,6 @@ class $DemandOrdersTable extends DemandOrders
     studyId,
     partId,
     sequence,
-    orderNumber,
     batchSize,
     needDate,
     materialDate,
@@ -10399,15 +10455,6 @@ class $DemandOrdersTable extends DemandOrders
       );
     } else if (isInserting) {
       context.missing(_sequenceMeta);
-    }
-    if (data.containsKey('order_number')) {
-      context.handle(
-        _orderNumberMeta,
-        orderNumber.isAcceptableOrUnknown(
-          data['order_number']!,
-          _orderNumberMeta,
-        ),
-      );
     }
     if (data.containsKey('batch_size')) {
       context.handle(
@@ -10477,10 +10524,6 @@ class $DemandOrdersTable extends DemandOrders
         DriftSqlType.int,
         data['${effectivePrefix}sequence'],
       )!,
-      orderNumber: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}order_number'],
-      ),
       batchSize: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}batch_size'],
@@ -10522,9 +10565,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
   /// and never reorders it (§7.2), and MM3 measures how smooth it is (§6.3).
   final int sequence;
 
-  /// The user's own reference for the order. Displayed, never matched on.
-  final String? orderNumber;
-
   /// Pieces in the order. Process times are per piece, so this multiplies the
   /// work at every step (§7.6).
   final int batchSize;
@@ -10540,7 +10580,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     required this.studyId,
     required this.partId,
     required this.sequence,
-    this.orderNumber,
     required this.batchSize,
     required this.needDate,
     this.materialDate,
@@ -10554,9 +10593,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     map['study_id'] = Variable<String>(studyId);
     map['part_id'] = Variable<String>(partId);
     map['sequence'] = Variable<int>(sequence);
-    if (!nullToAbsent || orderNumber != null) {
-      map['order_number'] = Variable<String>(orderNumber);
-    }
     map['batch_size'] = Variable<int>(batchSize);
     map['need_date'] = Variable<DateTime>(needDate);
     if (!nullToAbsent || materialDate != null) {
@@ -10573,9 +10609,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       studyId: Value(studyId),
       partId: Value(partId),
       sequence: Value(sequence),
-      orderNumber: orderNumber == null && nullToAbsent
-          ? const Value.absent()
-          : Value(orderNumber),
       batchSize: Value(batchSize),
       needDate: Value(needDate),
       materialDate: materialDate == null && nullToAbsent
@@ -10596,7 +10629,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       studyId: serializer.fromJson<String>(json['studyId']),
       partId: serializer.fromJson<String>(json['partId']),
       sequence: serializer.fromJson<int>(json['sequence']),
-      orderNumber: serializer.fromJson<String?>(json['orderNumber']),
       batchSize: serializer.fromJson<int>(json['batchSize']),
       needDate: serializer.fromJson<DateTime>(json['needDate']),
       materialDate: serializer.fromJson<DateTime?>(json['materialDate']),
@@ -10612,7 +10644,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       'studyId': serializer.toJson<String>(studyId),
       'partId': serializer.toJson<String>(partId),
       'sequence': serializer.toJson<int>(sequence),
-      'orderNumber': serializer.toJson<String?>(orderNumber),
       'batchSize': serializer.toJson<int>(batchSize),
       'needDate': serializer.toJson<DateTime>(needDate),
       'materialDate': serializer.toJson<DateTime?>(materialDate),
@@ -10626,7 +10657,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     String? studyId,
     String? partId,
     int? sequence,
-    Value<String?> orderNumber = const Value.absent(),
     int? batchSize,
     DateTime? needDate,
     Value<DateTime?> materialDate = const Value.absent(),
@@ -10637,7 +10667,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     studyId: studyId ?? this.studyId,
     partId: partId ?? this.partId,
     sequence: sequence ?? this.sequence,
-    orderNumber: orderNumber.present ? orderNumber.value : this.orderNumber,
     batchSize: batchSize ?? this.batchSize,
     needDate: needDate ?? this.needDate,
     materialDate: materialDate.present ? materialDate.value : this.materialDate,
@@ -10650,9 +10679,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       studyId: data.studyId.present ? data.studyId.value : this.studyId,
       partId: data.partId.present ? data.partId.value : this.partId,
       sequence: data.sequence.present ? data.sequence.value : this.sequence,
-      orderNumber: data.orderNumber.present
-          ? data.orderNumber.value
-          : this.orderNumber,
       batchSize: data.batchSize.present ? data.batchSize.value : this.batchSize,
       needDate: data.needDate.present ? data.needDate.value : this.needDate,
       materialDate: data.materialDate.present
@@ -10670,7 +10696,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
           ..write('studyId: $studyId, ')
           ..write('partId: $partId, ')
           ..write('sequence: $sequence, ')
-          ..write('orderNumber: $orderNumber, ')
           ..write('batchSize: $batchSize, ')
           ..write('needDate: $needDate, ')
           ..write('materialDate: $materialDate, ')
@@ -10686,7 +10711,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     studyId,
     partId,
     sequence,
-    orderNumber,
     batchSize,
     needDate,
     materialDate,
@@ -10701,7 +10725,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
           other.studyId == this.studyId &&
           other.partId == this.partId &&
           other.sequence == this.sequence &&
-          other.orderNumber == this.orderNumber &&
           other.batchSize == this.batchSize &&
           other.needDate == this.needDate &&
           other.materialDate == this.materialDate &&
@@ -10714,7 +10737,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
   final Value<String> studyId;
   final Value<String> partId;
   final Value<int> sequence;
-  final Value<String?> orderNumber;
   final Value<int> batchSize;
   final Value<DateTime> needDate;
   final Value<DateTime?> materialDate;
@@ -10726,7 +10748,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     this.studyId = const Value.absent(),
     this.partId = const Value.absent(),
     this.sequence = const Value.absent(),
-    this.orderNumber = const Value.absent(),
     this.batchSize = const Value.absent(),
     this.needDate = const Value.absent(),
     this.materialDate = const Value.absent(),
@@ -10739,7 +10760,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     required String studyId,
     required String partId,
     required int sequence,
-    this.orderNumber = const Value.absent(),
     this.batchSize = const Value.absent(),
     required DateTime needDate,
     this.materialDate = const Value.absent(),
@@ -10758,7 +10778,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     Expression<String>? studyId,
     Expression<String>? partId,
     Expression<int>? sequence,
-    Expression<String>? orderNumber,
     Expression<int>? batchSize,
     Expression<DateTime>? needDate,
     Expression<DateTime>? materialDate,
@@ -10771,7 +10790,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
       if (studyId != null) 'study_id': studyId,
       if (partId != null) 'part_id': partId,
       if (sequence != null) 'sequence': sequence,
-      if (orderNumber != null) 'order_number': orderNumber,
       if (batchSize != null) 'batch_size': batchSize,
       if (needDate != null) 'need_date': needDate,
       if (materialDate != null) 'material_date': materialDate,
@@ -10786,7 +10804,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     Value<String>? studyId,
     Value<String>? partId,
     Value<int>? sequence,
-    Value<String?>? orderNumber,
     Value<int>? batchSize,
     Value<DateTime>? needDate,
     Value<DateTime?>? materialDate,
@@ -10799,7 +10816,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
       studyId: studyId ?? this.studyId,
       partId: partId ?? this.partId,
       sequence: sequence ?? this.sequence,
-      orderNumber: orderNumber ?? this.orderNumber,
       batchSize: batchSize ?? this.batchSize,
       needDate: needDate ?? this.needDate,
       materialDate: materialDate ?? this.materialDate,
@@ -10823,9 +10839,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     }
     if (sequence.present) {
       map['sequence'] = Variable<int>(sequence.value);
-    }
-    if (orderNumber.present) {
-      map['order_number'] = Variable<String>(orderNumber.value);
     }
     if (batchSize.present) {
       map['batch_size'] = Variable<int>(batchSize.value);
@@ -10855,7 +10868,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
           ..write('studyId: $studyId, ')
           ..write('partId: $partId, ')
           ..write('sequence: $sequence, ')
-          ..write('orderNumber: $orderNumber, ')
           ..write('batchSize: $batchSize, ')
           ..write('needDate: $needDate, ')
           ..write('materialDate: $materialDate, ')
@@ -20999,6 +21011,7 @@ typedef $$DemandPartsTableCreateCompanionBuilder =
       required String id,
       required String studyId,
       required String partNumber,
+      Value<String?> customerProject,
       Value<String?> description,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -21009,6 +21022,7 @@ typedef $$DemandPartsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> studyId,
       Value<String> partNumber,
+      Value<String?> customerProject,
       Value<String?> description,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -21091,6 +21105,11 @@ class $$DemandPartsTableFilterComposer
 
   ColumnFilters<String> get partNumber => $composableBuilder(
     column: $table.partNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customerProject => $composableBuilder(
+    column: $table.customerProject,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21202,6 +21221,11 @@ class $$DemandPartsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get customerProject => $composableBuilder(
+    column: $table.customerProject,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get description => $composableBuilder(
     column: $table.description,
     builder: (column) => ColumnOrderings(column),
@@ -21255,6 +21279,11 @@ class $$DemandPartsTableAnnotationComposer
 
   GeneratedColumn<String> get partNumber => $composableBuilder(
     column: $table.partNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get customerProject => $composableBuilder(
+    column: $table.customerProject,
     builder: (column) => column,
   );
 
@@ -21378,6 +21407,7 @@ class $$DemandPartsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> studyId = const Value.absent(),
                 Value<String> partNumber = const Value.absent(),
+                Value<String?> customerProject = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -21386,6 +21416,7 @@ class $$DemandPartsTableTableManager
                 id: id,
                 studyId: studyId,
                 partNumber: partNumber,
+                customerProject: customerProject,
                 description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -21396,6 +21427,7 @@ class $$DemandPartsTableTableManager
                 required String id,
                 required String studyId,
                 required String partNumber,
+                Value<String?> customerProject = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -21404,6 +21436,7 @@ class $$DemandPartsTableTableManager
                 id: id,
                 studyId: studyId,
                 partNumber: partNumber,
+                customerProject: customerProject,
                 description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -21827,7 +21860,6 @@ typedef $$DemandOrdersTableCreateCompanionBuilder =
       required String studyId,
       required String partId,
       required int sequence,
-      Value<String?> orderNumber,
       Value<int> batchSize,
       required DateTime needDate,
       Value<DateTime?> materialDate,
@@ -21841,7 +21873,6 @@ typedef $$DemandOrdersTableUpdateCompanionBuilder =
       Value<String> studyId,
       Value<String> partId,
       Value<int> sequence,
-      Value<String?> orderNumber,
       Value<int> batchSize,
       Value<DateTime> needDate,
       Value<DateTime?> materialDate,
@@ -21905,11 +21936,6 @@ class $$DemandOrdersTableFilterComposer
 
   ColumnFilters<int> get sequence => $composableBuilder(
     column: $table.sequence,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get orderNumber => $composableBuilder(
-    column: $table.orderNumber,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22004,11 +22030,6 @@ class $$DemandOrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get orderNumber => $composableBuilder(
-    column: $table.orderNumber,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get batchSize => $composableBuilder(
     column: $table.batchSize,
     builder: (column) => ColumnOrderings(column),
@@ -22095,11 +22116,6 @@ class $$DemandOrdersTableAnnotationComposer
 
   GeneratedColumn<int> get sequence =>
       $composableBuilder(column: $table.sequence, builder: (column) => column);
-
-  GeneratedColumn<String> get orderNumber => $composableBuilder(
-    column: $table.orderNumber,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<int> get batchSize =>
       $composableBuilder(column: $table.batchSize, builder: (column) => column);
@@ -22197,7 +22213,6 @@ class $$DemandOrdersTableTableManager
                 Value<String> studyId = const Value.absent(),
                 Value<String> partId = const Value.absent(),
                 Value<int> sequence = const Value.absent(),
-                Value<String?> orderNumber = const Value.absent(),
                 Value<int> batchSize = const Value.absent(),
                 Value<DateTime> needDate = const Value.absent(),
                 Value<DateTime?> materialDate = const Value.absent(),
@@ -22209,7 +22224,6 @@ class $$DemandOrdersTableTableManager
                 studyId: studyId,
                 partId: partId,
                 sequence: sequence,
-                orderNumber: orderNumber,
                 batchSize: batchSize,
                 needDate: needDate,
                 materialDate: materialDate,
@@ -22223,7 +22237,6 @@ class $$DemandOrdersTableTableManager
                 required String studyId,
                 required String partId,
                 required int sequence,
-                Value<String?> orderNumber = const Value.absent(),
                 Value<int> batchSize = const Value.absent(),
                 required DateTime needDate,
                 Value<DateTime?> materialDate = const Value.absent(),
@@ -22235,7 +22248,6 @@ class $$DemandOrdersTableTableManager
                 studyId: studyId,
                 partId: partId,
                 sequence: sequence,
-                orderNumber: orderNumber,
                 batchSize: batchSize,
                 needDate: needDate,
                 materialDate: materialDate,

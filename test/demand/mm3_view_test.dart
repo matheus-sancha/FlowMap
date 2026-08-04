@@ -33,7 +33,7 @@ void main() {
     sequence: i,
     partNumber: 'PN$i',
     batchSize: 1,
-    equivalence: equivalence,
+    partEquivalence: equivalence, slotLoad: equivalence,
     movingAverage: average,
   );
 

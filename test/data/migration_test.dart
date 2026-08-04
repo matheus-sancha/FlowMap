@@ -390,6 +390,90 @@ void main() {
     expect(membership.where((m) => m.workcenterId == 'wc-2'), isEmpty);
   });
 
+  test('v8 to v9: parts gain a project, orders lose their number', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    final v8 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v6Workcenters)
+      ..execute(projectTables)
+      ..execute(v6DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      ..execute('PRAGMA user_version = 8');
+
+    v8
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_parts '
+        '(id, study_id, part_number, created_at, updated_at) '
+        "VALUES ('part-1', 'study-1', 'PN1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+        'order_number, batch_size, need_date, created_at, updated_at) '
+        "VALUES ('order-1', 'study-1', 'part-1', 0, 'SO-9', 4, $now, "
+        '$now, $now)',
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    // The part survives and can now carry a customer project; the order keeps
+    // everything that still means something, minus the works order number the
+    // simulation never needed.
+    final parts = await db.select(db.demandParts).get();
+    expect(parts.single.partNumber, 'PN1');
+    expect(parts.single.customerProject, isNull);
+
+    final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.id, 'order-1');
+    expect(orders.single.batchSize, 4);
+    expect(orders.single.sequence, 0);
+  });
+
   test(
     'a v1 database with no seed stamp still gets its reference data',
     () async {
