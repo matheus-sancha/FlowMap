@@ -801,6 +801,7 @@ The calendar's public surface — the seam everything downstream calls:
 | `nextOpen(from)` | when work could start |
 | `openTimeBetween(from, to)` | capacity in a window (occupation, utilisation) |
 | `advance(from, work)` | when `work` of open time finishes (lead time, simulation) |
+| `retreat(until, work)` | when `work` of open time would have to begin (§7.8, added in M4) |
 
 `advance` and `nextOpen` throw `StateError` rather than looping if the calendar can supply no
 open time within ten years — the simulation's abort guard (§7.8) depends on that failing loudly.
@@ -948,6 +949,33 @@ Decisions taken while building it, beyond §9.1, §9.2, §6.2 and §8.4:
   typing a good name into an empty field rebuilt nothing and Save stayed disabled — every resource
   the prompt creates could only be saved with Enter. It is now built inside a
   `ValueListenableBuilder` on the controller, which leaves nothing to forget to refresh.
+
+### 16.8 M4, first slice
+
+The engine's inputs and the two walks it needs before it can start. No event loop yet, no storage,
+no UI.
+
+- **`SimStudy` and friends carry no Drift handle.** A run is assembled from the database once and
+  then handed to a pure engine — which is what lets it be driven from a three-line test and, when
+  the UI lands, from a background isolate (§7.1), because an isolate can only be passed things that
+  hold no database connection.
+- **The resource model is one workcenter per station**, however many studies point at it (§7.7).
+  That is the whole reason a run is a plant-level object rather than a study-level one.
+- **A buffer's wait is resolved before the run.** A quantity buffer is `pieces × takt` and which
+  takt depends on the period — a question the map already answers. The engine is handed a duration
+  and does not ask where it came from.
+- **`WorkingCalendar.retreat` is the mirror of `advance`.** A run begins at the first order's need
+  date minus its theoretical lead time (§7.8), and "minus" there is a walk, not a subtraction:
+  taking fifteen open hours off a Monday morning lands on the previous Friday, not on the Saturday.
+  Tested as a round trip — `retreat(advance(t, w), w) == t` — across the ABC pattern, whose
+  overlapping night shift is exactly where a naive reversal would drift.
+- **Availability and rework are read at the day the step starts**, not once for the run, because a
+  walk may cross a schedule boundary. `effectiveProcessTime` has been waiting in the calendar
+  feature since M1 for this one caller (§17.5).
+- **The engine's occupancy and the Summary's occupation are the same arithmetic from two ends.**
+  Inflating a step's time by `(1 + rework) ÷ availability` and spending open time gives exactly
+  `required ÷ (open × availability)`. §7.6 reads as though rework should inflate changeover too;
+  it does not, here or in §8.4, because rework is a loss on the work a *part* requires (§6.1).
 
 ---
 

@@ -261,6 +261,48 @@ class WorkingCalendar {
     );
   }
 
+  /// The instant at which [work] of open time would have to **begin** to end
+  /// no later than [until] — [advance] read backwards (DESIGN.md §7.8).
+  ///
+  /// A run starts at the first order's need date minus that part's theoretical
+  /// lead time (§7.9), and "minus" there is a walk, not a subtraction: taking
+  /// 40 open hours off a Monday morning lands on the previous Tuesday, not on
+  /// the previous Saturday. Nothing else can answer that, because a working
+  /// day is not a fixed fraction of a calendar one.
+  ///
+  /// Throws [StateError] if the calendar cannot supply that much open time
+  /// within [_searchLimitDays], for the same reason [advance] does: a calendar
+  /// with no staffed shift must fail loudly rather than loop.
+  DateTime retreat(DateTime until, Duration work) {
+    if (work.isNegative) {
+      throw ArgumentError.value(work, 'work', 'must not be negative');
+    }
+    var remaining = work;
+    var cursor = until;
+    // One day ahead, so a window that started yesterday and runs past midnight
+    // into `until` is seen; the mirror of [advance]'s step backwards.
+    var day = _nextDay(dateOnly(until));
+
+    for (var i = 0; i <= _searchLimitDays; i++) {
+      // Latest first: walking backwards spends the time nearest the deadline
+      // before reaching for anything earlier.
+      for (final interval in intervalsStartingOn(day).reversed) {
+        if (!interval.start.isBefore(cursor)) continue;
+        final end = interval.end.isBefore(cursor) ? interval.end : cursor;
+        final available = end.difference(interval.start);
+        if (remaining <= available) return end.subtract(remaining);
+        remaining -= available;
+        cursor = interval.start;
+      }
+      day = _previousDay(day);
+    }
+    throw StateError(
+      'Could not retreat ${work.inMinutes} min of open time from $until on '
+      '${pattern.name} within $_searchLimitDays days. Check that at least one '
+      'shift has operators assigned.',
+    );
+  }
+
   /// [day]'s intervals, minus whatever the day before already claimed.
   ///
   /// Only the previous day can reach in: a shift window is at most 24 hours
