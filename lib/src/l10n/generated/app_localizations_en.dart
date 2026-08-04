@@ -652,14 +652,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepOperators => 'Operators';
 
   @override
-  String get stepEquivalentTime => 'Equivalent time';
+  String get stepEquivalentTime => 'Process specific takt time';
 
   @override
   String get stepEquivalentFollowsTakt => 'Follows takt';
 
   @override
   String get stepEquivalentHelp =>
-      'The flow equivalent\'s process time here. Leave blank to use one takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station\'s productive days, so 1 day equals one takt-day.';
+      'This step\'s own takt, used by the flow equivalent instead of the line\'s. Leave blank to follow the line\'s takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station\'s productive days, so 1 day equals one takt-day.';
 
   @override
   String get stepProblemUnbound => 'No workcenter or pool selected.';
@@ -709,6 +709,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get footerPce => 'PCE';
+
+  @override
+  String get footerEndDate => 'End date';
+
+  @override
+  String footerRunningDays(String days, String date) {
+    return '$days running days · $date';
+  }
+
+  @override
+  String get footerEndDateHelp =>
+      'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.';
 
   @override
   String pdfGenerated(String build, String timestamp) {

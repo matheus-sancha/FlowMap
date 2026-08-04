@@ -93,6 +93,7 @@ void main() {
     required InventoryMode mode,
     int? quantity,
     int? seconds,
+    bool usesWorkingTime = false,
   }) => FlowNode(
     id: 'node-$position',
     studyId: 'study-1',
@@ -102,7 +103,7 @@ void main() {
     inventoryMode: mode,
     inventoryQuantity: quantity,
     inventorySeconds: seconds,
-    inventoryUsesWorkingTime: false,
+    inventoryUsesWorkingTime: usesWorkingTime,
     createdAt: now,
     updatedAt: now,
   );
@@ -530,6 +531,69 @@ void main() {
       expect(view.buffers.single.wait, const Duration(hours: 24));
     });
 
+    test('a calendar wait is measured in calendar days', () {
+      // The bug this replaced: a 48-hour cooling wait was divided by the
+      // station's 16.77-hour productive day and read as 2.9 d, so the map
+      // disagreed with the "2 days" that had been typed into it.
+      final view = build(
+        nodes: [
+          inventory(0, mode: InventoryMode.duration, seconds: 48 * 3600),
+          step(1, workcenterId: 'WC'),
+        ],
+        contexts: {'WC': context('WC', availability: 0.74)},
+      );
+      final buffer = view.buffers.single;
+
+      expect(buffer.isCalendarWait, isTrue);
+      expect(
+        buffer.referenceWorkingDay,
+        isNull,
+        reason: 'null makes the ladder fall back to 24-hour days',
+      );
+    });
+
+    test('a working-time wait is measured in productive days', () {
+      // It only advances while the station runs, so it is counted in the same
+      // days that station's process time is.
+      final view = build(
+        nodes: [
+          inventory(
+            0,
+            mode: InventoryMode.duration,
+            seconds: 48 * 3600,
+            usesWorkingTime: true,
+          ),
+          step(1, workcenterId: 'WC'),
+        ],
+        contexts: {'WC': context('WC', availability: 0.74)},
+      );
+      final buffer = view.buffers.single;
+
+      expect(buffer.isCalendarWait, isFalse);
+      expect(
+        buffer.referenceWorkingDay!.inSeconds / 3600,
+        closeTo(16.77, 0.01),
+      );
+    });
+
+    test('a one-piece buffer reads the same as the step it feeds', () {
+      // Both are one takt of the same station, so the triangle and the box
+      // beside it must agree.
+      final view = build(
+        nodes: [
+          inventory(0, mode: InventoryMode.quantity, quantity: 1),
+          step(1, workcenterId: 'WC'),
+        ],
+        contexts: {'WC': context('WC', availability: 0.74)},
+      );
+
+      expect(view.buffers.single.wait, view.steps.single.processTime);
+      expect(
+        view.buffers.single.referenceWorkingDay,
+        view.steps.single.referenceWorkingDay,
+      );
+    });
+
     test('a quantity buffer with nothing downstream waits no time', () {
       final view = build(
         nodes: [inventory(0, mode: InventoryMode.quantity, quantity: 5)],
@@ -710,6 +774,143 @@ void main() {
         granularity: PeriodGranularity.quarter,
       );
       expect(view.scheduleVariesInPeriod, isFalse);
+    });
+  });
+
+  group('the running-days walk', () {
+    // The walk always starts at the first day of the viewed period, so every
+    // case here begins 1 August 2026 — a Saturday. ABC works Monday to Friday,
+    // so nothing moves until Monday the 3rd at 05:45, and each takt-day of
+    // 22:40 spills into the following morning.
+    FlowView withNodes(List<FlowNode> nodes, {double availability = 1}) =>
+        buildFlowView(
+          study: study(),
+          nodes: nodes,
+          contexts: {'WC': context('WC', availability: availability)},
+          pools: const {},
+          poolMembers: const {},
+          taktSchedule: taktOf(1, TaktUnit.days),
+          asOf: DateTime(2026, 8),
+        );
+
+    test('walks the real calendar from the first day of the period', () {
+      // Three takt-days from Saturday the 1st: the weekend passes, then Monday
+      // 05:45 → Tuesday 05:05 → Wednesday → Thursday the 6th.
+      final view = withNodes([
+        step(0, workcenterId: 'WC'),
+        step(1, workcenterId: 'WC'),
+        step(2, workcenterId: 'WC'),
+      ]);
+
+      expect(view.endDate!.month, 8);
+      expect(view.endDate!.day, 6);
+      // 1st to 6th inclusive.
+      expect(view.runningDays, 6);
+    });
+
+    test('running days count the closed time that lead time does not', () {
+      final view = withNodes([
+        for (var i = 0; i < 6; i++) step(i, workcenterId: 'WC'),
+      ]);
+
+      // Six takt-days of working time, whatever the calendar does with them.
+      expect(view.leadTime, const Duration(hours: 136));
+      // But they span two weekends' worth of calendar.
+      expect(view.runningDays, greaterThan(6));
+      expect(
+        view.runningDays! - 6,
+        greaterThanOrEqualTo(4),
+        reason: 'the gap is the weekends, and is the reason to show both',
+      );
+    });
+
+    test('a longer flow ends later', () {
+      final short = withNodes([step(0, workcenterId: 'WC')]);
+      final long = withNodes([
+        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
+      ]);
+      expect(long.endDate!.isAfter(short.endDate!), isTrue);
+      expect(long.runningDays!, greaterThan(short.runningDays!));
+    });
+
+    test('running days stay consistent with the end date', () {
+      final view = withNodes([
+        step(0, workcenterId: 'WC'),
+        inventory(1, mode: InventoryMode.duration, seconds: 24 * 3600),
+        step(2, workcenterId: 'WC'),
+      ]);
+      expect(
+        view.runningDays,
+        view.endDate!.difference(view.asOf).inDays + 1,
+      );
+    });
+
+    test('a calendar buffer spends the weekend; a working one waits it out',
+        () {
+      final calendarWait = withNodes([
+        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
+        inventory(4, mode: InventoryMode.duration, seconds: 48 * 3600),
+        step(5, workcenterId: 'WC'),
+      ]);
+      final workingWait = withNodes([
+        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
+        inventory(
+          4,
+          mode: InventoryMode.duration,
+          seconds: 48 * 3600,
+          usesWorkingTime: true,
+        ),
+        step(5, workcenterId: 'WC'),
+      ]);
+
+      // Both wait 48 h, but only the working-time one has to skip the weekend
+      // to spend them.
+      expect(
+        workingWait.endDate!.isAfter(calendarWait.endDate!),
+        isTrue,
+        reason: 'the wall clock runs through a weekend; working time does not',
+      );
+    });
+
+    test('a trailing working-time buffer still uses a calendar', () {
+      // It feeds nothing, so it falls back to the station it just left rather
+      // than silently spending its hours on the wall clock.
+      final trailing = withNodes([
+        step(0, workcenterId: 'WC'),
+        inventory(
+          1,
+          mode: InventoryMode.duration,
+          seconds: 48 * 3600,
+          usesWorkingTime: true,
+        ),
+      ]);
+      final onTheClock = withNodes([
+        step(0, workcenterId: 'WC'),
+        inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
+      ]);
+      expect(trailing.endDate!.isAfter(onTheClock.endDate!), isTrue);
+    });
+
+    test('an uncostable step yields a dash, not a guess', () {
+      final view = withNodes([step(0)]);
+      expect(view.endDate, isNull);
+      expect(view.runningDays, isNull);
+    });
+
+    test('a workcenter that never opens does not hang the walk', () {
+      final view = buildFlowView(
+        study: study(),
+        nodes: [step(0, workcenterId: 'WC')],
+        contexts: {'WC': context('WC', operators: const [0, 0, 0])},
+        pools: const {},
+        poolMembers: const {},
+        taktSchedule: taktOf(1, TaktUnit.days),
+        asOf: DateTime(2026, 8),
+      );
+      // The calendar can never supply the time, so the walk reports nothing
+      // rather than searching to its ten-year limit and throwing.
+      expect(view.endDate, isNull);
+      expect(view.runningDays, isNull);
     });
   });
 

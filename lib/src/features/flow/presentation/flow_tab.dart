@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../common/formatters.dart';
 import '../../../common/unit_labels.dart';
@@ -595,15 +596,16 @@ class _InventoryNode extends ConsumerWidget {
             style: theme.textTheme.titleSmall,
           ),
           Text(
+            // The same rendering as this node's own rung on the ladder
+            // directly below it. Showing the value as typed instead put two
+            // different numbers for one wait on the screen at once.
             buffer.label.isNotEmpty
                 ? buffer.label
-                // A fixed wait reads back in the unit it was typed in; a
-                // quantity buffer has no unit of its own, so it falls back to
-                // the ladder's rendering.
-                : buffer.waitUnit != null
-                ? '${_number(durationIn(buffer.wait, buffer.waitUnit!))} '
-                      '${durationUnitShort(l10n, buffer.waitUnit!)}'
-                : formatLadderTime(buffer.wait, buffer.referenceWorkingDay),
+                : formatAdaptiveDuration(
+                    l10n,
+                    buffer.wait,
+                    workingDay: buffer.referenceWorkingDay,
+                  ),
             style: theme.textTheme.bodySmall,
             overflow: TextOverflow.ellipsis,
           ),
@@ -681,10 +683,6 @@ class _ZoomControls extends StatelessWidget {
   }
 }
 
-/// `2` rather than `2.0` — a wait is written the way it is spoken.
-String _number(double value) =>
-    value == value.roundToDouble() ? '${value.round()}' : '$value';
-
 /// The `+ Insert here` affordance between two nodes (DESIGN.md §5.3).
 class _InsertButton extends ConsumerWidget {
   const _InsertButton({required this.study, required this.position});
@@ -757,6 +755,18 @@ class _FooterMetrics extends StatelessWidget {
               label: l10n.footerLeadTime,
               value: formatAdaptiveDuration(l10n, view!.leadTime),
               help: l10n.footerLeadTimeHelp,
+            ),
+            _Metric(
+              label: l10n.footerEndDate,
+              value: view!.runningDays == null
+                  ? '—'
+                  : l10n.footerRunningDays(
+                      '${view!.runningDays}',
+                      DateFormat.yMMMd(
+                        Localizations.localeOf(context).toString(),
+                      ).format(view!.endDate!),
+                    ),
+              help: l10n.footerEndDateHelp,
             ),
             _Metric(
               label: l10n.footerPce,

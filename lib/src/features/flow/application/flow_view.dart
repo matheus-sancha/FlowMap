@@ -9,6 +9,7 @@ library;
 
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
+import '../../calendar/application/shift_pattern_spec.dart' show dateOnly;
 import '../../calendar/application/working_calendar.dart';
 import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
@@ -211,9 +212,21 @@ class FlowInventoryView extends FlowNodeView {
   @override
   Duration get ladderTime => wait;
 
+  /// A fixed wait measured on the wall clock — cooling, transport — that does
+  /// not stop for the weekend.
+  bool get isCalendarWait =>
+      node.inventoryMode == InventoryMode.duration &&
+      !node.inventoryUsesWorkingTime;
+
   @override
-  Duration? get referenceWorkingDay =>
-      downstreamWorkingDay == Duration.zero ? null : downstreamWorkingDay;
+  Duration? get referenceWorkingDay {
+    // A calendar wait is measured in calendar days: 48 h of cooling is two
+    // days, not the 2.9 productive days it would be if divided by a 16.77-hour
+    // working day. Only a working-time wait, and a quantity buffer — whose
+    // wait is takt-derived — use the station's productive day.
+    if (isCalendarWait) return null;
+    return downstreamWorkingDay == Duration.zero ? null : downstreamWorkingDay;
+  }
 }
 
 /// The whole map for one study at one moment.
@@ -229,7 +242,23 @@ class FlowView {
     required this.taktMissing,
     required this.taktCarriedForward,
     required this.scheduleVariesInPeriod,
+    this.endDate,
+    this.runningDays,
   });
+
+  /// When one order that started on [asOf] would finish, walked through the
+  /// real calendars rather than converted.
+  ///
+  /// Null when the walk cannot be made — an unbound step, a workcenter with no
+  /// staffed shift. A dash is honest; a converted figure would not be.
+  final DateTime? endDate;
+
+  /// Calendar days that walk spans, weekends and shutdowns included.
+  ///
+  /// The companion to [leadTime], which counts working time only. The two
+  /// answer different questions and the gap between them **is** the closed
+  /// time — which is the thing worth seeing.
+  final int? runningDays;
 
   final Study study;
   final List<FlowNodeView> nodes;
@@ -356,11 +385,25 @@ FlowView buildFlowView({
     });
   }
 
+  final walk = _walkCalendar(
+    views: views,
+    nodes: nodes,
+    contexts: contexts,
+    poolMembers: poolMembers,
+    from: start,
+  );
+
   return FlowView(
     study: study,
     nodes: views,
     asOf: start,
     periodEnd: end,
+    endDate: walk,
+    runningDays: walk == null
+        ? null
+        // Inclusive of both ends: a flow that starts and finishes on the same
+        // day spans one running day, not zero.
+        : dateOnly(walk).difference(dateOnly(start)).inDays + 1,
     granularity: granularity,
     dataSource: dataSource,
     takt: takt,
@@ -540,6 +583,71 @@ FlowInventoryView _buildInventory({
     label: label,
     downstreamWorkingDay: productivePerDay,
   );
+}
+
+/// Walks one order through the flow from [from], returning when it finishes.
+///
+/// A **walk, not a conversion**: process time is spent in its own station's
+/// open hours, a working-time buffer in the hours of the station it feeds, and
+/// a calendar buffer on the wall clock, weekends included. That is the whole
+/// point — the gap between this and the working-time lead time is the closed
+/// time, and no ratio can produce it.
+///
+/// Returns null rather than throwing if any step cannot be costed or its
+/// calendar can never open: the map still draws, and the footer shows a dash.
+DateTime? _walkCalendar({
+  required List<FlowNodeView> views,
+  required List<FlowNode> nodes,
+  required Map<String, WorkcenterContext> contexts,
+  required Map<String, List<String>> poolMembers,
+  required DateTime from,
+}) {
+  var cursor = from;
+  try {
+    for (final view in views) {
+      switch (view) {
+        case FlowStepView(:final processTime):
+          if (processTime == null) return null;
+          final calendar = contexts[_targetOf(view.node, poolMembers)]?.calendar;
+          if (calendar == null) return null;
+          cursor = calendar.advance(cursor, processTime);
+
+        case FlowInventoryView(:final wait):
+          if (view.isCalendarWait) {
+            cursor = cursor.add(wait);
+          } else {
+            // Working-time waits run on the calendar of the step they feed —
+            // the same station whose day their `d` is measured in. A buffer at
+            // the end of the flow feeds nothing, so it falls back to the
+            // station it just left; only a flow of buffers alone has no
+            // calendar at all, and then the wall clock is all that is left.
+            final neighbour =
+                _nextStep(nodes, view.position) ??
+                _previousStep(nodes, view.position);
+            final calendar = neighbour == null
+                ? null
+                : contexts[_targetOf(neighbour, poolMembers)]?.calendar;
+            cursor = calendar == null
+                ? cursor.add(wait)
+                : calendar.advance(cursor, wait);
+          }
+      }
+    }
+  } on StateError {
+    // A calendar that can never supply the time — every shift unstaffed.
+    return null;
+  }
+  return cursor;
+}
+
+FlowNode? _previousStep(List<FlowNode> nodes, int beforePosition) {
+  FlowNode? found;
+  for (final node in nodes) {
+    if (node.position < beforePosition && node.kind == FlowNodeKind.step) {
+      found = node;
+    }
+  }
+  return found;
 }
 
 FlowNode? _nextStep(List<FlowNode> nodes, int afterPosition) {

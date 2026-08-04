@@ -225,9 +225,9 @@
   "stepChangeover": "Setup",
   "stepChangeoverHelp": "Cobrado apenas quando a ordem anterior neste centro de trabalho era de outro item.",
   "stepOperators": "Operadores",
-  "stepEquivalentTime": "Tempo do equivalente",
+  "stepEquivalentTime": "Takt time específico do processo",
   "stepEquivalentFollowsTakt": "Segue o takt",
-  "stepEquivalentHelp": "O tempo de processo do equivalente do fluxo nesta etapa. Deixe em branco para usar um takt. Preencha quando um takt inteiro distorceria o balanceamento — uma inspeção que vale só uma fração dele. Dias são dias produtivos desta estação, então 1 dia equivale a um dia de takt.",
+  "stepEquivalentHelp": "O takt próprio desta etapa, usado pelo equivalente do fluxo no lugar do takt da linha. Deixe em branco para seguir o takt da linha. Preencha quando um takt inteiro distorceria o balanceamento — uma inspeção que vale só uma fração dele. Dias são dias produtivos desta estação, então 1 dia equivale a um dia de takt.",
   "stepProblemUnbound": "Nenhum centro de trabalho ou pool selecionado.",
   "stepProblemArchived": "O centro de trabalho foi arquivado ou excluído.",
   "stepProblemNoSchedule": "Nenhum período de programação cobre este mês.",
@@ -245,6 +245,9 @@
   "footerProcessTime": "Tempo de processo",
   "footerLeadTime": "Lead time",
   "footerPce": "PCE",
+  "footerEndDate": "Data de término",
+  "footerRunningDays": "{days} dias corridos · {date}",
+  "footerEndDateHelp": "Quando uma ordem iniciada no primeiro dia deste período terminaria, percorrendo os calendários reais. A diferença para o lead time são os fins de semana e as paradas.",
   "pdfGenerated": "FlowMap {build} · gerado em {timestamp}",
   "pdfSaved": "Salvo em {path}"
 }

@@ -661,14 +661,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stepOperators => 'Operarios';
 
   @override
-  String get stepEquivalentTime => 'Tiempo del equivalente';
+  String get stepEquivalentTime => 'Takt time específico del proceso';
 
   @override
   String get stepEquivalentFollowsTakt => 'Sigue el takt';
 
   @override
   String get stepEquivalentHelp =>
-      'El tiempo de proceso del equivalente del flujo en este paso. Déjalo vacío para usar un takt. Rellénalo cuando un takt completo desequilibraría la comparación — una inspección que vale solo una fracción. Los días son días productivos de esta estación, así que 1 día equivale a un día de takt.';
+      'El takt propio de este paso, usado por el equivalente del flujo en lugar del de la línea. Déjalo vacío para seguir el takt de la línea. Rellénalo cuando un takt completo desequilibraría la comparación — una inspección que vale solo una fracción. Los días son días productivos de esta estación, así que 1 día equivale a un día de takt.';
 
   @override
   String get stepProblemUnbound =>
@@ -720,6 +720,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get footerPce => 'PCE';
+
+  @override
+  String get footerEndDate => 'Fecha de fin';
+
+  @override
+  String footerRunningDays(String days, String date) {
+    return '$days días corridos · $date';
+  }
+
+  @override
+  String get footerEndDateHelp =>
+      'Cuándo terminaría una orden iniciada el primer día de este periodo, recorriendo los calendarios reales. La diferencia con el lead time son los fines de semana y los paros.';
 
   @override
   String pdfGenerated(String build, String timestamp) {

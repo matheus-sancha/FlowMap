@@ -1279,7 +1279,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepEquivalentTime.
   ///
   /// In en, this message translates to:
-  /// **'Equivalent time'**
+  /// **'Process specific takt time'**
   String get stepEquivalentTime;
 
   /// No description provided for @stepEquivalentFollowsTakt.
@@ -1291,7 +1291,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepEquivalentHelp.
   ///
   /// In en, this message translates to:
-  /// **'The flow equivalent\'s process time here. Leave blank to use one takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station\'s productive days, so 1 day equals one takt-day.'**
+  /// **'This step\'s own takt, used by the flow equivalent instead of the line\'s. Leave blank to follow the line\'s takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station\'s productive days, so 1 day equals one takt-day.'**
   String get stepEquivalentHelp;
 
   /// No description provided for @stepProblemUnbound.
@@ -1383,6 +1383,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'PCE'**
   String get footerPce;
+
+  /// No description provided for @footerEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get footerEndDate;
+
+  /// No description provided for @footerRunningDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} running days · {date}'**
+  String footerRunningDays(String days, String date);
+
+  /// No description provided for @footerEndDateHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.'**
+  String get footerEndDateHelp;
 
   /// No description provided for @pdfGenerated.
   ///

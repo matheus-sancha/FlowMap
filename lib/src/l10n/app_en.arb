@@ -265,9 +265,9 @@
   "stepChangeover": "Changeover",
   "stepChangeoverHelp": "Charged only when the previous order on this workcenter was a different part.",
   "stepOperators": "Operators",
-  "stepEquivalentTime": "Equivalent time",
+  "stepEquivalentTime": "Process specific takt time",
   "stepEquivalentFollowsTakt": "Follows takt",
-  "stepEquivalentHelp": "The flow equivalent's process time here. Leave blank to use one takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station's productive days, so 1 day equals one takt-day.",
+  "stepEquivalentHelp": "This step's own takt, used by the flow equivalent instead of the line's. Leave blank to follow the line's takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station's productive days, so 1 day equals one takt-day.",
   "stepProblemUnbound": "No workcenter or pool selected.",
   "stepProblemArchived": "Its workcenter has been archived or deleted.",
   "stepProblemNoSchedule": "No schedule period covers this month.",
@@ -285,6 +285,12 @@
   "footerProcessTime": "Process time",
   "footerLeadTime": "Lead time",
   "footerPce": "PCE",
+  "footerEndDate": "End date",
+  "footerRunningDays": "{days} running days · {date}",
+  "@footerRunningDays": {
+    "placeholders": { "days": { "type": "String" }, "date": { "type": "String" } }
+  },
+  "footerEndDateHelp": "When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.",
   "pdfGenerated": "FlowMap {build} · generated {timestamp}",
   "@pdfGenerated": {
     "placeholders": { "build": { "type": "String" }, "timestamp": { "type": "String" } }

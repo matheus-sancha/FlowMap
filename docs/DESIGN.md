@@ -251,10 +251,12 @@ exactly `3.0 d` however bad a station's uptime, while a real part at 57 h reads
 `3.40 d`. The box, the ladder and the footer totals all read the one figure, so
 PCE stays a ratio of like with like.
 
-### 6.1.1 A step may state the equivalent itself
+### 6.1.1 Process Specific Takt Time
 
-A flow step can override its equivalent process time
-(`flow_nodes.equivalent_value` + `equivalent_unit`, null = follow the takt).
+A flow step can carry its own takt — its **Process Specific Takt Time**, which
+is what the field is called on screen (`flow_nodes.equivalent_value` +
+`equivalent_unit`, null = follow the line's takt; the columns keep their
+original names, since renaming them would cost a table rebuild for nothing).
 
 This is a property of the **yardstick, not the station**: an inspection that
 genuinely takes a fraction of a takt would otherwise make the equivalent claim a
@@ -691,50 +693,41 @@ Decisions taken while building it:
 
 ---
 
-## 17. Queued before M3
+## 17. Done between M2 and M3
 
-Raised at the end of the M2 session. Do these first; M3's demand work builds on
-all three.
+### 17.1 A buffer's time now agrees with itself
 
-### 17.1 Rename the step equivalent to "Process Specific Takt Time"
+Reported against the built map, and it had two independent causes:
 
-What §6.1.1 calls a step's *equivalent time* is to be called **Process Specific
-Takt Time** throughout — the field label, the helper text, the `*` marker's
-explanation and this document's heading. The concept does not change: an
-absolute value plus a [TaktUnit] on a flow step, null meaning "follow the line's
-takt".
+- **The ladder divided every rung by the productive day.** A fixed wait is
+  calendar time unless its working-time flag is set, so 48 h of cooling read as
+  2.9 d against a 16.77-hour day. A calendar wait is now measured in calendar
+  days; only working-time waits and quantity buffers — whose wait is
+  takt-derived — use the station's productive day
+  (`FlowInventoryView.isCalendarWait`).
+- **The triangle and its own rung rendered differently.** The triangle showed
+  the value as typed while the rung showed the ladder's units, putting two
+  numbers for one wait on screen. The triangle now uses the ladder's rendering;
+  the value as typed lives in the editor, where it is entered.
 
-Touches `stepEquivalentTime` / `stepEquivalentFollowsTakt` / `stepEquivalentHelp`
-in all three `.arb` files, and the wording of §6.1.1. The column names
-(`flow_nodes.equivalent_value` / `equivalent_unit`) can stay as they are — a
-rename there costs a table rebuild for no gain — but a doc comment should say
-what the field is called on screen.
+A one-piece quantity buffer and the step it feeds are asserted equal, since both
+are one takt of the same station.
 
-### 17.2 An inventory node's time does not match the step beside it
+### 17.2 Running days in the footer
 
-Reported against the built map: the time shown on an inventory triangle does not
-agree with the time on the node it sits next to. Not yet diagnosed. Start with
-the deliberate decision in §6.1.1 — **a quantity buffer uses the line's takt,
-never a downstream step's own takt** — because that alone makes a buffer disagree
-with an overridden step, by design, and may be the whole of what was seen. If it
-is, the question is whether the decision is right rather than whether the code is.
+Beside the working-time lead time, the footer states the calendar span:
+`11 running days · Aug 13, 2026`.
 
-If that is not it, the suspects are `_buildInventory` in
-`features/flow/application/flow_view.dart`: which step `_nextStep` resolves to,
-and whether the buffer's `downstreamWorkingDay` is the same productive-hours
-figure the step itself used.
+It is a **walk, not a conversion** (`_walkCalendar`). Process time is spent in
+its own station's open hours, a working-time buffer in the hours of the station
+it feeds — or, at the end of a flow, the one it just left — and a calendar
+buffer on the wall clock, weekends included. The gap between the two figures is
+the closed time, which no ratio could produce.
 
-### 17.3 Running-days lead time in the footer
-
-The footer states lead time in working time. Add the **calendar** span beside it
-— the mockup's `11 running days · Aug 13, 2026` next to `9.0 working days`.
-
-It is a calendar walk, not a conversion: take the study's start date, advance the
-lead time through the flow's calendars, and report both the elapsed calendar days
-and the end date. Note that the two figures answer different questions and the
-gap between them is the weekends and shutdowns, which is worth seeing. Needs a
-decision on which date the walk starts from when no demand exists yet — the
-viewed period's first day is the obvious candidate.
+The walk starts at the **first day of the viewed period**, since no demand
+exists yet to supply a real start date; M3 replaces that with the first order's.
+It returns nothing rather than a guess when a step cannot be costed or its
+calendar can never open, and the footer shows a dash.
 
 ## 18. Open assumptions
 
