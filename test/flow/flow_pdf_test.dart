@@ -12,7 +12,19 @@ import 'package:flutter_test/flutter_test.dart';
 /// without a widget tree or a file dialog (DESIGN.md §13).
 /// A stand-in for the app's localized formatter, which needs a `BuildContext`
 /// the document builder deliberately does not have.
-String _hours(Duration d) => '${d.inHours} h';
+///
+/// It records what it was asked to render, which is how the tests check that
+/// the document measures a duration against the same working day the canvas
+/// does — the numbers themselves live inside a PDF's compressed content stream
+/// and cannot be read back out (DESIGN.md §17.4).
+class _Format {
+  final calls = <({Duration duration, Duration? workingDay})>[];
+
+  String call(Duration duration, {Duration? workingDay}) {
+    calls.add((duration: duration, workingDay: workingDay));
+    return '${duration.inHours} h';
+  }
+}
 
 void main() {
   final now = DateTime(2026, 8, 1);
@@ -33,6 +45,7 @@ void main() {
     generated: 'FlowMap test',
     dataSource: 'Flow equivalent',
     taktValue: '1 days',
+    localEquivalentMark: ' *',
   );
 
   final pattern = ShiftPatternSpec(
@@ -131,7 +144,7 @@ void main() {
     final bytes = await buildFlowPdf(
       view: viewWith([step(0), buffer(1), step(2)]),
       strings: strings,
-      formatDuration: _hours,
+      formatDuration: _Format().call,
     );
 
     expect(bytes, isNotEmpty);
@@ -145,7 +158,7 @@ void main() {
     final bytes = await buildFlowPdf(
       view: viewWith(const []),
       strings: strings,
-      formatDuration: _hours,
+      formatDuration: _Format().call,
     );
     expect(bytes, isNotEmpty);
   });
@@ -169,8 +182,74 @@ void main() {
     final bytes = await buildFlowPdf(
       view: view,
       strings: strings,
-      formatDuration: _hours,
+      formatDuration: _Format().call,
     );
     expect(bytes, isNotEmpty);
+  });
+
+  group('the exported map reads the same days as the screen', () {
+    test('a rung is measured against its own station working day', () async {
+      final view = viewWith([step(0)]);
+      final format = _Format();
+      await buildFlowPdf(
+        view: view,
+        strings: strings,
+        formatDuration: format.call,
+      );
+
+      final rung = view.nodes.single;
+      // 8:48 open × 74 % = 6:30:43 productive, and a 1-day takt is one of
+      // those — so the rung reads 1.0 d only if the working day comes with it.
+      expect(rung.referenceWorkingDay, isNotNull);
+      expect(rung.ladderDays, closeTo(1, 1e-9));
+      expect(
+        format.calls,
+        contains((
+          duration: rung.ladderTime,
+          workingDay: rung.referenceWorkingDay,
+        )),
+      );
+    });
+
+    test('a buffer is measured against the step it drains into', () async {
+      final view = viewWith([buffer(0), step(1)]);
+      final format = _Format();
+      await buildFlowPdf(
+        view: view,
+        strings: strings,
+        formatDuration: format.call,
+      );
+
+      final wait = view.buffers.single;
+      // Asserted non-null first: a `contains` of two nulls would pass while
+      // proving nothing.
+      expect(wait.referenceWorkingDay, isNotNull);
+      expect(
+        format.calls,
+        contains((
+          duration: wait.wait,
+          workingDay: wait.referenceWorkingDay,
+        )),
+      );
+    });
+
+    test('the footer totals carry the ladder working day', () async {
+      final view = viewWith([step(0), step(1)]);
+      final format = _Format();
+      await buildFlowPdf(
+        view: view,
+        strings: strings,
+        formatDuration: format.call,
+      );
+
+      expect(view.leadTimeInDays, closeTo(2, 1e-9));
+      expect(
+        format.calls,
+        contains((
+          duration: view.leadTime,
+          workingDay: view.leadTimeWorkingDay,
+        )),
+      );
+    });
   });
 }

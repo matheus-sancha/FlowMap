@@ -140,23 +140,16 @@ class _Toolbar extends ConsumerWidget {
                   }
                 },
                 items: [
-                  DropdownMenuItem(
-                    value: FlowDataSource.flowEquivalent,
-                    child: Text(l10n.flowSourceEquivalent),
-                  ),
-                  // Offered but not selectable: both need the demand table,
-                  // which arrives in M3. Showing them keeps the shape of the
-                  // choice visible instead of adding it later as a surprise.
-                  DropdownMenuItem(
-                    value: FlowDataSource.singlePart,
-                    enabled: false,
-                    child: Text(l10n.flowSourceSinglePart),
-                  ),
-                  DropdownMenuItem(
-                    value: FlowDataSource.weightedVariants,
-                    enabled: false,
-                    child: Text(l10n.flowSourceWeighted),
-                  ),
+                  for (final source in FlowDataSource.values)
+                    DropdownMenuItem(
+                      value: source,
+                      // The other two are offered but not selectable: both need
+                      // the demand table, which arrives in M3. Showing them
+                      // keeps the shape of the choice visible instead of adding
+                      // it later as a surprise.
+                      enabled: source == FlowDataSource.flowEquivalent,
+                      child: Text(flowDataSourceLabel(l10n, source)),
+                    ),
                 ],
               ),
             ),
@@ -746,14 +739,25 @@ class _FooterMetrics extends StatelessWidget {
               help: l10n.footerTaktHelp,
               warning: view!.taktMissing,
             ),
+            // Measured in the same days as the rungs above them, so the footer
+            // is the sum of the ladder rather than a second opinion about it
+            // (DESIGN.md §17.4).
             _Metric(
               label: l10n.footerProcessTime,
-              value: formatAdaptiveDuration(l10n, view!.processTime),
+              value: formatAdaptiveDuration(
+                l10n,
+                view!.processTime,
+                workingDay: view!.processTimeWorkingDay,
+              ),
               help: l10n.footerProcessTimeHelp,
             ),
             _Metric(
               label: l10n.footerLeadTime,
-              value: formatAdaptiveDuration(l10n, view!.leadTime),
+              value: formatAdaptiveDuration(
+                l10n,
+                view!.leadTime,
+                workingDay: view!.leadTimeWorkingDay,
+              ),
               help: l10n.footerLeadTimeHelp,
             ),
             _Metric(

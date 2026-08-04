@@ -101,6 +101,18 @@ sealed class FlowNodeView {
   /// read `3.8 d` the way a value-stream map draws it. Null — and the rung
   /// falls back to hours — when no schedule gives this node a working day.
   Duration? get referenceWorkingDay;
+
+  /// [ladderTime] in the days its own rung is drawn in: this station's
+  /// productive day, or a plain 24 hours where none applies (a calendar wait,
+  /// or a step with no schedule).
+  ///
+  /// The footer totals are summed from these rather than from the durations,
+  /// so `Lead time` is the sum of the rungs above it even when the steps
+  /// differ in how long their day is (DESIGN.md §17.4).
+  double get ladderDays {
+    final day = referenceWorkingDay ?? const Duration(hours: 24);
+    return day.inSeconds == 0 ? 0 : ladderTime.inSeconds / day.inSeconds;
+  }
 }
 
 /// A process box.
@@ -308,12 +320,30 @@ class FlowView {
     return lead == 0 ? 0 : processTime.inSeconds / lead;
   }
 
-  /// Every step's takt, summed — what the flow equivalent's own lead time would
-  /// be with no buffers.
-  Duration get flowEquivalentProcessTime => steps.fold(
-    Duration.zero,
-    (total, step) => total + (step.processTime ?? Duration.zero),
-  );
+  /// The footer totals in ladder days — each node measured against its own
+  /// rung's working day, then added up (DESIGN.md §17.4).
+  double get processTimeInDays =>
+      steps.fold(0, (total, step) => total + step.ladderDays);
+
+  double get leadTimeInDays =>
+      nodes.fold(0, (total, node) => total + node.ladderDays);
+
+  /// The working day that makes [processTime] read as [processTimeInDays], for
+  /// the one formatter the boxes, rungs and footer all share.
+  ///
+  /// A derived divisor rather than a chosen one: the steps of a flow do not
+  /// have to share a working day — a single-shift station and a three-shift one
+  /// legitimately differ — so there is no one day to pick, only the one that
+  /// makes the total agree with the rungs it is a total of. Null for an empty
+  /// flow, where the formatter's own 24-hour fallback is as good an answer as
+  /// any.
+  Duration? get processTimeWorkingDay =>
+      _workingDayFor(processTime, processTimeInDays);
+
+  Duration? get leadTimeWorkingDay => _workingDayFor(leadTime, leadTimeInDays);
+
+  static Duration? _workingDayFor(Duration total, double days) =>
+      days <= 0 ? null : Duration(seconds: (total.inSeconds / days).round());
 
   bool get hasBlockingProblems =>
       taktMissing || steps.any((s) => s.problems.isNotEmpty);

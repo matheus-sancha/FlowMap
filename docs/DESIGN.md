@@ -770,6 +770,38 @@ day; ABCD's windows touch without overlapping), which is why 76 calendar tests
 did not catch it. The regression case is a pattern with an hour of real
 overrun.
 
+### 17.4 One kind of day per screen
+
+§6.1 says the box, the ladder and the footer totals all read the one figure.
+Three places did not.
+
+- **The PDF's ladder and buffers were in 24-hour days** while the canvas drew
+  the same rungs in each station's productive day. A one-takt step read `3.0 d`
+  on screen and `2.1 d` on the printed map. The renderer took a
+  `String Function(Duration)`, which simply could not be handed a working day —
+  the type made the bug unfixable at the call site. It now takes a
+  `FlowDurationFormat` that carries one, so the omission would be a compile
+  error rather than a quieter number.
+- **The footer totals were in 24-hour days** while the rungs directly above
+  them were in productive ones: three steps of one 3-day takt showed three
+  rungs of `3.0 d` over a lead time of `6.3 d`. The totals are now summed as
+  ladder days — each node against its own rung's working day — and rendered
+  against the divisor that reproduces that sum. A derived divisor rather than a
+  chosen one, because the steps of a flow legitimately differ in how long their
+  day is, so there is no single station's day to pick; only the one that makes
+  a total agree with what it totals. A calendar wait keeps its plain 24 hours,
+  which is what its own rung reads (§17.1).
+- **The PDF named the data source and the override marker wrongly.** The header
+  was hardcoded to "Flow equivalent" and the `*` on a step carrying its own
+  Process Specific Takt (§6.1.1) was missing, so a printed map could not be read
+  the way §6.1.1 requires. Both now come from the view, through an exhaustive
+  switch that M3's two extra sources cannot be added without updating.
+
+The PDF's numbers live in a compressed content stream and cannot be read back
+out of the bytes, so the tests assert on what the renderer *asks* to be
+formatted — a recording formatter, rather than a golden file that would have to
+be regenerated on every layout tweak.
+
 ---
 
 ## 18. Open assumptions

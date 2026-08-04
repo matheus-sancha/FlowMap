@@ -38,3 +38,14 @@ String granularityLabel(AppLocalizations l10n, PeriodGranularity granularity) =>
       PeriodGranularity.semester => l10n.periodSemesterly,
       PeriodGranularity.year => l10n.periodYearly,
     };
+
+/// Which numbers the map is showing. Shared by the toolbar's selector and the
+/// PDF's header, so an exported map cannot name a source the app was not
+/// showing — an exhaustive switch, so M3's two sources cannot be added without
+/// this being updated.
+String flowDataSourceLabel(AppLocalizations l10n, FlowDataSource source) =>
+    switch (source) {
+      FlowDataSource.flowEquivalent => l10n.flowSourceEquivalent,
+      FlowDataSource.singlePart => l10n.flowSourceSinglePart,
+      FlowDataSource.weightedVariants => l10n.flowSourceWeighted,
+    };

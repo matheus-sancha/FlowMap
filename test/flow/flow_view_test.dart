@@ -623,6 +623,47 @@ void main() {
       final view = build(nodes: const [], contexts: {});
       expect(view.leadTime, Duration.zero);
       expect(view.processCycleEfficiency, 0);
+      expect(view.leadTimeInDays, 0);
+      expect(view.leadTimeWorkingDay, isNull);
+    });
+
+    test('the totals are the sum of the rungs above them', () {
+      // Three steps, each one takt of its own station: 3 + 3 + 3 = 9 days,
+      // whatever the stations' hours (DESIGN.md §17.4).
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'THREE'),
+          step(1, workcenterId: 'ONE'),
+          step(2, workcenterId: 'THREE'),
+        ],
+        contexts: {
+          'THREE': context('THREE'),
+          'ONE': context('ONE', operators: const [1, 0, 0]),
+        },
+      );
+
+      expect(view.processTimeInDays, closeTo(9, 1e-9));
+      expect(view.leadTimeInDays, closeTo(9, 1e-9));
+      // Not any one station's day: a weighted one that makes the total agree
+      // with the rungs it totals.
+      expect(
+        view.leadTime.inSeconds / view.leadTimeWorkingDay!.inSeconds,
+        closeTo(9, 1e-3),
+      );
+    });
+
+    test('a calendar wait counts as the 24-hour days its rung reads', () {
+      // 48 h of cooling is 2 days on the ladder, beside a step worth 3.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'WC'),
+          inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
+        ],
+        contexts: {'WC': context('WC')},
+      );
+
+      expect(view.leadTimeInDays, closeTo(5, 1e-9));
+      expect(view.processTimeInDays, closeTo(3, 1e-9));
     });
   });
 
