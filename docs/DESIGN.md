@@ -406,6 +406,20 @@ Otherwise the slot is recorded **EMPTY** and the head waits for the next slot. N
 
 The user's sequence is the thing under study — the app must not silently repair a bad one.
 
+**How fast slots come round, as built.** A takt in days means productive days of a station (§6.1),
+so a cadence needs one station's clock. The engine is handed a resolved interval and the id of the
+station whose open time it is measured in; slots then walk that calendar, so a 3-day takt is three
+*working* days apart rather than 72 hours.
+
+The station is the **busiest step by work content across the whole demand** — `Σ (part_pt × batch)`
+at each step, over every order in the sequence. Deliberately not §8.2's occupation-based bottleneck,
+which is the right answer to a different question: occupation is *per period*, and a run spans years.
+This one needs no period and cannot change under the run's own feet. Ties break by id, so two runs
+of the same study cannot disagree.
+
+The takt is resolved **once, at the run's start**. §18.3 leaves mid-flight takt changes open, and
+until it is settled a run keeps one cadence throughout.
+
 ### 7.3 Kanban — study-level CONWIP cap
 
 One optional number per study: maximum orders open in the flow at once. A release requires a
