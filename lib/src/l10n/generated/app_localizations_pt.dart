@@ -446,6 +446,36 @@ class AppLocalizationsPt extends AppLocalizations {
       'Precisa de pelo menos uma peça na aba Demanda';
 
   @override
+  String get mm3 => 'MM3';
+
+  @override
+  String get mm3Column => 'MM3';
+
+  @override
+  String get mm3Scope => 'Medido sobre';
+
+  @override
+  String get mm3WholeFlow => 'Fluxo inteiro';
+
+  @override
+  String get mm3Smoothness => 'Desvio médio';
+
+  @override
+  String get mm3SmoothnessHelp =>
+      'O quanto a média móvel fica longe de 1,0 em média. 1,0 é um takt da capacidade do escopo por pedido, ou seja, uma sequência perfeitamente nivelada.';
+
+  @override
+  String get mm3NoSequence => 'Ainda não há pedidos na sequência.';
+
+  @override
+  String get mm3NotMeasurable =>
+      'Nada a medir ainda: as peças desta sequência não têm tempos de processo neste escopo.';
+
+  @override
+  String get mm3Help =>
+      'Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas. Reordene na aba Sequência e veja achatar.';
+
+  @override
   String get demandParts => 'Peças';
 
   @override

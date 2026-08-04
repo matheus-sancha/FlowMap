@@ -10,6 +10,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../application/demand_paste.dart';
 import '../application/demand_providers.dart';
 import '../application/demand_table.dart';
+import 'mm3_view.dart';
 
 /// The Demand tab: the parts and their process times, and the order sequence
 /// (DESIGN.md §9).
@@ -26,7 +27,7 @@ class DemandTab extends ConsumerStatefulWidget {
   ConsumerState<DemandTab> createState() => _DemandTabState();
 }
 
-enum _DemandView { parts, sequence }
+enum _DemandView { parts, sequence, mm3 }
 
 class _DemandTabState extends ConsumerState<DemandTab> {
   _DemandView _view = _DemandView.parts;
@@ -58,6 +59,11 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                     label: Text(l10n.demandSequence),
                     icon: const Icon(Icons.low_priority),
                   ),
+                  ButtonSegment(
+                    value: _DemandView.mm3,
+                    label: Text(l10n.mm3),
+                    icon: const Icon(Icons.show_chart),
+                  ),
                 ],
                 selected: {_view},
                 onSelectionChanged: (selection) =>
@@ -66,9 +72,11 @@ class _DemandTabState extends ConsumerState<DemandTab> {
               const Spacer(),
               Flexible(
                 child: Text(
-                  _view == _DemandView.parts
-                      ? l10n.demandTimesHelp
-                      : l10n.demandSequenceHelp,
+                  switch (_view) {
+                    _DemandView.parts => l10n.demandTimesHelp,
+                    _DemandView.sequence => l10n.demandSequenceHelp,
+                    _DemandView.mm3 => l10n.mm3Help,
+                  },
                   textAlign: TextAlign.end,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
@@ -90,6 +98,7 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                 study: widget.study,
                 table: table,
               ),
+              _DemandView.mm3 => Mm3View(study: widget.study),
             },
           ),
         ),

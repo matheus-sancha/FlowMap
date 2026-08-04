@@ -904,6 +904,60 @@ abstract class AppLocalizations {
   /// **'Needs at least one part in the Demand tab'**
   String get flowSourceNeedsDemand;
 
+  /// No description provided for @mm3.
+  ///
+  /// In en, this message translates to:
+  /// **'MM3'**
+  String get mm3;
+
+  /// No description provided for @mm3Column.
+  ///
+  /// In en, this message translates to:
+  /// **'MM3'**
+  String get mm3Column;
+
+  /// No description provided for @mm3Scope.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured over'**
+  String get mm3Scope;
+
+  /// No description provided for @mm3WholeFlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole flow'**
+  String get mm3WholeFlow;
+
+  /// No description provided for @mm3Smoothness.
+  ///
+  /// In en, this message translates to:
+  /// **'Average deviation'**
+  String get mm3Smoothness;
+
+  /// No description provided for @mm3SmoothnessHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope\'s capacity per order, which is a perfectly levelled sequence.'**
+  String get mm3SmoothnessHelp;
+
+  /// No description provided for @mm3NoSequence.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders in the sequence yet.'**
+  String get mm3NoSequence;
+
+  /// No description provided for @mm3NotMeasurable.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to measure yet: the parts in this sequence have no process times in this scope.'**
+  String get mm3NotMeasurable;
+
+  /// No description provided for @mm3Help.
+  ///
+  /// In en, this message translates to:
+  /// **'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.'**
+  String get mm3Help;
+
   /// No description provided for @demandParts.
   ///
   /// In en, this message translates to:

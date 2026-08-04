@@ -441,6 +441,36 @@ class AppLocalizationsEn extends AppLocalizations {
       'Needs at least one part in the Demand tab';
 
   @override
+  String get mm3 => 'MM3';
+
+  @override
+  String get mm3Column => 'MM3';
+
+  @override
+  String get mm3Scope => 'Measured over';
+
+  @override
+  String get mm3WholeFlow => 'Whole flow';
+
+  @override
+  String get mm3Smoothness => 'Average deviation';
+
+  @override
+  String get mm3SmoothnessHelp =>
+      'How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope\'s capacity per order, which is a perfectly levelled sequence.';
+
+  @override
+  String get mm3NoSequence => 'No orders in the sequence yet.';
+
+  @override
+  String get mm3NotMeasurable =>
+      'Nothing to measure yet: the parts in this sequence have no process times in this scope.';
+
+  @override
+  String get mm3Help =>
+      'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.';
+
+  @override
   String get demandParts => 'Parts';
 
   @override

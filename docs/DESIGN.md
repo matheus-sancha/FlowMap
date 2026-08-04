@@ -346,6 +346,27 @@ _Rejected: automatic resequencing._ That is a scheduling optimiser with its own 
 and constraint set; it is not in the spec, and a suggestion that violates a need date is worse than
 no suggestion.
 
+As built:
+
+- **The measure runs over orders, and batch size multiplies the equivalence.** One takt slot
+  releases one order (§7.2), so an order of ten pieces genuinely loads the flow ten times as hard
+  as one of one, and lot sizing is exactly a lever this measure should respond to (§7.6). With
+  batch 1 throughout it reduces to the per-part equivalence of §6.2 and reproduces the spec's
+  worked example exactly. Recorded as an open assumption (§18.7) because the source spec does not
+  say.
+- **A blank cell is a skip, not a hole** (§5.1): it contributes nothing to the numerator and the
+  part is still measurable. Only a part with no time *anywhere in scope* has no equivalence, and
+  its row is blank rather than zero.
+- **Both ends are blank, and so is any window with a missing neighbour.** A mean over two of the
+  three is a different statistic wearing the same column heading. The chart breaks its line across
+  such a gap rather than bridging it, because a line drawn across a gap claims a value nobody
+  measured.
+- **The headline is the mean distance from 1.0**, shown as `±4.2 %`. A mean rather than a worst
+  case: one awkward order in two hundred is not what the measure is for, and a maximum would make
+  every sequence look equally bad.
+- **The chart is drawn, not charted.** One polyline, one reference line and two shaded bands do not
+  justify a charting dependency to keep current.
+
 ---
 
 ## 7. Simulation
@@ -931,4 +952,9 @@ it.
    report. (§7.2, M4)
 6. **Rework adds time only.** It does not create additional physical orders, scrap, or material
    consumption. (§4.4, M1)
+7. **MM3 weights an order by its batch size.** An order of ten pieces reads as ten takts of load in
+   the sequence, because one slot releases one order whatever its size. The alternative — measuring
+   the part alone and treating batch size as invisible to smoothness — would make lot sizing
+   unmeasurable by the one tool that should see it. Built the first way; needs a yes/no before M4
+   reads the same sequence. (§6.3, M3)
 7. **One plant per project**, per the spec; a project cannot span plants. (§3, M1)

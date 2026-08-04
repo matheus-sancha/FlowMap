@@ -162,6 +162,16 @@
   "footerEquivalenceHelp": "O tempo de processo desta peça em todo o fluxo dividido pelo do equivalente de fluxo. 1,13 significa que consome 1,13 takts da capacidade da linha.",
   "flowSourceNeedsDemand": "Precisa de pelo menos uma peça na aba Demanda",
 
+  "mm3": "MM3",
+  "mm3Column": "MM3",
+  "mm3Scope": "Medido sobre",
+  "mm3WholeFlow": "Fluxo inteiro",
+  "mm3Smoothness": "Desvio médio",
+  "mm3SmoothnessHelp": "O quanto a média móvel fica longe de 1,0 em média. 1,0 é um takt da capacidade do escopo por pedido, ou seja, uma sequência perfeitamente nivelada.",
+  "mm3NoSequence": "Ainda não há pedidos na sequência.",
+  "mm3NotMeasurable": "Nada a medir ainda: as peças desta sequência não têm tempos de processo neste escopo.",
+  "mm3Help": "Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas. Reordene na aba Sequência e veja achatar.",
+
   "demandParts": "Peças",
   "demandSequence": "Sequência",
   "demandPartNumber": "Número da peça",
