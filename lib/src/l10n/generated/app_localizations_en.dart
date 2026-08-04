@@ -1210,4 +1210,195 @@ class AppLocalizationsEn extends AppLocalizations {
   String pdfSaved(String path) {
     return 'Saved to $path';
   }
+
+  @override
+  String get projectTabSimulation => 'Simulation';
+
+  @override
+  String get simulationRun => 'Simulate';
+
+  @override
+  String get simulationRunning => 'Running…';
+
+  @override
+  String get simulationDispatch => 'Dispatch';
+
+  @override
+  String get simulationDispatchHelp =>
+      'How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.';
+
+  @override
+  String get dispatchFifo => 'FIFO — by arrival';
+
+  @override
+  String get dispatchEarliestDueDate => 'Earliest need date';
+
+  @override
+  String get dispatchShortestProcessing => 'Shortest processing time';
+
+  @override
+  String simulationStudiesIn(String count) {
+    return '$count studies in this run';
+  }
+
+  @override
+  String get simulationNoStudies => 'No study is selected for a run';
+
+  @override
+  String get simulationNoStudiesHelp =>
+      'Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.';
+
+  @override
+  String get simulationNotReady => 'Not ready to run';
+
+  @override
+  String get simProblemNoTakt =>
+      'No takt period covers the day this run would start.';
+
+  @override
+  String get simProblemNoOrders =>
+      'The demand sequence is empty — there is nothing to release.';
+
+  @override
+  String get simProblemUnboundStep =>
+      'A step targets no workcenter, or its pool is empty.';
+
+  @override
+  String get simProblemNoPaceSetter =>
+      'No step can pace the releases: every one of them is unbound.';
+
+  @override
+  String get simulationNeverRun => 'No run yet';
+
+  @override
+  String get simulationNeverRunHelp =>
+      'Simulate runs every selected study against one model of the plant, so one line’s orders genuinely delay another’s.';
+
+  @override
+  String simulationAbortHorizon(String count) {
+    return 'Demand exceeds capacity. $count orders never completed, and the run was abandoned rather than looping forever.';
+  }
+
+  @override
+  String get simulationAbortNothingToRun =>
+      'Nothing could be started: every station’s calendar is shut, or no study had a costable first order.';
+
+  @override
+  String get simOnTimeDelivery => 'On-time delivery';
+
+  @override
+  String simOnTimeOfOrders(String onTime, String orders) {
+    return '$onTime of $orders orders on time';
+  }
+
+  @override
+  String get simOnTimeHelp =>
+      'Counted over every order, not only the delivered ones: an order that never came out is not on time, whatever its need date says.';
+
+  @override
+  String get simDelivered => 'Delivered';
+
+  @override
+  String simDeliveredOf(String delivered, String orders) {
+    return '$delivered of $orders';
+  }
+
+  @override
+  String get simAverageFloat => 'Average float';
+
+  @override
+  String get simAverageFloatHelp =>
+      'Delivered minus need date, averaged over the orders that finished. Negative is early. An undelivered order has no float and is left out here — it still counts as late above.';
+
+  @override
+  String get simAverageLeadTime => 'Average lead time';
+
+  @override
+  String get simAverageLeadTimeHelp =>
+      'Wall-clock time in the flow, from release to the last step.';
+
+  @override
+  String get simTheoreticalLeadTime => 'Theoretical lead time';
+
+  @override
+  String get simTheoreticalLeadTimeHelp =>
+      'The same orders without queueing, each walked from its own release through the real calendars. Excludes changeover, which depends on what ran before and so is not a property of the part.';
+
+  @override
+  String get simLeadTimeEfficiency => 'Lead-time efficiency';
+
+  @override
+  String get simLeadTimeEfficiencyHelp =>
+      'Actual ÷ theoretical. 1.0 is queue-free and higher is worse; the excess over 1.0 is exactly the waiting.';
+
+  @override
+  String get simEmptySlots => 'Empty release slots';
+
+  @override
+  String get simEmptySlotsHelp =>
+      'Slots that came round with nothing to put in them: the head of the sequence had no material yet, or the flow was already at its WIP cap. The sequence is the thing under study, so an empty slot is counted rather than quietly repaired.';
+
+  @override
+  String get simByQueue => 'Ranked by queue time';
+
+  @override
+  String get simByShare => 'Ranked by share of the flow';
+
+  @override
+  String get simRankingsHelp =>
+      'Both rankings are here because their disagreement is the diagnostic: a long queue at a station that is not busy is a sequencing problem, not a capacity one.';
+
+  @override
+  String get simQueue => 'Queue';
+
+  @override
+  String get simQueueAverage => 'Average queue';
+
+  @override
+  String get simVisits => 'Visits';
+
+  @override
+  String get simChangeovers => 'Changeovers';
+
+  @override
+  String get utilisation => 'Utilisation';
+
+  @override
+  String get simUtilisationHelp =>
+      'Busy ÷ open time observed in this run. Not the same as occupation, which is required ÷ available before any run — where the two disagree, sequencing or starvation got in the way.';
+
+  @override
+  String get simContributed => 'Queue + processing';
+
+  @override
+  String get simShareOfFlow => 'Share of flow';
+
+  @override
+  String get simPerPart => 'Per part number';
+
+  @override
+  String get simOrders => 'Orders';
+
+  @override
+  String get simOnTime => 'On time';
+
+  @override
+  String get simNothingRanked => 'No station ran anything.';
+
+  @override
+  String simRunSpan(String start, String end) {
+    return '$start → $end';
+  }
+
+  @override
+  String get simEarlierRuns => 'Earlier runs';
+
+  @override
+  String simRunLabel(String timestamp, String rule) {
+    return '$timestamp · $rule';
+  }
+
+  @override
+  String get simRunDeleteBody =>
+      'The run and everything it recorded go. The studies it was made from are untouched.';
 }

@@ -1225,4 +1225,196 @@ class AppLocalizationsPt extends AppLocalizations {
   String pdfSaved(String path) {
     return 'Salvo em $path';
   }
+
+  @override
+  String get projectTabSimulation => 'Simulação';
+
+  @override
+  String get simulationRun => 'Simular';
+
+  @override
+  String get simulationRunning => 'Executando…';
+
+  @override
+  String get simulationDispatch => 'Despacho';
+
+  @override
+  String get simulationDispatchHelp =>
+      'Como um centro de trabalho escolhe a próxima ordem em espera. Todas as regras desempatam por chegada, depois prioridade do estudo e depois sequência, então as mesmas entradas sempre produzem a mesma execução.';
+
+  @override
+  String get dispatchFifo => 'FIFO — por chegada';
+
+  @override
+  String get dispatchEarliestDueDate => 'Data de necessidade mais próxima';
+
+  @override
+  String get dispatchShortestProcessing => 'Menor tempo de processo';
+
+  @override
+  String simulationStudiesIn(String count) {
+    return '$count estudos nesta execução';
+  }
+
+  @override
+  String get simulationNoStudies =>
+      'Nenhum estudo está selecionado para simular';
+
+  @override
+  String get simulationNoStudiesHelp =>
+      'Marque um estudo na barra lateral. Vários estudos de uma mesma linha são cenários de uma só realidade, então uma execução leva no máximo um de cada.';
+
+  @override
+  String get simulationNotReady => 'Não está pronto para simular';
+
+  @override
+  String get simProblemNoTakt =>
+      'Nenhum período de takt cobre o dia em que esta execução começaria.';
+
+  @override
+  String get simProblemNoOrders =>
+      'A sequência de demanda está vazia — não há o que liberar.';
+
+  @override
+  String get simProblemUnboundStep =>
+      'Uma etapa não aponta para nenhum centro de trabalho, ou seu grupo está vazio.';
+
+  @override
+  String get simProblemNoPaceSetter =>
+      'Nenhuma etapa pode ditar o ritmo das liberações: todas estão sem vínculo.';
+
+  @override
+  String get simulationNeverRun => 'Ainda não há nenhuma execução';
+
+  @override
+  String get simulationNeverRunHelp =>
+      'Simular executa todos os estudos selecionados contra um único modelo da planta, de modo que as ordens de uma linha realmente atrasam as de outra.';
+
+  @override
+  String simulationAbortHorizon(String count) {
+    return 'A demanda excede a capacidade. $count ordens nunca foram concluídas, e a execução foi abandonada em vez de seguir indefinidamente.';
+  }
+
+  @override
+  String get simulationAbortNothingToRun =>
+      'Nada pôde começar: o calendário de todas as estações está fechado, ou nenhum estudo tinha uma primeira ordem custeável.';
+
+  @override
+  String get simOnTimeDelivery => 'Entregas no prazo';
+
+  @override
+  String simOnTimeOfOrders(String onTime, String orders) {
+    return '$onTime de $orders ordens no prazo';
+  }
+
+  @override
+  String get simOnTimeHelp =>
+      'Contado sobre todas as ordens, não apenas as entregues: uma ordem que nunca saiu não está no prazo, diga o que disser a data de necessidade.';
+
+  @override
+  String get simDelivered => 'Entregues';
+
+  @override
+  String simDeliveredOf(String delivered, String orders) {
+    return '$delivered de $orders';
+  }
+
+  @override
+  String get simAverageFloat => 'Folga média';
+
+  @override
+  String get simAverageFloatHelp =>
+      'Entrega menos data de necessidade, na média das ordens que terminaram. Negativo é adiantado. Uma ordem não entregue não tem folga e fica de fora daqui; acima ela continua contando como atrasada.';
+
+  @override
+  String get simAverageLeadTime => 'Lead time médio';
+
+  @override
+  String get simAverageLeadTimeHelp =>
+      'Tempo de relógio dentro do fluxo, da liberação até a última etapa.';
+
+  @override
+  String get simTheoreticalLeadTime => 'Lead time teórico';
+
+  @override
+  String get simTheoreticalLeadTimeHelp =>
+      'As mesmas ordens sem filas, cada uma percorrida desde sua própria liberação pelos calendários reais. Exclui o setup, que depende do que rodou antes e não é propriedade da peça.';
+
+  @override
+  String get simLeadTimeEfficiency => 'Eficiência do lead time';
+
+  @override
+  String get simLeadTimeEfficiencyHelp =>
+      'Real ÷ teórico. 1,0 é sem filas e mais alto é pior; o excesso sobre 1,0 é exatamente a espera.';
+
+  @override
+  String get simEmptySlots => 'Janelas de liberação vazias';
+
+  @override
+  String get simEmptySlotsHelp =>
+      'Janelas que chegaram sem nada para colocar nelas: a cabeça da sequência ainda não tinha material, ou o fluxo já estava no limite de WIP. A sequência é o que está sob estudo, então uma janela vazia é contada em vez de consertada em silêncio.';
+
+  @override
+  String get simByQueue => 'Ordenado por tempo em fila';
+
+  @override
+  String get simByShare => 'Ordenado por peso no fluxo';
+
+  @override
+  String get simRankingsHelp =>
+      'As duas classificações estão aqui porque a discordância entre elas é o diagnóstico: uma fila longa numa estação pouco ocupada é problema de sequenciamento, não de capacidade.';
+
+  @override
+  String get simQueue => 'Fila';
+
+  @override
+  String get simQueueAverage => 'Fila média';
+
+  @override
+  String get simVisits => 'Visitas';
+
+  @override
+  String get simChangeovers => 'Setups';
+
+  @override
+  String get utilisation => 'Utilização';
+
+  @override
+  String get simUtilisationHelp =>
+      'Tempo ocupado ÷ tempo aberto observado nesta execução. Não é o mesmo que ocupação, que é requerido ÷ disponível antes de simular: onde as duas discordam, o sequenciamento ou a falta de alimentação atrapalhou.';
+
+  @override
+  String get simContributed => 'Fila + processo';
+
+  @override
+  String get simShareOfFlow => 'Peso no fluxo';
+
+  @override
+  String get simPerPart => 'Por número de peça';
+
+  @override
+  String get simOrders => 'Ordens';
+
+  @override
+  String get simOnTime => 'No prazo';
+
+  @override
+  String get simNothingRanked => 'Nenhuma estação executou nada.';
+
+  @override
+  String simRunSpan(String start, String end) {
+    return '$start → $end';
+  }
+
+  @override
+  String get simEarlierRuns => 'Execuções anteriores';
+
+  @override
+  String simRunLabel(String timestamp, String rule) {
+    return '$timestamp · $rule';
+  }
+
+  @override
+  String get simRunDeleteBody =>
+      'A execução e tudo o que ela registrou são apagados. Os estudos com que foi feita ficam intactos.';
 }

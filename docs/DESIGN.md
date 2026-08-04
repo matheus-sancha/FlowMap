@@ -1100,6 +1100,43 @@ in epoch integers inside `WorkingCalendar` and converting only at its edges — 
 most heavily tested code in the app, worth doing deliberately rather than in the margins of building
 the engine. Recorded here so the next person starts from the measurement rather than from the guess.
 
+### 16.10 M4, as built: storage, assembly and the tab
+
+The engine had nowhere to put a run and no button to press. Schema **v11** adds six tables, and the
+Simulation tab (§12.1) is the first thing in the app that can start one.
+
+- **Nothing a run stores points at a study, a part or a workcenter with a foreign key**, and the
+  names are copied in rather than joined to. That is the whole point of §7.10: a run has to stay
+  readable after the plant beneath it is edited, and a cascade from `studies` would destroy the
+  evidence exactly when someone re-scoped a study to find out why last month's run said what it
+  said. The one cascade that is right is from the project, which owns the run outright.
+- **Each order's theoretical lead time is stored with it.** It is the one figure §8 asks for that
+  needs the *plant* rather than the result — §7.9 walks it through calendars that may have been
+  edited since — so it is frozen at the moment of the run like the names are.
+- **A stored run and a fresh run report through the same function.** `computeRunMetrics` splits
+  into `theoreticalLeadTimes`, which needs the plant, and `summariseRun`, which needs only what is
+  in storage. What a run reports therefore cannot drift from what it reported when it was made,
+  which is what M5's run comparison rests on.
+- **Enums are stored as plain names, not `textEnum`.** Drift's typed version throws on a value it
+  does not know, so a single run written by a later build would stop an older one from opening the
+  list at all. The repository parses and falls back to the default.
+- **The run is assembled twice.** §7.2 resolves the takt at the run's start, and §7.8 puts that
+  start a theoretical lead time before the first need date — which cannot be walked until the study
+  has been assembled. So the first pass uses the need date, the plan it produces gives the real
+  start, and the second resolves the cadence there. There is no third: chasing a fixed point is the
+  mid-flight takt change §18.3 has not settled, and a run keeps one cadence throughout.
+- **Readiness is carried per study, and `canRun` requires all of them.** "A step has no workcenter"
+  is not actionable until you know whose step it is, and a run the user asked for over three studies
+  that quietly ran two would report a plant that was never contended for (§7.7).
+- **Simulate is disabled by the same pass that would have built the run.** There is no second
+  opinion about whether it is ready: `SimRunInput.canRun` gates the button, and the notifier behind
+  it checks the same value rather than trusting the caller.
+- **The tab opens on the run that was last made.** Most of what storing a run buys is that closing
+  the app is not the same as throwing the answer away.
+- **Simulation sits in the same tab strip as the five study tabs**, but switching studies does not
+  throw the reader out of it — the other five reset to Flow, as they always have, and Simulation is
+  not about the study that was just switched away from.
+
 ---
 
 ## 17. Done between M2 and M3
@@ -1230,7 +1267,7 @@ next milestone plans them rather than rediscovering them:
 | ~~Supplier / Customer names (§16.2)~~ | **reached in M3** — the endpoints on the canvas are clickable, and an emptied name puts the default back | — |
 | The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty |
 | `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
-| `wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn` | stored / computed | M4, as planned. M3 reads availability and rework off the schedule period it has already looked up, so the two `…On(date)` accessors are still waiting for the engine, which walks dates rather than periods |
+| ~~`wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn`~~ | **reached in M4** — the engine walks dates rather than periods, which is what the two `…On(date)` accessors were written for | — |
 
 ---
 

@@ -11,15 +11,16 @@ import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
 import '../../schedules/presentation/takt_tab.dart';
 import '../../schedules/presentation/workcenters_tab.dart';
+import '../../simulation/presentation/simulation_tab.dart';
 import '../../studies/application/studies_providers.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
 
-/// The project workspace: a studies sidebar, and the five tabs of whichever
-/// study is open (DESIGN.md §12.1).
+/// The project workspace: a studies sidebar, the five tabs of whichever study
+/// is open, and the project's Simulation tab (DESIGN.md §12.1).
 ///
-/// Simulation is a project-level tab rather than a study one, because a run
-/// spans studies (§7.7) — it arrives in M4.
+/// Simulation sits in the same strip but is a project-level tab rather than a
+/// study one, because a run spans studies (§7.7).
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   const ProjectWorkspaceScreen({
     super.key,
@@ -315,44 +316,74 @@ class _StudyTile extends ConsumerWidget {
   }
 }
 
-class _StudyTabs extends StatelessWidget {
+/// The five study tabs, plus the project-level Simulation tab (DESIGN.md
+/// §12.1) — a run spans studies, so it cannot belong to one of them (§7.7).
+class _StudyTabs extends StatefulWidget {
   const _StudyTabs({required this.project, required this.study});
 
   final Project project;
   final Study study;
 
   @override
+  State<_StudyTabs> createState() => _StudyTabsState();
+}
+
+class _StudyTabsState extends State<_StudyTabs>
+    with SingleTickerProviderStateMixin {
+  /// The Simulation tab, which the five before it are study tabs.
+  static const _simulation = 5;
+
+  late final TabController _tabs = TabController(length: 6, vsync: this);
+
+  @override
+  void didUpdateWidget(_StudyTabs old) {
+    super.didUpdateWidget(old);
+    if (old.study.id == widget.study.id) return;
+    // Switching studies resets to Flow rather than landing on whichever tab
+    // the previous study was showing — unless the reader is on Simulation,
+    // which is not about the study they just switched away from and would be
+    // an odd thing to be thrown out of.
+    if (_tabs.index != _simulation) _tabs.index = 0;
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return DefaultTabController(
-      // Keyed by study so switching studies resets to the Flow tab rather than
-      // landing on whichever tab the previous study was showing.
-      key: ValueKey(study.id),
-      length: 5,
-      child: Column(
-        children: [
-          TabBar(
-            tabs: [
-              Tab(text: l10n.studyTabFlow),
-              Tab(text: l10n.studyTabTakt),
-              Tab(text: l10n.workcenters),
-              Tab(text: l10n.studyTabDemand),
-              Tab(text: l10n.studyTabSummary),
+    final study = widget.study;
+
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabs,
+          tabs: [
+            Tab(text: l10n.studyTabFlow),
+            Tab(text: l10n.studyTabTakt),
+            Tab(text: l10n.workcenters),
+            Tab(text: l10n.studyTabDemand),
+            Tab(text: l10n.studyTabSummary),
+            Tab(text: l10n.projectTabSimulation),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [
+              FlowTab(study: study),
+              TaktTab(project: widget.project, study: study),
+              WorkcentersTab(project: widget.project, study: study),
+              DemandTab(study: study),
+              SummaryTab(study: study),
+              SimulationTab(project: widget.project),
             ],
           ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                FlowTab(study: study),
-                TaktTab(project: project, study: study),
-                WorkcentersTab(project: project, study: study),
-                DemandTab(study: study),
-                SummaryTab(study: study),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

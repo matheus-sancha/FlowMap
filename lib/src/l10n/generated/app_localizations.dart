@@ -2225,6 +2225,330 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved to {path}'**
   String pdfSaved(String path);
+
+  /// No description provided for @projectTabSimulation.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation'**
+  String get projectTabSimulation;
+
+  /// No description provided for @simulationRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulate'**
+  String get simulationRun;
+
+  /// No description provided for @simulationRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running…'**
+  String get simulationRunning;
+
+  /// No description provided for @simulationDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get simulationDispatch;
+
+  /// No description provided for @simulationDispatchHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.'**
+  String get simulationDispatchHelp;
+
+  /// No description provided for @dispatchFifo.
+  ///
+  /// In en, this message translates to:
+  /// **'FIFO — by arrival'**
+  String get dispatchFifo;
+
+  /// No description provided for @dispatchEarliestDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Earliest need date'**
+  String get dispatchEarliestDueDate;
+
+  /// No description provided for @dispatchShortestProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortest processing time'**
+  String get dispatchShortestProcessing;
+
+  /// No description provided for @simulationStudiesIn.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} studies in this run'**
+  String simulationStudiesIn(String count);
+
+  /// No description provided for @simulationNoStudies.
+  ///
+  /// In en, this message translates to:
+  /// **'No study is selected for a run'**
+  String get simulationNoStudies;
+
+  /// No description provided for @simulationNoStudiesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.'**
+  String get simulationNoStudiesHelp;
+
+  /// No description provided for @simulationNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Not ready to run'**
+  String get simulationNotReady;
+
+  /// No description provided for @simProblemNoTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'No takt period covers the day this run would start.'**
+  String get simProblemNoTakt;
+
+  /// No description provided for @simProblemNoOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'The demand sequence is empty — there is nothing to release.'**
+  String get simProblemNoOrders;
+
+  /// No description provided for @simProblemUnboundStep.
+  ///
+  /// In en, this message translates to:
+  /// **'A step targets no workcenter, or its pool is empty.'**
+  String get simProblemUnboundStep;
+
+  /// No description provided for @simProblemNoPaceSetter.
+  ///
+  /// In en, this message translates to:
+  /// **'No step can pace the releases: every one of them is unbound.'**
+  String get simProblemNoPaceSetter;
+
+  /// No description provided for @simulationNeverRun.
+  ///
+  /// In en, this message translates to:
+  /// **'No run yet'**
+  String get simulationNeverRun;
+
+  /// No description provided for @simulationNeverRunHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulate runs every selected study against one model of the plant, so one line’s orders genuinely delay another’s.'**
+  String get simulationNeverRunHelp;
+
+  /// No description provided for @simulationAbortHorizon.
+  ///
+  /// In en, this message translates to:
+  /// **'Demand exceeds capacity. {count} orders never completed, and the run was abandoned rather than looping forever.'**
+  String simulationAbortHorizon(String count);
+
+  /// No description provided for @simulationAbortNothingToRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing could be started: every station’s calendar is shut, or no study had a costable first order.'**
+  String get simulationAbortNothingToRun;
+
+  /// No description provided for @simOnTimeDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'On-time delivery'**
+  String get simOnTimeDelivery;
+
+  /// No description provided for @simOnTimeOfOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'{onTime} of {orders} orders on time'**
+  String simOnTimeOfOrders(String onTime, String orders);
+
+  /// No description provided for @simOnTimeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted over every order, not only the delivered ones: an order that never came out is not on time, whatever its need date says.'**
+  String get simOnTimeHelp;
+
+  /// No description provided for @simDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get simDelivered;
+
+  /// No description provided for @simDeliveredOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{delivered} of {orders}'**
+  String simDeliveredOf(String delivered, String orders);
+
+  /// No description provided for @simAverageFloat.
+  ///
+  /// In en, this message translates to:
+  /// **'Average float'**
+  String get simAverageFloat;
+
+  /// No description provided for @simAverageFloatHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered minus need date, averaged over the orders that finished. Negative is early. An undelivered order has no float and is left out here — it still counts as late above.'**
+  String get simAverageFloatHelp;
+
+  /// No description provided for @simAverageLeadTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Average lead time'**
+  String get simAverageLeadTime;
+
+  /// No description provided for @simAverageLeadTimeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Wall-clock time in the flow, from release to the last step.'**
+  String get simAverageLeadTimeHelp;
+
+  /// No description provided for @simTheoreticalLeadTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Theoretical lead time'**
+  String get simTheoreticalLeadTime;
+
+  /// No description provided for @simTheoreticalLeadTimeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The same orders without queueing, each walked from its own release through the real calendars. Excludes changeover, which depends on what ran before and so is not a property of the part.'**
+  String get simTheoreticalLeadTimeHelp;
+
+  /// No description provided for @simLeadTimeEfficiency.
+  ///
+  /// In en, this message translates to:
+  /// **'Lead-time efficiency'**
+  String get simLeadTimeEfficiency;
+
+  /// No description provided for @simLeadTimeEfficiencyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual ÷ theoretical. 1.0 is queue-free and higher is worse; the excess over 1.0 is exactly the waiting.'**
+  String get simLeadTimeEfficiencyHelp;
+
+  /// No description provided for @simEmptySlots.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty release slots'**
+  String get simEmptySlots;
+
+  /// No description provided for @simEmptySlotsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Slots that came round with nothing to put in them: the head of the sequence had no material yet, or the flow was already at its WIP cap. The sequence is the thing under study, so an empty slot is counted rather than quietly repaired.'**
+  String get simEmptySlotsHelp;
+
+  /// No description provided for @simByQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked by queue time'**
+  String get simByQueue;
+
+  /// No description provided for @simByShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked by share of the flow'**
+  String get simByShare;
+
+  /// No description provided for @simRankingsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Both rankings are here because their disagreement is the diagnostic: a long queue at a station that is not busy is a sequencing problem, not a capacity one.'**
+  String get simRankingsHelp;
+
+  /// No description provided for @simQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get simQueue;
+
+  /// No description provided for @simQueueAverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Average queue'**
+  String get simQueueAverage;
+
+  /// No description provided for @simVisits.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits'**
+  String get simVisits;
+
+  /// No description provided for @simChangeovers.
+  ///
+  /// In en, this message translates to:
+  /// **'Changeovers'**
+  String get simChangeovers;
+
+  /// No description provided for @utilisation.
+  ///
+  /// In en, this message translates to:
+  /// **'Utilisation'**
+  String get utilisation;
+
+  /// No description provided for @simUtilisationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy ÷ open time observed in this run. Not the same as occupation, which is required ÷ available before any run — where the two disagree, sequencing or starvation got in the way.'**
+  String get simUtilisationHelp;
+
+  /// No description provided for @simContributed.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue + processing'**
+  String get simContributed;
+
+  /// No description provided for @simShareOfFlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of flow'**
+  String get simShareOfFlow;
+
+  /// No description provided for @simPerPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Per part number'**
+  String get simPerPart;
+
+  /// No description provided for @simOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get simOrders;
+
+  /// No description provided for @simOnTime.
+  ///
+  /// In en, this message translates to:
+  /// **'On time'**
+  String get simOnTime;
+
+  /// No description provided for @simNothingRanked.
+  ///
+  /// In en, this message translates to:
+  /// **'No station ran anything.'**
+  String get simNothingRanked;
+
+  /// No description provided for @simRunSpan.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} → {end}'**
+  String simRunSpan(String start, String end);
+
+  /// No description provided for @simEarlierRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier runs'**
+  String get simEarlierRuns;
+
+  /// No description provided for @simRunLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{timestamp} · {rule}'**
+  String simRunLabel(String timestamp, String rule);
+
+  /// No description provided for @simRunDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The run and everything it recorded go. The studies it was made from are untouched.'**
+  String get simRunDeleteBody;
 }
 
 class _AppLocalizationsDelegate
