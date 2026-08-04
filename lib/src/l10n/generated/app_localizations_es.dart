@@ -575,6 +575,91 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get actionImport => 'Importar';
+
+  @override
+  String importTitle(String file) {
+    return 'Importar desde $file';
+  }
+
+  @override
+  String get importSheet => 'Hoja';
+
+  @override
+  String get importMapping => 'Sus columnas a las nuestras';
+
+  @override
+  String get importNotMapped => 'Sin asignar';
+
+  @override
+  String importColumnNumber(String n) {
+    return 'Columna $n';
+  }
+
+  @override
+  String importUnmapped(String columns) {
+    return 'No se encontró nada para: $columns. Esos valores se quedarán como están.';
+  }
+
+  @override
+  String get importPreview => 'Lo que va a entrar';
+
+  @override
+  String importCountOk(String count) {
+    return '$count filas listas';
+  }
+
+  @override
+  String importCountSkipped(String count) {
+    return '$count omitidas';
+  }
+
+  @override
+  String importCountWarned(String count) {
+    return '$count para revisar';
+  }
+
+  @override
+  String importPreviewTruncated(String count) {
+    return 'y $count filas más';
+  }
+
+  @override
+  String importAccept(String count) {
+    return 'Importar $count filas';
+  }
+
+  @override
+  String importDone(String count) {
+    return 'Se importaron $count filas.';
+  }
+
+  @override
+  String importFailed(String error) {
+    return 'No se importó nada: $error';
+  }
+
+  @override
+  String importUnreadable(String error) {
+    return 'No se pudo leer el archivo: $error';
+  }
+
+  @override
+  String get importEmpty =>
+      'Ese archivo no tiene filas debajo de una fila de encabezado.';
+
+  @override
+  String get importIssueMissingPart => 'Sin número de pieza';
+
+  @override
+  String get importIssueDuplicatePart =>
+      'Esta pieza aparece dos veces en el archivo';
+
+  @override
+  String get importIssueNeedBeforeMaterial =>
+      'Requerida antes de que llegue su material';
+
+  @override
   String get demandParts => 'Piezas';
 
   @override

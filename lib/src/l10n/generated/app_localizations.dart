@@ -1104,6 +1104,126 @@ abstract class AppLocalizations {
   /// **'Available time over {equivalents} part-equivalents due. What actually matters under a mixed part mix: an order worth two takts of work counts twice.'**
   String summaryTaktAdjustedHelp(String equivalents);
 
+  /// No description provided for @actionImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get actionImport;
+
+  /// No description provided for @importTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from {file}'**
+  String importTitle(String file);
+
+  /// No description provided for @importSheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sheet'**
+  String get importSheet;
+
+  /// No description provided for @importMapping.
+  ///
+  /// In en, this message translates to:
+  /// **'Their columns to ours'**
+  String get importMapping;
+
+  /// No description provided for @importNotMapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Not mapped'**
+  String get importNotMapped;
+
+  /// No description provided for @importColumnNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Column {n}'**
+  String importColumnNumber(String n);
+
+  /// No description provided for @importUnmapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found for: {columns}. Those values will be left as they are.'**
+  String importUnmapped(String columns);
+
+  /// No description provided for @importPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'What will go in'**
+  String get importPreview;
+
+  /// No description provided for @importCountOk.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rows ready'**
+  String importCountOk(String count);
+
+  /// No description provided for @importCountSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} skipped'**
+  String importCountSkipped(String count);
+
+  /// No description provided for @importCountWarned.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} to look at'**
+  String importCountWarned(String count);
+
+  /// No description provided for @importPreviewTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'and {count} more rows'**
+  String importPreviewTruncated(String count);
+
+  /// No description provided for @importAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Import {count} rows'**
+  String importAccept(String count);
+
+  /// No description provided for @importDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} rows.'**
+  String importDone(String count);
+
+  /// No description provided for @importFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was imported: {error}'**
+  String importFailed(String error);
+
+  /// No description provided for @importUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'That file could not be read: {error}'**
+  String importUnreadable(String error);
+
+  /// No description provided for @importEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'That file has no rows under a heading row.'**
+  String get importEmpty;
+
+  /// No description provided for @importIssueMissingPart.
+  ///
+  /// In en, this message translates to:
+  /// **'No part number'**
+  String get importIssueMissingPart;
+
+  /// No description provided for @importIssueDuplicatePart.
+  ///
+  /// In en, this message translates to:
+  /// **'This part appears twice in the file'**
+  String get importIssueDuplicatePart;
+
+  /// No description provided for @importIssueNeedBeforeMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Needed before its material arrives'**
+  String get importIssueNeedBeforeMaterial;
+
   /// No description provided for @demandParts.
   ///
   /// In en, this message translates to:

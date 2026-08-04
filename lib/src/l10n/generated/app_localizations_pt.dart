@@ -576,6 +576,91 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get actionImport => 'Importar';
+
+  @override
+  String importTitle(String file) {
+    return 'Importar de $file';
+  }
+
+  @override
+  String get importSheet => 'Planilha';
+
+  @override
+  String get importMapping => 'As colunas deles para as nossas';
+
+  @override
+  String get importNotMapped => 'Sem vínculo';
+
+  @override
+  String importColumnNumber(String n) {
+    return 'Coluna $n';
+  }
+
+  @override
+  String importUnmapped(String columns) {
+    return 'Nada encontrado para: $columns. Esses valores vão ficar como estão.';
+  }
+
+  @override
+  String get importPreview => 'O que vai entrar';
+
+  @override
+  String importCountOk(String count) {
+    return '$count linhas prontas';
+  }
+
+  @override
+  String importCountSkipped(String count) {
+    return '$count ignoradas';
+  }
+
+  @override
+  String importCountWarned(String count) {
+    return '$count para conferir';
+  }
+
+  @override
+  String importPreviewTruncated(String count) {
+    return 'e mais $count linhas';
+  }
+
+  @override
+  String importAccept(String count) {
+    return 'Importar $count linhas';
+  }
+
+  @override
+  String importDone(String count) {
+    return '$count linhas importadas.';
+  }
+
+  @override
+  String importFailed(String error) {
+    return 'Nada foi importado: $error';
+  }
+
+  @override
+  String importUnreadable(String error) {
+    return 'Não foi possível ler o arquivo: $error';
+  }
+
+  @override
+  String get importEmpty =>
+      'Esse arquivo não tem linhas abaixo de uma linha de cabeçalho.';
+
+  @override
+  String get importIssueMissingPart => 'Sem número de peça';
+
+  @override
+  String get importIssueDuplicatePart =>
+      'Esta peça aparece duas vezes no arquivo';
+
+  @override
+  String get importIssueNeedBeforeMaterial =>
+      'Necessária antes de o material chegar';
+
+  @override
   String get demandParts => 'Peças';
 
   @override

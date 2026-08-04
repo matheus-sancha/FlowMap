@@ -588,6 +588,33 @@ column and removing one hides the values without destroying them.
   flow's own step targets, and §10.2 leaves demand out of a template by default. Duplicating a
   study deep-copies its demand, so a scenario can be re-sequenced against the same orders (§6.3).
 
+### 9.2 The import, as built
+
+Pick, map and preview live in one dialog, because they are one decision: a mapping is only
+judgeable against what it produces, and a preview with no way back to the mapping is a dead end.
+
+- **An unmapped column is left alone, never cleared.** That is the one way an import differs from a
+  paste: a paste's blank cell is a deliberate erasure, and a file that does not carry a column has
+  said nothing about it. A mapped column is present in the row; an unmapped one is absent.
+- **Nothing is guessed by position.** Headings are matched case- and punctuation-insensitively,
+  against the destination's own name first and then a short synonym list (`WO`, `SKU`, `Qty`,
+  `Due date`). A workcenter column is found by the step's own title. A column that cannot be placed
+  is listed for the user; a file whose columns happen to be in our order is not evidence that they
+  mean what we think.
+- **A required column with nothing mapped disables Import entirely.** Every other problem is
+  reported row by row, worst first, by the **line number in the user's own file** — a preview whose
+  problems are on page four is a preview nobody reads.
+- **Blocking versus warning follows §11.** An unknown part number, an unreadable date or time, a
+  duplicated part, a batch size of zero: skipped. A need date before its material date: imported and
+  flagged, because it is real data that is simply late.
+- **Every imported order appends.** An import is a batch of new orders, not an edit of the sequence;
+  replacing it implicitly would destroy work nobody asked to lose.
+- **The reader normalises before anything else sees the file.** A spreadsheet date arrives as ISO
+  (a spreadsheet date has no locale of its own, and guessing one is how `03/08` becomes the wrong
+  day); a duration cell arrives as `HH:MM:SS`; a CSV's delimiter is sniffed from the header line,
+  because a European Excel writes `;`; a UTF-8 BOM is stripped and cp1252 is decoded rather than
+  thrown on, since a `Gehäuse` that raises an exception is a row nobody can fix.
+
 ---
 
 ## 10. Studies, templates, scenarios

@@ -570,6 +570,89 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get actionImport => 'Import';
+
+  @override
+  String importTitle(String file) {
+    return 'Import from $file';
+  }
+
+  @override
+  String get importSheet => 'Sheet';
+
+  @override
+  String get importMapping => 'Their columns to ours';
+
+  @override
+  String get importNotMapped => 'Not mapped';
+
+  @override
+  String importColumnNumber(String n) {
+    return 'Column $n';
+  }
+
+  @override
+  String importUnmapped(String columns) {
+    return 'Nothing found for: $columns. Those values will be left as they are.';
+  }
+
+  @override
+  String get importPreview => 'What will go in';
+
+  @override
+  String importCountOk(String count) {
+    return '$count rows ready';
+  }
+
+  @override
+  String importCountSkipped(String count) {
+    return '$count skipped';
+  }
+
+  @override
+  String importCountWarned(String count) {
+    return '$count to look at';
+  }
+
+  @override
+  String importPreviewTruncated(String count) {
+    return 'and $count more rows';
+  }
+
+  @override
+  String importAccept(String count) {
+    return 'Import $count rows';
+  }
+
+  @override
+  String importDone(String count) {
+    return 'Imported $count rows.';
+  }
+
+  @override
+  String importFailed(String error) {
+    return 'Nothing was imported: $error';
+  }
+
+  @override
+  String importUnreadable(String error) {
+    return 'That file could not be read: $error';
+  }
+
+  @override
+  String get importEmpty => 'That file has no rows under a heading row.';
+
+  @override
+  String get importIssueMissingPart => 'No part number';
+
+  @override
+  String get importIssueDuplicatePart => 'This part appears twice in the file';
+
+  @override
+  String get importIssueNeedBeforeMaterial =>
+      'Needed before its material arrives';
+
+  @override
   String get demandParts => 'Parts';
 
   @override

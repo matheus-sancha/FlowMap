@@ -9,7 +9,9 @@ import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/demand_paste.dart';
 import '../application/demand_providers.dart';
+import '../application/demand_import.dart';
 import '../application/demand_table.dart';
+import 'import_dialog.dart';
 import 'mm3_view.dart';
 
 /// The Demand tab: the parts and their process times, and the order sequence
@@ -45,42 +47,66 @@ class _DemandTabState extends ConsumerState<DemandTab> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SegmentedButton<_DemandView>(
-                segments: [
-                  ButtonSegment(
-                    value: _DemandView.parts,
-                    label: Text(l10n.demandParts),
-                    icon: const Icon(Icons.table_rows_outlined),
+              Row(
+                children: [
+                  SegmentedButton<_DemandView>(
+                    segments: [
+                      ButtonSegment(
+                        value: _DemandView.parts,
+                        label: Text(l10n.demandParts),
+                        icon: const Icon(Icons.table_rows_outlined),
+                      ),
+                      ButtonSegment(
+                        value: _DemandView.sequence,
+                        label: Text(l10n.demandSequence),
+                        icon: const Icon(Icons.low_priority),
+                      ),
+                      ButtonSegment(
+                        value: _DemandView.mm3,
+                        label: Text(l10n.mm3),
+                        icon: const Icon(Icons.show_chart),
+                      ),
+                    ],
+                    selected: {_view},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _view = selection.first),
                   ),
-                  ButtonSegment(
-                    value: _DemandView.sequence,
-                    label: Text(l10n.demandSequence),
-                    icon: const Icon(Icons.low_priority),
-                  ),
-                  ButtonSegment(
-                    value: _DemandView.mm3,
-                    label: Text(l10n.mm3),
-                    icon: const Icon(Icons.show_chart),
-                  ),
+                  const SizedBox(width: 12),
+                  // Only the two grids can be imported into; MM3 is a reading
+                  // of what they hold.
+                  if (_view != _DemandView.mm3)
+                    TextButton.icon(
+                      onPressed: () => showDemandImport(
+                        context,
+                        ref,
+                        study: widget.study,
+                        table: table,
+                        target: _view == _DemandView.parts
+                            ? ImportTarget.parts
+                            : ImportTarget.sequence,
+                      ),
+                      icon: const Icon(Icons.upload_file_outlined),
+                      label: Text(l10n.actionImport),
+                    ),
                 ],
-                selected: {_view},
-                onSelectionChanged: (selection) =>
-                    setState(() => _view = selection.first),
               ),
-              const Spacer(),
-              Flexible(
-                child: Text(
-                  switch (_view) {
-                    _DemandView.parts => l10n.demandTimesHelp,
-                    _DemandView.sequence => l10n.demandSequenceHelp,
-                    _DemandView.mm3 => l10n.mm3Help,
-                  },
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+              const SizedBox(height: 4),
+              // On its own line and capped at two: in the toolbar row it wraps
+              // as far as it likes and pushes the grid off the bottom of a
+              // short window, which is what the mounting test caught.
+              Text(
+                switch (_view) {
+                  _DemandView.parts => l10n.demandTimesHelp,
+                  _DemandView.sequence => l10n.demandSequenceHelp,
+                  _DemandView.mm3 => l10n.mm3Help,
+                },
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
                 ),
               ),
             ],
