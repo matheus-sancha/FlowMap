@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/demand/data/demand_repository.dart';
 import 'package:flowmap/src/features/projects/data/projects_repository.dart';
@@ -7,6 +8,8 @@ import 'package:flowmap/src/features/resources/data/resources_repository.dart';
 import 'package:flowmap/src/features/schedules/data/schedules_repository.dart';
 import 'package:flowmap/src/features/simulation/application/engine.dart';
 import 'package:flowmap/src/features/simulation/application/sim_assembly.dart';
+import 'package:flowmap/src/features/simulation/application/sim_model.dart';
+import 'package:flowmap/src/features/simulation/application/simulation_providers.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_repository.dart';
 import 'package:flowmap/src/features/studies/data/studies_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -167,6 +170,29 @@ void main() {
     expect(result.orders, hasLength(2));
     expect(result.undelivered, isEmpty);
     expect(result.steps, hasLength(4));
+  });
+
+  test('an assembled run survives the trip to a background isolate', () async {
+    await taktFor(lineId);
+    await seedStudy(name: 'Current state', line: lineId);
+    final input = await simulation.assembleRun(projectId);
+
+    // The real isolate, not a stand-in. `SimStudy` and `SimWorkcenter` hold no
+    // database handle so that this works (§7.1), and nothing running in
+    // process would ever catch a value that cannot be sent — it would surface
+    // as Simulate throwing on a machine nobody is watching.
+    final result = await compute(runSimulationOffThread, (
+      studies: input.studies,
+      workcenters: input.workcenters,
+      dispatch: DispatchRule.earliestDueDate,
+    ));
+
+    expect(result.orders, hasLength(2));
+    expect(result.undelivered, isEmpty);
+    expect(
+      result.busyByWorkcenter.keys,
+      unorderedEquals([cladId, millId]),
+    );
   });
 
   test('a study that is not flagged stays out of the run', () async {

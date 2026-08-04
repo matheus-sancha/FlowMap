@@ -124,7 +124,7 @@ class SimulationRunner extends _$SimulationRunner {
       // database handle precisely so they can cross — an isolate can only be
       // passed things that hold no open connection.
       final result = await compute(
-        _runOffThread,
+        runSimulationOffThread,
         (
           studies: assembled.studies,
           workcenters: assembled.workcenters,
@@ -165,15 +165,20 @@ class SimulationRunner extends _$SimulationRunner {
 }
 
 /// What crosses to the background isolate.
-typedef _RunRequest = ({
+typedef SimRunRequest = ({
   List<SimStudy> studies,
   Map<String, SimWorkcenter> workcenters,
   DispatchRule dispatch,
 });
 
-/// Top-level so it can be sent: `compute` needs a function with no closure
-/// over the widget tree.
-SimRunResult _runOffThread(_RunRequest request) => runSimulation(
+/// The run, on a background isolate (DESIGN.md §7.1).
+///
+/// Top-level and public for two reasons: `compute` needs a function that
+/// closes over nothing, and whether these inputs can *cross* an isolate at all
+/// is the one thing about the run that no in-process test would catch —
+/// `SimStudy` and `SimWorkcenter` are plain values precisely so they can, and
+/// a test calls this the same way the button does.
+SimRunResult runSimulationOffThread(SimRunRequest request) => runSimulation(
   studies: request.studies,
   workcenters: request.workcenters,
   dispatch: request.dispatch,
