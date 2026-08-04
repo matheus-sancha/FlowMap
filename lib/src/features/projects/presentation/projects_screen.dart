@@ -257,6 +257,20 @@ class _ProjectDialogState extends State<_ProjectDialog> {
     super.dispose();
   }
 
+  void _submit() {
+    final value = _name.text.trim();
+    if (value.isEmpty || widget.takenNames.contains(value.toLowerCase())) {
+      return;
+    }
+    Navigator.of(context).pop(
+      _ProjectDraft(
+        name: value,
+        plantId: _plantId,
+        shiftPatternId: _patternId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -278,6 +292,7 @@ class _ProjectDialogState extends State<_ProjectDialog> {
                 errorText: taken ? l10n.validationNameTaken : null,
               ),
               onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -321,15 +336,7 @@ class _ProjectDialogState extends State<_ProjectDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: value.isEmpty || taken
-              ? null
-              : () => Navigator.of(context).pop(
-                  _ProjectDraft(
-                    name: value,
-                    plantId: _plantId,
-                    shiftPatternId: _patternId,
-                  ),
-                ),
+          onPressed: value.isEmpty || taken ? null : _submit,
           child: Text(l10n.actionSave),
         ),
       ],

@@ -404,6 +404,14 @@ class _StudyDialogState extends State<_StudyDialog> {
     super.dispose();
   }
 
+  void _submit() {
+    final value = _name.text.trim();
+    if (value.isEmpty || widget.takenNames.contains(value.toLowerCase())) {
+      return;
+    }
+    Navigator.of(context).pop((name: value, line: _line));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -426,6 +434,7 @@ class _StudyDialogState extends State<_StudyDialog> {
                 errorText: taken ? l10n.validationNameTaken : null,
               ),
               onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -455,9 +464,7 @@ class _StudyDialogState extends State<_StudyDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: value.isEmpty || taken
-              ? null
-              : () => Navigator.of(context).pop((name: value, line: _line)),
+          onPressed: value.isEmpty || taken ? null : _submit,
           child: Text(l10n.actionSave),
         ),
       ],

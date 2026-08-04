@@ -253,6 +253,13 @@ class _TaktDialogState extends State<_TaktDialog> {
     return value != null && value > 0 ? value : null;
   }
 
+  void _submit() {
+    if (_parsed == null || _end.isBefore(_start)) return;
+    Navigator.of(context).pop(
+      _TaktDraft(start: _start, end: _end, value: _parsed!, unit: _unit),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -285,6 +292,7 @@ class _TaktDialogState extends State<_TaktDialog> {
                     ),
                     decoration: InputDecoration(labelText: l10n.takt),
                     onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _submit(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -326,16 +334,7 @@ class _TaktDialogState extends State<_TaktDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: valid
-              ? () => Navigator.of(context).pop(
-                  _TaktDraft(
-                    start: _start,
-                    end: _end,
-                    value: _parsed!,
-                    unit: _unit,
-                  ),
-                )
-              : null,
+          onPressed: valid ? _submit : null,
           child: Text(l10n.actionSave),
         ),
       ],

@@ -79,6 +79,17 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
         : null;
   }
 
+  void _submit() {
+    if (_name.text.trim().isEmpty || _nameError != null) return;
+    Navigator.of(context).pop(
+      WorkcenterDraft(
+        name: _name.text.trim(),
+        typeId: _typeId,
+        homeLineId: _lineId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -101,9 +112,16 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
                 // The name is what the process box is labelled with, so it is
                 // the shop-floor code, not a description.
                 helperText: l10n.workcenterNameHelp,
+                // `helperMaxLines` defaults to 1 however long the string is,
+                // so without this the sentence is clipped mid-word — which is
+                // exactly what was reported from the field.
+                helperMaxLines: 3,
                 errorText: _nameError,
               ),
               onChanged: (_) => setState(() {}),
+              // The name is the only thing that has to be typed here, so Enter
+              // finishes the job rather than doing nothing.
+              onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
@@ -143,15 +161,7 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: canSave
-              ? () => Navigator.of(context).pop(
-                  WorkcenterDraft(
-                    name: _name.text.trim(),
-                    typeId: _typeId,
-                    homeLineId: _lineId,
-                  ),
-                )
-              : null,
+          onPressed: canSave ? _submit : null,
           child: Text(l10n.actionSave),
         ),
       ],
