@@ -802,6 +802,7 @@ The calendar's public surface — the seam everything downstream calls:
 | `openTimeBetween(from, to)` | capacity in a window (occupation, utilisation) |
 | `advance(from, work)` | when `work` of open time finishes (lead time, simulation) |
 | `retreat(until, work)` | when `work` of open time would have to begin (§7.8, added in M4) |
+| `openWindowFrom(from)` | the open window containing or following `from` (§7.1's dispatcher, M4) |
 
 `advance` and `nextOpen` throw `StateError` rather than looping if the calendar can supply no
 open time within ten years — the simulation's abort guard (§7.8) depends on that failing loudly.
@@ -976,6 +977,50 @@ no UI.
   Inflating a step's time by `(1 + rework) ÷ availability` and spending open time gives exactly
   `required ÷ (open × availability)`. §7.6 reads as though rework should inflate changeover too;
   it does not, here or in §8.4, because rework is a loss on the work a *part* requires (§6.1).
+
+### 16.9 The event loop, and what it cost to make it fast
+
+The engine as built: a binary heap of timestamped events, one shared resource model, and a settle
+pass that starts whatever can start.
+
+- **All events at one instant, then one settle.** Dispatching after each event in turn let whichever
+  arrival happened to be dequeued first take a free workcenter — so the queue's insertion order beat
+  §7.4's rules, and two studies releasing on the same slot ignored their priorities. Caught by the
+  test for exactly that. An event may schedule another at the same instant; that is picked up by the
+  same pass, not left for the next.
+- **The dispatch decision is made when a station actually opens**, not when it goes idle. A server
+  with work but closed schedules a wake at its next opening and chooses there, so an order arriving
+  overnight is not beaten to the shift by one that merely queued first.
+- **Free stations are tried least-busy first, then by name** — §3.1's pool tie-break, and the reason
+  a run of the same inputs cannot reorder itself.
+- **Every ordering falls through to keys that cannot tie**: arrival, then study priority, then
+  sequence number, then order id. Determinism is not a nice-to-have here (§4.4) — the output is a
+  headcount decision.
+- **The first order of a run never pays a changeover.** Cold start means no previous order on the
+  station, and §7.6 charges only for a *different* part number.
+- **The engine's occupancy and the Summary's occupation are the same arithmetic.** Inflating a
+  step's time by `(1 + rework) ÷ availability` and spending open time equals `required ÷ (open ×
+  availability)`. Availability derates the setup too; rework does not, matching §8.4 and §6.1.
+
+**Performance.** The first working version took **6.2 s** for §14's target of 2000 orders through 10
+steps — against a stated "well under a second". Measured rather than guessed at, and the cause was
+not in the engine at all:
+
+- **A local `DateTime(y, m, d)` costs ~13 µs on Windows; its UTC twin costs 0.03 µs**, because every
+  local construction asks the OS for a zone offset. `dateOnly` is the hottest call in the app.
+- Memoising it — verified against each day's real `[midnight, next midnight)` range, so a 23- or
+  25-hour daylight-saving day is still exactly one day — and memoising a day's shift windows on the
+  immutable calendar took the same run to **2.8 s**, with no behaviour change and all 91 calendar
+  tests still passing.
+- Routing `_nextDay`/`_previousDay` through the same cache was tried and **made it worse** (4.4 s):
+  the previous-day lookup lands in a different cache slot and thrashes it. Reverted.
+
+2.8 s is measured under `dart run`'s JIT; the shipped build is AOT and the run happens on a
+background isolate (§7.1), so nothing freezes. It is still short of §14, and the remaining cost is
+the same one: local `DateTime` arithmetic throughout the calendar. Closing it properly means working
+in epoch integers inside `WorkingCalendar` and converting only at its edges — a real refactor of the
+most heavily tested code in the app, worth doing deliberately rather than in the margins of building
+the engine. Recorded here so the next person starts from the measurement rather than from the guess.
 
 ---
 

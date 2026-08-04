@@ -141,6 +141,24 @@ class SimOrder {
   final String? orderNumber;
 }
 
+/// How a workcenter chooses which waiting order to run next (DESIGN.md §7.4).
+enum DispatchRule {
+  /// By arrival at the step. The default, and what a shop floor does.
+  fifo,
+
+  /// Earliest need date first — "what if we dispatched by due date" is exactly
+  /// the experiment this app exists to run.
+  earliestDueDate,
+
+  /// Shortest processing time first.
+  shortestProcessing;
+
+  /// Every rule falls back to the same three keys, so a run of the same inputs
+  /// always produces the same output (§4.4): arrival, then the study's
+  /// priority, then its position in the sequence.
+  bool get isDefault => this == DispatchRule.fifo;
+}
+
 /// One study taking part in a run.
 class SimStudy {
   const SimStudy({
@@ -149,9 +167,24 @@ class SimStudy {
     required this.nodes,
     required this.parts,
     required this.orders,
+    required this.releaseInterval,
+    this.releaseCalendarId,
     this.priority = 100,
     this.wipCap,
   });
+
+  /// One takt — the gap between release slots (§7.2).
+  ///
+  /// Resolved by the caller, not here: a takt in days means productive days of
+  /// a particular station (§6.1), and which station is the question §8.2 has
+  /// already answered — the bottleneck sets the pace (§18.8). The engine is
+  /// handed a duration and a clock to measure it on.
+  final Duration releaseInterval;
+
+  /// Whose open time [releaseInterval] is measured in. Null puts the slots on
+  /// the wall clock, which is right for a takt given in hours and wrong for one
+  /// given in days — hence the caller's job, not ours.
+  final String? releaseCalendarId;
 
   final String id;
   final String name;

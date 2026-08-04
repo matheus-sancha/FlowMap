@@ -136,6 +136,23 @@ class WorkingCalendar {
   /// Friday's capacity, and a Saturday shutdown does not cut it short.
   List<OpenInterval> intervalsStartingOn(DateTime date) {
     final day = dateOnly(date);
+    // Keyed by epoch milliseconds rather than by the DateTime: an int hashes
+    // and compares in a handful of instructions where a DateTime does not, and
+    // this is the hottest lookup in a run.
+    final key = day.millisecondsSinceEpoch;
+    final cached = _intervalCache[key];
+    if (cached != null) return cached;
+    return _intervalCache[key] = _computeIntervalsStartingOn(day);
+  }
+
+  /// Memoised because a calendar is immutable and the callers ask the same
+  /// question over and over: `advance`, `nextOpen` and `openTimeBetween` all
+  /// walk day by day, and a simulation walks them tens of thousands of times
+  /// (§7.1, §14). Recomputing a day's shift windows on every visit was the
+  /// engine's whole cost.
+  final Map<int, List<OpenInterval>> _intervalCache = {};
+
+  List<OpenInterval> _computeIntervalsStartingOn(DateTime day) {
     final exception = exceptions[day];
 
     if (exception?.kind == CalendarExceptionKind.nonWorking) {
@@ -187,6 +204,24 @@ class WorkingCalendar {
       if (interval.contains(t)) return true;
     }
     return false;
+  }
+
+  /// The open window containing [from], or the next one after it.
+  ///
+  /// Null if there is none within [_searchLimitDays]. Where [nextOpen] answers
+  /// "when could work start", this answers "and how long does that opening
+  /// last" — which lets a caller that asks repeatedly, like the simulation's
+  /// dispatcher, cache the answer until the window closes instead of walking
+  /// the calendar on every event (§7.1, §14).
+  OpenInterval? openWindowFrom(DateTime from) {
+    var day = _previousDay(dateOnly(from));
+    for (var i = 0; i <= _searchLimitDays; i++) {
+      for (final interval in intervalsStartingOn(day)) {
+        if (interval.end.isAfter(from)) return interval;
+      }
+      day = _nextDay(day);
+    }
+    return null;
   }
 
   /// The first instant at or after [from] when the workcenter is open.
