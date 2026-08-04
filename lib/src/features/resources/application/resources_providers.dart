@@ -30,12 +30,6 @@ final cellsProvider = StreamProvider.family<List<ProductionCell>, String>(
       .watchCells(plantId, includeArchived: ref.watch(showArchivedProvider)),
 );
 
-final linesProvider = StreamProvider.family<List<ProductionLine>, String>(
-  (ref, cellId) => ref
-      .watch(resourcesRepositoryProvider)
-      .watchLines(cellId, includeArchived: ref.watch(showArchivedProvider)),
-);
-
 final plantLinesProvider = StreamProvider.family<List<PlantLine>, String>(
   (ref, plantId) => ref
       .watch(resourcesRepositoryProvider)

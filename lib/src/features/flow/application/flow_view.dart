@@ -194,8 +194,6 @@ class FlowStepView extends FlowNodeView {
 
   int get staffedShiftCount => operatorsPerShift.where((o) => o > 0).length;
 
-  bool get isCostable => processTime != null;
-
   @override
   Duration get ladderTime => processTime ?? Duration.zero;
 

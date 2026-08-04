@@ -43,10 +43,6 @@ class ResourcesRepository {
     return query.watch();
   }
 
-  Stream<Plant?> watchPlant(String id) => (_db.select(
-    _db.plants,
-  )..where((p) => p.id.equals(id))).watchSingleOrNull();
-
   Future<String> createPlant({required String name, String? code}) async {
     final id = newId();
     final now = DateTime.now();

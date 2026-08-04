@@ -802,6 +802,32 @@ out of the bytes, so the tests assert on what the renderer *asks* to be
 formatted — a recording formatter, rather than a golden file that would have to
 be regenerated on every layout tweak.
 
+### 17.5 What is built but cannot be reached
+
+An audit before M3 found two kinds of unused code, and they deserve opposite
+treatment.
+
+**Superseded, and deleted.** `formatLadderTime` (replaced by
+`formatAdaptiveDuration`'s working day in §17.1), `durationUnitShort`,
+`FlowStepView.isCostable`, `FlowView.flowEquivalentProcessTime` — a duplicate of
+`processTime` that would have started lying the moment M3 gave the two different
+meanings — `SchedulePeriodIssue.isBlocking` (a constant `true`),
+`ViewedPeriodState.end`, `linesProvider`, `watchPlant`, `loadProject`,
+`Diag.shortId`, `Diag.installForTest`, and two painter fields nothing painted.
+None had a caller, in the app or in a test.
+
+**Written ahead of its UI, and kept.** These are complete, tested through their
+repositories, and reachable from nothing a user can click. Listed here so the
+next milestone plans them rather than rediscovering them:
+
+| What | State | Wanted by |
+|---|---|---|
+| Calendar exceptions (§4.3) | schema, resolution, calendar assembly, tests | **M3** — "Saturday extra hours on CLAD04" is the commonest capacity lever there is, and it cannot currently be entered |
+| Supplier / Customer names (§16.2) | stored, drawn on canvas and PDF | M3 — the only writer is the rename dialog passing the old value back, so the endpoints always read their defaults |
+| The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty |
+| `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
+| `wipCap`, `priority`, `reworkOn`, `effectiveProcessTime` | stored / computed | M4, as planned |
+
 ---
 
 ## 18. Open assumptions

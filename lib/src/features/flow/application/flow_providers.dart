@@ -17,8 +17,6 @@ class ViewedPeriodState {
   /// The first day of the span.
   final DateTime anchor;
   final PeriodGranularity granularity;
-
-  DateTime get end => granularity.endOf(anchor);
 }
 
 /// The period the map is showing (`Aug 2026`, `Q3 2026`, `2026`).

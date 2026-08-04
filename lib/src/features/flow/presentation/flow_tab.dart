@@ -304,17 +304,13 @@ class _CanvasState extends ConsumerState<_Canvas> {
                 painter: FlowConnectionsPainter(
                   segments: segments,
                   color: theme.colorScheme.onSurfaceVariant,
-                  ladderColor: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
             Positioned.fill(
               child: CustomPaint(
                 painter: LeadTimeLadderPainter(
-                  rungs: [
-                    for (final rung in layout.ladder)
-                      (rung.rect, rung.isWaiting),
-                  ],
+                  rungs: [for (final rung in layout.ladder) rung.rect],
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),

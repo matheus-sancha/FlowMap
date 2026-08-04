@@ -34,14 +34,6 @@ String durationUnitLabel(AppLocalizations l10n, DurationUnit unit) =>
       DurationUnit.seconds => l10n.unitSeconds,
     };
 
-String durationUnitShort(AppLocalizations l10n, DurationUnit unit) =>
-    switch (unit) {
-      DurationUnit.days => l10n.unitDaysShort,
-      DurationUnit.hours => l10n.unitHoursShort,
-      DurationUnit.minutes => l10n.unitMinutesShort,
-      DurationUnit.seconds => l10n.unitSecondsShort,
-    };
-
 /// Seconds in one of [unit]. A day is 24 hours here — see [DurationUnit].
 int secondsPerDurationUnit(DurationUnit unit) => switch (unit) {
   DurationUnit.days => 24 * 60 * 60,
