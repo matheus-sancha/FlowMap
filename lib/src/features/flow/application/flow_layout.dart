@@ -18,11 +18,11 @@ abstract final class FlowMetrics {
   /// A process box, and the inventory triangle's bounding box.
   static const nodeWidth = 168.0;
 
-  /// Tall enough for the seven data rows the box can carry — the seventh,
-  /// Equivalent, appears only under a demand data source (§6.2). Fixed rather
-  /// than sized to content, so changing the data source does not reflow the
-  /// whole map under the reader.
-  static const nodeHeight = 168.0;
+  /// Tall enough for the eight data rows the box can carry — Equivalent
+  /// appears only under a demand data source (§6.2). Fixed rather than sized to
+  /// content, so changing the data source does not reflow the whole map under
+  /// the reader.
+  static const nodeHeight = 186.0;
 
   /// The header strip carrying the workcenter code.
   static const nodeHeaderHeight = 34.0;

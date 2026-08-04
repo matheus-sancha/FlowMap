@@ -644,6 +644,18 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : formatDurationHms(step.processTime!),
                       ),
+                      // One takt of this station's own capacity (§6.1) — the
+                      // yardstick the row above is measured against. Shown
+                      // whatever the data source, so a part's process time can
+                      // be read against the takt without changing anything;
+                      // under the flow equivalent the two are the same number
+                      // by construction, which is itself worth seeing.
+                      _DataRow(
+                        label: l10n.stepCycleTime,
+                        value: step.equivalentProcessTime == null
+                            ? '—'
+                            : formatDurationHms(step.equivalentProcessTime!),
+                      ),
                       // How many takts of this station's capacity the part
                       // actually consumes (DESIGN.md §6.2). Only under a demand
                       // source: the equivalent's own equivalence is 1.00 by

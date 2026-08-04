@@ -48,13 +48,19 @@ DemandPartsPlan planPartsWrite({
   final parts = <PartWrite>[];
   final times = <PartTimeWrite>[];
 
-  // Lower-cased part number → the part number as it is actually spelled.
-  // Grows as the block names new parts, so a block naming the same part twice
-  // creates it once, and a re-paste of rows already in the table writes into
-  // them rather than colliding with the unique key.
-  final known = {
+  // Part key → the part it names. Grows as the block names new parts, so a
+  // block naming the same part twice creates it once, and a re-paste of rows
+  // already in the table writes into them rather than colliding with the
+  // unique key.
+  //
+  // Keyed by project **and** number: the same part number under two customer
+  // projects is two parts (§9.3).
+  final known = <String, ({String project, String number})>{
     for (final part in table.parts)
-      part.partNumber.toLowerCase(): part.partNumber,
+      partKeyOf(part.customerProject, part.partNumber): (
+        project: part.customerProject,
+        number: part.partNumber,
+      ),
   };
 
   for (var r = 0; r < block.length; r++) {
@@ -73,61 +79,58 @@ DemandPartsPlan planPartsWrite({
         ? table.parts[rowIndex]
         : null;
 
-    final String partNumber;
+    final String partKey;
     if (existing == null) {
       if (typedNumber == null || typedNumber.isEmpty) continue;
 
-      final alreadyThere = known[typedNumber.toLowerCase()];
-      partNumber = alreadyThere ?? typedNumber;
-      if (alreadyThere == null) {
+      final project = typedProject ?? '';
+      partKey = partKeyOf(project, typedNumber);
+      if (!known.containsKey(partKey)) {
         parts.add(
           PartWrite(
             id: null,
             partNumber: typedNumber,
-            customerProject: (typedProject?.isEmpty ?? true)
-                ? null
-                : typedProject,
+            customerProject: project,
             description: (typedDescription?.isEmpty ?? true)
                 ? null
                 : typedDescription,
           ),
         );
-        known[typedNumber.toLowerCase()] = typedNumber;
+        known[partKey] = (project: project, number: typedNumber);
       }
     } else {
-      final renamed =
-          typedNumber != null &&
-          typedNumber.isNotEmpty &&
-          typedNumber.toLowerCase() != existing.partNumber.toLowerCase();
-      // A rename onto a number the study already carries would hit the unique
+      final number = (typedNumber == null || typedNumber.isEmpty)
+          ? existing.partNumber
+          : typedNumber;
+      final project = typedProject ?? existing.customerProject;
+      final wanted = partKeyOf(project, number);
+      final was = partKeyOf(existing.customerProject, existing.partNumber);
+
+      // Renaming onto a pair the study already carries would hit the unique
       // key inside an async callback, where the user sees nothing happen. The
-      // cell reports it; the plan simply keeps the old name.
-      final collides = renamed && known.containsKey(typedNumber.toLowerCase());
+      // cell reports it; the plan keeps what was there.
+      final collides = wanted != was && known.containsKey(wanted);
+      final renamed = wanted != was && !collides;
       final redescribed =
           typedDescription != null &&
           typedDescription != (existing.description ?? '');
-      final reprojected =
-          typedProject != null &&
-          typedProject != (existing.customerProject ?? '');
 
-      partNumber = renamed && !collides ? typedNumber : existing.partNumber;
+      partKey = renamed ? wanted : was;
 
-      if ((renamed && !collides) || redescribed || reprojected) {
+      if (renamed || redescribed) {
         parts.add(
           PartWrite(
             id: existing.id,
-            partNumber: partNumber,
-            customerProject: reprojected
-                ? (typedProject.isEmpty ? null : typedProject)
-                : existing.customerProject,
+            partNumber: renamed ? number : existing.partNumber,
+            customerProject: renamed ? project : existing.customerProject,
             description: redescribed
                 ? (typedDescription.isEmpty ? null : typedDescription)
                 : existing.description,
           ),
         );
-        if (renamed && !collides) {
-          known.remove(existing.partNumber.toLowerCase());
-          known[partNumber.toLowerCase()] = partNumber;
+        if (renamed) {
+          known.remove(was);
+          known[wanted] = (project: project, number: number);
         }
       }
     }
@@ -142,14 +145,14 @@ DemandPartsPlan planPartsWrite({
       final text = raw.trim();
       if (text.isEmpty) {
         times.add(
-          PartTimeWrite(partNumber: partNumber, targetId: targetId, time: null),
+          PartTimeWrite(partKey: partKey, targetId: targetId, time: null),
         );
         continue;
       }
       final parsed = parseDurationInput(text);
       if (parsed == null) continue;
       times.add(
-        PartTimeWrite(partNumber: partNumber, targetId: targetId, time: parsed),
+        PartTimeWrite(partKey: partKey, targetId: targetId, time: parsed),
       );
     }
   }
@@ -171,9 +174,11 @@ List<OrderWrite> planSequenceWrite({
   required List<List<String>> block,
   required String locale,
 }) {
-  final byNumber = {
-    for (final part in parts) part.partNumber.toLowerCase(): part.id,
+  final byKey = {
+    for (final part in parts)
+      partKeyOf(part.customerProject, part.partNumber): part.id,
   };
+  final byId = {for (final part in parts) part.id: part};
   final writes = <OrderWrite>[];
 
   for (var r = 0; r < block.length; r++) {
@@ -187,10 +192,16 @@ List<OrderWrite> planSequenceWrite({
 
     final existing = rowIndex < orders.length ? orders[rowIndex] : null;
 
+    // Both halves of the part's identity, each falling back to what the
+    // existing row already points at (§9.3).
+    final was = existing == null ? null : byId[existing.partId];
     final typedPart = cellAt(orderPartColumn)?.trim();
-    final partId = typedPart == null || typedPart.isEmpty
-        ? existing?.partId
-        : byNumber[typedPart.toLowerCase()];
+    final typedRowProject = cellAt(orderProjectColumn)?.trim();
+    final number = (typedPart == null || typedPart.isEmpty)
+        ? was?.partNumber
+        : typedPart;
+    final project = typedRowProject ?? was?.customerProject ?? '';
+    final partId = number == null ? null : byKey[partKeyOf(project, number)];
     if (partId == null) continue;
 
     final typedNeed = cellAt(orderNeedColumn)?.trim();

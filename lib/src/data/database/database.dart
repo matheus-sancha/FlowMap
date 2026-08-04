@@ -64,7 +64,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -196,6 +196,26 @@ class AppDatabase extends _$AppDatabase {
         // a database older than that gets `demand_orders` from the *current*
         // definition at the v6 step and never had the column (DATA.md).
         if (from >= 6) await m.alterTable(TableMigration(demandOrders));
+      }
+
+      if (from < 10) {
+        // A part is identified by its project **and** its number: the same part
+        // number is legitimately ordered by two clients' projects, and they are
+        // two rows of demand with their own times and their own place in the
+        // sequence. The unique key gains the project, and the column stops
+        // being nullable so SQLite cannot treat two unprojected parts as
+        // distinct (the `scope_id` lesson, §16.2).
+        await m.alterTable(
+          TableMigration(
+            demandParts,
+            columnTransformer: {
+              demandParts.customerProject: coalesce([
+                demandParts.customerProject,
+                const Constant(''),
+              ]),
+            },
+          ),
+        );
       }
 
       // Reference-data seeding runs outside every version guard, on every

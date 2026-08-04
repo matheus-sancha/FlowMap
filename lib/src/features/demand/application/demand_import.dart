@@ -303,7 +303,8 @@ List<ImportRow> validateSequenceImport({
   required int firstSourceRow,
 }) {
   final known = {
-    for (final part in table.parts) part.partNumber.toLowerCase(): part.id,
+    for (final part in table.parts)
+      partKeyOf(part.customerProject, part.partNumber): part.id,
   };
   final checked = <ImportRow>[];
 
@@ -325,7 +326,9 @@ List<ImportRow> validateSequenceImport({
           blocking: true,
         ),
       );
-    } else if (!known.containsKey(partNumber.toLowerCase())) {
+    } else if (!known.containsKey(
+      partKeyOf(row.cell(orderProjectColumn) ?? '', partNumber),
+    )) {
       // An order for a part the study has never heard of is the commonest
       // import failure there is, and inventing the part would hide a typo.
       issues.add(
@@ -411,8 +414,11 @@ DemandPartsPlan planPartsImport({
   required List<ImportRow> rows,
   required DemandTable table,
 }) {
+  // Keyed by project **and** number: the same part number under two customer
+  // projects is two parts (§9.3).
   final existing = {
-    for (final part in table.parts) part.partNumber.toLowerCase(): part,
+    for (final part in table.parts)
+      partKeyOf(part.customerProject, part.partNumber): part,
   };
   final parts = <PartWrite>[];
   final times = <PartTimeWrite>[];
@@ -422,9 +428,10 @@ DemandPartsPlan planPartsImport({
     final partNumber = row.cell(partNumberColumn);
     if (partNumber == null) continue;
 
-    final was = existing[partNumber.toLowerCase()];
+    final project = row.cell(partProjectColumn) ?? '';
     final description = row.cell(partDescriptionColumn);
-    final project = row.cell(partProjectColumn);
+    final partKey = partKeyOf(project, partNumber);
+    final was = existing[partKey];
 
     if (was == null) {
       parts.add(
@@ -435,15 +442,14 @@ DemandPartsPlan planPartsImport({
           description: description,
         ),
       );
-    } else if ((description != null && description != was.description) ||
-        (project != null && project != was.customerProject)) {
+    } else if (description != null && description != was.description) {
       parts.add(
         PartWrite(
           id: was.id,
           partNumber: was.partNumber,
           // An unmapped column is left alone, never cleared (§9.2).
-          customerProject: project ?? was.customerProject,
-          description: description ?? was.description,
+          customerProject: was.customerProject,
+          description: description,
         ),
       );
     }
@@ -455,11 +461,7 @@ DemandPartsPlan planPartsImport({
       final parsed = parseDurationInput(raw);
       if (parsed == null) continue;
       times.add(
-        PartTimeWrite(
-          partNumber: was?.partNumber ?? partNumber,
-          targetId: targetId,
-          time: parsed,
-        ),
+        PartTimeWrite(partKey: partKey, targetId: targetId, time: parsed),
       );
     }
   }
@@ -478,14 +480,18 @@ List<OrderWrite> planSequenceImport({
   required String locale,
 }) {
   final known = {
-    for (final part in table.parts) part.partNumber.toLowerCase(): part.id,
+    for (final part in table.parts)
+      partKeyOf(part.customerProject, part.partNumber): part.id,
   };
   final writes = <OrderWrite>[];
 
   for (final row in rows) {
     if (row.isBlocked) continue;
 
-    final partId = known[row.cell(orderPartColumn)!.toLowerCase()];
+    final partId = known[partKeyOf(
+      row.cell(orderProjectColumn) ?? '',
+      row.cell(orderPartColumn)!,
+    )];
     final needDate = parseDateInput(row.cell(orderNeedColumn)!, locale);
     if (partId == null || needDate == null) continue;
 

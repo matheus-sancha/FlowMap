@@ -2,6 +2,7 @@ import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/features/demand/application/demand_import.dart';
 import 'package:flowmap/src/features/demand/application/demand_paste.dart';
 import 'package:flowmap/src/features/demand/application/demand_table.dart';
+import 'package:flowmap/src/features/demand/data/demand_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -16,6 +17,7 @@ void main() {
     id: id,
     studyId: 'study-1',
     partNumber: number,
+    customerProject: '',
     description: description,
     createdAt: now,
     updatedAt: now,
@@ -317,7 +319,7 @@ void main() {
 
       final plan = planPartsImport(rows: rows, table: table);
       expect(plan.parts.map((p) => p.partNumber), ['PN2']);
-      expect(plan.times.single.partNumber, 'PN2');
+      expect(plan.times.single.partKey, partKeyOf('', 'PN2'));
     });
   });
 

@@ -643,6 +643,23 @@ column and removing one hides the values without destroying them.
   flow's own step targets, and §10.2 leaves demand out of a template by default. Duplicating a
   study deep-copies its demand, so a scenario can be re-sequenced against the same orders (§6.3).
 
+### 9.3 What identifies a part
+
+A part number is the id of a part or a piece of equipment, and different clients' projects
+legitimately order the same one. So a part is identified inside a study by **project and number
+together** — `PN2 on Wing 7` and `PN2 on Wing 9` are two rows of demand, with their own process
+times and their own places in the sequence.
+
+- The unique key is `(study, customer project, part number)`, and `customer_project` is **not
+  nullable** — empty string, for the reason `calendar_exceptions.scope_id` is (§16.2): SQLite treats
+  NULLs as distinct in a UNIQUE constraint, so two unprojected `PN2`s would both be allowed.
+- Everything that matches a part matches on the pair: the paste planner, the import's part lookup,
+  and the sequence grid's validation. `partKeyOf` is the one place that spelling lives.
+- The Project column on the **sequence** is therefore editable, not a read-only echo of the part:
+  the number alone cannot say which part an order is for.
+- The customer's project is not the FlowMap project the study sits in, and never was — §3's project
+  is a plant plus a shift pattern.
+
 ### 9.2 The import, as built
 
 Pick, map and preview live in one dialog, because they are one decision: a mapping is only

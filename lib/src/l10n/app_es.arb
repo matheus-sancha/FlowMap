@@ -296,7 +296,7 @@
   "demandProject": "Proyecto",
   "demandDeleteAll": "Eliminar todos los pedidos",
   "demandDeleteAllBody": "Se van todos los pedidos de la secuencia. Las piezas y sus tiempos de proceso se quedan.",
-  "stepCycleTime": "Tiempo de ciclo",
+  "stepCycleTime": "C/T de takt",
 
   "demandParts": "Piezas",
   "demandSequence": "Secuencia",

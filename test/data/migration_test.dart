@@ -466,7 +466,9 @@ void main() {
     // simulation never needed.
     final parts = await db.select(db.demandParts).get();
     expect(parts.single.partNumber, 'PN1');
-    expect(parts.single.customerProject, isNull);
+    // Empty, not null: the project is half of a part's identity now, and
+    // SQLite would treat two nulls as distinct in the unique key (§9.3).
+    expect(parts.single.customerProject, '');
 
     final orders = await db.select(db.demandOrders).get();
     expect(orders.single.id, 'order-1');

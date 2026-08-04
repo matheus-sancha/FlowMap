@@ -822,7 +822,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Every order in the sequence goes. The parts and their process times stay.';
 
   @override
-  String get stepCycleTime => 'Cycle time';
+  String get stepCycleTime => 'Takt C/T';
 
   @override
   String get demandParts => 'Parts';

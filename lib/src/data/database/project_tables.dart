@@ -319,9 +319,18 @@ class DemandParts extends Table {
   /// The **customer's** project this part belongs to — their programme or
   /// contract, not the FlowMap project this study sits in.
   ///
-  /// Displayed beside the part number wherever the sequence is read, because a
-  /// planner recognises a part by the job it is for as much as by its number.
-  TextColumn get customerProject => text().nullable()();
+  /// **Part of the part's identity**, not a label on it: a part number is the
+  /// id of a part or a piece of equipment, and different clients' projects
+  /// legitimately order the same one. `PN2 on Wing 7` and `PN2 on Wing 9` are
+  /// two rows of demand with their own process times and their own place in the
+  /// sequence.
+  ///
+  /// **Empty string rather than null**, for the reason
+  /// [CalendarExceptions.scopeId] is: SQLite treats NULLs as distinct in a
+  /// UNIQUE constraint, so a nullable column would let two unprojected `PN2`s
+  /// exist side by side — the exact duplicate the key below exists to prevent.
+  TextColumn get customerProject =>
+      text().withDefault(const Constant(''))();
 
   TextColumn get description => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -332,9 +341,9 @@ class DemandParts extends Table {
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
-    // The part number is how an imported row finds its part (§9), so it has to
-    // identify one within the study.
-    {studyId, partNumber},
+    // Project **and** number, because that pair is what identifies a part to
+    // the planner and what an imported row has to match on (§9).
+    {studyId, customerProject, partNumber},
   ];
 }
 

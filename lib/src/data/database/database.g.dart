@@ -9574,9 +9574,10 @@ class $DemandPartsTable extends DemandParts
   late final GeneratedColumn<String> customerProject = GeneratedColumn<String>(
     'customer_project',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
@@ -9695,7 +9696,7 @@ class $DemandPartsTable extends DemandParts
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
   List<Set<GeneratedColumn>> get uniqueKeys => [
-    {studyId, partNumber},
+    {studyId, customerProject, partNumber},
   ];
   @override
   DemandPart map(Map<String, dynamic> data, {String? tablePrefix}) {
@@ -9716,7 +9717,7 @@ class $DemandPartsTable extends DemandParts
       customerProject: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}customer_project'],
-      ),
+      )!,
       description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}description'],
@@ -9748,9 +9749,17 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
   /// The **customer's** project this part belongs to — their programme or
   /// contract, not the FlowMap project this study sits in.
   ///
-  /// Displayed beside the part number wherever the sequence is read, because a
-  /// planner recognises a part by the job it is for as much as by its number.
-  final String? customerProject;
+  /// **Part of the part's identity**, not a label on it: a part number is the
+  /// id of a part or a piece of equipment, and different clients' projects
+  /// legitimately order the same one. `PN2 on Wing 7` and `PN2 on Wing 9` are
+  /// two rows of demand with their own process times and their own place in the
+  /// sequence.
+  ///
+  /// **Empty string rather than null**, for the reason
+  /// [CalendarExceptions.scopeId] is: SQLite treats NULLs as distinct in a
+  /// UNIQUE constraint, so a nullable column would let two unprojected `PN2`s
+  /// exist side by side — the exact duplicate the key below exists to prevent.
+  final String customerProject;
   final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9758,7 +9767,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     required this.id,
     required this.studyId,
     required this.partNumber,
-    this.customerProject,
+    required this.customerProject,
     this.description,
     required this.createdAt,
     required this.updatedAt,
@@ -9769,9 +9778,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     map['id'] = Variable<String>(id);
     map['study_id'] = Variable<String>(studyId);
     map['part_number'] = Variable<String>(partNumber);
-    if (!nullToAbsent || customerProject != null) {
-      map['customer_project'] = Variable<String>(customerProject);
-    }
+    map['customer_project'] = Variable<String>(customerProject);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
@@ -9785,9 +9792,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       id: Value(id),
       studyId: Value(studyId),
       partNumber: Value(partNumber),
-      customerProject: customerProject == null && nullToAbsent
-          ? const Value.absent()
-          : Value(customerProject),
+      customerProject: Value(customerProject),
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
@@ -9805,7 +9810,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       id: serializer.fromJson<String>(json['id']),
       studyId: serializer.fromJson<String>(json['studyId']),
       partNumber: serializer.fromJson<String>(json['partNumber']),
-      customerProject: serializer.fromJson<String?>(json['customerProject']),
+      customerProject: serializer.fromJson<String>(json['customerProject']),
       description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -9818,7 +9823,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
       'id': serializer.toJson<String>(id),
       'studyId': serializer.toJson<String>(studyId),
       'partNumber': serializer.toJson<String>(partNumber),
-      'customerProject': serializer.toJson<String?>(customerProject),
+      'customerProject': serializer.toJson<String>(customerProject),
       'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -9829,7 +9834,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     String? id,
     String? studyId,
     String? partNumber,
-    Value<String?> customerProject = const Value.absent(),
+    String? customerProject,
     Value<String?> description = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -9837,9 +9842,7 @@ class DemandPart extends DataClass implements Insertable<DemandPart> {
     id: id ?? this.id,
     studyId: studyId ?? this.studyId,
     partNumber: partNumber ?? this.partNumber,
-    customerProject: customerProject.present
-        ? customerProject.value
-        : this.customerProject,
+    customerProject: customerProject ?? this.customerProject,
     description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -9903,7 +9906,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
   final Value<String> id;
   final Value<String> studyId;
   final Value<String> partNumber;
-  final Value<String?> customerProject;
+  final Value<String> customerProject;
   final Value<String?> description;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -9958,7 +9961,7 @@ class DemandPartsCompanion extends UpdateCompanion<DemandPart> {
     Value<String>? id,
     Value<String>? studyId,
     Value<String>? partNumber,
-    Value<String?>? customerProject,
+    Value<String>? customerProject,
     Value<String?>? description,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -21011,7 +21014,7 @@ typedef $$DemandPartsTableCreateCompanionBuilder =
       required String id,
       required String studyId,
       required String partNumber,
-      Value<String?> customerProject,
+      Value<String> customerProject,
       Value<String?> description,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -21022,7 +21025,7 @@ typedef $$DemandPartsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> studyId,
       Value<String> partNumber,
-      Value<String?> customerProject,
+      Value<String> customerProject,
       Value<String?> description,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -21407,7 +21410,7 @@ class $$DemandPartsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> studyId = const Value.absent(),
                 Value<String> partNumber = const Value.absent(),
-                Value<String?> customerProject = const Value.absent(),
+                Value<String> customerProject = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -21427,7 +21430,7 @@ class $$DemandPartsTableTableManager
                 required String id,
                 required String studyId,
                 required String partNumber,
-                Value<String?> customerProject = const Value.absent(),
+                Value<String> customerProject = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,

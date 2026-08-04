@@ -315,7 +315,7 @@
   "demandProject": "Project",
   "demandDeleteAll": "Delete all orders",
   "demandDeleteAllBody": "Every order in the sequence goes. The parts and their process times stay.",
-  "stepCycleTime": "Cycle time",
+  "stepCycleTime": "Takt C/T",
 
   "demandParts": "Parts",
   "demandSequence": "Sequence",

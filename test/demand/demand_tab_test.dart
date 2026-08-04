@@ -27,6 +27,7 @@ void main() {
     id: id,
     studyId: 'study-1',
     partNumber: number,
+    customerProject: '',
     description: description,
     createdAt: now,
     updatedAt: now,

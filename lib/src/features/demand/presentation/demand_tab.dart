@@ -386,13 +386,10 @@ class _SequenceGrid extends ConsumerWidget {
             ),
       columns: [
         DataGridColumn(title: l10n.demandPartNumber, width: 150),
-        // Read-only: a part's project belongs to the part, and editing it here
-        // would let two rows of one part disagree about it.
-        DataGridColumn(
-          title: l10n.demandProject,
-          width: 150,
-          readOnly: true,
-        ),
+        // Editable, because the project is half of what identifies a part:
+        // the same part number under two customer projects is two parts, and
+        // the number alone cannot say which one an order is for (§9.3).
+        DataGridColumn(title: l10n.demandProject, width: 150),
         DataGridColumn(title: l10n.demandBatchSize, width: 90, numeric: true),
         DataGridColumn(title: l10n.demandNeedDate, width: 130, numeric: true),
         DataGridColumn(
@@ -402,23 +399,30 @@ class _SequenceGrid extends ConsumerWidget {
           helper: l10n.demandMaterialDateHelp,
         ),
       ],
-      valueAt: (row, column) {
-        if (row >= orders.length) return '';
-        final order = orders[row];
-        return switch (column) {
-          orderPartColumn => partsById[order.partId]?.partNumber ?? '',
-          orderProjectColumn =>
-            partsById[order.partId]?.customerProject ?? '',
-          orderBatchColumn => '${order.batchSize}',
-          orderNeedColumn => formatDateInput(order.needDate, locale),
-          _ => formatDateInput(order.materialDate, locale),
-        };
-      },
+      valueAt: (row, column) => _valueAt(orders, row, column, locale),
       errorAt: (row, column, raw) =>
           _errorAt(l10n, locale, orders, row, column, raw),
       onCommit: (row, column, block) =>
           _commit(ref, locale, orders, row, column, block),
     );
+  }
+
+  String _valueAt(
+    List<DemandOrder> orders,
+    int row,
+    int column,
+    String locale,
+  ) {
+    if (row >= orders.length) return '';
+    final order = orders[row];
+    final part = table.parts.where((p) => p.id == order.partId).firstOrNull;
+    return switch (column) {
+      orderPartColumn => part?.partNumber ?? '',
+      orderProjectColumn => part?.customerProject ?? '',
+      orderBatchColumn => '${order.batchSize}',
+      orderNeedColumn => formatDateInput(order.needDate, locale),
+      _ => formatDateInput(order.materialDate, locale),
+    };
   }
 
   String? _errorAt(
@@ -433,12 +437,23 @@ class _SequenceGrid extends ConsumerWidget {
     final isNewRow = row >= orders.length;
 
     switch (column) {
-      case orderProjectColumn:
-        return null;
       case orderPartColumn:
-        if (text.isEmpty) return isNewRow ? null : l10n.validationRequired;
+      case orderProjectColumn:
+        // Neither half identifies a part on its own, so both cells report the
+        // same thing: whether the pair names one this study carries.
+        final number = column == orderPartColumn
+            ? text
+            : _valueAt(orders, row, orderPartColumn, locale).trim();
+        final project = column == orderProjectColumn
+            ? text
+            : _valueAt(orders, row, orderProjectColumn, locale).trim();
+        if (number.isEmpty) {
+          return isNewRow ? null : l10n.validationRequired;
+        }
         return table.parts.any(
-              (p) => p.partNumber.toLowerCase() == text.toLowerCase(),
+              (p) =>
+                  p.partNumber.toLowerCase() == number.toLowerCase() &&
+                  p.customerProject.toLowerCase() == project.toLowerCase(),
             )
             ? null
             : l10n.validationUnknownPart;

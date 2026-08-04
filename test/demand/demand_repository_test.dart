@@ -306,8 +306,8 @@ void main() {
       // The study's own project is a different thing entirely.
       expect(parts.single.studyId, studyId);
 
-      await demand.updatePart(partId, partNumber: 'PN1', customerProject: null);
-      expect((await demand.loadParts(studyId)).single.customerProject, isNull);
+      await demand.updatePart(partId, partNumber: 'PN1');
+      expect((await demand.loadParts(studyId)).single.customerProject, '');
     });
 
     test('it travels with a duplicated study', () async {

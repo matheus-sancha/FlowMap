@@ -830,7 +830,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se van todos los pedidos de la secuencia. Las piezas y sus tiempos de proceso se quedan.';
 
   @override
-  String get stepCycleTime => 'Tiempo de ciclo';
+  String get stepCycleTime => 'C/T de takt';
 
   @override
   String get demandParts => 'Piezas';

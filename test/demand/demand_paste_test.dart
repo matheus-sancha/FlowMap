@@ -1,5 +1,6 @@
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/features/demand/application/demand_paste.dart';
+import 'package:flowmap/src/features/demand/data/demand_repository.dart';
 import 'package:flowmap/src/features/demand/application/demand_table.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -22,7 +23,7 @@ void main() {
     id: id,
     studyId: 'study-1',
     partNumber: number,
-    customerProject: project,
+    customerProject: project ?? '',
     description: description,
     createdAt: now,
     updatedAt: now,
@@ -74,18 +75,18 @@ void main() {
       expect(plan.parts.every((p) => p.isNew), isTrue);
       expect(plan.parts.first.customerProject, 'Wing 7');
       expect(plan.parts.first.description, 'Housing');
-      expect(plan.parts.last.customerProject, isNull);
+      expect(plan.parts.last.customerProject, '');
       expect(plan.parts.last.description, isNull);
 
       expect(
-        plan.times.map((t) => (t.partNumber, t.targetId, t.time)),
+        plan.times.map((t) => (t.partKey, t.targetId, t.time)),
         [
-          ('PN1', 'wc-1', const Duration(hours: 55)),
-          ('PN1', 'wc-2', const Duration(hours: 3)),
-          ('PN2', 'wc-1', const Duration(hours: 8)),
+          (partKeyOf('Wing 7', 'PN1'), 'wc-1', const Duration(hours: 55)),
+          (partKeyOf('Wing 7', 'PN1'), 'wc-2', const Duration(hours: 3)),
+          (partKeyOf('', 'PN2'), 'wc-1', const Duration(hours: 8)),
           // Blank in the middle of a pasted row means "skips this step", and
           // says so explicitly rather than being dropped (§5.1).
-          ('PN2', 'wc-2', null),
+          (partKeyOf('', 'PN2'), 'wc-2', null),
         ],
       );
     });
@@ -117,7 +118,7 @@ void main() {
       // No second PN1: the unique key would have refused it, and the user's
       // intent was plainly to update.
       expect(plan.parts, isEmpty);
-      expect(plan.times.single.partNumber, 'PN1');
+      expect(plan.times.single.partKey, partKeyOf('', 'PN1'));
       expect(plan.times.single.time, const Duration(hours: 60));
     });
 

@@ -32,7 +32,7 @@ class DemandRepository {
   Future<String> createPart({
     required String studyId,
     required String partNumber,
-    String? customerProject,
+    String customerProject = '',
     String? description,
   }) async {
     final id = newId();
@@ -56,7 +56,7 @@ class DemandRepository {
   Future<void> updatePart(
     String id, {
     required String partNumber,
-    String? customerProject,
+    String customerProject = '',
     String? description,
   }) => (_db.update(_db.demandParts)..where((p) => p.id.equals(id))).write(
     DemandPartsCompanion(
@@ -286,12 +286,12 @@ class DemandRepository {
       _db.transaction(() async {
         final ids = {
           for (final part in await loadParts(studyId))
-            part.partNumber.toLowerCase(): part.id,
+            partKeyOf(part.customerProject, part.partNumber): part.id,
         };
 
         for (final write in plan.parts) {
           if (write.isNew) {
-            ids[write.partNumber.toLowerCase()] = await createPart(
+            ids[write.key] = await createPart(
               studyId: studyId,
               partNumber: write.partNumber,
               customerProject: write.customerProject,
@@ -304,13 +304,13 @@ class DemandRepository {
               customerProject: write.customerProject,
               description: write.description,
             );
-            ids[write.partNumber.toLowerCase()] = write.id!;
+            ids[write.key] = write.id!;
           }
         }
 
         await setProcessTimes([
           for (final cell in plan.times)
-            if (ids[cell.partNumber.toLowerCase()] case final partId?)
+            if (ids[cell.partKey] case final partId?)
               ProcessTimeEdit(
                 partId: partId,
                 targetId: cell.targetId,
@@ -425,6 +425,12 @@ class DemandRepository {
   }
 }
 
+/// What identifies a part inside a study: its customer project and its number,
+/// case-folded so `pn2` finds `PN2`.
+String partKeyOf(String customerProject, String partNumber) =>
+    '${customerProject.trim().toLowerCase()}\u0000'
+    '${partNumber.trim().toLowerCase()}';
+
 /// One cell of the process-time grid, for a batched write.
 class ProcessTimeEdit {
   const ProcessTimeEdit({
@@ -459,23 +465,29 @@ class PartWrite {
   final String? id;
 
   final String partNumber;
-  final String? customerProject;
+
+  /// The customer's project. Empty is a project of its own, not "unknown".
+  final String customerProject;
+
   final String? description;
 
   bool get isNew => id == null;
+
+  /// What identifies this part inside a study (§9): the pair, case-folded.
+  String get key => partKeyOf(customerProject, partNumber);
 }
 
 /// A cell of the process-time grid a block asks to be written.
 class PartTimeWrite {
   const PartTimeWrite({
-    required this.partNumber,
+    required this.partKey,
     required this.targetId,
     required this.time,
   });
 
-  /// Keyed by part number rather than id, because a part created by the same
+  /// Keyed by [partKeyOf] rather than by id, because a part created by the same
   /// block has no id until the write happens.
-  final String partNumber;
+  final String partKey;
 
   final String targetId;
 

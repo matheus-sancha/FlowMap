@@ -1539,7 +1539,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepCycleTime.
   ///
   /// In en, this message translates to:
-  /// **'Cycle time'**
+  /// **'Takt C/T'**
   String get stepCycleTime;
 
   /// No description provided for @demandParts.
