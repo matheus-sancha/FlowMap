@@ -10041,15 +10041,6 @@ class $DemandOrdersTable extends DemandOrders
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
-  @override
-  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
-    'notes',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -10082,7 +10073,6 @@ class $DemandOrdersTable extends DemandOrders
     batchSize,
     needDate,
     materialDate,
-    notes,
     createdAt,
     updatedAt,
   ];
@@ -10159,12 +10149,6 @@ class $DemandOrdersTable extends DemandOrders
         ),
       );
     }
-    if (data.containsKey('notes')) {
-      context.handle(
-        _notesMeta,
-        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
-      );
-    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -10226,10 +10210,6 @@ class $DemandOrdersTable extends DemandOrders
         DriftSqlType.dateTime,
         data['${effectivePrefix}material_date'],
       ),
-      notes: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}notes'],
-      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -10270,7 +10250,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
   /// When material is on hand. Null means unconstrained — the order may take
   /// the first release slot it is offered (§7.2).
   final DateTime? materialDate;
-  final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
   const DemandOrder({
@@ -10282,7 +10261,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     required this.batchSize,
     required this.needDate,
     this.materialDate,
-    this.notes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -10300,9 +10278,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     map['need_date'] = Variable<DateTime>(needDate);
     if (!nullToAbsent || materialDate != null) {
       map['material_date'] = Variable<DateTime>(materialDate);
-    }
-    if (!nullToAbsent || notes != null) {
-      map['notes'] = Variable<String>(notes);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -10323,9 +10298,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       materialDate: materialDate == null && nullToAbsent
           ? const Value.absent()
           : Value(materialDate),
-      notes: notes == null && nullToAbsent
-          ? const Value.absent()
-          : Value(notes),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -10345,7 +10317,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       batchSize: serializer.fromJson<int>(json['batchSize']),
       needDate: serializer.fromJson<DateTime>(json['needDate']),
       materialDate: serializer.fromJson<DateTime?>(json['materialDate']),
-      notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -10362,7 +10333,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       'batchSize': serializer.toJson<int>(batchSize),
       'needDate': serializer.toJson<DateTime>(needDate),
       'materialDate': serializer.toJson<DateTime?>(materialDate),
-      'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -10377,7 +10347,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     int? batchSize,
     DateTime? needDate,
     Value<DateTime?> materialDate = const Value.absent(),
-    Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => DemandOrder(
@@ -10389,7 +10358,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     batchSize: batchSize ?? this.batchSize,
     needDate: needDate ?? this.needDate,
     materialDate: materialDate.present ? materialDate.value : this.materialDate,
-    notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -10407,7 +10375,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
       materialDate: data.materialDate.present
           ? data.materialDate.value
           : this.materialDate,
-      notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -10424,7 +10391,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
           ..write('batchSize: $batchSize, ')
           ..write('needDate: $needDate, ')
           ..write('materialDate: $materialDate, ')
-          ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -10441,7 +10407,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
     batchSize,
     needDate,
     materialDate,
-    notes,
     createdAt,
     updatedAt,
   );
@@ -10457,7 +10422,6 @@ class DemandOrder extends DataClass implements Insertable<DemandOrder> {
           other.batchSize == this.batchSize &&
           other.needDate == this.needDate &&
           other.materialDate == this.materialDate &&
-          other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -10471,7 +10435,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
   final Value<int> batchSize;
   final Value<DateTime> needDate;
   final Value<DateTime?> materialDate;
-  final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -10484,7 +10447,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     this.batchSize = const Value.absent(),
     this.needDate = const Value.absent(),
     this.materialDate = const Value.absent(),
-    this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -10498,7 +10460,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     this.batchSize = const Value.absent(),
     required DateTime needDate,
     this.materialDate = const Value.absent(),
-    this.notes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -10518,7 +10479,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     Expression<int>? batchSize,
     Expression<DateTime>? needDate,
     Expression<DateTime>? materialDate,
-    Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -10532,7 +10492,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
       if (batchSize != null) 'batch_size': batchSize,
       if (needDate != null) 'need_date': needDate,
       if (materialDate != null) 'material_date': materialDate,
-      if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -10548,7 +10507,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     Value<int>? batchSize,
     Value<DateTime>? needDate,
     Value<DateTime?>? materialDate,
-    Value<String?>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -10562,7 +10520,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
       batchSize: batchSize ?? this.batchSize,
       needDate: needDate ?? this.needDate,
       materialDate: materialDate ?? this.materialDate,
-      notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -10596,9 +10553,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
     if (materialDate.present) {
       map['material_date'] = Variable<DateTime>(materialDate.value);
     }
-    if (notes.present) {
-      map['notes'] = Variable<String>(notes.value);
-    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -10622,7 +10576,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
           ..write('batchSize: $batchSize, ')
           ..write('needDate: $needDate, ')
           ..write('materialDate: $materialDate, ')
-          ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -21200,7 +21153,6 @@ typedef $$DemandOrdersTableCreateCompanionBuilder =
       Value<int> batchSize,
       required DateTime needDate,
       Value<DateTime?> materialDate,
-      Value<String?> notes,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -21215,7 +21167,6 @@ typedef $$DemandOrdersTableUpdateCompanionBuilder =
       Value<int> batchSize,
       Value<DateTime> needDate,
       Value<DateTime?> materialDate,
-      Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -21296,11 +21247,6 @@ class $$DemandOrdersTableFilterComposer
 
   ColumnFilters<DateTime> get materialDate => $composableBuilder(
     column: $table.materialDate,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get notes => $composableBuilder(
-    column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21400,11 +21346,6 @@ class $$DemandOrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get notes => $composableBuilder(
-    column: $table.notes,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -21492,9 +21433,6 @@ class $$DemandOrdersTableAnnotationComposer
     column: $table.materialDate,
     builder: (column) => column,
   );
-
-  GeneratedColumn<String> get notes =>
-      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -21585,7 +21523,6 @@ class $$DemandOrdersTableTableManager
                 Value<int> batchSize = const Value.absent(),
                 Value<DateTime> needDate = const Value.absent(),
                 Value<DateTime?> materialDate = const Value.absent(),
-                Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -21598,7 +21535,6 @@ class $$DemandOrdersTableTableManager
                 batchSize: batchSize,
                 needDate: needDate,
                 materialDate: materialDate,
-                notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -21613,7 +21549,6 @@ class $$DemandOrdersTableTableManager
                 Value<int> batchSize = const Value.absent(),
                 required DateTime needDate,
                 Value<DateTime?> materialDate = const Value.absent(),
-                Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -21626,7 +21561,6 @@ class $$DemandOrdersTableTableManager
                 batchSize: batchSize,
                 needDate: needDate,
                 materialDate: materialDate,
-                notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

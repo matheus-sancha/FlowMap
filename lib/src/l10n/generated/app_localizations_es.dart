@@ -421,6 +421,30 @@ class AppLocalizationsEs extends AppLocalizations {
       'No hay ninguna pieza con ese número en este estudio';
 
   @override
+  String get stepProblemNoProcessTime =>
+      'Esta pieza no tiene tiempo de proceso aquí.';
+
+  @override
+  String get stepEquivalence => 'Equivalente';
+
+  @override
+  String get flowPart => 'Pieza';
+
+  @override
+  String get flowNoParts => 'Aún no hay piezas';
+
+  @override
+  String get footerEquivalence => 'Equivalente';
+
+  @override
+  String get footerEquivalenceHelp =>
+      'El tiempo de proceso de esta pieza en todo el flujo dividido por el del equivalente de flujo. 1,13 significa que consume 1,13 takts de la capacidad de la línea.';
+
+  @override
+  String get flowSourceNeedsDemand =>
+      'Necesita al menos una pieza en la pestaña Demanda';
+
+  @override
   String get demandParts => 'Piezas';
 
   @override

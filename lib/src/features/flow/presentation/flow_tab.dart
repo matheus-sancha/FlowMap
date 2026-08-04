@@ -7,6 +7,7 @@ import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../demand/application/demand_providers.dart';
 import '../application/flow_layout.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
@@ -60,6 +61,18 @@ class _Toolbar extends ConsumerWidget {
     final period = ref.watch(viewedPeriodProvider(study.id));
     final source = ref.watch(flowDataSourceSelectionProvider(study.id));
     final view = ref.watch(flowViewProvider(study.id)).value;
+    final parts =
+        ref.watch(demandPartsProvider(study.id)).value ?? const <DemandPart>[];
+    // The view resolves "no choice made" to the first part; the picker has to
+    // show the same one, or it would read as unset.
+    final selectedPart =
+        parts
+            .where(
+              (p) => p.id == ref.watch(selectedDemandPartProvider(study.id)),
+            )
+            .firstOrNull
+            ?.id ??
+        parts.firstOrNull?.id;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -143,16 +156,43 @@ class _Toolbar extends ConsumerWidget {
                   for (final source in FlowDataSource.values)
                     DropdownMenuItem(
                       value: source,
-                      // The other two are offered but not selectable: both need
-                      // the demand table, which arrives in M3. Showing them
-                      // keeps the shape of the choice visible instead of adding
-                      // it later as a surprise.
-                      enabled: source == FlowDataSource.flowEquivalent,
-                      child: Text(flowDataSourceLabel(l10n, source)),
+                      // The two demand sources need a part to read. Offered but
+                      // not selectable until there is one, so the shape of the
+                      // choice stays visible and the reason it is unavailable
+                      // is in the tooltip rather than in a support call.
+                      enabled: !source.isDemandPart || parts.isNotEmpty,
+                      child: Tooltip(
+                        message: !source.isDemandPart || parts.isNotEmpty
+                            ? ''
+                            : l10n.flowSourceNeedsDemand,
+                        child: Text(flowDataSourceLabel(l10n, source)),
+                      ),
                     ),
                 ],
               ),
             ),
+            // Which part, when the map is showing one. The weighted source
+            // reads every part, so it needs no picker.
+            if (source == FlowDataSource.singlePart && parts.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Text(l10n.flowPart, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(width: 8),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedPart,
+                  onChanged: (value) => ref
+                      .read(selectedDemandPartProvider(study.id).notifier)
+                      .select(value),
+                  items: [
+                    for (final part in parts)
+                      DropdownMenuItem(
+                        value: part.id,
+                        child: Text(part.partNumber),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(width: 16),
             TextButton.icon(
               onPressed: view == null
@@ -498,6 +538,17 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : formatDurationHms(step.processTime!),
                       ),
+                      // How many takts of this station's capacity the part
+                      // actually consumes (DESIGN.md §6.2). Only under a demand
+                      // source: the equivalent's own equivalence is 1.00 by
+                      // construction, and a row of ones says nothing.
+                      if (step.dataSource.isDemandPart)
+                        _DataRow(
+                          label: l10n.stepEquivalence,
+                          value: step.equivalence == null
+                              ? '—'
+                              : step.equivalence!.toStringAsFixed(2),
+                        ),
                       _DataRow(
                         label: l10n.stepChangeover,
                         value: formatDurationHms(step.changeover),
@@ -558,6 +609,7 @@ class _StepBox extends ConsumerWidget {
             StepProblem.archivedTarget => l10n.stepProblemArchived,
             StepProblem.noSchedule => l10n.stepProblemNoSchedule,
             StepProblem.emptyPool => l10n.stepProblemEmptyPool,
+            StepProblem.noProcessTime => l10n.stepProblemNoProcessTime,
           },
         )
         .join('\n');
@@ -800,6 +852,12 @@ class _FooterMetrics extends StatelessWidget {
                     ),
               help: l10n.footerEndDateHelp,
             ),
+            if (view!.flowEquivalence != null)
+              _Metric(
+                label: l10n.footerEquivalence,
+                value: view!.flowEquivalence!.toStringAsFixed(2),
+                help: l10n.footerEquivalenceHelp,
+              ),
             _Metric(
               label: l10n.footerPce,
               value:

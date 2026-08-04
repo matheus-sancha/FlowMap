@@ -300,6 +300,37 @@ eq(part, W)    = part_pt(W) ÷ FE_pt(W)          per workcenter / process type
 eq(part, flow) = Σ part_pt  ÷ Σ FE_pt           whole flow
 ```
 
+`part_pt(W)` is the **stored per-piece time with that station's rework charged
+against it** — `55 h × 1.037 = 57.035 h` in §6.1's worked reference. Availability
+is not applied here a second time: it is already in `FE_pt`'s productive day, and
+the ladder divides by the same day, so it cancels exactly where it should.
+
+**`eq(part, flow)` is a ratio of sums, never a mean of the per-step ratios.** The
+two differ the moment the steps are unequal, and only the ratio of sums answers
+the question the measure exists for — how many takts of the *whole flow's*
+capacity this part consumes. A part that is twice as slow as the takt on a
+half-hour inspection has not made the flow 1.5× harder.
+
+**A step the selected part has no process time for is a blocking error** (§11),
+not a zero and not a quiet fall-back to the takt. The yardstick is still computed
+there, because it is a property of the station and the reader may need it; what
+is missing is the part's own number, and the map says so.
+
+The two data sources that read this:
+
+- **One part** — that part's own times, with the part named in the toolbar and in
+  the printed map's header. The equivalence appears on every box and, summed, in
+  the footer band.
+- **All variants weighted by demand mix** — `Σ(pt × pieces) ÷ Σ pieces` at each
+  step, over the orders with a need date **inside the viewed period**. Weighted by
+  *pieces*, not by order count, because process times are per piece (§7.6). A
+  part that skips the step is left out of the denominator too: averaging its
+  absence in would claim the station is faster than any piece passing through it
+  ever is.
+
+A step targeting a pool reads the **pool's** cell (§3.1, §9), never that of the
+member standing in for it on the map.
+
 ### 6.3 MM3 — sequence smoothness
 
 **Centered** moving average of 3 over the equivalence of the demand sequence: `(prev + current +

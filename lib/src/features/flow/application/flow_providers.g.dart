@@ -141,25 +141,25 @@ abstract class _$ViewedPeriod extends $Notifier<ViewedPeriodState> {
 
 /// Which numbers the process boxes show.
 ///
-/// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-/// lands (M3); the others are offered but disabled, so the shape of the choice
-/// is visible from the start.
+/// The flow equivalent is the default because it is the only one that needs no
+/// demand: a study opens showing something true about its own capacity before
+/// a single part has been typed.
 
 @ProviderFor(FlowDataSourceSelection)
 final flowDataSourceSelectionProvider = FlowDataSourceSelectionFamily._();
 
 /// Which numbers the process boxes show.
 ///
-/// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-/// lands (M3); the others are offered but disabled, so the shape of the choice
-/// is visible from the start.
+/// The flow equivalent is the default because it is the only one that needs no
+/// demand: a study opens showing something true about its own capacity before
+/// a single part has been typed.
 final class FlowDataSourceSelectionProvider
     extends $NotifierProvider<FlowDataSourceSelection, FlowDataSource> {
   /// Which numbers the process boxes show.
   ///
-  /// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-  /// lands (M3); the others are offered but disabled, so the shape of the choice
-  /// is visible from the start.
+  /// The flow equivalent is the default because it is the only one that needs no
+  /// demand: a study opens showing something true about its own capacity before
+  /// a single part has been typed.
   FlowDataSourceSelectionProvider._({
     required FlowDataSourceSelectionFamily super.from,
     required String super.argument,
@@ -210,9 +210,9 @@ String _$flowDataSourceSelectionHash() =>
 
 /// Which numbers the process boxes show.
 ///
-/// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-/// lands (M3); the others are offered but disabled, so the shape of the choice
-/// is visible from the start.
+/// The flow equivalent is the default because it is the only one that needs no
+/// demand: a study opens showing something true about its own capacity before
+/// a single part has been typed.
 
 final class FlowDataSourceSelectionFamily extends $Family
     with
@@ -234,9 +234,9 @@ final class FlowDataSourceSelectionFamily extends $Family
 
   /// Which numbers the process boxes show.
   ///
-  /// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-  /// lands (M3); the others are offered but disabled, so the shape of the choice
-  /// is visible from the start.
+  /// The flow equivalent is the default because it is the only one that needs no
+  /// demand: a study opens showing something true about its own capacity before
+  /// a single part has been typed.
 
   FlowDataSourceSelectionProvider call(String studyId) =>
       FlowDataSourceSelectionProvider._(argument: studyId, from: this);
@@ -247,9 +247,9 @@ final class FlowDataSourceSelectionFamily extends $Family
 
 /// Which numbers the process boxes show.
 ///
-/// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-/// lands (M3); the others are offered but disabled, so the shape of the choice
-/// is visible from the start.
+/// The flow equivalent is the default because it is the only one that needs no
+/// demand: a study opens showing something true about its own capacity before
+/// a single part has been typed.
 
 abstract class _$FlowDataSourceSelection extends $Notifier<FlowDataSource> {
   late final _$args = ref.$arg as String;

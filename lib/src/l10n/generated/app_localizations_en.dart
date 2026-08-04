@@ -418,6 +418,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get validationUnknownPart => 'No part with that number in this study';
 
   @override
+  String get stepProblemNoProcessTime => 'This part has no process time here.';
+
+  @override
+  String get stepEquivalence => 'Equivalent';
+
+  @override
+  String get flowPart => 'Part';
+
+  @override
+  String get flowNoParts => 'No parts yet';
+
+  @override
+  String get footerEquivalence => 'Equivalent';
+
+  @override
+  String get footerEquivalenceHelp =>
+      'This part\'s process time across the flow divided by the flow equivalent\'s. 1.13 means it consumes 1.13 takts of the line\'s capacity.';
+
+  @override
+  String get flowSourceNeedsDemand =>
+      'Needs at least one part in the Demand tab';
+
+  @override
   String get demandParts => 'Parts';
 
   @override

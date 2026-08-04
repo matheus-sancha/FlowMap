@@ -225,12 +225,15 @@ void main() {
         title: 'CLAD04',
         typeName: 'Cladding',
         poolMemberCount: null,
+        dataSource: FlowDataSource.flowEquivalent,
         processTime: const Duration(hours: 68),
+        equivalentProcessTime: const Duration(hours: 68),
         changeover: const Duration(minutes: 30),
         openPerWorkingDay: const Duration(hours: 22, minutes: 40),
         productivePerWorkingDay: const Duration(hours: 16, minutes: 46),
         operatorsPerShift: const [1, 1, 1],
         availability: 0.74,
+        rework: 0.037,
         problems: const [],
       );
 

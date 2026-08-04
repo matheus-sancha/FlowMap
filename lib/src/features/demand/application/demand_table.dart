@@ -7,7 +7,8 @@
 library;
 
 import '../../../data/database/database.dart';
-import '../../flow/application/flow_view.dart';
+import '../../../data/database/enums.dart';
+import '../../flow/application/flow_view.dart' show flowStepTitle;
 
 /// One column of the grid: a flow step, and the id its process times are keyed
 /// by.
@@ -42,13 +43,28 @@ class DemandColumn {
 String? demandTargetOf(FlowNode step) => step.poolId ?? step.workcenterId;
 
 /// The columns of the demand grid, in flow order.
-List<DemandColumn> demandColumnsOf(FlowView view) => [
-  for (final step in view.steps)
-    DemandColumn(
-      nodeId: step.id,
-      targetId: demandTargetOf(step.node),
-      title: step.title,
-    ),
+///
+/// Built from the flow's nodes rather than from a [FlowView], deliberately: the
+/// view is what the *map* shows and now depends on this table to show a real
+/// part (§5.4), so reading it here would close a cycle. The header is
+/// [flowStepTitle], the same rule the process box uses, so a step renamed on
+/// the map renames its column.
+List<DemandColumn> demandColumnsOf({
+  required List<FlowNode> nodes,
+  required Map<String, String> workcenterNames,
+  required Map<String, String> poolNames,
+}) => [
+  for (final node in nodes)
+    if (node.kind == FlowNodeKind.step)
+      DemandColumn(
+        nodeId: node.id,
+        targetId: demandTargetOf(node),
+        title: flowStepTitle(
+          node,
+          workcenterName: workcenterNames[node.workcenterId],
+          poolName: poolNames[node.poolId],
+        ),
+      ),
 ];
 
 /// The parts, the columns and the cells between them.

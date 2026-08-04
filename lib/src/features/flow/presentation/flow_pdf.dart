@@ -104,7 +104,12 @@ Future<void> exportFlowPdf(
     leadTime: l10n.footerLeadTime,
     pce: l10n.footerPce,
     generated: l10n.pdfGenerated(kBuildLabel, timestamp.format(DateTime.now())),
-    dataSource: flowDataSourceLabel(l10n, view.dataSource),
+    // Named, and named *which* part when it is one: a printed map read a
+    // month later has no dropdown to check (DESIGN.md §17.4).
+    dataSource: view.selectedPartNumber == null
+        ? flowDataSourceLabel(l10n, view.dataSource)
+        : '${flowDataSourceLabel(l10n, view.dataSource)} · '
+              '${view.selectedPartNumber}',
     taktValue: view.takt == null
         ? '—'
         : '${_number(view.takt!.value)} '

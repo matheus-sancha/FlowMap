@@ -61,14 +61,45 @@ enum PeriodGranularity {
 /// Which numbers the process boxes show (DESIGN.md §5.4).
 enum FlowDataSource {
   /// The dummy part whose process time at each step is one takt of that step's
-  /// own capacity. Available as soon as takt and schedules exist.
+  /// own capacity (§6.1). Available as soon as takt and schedules exist, and
+  /// the yardstick every other source is measured against.
   flowEquivalent,
 
-  /// One demand part's own process times. Needs the demand table (M3).
+  /// One demand part's own process times, rework included (§6.2).
   singlePart,
 
-  /// Every part weighted by the demand mix. Needs the demand table (M3).
-  weightedVariants,
+  /// Every part that visits the step, weighted by the pieces due in the period.
+  weightedVariants;
+
+  /// Whether this source reads real process times out of the demand table, and
+  /// therefore has an equivalence to report against the yardstick.
+  bool get isDemandPart => this != FlowDataSource.flowEquivalent;
+}
+
+/// What the map needs from the demand table when the boxes are showing a real
+/// part (DESIGN.md §5.4, §6.2).
+///
+/// A plain value type owned by the flow rather than the demand feature: the
+/// demand grid's columns are these process boxes, so demand already depends on
+/// the flow, and this keeps that one-way.
+class FlowDemandInput {
+  const FlowDemandInput({
+    this.processTimes = const {},
+    this.piecesDueInPeriod = const {},
+    this.selectedPartId,
+    this.selectedPartNumber,
+  });
+
+  /// `partId → step target → stored per-piece time`, exactly as typed. Rework
+  /// is applied here, not stored (§4.4).
+  final Map<String, Map<String, Duration>> processTimes;
+
+  /// Pieces of each part with a need date inside the viewed span — the mix that
+  /// weights [FlowDataSource.weightedVariants].
+  final Map<String, int> piecesDueInPeriod;
+
+  final String? selectedPartId;
+  final String? selectedPartNumber;
 }
 
 /// Why a step cannot be costed.
@@ -84,6 +115,28 @@ enum StepProblem {
 
   /// The pool has no members, so there is no capacity to read.
   emptyPool,
+
+  /// The part being shown has no process time here — a blocking readiness
+  /// error when a step must be visited (DESIGN.md §11). Only ever raised by a
+  /// demand data source; the flow equivalent needs no demand to be costed.
+  noProcessTime,
+}
+
+/// What a process box is labelled: the step's own label if it has one, else the
+/// workcenter's or the pool's name (DESIGN.md §5.4).
+///
+/// Shared with the demand grid, whose columns *are* these boxes — so a step
+/// renamed on the map renames its column, and the two can never disagree about
+/// which step is which.
+String flowStepTitle(
+  FlowNode step, {
+  required String? workcenterName,
+  required String? poolName,
+}) {
+  final label = step.label;
+  if (label != null && label.isNotEmpty) return label;
+  final name = step.poolId != null ? poolName : workcenterName;
+  return (name == null || name.isEmpty) ? '—' : name;
 }
 
 sealed class FlowNodeView {
@@ -122,12 +175,15 @@ class FlowStepView extends FlowNodeView {
     required this.title,
     required this.typeName,
     required this.poolMemberCount,
+    required this.dataSource,
     required this.processTime,
+    required this.equivalentProcessTime,
     required this.changeover,
     required this.openPerWorkingDay,
     required this.productivePerWorkingDay,
     required this.operatorsPerShift,
     required this.availability,
+    required this.rework,
     required this.problems,
     this.usesLocalEquivalent = false,
     this.scheduleCarriedForward = false,
@@ -149,8 +205,25 @@ class FlowStepView extends FlowNodeView {
   /// workcenter directly.
   final int? poolMemberCount;
 
-  /// The flow equivalent's process time here — one takt of this station's
-  /// productive capacity, or the step's own override (DESIGN.md §6.1).
+  /// Which numbers this box is showing — carried here so a step can say for
+  /// itself whether it has an [equivalence] to report.
+  final FlowDataSource dataSource;
+
+  /// What the box shows, under the selected data source (DESIGN.md §5.4).
+  ///
+  /// [FlowDataSource.flowEquivalent] shows [equivalentProcessTime]; the other
+  /// two show a real part's own time with its rework applied (§6.2). The box,
+  /// the lead-time ladder and the footer totals all read this one figure, so a
+  /// step never reports two different times and PCE stays a ratio of like with
+  /// like.
+  ///
+  /// Null when [problems] is non-empty: a step that cannot be costed shows a
+  /// dash rather than a plausible zero.
+  final Duration? processTime;
+
+  /// One takt of this station's productive capacity — the flow equivalent's
+  /// process time here (DESIGN.md §6.1), or the step's own Process Specific
+  /// Takt Time where it carries one (§6.1.1).
   ///
   /// ```
   /// takt × (open_hours_per_working_day × availability)
@@ -158,19 +231,31 @@ class FlowStepView extends FlowNodeView {
   ///
   /// **Availability is in it; rework is not.** Availability is a property of
   /// the station's capacity, so it belongs here; rework is a loss on the work a
-  /// *part* requires, so it attaches to demand process times instead.
+  /// *part* requires, so it attaches to that part's process time instead.
   ///
-  /// The box, the lead-time ladder and the footer totals all read this one
-  /// figure, so a step never reports two different times and PCE stays a ratio
-  /// of like with like.
-  ///
-  /// Null when [problems] is non-empty: a step that cannot be costed shows a
-  /// dash rather than a plausible zero.
-  final Duration? processTime;
+  /// Computed whatever the data source, because it is the **yardstick**: it is
+  /// what [equivalence] divides by, and a step's share of the flow means
+  /// nothing without it.
+  final Duration? equivalentProcessTime;
 
-  /// Whether [processTime] came from this step's own override rather than the
-  /// line's takt — marked on the box, because a reader comparing two steps
-  /// needs to know one of them is not measured in takts.
+  /// `part_pt ÷ FE_pt` at this step — how many takts of this station's capacity
+  /// the part being shown actually consumes (DESIGN.md §6.2).
+  ///
+  /// Null under [FlowDataSource.flowEquivalent], where it would be 1.0 by
+  /// construction and would say nothing.
+  double? get equivalence {
+    if (!dataSource.isDemandPart) return null;
+    final part = processTime;
+    final yardstick = equivalentProcessTime;
+    if (part == null || yardstick == null || yardstick.inSeconds == 0) {
+      return null;
+    }
+    return part.inSeconds / yardstick.inSeconds;
+  }
+
+  /// Whether [equivalentProcessTime] came from this step's own override rather
+  /// than the line's takt — marked on the box, because a reader comparing two
+  /// steps needs to know one of them is not measured in takts.
   final bool usesLocalEquivalent;
 
   final Duration changeover;
@@ -186,6 +271,12 @@ class FlowStepView extends FlowNodeView {
 
   final List<int> operatorsPerShift;
   final double? availability;
+
+  /// Fraction of work redone here (§4.4). Not in [equivalentProcessTime] — it
+  /// is a loss on the work a *part* requires, so it is applied to that part's
+  /// process time and never to the yardstick.
+  final double? rework;
+
   final List<StepProblem> problems;
 
   /// The schedule period in force was carried forward past its end
@@ -263,6 +354,7 @@ class FlowView {
     required this.taktMissing,
     required this.taktCarriedForward,
     required this.scheduleVariesInPeriod,
+    this.selectedPartNumber,
     this.endDate,
     this.runningDays,
   });
@@ -301,6 +393,10 @@ class FlowView {
   final bool scheduleVariesInPeriod;
 
   final FlowDataSource dataSource;
+
+  /// The part whose numbers the boxes are showing, for the header of a printed
+  /// map. Null unless [dataSource] is [FlowDataSource.singlePart].
+  final String? selectedPartNumber;
 
   /// The takt in force, or null if none is defined for [asOf].
   final TaktPeriodSpec? takt;
@@ -354,6 +450,28 @@ class FlowView {
   static Duration? _workingDayFor(Duration total, double days) =>
       days <= 0 ? null : Duration(seconds: (total.inSeconds / days).round());
 
+  /// The yardstick totalled across the flow — Σ FE_pt.
+  Duration get equivalentProcessTime => steps.fold(
+    Duration.zero,
+    (total, step) => total + (step.equivalentProcessTime ?? Duration.zero),
+  );
+
+  /// `eq(part, flow) = Σ part_pt ÷ Σ FE_pt` (DESIGN.md §6.2).
+  ///
+  /// **A ratio of sums, not a mean of the per-step ratios.** The two differ
+  /// whenever the steps are unequal, and only this one answers the question the
+  /// measure exists for: how many takts of the whole flow's capacity this part
+  /// consumes. A step where the part is unusually slow should weigh in
+  /// proportion to how long that step is.
+  ///
+  /// Null under [FlowDataSource.flowEquivalent], where it is 1.0 by
+  /// construction.
+  double? get flowEquivalence {
+    if (!dataSource.isDemandPart) return null;
+    final yardstick = equivalentProcessTime.inSeconds;
+    return yardstick == 0 ? null : processTime.inSeconds / yardstick;
+  }
+
   bool get hasBlockingProblems =>
       taktMissing || steps.any((s) => s.problems.isNotEmpty);
 }
@@ -390,6 +508,7 @@ FlowView buildFlowView({
   required DateTime asOf,
   PeriodGranularity granularity = PeriodGranularity.month,
   FlowDataSource dataSource = FlowDataSource.flowEquivalent,
+  FlowDemandInput demand = const FlowDemandInput(),
 }) {
   final start = granularity.startOf(asOf);
   final end = granularity.endOf(asOf);
@@ -416,6 +535,8 @@ FlowView buildFlowView({
         poolMembers: poolMembers,
         takt: takt,
         asOf: start,
+        dataSource: dataSource,
+        demand: demand,
       ),
       FlowNodeKind.inventory => _buildInventory(
         node: node,
@@ -454,6 +575,9 @@ FlowView buildFlowView({
     taktMissing: taktLookup.isMissing,
     taktCarriedForward: taktLookup.isCarriedForward,
     scheduleVariesInPeriod: varies,
+    selectedPartNumber: dataSource == FlowDataSource.singlePart
+        ? demand.selectedPartNumber
+        : null,
   );
 }
 
@@ -464,6 +588,8 @@ FlowStepView _buildStep({
   required Map<String, List<String>> poolMembers,
   required TaktPeriodSpec? takt,
   required DateTime asOf,
+  required FlowDataSource dataSource,
+  required FlowDemandInput demand,
 }) {
   final problems = <StepProblem>[];
   final changeover = Duration(seconds: node.changeoverSeconds);
@@ -473,14 +599,14 @@ FlowStepView _buildStep({
   // pool whose members differ in staffing is a resource-modelling error, not
   // something to average away here.
   String? targetId = node.workcenterId;
-  var title = '';
+  String? poolName;
   String? typeName;
   int? poolMemberCount;
 
   if (node.poolId != null) {
     final pool = pools[node.poolId];
     final members = poolMembers[node.poolId] ?? const <String>[];
-    title = pool?.name ?? '';
+    poolName = pool?.name;
     poolMemberCount = members.length;
     if (members.isEmpty) {
       problems.add(StepProblem.emptyPool);
@@ -492,10 +618,11 @@ FlowStepView _buildStep({
   }
 
   final context = targetId == null ? null : contexts[targetId];
+  String? workcenterName;
   if (node.poolId == null) {
     if (context != null) {
       final workcenter = context.workcenter;
-      title = workcenter.name;
+      workcenterName = workcenter.name;
       typeName = context.typeName;
       if (workcenter.archivedAt != null) {
         problems.add(StepProblem.archivedTarget);
@@ -505,14 +632,19 @@ FlowStepView _buildStep({
     }
   }
 
-  if (node.label != null && node.label!.isNotEmpty) title = node.label!;
+  final title = flowStepTitle(
+    node,
+    workcenterName: workcenterName,
+    poolName: poolName,
+  );
 
   var openPerDay = Duration.zero;
   List<int> operators = const [];
-  // Read and shown on the box, but deliberately not folded into any duration —
-  // losses belong to a demand part's process time (M3), not to the flow
-  // equivalent's capacity.
+  // Availability is read here and folded into the productive day below; rework
+  // is read here and charged against a *part's* time, never against the
+  // yardstick (DESIGN.md §4.4, §6.1).
   double? availability;
+  double? rework;
   var carriedForward = false;
 
   if (context != null) {
@@ -523,6 +655,7 @@ FlowStepView _buildStep({
       carriedForward = lookup.isCarriedForward;
       operators = lookup.period!.operatorsPerShift;
       availability = lookup.period!.availability;
+      rework = lookup.period!.rework;
       openPerDay = context.calendar.openTimePerWorkingDay(asOf);
     }
   }
@@ -548,32 +681,97 @@ FlowStepView _buildStep({
           unit: node.equivalentUnit ?? TaktUnit.hours,
         );
 
-  final Duration? processTime;
+  final Duration? equivalentProcessTime;
   if (problems.isNotEmpty) {
-    processTime = null;
+    equivalentProcessTime = null;
   } else if (localEquivalent != null) {
-    processTime = localEquivalent.equivalentAt(productivePerDay);
+    equivalentProcessTime = localEquivalent.equivalentAt(productivePerDay);
   } else if (takt != null) {
-    processTime = takt.equivalentAt(productivePerDay);
+    equivalentProcessTime = takt.equivalentAt(productivePerDay);
   } else {
-    processTime = null;
+    equivalentProcessTime = null;
+  }
+
+  // What the box shows. The equivalent needs no demand at all; the other two
+  // read a real part's stored time and charge this station's rework against it
+  // (DESIGN.md §6.2).
+  var processTime = equivalentProcessTime;
+  if (dataSource.isDemandPart && problems.isEmpty) {
+    processTime = _demandProcessTime(
+      node: node,
+      dataSource: dataSource,
+      demand: demand,
+      rework: rework ?? 0,
+    );
+    // A step the part being shown has no time for is a blocking readiness
+    // error (§11) — not a zero, and not a quiet fall-back to the takt.
+    if (processTime == null) problems.add(StepProblem.noProcessTime);
   }
 
   return FlowStepView(
     node,
-    title: title.isEmpty ? '—' : title,
+    title: title,
     typeName: typeName,
     poolMemberCount: poolMemberCount,
+    dataSource: dataSource,
     processTime: processTime,
+    equivalentProcessTime: equivalentProcessTime,
     usesLocalEquivalent: localEquivalent != null,
     changeover: changeover,
     openPerWorkingDay: openPerDay,
     productivePerWorkingDay: productivePerDay,
     operatorsPerShift: operators,
     availability: availability,
+    rework: rework,
     problems: problems,
     scheduleCarriedForward: carriedForward,
   );
+}
+
+/// A real part's process time at one step, with that station's rework charged
+/// against it (DESIGN.md §6.2).
+///
+/// The demand table keys its cells by the **pool** where a step targets one,
+/// never by the member standing in for it on the map (§3.1, §9).
+Duration? _demandProcessTime({
+  required FlowNode node,
+  required FlowDataSource dataSource,
+  required FlowDemandInput demand,
+  required double rework,
+}) {
+  final key = node.poolId ?? node.workcenterId;
+  if (key == null) return null;
+
+  Duration withRework(Duration stored) =>
+      Duration(seconds: (stored.inSeconds * (1 + rework)).round());
+
+  switch (dataSource) {
+    case FlowDataSource.flowEquivalent:
+      return null;
+
+    case FlowDataSource.singlePart:
+      final partId = demand.selectedPartId;
+      if (partId == null) return null;
+      final stored = demand.processTimes[partId]?[key];
+      return stored == null ? null : withRework(stored);
+
+    case FlowDataSource.weightedVariants:
+      // Sigma(pt x pieces) / Sigma pieces, over the parts that actually visit
+      // this step. A part that skips it is left out of the denominator too:
+      // averaging its absence in would claim the station is faster than any
+      // piece passing through it ever is (§5.1).
+      var work = 0.0;
+      var pieces = 0;
+      for (final entry in demand.piecesDueInPeriod.entries) {
+        if (entry.value <= 0) continue;
+        final stored = demand.processTimes[entry.key]?[key];
+        if (stored == null) continue;
+        work += stored.inSeconds * entry.value;
+        pieces += entry.value;
+      }
+      if (pieces == 0) return null;
+      return withRework(Duration(seconds: (work / pieces).round()));
+  }
 }
 
 FlowInventoryView _buildInventory({

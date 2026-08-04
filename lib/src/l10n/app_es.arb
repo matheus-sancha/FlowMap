@@ -154,6 +154,14 @@
   "validationPositiveWhole": "Un número entero mayor que cero",
   "validationUnknownPart": "No hay ninguna pieza con ese número en este estudio",
 
+  "stepProblemNoProcessTime": "Esta pieza no tiene tiempo de proceso aquí.",
+  "stepEquivalence": "Equivalente",
+  "flowPart": "Pieza",
+  "flowNoParts": "Aún no hay piezas",
+  "footerEquivalence": "Equivalente",
+  "footerEquivalenceHelp": "El tiempo de proceso de esta pieza en todo el flujo dividido por el del equivalente de flujo. 1,13 significa que consume 1,13 takts de la capacidad de la línea.",
+  "flowSourceNeedsDemand": "Necesita al menos una pieza en la pestaña Demanda",
+
   "demandParts": "Piezas",
   "demandSequence": "Secuencia",
   "demandPartNumber": "Número de pieza",

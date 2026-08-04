@@ -173,6 +173,14 @@
   "validationPositiveWhole": "A whole number above zero",
   "validationUnknownPart": "No part with that number in this study",
 
+  "stepProblemNoProcessTime": "This part has no process time here.",
+  "stepEquivalence": "Equivalent",
+  "flowPart": "Part",
+  "flowNoParts": "No parts yet",
+  "footerEquivalence": "Equivalent",
+  "footerEquivalenceHelp": "This part's process time across the flow divided by the flow equivalent's. 1.13 means it consumes 1.13 takts of the line's capacity.",
+  "flowSourceNeedsDemand": "Needs at least one part in the Demand tab",
+
   "demandParts": "Parts",
   "demandSequence": "Sequence",
   "demandPartNumber": "Part number",

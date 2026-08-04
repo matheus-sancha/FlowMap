@@ -3,7 +3,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/database/database_providers.dart';
-import '../../flow/application/flow_providers.dart';
+import '../../projects/application/projects_providers.dart';
+import '../../resources/application/resources_providers.dart';
+import '../../studies/application/studies_providers.dart';
 import '../data/demand_repository.dart';
 import 'demand_table.dart';
 
@@ -30,24 +32,54 @@ final processTimesProvider =
           ref.watch(demandRepositoryProvider).watchProcessTimes(studyId),
     );
 
+/// The part whose numbers the map shows under [FlowDataSource.singlePart].
+///
+/// Null means "the first one", resolved where the list is known — keeping a
+/// concrete id here would go stale the moment that part was deleted.
+@riverpod
+class SelectedDemandPart extends _$SelectedDemandPart {
+  @override
+  String? build(String studyId) => null;
+
+  void select(String? partId) => state = partId;
+}
+
 /// The demand grid: the study's parts, the flow's current steps as columns, and
 /// the times between them.
 ///
-/// Watches the flow view rather than the raw nodes, because a column's header
-/// is the process box's own label — a step renamed on the map renames the
-/// column, and the grid can never show a step the map does not.
+/// Assembled from the nodes and the resource names rather than from the flow
+/// view. The map now reads *this* to show a real part (§5.4), so watching the
+/// view here would close a provider cycle.
 final demandTableProvider = Provider.family<DemandTable?, String>((
   ref,
   studyId,
 ) {
-  final view = ref.watch(flowViewProvider(studyId)).value;
+  final study = ref.watch(studyProvider(studyId)).value;
+  if (study == null) return null;
+
+  final project = ref.watch(projectProvider(study.projectId)).value;
+  if (project == null) return null;
+
+  final nodes = ref.watch(flowNodesProvider(studyId)).value;
   final parts = ref.watch(demandPartsProvider(studyId)).value;
   final times = ref.watch(processTimesProvider(studyId)).value;
-  if (view == null || parts == null || times == null) return null;
+  final workcenters = ref.watch(workcentersProvider(project.plantId)).value;
+  final pools = ref.watch(poolsProvider(project.plantId)).value;
+  if (nodes == null ||
+      parts == null ||
+      times == null ||
+      workcenters == null ||
+      pools == null) {
+    return null;
+  }
 
   return DemandTable(
     parts: parts,
-    columns: demandColumnsOf(view),
+    columns: demandColumnsOf(
+      nodes: nodes,
+      workcenterNames: {for (final w in workcenters) w.id: w.name},
+      poolNames: {for (final p in pools) p.id: p.name},
+    ),
     times: times,
   );
 });

@@ -862,6 +862,48 @@ abstract class AppLocalizations {
   /// **'No part with that number in this study'**
   String get validationUnknownPart;
 
+  /// No description provided for @stepProblemNoProcessTime.
+  ///
+  /// In en, this message translates to:
+  /// **'This part has no process time here.'**
+  String get stepProblemNoProcessTime;
+
+  /// No description provided for @stepEquivalence.
+  ///
+  /// In en, this message translates to:
+  /// **'Equivalent'**
+  String get stepEquivalence;
+
+  /// No description provided for @flowPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Part'**
+  String get flowPart;
+
+  /// No description provided for @flowNoParts.
+  ///
+  /// In en, this message translates to:
+  /// **'No parts yet'**
+  String get flowNoParts;
+
+  /// No description provided for @footerEquivalence.
+  ///
+  /// In en, this message translates to:
+  /// **'Equivalent'**
+  String get footerEquivalence;
+
+  /// No description provided for @footerEquivalenceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This part\'s process time across the flow divided by the flow equivalent\'s. 1.13 means it consumes 1.13 takts of the line\'s capacity.'**
+  String get footerEquivalenceHelp;
+
+  /// No description provided for @flowSourceNeedsDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs at least one part in the Demand tab'**
+  String get flowSourceNeedsDemand;
+
   /// No description provided for @demandParts.
   ///
   /// In en, this message translates to:
