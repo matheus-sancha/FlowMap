@@ -232,6 +232,8 @@ void main() {
         openPerWorkingDay: const Duration(hours: 22, minutes: 40),
         productivePerWorkingDay: const Duration(hours: 16, minutes: 46),
         openInPeriod: const Duration(hours: 476),
+        capacityInPeriod: const Duration(hours: 352),
+        operatorsAllocated: 3,
         operatorsPerShift: const [1, 1, 1],
         availability: 0.74,
         rework: 0.037,

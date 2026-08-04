@@ -244,8 +244,10 @@ SummaryView buildSummary({
         work: work,
         changeovers: changeovers * steps.length,
         changeoverTime: changeoverTime,
-        availableProductive: first.productiveInPeriod,
-        operatorsAllocated: first.operatorsPerShift.fold(0, (a, b) => a + b),
+        // The whole target's hours, so a pool of four lathes is measured
+        // against four lathes rather than against one of them.
+        availableProductive: first.capacityInPeriod,
+        operatorsAllocated: first.operatorsAllocated,
         partsWithoutTimes: missing,
       ),
     );

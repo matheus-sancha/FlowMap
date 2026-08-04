@@ -182,6 +182,8 @@ class FlowStepView extends FlowNodeView {
     required this.openPerWorkingDay,
     required this.productivePerWorkingDay,
     required this.openInPeriod,
+    required this.capacityInPeriod,
+    required this.operatorsAllocated,
     required this.operatorsPerShift,
     required this.availability,
     required this.rework,
@@ -279,9 +281,26 @@ class FlowStepView extends FlowNodeView {
   /// same hours, and the calendars are already loaded at this point.
   final Duration openInPeriod;
 
-  /// `openInPeriod × availability` — the hours the station can actually run in
-  /// the period.
+  /// `openInPeriod × availability` — the hours **one machine** can run in the
+  /// period. What a single order's elapsed time is measured against.
   Duration get productiveInPeriod => openInPeriod * (availability ?? 1);
+
+  /// The productive hours this step's target can supply across the period,
+  /// **summed over a pool's members**.
+  ///
+  /// A pool of four lathes is four lathes' worth of hours: an order goes to
+  /// whichever frees first (§3.1), so they share the load. Occupation divides
+  /// by this (§8.1); dividing by one member's hours read a full pool as four
+  /// times as busy as it is — reported from the field.
+  ///
+  /// The flow equivalent deliberately does **not** use it. `FE_pt` is one takt
+  /// of a *machine's* capacity (§6.1), because the dummy part is one piece and
+  /// one piece runs on one machine.
+  final Duration capacityInPeriod;
+
+  /// Operators across the target, summed over a pool's members for the same
+  /// reason (§7.5).
+  final int operatorsAllocated;
 
   final List<int> operatorsPerShift;
   final double? availability;
@@ -656,6 +675,8 @@ FlowStepView _buildStep({
 
   var openPerDay = Duration.zero;
   var openInPeriod = Duration.zero;
+  var capacityInPeriod = Duration.zero;
+  var operatorsAllocated = 0;
   List<int> operators = const [];
   // Availability is read here and folded into the productive day below; rework
   // is read here and charged against a *part's* time, never against the
@@ -681,6 +702,27 @@ FlowStepView _buildStep({
         DateTime(periodEnd.year, periodEnd.month, periodEnd.day + 1),
       );
     }
+  }
+
+  // Capacity is summed across everything that can run this step. For a single
+  // workcenter that is the same figure again; for a pool it is the whole
+  // group, which is the point of having one.
+  final capacityMembers = node.poolId != null
+      ? (poolMembers[node.poolId] ?? const <String>[])
+      : [?targetId];
+  final until = DateTime(periodEnd.year, periodEnd.month, periodEnd.day + 1);
+  for (final memberId in capacityMembers) {
+    final member = contexts[memberId];
+    if (member == null) continue;
+    final lookup = member.schedule.lookup(asOf);
+    if (lookup.isMissing) continue;
+    capacityInPeriod +=
+        member.calendar.openTimeBetween(asOf, until) *
+        lookup.period!.availability;
+    operatorsAllocated += lookup.period!.operatorsPerShift.fold(
+      0,
+      (sum, count) => sum + count,
+    );
   }
 
   // The flow equivalent's process time at this step (DESIGN.md §6.1):
@@ -744,6 +786,8 @@ FlowStepView _buildStep({
     openPerWorkingDay: openPerDay,
     productivePerWorkingDay: productivePerDay,
     openInPeriod: openInPeriod,
+    capacityInPeriod: capacityInPeriod,
+    operatorsAllocated: operatorsAllocated,
     operatorsPerShift: operators,
     availability: availability,
     rework: rework,

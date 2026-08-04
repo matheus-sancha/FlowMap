@@ -489,4 +489,132 @@ void main() {
     expect(summary.bottleneck, isNull);
     expect(summary.demandTakt, isNull);
   });
+
+  group('a pool is measured against the whole pool (§3.1)', () {
+    /// Two lathes behind one step, and enough work to fill one of them.
+    SummaryView poolSummary({required int members}) {
+      final ids = [for (var i = 0; i < members; i++) 'LAT0$i'];
+      return buildSummary(
+        flow: buildFlowView(
+          study: study(),
+          nodes: [
+            FlowNode(
+              id: 'node-0',
+              studyId: 'study-1',
+              position: 0,
+              kind: FlowNodeKind.step,
+              poolId: 'pool-1',
+              changeoverSeconds: 0,
+              inventoryUsesWorkingTime: false,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          ],
+          contexts: {for (final id in ids) id: context(id)},
+          pools: {
+            'pool-1': WorkcenterPool(
+              id: 'pool-1',
+              plantId: 'plant-1',
+              name: 'CNC Lathes',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          },
+          poolMembers: {'pool-1': ids},
+          taktSchedule: TaktScheduleSpec([
+            TaktPeriodSpec(
+              startDate: DateTime(2026, 1, 1),
+              endDate: DateTime(2026, 12, 31),
+              value: 1,
+              unit: TaktUnit.days,
+            ),
+          ]),
+          asOf: DateTime(2026, 8, 1),
+        ),
+        demand: DemandTable(
+          parts: [part('p1', 'PN1')],
+          columns: const [
+            DemandColumn(
+              nodeId: 'node-0',
+              targetId: 'pool-1',
+              title: 'CNC Lathes',
+            ),
+          ],
+          times: {
+            'p1': {'pool-1': const Duration(hours: 310)},
+          },
+        ),
+        orders: [order('o0', 0, 'p1')],
+      );
+    }
+
+    test('two lathes carry the load of two lathes, not of one', () {
+      // 310 h of work against a month of 31 ten-hour days.
+      final alone = poolSummary(members: 1);
+      expect(alone.targets.single.occupation, closeTo(1.0, 0.0001));
+
+      // Adding a second lathe halves the occupation. Measuring the pool
+      // against one member read a full pool as twice as busy as it is —
+      // reported from the field.
+      final pair = poolSummary(members: 2);
+      expect(pair.targets.single.availableProductive, const Duration(hours: 620));
+      expect(pair.targets.single.occupation, closeTo(0.5, 0.0001));
+    });
+
+    test('operators are summed across the members too', () {
+      expect(poolSummary(members: 1).targets.single.operatorsAllocated, 1);
+      expect(poolSummary(members: 3).targets.single.operatorsAllocated, 3);
+    });
+
+    test('the flow equivalent still measures one machine', () {
+      // FE_pt is one takt of a *machine's* capacity (§6.1): the dummy part is
+      // one piece, and one piece runs on one lathe however many there are.
+      final view = buildFlowView(
+        study: study(),
+        nodes: [
+          FlowNode(
+            id: 'node-0',
+            studyId: 'study-1',
+            position: 0,
+            kind: FlowNodeKind.step,
+            poolId: 'pool-1',
+            changeoverSeconds: 0,
+            inventoryUsesWorkingTime: false,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
+        contexts: {'LAT00': context('LAT00'), 'LAT01': context('LAT01')},
+        pools: {
+          'pool-1': WorkcenterPool(
+            id: 'pool-1',
+            plantId: 'plant-1',
+            name: 'CNC Lathes',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        },
+        poolMembers: const {
+          'pool-1': ['LAT00', 'LAT01'],
+        },
+        taktSchedule: TaktScheduleSpec([
+          TaktPeriodSpec(
+            startDate: DateTime(2026, 1, 1),
+            endDate: DateTime(2026, 12, 31),
+            value: 1,
+            unit: TaktUnit.days,
+          ),
+        ]),
+        asOf: DateTime(2026, 8, 1),
+      );
+
+      expect(
+        view.steps.single.equivalentProcessTime,
+        const Duration(hours: 10),
+      );
+      // But the capacity behind it is both lathes'.
+      expect(view.steps.single.capacityInPeriod, const Duration(hours: 620));
+    });
+  });
+
 }

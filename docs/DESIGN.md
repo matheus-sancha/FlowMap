@@ -572,6 +572,16 @@ occupation = required ÷ available
   order before it *at that station* was a different part (§7.6) — walked over the whole sequence,
   so the first order of the month is compared with the one that really preceded it rather than
   starting the month clean.
+- **A pool is measured against the whole pool.** Four lathes are four lathes' worth of hours,
+  because an order goes to whichever frees first (§3.1). The first version read every pool figure
+  off its first member, so a full pool of four reported four times the occupation it had —
+  reported from the field. `FlowStepView.capacityInPeriod` sums the members, and operators are
+  summed with it.
+
+  **The flow equivalent deliberately still measures one machine.** `FE_pt` is one takt of a
+  *machine's* capacity (§6.1) because the dummy part is one piece, and one piece runs on one lathe
+  however many there are. The two figures answer different questions and only one of them was
+  wrong.
 - **A station with no open hours is not the bottleneck.** Its occupation is a dash: a division by
   zero dressed up as "infinitely busy" would rank a shut station first and hide the real
   constraint.
