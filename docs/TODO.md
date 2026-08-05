@@ -3,17 +3,22 @@
 Working state as of 2026-08-04. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 472 tests passing, not pushed.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 473 tests passing, not pushed.
 Schema is at **v11**. M4 is code-complete.
 
 ---
 
 ## 1. Verify in the running app
 
-None of this has been driven by hand — it is covered by unit, repository and mounting tests only.
+The rest of this has not been driven by hand — it is covered by unit, repository and mounting tests
+only.
 
-- [ ] **Upgrade a real database.** It will migrate v8 → v11 in one go. Check the demand tables
-      survive: parts keep their numbers, orders keep their sequence and batch sizes.
+- [x] ~~**Upgrade a real database.**~~ Done 2026-08-05. It was at v6 with v8-shaped tables from an
+      upgrade that had died part-way, and the app could not open it at all; §16.11 has the fix and
+      the fixture. It now migrates v6 → v11 with everything intact. A backup of the pre-migration
+      file is beside it as `flowmap.sqlite.backup-20260805-054746` — delete it once you are happy.
+- [ ] **Flag a study.** `Célula 11B` has `include_in_simulation = 0`, so the Simulation tab
+      correctly reports that nothing is selected. Nothing has run against real data yet.
 - [ ] **The pool fix, against célula 11B.** A pool's occupation should now be roughly `1/N` of what
       it read before, where N is the number of members. The flow equivalent should be unchanged.
 - [ ] **MM3's two columns** — `Equivalent` (per part, does not move between orders) and `Slot load`

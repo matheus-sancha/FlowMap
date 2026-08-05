@@ -80,12 +80,24 @@ class AppDatabase extends _$AppDatabase {
       await seedReferenceData();
     },
     onUpgrade: (m, from, to) async {
-      // Read **before any step below runs**. The v3 step rebuilds
-      // `workcenters` from the *current* Dart definition, which no longer has
-      // `home_line_id` — so on a v1 or v2 database the column is gone by the
-      // time the v7 step is reached. Same lesson as the two `from >= 2` guards
-      // further down, in the other direction (DATA.md).
-      final homeLines = from < 7
+      // **Every step below asks the database what it has rather than inferring
+      // it from `from`.**
+      //
+      // A migration cannot run inside a transaction: `alterTable` needs
+      // foreign keys off, and SQLite refuses to change that mid-transaction.
+      // So a step that throws leaves the database *part* upgraded with its
+      // version counter unchanged, and every later open replays from a number
+      // that no longer describes the tables. A machine here reached exactly
+      // that — `user_version` 6, `workcenters` already rebuilt by the v7 step,
+      // `demand_parts` still in its v6 shape — and could not be opened again
+      // at all, because the first thing this function did was read a column
+      // the v7 step had already dropped.
+      //
+      // Version-based guards cannot express that state, and the `from >= 2` /
+      // `from >= 6` guards this replaces were the same lesson learned one
+      // column at a time (DATA.md). Asking is cheap, and it is the only thing
+      // that is true on a database nobody can inspect.
+      final homeLines = await _hasColumn('workcenters', 'home_line_id')
           ? await customSelect(
               'SELECT id, home_line_id FROM workcenters '
               'WHERE home_line_id IS NOT NULL',
@@ -96,13 +108,13 @@ class AppDatabase extends _$AppDatabase {
         // M2: the project layer. Purely additive — every table below is
         // new, so `createTable` from the current definition is safe and no
         // existing row is touched.
-        await m.createTable(projects);
-        await m.createTable(calendarExceptions);
-        await m.createTable(taktPeriods);
-        await m.createTable(workcenterSchedulePeriods);
-        await m.createTable(studies);
-        await m.createTable(flowNodes);
-        await m.createTable(flowAnnotations);
+        await _ensureTable(m, projects);
+        await _ensureTable(m, calendarExceptions);
+        await _ensureTable(m, taktPeriods);
+        await _ensureTable(m, workcenterSchedulePeriods);
+        await _ensureTable(m, studies);
+        await _ensureTable(m, flowNodes);
+        await _ensureTable(m, flowAnnotations);
       }
 
       if (from < 3) {
@@ -113,40 +125,36 @@ class AppDatabase extends _$AppDatabase {
         // the dropped column is simply not carried across — and every other
         // value survives whatever column order this machine's table has,
         // which is the reason not to hand-roll the copy.
-        await m.alterTable(TableMigration(workcenters));
+        if (await _hasColumn('workcenters', 'code')) {
+          await m.alterTable(TableMigration(workcenters));
+        }
       }
 
-      if (from < 4 && from >= 2) {
+      if (from < 4) {
         // A fixed inventory wait remembers the unit it was typed in. Additive
         // and nullable — rows written before this read as hours, the unit the
         // editor offered at the time.
         //
-        // **Guarded on `from >= 2` deliberately.** The v2 step above calls
-        // `createTable(flowNodes)`, which builds from the *current* Dart
-        // definition — so a v1 database already has this column by the time it
-        // gets here, and adding it again fails the whole upgrade. The next
-        // column added to `flow_nodes` needs the same guard for the same
-        // reason (DATA.md).
-        await m.addColumn(flowNodes, flowNodes.inventoryUnit);
+        // A v1 database already has this column: the v2 step above builds
+        // `flow_nodes` from the *current* Dart definition, which carries it.
+        // `_ensureColumn` is what makes that a fact to check rather than a
+        // version to remember (DATA.md).
+        await _ensureColumn(m, flowNodes, flowNodes.inventoryUnit);
       }
 
-      if (from < 5 && from >= 2) {
-        // A step may state the flow equivalent's process time itself. Guarded
-        // on `from >= 2` for the same reason as the step above: a v1 database
-        // gets `flow_nodes` from the current definition and already has these.
-        await m.addColumn(flowNodes, flowNodes.equivalentValue);
-        await m.addColumn(flowNodes, flowNodes.equivalentUnit);
+      if (from < 5) {
+        // A step may state the flow equivalent's process time itself.
+        await _ensureColumn(m, flowNodes, flowNodes.equivalentValue);
+        await _ensureColumn(m, flowNodes, flowNodes.equivalentUnit);
       }
 
       if (from < 6) {
         // M3: the demand table. Three new tables and no change to an existing
-        // one, so `createTable` from the current definition is safe at any
-        // starting version — and needs none of the `from >= 2` guarding the
-        // two `addColumn` steps above do, because nothing earlier creates
-        // these.
-        await m.createTable(demandParts);
-        await m.createTable(partProcessTimes);
-        await m.createTable(demandOrders);
+        // one, so building them from the current definition is safe at any
+        // starting version.
+        await _ensureTable(m, demandParts);
+        await _ensureTable(m, partProcessTimes);
+        await _ensureTable(m, demandOrders);
       }
 
       if (from < 7) {
@@ -155,11 +163,14 @@ class AppDatabase extends _$AppDatabase {
         // a second line silently took it out of the first — the tree fought
         // the very arrangement the app exists to analyse (DESIGN.md §7.7).
         //
-        // Guarded on `from >= 3`: a v1 or v2 database has already been rebuilt
-        // by the v3 step above, from a definition that no longer carries the
-        // column, so a second rebuild would find nothing to drop.
-        if (from >= 3) await m.alterTable(TableMigration(workcenters));
-        await m.createTable(workcenterLines);
+        // Rebuilt only if the column is still there: a v1 or v2 database has
+        // already been rebuilt by the v3 step above, from a definition that no
+        // longer carries it, and so has a database whose upgrade died after
+        // this point last time.
+        if (await _hasColumn('workcenters', 'home_line_id')) {
+          await m.alterTable(TableMigration(workcenters));
+        }
+        await _ensureTable(m, workcenterLines);
 
         // The old home line becomes a set of one, so nobody's tree rearranges
         // itself under them on upgrade.
@@ -181,28 +192,24 @@ class AppDatabase extends _$AppDatabase {
       if (from < 8) {
         // A workcenter type carries an icon. Additive and nullable, so a type
         // created before this simply draws the default.
-        await m.addColumn(workcenterTypes, workcenterTypes.icon);
+        await _ensureColumn(m, workcenterTypes, workcenterTypes.icon);
       }
 
       if (from < 9) {
         // A part carries the **customer's** project — their programme, not the
-        // FlowMap project the study sits in. Additive and nullable, and
-        // guarded on `from >= 6` for the reason the v4 and v5 steps are
-        // guarded on `from >= 2`: the v6 step creates `demand_parts` from the
-        // *current* definition, so a database older than that already has the
-        // column by the time it reaches here (DATA.md).
-        if (from >= 6) {
-          await m.addColumn(demandParts, demandParts.customerProject);
-        }
+        // FlowMap project the study sits in.
+        await _ensureColumn(m, demandParts, demandParts.customerProject);
 
         // `demand_orders.order_number` is gone. A simulation identifies an
         // order by the row it is; asking a planner to type a works order
         // number they already hold in their own system was work for nothing.
         // A table rebuild, because SQLite cannot drop a column in place on the
-        // versions this app runs against — and guarded on `from >= 6` because
-        // a database older than that gets `demand_orders` from the *current*
-        // definition at the v6 step and never had the column (DATA.md).
-        if (from >= 6) await m.alterTable(TableMigration(demandOrders));
+        // versions this app runs against — and only if the column is still
+        // there, because a database older than v6 got `demand_orders` from the
+        // *current* definition at the v6 step and never had it.
+        if (await _hasColumn('demand_orders', 'order_number')) {
+          await m.alterTable(TableMigration(demandOrders));
+        }
       }
 
       if (from < 10) {
@@ -227,16 +234,14 @@ class AppDatabase extends _$AppDatabase {
 
       if (from < 11) {
         // M4: where a run is kept (DESIGN.md §7.10). Six new tables and no
-        // change to an existing one, so `createTable` from the current
-        // definition is safe at any starting version — and needs none of the
-        // guarding the `addColumn` steps above do, because nothing earlier
-        // creates these.
-        await m.createTable(simulationRuns);
-        await m.createTable(simulationRunStudies);
-        await m.createTable(simulationRunOrders);
-        await m.createTable(simulationRunSteps);
-        await m.createTable(simulationRunEmptySlots);
-        await m.createTable(simulationRunWorkcenters);
+        // change to an existing one, so building them from the current
+        // definition is safe at any starting version.
+        await _ensureTable(m, simulationRuns);
+        await _ensureTable(m, simulationRunStudies);
+        await _ensureTable(m, simulationRunOrders);
+        await _ensureTable(m, simulationRunSteps);
+        await _ensureTable(m, simulationRunEmptySlots);
+        await _ensureTable(m, simulationRunWorkcenters);
       }
 
       // Reference-data seeding runs outside every version guard, on every
@@ -258,6 +263,41 @@ class AppDatabase extends _$AppDatabase {
       );
     },
   );
+
+  // --- Asking the database what it has ------------------------------------
+  //
+  // A migration is not atomic — see the note at the top of `onUpgrade` — so
+  // `from` says where the counter stopped, not what the tables look like. A
+  // step that has already run must be a no-op rather than an error, or one
+  // interrupted upgrade locks the user out of their own data for good.
+
+  Future<bool> _hasTable(String name) async =>
+      (await customSelect(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        variables: [Variable<String>(name)],
+      ).get()).isNotEmpty;
+
+  /// Interpolated rather than bound: `PRAGMA` takes no parameters, and every
+  /// caller passes a table name written in this file.
+  Future<bool> _hasColumn(String table, String column) async {
+    if (!await _hasTable(table)) return false;
+    final columns = await customSelect('PRAGMA table_info($table)').get();
+    return columns.any((row) => row.read<String>('name') == column);
+  }
+
+  Future<void> _ensureTable(Migrator m, TableInfo<Table, dynamic> table) async {
+    if (!await _hasTable(table.actualTableName)) await m.createTable(table);
+  }
+
+  Future<void> _ensureColumn(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    if (!await _hasColumn(table.actualTableName, column.name)) {
+      await m.addColumn(table, column);
+    }
+  }
 
   /// Gives an icon to any type that has none — the nine seeds on an install
   /// that predates icons, and anything the user named before them.

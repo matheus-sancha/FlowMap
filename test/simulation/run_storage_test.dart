@@ -384,6 +384,14 @@ void main() {
         ),
     ]..sort();
 
+    // Pinned to one instant rather than trusting three saves to land inside
+    // the same second: the tie is the thing under test, and a test that only
+    // creates one when the clock cooperates is a test that passes for the
+    // wrong reason.
+    await db
+        .update(db.simulationRuns)
+        .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
+
     // Ties break by id, so the list cannot reorder itself between rebuilds
     // (§4.4) — a run list that shuffles reads as a bug in the run.
     expect((await runs.watchRuns(projectId).first).map((r) => r.id), ids);

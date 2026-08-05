@@ -1137,6 +1137,34 @@ Simulation tab (§12.1) is the first thing in the app that can start one.
   throw the reader out of it — the other five reset to Flow, as they always have, and Simulation is
   not about the study that was just switched away from.
 
+### 16.11 The upgrade that could not be replayed
+
+Running the built exe against the developer's own database — the first time any of M4 had been
+driven by hand — found the app unable to open it at all. `user_version` said **6**; the tables said
+otherwise. `workcenters` had already been rebuilt by the v7 step and lost `home_line_id`,
+`workcenter_lines` existed, `workcenter_types.icon` existed — while `demand_parts` and
+`demand_orders` were still in their v6 shape.
+
+**A migration cannot run inside a transaction.** `alterTable` needs foreign keys off, and SQLite
+refuses to change that mid-transaction. So a step that throws leaves the database *part* upgraded
+with its counter unchanged, and every later open replays from a number that no longer describes the
+tables. Here the very first thing `onUpgrade` did was read `workcenters.home_line_id` — a column the
+interrupted run had already dropped — so the replay died before it could reach the steps that were
+genuinely outstanding. One interrupted upgrade had locked the user out of their own data
+permanently, and no amount of restarting would help.
+
+**Every step now asks the database what it has rather than inferring it from `from`.** `_hasTable`,
+`_hasColumn`, `_ensureTable` and `_ensureColumn` make a step that has already run a no-op instead of
+an error. That also retires the `from >= 2` and `from >= 6` guards this replaces: those were the
+same lesson, learned one column at a time and re-derived by hand each time a column was added, and
+they could only ever express what a *complete* earlier upgrade would have left behind.
+
+The fixture for this state is in the migration suite beside the version fixtures, because it is not
+a version — it is the shape an interrupted upgrade leaves, and it is the one that was actually on a
+machine. The real database went v6 → v11 with everything intact: 40 workcenters, their 59 line
+memberships, the pool and its members, the study's 13 flow nodes, 5 parts, 35 process times and 33
+orders.
+
 ---
 
 ## 17. Done between M2 and M3

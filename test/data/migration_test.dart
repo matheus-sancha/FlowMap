@@ -591,6 +591,126 @@ void main() {
     expect(orders.single.batchSize, 6);
   });
 
+  test('an upgrade that died part-way can still be opened', () async {
+    // The shape found on the developer's own machine: `user_version` 6, but
+    // the v7 and v8 steps had already run — `workcenters` rebuilt without
+    // `home_line_id`, `workcenter_lines` created, `workcenter_types.icon`
+    // added — while `demand_parts` and `demand_orders` were still v6.
+    //
+    // A migration cannot run in a transaction (`alterTable` needs foreign keys
+    // off, which SQLite refuses to change mid-transaction), so a step that
+    // throws leaves exactly this: tables ahead of the counter. Replaying from
+    // the counter then read a column the v7 step had already dropped, and the
+    // app could not open the database again at all.
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    // `workcenters` as the v7 rebuild leaves it: no `code`, no `home_line_id`.
+    const rebuiltWorkcenters = """
+      CREATE TABLE workcenters (
+        id TEXT NOT NULL,
+        plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+        type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+        name TEXT NOT NULL, notes TEXT NULL,
+        archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+    """;
+
+    final stuck = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(rebuiltWorkcenters)
+      ..execute(projectTables)
+      ..execute(v6DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      // The counter never moved, because the step after these threw.
+      ..execute('PRAGMA user_version = 6');
+
+    stuck
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        "INSERT INTO workcenter_lines VALUES ('wc-1', 'line-1', $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_parts '
+        '(id, study_id, part_number, created_at, updated_at) '
+        "VALUES ('part-1', 'study-1', 'PN2', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+        'order_number, batch_size, need_date, created_at, updated_at) '
+        "VALUES ('order-1', 'study-1', 'part-1', 0, 'SO-9', 6, $now, $now, $now)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    // It opens at all, which is the whole point.
+    final workcenters = await db.select(db.workcenters).get();
+    expect(workcenters.single.name, 'CLAD04');
+
+    // The half that had already run is not run again and not undone.
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership.single.lineId, 'line-1');
+
+    // The half that had not run, runs — and the user's demand survives it.
+    final parts = await db.select(db.demandParts).get();
+    expect(parts.single.partNumber, 'PN2');
+    expect(parts.single.customerProject, '');
+
+    final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.sequence, 0);
+    expect(orders.single.batchSize, 6);
+
+    // And M4's tables arrive, so the counter really did reach the end.
+    expect(await db.select(db.simulationRuns).get(), isEmpty);
+  });
+
   test(
     'a v1 database with no seed stamp still gets its reference data',
     () async {
