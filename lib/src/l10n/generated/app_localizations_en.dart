@@ -1237,8 +1237,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dispatchShortestProcessing => 'Shortest processing time';
 
   @override
-  String simulationStudiesIn(String count) {
-    return '$count studies in this run';
+  String simulationStudiesIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count studies in this run',
+      one: '1 study in this run',
+      zero: 'No studies selected',
+    );
+    return '$_temp0';
   }
 
   @override

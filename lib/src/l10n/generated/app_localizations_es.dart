@@ -1253,8 +1253,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get dispatchShortestProcessing => 'Menor tiempo de proceso';
 
   @override
-  String simulationStudiesIn(String count) {
-    return '$count estudios en esta ejecución';
+  String simulationStudiesIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count estudios en esta ejecución',
+      one: '1 estudio en esta ejecución',
+      zero: 'Ningún estudio seleccionado',
+    );
+    return '$_temp0';
   }
 
   @override

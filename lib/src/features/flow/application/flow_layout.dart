@@ -18,14 +18,33 @@ abstract final class FlowMetrics {
   /// A process box, and the inventory triangle's bounding box.
   static const nodeWidth = 168.0;
 
-  /// Tall enough for the eight data rows the box can carry — Equivalent
-  /// appears only under a demand data source (§6.2). Fixed rather than sized to
-  /// content, so changing the data source does not reflow the whole map under
-  /// the reader.
-  static const nodeHeight = 186.0;
-
   /// The header strip carrying the workcenter code.
   static const nodeHeaderHeight = 34.0;
+
+  /// The most data rows a box can carry. Equivalent appears only under a demand
+  /// data source (§6.2), so seven of these are always there and the eighth
+  /// comes and goes.
+  static const nodeDataRows = 8;
+
+  /// One data row: `bodySmall` and the 1px padding either side of it.
+  static const nodeDataRowHeight = 18.5;
+
+  /// Above and below the rows.
+  static const nodeDataPadding = 4.0;
+
+  /// Tall enough for every row the box can carry, and **spelled as the sum**
+  /// rather than as the number it comes to.
+  ///
+  /// It was a flat `186.0` under a comment claiming it fitted eight rows. It
+  /// fitted seven: switching the map to a demand source added Equivalent and
+  /// the box overflowed by two pixels, which a release build hides and a debug
+  /// build paints in yellow stripes. Written this way, a ninth row is a
+  /// one-character change that resizes the box with it.
+  ///
+  /// Fixed rather than sized to content, so changing the data source does not
+  /// reflow the whole map under the reader.
+  static const nodeHeight =
+      nodeHeaderHeight + nodeDataPadding * 2 + nodeDataRows * nodeDataRowHeight;
 
   /// The inventory triangle's drawn size.
   ///

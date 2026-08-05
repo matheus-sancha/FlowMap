@@ -17,17 +17,22 @@ only.
       upgrade that had died part-way, and the app could not open it at all; §16.11 has the fix and
       the fixture. It now migrates v6 → v11 with everything intact. A backup of the pre-migration
       file is beside it as `flowmap.sqlite.backup-20260805-054746` — delete it once you are happy.
-- [ ] **Flag a study.** `Célula 11B` has `include_in_simulation = 0`, so the Simulation tab
-      correctly reports that nothing is selected. Nothing has run against real data yet.
-- [ ] **The pool fix, against célula 11B.** A pool's occupation should now be roughly `1/N` of what
-      it read before, where N is the number of members. The flow equivalent should be unchanged.
-- [ ] **MM3's two columns** — `Equivalent` (per part, does not move between orders) and `Slot load`
-      (= equivalent × batch, what MM3 averages).
-- [ ] The canvas: push arrows meeting the inventory triangle, the triangle centred on the spine, the
-      `#N` chip on a pool box, the `Takt C/T` row, the sidebar toggle on the left.
-- [ ] **A real run.** Flag a study, press Simulate, and check the readiness panel names the right
-      study when something is missing. Then check the run survives closing the app, and that
-      `log.txt` carries its `sim.run` line with the elapsed time.
+- [x] ~~**A real run.**~~ Done 2026-08-05. `Célula 11B` flagged, readiness clean, Simulate ran 33
+      orders through 231 steps in 1432 ms and stored it; reopening the tab after a restart shows the
+      same run without recomputing it. The result says the sequence is badly over-committed — 3 %
+      on time, average float +230.7 d, lead-time efficiency 2.39×, 63 empty release slots, CEU27 at
+      86 % utilisation holding 4487 d of queue and 58 % of the flow's total time. Worth reading as
+      a finding rather than a smoke test.
+- [x] ~~**MM3's two columns.**~~ Confirmed: `Equivalent` is per part (PN3 is 0.70 at every batch
+      size) and `Slot load` is equivalent × batch, which is what MM3 averages.
+- [x] ~~The canvas.~~ Confirmed: push arrows meeting the triangle, the triangle centred on the
+      spine, the `#3` chip on the CLAD Pool box, the `Takt C/T` row, the sidebar toggle on the
+      left. Two defects found and fixed while looking — §16.12.
+- [ ] **The pool fix, against célula 11B.** The CLAD Pool of three reads 63 % occupation and a flow
+      equivalent of 0.99, which is the right shape; comparing against what it read *before* the fix
+      still needs the old build.
+- [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
+      clear a takt period and check it names the study and disables Simulate.
 
 ---
 

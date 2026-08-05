@@ -627,9 +627,12 @@ class _StepBox extends ConsumerWidget {
               ),
               Expanded(
                 child: Padding(
+                  // The vertical half is what `FlowMetrics.nodeHeight` budgets
+                  // for, so the two are the same number rather than two that
+                  // happen to agree.
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
-                    vertical: 4,
+                    vertical: FlowMetrics.nodeDataPadding,
                   ),
                   child: Column(
                     children: [

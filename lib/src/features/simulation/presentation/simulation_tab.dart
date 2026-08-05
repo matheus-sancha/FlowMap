@@ -81,7 +81,7 @@ class _RunBar extends ConsumerWidget {
               child: Row(
                 children: [
                   Text(
-                    l10n.simulationStudiesIn('${input?.readiness.length ?? 0}'),
+                    l10n.simulationStudiesIn(input?.readiness.length ?? 0),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
                     ),

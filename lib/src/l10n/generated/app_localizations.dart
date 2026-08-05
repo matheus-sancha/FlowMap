@@ -2277,8 +2277,8 @@ abstract class AppLocalizations {
   /// No description provided for @simulationStudiesIn.
   ///
   /// In en, this message translates to:
-  /// **'{count} studies in this run'**
-  String simulationStudiesIn(String count);
+  /// **'{count, plural, =0{No studies selected} =1{1 study in this run} other{{count} studies in this run}}'**
+  String simulationStudiesIn(int count);
 
   /// No description provided for @simulationNoStudies.
   ///

@@ -1165,6 +1165,20 @@ machine. The real database went v6 → v11 with everything intact: 40 workcenter
 memberships, the pool and its members, the study's 13 flow nodes, 5 parts, 35 process times and 33
 orders.
 
+### 16.12 Two things only running it could show
+
+Driving the built exe through a real study found both of these in the space of a few clicks, and
+neither was reachable from any test in the suite.
+
+- **The process box was two pixels too short.** `FlowMetrics.nodeHeight` was a flat `186.0` under a
+  comment claiming it fitted the eight data rows the box can carry. It fitted seven: Equivalent
+  appears only under a demand data source (§6.2), so switching the map to one overflowed the box —
+  yellow stripes in a debug build, silently clipped in a release one. It is now spelled as the sum
+  of its parts (`nodeHeaderHeight + padding × 2 + rows × rowHeight`), so the next row added resizes
+  the box with it instead of quietly running out of room.
+- **`1 studies in this run`.** The count was interpolated into a string. It is an ICU plural now, in
+  all three languages — and the `=0` arm says "No studies selected" rather than counting to zero.
+
 ---
 
 ## 17. Done between M2 and M3
