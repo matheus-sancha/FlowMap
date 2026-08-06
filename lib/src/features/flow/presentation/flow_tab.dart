@@ -310,24 +310,9 @@ class _CanvasState extends ConsumerState<_Canvas> {
     final theme = Theme.of(context);
     final view = widget.view;
     final study = widget.study;
+    // The arrows now come from the layout, which knows what each of them is
+    // (§5.2) and can be asserted without a frame.
     final layout = layoutFlow(view);
-
-    final segments = <(Offset, Offset)>[];
-    var previousRight = Offset(layout.supplier.right, layout.spineY);
-    for (final placed in layout.nodes) {
-      // A buffer draws a small triangle inside a full-width slot, so the
-      // arrows stop where the symbol actually starts. Running them to the slot
-      // edge left a gap either side and made the triangle look off centre.
-      final inset = placed.view is FlowInventoryView
-          ? FlowMetrics.bufferInset
-          : 0.0;
-      segments.add((
-        previousRight,
-        Offset(placed.rect.left + inset, layout.spineY),
-      ));
-      previousRight = Offset(placed.rect.right - inset, layout.spineY);
-    }
-    segments.add((previousRight, Offset(layout.customer.left, layout.spineY)));
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -343,7 +328,7 @@ class _CanvasState extends ConsumerState<_Canvas> {
         return Stack(
           children: [
             Positioned.fill(
-              child: _viewer(theme, layout, segments, view, study),
+              child: _viewer(theme, layout, view, study),
             ),
             Positioned(
               right: 12,
@@ -363,7 +348,6 @@ class _CanvasState extends ConsumerState<_Canvas> {
   Widget _viewer(
     ThemeData theme,
     FlowLayout layout,
-    List<(Offset, Offset)> segments,
     FlowView view,
     Study study,
   ) {
@@ -382,7 +366,7 @@ class _CanvasState extends ConsumerState<_Canvas> {
             Positioned.fill(
               child: CustomPaint(
                 painter: FlowConnectionsPainter(
-                  segments: segments,
+                  connections: layout.connections,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),

@@ -8,7 +8,7 @@
 /// in a test without pumping a frame.
 library;
 
-import 'dart:ui' show Rect, Size;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'flow_view.dart';
 
@@ -97,6 +97,19 @@ class InsertionPoint {
   final ({double x, double y}) center;
 }
 
+/// One straight run of the spine, and what it is drawn as.
+class FlowConnection {
+  const FlowConnection({
+    required this.from,
+    required this.to,
+    required this.kind,
+  });
+
+  final Offset from;
+  final Offset to;
+  final FlowConnectionKind kind;
+}
+
 /// One rung of the lead-time ladder.
 class LadderSegment {
   const LadderSegment({
@@ -125,6 +138,7 @@ class FlowLayout {
     required this.nodes,
     required this.customer,
     required this.insertionPoints,
+    required this.connections,
     required this.ladder,
     required this.size,
   });
@@ -133,6 +147,12 @@ class FlowLayout {
   final List<PlacedNode> nodes;
   final Rect customer;
   final List<InsertionPoint> insertionPoints;
+
+  /// The arrows, in flow order. Computed here rather than in the canvas so the
+  /// geometry **and** the kind of every link can be asserted without pumping a
+  /// frame, which is the whole argument for this file.
+  final List<FlowConnection> connections;
+
   final List<LadderSegment> ladder;
   final Size size;
 
@@ -225,11 +245,42 @@ FlowLayout layoutFlow(FlowView view) {
     );
   }
 
+  // The arrows. A buffer draws a small triangle inside a full-width slot, so
+  // an arrow beside one stops where the symbol actually starts rather than at
+  // the empty slot edge — otherwise there is a gap either side and the triangle
+  // reads as off centre.
+  final connections = <FlowConnection>[];
+  final spine = FlowMetrics.marginTop + FlowMetrics.nodeHeight / 2;
+  final hasWipCap = view.study.wipCap != null;
+  var previousRight = Offset(supplier.right, spine);
+  for (final placed in nodes) {
+    final inset = placed.view is FlowInventoryView
+        ? FlowMetrics.bufferInset
+        : 0.0;
+    connections.add(
+      FlowConnection(
+        from: previousRight,
+        to: Offset(placed.rect.left + inset, spine),
+        kind: connectionKindInto(placed.view, hasWipCap: hasWipCap),
+      ),
+    );
+    previousRight = Offset(placed.rect.right - inset, spine);
+  }
+  // Into the customer, which is not a station and so has no queue of its own.
+  connections.add(
+    FlowConnection(
+      from: previousRight,
+      to: Offset(customer.left, spine),
+      kind: connectionKindInto(null, hasWipCap: hasWipCap),
+    ),
+  );
+
   return FlowLayout(
     supplier: supplier,
     nodes: nodes,
     customer: customer,
     insertionPoints: insertions,
+    connections: connections,
     ladder: ladder,
     size: Size(
       width,

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dart';
@@ -151,14 +152,17 @@ void main() {
     TaktScheduleSpec? takt,
     Map<String, WorkcenterPool> pools = const {},
     Map<String, List<String>> members = const {},
+    Map<String, DispatchRule> dispatch = const {},
+    int? wipCap,
   }) => buildFlowView(
-    study: study(),
+    study: wipCap == null ? study() : study().copyWith(wipCap: Value(wipCap)),
     nodes: nodes,
     contexts: contexts,
     pools: pools,
     poolMembers: members,
     taktSchedule: takt ?? taktOf(3, TaktUnit.days),
     asOf: asOf,
+    dispatchByTarget: dispatch,
   );
 
   group('the flow equivalent', () {
@@ -1071,6 +1075,83 @@ void main() {
       expect(layout.nodes, isEmpty);
       expect(layout.insertionPoints, hasLength(1));
       expect(layout.size.width, greaterThan(0));
+    });
+  });
+
+  group('what an arrow is (§5.2)', () {
+    List<FlowConnectionKind> kinds({
+      Map<String, DispatchRule> dispatch = const {},
+      int? wipCap,
+    }) => layoutFlow(
+      build(
+        nodes: [
+          step(0, workcenterId: 'CLAD04'),
+          step(1, workcenterId: 'CEU27'),
+        ],
+        contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
+        dispatch: dispatch,
+        wipCap: wipCap,
+      ),
+    ).connections.map((c) => c.kind).toList();
+
+    test('an uncapped flow is push all the way through', () {
+      // Which is honest rather than lazy: with no supermarkets in the model
+      // (§5.5) and no WIP cap, nothing here is pulled.
+      expect(kinds(), [
+        FlowConnectionKind.push,
+        FlowConnectionKind.push,
+        FlowConnectionKind.push,
+      ]);
+    });
+
+    test('a CONWIP cap pulls the whole spine', () {
+      // A release requiring a completion (§7.3) is the only real pull lever
+      // FlowMap has, and it is study-wide — so it reaches every link.
+      expect(kinds(wipCap: 4), [
+        FlowConnectionKind.pull,
+        FlowConnectionKind.pull,
+        FlowConnectionKind.pull,
+      ]);
+    });
+
+    test('a station set to FIFO is fed by a lane', () {
+      expect(kinds(dispatch: const {'CEU27': DispatchRule.fifo}), [
+        // Into CLAD04, which has no rule of its own.
+        FlowConnectionKind.push,
+        // Into CEU27, which does.
+        FlowConnectionKind.fifoLane,
+        // Into the customer, which is not a station.
+        FlowConnectionKind.push,
+      ]);
+    });
+
+    test('a station following the run draws no lane', () {
+      // The whole point of storing only overrides (§7.4): under the default
+      // rule every station in the plant is FIFO, so "is it FIFO" would be true
+      // everywhere and a lane on every link would say nothing.
+      expect(kinds(dispatch: const {}), isNot(contains(FlowConnectionKind.fifoLane)));
+    });
+
+    test('a lane beats the cap on the link it marks', () {
+      // The cap describes the flow; the lane describes one queue in it. Where
+      // both apply the more specific one is drawn, and the rest stay pull.
+      expect(
+        kinds(wipCap: 4, dispatch: const {'CEU27': DispatchRule.fifo}),
+        [
+          FlowConnectionKind.pull,
+          FlowConnectionKind.fifoLane,
+          FlowConnectionKind.pull,
+        ],
+      );
+    });
+
+    test('a station set to EDD is not a lane', () {
+      // Only FIFO is a sequenced lane. A queue re-ordered by due date is not
+      // first-in-first-out, whatever else it is.
+      expect(
+        kinds(dispatch: const {'CEU27': DispatchRule.earliestDueDate}),
+        isNot(contains(FlowConnectionKind.fifoLane)),
+      );
     });
   });
 }

@@ -190,7 +190,12 @@ Future<Uint8List> buildFlowPdf({
             children: [
               _endpoint(strings.supplier),
               for (final node in view.nodes) ...[
-                _arrow(),
+                _arrow(
+                  connectionKindInto(
+                    node,
+                    hasWipCap: view.study.wipCap != null,
+                  ),
+                ),
                 switch (node) {
                   final FlowStepView step => _stepBox(
                     step,
@@ -203,7 +208,10 @@ Future<Uint8List> buildFlowPdf({
                   ),
                 },
               ],
-              _arrow(),
+              // Into the customer, which is not a station and has no queue.
+              _arrow(
+                connectionKindInto(null, hasWipCap: view.study.wipCap != null),
+              ),
               _endpoint(strings.customer),
             ],
           ),
@@ -240,11 +248,29 @@ pw.Widget _endpoint(String label) => pw.Container(
   ),
 );
 
-pw.Widget _arrow() => pw.Container(
+/// A link, and what kind of link it is (DESIGN.md §5.2).
+///
+/// **The printed map labels rather than redraws.** The canvas tells push from
+/// pull by hatching a shaft that this document does not draw at all — every
+/// symbol here is a bordered box or a glyph, which is why the arrow is a `>`.
+/// Rather than leave the distinction off the page entirely, the two links that
+/// are not the ordinary push say what they are underneath. A push says nothing,
+/// because that is the default and a caption on every arrow is noise.
+pw.Widget _arrow(FlowConnectionKind kind) => pw.Container(
   width: 28,
   height: 40,
   alignment: pw.Alignment.center,
-  child: pw.Text('>', style: const pw.TextStyle(fontSize: 12)),
+  child: pw.Column(
+    mainAxisAlignment: pw.MainAxisAlignment.center,
+    children: [
+      pw.Text('>', style: const pw.TextStyle(fontSize: 12)),
+      if (kind != FlowConnectionKind.push)
+        pw.Text(
+          kind == FlowConnectionKind.fifoLane ? 'FIFO' : 'PULL',
+          style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
+        ),
+    ],
+  ),
 );
 
 pw.Widget _stepBox(

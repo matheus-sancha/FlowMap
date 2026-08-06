@@ -178,6 +178,35 @@ closed form.
 Kanban *rules* live in the study's release settings (§7.3), not in the kanban icon — drawing
 documents intent; the number that drives the engine is typed where it can be validated.
 
+**The arrows are derived, never chosen.** Every link on the spine is drawn as one of three things,
+and each is explained by something typed somewhere it could be validated — which is the same rule as
+the kanban icon's, applied to the connections:
+
+| Drawn | When | Why that is honest |
+|---|---|---|
+| **Push** — hatched shaft | the default | With no supermarkets in the model (§5.5) and no WIP cap, material moves downstream whether or not the next step asked. The hatching *is* the mark of a push, so the map now says on purpose what it used to say by accident. |
+| **Pull** — bare shaft | the study has a CONWIP cap (§7.3) | A release that requires a completion is a pull system. It is study-wide, so it reaches every link. |
+| **FIFO lane** — bare shaft, divider, labelled | the station the link feeds is **explicitly** set to FIFO (§7.4) | Someone decided that queue runs in arrival order, and a sequenced lane is what that is. |
+
+- **The kind belongs to the arrow's destination.** A queue forms in front of a station, so it is that
+  station's discipline the lane describes. The last link runs into the customer, which is not a
+  station, and falls back to the study's own kind.
+- **Only an explicit FIFO draws a lane.** Under the default rule every station in the plant
+  dispatches FIFO, so "is this station FIFO" would be true everywhere and a lane on every link would
+  say nothing. A stored row is a decision; an absent one is not (§7.4).
+- **A lane beats the cap on the link it marks.** The cap describes the flow, the lane describes one
+  queue in it, and the more specific of the two is what gets drawn.
+
+_Rejected: a push/pull/FIFO picker per link._ Total freedom to draw the current state as it really
+is, including flows the engine cannot run — but it creates a second source of truth about the flow,
+free to disagree with the engine, which is exactly what §5.3 exists to prevent.
+
+**The printed map labels rather than redraws.** `flow_pdf.dart` builds its map from the `pdf`
+package's own widgets so text stays selectable and the document stays vector; it does not replay
+`VsmSymbols`' paths, and a comment there claiming otherwise has been corrected. A pull link and a
+FIFO lane therefore say `PULL` and `FIFO` under the arrow, and a push says nothing, because a
+caption on every arrow is noise.
+
 ### 5.3 Layout
 
 Semantic nodes are **auto-laid-out** left-to-right from their sequence. "Moving" a node means

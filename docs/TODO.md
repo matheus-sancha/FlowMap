@@ -143,7 +143,21 @@ Date | Delivery Date | Float`
   release order *is* sequence order and "over time" needs no sort that could disagree with the Order
   column. No Study column, so the ten columns stand as written.
 
-### 1.6 Arrows become derived
+### 1.6 Arrows become derived — **done 2026-08-05**
+
+The interview left "a link into a FIFO station" ambiguous, and it matters: under the default rule
+*every* station is FIFO, so a lane would have been drawn on every link and said nothing. Only an
+**explicitly stored** FIFO draws one — which is exactly the "a missing row is not the same as FIFO"
+distinction §1.3 already built and tested.
+
+Two other things found while doing it:
+
+- `vsm_symbols.dart` claimed "the PDF renderer draws the same shapes from the same descriptions".
+  It does not and never did — `flow_pdf.dart` builds from the `pdf` package's own widgets. The
+  comment is corrected, and the printed map now labels (`PULL`, `FIFO`) where the canvas hatches.
+- Arrow geometry moved out of `flow_tab` into `layoutFlow`, so what each link *is* can be asserted
+  without pumping a frame. Six tests.
+
 
 Every arrow is hatched today because `FlowConnectionsPainter` calls `drawPushArrow` unconditionally.
 Strictly that is correct — with no supermarkets in the model (§5.5 rejected capacity-limited

@@ -168,6 +168,47 @@ sealed class FlowNodeView {
   }
 }
 
+/// How the material flow between two nodes is drawn (DESIGN.md §5.2).
+///
+/// **Derived, never chosen.** Every arrow on the map is explained by something
+/// the user typed somewhere it could be validated — the study's WIP cap and a
+/// station's queue rule — which is §5.2's standing rule that drawing documents
+/// intent while the number that drives the engine lives where it can be
+/// checked. A per-link picker would be a second source of truth about the flow,
+/// free to disagree with the engine, which is exactly what §5.3 exists to
+/// prevent.
+enum FlowConnectionKind {
+  /// The striped arrow: material moved downstream whether or not the next step
+  /// asked for it. The honest default — with no supermarkets in the model
+  /// (§5.5) and no WIP cap, everything here **is** a push.
+  push,
+
+  /// The open arrow: a release requires a completion, so the flow is pulled.
+  /// A study-level CONWIP cap (§7.3) is the only real pull lever FlowMap has.
+  pull,
+
+  /// A sequenced lane: the station it feeds takes its queue strictly in
+  /// arrival order, because someone said so (§7.4).
+  fifoLane,
+}
+
+/// What to draw on the link **into** [downstream].
+///
+/// The kind belongs to the arrow's destination, not its source: a queue forms
+/// in front of a station, and it is that station's discipline the lane
+/// describes. The last link of the spine runs into the customer, which is not a
+/// station, so it falls back to the study's own kind.
+FlowConnectionKind connectionKindInto(
+  FlowNodeView? downstream, {
+  required bool hasWipCap,
+}) {
+  if (downstream is FlowStepView &&
+      downstream.queueDiscipline == DispatchRule.fifo) {
+    return FlowConnectionKind.fifoLane;
+  }
+  return hasWipCap ? FlowConnectionKind.pull : FlowConnectionKind.push;
+}
+
 /// A process box.
 class FlowStepView extends FlowNodeView {
   const FlowStepView(
@@ -190,7 +231,18 @@ class FlowStepView extends FlowNodeView {
     required this.problems,
     this.usesLocalEquivalent = false,
     this.scheduleCarriedForward = false,
+    this.queueDiscipline,
   });
+
+  /// This step's target's **explicitly set** queue discipline (§7.4), or null
+  /// when it follows the run's rule.
+  ///
+  /// The distinction matters here more than anywhere: under the default rule
+  /// every station in the plant dispatches FIFO, so "is this station FIFO"
+  /// would be true everywhere and a FIFO lane would be drawn on every link,
+  /// which says nothing. A stored row is a decision someone made about that
+  /// queue, and that is what the map draws (§5.2).
+  final DispatchRule? queueDiscipline;
 
   /// `CLAD04` or the pool's name — what the box is labelled.
   final String title;
@@ -542,6 +594,11 @@ FlowView buildFlowView({
   PeriodGranularity granularity = PeriodGranularity.month,
   FlowDataSource dataSource = FlowDataSource.flowEquivalent,
   FlowDemandInput demand = const FlowDemandInput(),
+  /// Only the stations that override the run's rule (§7.4) — what the arrows
+  /// into them are drawn from. Empty is the ordinary case and draws nothing
+  /// special, which is right: a plant nobody has given a queue rule is a plant
+  /// where every arrow is a push.
+  Map<String, DispatchRule> dispatchByTarget = const {},
 }) {
   final start = granularity.startOf(asOf);
   final end = granularity.endOf(asOf);
@@ -571,6 +628,7 @@ FlowView buildFlowView({
         periodEnd: end,
         dataSource: dataSource,
         demand: demand,
+        dispatchByTarget: dispatchByTarget,
       ),
       FlowNodeKind.inventory => _buildInventory(
         node: node,
@@ -625,6 +683,7 @@ FlowStepView _buildStep({
   required DateTime periodEnd,
   required FlowDataSource dataSource,
   required FlowDemandInput demand,
+  required Map<String, DispatchRule> dispatchByTarget,
 }) {
   final problems = <StepProblem>[];
   final changeover = Duration(seconds: node.changeoverSeconds);
@@ -775,6 +834,9 @@ FlowStepView _buildStep({
 
   return FlowStepView(
     node,
+    // Keyed by what the step targets — the pool when there is one, exactly as
+    // the rule is stored (§7.4).
+    queueDiscipline: dispatchByTarget[node.poolId ?? node.workcenterId],
     title: title,
     typeName: typeName,
     poolMemberCount: poolMemberCount,
