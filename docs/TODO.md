@@ -114,7 +114,16 @@ quantity field silently, which is §11's one intolerable bug. So:
 
 Batch Number is per **order**, not per part — nothing changes on the Parts grid.
 
-### 1.5 The Production Plan
+### 1.5 The Production Plan — **done 2026-08-05**
+
+Written up as **§8.5**, not §8.4 — that number was already "The Summary, as built", and several
+comments had been pointing at it. All references corrected.
+
+`saveRun` had to start populating the four v12 columns, which nothing did: they were added in §1.1
+but written by nobody. `SimPart` gained `customerProject` and `SimOrder` a `batchNumber` — passengers
+the engine never reads, exactly as `SimPart.partNumber` has always been, so the snapshot is what was
+*assembled* rather than a second read of the demand at save time.
+
 
 `Order | Part Number | Project | Batch Number | Batch Size | Need Date | Material Date | Order Start
 Date | Delivery Date | Float`

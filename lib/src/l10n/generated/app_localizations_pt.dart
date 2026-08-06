@@ -1439,6 +1439,23 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get simProductionPlan =>
+      'Plano de produção — ordens ao longo do tempo';
+
+  @override
+  String get simProductionPlanHelp =>
+      'O que esta simulação diz que cada ordem faz. As linhas seguem a ordem da sequência, que é também a ordem de liberação: o motor libera sempre a partir do início da sequência e nunca a reordena. Colunas em branco são de uma simulação anterior ao registro delas.';
+
+  @override
+  String get simPlanOrder => 'Ordem';
+
+  @override
+  String get simPlanOrderStart => 'Início';
+
+  @override
+  String get simPlanDelivery => 'Entrega';
+
+  @override
   String simDispatchOverrides(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

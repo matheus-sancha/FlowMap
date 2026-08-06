@@ -1423,6 +1423,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get simProductionPlan => 'Production plan — orders over time';
+
+  @override
+  String get simProductionPlanHelp =>
+      'What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.';
+
+  @override
+  String get simPlanOrder => 'Order';
+
+  @override
+  String get simPlanOrderStart => 'Order start';
+
+  @override
+  String get simPlanDelivery => 'Delivery';
+
+  @override
   String simDispatchOverrides(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

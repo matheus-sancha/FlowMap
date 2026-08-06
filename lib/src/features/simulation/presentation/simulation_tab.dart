@@ -395,7 +395,150 @@ class _Results extends StatelessWidget {
         Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         _PartsTable(metrics: metrics),
+        const SizedBox(height: 24),
+        Text(l10n.simProductionPlan, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          l10n.simProductionPlanHelp,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _ProductionPlan(run: run),
       ],
+    );
+  }
+}
+
+/// The production plan: what the run says each order actually does
+/// (DESIGN.md §8.5).
+///
+/// **One section per study**, because a study is one production line and a
+/// production plan is a line's plan — a planner takes the section for their
+/// line. Rows are in sequence order, which for §7.2's strict release *is*
+/// release order, so "orders over time" needs no sort that could disagree with
+/// the Order column.
+class _ProductionPlan extends StatelessWidget {
+  const _ProductionPlan({required this.run});
+
+  final StoredRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (run.plan.isEmpty) return const SizedBox.shrink();
+
+    // Study id → the name it had when the run was made (§7.10), so a study
+    // renamed since still reads as the one that ran.
+    final names = {for (final study in run.studies) study.studyId: study.name};
+
+    final byStudy = <String, List<ProductionPlanRow>>{};
+    for (final row in run.plan) {
+      byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final entry in byStudy.entries) ...[
+          // Only when there is more than one: a heading over the single
+          // section of a single-study run says nothing the tab has not said.
+          if (byStudy.length > 1) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              child: Text(
+                names[entry.key] ?? entry.key,
+                style: theme.textTheme.labelLarge,
+              ),
+            ),
+          ],
+          _PlanTable(rows: entry.value),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _PlanTable extends StatelessWidget {
+  const _PlanTable({required this.rows});
+
+  final List<ProductionPlanRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).toString();
+
+    String date(DateTime? value) =>
+        value == null ? '—' : formatDateInput(value, locale);
+
+    return Card(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: [
+            DataColumn(label: Text(l10n.simPlanOrder), numeric: true),
+            DataColumn(label: Text(l10n.demandPartNumber)),
+            DataColumn(label: Text(l10n.demandProject)),
+            DataColumn(label: Text(l10n.demandBatchNumber)),
+            DataColumn(label: Text(l10n.demandBatchSize), numeric: true),
+            DataColumn(label: Text(l10n.demandNeedDate), numeric: true),
+            DataColumn(label: Text(l10n.demandMaterialDate), numeric: true),
+            DataColumn(label: Text(l10n.simPlanOrderStart), numeric: true),
+            DataColumn(label: Text(l10n.simPlanDelivery), numeric: true),
+            DataColumn(label: Text(l10n.simAverageFloat), numeric: true),
+          ],
+          rows: [
+            for (final row in rows)
+              DataRow(
+                cells: [
+                  DataCell(Text('${row.orderNumber}')),
+                  DataCell(Text(row.partNumber)),
+                  // Blank throughout means a run made before schema v12, which
+                  // did not record any of this (§16.13). A dash, never a
+                  // guess.
+                  DataCell(
+                    Text(
+                      (row.customerProject?.isEmpty ?? true)
+                          ? '—'
+                          : row.customerProject!,
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      (row.batchNumber?.isEmpty ?? true)
+                          ? '—'
+                          : row.batchNumber!,
+                    ),
+                  ),
+                  DataCell(
+                    Text(row.batchSize == null ? '—' : '${row.batchSize}'),
+                  ),
+                  DataCell(Text(date(row.outcome.needDate))),
+                  DataCell(Text(date(row.materialDate))),
+                  DataCell(Text(date(row.orderStart))),
+                  DataCell(Text(date(row.delivery))),
+                  // The one figure here that is a verdict rather than a fact,
+                  // so late is coloured. Positive is early (§8).
+                  DataCell(
+                    Text(
+                      _duration(l10n, row.float),
+                      style: (row.float?.isNegative ?? false)
+                          ? theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.error,
+                              fontWeight: FontWeight.w600,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -60,6 +60,17 @@ class SimulationRunsRepository {
       for (final study in studies)
         for (final part in study.parts.values) part.id: part.partNumber,
     };
+    final customerProjects = {
+      for (final study in studies)
+        for (final part in study.parts.values) part.id: part.customerProject,
+    };
+    // What §8.5's plan needs and the result does not carry: the engine reports
+    // outcomes per order id, and the order's own batch and dates live on the
+    // input it was built from.
+    final ordersById = {
+      for (final study in studies)
+        for (final order in study.orders) order.id: order,
+    };
     final theoretical = theoreticalLeadTimes(
       result: result,
       studies: studies,
@@ -107,6 +118,10 @@ class SimulationRunsRepository {
               sequence: order.sequence,
               partId: order.partId,
               partNumber: partNumbers[order.partId] ?? order.partId,
+              customerProject: Value(customerProjects[order.partId]),
+              batchNumber: Value(ordersById[order.orderId]?.batchNumber),
+              batchSize: Value(ordersById[order.orderId]?.batchSize),
+              materialDate: Value(ordersById[order.orderId]?.materialDate),
               needDate: order.needDate,
               released: Value(order.released),
               delivered: Value(order.delivered),
@@ -206,6 +221,7 @@ class SimulationRunsRepository {
     final stations = await (_db.select(
       _db.simulationRunWorkcenters,
     )..where((w) => w.runId.equals(runId))).get();
+    final byOrderId = {for (final row in orders) row.orderId: row};
     final overrides = await (_db.select(
       _db.simulationRunDispatch,
     )..where((d) => d.runId.equals(runId))).get()
@@ -286,6 +302,20 @@ class SimulationRunsRepository {
       ],
       studies: studies,
       result: result,
+      // Built from the same `orders` rows the result above was, so the plan's
+      // dates and the metrics' cannot come from two different readings.
+      plan: [
+        for (final outcome in result.orders)
+          if (byOrderId[outcome.orderId] case final row?)
+            ProductionPlanRow(
+              outcome: outcome,
+              partNumber: row.partNumber,
+              customerProject: row.customerProject,
+              batchNumber: row.batchNumber,
+              batchSize: row.batchSize,
+              materialDate: row.materialDate,
+            ),
+      ]..sort((a, b) => a.outcome.sequence.compareTo(b.outcome.sequence)),
       metrics: summariseRun(
         result: result,
         partNumbers: {for (final row in orders) row.partId: row.partNumber},
@@ -319,6 +349,7 @@ class StoredRun {
     required this.studies,
     required this.result,
     required this.metrics,
+    required this.plan,
   });
 
   final String id;
@@ -328,6 +359,14 @@ class StoredRun {
   /// The rule the run was made with — what every station used unless it is
   /// named in [dispatchOverrides].
   final DispatchRule dispatch;
+
+  /// The production plan (§8.5), in sequence order, all studies together.
+  ///
+  /// The UI sections it by study; the ordering within one is release order,
+  /// because §7.2 releases strictly from the head of the sequence and never
+  /// reorders it, so "over time" and "in sequence" are the same list and cannot
+  /// disagree with the Order column.
+  final List<ProductionPlanRow> plan;
 
   /// The stations that dispatched by something else (§7.4), by name.
   ///
@@ -345,4 +384,47 @@ class StoredRun {
   /// What §8 said about it. Recomputed on read from the stored rows rather
   /// than stored as numbers, so there is one implementation of every figure.
   final RunMetrics metrics;
+}
+
+/// One line of the production plan (DESIGN.md §8.5).
+///
+/// `Order | Part Number | Project | Batch Number | Batch Size | Need Date |
+/// Material Date | Order Start Date | Delivery Date | Float`
+///
+/// **The outcome is held rather than unpacked**, so Float comes from
+/// [SimOrderOutcome.float] — the one place it is defined — instead of being
+/// worked out a second time here. A plan whose Float disagreed with the tab's
+/// average float would be worse than no plan.
+///
+/// The demand half is nullable throughout because a run stored before schema
+/// v12 did not record it (§16.13). A blank cell says "this run did not keep
+/// that", which is true; it is not the same as an empty batch number.
+class ProductionPlanRow {
+  const ProductionPlanRow({
+    required this.outcome,
+    required this.partNumber,
+    required this.customerProject,
+    required this.batchNumber,
+    required this.batchSize,
+    required this.materialDate,
+  });
+
+  final SimOrderOutcome outcome;
+  final String partNumber;
+  final String? customerProject;
+  final String? batchNumber;
+  final int? batchSize;
+  final DateTime? materialDate;
+
+  /// The `Order` column: the row's place in the study's sequence, 1-based
+  /// because the grid it came from numbers its rows that way.
+  int get orderNumber => outcome.sequence + 1;
+
+  /// When it entered the flow (§7.2). Null means it never did.
+  DateTime? get orderStart => outcome.released;
+
+  DateTime? get delivery => outcome.delivered;
+
+  /// Slack against the need date: positive is early (§8).
+  Duration? get float => outcome.float;
 }

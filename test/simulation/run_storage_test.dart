@@ -121,6 +121,7 @@ void main() {
         'part-a': const SimPart(
           id: 'part-a',
           partNumber: 'PN1',
+          customerProject: 'Wing 7',
           processTimes: {
             'wc-1': Duration(hours: 4),
             'wc-2': Duration(hours: 2),
@@ -141,6 +142,9 @@ void main() {
           sequence: 0,
           partId: 'part-a',
           needDate: DateTime(2026, 8, 10),
+          batchSize: 4,
+          batchNumber: 'B-0012',
+          materialDate: DateTime(2026, 8, 1),
         ),
         SimOrder(
           id: 'o1',
@@ -395,5 +399,44 @@ void main() {
     // Ties break by id, so the list cannot reorder itself between rebuilds
     // (§4.4) — a run list that shuffles reads as a bug in the run.
     expect((await runs.watchRuns(projectId).first).map((r) => r.id), ids);
+  });
+
+  test('the production plan survives the demand it was built from', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      dispatch: DispatchRule.fifo,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final stored = await runs.loadRun(runId);
+    final plan = stored!.plan;
+
+    // One row per order, in sequence order — which is release order, so the
+    // Order column and "over time" are the same list (§7.2, §8.4).
+    expect(plan.map((r) => r.orderNumber), [1, 2, 3]);
+
+    final first = plan.first;
+    expect(first.partNumber, 'PN1');
+    // Copied in, not joined: nothing here reads demand_parts or demand_orders,
+    // which is what keeps the plan readable after either is edited (§7.10).
+    expect(first.customerProject, 'Wing 7');
+    expect(first.batchNumber, 'B-0012');
+    expect(first.batchSize, 4);
+    expect(first.materialDate, DateTime(2026, 8, 1));
+
+    // The outcome half, and Float from the one place it is defined (§8).
+    expect(first.orderStart, first.outcome.released);
+    expect(first.delivery, first.outcome.delivered);
+    expect(first.float, first.outcome.float);
+
+    // An order with no batch number simply has none — a label, not identity.
+    expect(plan[1].batchNumber, isNull);
+    expect(plan[1].batchSize, 1);
   });
 }

@@ -1440,6 +1440,22 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get simProductionPlan => 'Plan de producción — órdenes en el tiempo';
+
+  @override
+  String get simProductionPlanHelp =>
+      'Lo que esta simulación dice que hace cada orden. Las filas van en orden de secuencia, que es también el orden de liberación: el motor libera siempre desde la cabeza de la secuencia y nunca la reordena. Las columnas vacías son de una simulación anterior a que FlowMap las registrara.';
+
+  @override
+  String get simPlanOrder => 'Orden';
+
+  @override
+  String get simPlanOrderStart => 'Inicio';
+
+  @override
+  String get simPlanDelivery => 'Entrega';
+
+  @override
   String simDispatchOverrides(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

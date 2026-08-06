@@ -88,6 +88,17 @@ void main() {
       dispatchOverrides: const [],
       studies: const [],
       result: result,
+      plan: [
+        for (final outcome in result.orders)
+          ProductionPlanRow(
+            outcome: outcome,
+            partNumber: 'PN1',
+            customerProject: 'Wing 7',
+            batchNumber: 'B-00${outcome.sequence}',
+            batchSize: 4,
+            materialDate: DateTime(2026, 8, 1),
+          ),
+      ],
       metrics: summariseRun(
         result: result,
         partNumbers: const {'part-1': 'PN1'},
@@ -210,7 +221,77 @@ void main() {
     expect(find.text('Ranked by queue time'), findsOne);
     expect(find.text('Ranked by share of the flow'), findsOne);
     expect(find.text('Per part number'), findsOne);
-    expect(find.text('PN1'), findsOne);
+    // Once in the per-part table and once per plan row below it.
+    expect(find.text('PN1'), findsWidgets);
+  });
+
+  testWidgets('the production plan lists every order the run placed', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+        ],
+      ),
+      run: storedRun(),
+    );
+
+    expect(find.text('Production plan — orders over time'), findsOne);
+
+    // The Order column is the sequence position, 1-based — the same number the
+    // demand grid's row header shows, not a works order number (§9.1).
+    expect(find.text('1'), findsWidgets);
+    expect(find.text('4'), findsWidgets);
+
+    // The demand half comes from the run's own snapshot, so a plan stays
+    // readable after the sequence beneath it is edited (§7.10).
+    expect(find.text('B-000'), findsOne);
+    expect(find.text('B-003'), findsOne);
+    expect(find.text('Wing 7'), findsWidgets);
+  });
+
+  testWidgets('a run stored before v12 shows dashes, not invented data', (
+    tester,
+  ) async {
+    // The Célula 11B run: its order rows predate the four columns the plan
+    // reads, and §16.13 chose a blank over a backfill from today's demand.
+    final run = storedRun();
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+        ],
+      ),
+      run: StoredRun(
+        id: run.id,
+        projectId: run.projectId,
+        createdAt: run.createdAt,
+        dispatch: run.dispatch,
+        dispatchOverrides: run.dispatchOverrides,
+        studies: run.studies,
+        result: run.result,
+        metrics: run.metrics,
+        plan: [
+          for (final outcome in run.result.orders)
+            ProductionPlanRow(
+              outcome: outcome,
+              partNumber: 'PN1',
+              customerProject: null,
+              batchNumber: null,
+              batchSize: null,
+              materialDate: null,
+            ),
+        ],
+      ),
+    );
+
+    // Still a plan — the six columns the run did record are all there.
+    expect(find.text('Production plan — orders over time'), findsOne);
+    expect(find.text('—'), findsWidgets);
+    expect(find.text('Wing 7'), findsNothing);
   });
 
   testWidgets('an aborted run says why rather than just reading badly', (

@@ -120,10 +120,18 @@ class SimPart {
     required this.id,
     required this.partNumber,
     required this.processTimes,
+    this.customerProject = '',
   });
 
   final String id;
+
+  /// The engine never reads this or [customerProject] — both ride along so the
+  /// run can copy them in at save time (§7.10), which is the only moment they
+  /// are still guaranteed to describe the demand the run was made from.
   final String partNumber;
+
+  /// The customer's programme, half of what identifies a part (§9.3).
+  final String customerProject;
 
   /// **Per piece** (§7.6). A part that skips a step is absent here, not zero.
   final Map<String, Duration> processTimes;
@@ -140,6 +148,7 @@ class SimOrder {
     required this.needDate,
     this.batchSize = 1,
     this.materialDate,
+    this.batchNumber,
   });
 
   final String id;
@@ -156,6 +165,11 @@ class SimOrder {
 
   /// When material is on hand. Null is unconstrained.
   final DateTime? materialDate;
+
+  /// The planner's own label for this batch (§9.1). A passenger, like
+  /// [SimPart.partNumber]: nothing in the engine reads it, and the production
+  /// plan cannot be printed without it.
+  final String? batchNumber;
 }
 
 /// One study taking part in a run.

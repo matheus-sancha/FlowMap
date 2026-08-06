@@ -554,7 +554,7 @@ is the diagnostic — the second ranking would be redundant if it were derived f
   hand, is right: an undelivered order has no float, and inventing one would flatter the run.
 - **Float is slack, so positive is early.** It was `delivered − need date` through M4, which made an
   over-committed sequence report `average float +230.7 d` — seven months of apparent room to spare,
-  meaning the exact opposite. Float has meant time in hand since long before this app, and §8.4's
+  meaning the exact opposite. Float has meant time in hand since long before this app, and §8.5's
   production plan puts the figure in front of exactly the reader who reads it that way. Defined once
   on `SimOrderOutcome.float`, which every other figure sums, so the plan's column and the
   Simulation tab's headline cannot point opposite ways. `isOnTime` is unaffected — it compares two
@@ -633,6 +633,31 @@ occupation = required ÷ available
 _Rejected: the mockup's naming ("Utilization 100 %" on the box)._ It conflates an input with an
 output, and the inconsistency becomes permanent once it is in three `.arb` files and every PDF.
 
+### 8.5 The production plan — orders over time
+
+`Order | Part Number | Project | Batch Number | Batch Size | Need Date | Material Date | Order Start
+Date | Delivery Date | Float`, a section of the Simulation tab's results.
+
+- **A reading of a stored run, not of the demand.** It reads `simulation_run_orders`, so its dates
+  cannot disagree with the run that produced them and opening an earlier run from the history menu
+  opens its plan with it. Four of its columns are the copy-in §16.13 added for exactly this.
+- **Order is the sequence position, 1-based** — the number the demand grid's row header shows, and
+  not a works order number. §9.1's decision that FlowMap carries none of those still holds; Batch
+  Number is what a planner matches against their own paperwork.
+- **Order Start Date is release into the flow** (§7.2), which is stored per order. Delivery is the
+  last semantic step (§18.1). Float is slack, positive early, taken from `SimOrderOutcome.float` so
+  the column and the tab's average float cannot point opposite ways.
+- **One section per study, rows in sequence order.** A study is one production line and a plan is a
+  line's plan. §7.2 releases strictly from the head with no reordering, so within a study release
+  order *is* sequence order — "over time" needs no sort that could disagree with the Order column,
+  and no Study column is needed. The heading appears only when a run carries more than one.
+- **A run stored before v12 shows dashes in four columns.** It did not record them, and that is
+  what a blank says. Backfilling from today's demand would make one run a hybrid of two moments.
+
+_Rejected: a flat table sorted by start date across studies._ It shows the true interleaving of the
+plant, which §7.7 exists to model — but it answers "what does the plant do next" when the person
+holding the printout runs one line.
+
 ---
 
 ## 9. Data entry
@@ -664,7 +689,7 @@ column and removing one hides the values without destroying them.
   place a user can most easily trip it.
 - **Batch Number is a label, and the only column that can never be wrong.** It is the planner's own
   identifier for a batch of a part — free text, no uniqueness, blank allowed, and nothing downstream
-  matches on it. It sits between Project and Batch Size, the order §8.4's production plan reads in,
+  matches on it. It sits between Project and Batch Size, the order §8.5's production plan reads in,
   which moved the three columns after it along by one: a paste block anchored by habit at the old
   Batch column now lands on Batch Number. `demandBatchSize` was relabelled from `Batch` to `Batch
   size` at the same time, because two adjacent columns both reading "Batch" is the ambiguity in
@@ -1237,7 +1262,7 @@ one half-rebuilt on a machine that has already survived §16.11 once.
   simulation identified by row, but a planner reading a printed plan does need the number their
   paperwork is filed under.
 - **`simulation_run_orders` gains `customer_project`, `batch_number`, `batch_size`,
-  `material_date`.** What §8.4's production plan reads and the engine does not, copied in for §7.10's
+  `material_date`.** What §8.5's production plan reads and the engine does not, copied in for §7.10's
   reason: the plan has to keep saying what it said after the demand beneath it is re-sequenced or
   deleted. **Never backfilled** — a run stored before v12 has no answer, and a blank saying so is
   true; filling them from today's demand would make one run a hybrid of two moments, which is the

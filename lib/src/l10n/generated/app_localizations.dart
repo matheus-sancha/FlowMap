@@ -2574,6 +2574,36 @@ abstract class AppLocalizations {
   /// **'{timestamp} · {rule}'**
   String simRunLabel(String timestamp, String rule);
 
+  /// No description provided for @simProductionPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Production plan — orders over time'**
+  String get simProductionPlan;
+
+  /// No description provided for @simProductionPlanHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.'**
+  String get simProductionPlanHelp;
+
+  /// No description provided for @simPlanOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Order'**
+  String get simPlanOrder;
+
+  /// No description provided for @simPlanOrderStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Order start'**
+  String get simPlanOrderStart;
+
+  /// No description provided for @simPlanDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get simPlanDelivery;
+
   /// No description provided for @simDispatchOverrides.
   ///
   /// In en, this message translates to:

@@ -96,7 +96,7 @@ class SimulationRunOrders extends Table {
   TextColumn get partNumber => text()();
 
   /// The four below are what the Production Plan reads and the engine does not
-  /// (DESIGN.md §8.4). Copied in for this file's own reason: the plan has to
+  /// (DESIGN.md §8.5). Copied in for this file's own reason: the plan has to
   /// keep saying what it said after the demand beneath it is re-sequenced,
   /// re-batched or deleted outright.
   ///
