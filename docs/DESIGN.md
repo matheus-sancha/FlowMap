@@ -229,6 +229,25 @@ Nothing on the box is typed except **Changeover**. Everything else is derived:
 | Availability, Operators, Shifts | that workcenter's project schedule for the displayed period |
 | Occupation | required hours ÷ available productive hours for the period |
 
+**Notes are the exception to "nothing is typed".** A node carries free text — what a walk of the
+current state found here, a problem or an opportunity — and it affects no number. It was stored and
+carried through the repository from M2 and editable from nothing, the same shape the supplier and
+customer names were in (§17.5); reaching it cost a text field.
+
+- **A marker on the box, the words in the tooltip.** A box is sized for eight data rows and a
+  finding is a sentence, so the box says only that there *is* one. A finding nobody can see is a
+  finding nobody acts on, which is why the marker is not itself hidden behind the hover.
+- **A problem still wins the tooltip.** §11's problems are reasons the map cannot be trusted yet;
+  a note is the reader's own writing, and outranks only the box's description of itself.
+- **The PDF prints them as a list under the map**, named by the box each belongs to, and omits the
+  heading entirely when nothing has been written. A 140pt-wide box cannot hold a sentence, and a
+  current state is printed precisely so the findings can be read beside the drawing.
+
+_Rejected: notes as free-placed annotations on the decorative layer (§5.2)._ `FlowAnnotations`
+already has a `note` symbol and is still unreached, but a sticker near a box is not a note belonging
+to it — it cannot travel with the node when the sequence is re-ordered, and nothing could list "every
+problem in this study" without guessing from coordinates.
+
 Hence the period navigator (`Aug 2026`) and the timeline selector in the toolbar. A schedule edit
 redraws the map.
 
@@ -1447,7 +1466,8 @@ next milestone plans them rather than rediscovering them:
 |---|---|---|
 | ~~Calendar exceptions (§4.3)~~ | **reached in M3** — entered on the Workcenters tab, beside the schedules they override; a pool is expanded to its members on entry | — |
 | ~~Supplier / Customer names (§16.2)~~ | **reached in M3** — the endpoints on the canvas are clickable, and an emptied name puts the default back | — |
-| The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty |
+| ~~`flow_nodes.notes`~~ | **reached 2026-08-05** — a field in both node editors, a marker on the box, the words in the tooltip and a findings list on the PDF (§5.4) | — |
+| The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty. §5.4's node notes deliberately do **not** use it |
 | `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
 | ~~`wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn`~~ | **reached in M4** — the engine walks dates rather than periods, which is what the two `…On(date)` accessors were written for | — |
 

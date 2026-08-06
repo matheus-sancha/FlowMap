@@ -68,6 +68,7 @@ Future<void> showInsertNodeMenu(
       equivalentValue: draft.equivalentValue,
       equivalentUnit: draft.equivalentUnit,
       label: draft.label,
+      notes: draft.notes,
     );
     await _writeDispatch(ref, study, draft, dispatchByTarget);
   } else {
@@ -85,6 +86,7 @@ Future<void> showInsertNodeMenu(
       waitUnit: draft.waitUnit,
       usesWorkingTime: draft.usesWorkingTime,
       label: draft.label,
+      notes: draft.notes,
     );
   }
 }
@@ -147,7 +149,7 @@ Future<void> showStepEditor(
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
         label: draft.label,
-        notes: step.node.notes,
+        notes: draft.notes,
       );
       await _writeDispatch(ref, study, draft, dispatchByTarget);
     case _MoveNode move:
@@ -193,7 +195,7 @@ Future<void> showInventoryEditor(
         waitUnit: draft.waitUnit,
         usesWorkingTime: draft.usesWorkingTime,
         label: draft.label,
-        notes: buffer.node.notes,
+        notes: draft.notes,
       );
     case _MoveNode move:
       await repository.moveNode(
@@ -243,6 +245,7 @@ class _StepDraft implements _StepResult {
     this.equivalentUnit,
     this.label,
     this.dispatch,
+    this.notes,
   });
 
   final String? workcenterId;
@@ -260,6 +263,11 @@ class _StepDraft implements _StepResult {
   /// which is the station, and every step pointing at that station gets it.
   final DispatchRule? dispatch;
 
+  /// What a current-state walk found here — a problem, an opportunity, a
+  /// question to come back to (§5.4). Free text, on the node, affecting no
+  /// number.
+  final String? notes;
+
   /// What the step targets — the pool when there is one, exactly as
   /// `demandTargetOf` resolves it, because a queue forms at a pool and not at
   /// whichever member stands for it (§3.1).
@@ -274,7 +282,11 @@ class _InventoryDraft implements _InventoryResult {
     this.waitUnit,
     required this.usesWorkingTime,
     this.label,
+    this.notes,
   });
+
+  /// What a walk found at this buffer — why the stock is here, what it costs.
+  final String? notes;
 
   final InventoryMode mode;
   final int? quantity;
@@ -335,6 +347,9 @@ class _StepDialogState extends State<_StepDialog> {
   late final TextEditingController _label = TextEditingController(
     text: widget.existing?.node.label ?? '',
   );
+  late final TextEditingController _notes = TextEditingController(
+    text: widget.existing?.node.notes ?? '',
+  );
 
   static String _formatNumber(double value) =>
       value == value.roundToDouble() ? '${value.round()}' : '$value';
@@ -373,6 +388,7 @@ class _StepDialogState extends State<_StepDialog> {
     _changeover.dispose();
     _equivalent.dispose();
     _label.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -523,6 +539,18 @@ class _StepDialogState extends State<_StepDialog> {
                   helperMaxLines: 2,
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _notes,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: l10n.flowNodeNotes,
+                  helperText: l10n.flowNodeNotesHelp,
+                  helperMaxLines: 3,
+                  alignLabelWithHint: true,
+                ),
+              ),
               if (widget.existing != null) ...[
                 const Divider(height: 24),
                 const _NodeActionsRow(),
@@ -541,6 +569,7 @@ class _StepDialogState extends State<_StepDialog> {
               ? null
               : () {
                   final label = _label.text.trim();
+                  final notes = _notes.text.trim();
                   final equivalent = _equivalentValue;
                   Navigator.of(context).pop(
                     _StepDraft(
@@ -559,6 +588,10 @@ class _StepDialogState extends State<_StepDialog> {
                           : _equivalentUnit,
                       label: label.isEmpty ? null : label,
                       dispatch: _dispatch,
+                      // Emptying the box clears the note rather than storing a
+                      // blank one, so "no findings here" and "a finding that
+                      // happens to be empty" stay the same thing.
+                      notes: notes.isEmpty ? null : notes,
                     ),
                   );
                 },
@@ -642,12 +675,16 @@ class _InventoryDialogState extends State<_InventoryDialog> {
   late final TextEditingController _label = TextEditingController(
     text: widget.existing?.node.label ?? '',
   );
+  late final TextEditingController _notes = TextEditingController(
+    text: widget.existing?.node.notes ?? '',
+  );
 
   @override
   void dispose() {
     _quantity.dispose();
     _wait.dispose();
     _label.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -784,6 +821,18 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                 controller: _label,
                 decoration: InputDecoration(labelText: l10n.flowNodeLabel),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _notes,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: l10n.flowNodeNotes,
+                  helperText: l10n.flowNodeNotesHelp,
+                  helperMaxLines: 3,
+                  alignLabelWithHint: true,
+                ),
+              ),
               if (widget.existing != null) ...[
                 const Divider(height: 24),
                 const _NodeActionsRow(),
@@ -801,6 +850,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
           onPressed: valid
               ? () {
                   final label = _label.text.trim();
+                  final notes = _notes.text.trim();
                   final isDuration = _mode == InventoryMode.duration;
                   Navigator.of(context).pop(
                     _InventoryDraft(
@@ -814,6 +864,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                       waitUnit: isDuration ? _waitUnit : null,
                       usesWorkingTime: _workingTime,
                       label: label.isEmpty ? null : label,
+                      notes: notes.isEmpty ? null : notes,
                     ),
                   );
                 }

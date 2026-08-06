@@ -1111,6 +1111,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowNodeLabelHelp => 'Shown instead of the workcenter code.';
 
   @override
+  String get flowNodeNotes => 'Notes';
+
+  @override
+  String get flowNodeNotesHelp =>
+      'Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.';
+
+  @override
+  String get flowNodeHasNotes => 'Has notes';
+
+  @override
   String get flowMoveLeft => 'Move earlier';
 
   @override

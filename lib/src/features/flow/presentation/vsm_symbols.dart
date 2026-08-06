@@ -147,17 +147,55 @@ abstract final class VsmSymbols {
     }
   }
 
+  /// The pool badge: a stroked square carrying `#N` (DESIGN.md §3.1).
+  ///
+  /// A pool is several machines behind one box, and a reader comparing two
+  /// boxes has to know which one is four stations. This was a Material chip —
+  /// a filled, rounded, `secondaryContainer` pill sitting inside a map drawn in
+  /// thin strokes, which read as a piece of app furniture rather than part of
+  /// the drawing. Same stroke and colour as the factory and the triangle now,
+  /// so it belongs to the same picture.
+  static void drawPoolBadge(
+    Canvas canvas,
+    Rect rect,
+    int count, {
+    required Color color,
+  }) {
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.2
+        ..style = PaintingStyle.stroke,
+    );
+    _label(canvas, '#$count', rect.center, color, size: 9, centreVertically: true);
+  }
+
   /// Small centred text above the shaft. A lane that is not labelled is just a
   /// line, and the label is what the notation actually carries.
-  static void _label(Canvas canvas, String text, Offset centre, Color color) {
+  static void _label(
+    Canvas canvas,
+    String text,
+    Offset centre,
+    Color color, {
+    double size = 8,
+    bool centreVertically = false,
+  }) {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color, fontSize: 8, letterSpacing: 0.3),
+        style: TextStyle(color: color, fontSize: size, letterSpacing: 0.3),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    painter.paint(canvas, centre - Offset(painter.width / 2, 0));
+    painter.paint(
+      canvas,
+      centre -
+          Offset(
+            painter.width / 2,
+            centreVertically ? painter.height / 2 : 0,
+          ),
+    );
   }
 }
 

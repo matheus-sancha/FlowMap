@@ -1124,6 +1124,16 @@ class AppLocalizationsPt extends AppLocalizations {
       'Exibido no lugar do código do centro de trabalho.';
 
   @override
+  String get flowNodeNotes => 'Notas';
+
+  @override
+  String get flowNodeNotesHelp =>
+      'Problemas e oportunidades encontrados aqui ao percorrer o estado atual. Texto livre, neste nó, sem afetar nenhum número: aparece no mapa e no PDF exportado.';
+
+  @override
+  String get flowNodeHasNotes => 'Tem notas';
+
+  @override
   String get flowMoveLeft => 'Mover para antes';
 
   @override

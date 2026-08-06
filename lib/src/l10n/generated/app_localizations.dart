@@ -2052,6 +2052,24 @@ abstract class AppLocalizations {
   /// **'Shown instead of the workcenter code.'**
   String get flowNodeLabelHelp;
 
+  /// No description provided for @flowNodeNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get flowNodeNotes;
+
+  /// No description provided for @flowNodeNotesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.'**
+  String get flowNodeNotesHelp;
+
+  /// No description provided for @flowNodeHasNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Has notes'**
+  String get flowNodeHasNotes;
+
   /// No description provided for @flowMoveLeft.
   ///
   /// In en, this message translates to:

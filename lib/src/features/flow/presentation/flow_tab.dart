@@ -546,11 +546,15 @@ class _StepBox extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final hasProblem = step.problems.isNotEmpty;
+    final notes = step.node.notes;
 
     return Tooltip(
+      // A note is the reader's own writing and outranks the box's description
+      // of itself — but never a problem, which is a reason the map cannot be
+      // trusted yet (§11).
       message: hasProblem
           ? _problemText(l10n, step.problems)
-          : _targetText(l10n, step),
+          : (notes?.isNotEmpty ?? false) ? notes! : _targetText(l10n, step),
       child: InkWell(
         onTap: () => showStepEditor(
           context,
@@ -600,24 +604,32 @@ class _StepBox extends ConsumerWidget {
                     ),
                     // A pool is several machines behind one box, and a reader
                     // comparing two boxes has to know which one is four
-                    // stations. `#4` is how a shop floor writes it.
+                    // stations. `#4` is how a shop floor writes it — drawn
+                    // rather than chipped, so it is part of the map.
                     if (step.poolMemberCount != null) ...[
                       const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '#${step.poolMemberCount}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSecondaryContainer,
+                      SizedBox(
+                        width: 22,
+                        height: 16,
+                        child: CustomPaint(
+                          painter: _PoolBadgePainter(
+                            count: step.poolMemberCount!,
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
+                      ),
+                    ],
+                    // That there *is* a note has to be visible without
+                    // hovering — a finding nobody can see is a finding nobody
+                    // acts on. The words themselves are in the tooltip and on
+                    // the PDF, because a box sized for eight data rows has no
+                    // room for a paragraph.
+                    if (notes?.isNotEmpty ?? false) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.sticky_note_2_outlined,
+                        size: 14,
+                        color: theme.colorScheme.tertiary,
                       ),
                     ],
                   ],
@@ -807,7 +819,10 @@ class _InventoryNode extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    return InkWell(
+    final notes = buffer.node.notes;
+    return Tooltip(
+      message: (notes?.isNotEmpty ?? false) ? notes! : '',
+      child: InkWell(
       onTap: () =>
           showInventoryEditor(context, ref, study: study, buffer: buffer),
       // A Stack rather than a Column: the triangle has to sit *on* the spine,
@@ -857,10 +872,46 @@ class _InventoryNode extends ConsumerWidget {
               ],
             ),
           ),
+          // Same marker as a process box carries, in the triangle's own
+          // corner: a buffer is exactly where a walk finds something to say.
+          if (notes?.isNotEmpty ?? false)
+            Positioned(
+              top: FlowMetrics.nodeHeight / 2 - FlowMetrics.bufferSymbol / 2,
+              right: FlowMetrics.bufferInset - 14,
+              child: Icon(
+                Icons.sticky_note_2_outlined,
+                size: 14,
+                color: theme.colorScheme.tertiary,
+              ),
+            ),
         ],
+      ),
       ),
     );
   }
+}
+
+class _PoolBadgePainter extends CustomPainter {
+  const _PoolBadgePainter({required this.count, required this.color});
+
+  final int count;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Inset by half the stroke so the square's edge lands inside the box
+    // rather than being clipped in half by it.
+    VsmSymbols.drawPoolBadge(
+      canvas,
+      Rect.fromLTWH(0.6, 0.6, size.width - 1.2, size.height - 1.2),
+      count,
+      color: color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_PoolBadgePainter old) =>
+      old.count != count || old.color != color;
 }
 
 class _TrianglePainter extends CustomPainter {

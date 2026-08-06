@@ -1070,6 +1070,42 @@ void main() {
       expect(waiting.rect.top, lessThan(processing.rect.top));
     });
 
+    test('every + sits on the middle of its own arrow', () {
+      // It was on the middle of the *gap*, which is the same point everywhere
+      // except beside a buffer: the arrow there is inset by bufferInset on the
+      // triangle's side, so its midpoint is 28px away and the button sat
+      // visibly off the line it belongs to.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'CLAD04'),
+            inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
+            step(2, workcenterId: 'CEU27'),
+          ],
+          contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
+        ),
+      );
+
+      expect(layout.insertionPoints, hasLength(layout.connections.length));
+      for (var i = 0; i < layout.connections.length; i++) {
+        final connection = layout.connections[i];
+        expect(
+          layout.insertionPoints[i].center.x,
+          (connection.from.dx + connection.to.dx) / 2,
+        );
+        // And on the spine, which is where the arrow is drawn.
+        expect(layout.insertionPoints[i].center.y, connection.from.dy);
+      }
+
+      // The two links either side of the buffer really are inset, so the test
+      // above is exercising the case it was written for rather than passing
+      // because every segment happens to be a plain gap.
+      expect(
+        layout.connections[1].to.dx - layout.connections[1].from.dx,
+        greaterThan(FlowMetrics.gap),
+      );
+    });
+
     test('an empty flow still lays out its endpoints', () {
       final layout = layoutFlow(build(nodes: const [], contexts: {}));
       expect(layout.nodes, isEmpty);

@@ -257,6 +257,7 @@ class StudiesRepository {
     double? equivalentValue,
     TaktUnit? equivalentUnit,
     String? label,
+    String? notes,
   }) => _insertNode(
     studyId: studyId,
     atPosition: atPosition,
@@ -271,6 +272,7 @@ class StudiesRepository {
       equivalentValue: Value(equivalentValue),
       equivalentUnit: Value(equivalentUnit),
       label: Value(label),
+      notes: Value(notes),
       createdAt: now,
       updatedAt: now,
     ),
@@ -285,6 +287,7 @@ class StudiesRepository {
     DurationUnit? waitUnit,
     bool usesWorkingTime = false,
     String? label,
+    String? notes,
   }) => _insertNode(
     studyId: studyId,
     atPosition: atPosition,
@@ -299,6 +302,7 @@ class StudiesRepository {
       inventoryUnit: Value(waitUnit),
       inventoryUsesWorkingTime: Value(usesWorkingTime),
       label: Value(label),
+      notes: Value(notes),
       createdAt: now,
       updatedAt: now,
     ),

@@ -173,7 +173,19 @@ Needs `VsmSymbols.drawPullArrow` and a lane rendering, and `flow_pdf.dart` draws
 from the same descriptions so the PDF follows for free. Left open: whether a FIFO lane should carry
 the max-quantity label the notation usually gives it — we have no concept for the quantity.
 
-### 1.7 The canvas, three smaller things
+### 1.7 The canvas, three smaller things — **done 2026-08-05**
+
+The `+` fix fell out of §1.6 almost for free: once the arrows were in the layout, each insertion
+point could be derived from the connection it sits on rather than from the gap, so the two cannot
+drift apart again.
+
+Two things the plan did not mention:
+
+- **`insertStep` and `insertInventory` did not accept notes**, so the new field would have silently
+  discarded whatever was typed on a node being created. Both take it now.
+- **The PDF prints a findings list under the map**, not text in the boxes — a process box there is
+  140pt wide and a finding is a sentence. Absent entirely when nothing has been written.
+
 
 - **The `+` insert button is off-centre beside a buffer.** Vertically it is exact —
   `InsertionPoint.center.y` and `FlowLayout.spineY` are the same expression. Horizontally it sits at

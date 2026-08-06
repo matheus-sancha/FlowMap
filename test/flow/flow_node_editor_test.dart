@@ -126,6 +126,27 @@ void main() {
       expect(find.byType(SimpleDialog), findsOneWidget);
     });
 
+    testWidgets('a stored note reads back into the field', (tester) async {
+      await pumpHost(
+        tester,
+        (context, ref) => showInventoryEditor(
+          context,
+          ref,
+          study: study,
+          buffer: FlowInventoryView(
+            inventoryNode(),
+            quantity: null,
+            wait: const Duration(hours: 48),
+            label: '',
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      expect(find.text(l10n.flowNodeNotes), findsOneWidget);
+    });
+
     testWidgets('offers all four wait units', (tester) async {
       await pumpHost(
         tester,
@@ -345,6 +366,9 @@ void main() {
       expect(tester.takeException(), isNull);
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       expect(find.text(l10n.stepDispatch), findsOneWidget);
+      // Notes were stored and carried through the repository from M2 and
+      // editable from nothing (§17.5). The field is the whole fix.
+      expect(find.text(l10n.flowNodeNotes), findsOneWidget);
       // Selected, not merely offered: a control that opened on the default
       // would silently reset the station on the next save.
       expect(

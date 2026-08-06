@@ -178,17 +178,6 @@ FlowLayout layoutFlow(FlowView view) {
   x += FlowMetrics.endpointWidth + FlowMetrics.gap;
 
   for (var i = 0; i < view.nodes.length; i++) {
-    // The insertion point before this node.
-    insertions.add(
-      InsertionPoint(
-        position: i,
-        center: (
-          x: x - FlowMetrics.gap / 2,
-          y: top + FlowMetrics.nodeHeight / 2,
-        ),
-      ),
-    );
-
     nodes.add(
       PlacedNode(
         view: view.nodes[i],
@@ -202,14 +191,6 @@ FlowLayout layoutFlow(FlowView view) {
     );
     x += FlowMetrics.nodeWidth + FlowMetrics.gap;
   }
-
-  // And one after the last node, so a flow can be extended at the end.
-  insertions.add(
-    InsertionPoint(
-      position: view.nodes.length,
-      center: (x: x - FlowMetrics.gap / 2, y: top + FlowMetrics.nodeHeight / 2),
-    ),
-  );
 
   final customer = Rect.fromLTWH(
     x,
@@ -274,6 +255,27 @@ FlowLayout layoutFlow(FlowView view) {
       kind: connectionKindInto(null, hasWipCap: hasWipCap),
     ),
   );
+
+  // `+ Insert here`, one per link — centred on **the arrow it sits on**, not on
+  // the gap.
+  //
+  // They are the same point everywhere except beside an inventory node, where
+  // the arrow is inset by `bufferInset` on the buffer's side: that segment is
+  // 56px longer than the gap on one end, so its middle is 28px from the gap's,
+  // and the button sat visibly off the line it belongs to. Deriving it from the
+  // connection means the two cannot drift apart again — there is one place the
+  // arrow's extent is decided, and this reads it.
+  for (var i = 0; i < connections.length; i++) {
+    insertions.add(
+      InsertionPoint(
+        position: i,
+        center: (
+          x: (connections[i].from.dx + connections[i].to.dx) / 2,
+          y: spine,
+        ),
+      ),
+    );
+  }
 
   return FlowLayout(
     supplier: supplier,
