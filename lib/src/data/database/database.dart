@@ -49,11 +49,13 @@ const _seededAtKey = 'reference_data.seeded_at';
     DemandParts,
     PartProcessTimes,
     DemandOrders,
+    WorkcenterDispatch,
     SimulationRuns,
     SimulationRunStudies,
     SimulationRunOrders,
     SimulationRunSteps,
     SimulationRunEmptySlots,
+    SimulationRunDispatch,
     SimulationRunWorkcenters,
   ],
 )
@@ -71,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -207,8 +209,23 @@ class AppDatabase extends _$AppDatabase {
         // versions this app runs against — and only if the column is still
         // there, because a database older than v6 got `demand_orders` from the
         // *current* definition at the v6 step and never had it.
+        //
+        // **The transformer is not optional.** `TableMigration` copies column
+        // by column from the *current* Dart definition, so this step reaches
+        // for every column `demand_orders` has today — including
+        // `batch_number`, which v12 added and which a table this old has never
+        // had. Without a constant naming it the copy fails on a column that
+        // will not exist until three versions later, and the upgrade dies
+        // here. Every future column on this table needs the same line.
         if (await _hasColumn('demand_orders', 'order_number')) {
-          await m.alterTable(TableMigration(demandOrders));
+          await m.alterTable(
+            TableMigration(
+              demandOrders,
+              columnTransformer: {
+                demandOrders.batchNumber: const Constant<String>(null),
+              },
+            ),
+          );
         }
       }
 
@@ -242,6 +259,45 @@ class AppDatabase extends _$AppDatabase {
         await _ensureTable(m, simulationRunSteps);
         await _ensureTable(m, simulationRunEmptySlots);
         await _ensureTable(m, simulationRunWorkcenters);
+      }
+
+      if (from < 12) {
+        // Field feedback: a batch carries the planner's own number, a station
+        // may override the run's dispatch rule, and a run records enough of an
+        // order to print a production plan from it.
+        //
+        // Every one of these is additive — two new tables and five nullable
+        // columns — so no existing row is rewritten and no table is rebuilt.
+        // That matters more here than usual: the database this runs against
+        // first is the one that already survived a half-finished upgrade
+        // (§16.11), and a step that cannot rebuild a table cannot leave one
+        // half-rebuilt.
+        await _ensureColumn(m, demandOrders, demandOrders.batchNumber);
+        await _ensureTable(m, workcenterDispatch);
+
+        // Deliberately not backfilled from the demand: a run stored before now
+        // has no answer, and a blank saying so is true (§7.10).
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.customerProject,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.batchNumber,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.batchSize,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.materialDate,
+        );
+        await _ensureTable(m, simulationRunDispatch);
       }
 
       // Reference-data seeding runs outside every version guard, on every

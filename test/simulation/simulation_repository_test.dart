@@ -8,7 +8,6 @@ import 'package:flowmap/src/features/resources/data/resources_repository.dart';
 import 'package:flowmap/src/features/schedules/data/schedules_repository.dart';
 import 'package:flowmap/src/features/simulation/application/engine.dart';
 import 'package:flowmap/src/features/simulation/application/sim_assembly.dart';
-import 'package:flowmap/src/features/simulation/application/sim_model.dart';
 import 'package:flowmap/src/features/simulation/application/simulation_providers.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_repository.dart';
 import 'package:flowmap/src/features/studies/data/studies_repository.dart';

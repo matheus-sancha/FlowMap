@@ -398,6 +398,23 @@ class DemandOrders extends Table {
   /// work at every step (§7.6).
   IntColumn get batchSize => integer().withDefault(const Constant(1))();
 
+  /// The planner's own identifier for this batch of this part number — `B-0012`,
+  /// `LOT7`, whatever their system calls it.
+  ///
+  /// **A label, not identity**, which is what makes it nullable and unkeyed.
+  /// [DemandParts.customerProject] is part of a part's identity because a part
+  /// number alone is genuinely ambiguous (§9.3); a batch number is not, because
+  /// the order it names already has an identity — its place in the sequence,
+  /// which is what the engine releases from and what the Production Plan's
+  /// `Order` column shows. So two orders may carry the same batch number, or
+  /// none, and nothing downstream matches on it.
+  ///
+  /// It is the same argument that removed `order_number` in v9, reaching the
+  /// opposite answer for a different reason: nobody needed a works order number
+  /// the simulation identified by row anyway, but a planner reading a printed
+  /// plan does need the number their paperwork is filed under.
+  TextColumn get batchNumber => text().nullable()();
+
   DateTimeColumn get needDate => dateTime()();
 
   /// When material is on hand. Null means unconstrained — the order may take
@@ -414,6 +431,41 @@ class DemandOrders extends Table {
   List<Set<Column<Object>>> get uniqueKeys => [
     {studyId, sequence},
   ];
+}
+
+/// One station's queue discipline, where it differs from the run's
+/// (DESIGN.md §7.4).
+///
+/// **Keyed by target, exactly as [PartProcessTimes] is.** A pool's members are
+/// interchangeable (§3.1), so the queue forms at the pool and the rule belongs
+/// to the pool — not to whichever member happens to stand for it on the map.
+/// [targetId] is therefore a workcenter id or a pool id and carries no foreign
+/// key, for the reason [CalendarExceptions.scopeId] does not: one column cannot
+/// reference two tables.
+///
+/// **Project-scoped, not study-scoped.** A run builds one resource model of the
+/// plant and a station exists in it once however many studies point at it
+/// (§7.7) — so a study-scoped rule would let two studies demand different
+/// disciplines of one machine, with nothing able to choose between them. The
+/// step editor writes it from inside a study and says so.
+///
+/// **A missing row means "use the run's rule."** Storing the default instead
+/// would make a station that was never touched indistinguishable from one
+/// deliberately set back to FIFO, and would freeze the run's own setting out of
+/// every station the moment the project was created.
+class WorkcenterDispatch extends Table {
+  TextColumn get projectId =>
+      text().references(Projects, #id, onDelete: KeyAction.cascade)();
+
+  /// The workcenter or pool whose queue this orders.
+  TextColumn get targetId => text()();
+
+  TextColumn get rule => textEnum<DispatchRule>()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {projectId, targetId};
 }
 
 /// The decorative layer (DESIGN.md §5.2): standard VSM symbols that document

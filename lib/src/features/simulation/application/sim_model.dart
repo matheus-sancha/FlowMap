@@ -13,6 +13,12 @@ library;
 import '../../calendar/application/working_calendar.dart';
 import '../../schedules/application/workcenter_schedule.dart';
 
+/// [DispatchRule] moved to the schema's enums when a station gained the right
+/// to override the run's rule (§7.4) — a stored column has to name it, and the
+/// schema cannot import this file. Re-exported so the engine, the assembly and
+/// every caller still take it from here, which is where it reads as belonging.
+export '../../../data/database/enums.dart' show DispatchRule;
+
 /// A workcenter the run contends over.
 class SimWorkcenter {
   const SimWorkcenter({
@@ -136,24 +142,6 @@ class SimOrder {
 
   /// When material is on hand. Null is unconstrained.
   final DateTime? materialDate;
-}
-
-/// How a workcenter chooses which waiting order to run next (DESIGN.md §7.4).
-enum DispatchRule {
-  /// By arrival at the step. The default, and what a shop floor does.
-  fifo,
-
-  /// Earliest need date first — "what if we dispatched by due date" is exactly
-  /// the experiment this app exists to run.
-  earliestDueDate,
-
-  /// Shortest processing time first.
-  shortestProcessing;
-
-  /// Every rule falls back to the same three keys, so a run of the same inputs
-  /// always produces the same output (§4.4): arrival, then the study's
-  /// priority, then its position in the sequence.
-  bool get isDefault => this == DispatchRule.fifo;
 }
 
 /// One study taking part in a run.

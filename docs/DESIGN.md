@@ -1179,6 +1179,48 @@ neither was reachable from any test in the suite.
 - **`1 studies in this run`.** The count was interpolated into a string. It is an ICU plural now, in
   all three languages — and the `=0` arm says "No studies selected" rather than counting to zero.
 
+### 16.13 Schema v12, from field feedback
+
+Five nullable columns and two tables, all additive — no table is rebuilt, so this step cannot leave
+one half-rebuilt on a machine that has already survived §16.11 once.
+
+- **`demand_orders.batch_number`.** The planner's own identifier for a batch of a part number —
+  `B-0012`, `LOT7`. Nullable and unkeyed, because it is a **label and not identity**: unlike
+  `customer_project` (§9.3), which had to be identity because a part number alone is genuinely
+  ambiguous, the order a batch number names already has an identity in its sequence position. Two
+  orders may carry the same one, or none. It is the mirror of v9's removal of `order_number`,
+  reaching the opposite answer for a different reason — nobody needed a works order number the
+  simulation identified by row, but a planner reading a printed plan does need the number their
+  paperwork is filed under.
+- **`simulation_run_orders` gains `customer_project`, `batch_number`, `batch_size`,
+  `material_date`.** What §8.4's production plan reads and the engine does not, copied in for §7.10's
+  reason: the plan has to keep saying what it said after the demand beneath it is re-sequenced or
+  deleted. **Never backfilled** — a run stored before v12 has no answer, and a blank saying so is
+  true; filling them from today's demand would make one run a hybrid of two moments, which is the
+  exact thing the copy-in rule exists to prevent.
+- **`workcenter_dispatch`** — a station's queue discipline where it differs from the run's (§7.4).
+  Keyed by target, so a pool is a target for the reason `part_process_times` is keyed that way: the
+  queue forms at the pool, not at whichever member stands for it on the map. Project-scoped, because
+  a run builds one resource model and a station exists in it once however many studies point at it
+  (§7.7) — a study-scoped rule would let two studies demand different disciplines of one machine.
+  A missing row means "use the run's rule", which keeps a station never touched distinguishable from
+  one deliberately set back to FIFO.
+- **`simulation_run_dispatch`** — one row per override, so a stored run still explains its own
+  numbers. `simulation_runs.dispatch` alone would report FIFO for a run in which three stations
+  dispatched by due date, and M5's comparison could not say the dispatch is what differed.
+- **`DispatchRule` moved to `data/database/enums.dart`.** A stored column has to name it, and the
+  schema cannot import `sim_model`, which reaches the calendar. `sim_model` re-exports it, so every
+  existing caller is untouched. The run tables still store it as plain text and parse on read, for
+  the reason recorded on `simulation_runs.dispatch`; the live project table uses `textEnum`, as
+  every other project table does.
+- **A rebuild step is a hostage to every future column.** The v9 step that drops `order_number` is a
+  `TableMigration`, and `TableMigration` copies column by column from the **current** Dart
+  definition — so the moment `batch_number` was added, that step began reaching for a column no
+  v6-shaped table has ever had, and the upgrade died three versions before the one that introduced
+  it. It now names a constant `NULL` for it in its `columnTransformer`, and every future column on
+  `demand_orders` needs the same line. Caught by the existing v6 and v8 fixtures, which is what they
+  are for.
+
 ---
 
 ## 17. Done between M2 and M3

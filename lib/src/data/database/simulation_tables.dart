@@ -95,6 +95,20 @@ class SimulationRunOrders extends Table {
   /// every row of a finished run's per-part table into a uuid.
   TextColumn get partNumber => text()();
 
+  /// The four below are what the Production Plan reads and the engine does not
+  /// (DESIGN.md §8.4). Copied in for this file's own reason: the plan has to
+  /// keep saying what it said after the demand beneath it is re-sequenced,
+  /// re-batched or deleted outright.
+  ///
+  /// **Nullable, and never backfilled.** Runs stored before v12 have no answer,
+  /// and a blank saying so is true. Filling them from the demand as it stands
+  /// today would make one run a hybrid of two moments — the exact thing the
+  /// copy-in rule at the top of this file exists to prevent.
+  TextColumn get customerProject => text().nullable()();
+  TextColumn get batchNumber => text().nullable()();
+  IntColumn get batchSize => integer().nullable()();
+  DateTimeColumn get materialDate => dateTime().nullable()();
+
   DateTimeColumn get needDate => dateTime()();
 
   /// When it entered the flow. Null means it never did — the sequence ran out
@@ -164,6 +178,32 @@ class SimulationRunEmptySlots extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {runId, studyId, slotAt};
+}
+
+/// A station that ran on something other than the run's rule (§7.4).
+///
+/// One row per **override**, not per station: a run of forty workcenters that
+/// changed two writes two rows, and a run that changed nothing writes none.
+/// Without this, [SimulationRuns.dispatch] would report `FIFO` for a run in
+/// which three stations dispatched by due date — and M5's comparison could not
+/// tell you that the dispatch is what differed between two runs.
+class SimulationRunDispatch extends Table {
+  TextColumn get runId =>
+      text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
+
+  /// The workcenter or pool, whether or not it still exists.
+  TextColumn get targetId => text()();
+
+  /// `CLAD04` — copied in, as everything else in this file is, so an override
+  /// still reads as a station after the workcenter is renamed or removed.
+  TextColumn get name => text()();
+
+  /// The rule that station actually used, by name. Plain text and parsed on
+  /// read, for the reason [SimulationRuns.dispatch] is.
+  TextColumn get rule => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {runId, targetId};
 }
 
 /// What one station did across the run — utilisation's two halves (§8.3).
