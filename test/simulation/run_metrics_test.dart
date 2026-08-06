@@ -409,7 +409,7 @@ void main() {
       expect(w.visits, 4);
       // Alternating parts: every order after the first pays a setup.
       expect(w.changeovers, 3);
-      expect(w.utilisation, isNotNull);
+      expect(w.utilization, isNotNull);
     });
 
     test('a run that touched nothing has no bottleneck to name', () {

@@ -76,7 +76,7 @@ and cross-study contention (§7.7) requires one identity per physical workcenter
 
 A named group of real workcenters in one plant, normally of the same type (`CNC Lathes` =
 LAT01..LAT04). A flow step targets **either** a specific workcenter **or** a pool. An order sent to
-a pool is dispatched to whichever member frees first; ties break by lowest utilisation, then name
+a pool is dispatched to whichever member frees first; ties break by lowest utilization, then name
 (deterministic). Capacity, operators, availability and rework come from each member's own schedule.
 
 Pools are how two production lines genuinely compete for the same capacity.
@@ -574,6 +574,25 @@ workcenter actually used, changeover incurred, wait time), and the computed aggr
 for 500 orders × 8 steps. Makes order Gantts, queue histories, bottleneck evidence and "why was PN2
 late" into queries rather than re-runs. Two runs can be compared side by side.
 
+**Everything a report needs is copied in, never joined to.** No row here points at a study, a part
+or a workcenter with a foreign key, and the names travel with the rows — that is what keeps a run
+readable after the plant beneath it is re-scoped, renamed or deleted, which is exactly when someone
+goes back to ask what last month's run said. Three groups of it, and all three were added because
+something could not be answered without them:
+
+- **Per order**: part number, and since v12 the customer's project, batch number, batch size and
+  material date — §8.5's plan cannot be printed from a join that may no longer resolve. Also each
+  order's theoretical lead time (§7.9), stored rather than recomputed because the walk needs the
+  plant as it was.
+- **Per station**: name, busy and open time. Open time is a property of the calendar rather than of
+  anything an order did, and it is what makes utilization different from occupation (§8.3).
+- **Per override**: the stations that dispatched by something other than the run's rule (§7.4).
+  Without them the header would report one rule for a run in which three stations used another.
+
+_Rejected: backfilling a run stored before a column existed._ It would make one run a hybrid of two
+moments, which is the one thing the copy-in rule exists to prevent. A blank says "this run did not
+record that", which is true.
+
 ---
 
 ## 8. Metrics
@@ -628,9 +647,9 @@ adjusted one is what actually matters under a mixed part mix.
 |---|---|---|
 | **Availability** | input | fraction of open time the machine can run (74 %), on the workcenter schedule |
 | **Occupation** | static output | required hours ÷ available productive hours for a period |
-| **Utilisation** | simulated output | busy time ÷ open time observed in a run |
+| **Utilization** | simulated output | busy time ÷ open time observed in a run |
 
-Occupation and Utilisation differ whenever sequencing or starvation gets in the way. Defined once
+Occupation and Utilization differ whenever sequencing or starvation gets in the way. Defined once
 in an in-app glossary and translated consistently across en/es/pt.
 
 ### 8.4 The Summary, as built
@@ -988,7 +1007,7 @@ The calendar's public surface — the seam everything downstream calls:
 | `intervalsStartingOn(date)` / `openTimeOnDate(date)` | that day's shifts and their capacity |
 | `isOpenAt(t)` | is this workcenter running at that instant |
 | `nextOpen(from)` | when work could start |
-| `openTimeBetween(from, to)` | capacity in a window (occupation, utilisation) |
+| `openTimeBetween(from, to)` | capacity in a window (occupation, utilization) |
 | `advance(from, work)` | when `work` of open time finishes (lead time, simulation) |
 | `retreat(until, work)` | when `work` of open time would have to begin (§7.8, added in M4) |
 | `openWindowFrom(from)` | the open window containing or following `from` (§7.1's dispatcher, M4) |

@@ -187,7 +187,7 @@ void main() {
       expect(result.steps.single.occupied, const Duration(hours: 10));
     });
 
-    test('busy time over open time is utilisation (§8.3)', () {
+    test('busy time over open time is utilization (§8.3)', () {
       final result = runSimulation(
         studies: [
           study(
@@ -205,7 +205,7 @@ void main() {
       // hours of clock, two of work.
       expect(result.busyByWorkcenter['W'], const Duration(hours: 2));
       expect(result.openByWorkcenter['W'], const Duration(hours: 5));
-      expect(result.utilisation['W'], closeTo(0.4, 0.0001));
+      expect(result.utilization['W'], closeTo(0.4, 0.0001));
     });
   });
 

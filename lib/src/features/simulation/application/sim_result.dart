@@ -152,11 +152,11 @@ class SimRunResult {
   final List<SimOrderOutcome> orders;
   final List<SimEmptySlot> emptySlots;
 
-  /// Open time each workcenter actually spent running, for utilisation (§8.3).
+  /// Open time each workcenter actually spent running, for utilization (§8.3).
   final Map<String, Duration> busyByWorkcenter;
 
   /// Open time each workcenter had available across the run — the denominator
-  /// utilisation is measured against, and the thing that makes it different
+  /// utilization is measured against, and the thing that makes it different
   /// from occupation.
   final Map<String, Duration> openByWorkcenter;
 
@@ -167,10 +167,10 @@ class SimRunResult {
   Iterable<SimOrderOutcome> get undelivered =>
       orders.where((o) => o.delivered == null);
 
-  /// Busy ÷ open, per workcenter — **utilisation**, a simulated output, which
+  /// Busy ÷ open, per workcenter — **utilization**, a simulated output, which
   /// differs from occupation wherever sequencing or starvation got in the way
   /// (§8.3).
-  Map<String, double> get utilisation => {
+  Map<String, double> get utilization => {
     for (final entry in openByWorkcenter.entries)
       if (entry.value.inSeconds > 0)
         entry.key:

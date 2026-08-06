@@ -2526,17 +2526,17 @@ abstract class AppLocalizations {
   /// **'Changeovers'**
   String get simChangeovers;
 
-  /// No description provided for @utilisation.
+  /// No description provided for @utilization.
   ///
   /// In en, this message translates to:
-  /// **'Utilisation'**
-  String get utilisation;
+  /// **'Utilization'**
+  String get utilization;
 
-  /// No description provided for @simUtilisationHelp.
+  /// No description provided for @simUtilizationHelp.
   ///
   /// In en, this message translates to:
   /// **'Busy ÷ open time observed in this run. Not the same as occupation, which is required ÷ available before any run — where the two disagree, sequencing or starvation got in the way.'**
-  String get simUtilisationHelp;
+  String get simUtilizationHelp;
 
   /// No description provided for @simContributed.
   ///

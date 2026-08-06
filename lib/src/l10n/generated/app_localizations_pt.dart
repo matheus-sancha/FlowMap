@@ -1411,10 +1411,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simChangeovers => 'Setups';
 
   @override
-  String get utilisation => 'Utilização';
+  String get utilization => 'Utilização';
 
   @override
-  String get simUtilisationHelp =>
+  String get simUtilizationHelp =>
       'Tempo ocupado ÷ tempo aberto observado nesta execução. Não é o mesmo que ocupação, que é requerido ÷ disponível antes de simular: onde as duas discordam, o sequenciamento ou a falta de alimentação atrapalhou.';
 
   @override

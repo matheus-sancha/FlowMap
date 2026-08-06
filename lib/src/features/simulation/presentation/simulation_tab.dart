@@ -580,7 +580,7 @@ class _Headline extends StatelessWidget {
         ),
         subtitle: Text(
           '${l10n.simOnTimeOfOrders('${metrics.onTime}', '${metrics.orders}')}'
-          '${bottleneck == null ? '' : '  ·  ${l10n.summaryBottleneck(bottleneck.name, _percent(bottleneck.utilisation))}'}',
+          '${bottleneck == null ? '' : '  ·  ${l10n.summaryBottleneck(bottleneck.name, _percent(bottleneck.utilization))}'}',
         ),
       ),
     );
@@ -691,7 +691,7 @@ class _QueueTable extends StatelessWidget {
         child: DataTable(
           columns: [
             DataColumn(label: Text(l10n.workcenter)),
-            DataColumn(label: Text(l10n.utilisation), numeric: true),
+            DataColumn(label: Text(l10n.utilization), numeric: true),
             DataColumn(label: Text(l10n.simQueue), numeric: true),
             DataColumn(label: Text(l10n.simQueueAverage), numeric: true),
             DataColumn(label: Text(l10n.simVisits), numeric: true),
@@ -704,8 +704,8 @@ class _QueueTable extends StatelessWidget {
                   DataCell(Text(station.name)),
                   DataCell(
                     Tooltip(
-                      message: l10n.simUtilisationHelp,
-                      child: Text(_percent(station.utilisation)),
+                      message: l10n.simUtilizationHelp,
+                      child: Text(_percent(station.utilization)),
                     ),
                   ),
                   DataCell(Text(_duration(l10n, station.queueTime))),

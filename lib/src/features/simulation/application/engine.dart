@@ -704,7 +704,7 @@ class _Engine {
     }
 
     // Open time each station had between the cold start and the last event —
-    // utilisation's denominator, and what makes it different from occupation.
+    // utilization's denominator, and what makes it different from occupation.
     final open = <String, Duration>{};
     for (final entry in _servers.entries) {
       try {

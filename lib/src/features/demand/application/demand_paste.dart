@@ -28,7 +28,7 @@ const firstStepColumn = 3;
 /// [orderBatchNumberColumn] is a different thing and arrived later — the
 /// planner's own label for *this batch of this part*, which a printed
 /// production plan has to carry so it can be matched against their paperwork
-/// (§8.4). It sits before the size, the order the plan reads in, which pushed
+/// (§8.5). It sits before the size, the order the plan reads in, which pushed
 /// the three columns after it along by one.
 const orderPartColumn = 0;
 const orderProjectColumn = 1;

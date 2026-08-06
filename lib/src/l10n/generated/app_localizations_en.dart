@@ -1395,10 +1395,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simChangeovers => 'Changeovers';
 
   @override
-  String get utilisation => 'Utilisation';
+  String get utilization => 'Utilization';
 
   @override
-  String get simUtilisationHelp =>
+  String get simUtilizationHelp =>
       'Busy ÷ open time observed in this run. Not the same as occupation, which is required ÷ available before any run — where the two disagree, sequencing or starvation got in the way.';
 
   @override

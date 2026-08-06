@@ -1412,10 +1412,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simChangeovers => 'Cambios de referencia';
 
   @override
-  String get utilisation => 'Utilización';
+  String get utilization => 'Utilización';
 
   @override
-  String get simUtilisationHelp =>
+  String get simUtilizationHelp =>
       'Tiempo ocupado ÷ tiempo abierto observado en esta ejecución. No es lo mismo que la ocupación, que es requerido ÷ disponible antes de simular: donde ambas discrepan, la secuenciación o la falta de alimentación se interpusieron.';
 
   @override

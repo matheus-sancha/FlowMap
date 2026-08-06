@@ -226,7 +226,10 @@ what the button is gated on (`SimRunInput.canRun`) is a pure predicate already c
   `project_workspace_screen.dart:81` — that a control across the window from what it moves reads as
   belonging to whatever is under it — survives, but rewrite the comment to match.
 
-### 1.9 Utilisation → Utilization
+### 1.9 Utilisation → Utilization — **done 2026-08-05**
+
+The only spelling left in the tree is this heading, which names the change.
+
 
 One spelling everywhere: `app_en.arb`'s string, the l10n key, the Dart identifiers in `RunMetrics`,
 `sim_result.dart` and `engine.dart`, and the prose in DESIGN.md §8.3 and in this file. All of it
@@ -234,7 +237,19 @@ compiler-checked or mechanical, so it cannot be half-done. `es` and `pt` keep Ut
 Utilização, which are already right in their own languages. The rest of the app stays British
 ("Organisational only", "a centred moving average") — a known inconsistency, left deliberately.
 
-### 1.10 DESIGN.md
+### 1.10 DESIGN.md — **done 2026-08-05**
+
+Written as each piece landed rather than swept up at the end, so this was a check. It found two
+things: §7.10 still described only what M4 stored and said nothing about v12's copied-in columns or
+the dispatch overrides, and one `§8.4` in `demand_paste.dart` still pointed at the Summary when it
+meant the production plan. `engine.dart`'s `§8.4` is correct — it really is about the Summary's
+occupation arithmetic.
+
+Sections touched across §1: **§5.2** (arrow kinds), **§5.4** (node notes), **§7.4** (per-station
+dispatch), **§7.10** (what a run stores), **§8** (float's sign), **§8.5** (the plan, new),
+**§9.1** and **§9.2** (batch number, import synonyms), **§12.1** (Simulate on the app bar),
+**§16.13** (schema v12, new), **§17.5** (`flow_nodes.notes` now reached).
+
 
 None of the above is real until §5.2 (arrow semantics), §7.4 (per-station dispatch), §7.10 (what a
 run stores), §8 (float's sign), §9.1 and §9.3 (the batch number and the synonym rule) say it, in the
@@ -255,7 +270,7 @@ only.
       orders through 231 steps in 1432 ms and stored it; reopening the tab after a restart shows the
       same run without recomputing it. The result says the sequence is badly over-committed — 3 %
       on time, average float +230.7 d, lead-time efficiency 2.39×, 63 empty release slots, CEU27 at
-      86 % utilisation holding 4487 d of queue and 58 % of the flow's total time. Worth reading as
+      86 % utilization holding 4487 d of queue and 58 % of the flow's total time. Worth reading as
       a finding rather than a smoke test. (Both figures are restated under §1.2's new sign once it
       lands: −230.7 d.)
 - [x] ~~**MM3's two columns.**~~ Confirmed: `Equivalent` is per part (PN3 is 0.70 at every batch

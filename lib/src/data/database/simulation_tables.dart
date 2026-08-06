@@ -206,11 +206,11 @@ class SimulationRunDispatch extends Table {
   Set<Column<Object>> get primaryKey => {runId, targetId};
 }
 
-/// What one station did across the run — utilisation's two halves (§8.3).
+/// What one station did across the run — utilization's two halves (§8.3).
 ///
 /// Busy and open are recorded rather than derived from the step rows: open time
 /// is a property of the station's calendar, not of anything an order did, and
-/// it is exactly what makes utilisation different from occupation.
+/// it is exactly what makes utilization different from occupation.
 class SimulationRunWorkcenters extends Table {
   TextColumn get runId =>
       text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
@@ -221,7 +221,7 @@ class SimulationRunWorkcenters extends Table {
   /// workcenter is renamed or removed from the plant.
   TextColumn get name => text()();
 
-  /// Open time the station spent running (§8.3's utilisation numerator).
+  /// Open time the station spent running (§8.3's utilization numerator).
   IntColumn get busySeconds => integer()();
 
   /// Open time it had available across the run — the denominator.

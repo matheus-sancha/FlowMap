@@ -57,7 +57,7 @@ class WorkcenterRunMetrics {
   final String workcenterId;
   final String name;
 
-  /// Open time spent running (§8.3's utilisation numerator).
+  /// Open time spent running (§8.3's utilization numerator).
   final Duration busy;
 
   /// Open time the station had across the run.
@@ -73,9 +73,9 @@ class WorkcenterRunMetrics {
   /// is what its share of the flow's lead time is measured from.
   final Duration contributedTime;
 
-  /// Busy ÷ open — **utilisation**, a simulated output, not to be confused
+  /// Busy ÷ open — **utilization**, a simulated output, not to be confused
   /// with occupation (§8.3).
-  double? get utilisation =>
+  double? get utilization =>
       open.inSeconds == 0 ? null : busy.inSeconds / open.inSeconds;
 
   Duration get averageQueue =>
