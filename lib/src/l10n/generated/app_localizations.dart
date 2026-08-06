@@ -2592,6 +2592,18 @@ abstract class AppLocalizations {
   /// **'{timestamp} · {rule}'**
   String simRunLabel(String timestamp, String rule);
 
+  /// No description provided for @simViewResults.
+  ///
+  /// In en, this message translates to:
+  /// **'View results'**
+  String get simViewResults;
+
+  /// No description provided for @simulationRunFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The run could not be completed'**
+  String get simulationRunFailed;
+
   /// No description provided for @simProductionPlan.
   ///
   /// In en, this message translates to:

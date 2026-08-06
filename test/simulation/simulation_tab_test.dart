@@ -134,15 +134,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  bool simulateEnabled(WidgetTester tester) => tester
-      .widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Simulate'),
-          matching: find.byType(FilledButton),
-        ),
-      )
-      .onPressed !=
-      null;
+  // Simulate itself is no longer on this tab — it is on the project's app bar
+  // (§12.1), so it can be pressed from any of the six. What it is gated on,
+  // `SimRunInput.canRun`, is a pure predicate covered eight ways in
+  // `simulation_repository_test.dart`; what is left here is what the tab shows
+  // about a run it cannot make.
 
   testWidgets('nothing flagged says so rather than showing an empty run', (
     tester,
@@ -150,7 +146,6 @@ void main() {
     await pump(tester, assembled: const SimRunInput.empty());
 
     expect(find.text('No study is selected for a run'), findsOne);
-    expect(simulateEnabled(tester), isFalse);
   });
 
   testWidgets('an unready study names itself and disables Simulate', (
@@ -176,12 +171,9 @@ void main() {
       find.text('• A step targets no workcenter, or its pool is empty.'),
       findsOne,
     );
-    expect(simulateEnabled(tester), isFalse);
   });
 
-  testWidgets('a ready project with no run yet offers the button', (
-    tester,
-  ) async {
+  testWidgets('a ready project with no run yet says so', (tester) async {
     await pump(
       tester,
       assembled: input(
@@ -197,7 +189,6 @@ void main() {
 
     expect(find.text('No run yet'), findsOne);
     expect(find.text('Not ready to run'), findsNothing);
-    expect(simulateEnabled(tester), isTrue);
   });
 
   testWidgets('a finished run reports §8 and names the bottleneck', (

@@ -1449,6 +1449,12 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get simViewResults => 'Ver resultados';
+
+  @override
+  String get simulationRunFailed => 'Não foi possível concluir a simulação';
+
+  @override
   String get simProductionPlan =>
       'Plano de produção — ordens ao longo do tempo';
 

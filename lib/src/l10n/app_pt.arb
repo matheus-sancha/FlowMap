@@ -487,6 +487,8 @@
   "simEarlierRuns": "Execuções anteriores",
   "simRunLabel": "{timestamp} · {rule}",
   "@simRunLabel": { "placeholders": { "timestamp": { "type": "String" }, "rule": { "type": "String" } } },
+  "simViewResults": "Ver resultados",
+  "simulationRunFailed": "Não foi possível concluir a simulação",
   "simProductionPlan": "Plano de produção — ordens ao longo do tempo",
   "simProductionPlanHelp": "O que esta simulação diz que cada ordem faz. As linhas seguem a ordem da sequência, que é também a ordem de liberação: o motor libera sempre a partir do início da sequência e nunca a reordena. Colunas em branco são de uma simulação anterior ao registro delas.",
   "simPlanOrder": "Ordem",

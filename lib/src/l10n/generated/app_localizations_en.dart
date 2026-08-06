@@ -1433,6 +1433,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get simViewResults => 'View results';
+
+  @override
+  String get simulationRunFailed => 'The run could not be completed';
+
+  @override
   String get simProductionPlan => 'Production plan — orders over time';
 
   @override

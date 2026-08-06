@@ -203,7 +203,16 @@ Two things the plan did not mention:
   the text in the tooltip, and carried into the PDF so a printed current state has the findings on
   it. This is where a walk records problems and opportunities.
 
-### 1.8 The shell
+### 1.8 The shell — **done 2026-08-05**
+
+The tab controller had to move from `_StudyTabs` up to the workspace: the snackbar's "View results"
+has to switch tabs, and a controller one level below the button that raises it cannot be reached
+without threading a callback down and an index back up.
+
+Three tab tests asserted the button's enabled state. They moved out rather than being rewritten —
+what the button is gated on (`SimRunInput.canRun`) is a pure predicate already covered eight ways in
+`simulation_repository_test.dart`, and what those tests were adding was only "the button reads it".
+
 
 - **Simulate moves to the project app bar**, on the right, reachable from every tab. §7.7 makes a
   run project-level, so its trigger belongs on the project chrome rather than inside one tab. The

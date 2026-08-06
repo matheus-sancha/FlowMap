@@ -487,6 +487,8 @@
   "simEarlierRuns": "Ejecuciones anteriores",
   "simRunLabel": "{timestamp} · {rule}",
   "@simRunLabel": { "placeholders": { "timestamp": { "type": "String" }, "rule": { "type": "String" } } },
+  "simViewResults": "Ver resultados",
+  "simulationRunFailed": "No se pudo completar la simulación",
   "simProductionPlan": "Plan de producción — órdenes en el tiempo",
   "simProductionPlanHelp": "Lo que esta simulación dice que hace cada orden. Las filas van en orden de secuencia, que es también el orden de liberación: el motor libera siempre desde la cabeza de la secuencia y nunca la reordena. Las columnas vacías son de una simulación anterior a que FlowMap las registrara.",
   "simPlanOrder": "Orden",

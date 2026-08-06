@@ -537,6 +537,8 @@
   "simEarlierRuns": "Earlier runs",
   "simRunLabel": "{timestamp} · {rule}",
   "@simRunLabel": { "placeholders": { "timestamp": { "type": "String" }, "rule": { "type": "String" } } },
+  "simViewResults": "View results",
+  "simulationRunFailed": "The run could not be completed",
   "simProductionPlan": "Production plan — orders over time",
   "simProductionPlanHelp": "What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.",
   "simPlanOrder": "Order",

@@ -874,7 +874,24 @@ which the compiler does see, and which cannot gain a member without gaining a gl
 guesses its icon until the user picks one by hand.
 
 **The studies sidebar collapses.** A property of the window rather than of the project, so it is
-held in the screen's state and does not follow the user to another machine.
+held in the screen's state and does not follow the user to another machine. Its toggle follows the
+project name in the app bar — still on the left half, so the argument stands that a control across
+the window from what it moves reads as belonging to whatever is under it.
+
+**Simulate is on the project's app bar, not on the Simulation tab.** A run spans studies and belongs
+to the project (§7.7), so it should not require being on one of six tabs to start.
+
+- **Pressing it never moves the reader.** A run takes a second or two on a background isolate
+  (§7.1); being thrown out of a half-typed sequence cell to watch it is worse than not seeing the
+  result the instant it exists. The spinner stays on the button, and a snackbar reports the headline
+  with a single action that brings you to the rest. The tab controller therefore belongs to the
+  workspace rather than to the tab strip — a controller one level below the button that needs it
+  cannot be reached without threading a callback down and an index back up.
+- **The disabled tooltip names the first thing in the way, and the study it belongs to.** §11's
+  readiness panel is on a tab the reader may not be looking at, so the reason travels with the
+  button. One reason rather than all of them: a tooltip is a sentence and the panel is the list.
+- **The Simulation tab keeps the rest** — the rule to dispatch by, the runs already made, the
+  readiness panel and the results. Only the trigger moved.
 
 ### 12.2 Canvas
 

@@ -67,7 +67,6 @@ class _RunBar extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final rule = ref.watch(dispatchRuleSelectionProvider(project.id));
-    final ready = input?.canRun ?? false;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -126,25 +125,10 @@ class _RunBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 12),
+          // Simulate itself is in the project's app bar (§12.1), so it can be
+          // pressed from any tab. What stays here is the setting the run is
+          // made with and the runs already made.
           _RunsMenu(projectId: project.id),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            // Disabled by the same pass that would have built the run (§11):
-            // there is no second opinion about whether it is ready.
-            onPressed: busy || !ready
-                ? null
-                : () => ref
-                      .read(simulationRunnerProvider(project.id).notifier)
-                      .run(),
-            icon: busy
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.play_arrow),
-            label: Text(busy ? l10n.simulationRunning : l10n.simulationRun),
-          ),
         ],
       ),
     );
