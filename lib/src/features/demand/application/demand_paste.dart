@@ -21,14 +21,21 @@ const firstStepColumn = 3;
 
 /// Columns of the sequence grid.
 ///
-/// There is no order number: a simulation identifies an order by the row it is
-/// (§7.2), and asking a planner to retype a works order number they already
-/// hold in their own system was work for nothing.
+/// There is still no order number: a simulation identifies an order by the row
+/// it is (§7.2), and asking a planner to retype a works order number they
+/// already hold in their own system was work for nothing.
+///
+/// [orderBatchNumberColumn] is a different thing and arrived later — the
+/// planner's own label for *this batch of this part*, which a printed
+/// production plan has to carry so it can be matched against their paperwork
+/// (§8.4). It sits before the size, the order the plan reads in, which pushed
+/// the three columns after it along by one.
 const orderPartColumn = 0;
 const orderProjectColumn = 1;
-const orderBatchColumn = 2;
-const orderNeedColumn = 3;
-const orderMaterialColumn = 4;
+const orderBatchNumberColumn = 2;
+const orderBatchColumn = 3;
+const orderNeedColumn = 4;
+const orderMaterialColumn = 5;
 
 /// Reads a block anchored at ([row], [column]) of the parts grid.
 ///
@@ -226,6 +233,15 @@ List<OrderWrite> planSequenceWrite({
         1;
     if (batchSize <= 0) continue;
 
+    // A cell the block does not reach leaves the stored label alone; a cell it
+    // reaches and empties clears it. The same rule the material date follows,
+    // and for the same reason: both are optional, so blank is a real value
+    // rather than a failure to read one.
+    final typedBatchNumber = cellAt(orderBatchNumberColumn);
+    final batchNumber = typedBatchNumber == null
+        ? existing?.batchNumber
+        : (typedBatchNumber.trim().isEmpty ? null : typedBatchNumber.trim());
+
     writes.add(
       OrderWrite(
         id: existing?.id,
@@ -233,6 +249,7 @@ List<OrderWrite> planSequenceWrite({
         needDate: needDate,
         materialDate: materialDate,
         batchSize: batchSize,
+        batchNumber: batchNumber,
       ),
     );
   }

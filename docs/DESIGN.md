@@ -662,6 +662,13 @@ column and removing one hides the values without destroying them.
 - **A blank cell is not a zero.** A part that skips a step has no row in `part_process_times` at
   all, and clearing a cell deletes the row rather than storing `0`. This is §11's rule in the one
   place a user can most easily trip it.
+- **Batch Number is a label, and the only column that can never be wrong.** It is the planner's own
+  identifier for a batch of a part — free text, no uniqueness, blank allowed, and nothing downstream
+  matches on it. It sits between Project and Batch Size, the order §8.4's production plan reads in,
+  which moved the three columns after it along by one: a paste block anchored by habit at the old
+  Batch column now lands on Batch Number. `demandBatchSize` was relabelled from `Batch` to `Batch
+  size` at the same time, because two adjacent columns both reading "Batch" is the ambiguity in
+  miniature.
 - **The last row of each grid is blank and appends.** Typing a part number into it adds a part;
   pasting a block onto it adds as many parts as the block has rows. A row with no part number, or
   an order row with no part and no need date, is skipped — never defaulted.
@@ -706,6 +713,13 @@ judgeable against what it produces, and a preview with no way back to the mappin
 - **A required column with nothing mapped disables Import entirely.** Every other problem is
   reported row by row, worst first, by the **line number in the user's own file** — a preview whose
   problems are on page four is a preview nobody reads.
+- **An ambiguous heading is not evidence either.** `Batch` and `Lot` on their own name a column of
+  quantities exactly as often as a column of lot identifiers, and now that both destinations exist,
+  guessing wrong writes someone's batch number into Batch Size — silently, in every row. Neither
+  claims them: Batch Size answers to `batch size`, `lot size`, `qty`, `quantity`, `size`, and Batch
+  Number to `batch number`, `batch no`, `batch id`, `lot number`, `lot no`, `lot id`. A bare one
+  lands in the unmatched list for the user to place, which is this section's rule about position
+  applied to names.
 - **Blocking versus warning follows §11.** An unknown part number, an unreadable date or time, a
   duplicated part, a batch size of zero: skipped. A need date before its material date: imported and
   flagged, because it is real data that is simply late.

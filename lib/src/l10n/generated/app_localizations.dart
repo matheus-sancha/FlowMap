@@ -1581,8 +1581,20 @@ abstract class AppLocalizations {
   /// No description provided for @demandBatchSize.
   ///
   /// In en, this message translates to:
-  /// **'Batch'**
+  /// **'Batch size'**
   String get demandBatchSize;
+
+  /// No description provided for @demandBatchNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch no.'**
+  String get demandBatchNumber;
+
+  /// No description provided for @demandBatchNumberHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own identifier for this batch of this part — whatever the paperwork calls it. Free text: nothing matches on it, duplicates are allowed and it may be left blank. It appears on the production plan so a printed order can be found in your system.'**
+  String get demandBatchNumberHelp;
 
   /// No description provided for @demandNeedDate.
   ///

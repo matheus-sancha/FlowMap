@@ -35,6 +35,7 @@ void main() {
     String partId, {
     int day = 13,
     int batchSize = 1,
+    String? batchNumber,
     DateTime? materialDate,
   }) => DemandOrder(
     id: id,
@@ -42,6 +43,7 @@ void main() {
     partId: partId,
     sequence: sequence,
     batchSize: batchSize,
+    batchNumber: batchNumber,
     needDate: DateTime(2026, 8, day),
     materialDate: materialDate,
     createdAt: now,
@@ -252,9 +254,10 @@ void main() {
         parts: parts,
         row: 0,
         column: 0,
+        // Part | Project | Batch no. | Batch size | Need | Material.
         block: [
-          ['PN1', '', '4', '2026-08-13', '2026-08-01'],
-          ['PN2', '', '1', '2026-08-14', ''],
+          ['PN1', '', 'B-0012', '4', '2026-08-13', '2026-08-01'],
+          ['PN2', '', '', '1', '2026-08-14', ''],
         ],
         locale: 'en',
       );
@@ -262,9 +265,61 @@ void main() {
       expect(writes.every((w) => w.isNew), isTrue);
       expect(writes.map((w) => w.partId), ['p1', 'p2']);
       expect(writes.first.batchSize, 4);
+      expect(writes.first.batchNumber, 'B-0012');
       expect(writes.first.needDate, DateTime(2026, 8, 13));
       expect(writes.first.materialDate, DateTime(2026, 8, 1));
+      // Blank is a real answer for a label nothing matches on.
+      expect(writes.last.batchNumber, isNull);
       expect(writes.last.materialDate, isNull);
+    });
+
+    test('a batch number is a label — duplicates are allowed', () {
+      // Unlike a part's (project, number), which identifies it and collides.
+      final writes = planSequenceWrite(
+        orders: const [],
+        parts: parts,
+        row: 0,
+        column: 0,
+        block: [
+          ['PN1', '', 'LOT7', '1', '2026-08-13'],
+          ['PN2', '', 'LOT7', '1', '2026-08-14'],
+        ],
+        locale: 'en',
+      );
+
+      expect(writes, hasLength(2));
+      expect(writes.map((w) => w.batchNumber), ['LOT7', 'LOT7']);
+    });
+
+    test('an emptied batch number clears it', () {
+      final writes = planSequenceWrite(
+        orders: [order('o1', 0, 'p1', batchNumber: 'B-0012')],
+        parts: parts,
+        row: 0,
+        column: orderBatchNumberColumn,
+        block: [
+          [''],
+        ],
+        locale: 'en',
+      );
+
+      expect(writes.single.batchNumber, isNull);
+    });
+
+    test('a block that does not reach it leaves the batch number alone', () {
+      final writes = planSequenceWrite(
+        orders: [order('o1', 0, 'p1', batchNumber: 'B-0012')],
+        parts: parts,
+        row: 0,
+        column: orderBatchColumn,
+        block: [
+          ['10'],
+        ],
+        locale: 'en',
+      );
+
+      expect(writes.single.batchSize, 10);
+      expect(writes.single.batchNumber, 'B-0012');
     });
 
     test('a new row without a known part is skipped', () {
@@ -274,7 +329,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN404', '', '1', '2026-08-13'],
+          ['PN404', '', '', '1', '2026-08-13'],
         ],
         locale: 'en',
       );
@@ -291,7 +346,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', '', '1', ''],
+          ['PN1', '', '', '1', ''],
         ],
         locale: 'en',
       );
@@ -356,7 +411,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', '', '1', '03/08/2026'],
+          ['PN1', '', '', '1', '03/08/2026'],
         ],
         locale: 'pt_BR',
       );
@@ -368,7 +423,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', '', '1', '03/08/2026'],
+          ['PN1', '', '', '1', '03/08/2026'],
         ],
         locale: 'en_US',
       );

@@ -74,9 +74,16 @@ List<ImportColumn> partsImportColumns(
 ];
 
 /// The destination columns of the sequence grid.
+/// **`batch` and `lot` on their own match nothing here.** They are exactly what
+/// a column of batch *numbers* is headed and exactly what a column of batch
+/// *sizes* is headed, and guessing wrong writes someone's lot identifier into
+/// a quantity — silently, in every row, which is the one failure §11 will not
+/// tolerate. An ambiguous heading is listed for the user to place by hand,
+/// which is §9.2's rule about position applied to names.
 List<ImportColumn> sequenceImportColumns({
   required String partNumberTitle,
   required String projectTitle,
+  required String batchNumberTitle,
   required String batchTitle,
   required String needDateTitle,
   required String materialDateTitle,
@@ -93,9 +100,21 @@ List<ImportColumn> sequenceImportColumns({
     synonyms: const ['project', 'programme', 'program', 'job', 'contract'],
   ),
   ImportColumn(
+    gridColumn: orderBatchNumberColumn,
+    title: batchNumberTitle,
+    synonyms: const [
+      'batch number',
+      'batch no',
+      'batch id',
+      'lot number',
+      'lot no',
+      'lot id',
+    ],
+  ),
+  ImportColumn(
     gridColumn: orderBatchColumn,
     title: batchTitle,
-    synonyms: const ['batch', 'batch size', 'qty', 'quantity', 'lot'],
+    synonyms: const ['batch size', 'lot size', 'qty', 'quantity', 'size'],
   ),
   ImportColumn(
     gridColumn: orderNeedColumn,
@@ -496,11 +515,16 @@ List<OrderWrite> planSequenceImport({
     if (partId == null || needDate == null) continue;
 
     final materialRaw = row.cell(orderMaterialColumn);
+    // An unmapped column is absent from the row and leaves the field empty —
+    // never cleared, because a file that does not carry a column has said
+    // nothing about it (§9.2).
+    final batchNumber = row.cell(orderBatchNumberColumn)?.trim();
     writes.add(
       OrderWrite(
         id: null,
         partId: partId,
         needDate: needDate,
+        batchNumber: (batchNumber?.isEmpty ?? true) ? null : batchNumber,
         materialDate: materialRaw == null
             ? null
             : parseDateInput(materialRaw, locale),

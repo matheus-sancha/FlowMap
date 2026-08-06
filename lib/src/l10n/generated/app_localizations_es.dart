@@ -851,7 +851,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get demandOrderNumber => 'Pedido';
 
   @override
-  String get demandBatchSize => 'Lote';
+  String get demandBatchSize => 'Tamaño de lote';
+
+  @override
+  String get demandBatchNumber => 'N.º de lote';
+
+  @override
+  String get demandBatchNumberHelp =>
+      'Tu propio identificador para este lote de esta pieza — como lo llame el papeleo. Texto libre: nada lo usa para emparejar, se permiten repetidos y puede quedar vacío. Aparece en el plan de producción para que una orden impresa se encuentre en tu sistema.';
 
   @override
   String get demandNeedDate => 'Fecha requerida';

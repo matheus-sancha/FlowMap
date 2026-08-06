@@ -183,6 +183,7 @@ class DemandRepository {
     required DateTime needDate,
     DateTime? materialDate,
     int batchSize = 1,
+    String? batchNumber,
     int? atSequence,
   }) => _db.transaction(() async {
     final orders = await loadOrders(studyId);
@@ -207,6 +208,7 @@ class DemandRepository {
             partId: partId,
             sequence: position,
             batchSize: Value(batchSize),
+            batchNumber: Value(batchNumber),
             needDate: needDate,
             materialDate: Value(materialDate),
             createdAt: now,
@@ -222,12 +224,14 @@ class DemandRepository {
     required DateTime needDate,
     DateTime? materialDate,
     required int batchSize,
+    String? batchNumber,
   }) => (_db.update(_db.demandOrders)..where((o) => o.id.equals(id))).write(
     DemandOrdersCompanion(
       partId: Value(partId),
       needDate: Value(needDate),
       materialDate: Value(materialDate),
       batchSize: Value(batchSize),
+      batchNumber: Value(batchNumber),
       updatedAt: Value(DateTime.now()),
     ),
   );
@@ -342,6 +346,7 @@ class DemandRepository {
           needDate: write.needDate,
           materialDate: write.materialDate,
           batchSize: write.batchSize,
+          batchNumber: write.batchNumber,
         );
       } else {
         await updateOrder(
@@ -350,6 +355,7 @@ class DemandRepository {
           needDate: write.needDate,
           materialDate: write.materialDate,
           batchSize: write.batchSize,
+          batchNumber: write.batchNumber,
         );
       }
     }
@@ -526,6 +532,7 @@ class OrderWrite {
     required this.needDate,
     required this.materialDate,
     required this.batchSize,
+    required this.batchNumber,
   });
 
   /// Null for a row past the end of the sequence — an order to be appended.
@@ -535,6 +542,10 @@ class OrderWrite {
   final DateTime needDate;
   final DateTime? materialDate;
   final int batchSize;
+
+  /// The planner's own label for the batch, or null for none (§9.1). Nothing
+  /// matches on it, so an emptied cell simply clears it.
+  final String? batchNumber;
 
   bool get isNew => id == null;
 }

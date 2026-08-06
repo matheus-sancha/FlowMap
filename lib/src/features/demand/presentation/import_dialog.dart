@@ -128,6 +128,7 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
         ImportTarget.sequence => sequenceImportColumns(
           partNumberTitle: l10n.demandPartNumber,
           projectTitle: l10n.demandProject,
+          batchNumberTitle: l10n.demandBatchNumber,
           batchTitle: l10n.demandBatchSize,
           needDateTitle: l10n.demandNeedDate,
           materialDateTitle: l10n.demandMaterialDate,

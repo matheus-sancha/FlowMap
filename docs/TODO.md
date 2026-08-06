@@ -89,7 +89,13 @@ defaulting to the run's, so nothing changes until something is changed.
 Ties still break by (arrival, study priority, sequence #), so a run of the same inputs still
 produces the same output.
 
-### 1.4 Batch Number on the sequence grid
+### 1.4 Batch Number on the sequence grid — **done 2026-08-05**
+
+One thing the plan missed: the size column's own label was `Batch` (`Lote` in es and pt), so the
+grid would have carried `Batch` next to `Batch no.`. It is `Batch size` / `Tamaño de lote` /
+`Tamanho do lote` now. That label is also the import's first matching key, so the rename is what
+makes a file headed `Batch size` land cleanly while a bare `Batch` goes to the user.
+
 
 Between Project and Batch Size, matching the Production Plan's column order. That shifts
 `orderBatchColumn` 2 → 3, `orderNeedColumn` 3 → 4 and `orderMaterialColumn` 4 → 5, so a paste block

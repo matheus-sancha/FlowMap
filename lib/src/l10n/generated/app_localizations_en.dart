@@ -843,7 +843,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get demandOrderNumber => 'Order';
 
   @override
-  String get demandBatchSize => 'Batch';
+  String get demandBatchSize => 'Batch size';
+
+  @override
+  String get demandBatchNumber => 'Batch no.';
+
+  @override
+  String get demandBatchNumberHelp =>
+      'Your own identifier for this batch of this part — whatever the paperwork calls it. Free text: nothing matches on it, duplicates are allowed and it may be left blank. It appears on the production plan so a printed order can be found in your system.';
 
   @override
   String get demandNeedDate => 'Need date';

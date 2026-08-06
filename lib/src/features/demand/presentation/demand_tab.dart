@@ -388,6 +388,13 @@ class _SequenceGrid extends ConsumerWidget {
         // the same part number under two customer projects is two parts, and
         // the number alone cannot say which one an order is for (§9.3).
         DataGridColumn(title: l10n.demandProject, width: 150),
+        // Before the size, the order a production plan reads in. A label, so
+        // it is not `numeric: true` — `LOT-7A` is as valid as `12`.
+        DataGridColumn(
+          title: l10n.demandBatchNumber,
+          width: 120,
+          helper: l10n.demandBatchNumberHelp,
+        ),
         DataGridColumn(title: l10n.demandBatchSize, width: 90, numeric: true),
         DataGridColumn(title: l10n.demandNeedDate, width: 130, numeric: true),
         DataGridColumn(
@@ -417,6 +424,7 @@ class _SequenceGrid extends ConsumerWidget {
     return switch (column) {
       orderPartColumn => part?.partNumber ?? '',
       orderProjectColumn => part?.customerProject ?? '',
+      orderBatchNumberColumn => order.batchNumber ?? '',
       orderBatchColumn => '${order.batchSize}',
       orderNeedColumn => formatDateInput(order.needDate, locale),
       _ => formatDateInput(order.materialDate, locale),
@@ -455,6 +463,11 @@ class _SequenceGrid extends ConsumerWidget {
             )
             ? null
             : l10n.validationUnknownPart;
+      case orderBatchNumberColumn:
+        // Never an error. It is the planner's own label, nothing matches on
+        // it, and blank is a legitimate answer — so an explicit arm rather
+        // than falling through to the date parsing below (§9.1).
+        return null;
       case orderBatchColumn:
         if (text.isEmpty) return isNewRow ? null : l10n.validationRequired;
         final batch = int.tryParse(text);

@@ -41,7 +41,10 @@ void main() {
   final sequenceColumns = sequenceImportColumns(
     partNumberTitle: 'Part number',
     projectTitle: 'Project',
-    batchTitle: 'Batch',
+    batchNumberTitle: 'Batch no.',
+    // The destination's own name, which is matched before any synonym — and it
+    // is 'Batch size' now precisely so that it cannot collide with the number.
+    batchTitle: 'Batch size',
     needDateTitle: 'Need date',
     materialDateTitle: 'Material date',
   );
@@ -101,6 +104,43 @@ void main() {
       expect(mapping[orderBatchColumn], 2);
       expect(mapping[orderNeedColumn], 3);
       expect(mapping[orderMaterialColumn], 4);
+    });
+
+    test('a bare "Batch" is claimed by neither batch column', () {
+      // The collision this split exists to prevent: `Batch` is equally what a
+      // column of lot identifiers and a column of quantities is headed, and
+      // guessing wrong writes an identifier into a quantity in every row —
+      // §11's one intolerable failure. It goes to the user instead.
+      final mapping = guessMapping(
+        headers: ['Part number', 'Batch', 'Need date'],
+        columns: sequenceColumns,
+      );
+
+      expect(mapping[orderBatchColumn], isNull);
+      expect(mapping[orderBatchNumberColumn], isNull);
+      // The unambiguous ones around it still land.
+      expect(mapping[orderPartColumn], 0);
+      expect(mapping[orderNeedColumn], 2);
+    });
+
+    test('a bare "Lot" is claimed by neither either', () {
+      final mapping = guessMapping(
+        headers: ['Part number', 'Lot', 'Need date'],
+        columns: sequenceColumns,
+      );
+
+      expect(mapping[orderBatchColumn], isNull);
+      expect(mapping[orderBatchNumberColumn], isNull);
+    });
+
+    test('spelled out, each batch column finds its own', () {
+      final mapping = guessMapping(
+        headers: ['Part number', 'Lot number', 'Lot size', 'Need date'],
+        columns: sequenceColumns,
+      );
+
+      expect(mapping[orderBatchNumberColumn], 1);
+      expect(mapping[orderBatchColumn], 2);
     });
   });
 
