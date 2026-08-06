@@ -45,7 +45,7 @@ Landed as described, plus two things only doing it could show, both in §16.13:
 Add a v11 → v12 fixture to `test/data/migration_test.dart`, and check the half-upgraded-database
 path from §16.11 still holds.
 
-### 1.2 Float changes sign
+### 1.2 Float changes sign — **done 2026-08-05**
 
 `run_metrics.dart` defines float as `delivered − need date`, so positive means **late** — the real
 run reported "average float +230.7 d" for a sequence that was badly over-committed. A planner reads

@@ -2385,7 +2385,7 @@ abstract class AppLocalizations {
   /// No description provided for @simAverageFloatHelp.
   ///
   /// In en, this message translates to:
-  /// **'Delivered minus need date, averaged over the orders that finished. Negative is early. An undelivered order has no float and is left out here — it still counts as late above.'**
+  /// **'Need date minus delivery, averaged over the orders that finished. Positive is early, with that much time in hand; negative is late by that much. An undelivered order has no float and is left out here — it still counts as late above.'**
   String get simAverageFloatHelp;
 
   /// No description provided for @simAverageLeadTime.

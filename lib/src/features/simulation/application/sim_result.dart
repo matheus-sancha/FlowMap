@@ -70,8 +70,17 @@ class SimOrderOutcome {
   /// When it finished its last semantic step (§18.1). Null if it never did.
   final DateTime? delivered;
 
-  /// Delivery float: negative is early, positive is late (§8).
-  Duration? get float => delivered?.difference(needDate);
+  /// Delivery float — slack against the need date: **positive is early**, with
+  /// that much time in hand, and negative is late by that much (§8).
+  ///
+  /// This was `delivered − need date` until the Production Plan put the figure
+  /// in front of a planner, for whom float has meant slack since long before
+  /// this app existed. The old sign made an over-committed sequence report
+  /// `average float +230.7 d`, which reads as seven months of room to spare and
+  /// meant the exact opposite. Defined once here, so the plan's column and the
+  /// Simulation tab's headline cannot disagree about which way is good.
+  Duration? get float =>
+      delivered == null ? null : needDate.difference(delivered!);
 
   bool get isOnTime => delivered != null && !delivered!.isAfter(needDate);
 

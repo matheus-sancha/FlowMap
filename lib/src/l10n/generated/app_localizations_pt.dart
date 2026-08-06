@@ -1331,7 +1331,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get simAverageFloatHelp =>
-      'Entrega menos data de necessidade, na média das ordens que terminaram. Negativo é adiantado. Uma ordem não entregue não tem folga e fica de fora daqui; acima ela continua contando como atrasada.';
+      'Data de necessidade menos entrega, na média das ordens que terminaram. Positivo é adiantado, com essa margem a favor; negativo é esse atraso. Uma ordem não entregue não tem folga e fica de fora daqui; acima ela continua contando como atrasada.';
 
   @override
   String get simAverageLeadTime => 'Lead time médio';

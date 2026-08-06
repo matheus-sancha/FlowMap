@@ -120,8 +120,9 @@ void main() {
       expect(metrics.onTime, 1);
       expect(metrics.late, 1);
       expect(metrics.onTimeDelivery, 0.5);
-      // (−4 h + 6 h) ÷ 2 = +1 h.
-      expect(metrics.averageFloat, const Duration(hours: 1));
+      // Float is slack, so early is positive: (+4 h − 6 h) ÷ 2 = −1 h. The two
+      // orders are unchanged; only which way the sign points is.
+      expect(metrics.averageFloat, const Duration(hours: -1));
     });
 
     test('an order that never came out is not on time', () {

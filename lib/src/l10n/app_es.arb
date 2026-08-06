@@ -450,7 +450,7 @@
   "simDeliveredOf": "{delivered} de {orders}",
   "@simDeliveredOf": { "placeholders": { "delivered": { "type": "String" }, "orders": { "type": "String" } } },
   "simAverageFloat": "Holgura media",
-  "simAverageFloatHelp": "Entrega menos fecha de necesidad, promediado sobre las órdenes que terminaron. Negativo es adelanto. Una orden no entregada no tiene holgura y queda fuera de aquí; arriba sigue contando como tarde.",
+  "simAverageFloatHelp": "Fecha de necesidad menos entrega, promediado sobre las órdenes que terminaron. Positivo es adelanto, con ese margen a favor; negativo es ese retraso. Una orden no entregada no tiene holgura y queda fuera de aquí; arriba sigue contando como tarde.",
   "simAverageLeadTime": "Lead time medio",
   "simAverageLeadTimeHelp": "Tiempo de reloj dentro del flujo, desde el lanzamiento hasta el último paso.",
   "simTheoreticalLeadTime": "Lead time teórico",

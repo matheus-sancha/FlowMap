@@ -500,7 +500,7 @@
   "simDeliveredOf": "{delivered} of {orders}",
   "@simDeliveredOf": { "placeholders": { "delivered": { "type": "String" }, "orders": { "type": "String" } } },
   "simAverageFloat": "Average float",
-  "simAverageFloatHelp": "Delivered minus need date, averaged over the orders that finished. Negative is early. An undelivered order has no float and is left out here — it still counts as late above.",
+  "simAverageFloatHelp": "Need date minus delivery, averaged over the orders that finished. Positive is early, with that much time in hand; negative is late by that much. An undelivered order has no float and is left out here — it still counts as late above.",
   "simAverageLeadTime": "Average lead time",
   "simAverageLeadTimeHelp": "Wall-clock time in the flow, from release to the last step.",
   "simTheoreticalLeadTime": "Theoretical lead time",

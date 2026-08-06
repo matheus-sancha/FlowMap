@@ -37,7 +37,7 @@ class PartMetrics {
   /// Wall-clock time in the flow, averaged over the orders that finished.
   final Duration? averageLeadTime;
 
-  /// Average of `delivered − need date`. Negative is early.
+  /// Average slack against the need date. **Positive is early**, negative late.
   final Duration? averageFloat;
 }
 
@@ -101,8 +101,8 @@ class RunMetrics {
   final int onTime;
   final int emptySlots;
 
-  /// Average `delivered − need date`. Negative is early; null when nothing was
-  /// delivered.
+  /// Average slack against the need date. **Positive is early**, negative late;
+  /// null when nothing was delivered.
   final Duration? averageFloat;
 
   /// Average wall-clock time in the flow, over the orders that finished.

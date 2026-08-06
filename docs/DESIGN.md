@@ -507,7 +507,7 @@ late" into queries rather than re-runs. Two runs can be compared side by side.
 
 ## 8. Metrics
 
-Per the spec: delivery float (actual − need date), average float per order, OTD (on-time ÷ total),
+Per the spec: delivery float (need date − actual), average float per order, OTD (on-time ÷ total),
 average lead time per part number, lead-time efficiency (actual ÷ theoretical, §7.9), sequence
 evaluation (§6.3), operators allocated vs needed (§7.5), empty-slot count (§7.2).
 
@@ -529,6 +529,13 @@ is the diagnostic — the second ranking would be redundant if it were derived f
 - **OTD counts over every order, not the delivered ones.** An order that never came out is not on
   time, whatever its need date says. Averaging float over the delivered ones alone, on the other
   hand, is right: an undelivered order has no float, and inventing one would flatter the run.
+- **Float is slack, so positive is early.** It was `delivered − need date` through M4, which made an
+  over-committed sequence report `average float +230.7 d` — seven months of apparent room to spare,
+  meaning the exact opposite. Float has meant time in hand since long before this app, and §8.4's
+  production plan puts the figure in front of exactly the reader who reads it that way. Defined once
+  on `SimOrderOutcome.float`, which every other figure sums, so the plan's column and the
+  Simulation tab's headline cannot point opposite ways. `isOnTime` is unaffected — it compares two
+  instants and never had a sign.
 - **Lead-time efficiency is `actual ÷ theoretical`**, the direction §8 states — so 1.0 is queue-free
   and higher is worse. The excess over 1.0 is exactly what §7.9 leaves out: waiting. Each order's
   theoretical figure is walked from **its own release instant**, so the comparison is the same
