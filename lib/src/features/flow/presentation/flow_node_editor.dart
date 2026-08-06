@@ -6,6 +6,7 @@ import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../simulation/application/simulation_providers.dart';
 import '../../studies/application/studies_providers.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
@@ -16,6 +17,7 @@ Future<void> showInsertNodeMenu(
   WidgetRef ref, {
   required Study study,
   required int position,
+  required Map<String, DispatchRule> dispatchByTarget,
 }) async {
   final l10n = AppLocalizations.of(context);
   final choice = await showDialog<FlowNodeKind>(
@@ -50,8 +52,11 @@ Future<void> showInsertNodeMenu(
     if (!context.mounted) return;
     final draft = await showDialog<_StepDraft>(
       context: context,
-      builder: (context) =>
-          _StepDialog(workcenters: targets.workcenters, pools: targets.pools),
+      builder: (context) => _StepDialog(
+        workcenters: targets.workcenters,
+        pools: targets.pools,
+        dispatchByTarget: dispatchByTarget,
+      ),
     );
     if (draft == null) return;
     await repository.insertStep(
@@ -64,6 +69,7 @@ Future<void> showInsertNodeMenu(
       equivalentUnit: draft.equivalentUnit,
       label: draft.label,
     );
+    await _writeDispatch(ref, study, draft, dispatchByTarget);
   } else {
     final draft = await showDialog<_InventoryDraft>(
       context: context,
@@ -83,12 +89,38 @@ Future<void> showInsertNodeMenu(
   }
 }
 
+/// Stores the step's target's queue discipline, if the user changed it (§7.4).
+///
+/// **Only on a change.** The rule belongs to the station and not to this step,
+/// so saving a step for an unrelated reason must not rewrite it — and must not
+/// delete a rule another step set, which is what an unconditional write of a
+/// null would do.
+Future<void> _writeDispatch(
+  WidgetRef ref,
+  Study study,
+  _StepDraft draft,
+  Map<String, DispatchRule> before,
+) async {
+  final targetId = draft.targetId;
+  if (targetId == null) return;
+  if (before[targetId] == draft.dispatch) return;
+
+  await ref
+      .read(simulationRepositoryProvider)
+      .setDispatchRule(
+        projectId: study.projectId,
+        targetId: targetId,
+        rule: draft.dispatch,
+      );
+}
+
 /// Edits, moves or removes a process step.
 Future<void> showStepEditor(
   BuildContext context,
   WidgetRef ref, {
   required Study study,
   required FlowStepView step,
+  required Map<String, DispatchRule> dispatchByTarget,
 }) async {
   final targets = await ref.read(flowTargetsProvider(study.id).future);
   if (!context.mounted) return;
@@ -98,6 +130,7 @@ Future<void> showStepEditor(
     builder: (context) => _StepDialog(
       workcenters: targets.workcenters,
       pools: targets.pools,
+      dispatchByTarget: dispatchByTarget,
       existing: step,
     ),
   );
@@ -116,6 +149,7 @@ Future<void> showStepEditor(
         label: draft.label,
         notes: step.node.notes,
       );
+      await _writeDispatch(ref, study, draft, dispatchByTarget);
     case _MoveNode move:
       await repository.moveNode(
         study.id,
@@ -208,6 +242,7 @@ class _StepDraft implements _StepResult {
     this.equivalentValue,
     this.equivalentUnit,
     this.label,
+    this.dispatch,
   });
 
   final String? workcenterId;
@@ -219,6 +254,16 @@ class _StepDraft implements _StepResult {
   final TaktUnit? equivalentUnit;
 
   final String? label;
+
+  /// This step's target's queue discipline, or null to follow the run's
+  /// (§7.4). Not a property of the step: it is written against [targetId],
+  /// which is the station, and every step pointing at that station gets it.
+  final DispatchRule? dispatch;
+
+  /// What the step targets — the pool when there is one, exactly as
+  /// `demandTargetOf` resolves it, because a queue forms at a pool and not at
+  /// whichever member stands for it (§3.1).
+  String? get targetId => poolId ?? workcenterId;
 }
 
 class _InventoryDraft implements _InventoryResult {
@@ -248,11 +293,18 @@ class _StepDialog extends StatefulWidget {
   const _StepDialog({
     required this.workcenters,
     required this.pools,
+    required this.dispatchByTarget,
     this.existing,
   });
 
   final List<Workcenter> workcenters;
   final List<WorkcenterPool> pools;
+
+  /// The project's stored queue disciplines, by target (§7.4). Only the
+  /// overrides are in here — an absent key means the station follows the run's
+  /// rule, which is why the control's null option is a real choice.
+  final Map<String, DispatchRule> dispatchByTarget;
+
   final FlowStepView? existing;
 
   @override
@@ -263,6 +315,13 @@ class _StepDialogState extends State<_StepDialog> {
   /// `wc:<id>` or `pool:<id>` — one control rather than two, because a step
   /// targets exactly one of them and two dropdowns would let a user pick both.
   late String? _target = _initialTarget();
+
+  /// The selected target's queue discipline, null meaning "follow the run's".
+  ///
+  /// Re-read whenever the target changes, so pointing the step at another
+  /// station shows *that* station's rule rather than carrying the previous
+  /// one across — the setting belongs to the station, not to the step.
+  late DispatchRule? _dispatch = widget.dispatchByTarget[_targetId];
   late final TextEditingController _changeover = TextEditingController(
     text: '${(widget.existing?.changeover ?? Duration.zero).inMinutes}',
   );
@@ -297,6 +356,15 @@ class _StepDialogState extends State<_StepDialog> {
     if (node == null) return null;
     if (node.workcenterId != null) return 'wc:${node.workcenterId}';
     if (node.poolId != null) return 'pool:${node.poolId}';
+    return null;
+  }
+
+  /// The bare id behind `_target`'s `wc:` / `pool:` prefix.
+  String? get _targetId {
+    final target = _target;
+    if (target == null) return null;
+    if (target.startsWith('wc:')) return target.substring(3);
+    if (target.startsWith('pool:')) return target.substring(5);
     return null;
   }
 
@@ -346,8 +414,40 @@ class _StepDialogState extends State<_StepDialog> {
                       child: Text('${pool.name} (${l10n.workcenterPool})'),
                     ),
                 ],
-                onChanged: (value) => setState(() => _target = value),
+                onChanged: (value) => setState(() {
+                  _target = value;
+                  _dispatch = widget.dispatchByTarget[_targetId];
+                }),
               ),
+              // Only with a target to hang it on: an unbound step has no queue,
+              // and a control that cannot be written anywhere is worse than an
+              // absent one.
+              if (_targetId != null) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<DispatchRule?>(
+                  initialValue: _dispatch,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: l10n.stepDispatch,
+                    // Says out loud that this is the station's setting and not
+                    // the step's — the one thing about it that can surprise.
+                    helperText: l10n.stepDispatchHelp,
+                    helperMaxLines: 3,
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text(l10n.stepDispatchFollowsRun),
+                    ),
+                    for (final rule in DispatchRule.values)
+                      DropdownMenuItem(
+                        value: rule,
+                        child: Text(dispatchRuleLabel(l10n, rule)),
+                      ),
+                  ],
+                  onChanged: (rule) => setState(() => _dispatch = rule),
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _changeover,
@@ -458,6 +558,7 @@ class _StepDialogState extends State<_StepDialog> {
                           ? null
                           : _equivalentUnit,
                       label: label.isEmpty ? null : label,
+                      dispatch: _dispatch,
                     ),
                   );
                 },

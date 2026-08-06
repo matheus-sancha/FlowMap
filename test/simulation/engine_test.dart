@@ -47,6 +47,7 @@ void main() {
     ShiftPatternSpec? pattern,
     double availability = 1,
     double rework = 0,
+    DispatchRule? dispatch,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
@@ -65,6 +66,7 @@ void main() {
         staffing: schedule,
       ),
       schedule: schedule,
+      dispatch: dispatch,
     );
   }
 
@@ -367,6 +369,92 @@ void main() {
 
     test('SPT takes the shortest job', () {
       expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
+    });
+
+    /// The same contention, but the station carries its own rule.
+    SimRunResult contendWithStationRule({
+      required DispatchRule run,
+      required DispatchRule station,
+    }) => runSimulation(
+      dispatch: run,
+      studies: [
+        study(
+          nodes: [step(0, ['W'])],
+          parts: {
+            'slow': part('slow', {'W': const Duration(hours: 8)}),
+            'quick': part('quick', {'W': const Duration(hours: 1)}),
+            'blocker': part('blocker', {'W': const Duration(hours: 10)}),
+          },
+          orders: [
+            order(0, 'blocker', needDay: 30),
+            order(1, 'slow', needDay: 20),
+            order(2, 'quick', needDay: 25),
+          ],
+          release: const Duration(hours: 1),
+        ),
+      ],
+      workcenters: {'W': workcenter('W', dispatch: station)},
+      start: aug1,
+    );
+
+    test("a station's own rule beats the run's", () {
+      // The run says FIFO, which would take o1; the station says shortest
+      // first, which takes o2. The station wins.
+      expect(
+        secondPart(
+          contendWithStationRule(
+            run: DispatchRule.fifo,
+            station: DispatchRule.shortestProcessing,
+          ),
+        ),
+        'o2',
+      );
+    });
+
+    test('a station may also be pinned against a non-default run rule', () {
+      // The mirror: the run is SPT and would take o2, but this station is held
+      // to arrival order. Proves the override is a real substitution rather
+      // than "any station rule wins over FIFO only".
+      expect(
+        secondPart(
+          contendWithStationRule(
+            run: DispatchRule.shortestProcessing,
+            station: DispatchRule.fifo,
+          ),
+        ),
+        'o1',
+      );
+    });
+
+    test('a station with no rule of its own still follows the run', () {
+      expect(
+        secondPart(
+          runSimulation(
+            dispatch: DispatchRule.shortestProcessing,
+            studies: [
+              study(
+                nodes: [step(0, ['W'])],
+                parts: {
+                  'slow': part('slow', {'W': const Duration(hours: 8)}),
+                  'quick': part('quick', {'W': const Duration(hours: 1)}),
+                  'blocker': part('blocker', {'W': const Duration(hours: 10)}),
+                },
+                orders: [
+                  order(0, 'blocker', needDay: 30),
+                  order(1, 'slow', needDay: 20),
+                  order(2, 'quick', needDay: 25),
+                ],
+                release: const Duration(hours: 1),
+              ),
+            ],
+            // Explicitly null, which is the state a station that was never
+            // touched is in — distinct from one set back to FIFO.
+            workcenters: {'W': workcenter('W')},
+            start: aug1,
+          ),
+        ),
+        'o2',
+      );
     });
   });
 

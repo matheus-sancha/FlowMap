@@ -341,11 +341,33 @@ class _Results extends StatelessWidget {
         Text(
           '${l10n.simRunLabel(formatDateInput(run.createdAt, locale), dispatchRuleLabel(l10n, run.dispatch))}'
           '  ·  '
-          '${l10n.simRunSpan(formatDateInput(run.result.start, locale), formatDateInput(run.result.end, locale))}',
+          '${l10n.simRunSpan(formatDateInput(run.result.start, locale), formatDateInput(run.result.end, locale))}'
+          // Named here rather than left to the reader to notice, because the
+          // rule beside the timestamp would otherwise describe a dispatch that
+          // did not happen at every station (§7.4).
+          '${run.dispatchOverrides.isEmpty ? '' : '  ·  ${l10n.simDispatchOverrides(run.dispatchOverrides.length)}'}',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
         ),
+        // Which stations, and to what. A count alone says the run is not what
+        // its header claims without saying what it actually was.
+        if (run.dispatchOverrides.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              [
+                for (final override in run.dispatchOverrides)
+                  l10n.simDispatchOverrideRow(
+                    override.name,
+                    dispatchRuleLabel(l10n, override.rule),
+                  ),
+              ].join('  ·  '),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
         if (run.result.abort != null) ...[
           _AbortBanner(result: run.result),
@@ -683,14 +705,6 @@ class _Message extends StatelessWidget {
     );
   }
 }
-
-/// What a dispatch rule is called (DESIGN.md §7.4).
-String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
-    switch (rule) {
-      DispatchRule.fifo => l10n.dispatchFifo,
-      DispatchRule.earliestDueDate => l10n.dispatchEarliestDueDate,
-      DispatchRule.shortestProcessing => l10n.dispatchShortestProcessing,
-    };
 
 /// Why a study cannot run (DESIGN.md §11).
 String simProblemLabel(AppLocalizations l10n, SimAssemblyProblem problem) =>

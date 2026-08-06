@@ -565,21 +565,27 @@ class _Engine {
   }
 
   _Waiting? _pick(_Server server) {
+    // The station's own rule if it has one, otherwise the run's (§7.4). Read
+    // once per pick rather than per comparison: it cannot change while the
+    // server chooses, and a comparator whose rule could vary mid-sort would
+    // not be ordering anything.
+    final rule = server.workcenter.dispatch ?? dispatch;
+
     _Waiting? best;
     for (final candidate in _waiting) {
       if (!candidate.step.candidates.contains(server.workcenter.id)) continue;
-      if (best == null || _prefers(candidate, best)) best = candidate;
+      if (best == null || _prefers(candidate, best, rule)) best = candidate;
     }
     return best;
   }
 
-  /// Whether [a] should run before [b] (§7.4).
+  /// Whether [a] should run before [b] under [rule] (§7.4).
   ///
   /// Each rule adds its own first key; all of them fall through to arrival,
   /// then study priority, then sequence number, so contention between two
   /// studies over a shared workcenter is reproducible.
-  bool _prefers(_Waiting a, _Waiting b) {
-    switch (dispatch) {
+  bool _prefers(_Waiting a, _Waiting b, DispatchRule rule) {
+    switch (rule) {
       case DispatchRule.earliestDueDate:
         final due = a.order.needDate.compareTo(b.order.needDate);
         if (due != 0) return due < 0;

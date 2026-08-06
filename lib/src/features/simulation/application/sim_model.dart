@@ -10,6 +10,7 @@
 /// orders genuinely delay line B's.
 library;
 
+import '../../../data/database/enums.dart';
 import '../../calendar/application/working_calendar.dart';
 import '../../schedules/application/workcenter_schedule.dart';
 
@@ -26,6 +27,7 @@ class SimWorkcenter {
     required this.name,
     required this.calendar,
     required this.schedule,
+    this.dispatch,
   });
 
   final String id;
@@ -40,6 +42,18 @@ class SimWorkcenter {
   /// numbers because the engine walks real dates and a run may cross 1 July,
   /// where the staffing changes (§4.2).
   final WorkcenterScheduleSpec schedule;
+
+  /// This station's own queue discipline, or null to follow the run's (§7.4).
+  ///
+  /// **Resolved onto the server, not left on the step's target.** The rule is
+  /// stored against a workcenter *or a pool* (§3.1), but the engine picks when
+  /// a single machine frees, and one machine can be a candidate for two steps —
+  /// its own and a pool's. If the rule travelled with the step, two orders
+  /// waiting at one machine could be governed by different comparators, and
+  /// "which runs first" would have no answer. The assembly flattens pool
+  /// membership down to the member before the engine ever sees it, so each
+  /// server has exactly one rule and the ordering stays a total one.
+  final DispatchRule? dispatch;
 }
 
 /// A node of a study's flow, as the engine walks it.

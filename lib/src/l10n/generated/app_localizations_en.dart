@@ -1123,6 +1123,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Charged only when the previous order on this workcenter was a different part.';
 
   @override
+  String get stepDispatch => 'Queue order';
+
+  @override
+  String get stepDispatchHelp =>
+      'How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.';
+
+  @override
+  String get stepDispatchFollowsRun => 'Follow the run\'s rule';
+
+  @override
   String get stepOperators => 'Operators';
 
   @override
@@ -1403,6 +1413,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String simRunLabel(String timestamp, String rule) {
     return '$timestamp · $rule';
+  }
+
+  @override
+  String simDispatchOverrides(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stations overridden',
+      one: '1 station overridden',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String simDispatchOverrideRow(String name, String rule) {
+    return '$name: $rule';
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+
 import '../../../data/database/database.dart';
 import '../../demand/data/demand_repository.dart';
 import '../../resources/data/resources_repository.dart';
@@ -71,6 +73,12 @@ class SimulationRepository {
         )..where((w) => w.plantId.equals(project.plantId))).get();
     final byId = {for (final row in workcenterRows) row.id: row};
 
+    // Queue disciplines, keyed by target — a workcenter or a pool (§7.4).
+    // Loaded whole rather than per station: it is one small table per project,
+    // and resolving a pool's rule needs to see rules the loop below has not
+    // reached yet.
+    final dispatchByTarget = await loadDispatchRules(projectId);
+
     final workcenters = <String, SimWorkcenter>{};
     for (final id in needed) {
       final row = byId[id];
@@ -85,6 +93,13 @@ class SimulationRepository {
         name: row.name,
         calendar: calendar,
         schedule: await _schedules.loadWorkcenterSchedule(projectId, id),
+        // Flattened onto the member here, once, so the engine never has to ask
+        // which of a step's targets a freeing machine belongs to.
+        dispatch: resolveDispatch(
+          workcenterId: id,
+          byTarget: dispatchByTarget,
+          poolMembers: poolMembers,
+        ),
       );
     }
 
@@ -182,6 +197,56 @@ class SimulationRepository {
     return start == null ? first : assembleAt(start);
   }
 
+  // --- Queue disciplines (§7.4) --------------------------------------------
+
+  /// This project's per-station rules, by target id — a workcenter or a pool.
+  ///
+  /// **Only the overrides.** A station following the run's rule has no row, so
+  /// an absent key is the answer rather than a value to compare against a
+  /// default; that is what keeps "never touched" and "deliberately set back to
+  /// FIFO" different states.
+  Future<Map<String, DispatchRule>> loadDispatchRules(String projectId) async {
+    final rows = await (_db.select(
+      _db.workcenterDispatch,
+    )..where((d) => d.projectId.equals(projectId))).get();
+    return {for (final row in rows) row.targetId: row.rule};
+  }
+
+  Stream<Map<String, DispatchRule>> watchDispatchRules(String projectId) =>
+      (_db.select(
+        _db.workcenterDispatch,
+      )..where((d) => d.projectId.equals(projectId))).watch().map(
+        (rows) => {for (final row in rows) row.targetId: row.rule},
+      );
+
+  /// Sets or clears one station's rule.
+  ///
+  /// A null [rule] deletes the row rather than storing the run's current
+  /// default, so "follow the run" keeps following it when the run's rule is
+  /// changed afterwards. Storing the default instead would silently pin every
+  /// station the first time one was edited.
+  Future<void> setDispatchRule({
+    required String projectId,
+    required String targetId,
+    required DispatchRule? rule,
+  }) async {
+    if (rule == null) {
+      await (_db.delete(_db.workcenterDispatch)..where(
+        (d) => d.projectId.equals(projectId) & d.targetId.equals(targetId),
+      )).go();
+      return;
+    }
+    await _db
+        .into(_db.workcenterDispatch)
+        .insertOnConflictUpdate(
+          WorkcenterDispatchCompanion.insert(
+            projectId: projectId,
+            targetId: targetId,
+            rule: rule,
+            updatedAt: DateTime.now(),
+          ),
+        );
+  }
 }
 
 /// One study's demand and cadence, read once per assembly.

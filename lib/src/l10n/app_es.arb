@@ -392,6 +392,9 @@
   "stepProcessTime": "Tiempo de proceso",
   "stepChangeover": "Cambio de formato",
   "stepChangeoverHelp": "Se cobra solo cuando la orden anterior en este centro de trabajo era de otra pieza.",
+  "stepDispatch": "Orden de la cola",
+  "stepDispatchHelp": "Cómo elige esta estación la siguiente orden de su cola. Pertenece a la estación, no a este paso: todos los estudios del proyecto que la usan despachan igual. Un pool hace cola como uno solo.",
+  "stepDispatchFollowsRun": "Seguir la regla de la simulación",
   "stepOperators": "Operarios",
   "stepEquivalentTime": "Takt time específico del proceso",
   "stepEquivalentFollowsTakt": "Sigue el takt",
@@ -479,5 +482,9 @@
   "simEarlierRuns": "Ejecuciones anteriores",
   "simRunLabel": "{timestamp} · {rule}",
   "@simRunLabel": { "placeholders": { "timestamp": { "type": "String" }, "rule": { "type": "String" } } },
+  "simDispatchOverrides": "{count, plural, =1{1 estación con regla propia} other{{count} estaciones con regla propia}}",
+  "@simDispatchOverrides": { "placeholders": { "count": { "type": "int" } } },
+  "simDispatchOverrideRow": "{name}: {rule}",
+  "@simDispatchOverrideRow": { "placeholders": { "name": { "type": "String" }, "rule": { "type": "String" } } },
   "simRunDeleteBody": "Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan."
 }

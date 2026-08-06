@@ -156,6 +156,24 @@ class SimulationRunsRepository {
               openSeconds: entry.value.inSeconds,
             ),
         ]);
+
+        // Only the stations that did **not** follow the run's rule (§7.4).
+        //
+        // Recorded per workcenter rather than per stored target, because a
+        // workcenter is what actually dispatched: a pool's rule reaches the
+        // run as each member's own, and the row that explains why CLAD02 ran
+        // what it ran should name CLAD02. It also keeps the grain the same as
+        // `simulation_run_workcenters` right above it.
+        b.insertAll(_db.simulationRunDispatch, [
+          for (final entry in workcenters.entries)
+            if (entry.value.dispatch != null)
+              SimulationRunDispatchCompanion.insert(
+                runId: runId,
+                targetId: entry.key,
+                name: entry.value.name,
+                rule: entry.value.dispatch!.name,
+              ),
+        ]);
       });
     });
 
@@ -188,6 +206,11 @@ class SimulationRunsRepository {
     final stations = await (_db.select(
       _db.simulationRunWorkcenters,
     )..where((w) => w.runId.equals(runId))).get();
+    final overrides = await (_db.select(
+      _db.simulationRunDispatch,
+    )..where((d) => d.runId.equals(runId))).get()
+      // By name, so the list reads as a list of stations rather than of uuids.
+      ..sort((a, b) => a.name.compareTo(b.name));
 
     final result = SimRunResult(
       start: header.runStart,
@@ -254,6 +277,13 @@ class SimulationRunsRepository {
       projectId: header.projectId,
       createdAt: header.createdAt,
       dispatch: _parse(DispatchRule.values, header.dispatch, DispatchRule.fifo),
+      dispatchOverrides: [
+        for (final row in overrides)
+          (
+            name: row.name,
+            rule: _parse(DispatchRule.values, row.rule, DispatchRule.fifo),
+          ),
+      ],
       studies: studies,
       result: result,
       metrics: summariseRun(
@@ -285,6 +315,7 @@ class StoredRun {
     required this.projectId,
     required this.createdAt,
     required this.dispatch,
+    required this.dispatchOverrides,
     required this.studies,
     required this.result,
     required this.metrics,
@@ -293,7 +324,18 @@ class StoredRun {
   final String id;
   final String projectId;
   final DateTime createdAt;
+
+  /// The rule the run was made with — what every station used unless it is
+  /// named in [dispatchOverrides].
   final DispatchRule dispatch;
+
+  /// The stations that dispatched by something else (§7.4), by name.
+  ///
+  /// Without this a run would report its default and nothing else, so
+  /// reopening it a month later would describe a dispatch that never happened
+  /// — and a comparison of two runs could not say the dispatch is what
+  /// differed between them.
+  final List<({String name, DispatchRule rule})> dispatchOverrides;
 
   /// The studies that took part, as they stood at the time.
   final List<SimulationRunStudy> studies;

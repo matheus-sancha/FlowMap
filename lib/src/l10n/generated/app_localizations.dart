@@ -2076,6 +2076,24 @@ abstract class AppLocalizations {
   /// **'Charged only when the previous order on this workcenter was a different part.'**
   String get stepChangeoverHelp;
 
+  /// No description provided for @stepDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue order'**
+  String get stepDispatch;
+
+  /// No description provided for @stepDispatchHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.'**
+  String get stepDispatchHelp;
+
+  /// No description provided for @stepDispatchFollowsRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the run\'s rule'**
+  String get stepDispatchFollowsRun;
+
   /// No description provided for @stepOperators.
   ///
   /// In en, this message translates to:
@@ -2543,6 +2561,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{timestamp} · {rule}'**
   String simRunLabel(String timestamp, String rule);
+
+  /// No description provided for @simDispatchOverrides.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 station overridden} other{{count} stations overridden}}'**
+  String simDispatchOverrides(int count);
+
+  /// No description provided for @simDispatchOverrideRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: {rule}'**
+  String simDispatchOverrideRow(String name, String rule);
 
   /// No description provided for @simRunDeleteBody.
   ///

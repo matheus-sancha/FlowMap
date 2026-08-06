@@ -18,6 +18,17 @@ String taktUnitLabel(AppLocalizations l10n, TaktUnit unit) => switch (unit) {
   TaktUnit.seconds => l10n.unitSeconds,
 };
 
+/// What a dispatch rule is called (DESIGN.md §7.4).
+///
+/// Here rather than on the Simulation tab, because a station's own rule is now
+/// set on the flow map too and both have to name it the same way.
+String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
+    switch (rule) {
+      DispatchRule.fifo => l10n.dispatchFifo,
+      DispatchRule.earliestDueDate => l10n.dispatchEarliestDueDate,
+      DispatchRule.shortestProcessing => l10n.dispatchShortestProcessing,
+    };
+
 /// The abbreviation the footer band and the process boxes use.
 String taktUnitShort(AppLocalizations l10n, TaktUnit unit) => switch (unit) {
   TaktUnit.days => l10n.unitDaysShort,

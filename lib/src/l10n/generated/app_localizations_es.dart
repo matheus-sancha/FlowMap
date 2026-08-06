@@ -1137,6 +1137,16 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se cobra solo cuando la orden anterior en este centro de trabajo era de otra pieza.';
 
   @override
+  String get stepDispatch => 'Orden de la cola';
+
+  @override
+  String get stepDispatchHelp =>
+      'Cómo elige esta estación la siguiente orden de su cola. Pertenece a la estación, no a este paso: todos los estudios del proyecto que la usan despachan igual. Un pool hace cola como uno solo.';
+
+  @override
+  String get stepDispatchFollowsRun => 'Seguir la regla de la simulación';
+
+  @override
   String get stepOperators => 'Operarios';
 
   @override
@@ -1420,6 +1430,22 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String simRunLabel(String timestamp, String rule) {
     return '$timestamp · $rule';
+  }
+
+  @override
+  String simDispatchOverrides(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count estaciones con regla propia',
+      one: '1 estación con regla propia',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String simDispatchOverrideRow(String name, String rule) {
+    return '$name: $rule';
   }
 
   @override

@@ -10,6 +10,7 @@ import '../../../common/dialogs.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/application/demand_providers.dart';
 import '../../demand/application/demand_table.dart' show demandTargetOf;
+import '../../simulation/application/simulation_providers.dart';
 import '../../studies/application/studies_providers.dart';
 import '../../summary/application/summary_providers.dart';
 import '../application/flow_layout.dart';
@@ -567,7 +568,20 @@ class _StepBox extends ConsumerWidget {
           ? _problemText(l10n, step.problems)
           : _targetText(l10n, step),
       child: InkWell(
-        onTap: () => showStepEditor(context, ref, study: study, step: step),
+        onTap: () => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: step,
+          // Watched here rather than read inside the editor: a `ref.read` of a
+          // stream's future can be cancelled by auto-dispose before the stream
+          // emits, and a dialog that never opens is a worse failure than a
+          // dialog opened with a stale map. A real watch is also what makes it
+          // reopen with the rule another study just changed.
+          dispatchByTarget:
+              ref.watch(workcenterDispatchProvider(study.projectId)).value ??
+              const {},
+        ),
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(
@@ -955,6 +969,9 @@ class _InsertButton extends ConsumerWidget {
             ref,
             study: study,
             position: position,
+            dispatchByTarget:
+                ref.watch(workcenterDispatchProvider(study.projectId)).value ??
+                const {},
           ),
           child: Icon(
             Icons.add,

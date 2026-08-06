@@ -56,7 +56,17 @@ Flip it to `need date − delivered` in one place: `RunMetrics.averageFloat`, `s
 `run_metrics_test.dart`, and the +230.7 d recorded above becomes −230.7 d. One definition, so the
 plan's column and the tab's headline figure cannot disagree.
 
-### 1.3 A queue discipline per station
+### 1.3 A queue discipline per station — **done 2026-08-05**
+
+One thing the interview did not anticipate, now in §7.4: the rule is stored per *target* but the
+engine picks per *server*, and one machine can be a candidate for two steps — its own and a pool's.
+Left on the step, two orders at one machine would be ordered by different comparators. `resolveDispatch`
+flattens target → member at assembly time, so each server has exactly one rule.
+
+Also found: `ref.read(streamProvider.future)` can be cancelled by Riverpod 3's default auto-dispose
+before the stream emits, so the step editor's dialog never opened. The map is now watched by the tab
+and passed in. **Worth remembering — the same shape would hang any dialog that reads a stream that way.**
+
 
 §7.4 has one dispatch rule for the whole run. Each station gets its own FIFO / EDD / SPT instead,
 defaulting to the run's, so nothing changes until something is changed.

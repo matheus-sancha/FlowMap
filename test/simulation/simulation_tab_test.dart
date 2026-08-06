@@ -85,6 +85,7 @@ void main() {
       projectId: project.id,
       createdAt: now,
       dispatch: DispatchRule.earliestDueDate,
+      dispatchOverrides: const [],
       studies: const [],
       result: result,
       metrics: summariseRun(

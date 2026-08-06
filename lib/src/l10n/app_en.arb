@@ -432,6 +432,9 @@
   "stepProcessTime": "Process time",
   "stepChangeover": "Changeover",
   "stepChangeoverHelp": "Charged only when the previous order on this workcenter was a different part.",
+  "stepDispatch": "Queue order",
+  "stepDispatchHelp": "How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.",
+  "stepDispatchFollowsRun": "Follow the run's rule",
   "stepOperators": "Operators",
   "stepEquivalentTime": "Process specific takt time",
   "stepEquivalentFollowsTakt": "Follows takt",
@@ -529,5 +532,9 @@
   "simEarlierRuns": "Earlier runs",
   "simRunLabel": "{timestamp} · {rule}",
   "@simRunLabel": { "placeholders": { "timestamp": { "type": "String" }, "rule": { "type": "String" } } },
+  "simDispatchOverrides": "{count, plural, =1{1 station overridden} other{{count} stations overridden}}",
+  "@simDispatchOverrides": { "placeholders": { "count": { "type": "int" } } },
+  "simDispatchOverrideRow": "{name}: {rule}",
+  "@simDispatchOverrideRow": { "placeholders": { "name": { "type": "String" }, "rule": { "type": "String" } } },
   "simRunDeleteBody": "The run and everything it recorded go. The studies it was made from are untouched."
 }

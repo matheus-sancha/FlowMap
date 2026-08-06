@@ -435,6 +435,29 @@ shared-workcenter contention is reproducible. A per-simulation setting offers **
 need date) and **SPT** (shortest processing time) — "what if we dispatched by due date" is exactly
 the experiment this app exists to run.
 
+**A station may keep its own rule**, which the run's default only fills in for. Stored in
+`workcenter_dispatch` and set in the flow step editor, where the queue is visible.
+
+- **Keyed by target**, a workcenter id or a pool id — the `part_process_times` convention. A queue
+  forms at a pool and not at whichever member stands for it on the map (§3.1), so a pool of four
+  lathes is one queue with one discipline.
+- **Project-scoped, not study-scoped.** A run builds one resource model and a station exists in it
+  once however many studies point at it (§7.7); a study-scoped rule would let two studies demand
+  different disciplines of one machine with nothing able to choose. The editor says so, because it
+  is set from inside a study.
+- **Resolved onto the server at assembly time**, never carried on the step. The engine picks when a
+  single machine frees, and one machine can be a candidate for two steps — its own and a pool's. If
+  the rule travelled with the step, two orders waiting at one machine would be governed by different
+  comparators and "which runs first" would have no answer. `resolveDispatch` flattens it: the
+  workcenter's own rule, else a pool's, else the run's. Several pools may name one workcenter
+  (§18.2) and may disagree — the lowest pool id wins, arbitrary but fixed, the same tie-break the
+  pace setter uses and for the same reason. Setting the workcenter itself overrides all of it.
+- **A missing row means "follow the run", and is not the same as FIFO.** Storing the default would
+  pin every station the first time one was edited, and would freeze the run's own setting out.
+- **The run records the overrides** in `simulation_run_dispatch`, per workcenter, name copied in.
+  Without it `simulation_runs.dispatch` would report FIFO for a run in which three stations
+  dispatched by due date, and M5's comparison could not say the dispatch is what differed.
+
 ### 7.5 Operators
 
 A workcenter is a **single server**: one order at a time. Real parallel capacity is modelled by
