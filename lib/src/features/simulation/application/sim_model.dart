@@ -121,17 +121,23 @@ class SimPart {
     required this.partNumber,
     required this.processTimes,
     this.customerProject = '',
+    this.description,
   });
 
   final String id;
 
-  /// The engine never reads this or [customerProject] — both ride along so the
-  /// run can copy them in at save time (§7.10), which is the only moment they
-  /// are still guaranteed to describe the demand the run was made from.
+  /// The engine never reads this, [customerProject] or [description] — all
+  /// three ride along so the run can copy them in at save time (§7.10), which
+  /// is the only moment they are still guaranteed to describe the demand the
+  /// run was made from.
   final String partNumber;
 
   /// The customer's programme, half of what identifies a part (§9.3).
   final String customerProject;
+
+  /// `PWB 10K`, for the Production Plan's own column (§8.5). Identifies
+  /// nothing — two parts may share one — and is null when none was typed.
+  final String? description;
 
   /// **Per piece** (§7.6). A part that skips a step is absent here, not zero.
   final Map<String, Duration> processTimes;

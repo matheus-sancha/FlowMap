@@ -64,6 +64,11 @@ class SimulationRunsRepository {
       for (final study in studies)
         for (final part in study.parts.values) part.id: part.customerProject,
     };
+    final descriptions = {
+      for (final study in studies)
+        for (final part in study.parts.values)
+          if (part.description != null) part.id: part.description!,
+    };
     // What §8.5's plan needs and the result does not carry: the engine reports
     // outcomes per order id, and the order's own batch and dates live on the
     // input it was built from.
@@ -119,6 +124,7 @@ class SimulationRunsRepository {
               partId: order.partId,
               partNumber: partNumbers[order.partId] ?? order.partId,
               customerProject: Value(customerProjects[order.partId]),
+              partDescription: Value(descriptions[order.partId]),
               batchNumber: Value(ordersById[order.orderId]?.batchNumber),
               batchSize: Value(ordersById[order.orderId]?.batchSize),
               materialDate: Value(ordersById[order.orderId]?.materialDate),
@@ -310,6 +316,7 @@ class SimulationRunsRepository {
             ProductionPlanRow(
               outcome: outcome,
               partNumber: row.partNumber,
+              partDescription: row.partDescription,
               customerProject: row.customerProject,
               batchNumber: row.batchNumber,
               batchSize: row.batchSize,
@@ -403,6 +410,7 @@ class ProductionPlanRow {
   const ProductionPlanRow({
     required this.outcome,
     required this.partNumber,
+    required this.partDescription,
     required this.customerProject,
     required this.batchNumber,
     required this.batchSize,
@@ -411,6 +419,10 @@ class ProductionPlanRow {
 
   final SimOrderOutcome outcome;
   final String partNumber;
+
+  /// Null on a run stored before v13, which did not record it (§16.14).
+  final String? partDescription;
+
   final String? customerProject;
   final String? batchNumber;
   final int? batchSize;

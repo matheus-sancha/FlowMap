@@ -93,6 +93,7 @@ void main() {
           ProductionPlanRow(
             outcome: outcome,
             partNumber: 'PN1',
+            partDescription: 'PWB 10K',
             customerProject: 'Wing 7',
             batchNumber: 'B-00${outcome.sequence}',
             batchSize: 4,
@@ -270,6 +271,7 @@ void main() {
             ProductionPlanRow(
               outcome: outcome,
               partNumber: 'PN1',
+              partDescription: null,
               customerProject: null,
               batchNumber: null,
               batchSize: null,

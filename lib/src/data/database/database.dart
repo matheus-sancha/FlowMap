@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -298,6 +298,23 @@ class AppDatabase extends _$AppDatabase {
           simulationRunOrders.materialDate,
         );
         await _ensureTable(m, simulationRunDispatch);
+      }
+
+      if (from < 13) {
+        // Field feedback: the Production Plan names the part's description
+        // (§8.5), and §7.10 forbids reaching for it through a join to
+        // `demand_parts` — a part re-described since would rewrite what a
+        // finished run says.
+        //
+        // One nullable column and nothing else. `simulation_run_orders` is
+        // never rebuilt by a `TableMigration`, so §16.13's warning about
+        // `demand_orders` — every future column needs a constant in the v9
+        // step's `columnTransformer` — does not reach this table.
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.partDescription,
+        );
       }
 
       // Reference-data seeding runs outside every version guard, on every

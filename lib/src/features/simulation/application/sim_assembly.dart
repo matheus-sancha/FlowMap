@@ -204,6 +204,7 @@ SimStudy? assembleSimStudy({
           id: part.id,
           partNumber: part.partNumber,
           customerProject: part.customerProject,
+          description: part.description,
           processTimes: processTimes[part.id] ?? const {},
         ),
     },

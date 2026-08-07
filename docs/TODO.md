@@ -1,18 +1,18 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-05. `docs/DESIGN.md` remains the source of truth for *why*; this file
+Working state as of 2026-08-06. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 473 tests passing, not pushed.
-Schema is at **v11**. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 501 tests passing, not pushed.
+Schema is at **v12**; §2 takes it to v13. M4 is code-complete.
 
-**The Release bundle is ten commits stale.** `build/windows/x64/runner/Release/data/app.so` was
-compiled 2026-08-04 07:15, hours before `f97bb68` and `970eb7c` gave the run its button — that
-build has no Simulation tab at all. The Debug bundle is current. `flowmap.exe`'s own timestamp
-means nothing either way: it is the C++ host shell from `windows/runner/`, which has not changed
-since Aug 3, so CMake rightly declines to relink it. Rebuild Release at the end of §1 below, with
-a real `--dart-define=BUILD_LABEL=…` — the default is `dev`, and a field report against `dev`
-cannot be placed against a specific zip.
+**The Release bundle is current, and v12 is on the real database.** Both were done late on
+2026-08-05 and this file did not record it — checked 2026-08-06 and written down here so it is not
+re-done a third time. `Release/data/app.so` was compiled 23:45, four minutes after `ebde766`, the
+last commit; the log's session at 23:45:30 reads `db.open schema 12 from 11` under build label
+`0.1.0-2026-08-05` rather than `dev`, and a run on the migrated database succeeded at 23:46:36.
+`flowmap.exe`'s own Aug 3 timestamp still means nothing: it is the C++ host shell from
+`windows/runner/`, which has not changed, so CMake rightly declines to relink it.
 
 ---
 
@@ -257,7 +257,254 @@ same commits that change the behaviour.
 
 ---
 
-## 2. Verify in the running app
+## 2. Field feedback, 2026-08-06
+
+Six items from driving the Debug build by hand, each settled by interview before any of it was
+written. Ordered the way §1 was — the schema lands once and the UI sits on top of it — and behind
+the verification §2.0 asks for, because this round stacks v13 on v12.
+
+### 2.0 Clear the debt first — **mostly done 2026-08-06**
+
+The two big ones turned out to have been done on the night of 2026-08-05 and never written down;
+the header now records the evidence so this is not re-done a third time. What was checked on
+2026-08-06, beyond re-reading the log:
+
+- **v12 is fully applied, not merely stamped.** `user_version` alone cannot show this — §16.11's
+  database reported a version it did not have the tables for — so the live file was copied out and
+  inspected. All 29 tables the schema declares are present, `integrity_check` is `ok`, all five v12
+  columns exist (`demand_orders.batch_number`, and `customer_project` / `batch_number` /
+  `batch_size` / `material_date` on `simulation_run_orders`), and `demand_orders.order_number`
+  is still absent, which is what says the v9 rebuild did not silently come back.
+- **Two things that looked wrong and are not**, both worth recording so they are not chased again:
+  `simulation_run_dispatch` is empty while `workcenter_dispatch` has a row, because the override was
+  saved 174 seconds *after* the last run and no run has happened since; and `batch_number` is null
+  on all 33 orders because nobody has typed one, which is exactly what a blank-allowed free-text
+  field looks like on the day it ships (§1.1).
+- **The four pre-v12 runs show blanks and the fifth does not**, which is §8.5's predicted behaviour
+  observed on real data rather than on a fixture.
+- **`parts.description` is populated on all five parts** — `PWB 10K`, `AWB 10K 1.0`, `AWB 10K 2.0`,
+  `AWB 10K 1.0`, `PXVB 20K`. So §2.3's new column has real content on day one, and PN2 and PN4
+  sharing a description is a free reminder that it identifies nothing.
+- `flutter analyze` clean, 501 tests passing, and the `v11 → v12` fixture §1.1 asked for is in
+  `migration_test.dart:595`.
+
+**Still owed, and it needs a human at the GUI:** the readiness panel against a real gap. Unbind a
+step or clear a takt period on `Célula 11B` and check the panel names the study and greys Simulate.
+Narrower than it looks — `SimRunInput.canRun` is covered eight ways in
+`simulation_repository_test.dart` and `simulation_tab_test.dart:150` already mounts an unready study
+and asserts the panel names it and states the problem. What has never been seen is the wiring
+between them: a real edit, through the providers, to a non-empty problem list on screen.
+
+_Rejected: land all six and verify once at the end._ Fewer context switches, and it is what
+happened last time. §16.11 is the record of what it cost.
+
+### 2.1 Schema v13 — the part's description — **done 2026-08-06**
+
+Landed as described, written up as **§16.14**. Two things worth keeping:
+
+- **The migration fixture had to distinguish two blanks.** A v12 run whose four plan columns are
+  *populated* is what makes `v12 → v13` prove anything: had the step rebuilt the table, those values
+  would vanish and a fixture full of nulls would have passed anyway. The v11 → v12 fixture did not
+  face this, because before v12 there was nothing in those columns to lose.
+- **A column nothing writes is the failure mode this repo has already had** (§1.5). So the chain is
+  tested at both links rather than end to end — `sim_assembly_test` for `DemandPart` → `SimPart`,
+  `run_storage_test` for `saveRun` → `loadRun` → plan row. Deleting the assembly line fails exactly
+  the first, which is the check that they are not one test written twice. The assembly side had no
+  coverage at all before this, not even for `customer_project`.
+
+503 tests, `flutter analyze` clean.
+
+
+
+One nullable column, `simulation_run_orders.part_description`, for §2.3's new column.
+
+`parts.description` has existed since M3 and the plan cannot reach it, because §7.10's rule is that
+a run copies every value in and joins to nothing. So it is copied in, exactly as §16.13 copied
+`customer_project` and `batch_number`: `SimPart` gains a `description` the engine never reads,
+`saveRun` writes it, and a run made before v13 shows a dash — which is true, and is what a blank has
+meant on this table since v12.
+
+**Purely additive, and no `columnTransformer` trap.** §1.1's warning — every future column on
+`demand_orders` needs a constant `NULL` in the v9 step — does not apply here: no `TableMigration`
+ever rebuilds `simulation_run_orders`, so `addColumn` is the whole migration. Still needs a
+v12 → v13 fixture in `test/data/migration_test.dart`, and the half-upgraded path from §16.11
+re-checked.
+
+_Rejected: joining `simulation_run_orders.part_id` to `parts` at read time._ No migration, and it
+silently rewrites what a stored run says the moment someone re-describes a part. Rejected twice
+already in §1.1 and §8.5; rejecting it a third time is the rule working.
+
+### 2.2 Delivery becomes Order end
+
+The plan's ninth column is labelled `Delivery`. It reads `delivered`, which §18.1 defines as the
+order's **last semantic step** — the moment production finishes, not a shipment. `Order end` says
+that, and pairs with the `Order start` already sitting beside it.
+
+`simPlanDelivery` → `simPlanOrderEnd` in en/es/pt, and §8.5's column list. es and pt already
+shorten `Order start` to `Inicio` / `Início`, so they take `Fin` / `Fim`.
+
+**Nothing else moves.** `SimOrderOutcome.delivered`, the `delivered` column, the `Delivered 31 of
+33` metric and `On-time delivery` all stay: those measure the promise to the customer, which is a
+different question from when the order came off the last station, and OTD is the term the industry
+uses. One label, three files, no migration.
+
+### 2.3 The Production Plan's three new columns
+
+`Order | Part Number | Description | Project | Batch Number | Batch Size | Need Date | Material
+Date | Order Start | Order End | Theoretical LT | Actual LT | Float`
+
+- **Description** sits next to the Part Number it describes, and comes from §2.1's copied-in column.
+  Free text with no length limit, so it is capped at ~200 px with `TextOverflow.ellipsis` and the
+  whole string in a `Tooltip` — the decision §5.4 already made for node notes, so the app has one
+  answer for long free text in a narrow place. Uncapped, one long description stretches the column
+  and pushes Float off the right edge for every row.
+- **Both lead times already exist per order** and need no new computation. Actual is
+  `SimOrderOutcome.leadTime` (`order end − order start`); theoretical is `theoreticalSeconds`,
+  walked from that same order start with no queueing (§7.9) and stored since v11. Same instant,
+  both wall-clock, so they are directly comparable — and dividing them is the headline
+  lead-time efficiency the metrics card already reports.
+- **Theoretical first, then actual**, because the baseline is what the actual is read against. Both
+  through the existing `_duration`, which is what the metrics card above uses for the same two
+  figures — so §17.4's one-kind-of-day rule holds by construction rather than by care.
+- **The gap between them is that order's queueing**, visible by subtraction.
+
+_Rejected: a third column for the ratio, or for `actual − theoretical`._ Both only restate the two,
+on a table already scrolling horizontally at thirteen columns.
+
+### 2.4 The read-only tables centre
+
+Header and cells centred in all seven Material `DataTable`s — Production Plan, Queue, Share of flow,
+Parts, Summary, Takt, Workcenter schedules — dropping `numeric`'s right-align there. Material has no
+centre alignment for a `DataColumn`, so it is a small shared pair of helpers in `common/` rather
+than forty hand-wrapped call sites; one place to change when the eighth table arrives.
+
+**The editable `DataGrid` is untouched.** `DataGridColumn.numeric` is documented as right-aligning
+because "times, quantities, dates read better that way", and that is truer where you type: scanning
+a column of process times for the one that is wrong is what a ragged left edge is *for*. Centring
+those would make `numeric` dead code and take the outlier with it.
+
+### 2.5 The FIFO lane becomes its own figure
+
+The lane drawn by §1.6 is the shared broad arrow plus a divider line and `FIFO` written above it.
+The notation's actual symbol is a channel: two long rails, `FIFO` centred **between** them, a short
+tick inside the left end and a small solid triangle inside the right. That is not a decorated
+shaft, and drawing it as one is why it reads wrong on screen.
+
+- **`VsmSymbols.drawConnection` gains a third geometry**, ~18 px tall. There is room: the gap is
+  64 px and the ladder sits 220 px below the spine.
+- **§5.2 is amended**, from "all three share one shaft" to *push and pull share one shaft; a FIFO
+  lane is its own figure, because the notation makes it one.* The old sentence was a principle
+  invented to describe an implementation, and the drawing is the thing being corrected.
+- **The condition is unchanged.** Only an **explicitly** stored FIFO draws a lane (§5.2, §7.4).
+  Under the default rule every station dispatches FIFO, so "any FIFO station" would put a lane on
+  every link of every default map and say nothing — the outcome §1.6 recorded and rejected.
+- **The PDF still labels rather than redraws.** §5.2 chose that deliberately and `flow_pdf.dart`
+  builds from the `pdf` package's own widgets; it keeps printing `FIFO` under the arrow.
+
+### 2.6 The map refits itself
+
+`_fit()` already exists and already runs once per map, gated by `_fittedOnce`. It should also run
+when the viewport changes — which is what collapsing the 280 px sidebar does, and what resizing or
+maximising the window does.
+
+**But only while the transform is still the one `_fit` set.** A bool, cleared by `_fit`, set by
+`_zoomBy` and by `InteractiveViewer.onInteractionEnd`. The first manual zoom or pan takes ownership
+and later resizes leave it alone; pressing Fit hands ownership back. Without that, resizing the
+window throws away a deliberate zoom-in on step 6 — the same complaint `_zoomBy`'s own comment
+records, arriving from the other direction.
+
+The sidebar is an `AnimatedSize` over 160 ms, so this refits about ten times across the animation
+and the map follows the pane rather than snapping after it. Nothing needs plumbing down from the
+workspace: `LayoutBuilder` already sees the width change.
+
+### 2.7 The Gantt
+
+Y is the work centre, X is time, the bars are orders. **It needs no new data**: `SimRunResult.steps`
+is already read back from `simulation_run_steps` with `workcenterId`, `queueStart`, `processStart`,
+`processEnd` and `changeoverIncurred` per order-step. §7.10 says in as many words that this storage
+exists to make order Gantts a query rather than a re-run; this is the first thing to collect.
+
+- **A section in `_Results` on the Simulation tab**, below the Production Plan, ~360 px tall with
+  its own scroll. It reads the same `StoredRun` as everything else there, so opening an earlier run
+  from the history menu opens its Gantt with it — §8.5's rule for the plan, applied again.
+- **One chart for the whole run, all studies together** — deliberately the opposite of §8.5's
+  per-study sectioning, and for a stated reason: the plan's rows are orders and an order belongs to
+  one line, but a **station is shared**. Splitting per study would draw a station idle during hours
+  it was in fact running another study's order, which is the one thing §7.7 exists to model.
+- **Bars are process only**, `processStart → processEnd`. They tile without overlapping — one server
+  runs one order at a time, and a pool's members are separate `workcenterId`s with their own rows.
+  Queue spans do not tile: CEU27 holds 4487 days of queue, which is dozens of orders waiting at
+  once, and drawing those would smear the row solid over the bars underneath. Queue is already
+  reported per station in the Queue table and per order by §2.3's two columns.
+- **A gap means "not running" — closed and starved alike**, stated here rather than left to be
+  inferred. Shading closed time is not a read: `run_metrics.dart:196` records that a stored run
+  "has the numbers but not the calendars that produced them", and `simulation_run_workcenters`
+  keeps only a total `openSeconds`. The station's utilization and open time sit in the Queue table
+  on the same tab, which is where "how much of that gap was even available" is answered.
+- **Rows follow `metrics.stations`**, in the order the Queue table above it uses, so the two cannot
+  disagree about which station is which. That map is built from steps, so a station that never ran
+  has no row.
+- **X-only zoom, opening fitted to the run.** Station rows keep a fixed height and their labels stay
+  pinned in a frozen left column; the painter takes pixels-per-second and a window start. A
+  fit / zoom-in / zoom-out cluster shaped like the canvas's, and horizontal drag to pan. Bars get a
+  ~2 px floor so a step of a few hours is never invisible at whole-run scale — indicative there,
+  and said so.
+- **Geometry lives in a pure `gantt_layout.dart` under `application/`**, returning rows and bar
+  rects; the `CustomPainter` only strokes what it is handed and hover is a lookup against the same
+  rects. This is §1.6's precedent, which moved arrow geometry into `layoutFlow` so that what a link
+  *is* could be asserted without pumping a frame — and the Gantt has strictly more geometry than the
+  arrows did.
+
+**Colour by part number**, which gives the app its first categorical palette:
+
+- **A fixed eight-colour `partPalette` in `common/`**, legible against both themes, assigned by the
+  part's position in the run's sorted part list so the same run always colours the same way. Past
+  eight it wraps; two parts share a hue and the bar label and hover still say which is which. One
+  place to change it when the next part-coloured view arrives.
+- **The Parts table is the legend.** A swatch in its Part Number cell, no separate strip — the
+  table sits directly above the chart and lists exactly the same parts, so the colour is defined
+  once beside that part's orders, on-time and lead-time figures, and the reader learns the mapping
+  while reading the numbers.
+- **Changeover is still marked**, as a short hatched prefix at a bar's leading edge. A colour change
+  between adjacent bars is not the same fact: §7.6 decides changeover by the batching rule, so the
+  two can disagree in both directions.
+
+_Rejected: hue rotation off the seed colour._ Never runs out, always in the app's family — but
+adjacent hues stop being distinguishable past six or seven parts, and adding a part recolours a run
+that has not changed.
+
+_Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared station.
+Within one study — the common case — every bar is the same colour.
+
+### 2.8 The plan, in Excel
+
+`.xlsx`, one sheet per study, header row, §2.3's thirteen columns, from the same `StoredRun` the
+table renders. **Dates as dates and durations as durations**, not text, so they sort and pivot;
+stamped with app version, project name and run timestamp per §13's last line. `excel: ^4.0.6` and
+`file_selector` are already in the tree.
+
+This is what §13 already assigns it — "Excel: any grid in the app, plus **per-order simulation
+results for pivoting**" — and the Production Plan is per-order simulation results. A planner merges
+it with their own system, which no PDF allows.
+
+_Rejected: a PDF of the plan._ §13 reserves PDF for the full simulation *report* — input snapshot,
+metrics, bottleneck ranking, late-order list — and a standalone plan PDF pre-empts a document that
+does not exist yet. Thirteen columns landscape is tight in any case.
+
+**The Gantt does not export.** §4's parking of exports covers it: a chart spanning months has to be
+paged across sheets or scaled to illegibility, and it is the hardest of the three to print well.
+
+### 2.9 DESIGN.md
+
+Written as each piece lands, not swept up at the end — §1.10 is the evidence that doing it that way
+finds things. Sections this round touches: **§5.2** (the FIFO lane is its own figure), **§7.10**
+and **§16.14** (schema v13, new), **§8.5** (three new columns, and Delivery → Order end), **§8.6**
+(the Gantt, new), **§12.2** (refit on viewport change), **§13** (the plan's Excel export). None of
+it is real until those say it, in the same commits that change the behaviour.
+
+---
+
+## 3. Verify in the running app
 
 The rest of this has not been driven by hand — it is covered by unit, repository and mounting tests
 only.
@@ -283,13 +530,15 @@ only.
       equivalent of 0.99, which is the right shape; comparing against what it read *before* the fix
       still needs the old build.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
-      clear a takt period and check it names the study and disables Simulate.
-- [ ] **Rebuild Release when §1 lands**, with a `BUILD_LABEL`, and drive the v11 → v12 migration
-      against the real database before trusting it.
+      clear a takt period and check it names the study and disables Simulate. §2.0 says what is
+      already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
+- [x] ~~**Rebuild Release and drive the v11 → v12 migration against the real database.**~~ Both done
+      2026-08-05 under label `0.1.0-2026-08-05`; verified 2026-08-06 by inspecting the live file
+      rather than trusting `user_version`. Evidence in the header and §2.0.
 
 ---
 
-## 3. Known gaps, deliberately left
+## 4. Known gaps, deliberately left
 
 - [ ] **§14's performance target is not met.** A 2000-order, 10-step run takes ~2.8 s against "well
       under a second". §16.9 has the measurements: the cost is local `DateTime` arithmetic on
@@ -310,7 +559,7 @@ only.
 
 ---
 
-## 4. M5
+## 5. M5
 
 Reports (§13), run comparison, templates and binding (§10.2), the About screen, and the drop.
 

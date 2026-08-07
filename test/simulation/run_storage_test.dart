@@ -122,11 +122,14 @@ void main() {
           id: 'part-a',
           partNumber: 'PN1',
           customerProject: 'Wing 7',
+          description: 'PWB 10K',
           processTimes: {
             'wc-1': Duration(hours: 4),
             'wc-2': Duration(hours: 2),
           },
         ),
+        // Deliberately undescribed, so the plan can be shown to carry a blank
+        // rather than inventing one.
         'part-b': const SimPart(
           id: 'part-b',
           partNumber: 'PN2',
@@ -426,6 +429,7 @@ void main() {
     // Copied in, not joined: nothing here reads demand_parts or demand_orders,
     // which is what keeps the plan readable after either is edited (§7.10).
     expect(first.customerProject, 'Wing 7');
+    expect(first.partDescription, 'PWB 10K');
     expect(first.batchNumber, 'B-0012');
     expect(first.batchSize, 4);
     expect(first.materialDate, DateTime(2026, 8, 1));
@@ -438,5 +442,10 @@ void main() {
     // An order with no batch number simply has none — a label, not identity.
     expect(plan[1].batchNumber, isNull);
     expect(plan[1].batchSize, 1);
+
+    // Same for a part nobody described. A blank here means "none was typed";
+    // on a run stored before v13 it means "this run did not record one"
+    // (§16.14). The plan draws a dash for both, which is honest either way.
+    expect(plan[1].partDescription, isNull);
   });
 }

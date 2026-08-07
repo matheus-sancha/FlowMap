@@ -12420,6 +12420,17 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _partDescriptionMeta = const VerificationMeta(
+    'partDescription',
+  );
+  @override
+  late final GeneratedColumn<String> partDescription = GeneratedColumn<String>(
+    'part_description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _needDateMeta = const VerificationMeta(
     'needDate',
   );
@@ -12475,6 +12486,7 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
     batchNumber,
     batchSize,
     materialDate,
+    partDescription,
     needDate,
     released,
     delivered,
@@ -12573,6 +12585,15 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
         ),
       );
     }
+    if (data.containsKey('part_description')) {
+      context.handle(
+        _partDescriptionMeta,
+        partDescription.isAcceptableOrUnknown(
+          data['part_description']!,
+          _partDescriptionMeta,
+        ),
+      );
+    }
     if (data.containsKey('need_date')) {
       context.handle(
         _needDateMeta,
@@ -12651,6 +12672,10 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
         DriftSqlType.dateTime,
         data['${effectivePrefix}material_date'],
       ),
+      partDescription: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_description'],
+      ),
       needDate: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}need_date'],
@@ -12688,19 +12713,28 @@ class SimulationRunOrder extends DataClass
   /// every row of a finished run's per-part table into a uuid.
   final String partNumber;
 
-  /// The four below are what the Production Plan reads and the engine does not
-  /// (DESIGN.md §8.4). Copied in for this file's own reason: the plan has to
+  /// The five below are what the Production Plan reads and the engine does not
+  /// (DESIGN.md §8.5). Copied in for this file's own reason: the plan has to
   /// keep saying what it said after the demand beneath it is re-sequenced,
   /// re-batched or deleted outright.
   ///
-  /// **Nullable, and never backfilled.** Runs stored before v12 have no answer,
-  /// and a blank saying so is true. Filling them from the demand as it stands
-  /// today would make one run a hybrid of two moments — the exact thing the
-  /// copy-in rule at the top of this file exists to prevent.
+  /// **Nullable, and never backfilled.** Runs stored before v12 — or before v13
+  /// for [partDescription] — have no answer, and a blank saying so is true.
+  /// Filling them from the demand as it stands today would make one run a
+  /// hybrid of two moments, the exact thing the copy-in rule at the top of this
+  /// file exists to prevent.
   final String? customerProject;
   final String? batchNumber;
   final int? batchSize;
   final DateTime? materialDate;
+
+  /// `PWB 10K` — the part's own description, v13.
+  ///
+  /// Copied rather than joined to `demand_parts` for the reason [partNumber]
+  /// is: a part re-described or deleted since would silently change what a
+  /// finished run says. It identifies nothing — two parts legitimately share
+  /// one description — so it is a label on the row, not a key.
+  final String? partDescription;
   final DateTime needDate;
 
   /// When it entered the flow. Null means it never did — the sequence ran out
@@ -12728,6 +12762,7 @@ class SimulationRunOrder extends DataClass
     this.batchNumber,
     this.batchSize,
     this.materialDate,
+    this.partDescription,
     required this.needDate,
     this.released,
     this.delivered,
@@ -12753,6 +12788,9 @@ class SimulationRunOrder extends DataClass
     }
     if (!nullToAbsent || materialDate != null) {
       map['material_date'] = Variable<DateTime>(materialDate);
+    }
+    if (!nullToAbsent || partDescription != null) {
+      map['part_description'] = Variable<String>(partDescription);
     }
     map['need_date'] = Variable<DateTime>(needDate);
     if (!nullToAbsent || released != null) {
@@ -12787,6 +12825,9 @@ class SimulationRunOrder extends DataClass
       materialDate: materialDate == null && nullToAbsent
           ? const Value.absent()
           : Value(materialDate),
+      partDescription: partDescription == null && nullToAbsent
+          ? const Value.absent()
+          : Value(partDescription),
       needDate: Value(needDate),
       released: released == null && nullToAbsent
           ? const Value.absent()
@@ -12816,6 +12857,7 @@ class SimulationRunOrder extends DataClass
       batchNumber: serializer.fromJson<String?>(json['batchNumber']),
       batchSize: serializer.fromJson<int?>(json['batchSize']),
       materialDate: serializer.fromJson<DateTime?>(json['materialDate']),
+      partDescription: serializer.fromJson<String?>(json['partDescription']),
       needDate: serializer.fromJson<DateTime>(json['needDate']),
       released: serializer.fromJson<DateTime?>(json['released']),
       delivered: serializer.fromJson<DateTime?>(json['delivered']),
@@ -12836,6 +12878,7 @@ class SimulationRunOrder extends DataClass
       'batchNumber': serializer.toJson<String?>(batchNumber),
       'batchSize': serializer.toJson<int?>(batchSize),
       'materialDate': serializer.toJson<DateTime?>(materialDate),
+      'partDescription': serializer.toJson<String?>(partDescription),
       'needDate': serializer.toJson<DateTime>(needDate),
       'released': serializer.toJson<DateTime?>(released),
       'delivered': serializer.toJson<DateTime?>(delivered),
@@ -12854,6 +12897,7 @@ class SimulationRunOrder extends DataClass
     Value<String?> batchNumber = const Value.absent(),
     Value<int?> batchSize = const Value.absent(),
     Value<DateTime?> materialDate = const Value.absent(),
+    Value<String?> partDescription = const Value.absent(),
     DateTime? needDate,
     Value<DateTime?> released = const Value.absent(),
     Value<DateTime?> delivered = const Value.absent(),
@@ -12871,6 +12915,9 @@ class SimulationRunOrder extends DataClass
     batchNumber: batchNumber.present ? batchNumber.value : this.batchNumber,
     batchSize: batchSize.present ? batchSize.value : this.batchSize,
     materialDate: materialDate.present ? materialDate.value : this.materialDate,
+    partDescription: partDescription.present
+        ? partDescription.value
+        : this.partDescription,
     needDate: needDate ?? this.needDate,
     released: released.present ? released.value : this.released,
     delivered: delivered.present ? delivered.value : this.delivered,
@@ -12898,6 +12945,9 @@ class SimulationRunOrder extends DataClass
       materialDate: data.materialDate.present
           ? data.materialDate.value
           : this.materialDate,
+      partDescription: data.partDescription.present
+          ? data.partDescription.value
+          : this.partDescription,
       needDate: data.needDate.present ? data.needDate.value : this.needDate,
       released: data.released.present ? data.released.value : this.released,
       delivered: data.delivered.present ? data.delivered.value : this.delivered,
@@ -12920,6 +12970,7 @@ class SimulationRunOrder extends DataClass
           ..write('batchNumber: $batchNumber, ')
           ..write('batchSize: $batchSize, ')
           ..write('materialDate: $materialDate, ')
+          ..write('partDescription: $partDescription, ')
           ..write('needDate: $needDate, ')
           ..write('released: $released, ')
           ..write('delivered: $delivered, ')
@@ -12940,6 +12991,7 @@ class SimulationRunOrder extends DataClass
     batchNumber,
     batchSize,
     materialDate,
+    partDescription,
     needDate,
     released,
     delivered,
@@ -12959,6 +13011,7 @@ class SimulationRunOrder extends DataClass
           other.batchNumber == this.batchNumber &&
           other.batchSize == this.batchSize &&
           other.materialDate == this.materialDate &&
+          other.partDescription == this.partDescription &&
           other.needDate == this.needDate &&
           other.released == this.released &&
           other.delivered == this.delivered &&
@@ -12976,6 +13029,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
   final Value<String?> batchNumber;
   final Value<int?> batchSize;
   final Value<DateTime?> materialDate;
+  final Value<String?> partDescription;
   final Value<DateTime> needDate;
   final Value<DateTime?> released;
   final Value<DateTime?> delivered;
@@ -12992,6 +13046,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     this.batchNumber = const Value.absent(),
     this.batchSize = const Value.absent(),
     this.materialDate = const Value.absent(),
+    this.partDescription = const Value.absent(),
     this.needDate = const Value.absent(),
     this.released = const Value.absent(),
     this.delivered = const Value.absent(),
@@ -13009,6 +13064,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     this.batchNumber = const Value.absent(),
     this.batchSize = const Value.absent(),
     this.materialDate = const Value.absent(),
+    this.partDescription = const Value.absent(),
     required DateTime needDate,
     this.released = const Value.absent(),
     this.delivered = const Value.absent(),
@@ -13032,6 +13088,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     Expression<String>? batchNumber,
     Expression<int>? batchSize,
     Expression<DateTime>? materialDate,
+    Expression<String>? partDescription,
     Expression<DateTime>? needDate,
     Expression<DateTime>? released,
     Expression<DateTime>? delivered,
@@ -13049,6 +13106,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
       if (batchNumber != null) 'batch_number': batchNumber,
       if (batchSize != null) 'batch_size': batchSize,
       if (materialDate != null) 'material_date': materialDate,
+      if (partDescription != null) 'part_description': partDescription,
       if (needDate != null) 'need_date': needDate,
       if (released != null) 'released': released,
       if (delivered != null) 'delivered': delivered,
@@ -13068,6 +13126,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     Value<String?>? batchNumber,
     Value<int?>? batchSize,
     Value<DateTime?>? materialDate,
+    Value<String?>? partDescription,
     Value<DateTime>? needDate,
     Value<DateTime?>? released,
     Value<DateTime?>? delivered,
@@ -13085,6 +13144,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
       batchNumber: batchNumber ?? this.batchNumber,
       batchSize: batchSize ?? this.batchSize,
       materialDate: materialDate ?? this.materialDate,
+      partDescription: partDescription ?? this.partDescription,
       needDate: needDate ?? this.needDate,
       released: released ?? this.released,
       delivered: delivered ?? this.delivered,
@@ -13126,6 +13186,9 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     if (materialDate.present) {
       map['material_date'] = Variable<DateTime>(materialDate.value);
     }
+    if (partDescription.present) {
+      map['part_description'] = Variable<String>(partDescription.value);
+    }
     if (needDate.present) {
       map['need_date'] = Variable<DateTime>(needDate.value);
     }
@@ -13157,6 +13220,7 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
           ..write('batchNumber: $batchNumber, ')
           ..write('batchSize: $batchSize, ')
           ..write('materialDate: $materialDate, ')
+          ..write('partDescription: $partDescription, ')
           ..write('needDate: $needDate, ')
           ..write('released: $released, ')
           ..write('delivered: $delivered, ')
@@ -14583,7 +14647,7 @@ class SimulationRunWorkcenter extends DataClass
   /// workcenter is renamed or removed from the plant.
   final String name;
 
-  /// Open time the station spent running (§8.3's utilisation numerator).
+  /// Open time the station spent running (§8.3's utilization numerator).
   final int busySeconds;
 
   /// Open time it had available across the run — the denominator.
@@ -28259,6 +28323,7 @@ typedef $$SimulationRunOrdersTableCreateCompanionBuilder =
       Value<String?> batchNumber,
       Value<int?> batchSize,
       Value<DateTime?> materialDate,
+      Value<String?> partDescription,
       required DateTime needDate,
       Value<DateTime?> released,
       Value<DateTime?> delivered,
@@ -28277,6 +28342,7 @@ typedef $$SimulationRunOrdersTableUpdateCompanionBuilder =
       Value<String?> batchNumber,
       Value<int?> batchSize,
       Value<DateTime?> materialDate,
+      Value<String?> partDescription,
       Value<DateTime> needDate,
       Value<DateTime?> released,
       Value<DateTime?> delivered,
@@ -28366,6 +28432,11 @@ class $$SimulationRunOrdersTableFilterComposer
 
   ColumnFilters<DateTime> get materialDate => $composableBuilder(
     column: $table.materialDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partDescription => $composableBuilder(
+    column: $table.partDescription,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28467,6 +28538,11 @@ class $$SimulationRunOrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get partDescription => $composableBuilder(
+    column: $table.partDescription,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get needDate => $composableBuilder(
     column: $table.needDate,
     builder: (column) => ColumnOrderings(column),
@@ -28555,6 +28631,11 @@ class $$SimulationRunOrdersTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get partDescription => $composableBuilder(
+    column: $table.partDescription,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get needDate =>
       $composableBuilder(column: $table.needDate, builder: (column) => column);
 
@@ -28639,6 +28720,7 @@ class $$SimulationRunOrdersTableTableManager
                 Value<String?> batchNumber = const Value.absent(),
                 Value<int?> batchSize = const Value.absent(),
                 Value<DateTime?> materialDate = const Value.absent(),
+                Value<String?> partDescription = const Value.absent(),
                 Value<DateTime> needDate = const Value.absent(),
                 Value<DateTime?> released = const Value.absent(),
                 Value<DateTime?> delivered = const Value.absent(),
@@ -28655,6 +28737,7 @@ class $$SimulationRunOrdersTableTableManager
                 batchNumber: batchNumber,
                 batchSize: batchSize,
                 materialDate: materialDate,
+                partDescription: partDescription,
                 needDate: needDate,
                 released: released,
                 delivered: delivered,
@@ -28673,6 +28756,7 @@ class $$SimulationRunOrdersTableTableManager
                 Value<String?> batchNumber = const Value.absent(),
                 Value<int?> batchSize = const Value.absent(),
                 Value<DateTime?> materialDate = const Value.absent(),
+                Value<String?> partDescription = const Value.absent(),
                 required DateTime needDate,
                 Value<DateTime?> released = const Value.absent(),
                 Value<DateTime?> delivered = const Value.absent(),
@@ -28689,6 +28773,7 @@ class $$SimulationRunOrdersTableTableManager
                 batchNumber: batchNumber,
                 batchSize: batchSize,
                 materialDate: materialDate,
+                partDescription: partDescription,
                 needDate: needDate,
                 released: released,
                 delivered: delivered,

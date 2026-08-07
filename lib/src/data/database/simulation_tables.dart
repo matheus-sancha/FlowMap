@@ -95,19 +95,28 @@ class SimulationRunOrders extends Table {
   /// every row of a finished run's per-part table into a uuid.
   TextColumn get partNumber => text()();
 
-  /// The four below are what the Production Plan reads and the engine does not
+  /// The five below are what the Production Plan reads and the engine does not
   /// (DESIGN.md §8.5). Copied in for this file's own reason: the plan has to
   /// keep saying what it said after the demand beneath it is re-sequenced,
   /// re-batched or deleted outright.
   ///
-  /// **Nullable, and never backfilled.** Runs stored before v12 have no answer,
-  /// and a blank saying so is true. Filling them from the demand as it stands
-  /// today would make one run a hybrid of two moments — the exact thing the
-  /// copy-in rule at the top of this file exists to prevent.
+  /// **Nullable, and never backfilled.** Runs stored before v12 — or before v13
+  /// for [partDescription] — have no answer, and a blank saying so is true.
+  /// Filling them from the demand as it stands today would make one run a
+  /// hybrid of two moments, the exact thing the copy-in rule at the top of this
+  /// file exists to prevent.
   TextColumn get customerProject => text().nullable()();
   TextColumn get batchNumber => text().nullable()();
   IntColumn get batchSize => integer().nullable()();
   DateTimeColumn get materialDate => dateTime().nullable()();
+
+  /// `PWB 10K` — the part's own description, v13.
+  ///
+  /// Copied rather than joined to `demand_parts` for the reason [partNumber]
+  /// is: a part re-described or deleted since would silently change what a
+  /// finished run says. It identifies nothing — two parts legitimately share
+  /// one description — so it is a label on the row, not a key.
+  TextColumn get partDescription => text().nullable()();
 
   DateTimeColumn get needDate => dateTime()();
 

@@ -581,9 +581,9 @@ goes back to ask what last month's run said. Three groups of it, and all three w
 something could not be answered without them:
 
 - **Per order**: part number, and since v12 the customer's project, batch number, batch size and
-  material date — §8.5's plan cannot be printed from a join that may no longer resolve. Also each
-  order's theoretical lead time (§7.9), stored rather than recomputed because the walk needs the
-  plant as it was.
+  material date, and since v13 the part's description — §8.5's plan cannot be printed from a join
+  that may no longer resolve. Also each order's theoretical lead time (§7.9), stored rather than
+  recomputed because the walk needs the plant as it was.
 - **Per station**: name, busy and open time. Open time is a property of the calendar rather than of
   anything an order did, and it is what makes utilization different from occupation (§8.3).
 - **Per override**: the stations that dispatched by something other than the run's rule (§7.4).
@@ -1373,6 +1373,33 @@ one half-rebuilt on a machine that has already survived §16.11 once.
   it. It now names a constant `NULL` for it in its `columnTransformer`, and every future column on
   `demand_orders` needs the same line. Caught by the existing v6 and v8 fixtures, which is what they
   are for.
+
+### 16.14 Schema v13, from field feedback
+
+One nullable column: **`simulation_run_orders.part_description`**.
+
+`demand_parts.description` has been stored since M3 and the Production Plan could not reach it,
+because §7.10 forbids the join that would. So it is copied in at save time, the same shape v12 gave
+`customer_project` — a passenger on `SimPart` the engine never reads, written by `saveRun` and read
+straight back out with the plan. A part re-described or deleted since would otherwise rewrite what
+a finished run says, which is the failure the copy-in rule exists to prevent; it had already been
+rejected twice, in §16.13 and in §8.5, and rejecting it a third time is the rule working rather
+than a decision being re-litigated.
+
+- **It identifies nothing.** Two parts legitimately share one description — the field's own
+  database has `PN2` and `PN4` both reading `AWB 10K 1.0` — so it is a label on the row, never a
+  key, and it takes no part in any unique constraint. That is what separates it from
+  `customer_project`, which had to be identity (§9.3) and is therefore blank-not-null.
+  `part_description` is genuinely nullable: a part nobody described carries no description.
+- **Never backfilled**, for §7.10's reason. A run stored before v13 shows a dash.
+- **No rebuild, and no hostage.** `simulation_run_orders` is never touched by a `TableMigration`,
+  so §16.13's closing warning — every future column on `demand_orders` needs a constant in the v9
+  step's `columnTransformer` — does not reach this table. `addColumn` through the idempotent
+  `_ensureColumn` is the whole step, so an upgrade interrupted here replays cleanly (§16.11).
+- **Two tests, one per link of the chain**, because §16.13's own experience was a column that
+  existed and nothing wrote: the assembly test asserts a `DemandPart`'s description reaches
+  `SimPart`, and the run-storage test asserts it survives `saveRun` → `loadRun` and comes back on
+  the plan row. Removing either half fails exactly one of them.
 
 ---
 
