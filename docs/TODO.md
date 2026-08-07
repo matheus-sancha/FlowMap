@@ -469,7 +469,26 @@ shaft, and drawing it as one is why it reads wrong on screen.
 - **The PDF still labels rather than redraws.** §5.2 chose that deliberately and `flow_pdf.dart`
   builds from the `pdf` package's own widgets; it keeps printing `FIFO` under the arrow.
 
-### 2.6 The map refits itself
+### 2.6 The map refits itself — **done 2026-08-06**
+
+Landed as described, in §12.2. Three things worth keeping:
+
+- **The "has the user touched it" signal is a matrix comparison, not a gesture callback.** The plan
+  said to hook `onInteractionEnd`; that fires for a bare tap that moved nothing, so one tap on the
+  canvas would have stopped the map ever fitting again. Keeping the transform the last fit installed
+  and comparing it against the controller's is exact, and costs one field.
+- **The decision moved into `flow_layout.dart` as `shouldRefitCanvas`** — §1.6's precedent, and here
+  it earns more than tidiness: one of its clauses is a loop guard. Fitting calls `setState`, which
+  rebuilds, which asks again, so an unchanged size *must* answer no or the app hangs. **Nothing in
+  the suite mounts the canvas**, so no existing test would have caught that; seven unit tests now do.
+- **`vector_math` is now a direct dependency.** `flow_layout.dart` is deliberately widget-free so its
+  geometry can be asserted without a frame, and reaching `Matrix4` through `package:flutter` would
+  have undone exactly that. It was already there transitively; it is declared now because it is
+  genuinely used.
+
+513 tests.
+
+
 
 `_fit()` already exists and already runs once per map, gated by `_fittedOnce`. It should also run
 when the viewport changes — which is what collapsing the 280 px sidebar does, and what resizing or

@@ -228,9 +228,24 @@ class _CanvasState extends ConsumerState<_Canvas> {
   /// viewport, and fit-to-screen needs the viewport's measured size.
   final _controller = TransformationController();
 
-  /// Set once the first layout is known, so a map opens fitted rather than at
-  /// 100 % with its right-hand steps off-screen.
-  bool _fittedOnce = false;
+  /// The transform [_fit] last installed, or null before the first fit.
+  ///
+  /// This is how the canvas knows whether the view on screen is still its own
+  /// doing: if the controller still holds exactly what was put there, nobody
+  /// has zoomed or panned since, and the map is free to refit itself when the
+  /// viewport changes. The moment it differs, the view belongs to the user and
+  /// a sidebar toggle must not throw it away — which is the same complaint
+  /// [_zoomBy] was written to answer, arriving from the other direction.
+  ///
+  /// Compared rather than tracked through gesture callbacks because
+  /// `onInteractionEnd` fires for a bare tap that moved nothing, and a tap
+  /// would then be enough to stop the map ever fitting again.
+  Matrix4? _fitted;
+
+  /// What the last fit was computed against, so a rebuild at an unchanged size
+  /// does not refit — and so the post-frame fit below cannot loop.
+  Size? _lastViewport;
+  Size? _lastContent;
 
   @override
   void dispose() {
@@ -246,10 +261,14 @@ class _CanvasState extends ConsumerState<_Canvas> {
     if (content.width <= 0 || content.height <= 0) return;
     final scale = (viewport.width / content.width).clamp(0.1, 1.0).toDouble();
     final dx = (viewport.width - content.width * scale) / 2;
+    final next = Matrix4.identity()
+      ..translateByDouble(dx.clamp(0.0, double.infinity), 0, 0, 1)
+      ..scaleByDouble(scale, scale, 1, 1);
     setState(() {
-      _controller.value = Matrix4.identity()
-        ..translateByDouble(dx.clamp(0.0, double.infinity), 0, 0, 1)
-        ..scaleByDouble(scale, scale, 1, 1);
+      _controller.value = next;
+      // Cloned: the controller is free to mutate the matrix it was handed, and
+      // a shared reference would compare equal to itself forever after.
+      _fitted = next.clone();
     });
   }
 
@@ -317,10 +336,25 @@ class _CanvasState extends ConsumerState<_Canvas> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewport = Size(constraints.maxWidth, constraints.maxHeight);
-        if (!_fittedOnce && viewport.width.isFinite && viewport.width > 0) {
-          _fittedOnce = true;
-          // After the frame: fitting calls setState, and the first layout pass
-          // is not a legal moment to do that.
+
+        // The sidebar is an `AnimatedSize` over 160 ms, so this runs at each
+        // width along the way and the map follows the pane rather than
+        // snapping after it.
+        if (shouldRefitCanvas(
+          viewport: viewport,
+          content: layout.size,
+          lastViewport: _lastViewport,
+          lastContent: _lastContent,
+          fitted: _fitted,
+          current: _controller.value,
+        )) {
+          // Recorded before the frame, not inside it: two rebuilds at the same
+          // size must schedule one fit, or the post-frame `setState` below
+          // rebuilds into another fit and never stops.
+          _lastViewport = viewport;
+          _lastContent = layout.size;
+          // After the frame: fitting calls setState, and a layout pass is not
+          // a legal moment to do that.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) _fit(viewport, layout.size);
           });

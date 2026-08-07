@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
@@ -8,6 +10,7 @@ import 'package:flowmap/src/features/flow/application/flow_view.dart';
 import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/schedules/application/workcenter_schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 /// The map's arithmetic, with no database and no widget tree — the seam that
 /// makes "what does this box say" a unit test (DESIGN.md §5.4, §6.1).
@@ -1188,6 +1191,76 @@ void main() {
         kinds(dispatch: const {'CEU27': DispatchRule.earliestDueDate}),
         isNot(contains(FlowConnectionKind.fifoLane)),
       );
+    });
+  });
+
+  group('refitting the canvas (§12.2)', () {
+    const small = Size(800, 600);
+    const wide = Size(1080, 600);
+    const content = Size(1400, 900);
+
+    final fitted = Matrix4.identity()..scaleByDouble(0.5, 0.5, 1, 1);
+    final zoomed = Matrix4.identity()..scaleByDouble(2, 2, 1, 1);
+
+    bool refit({
+      Size viewport = wide,
+      Size contentSize = content,
+      Size? lastViewport = small,
+      Size? lastContent = content,
+      Matrix4? fittedMatrix,
+      Matrix4? current,
+    }) => shouldRefitCanvas(
+      viewport: viewport,
+      content: contentSize,
+      lastViewport: lastViewport,
+      lastContent: lastContent,
+      fitted: fittedMatrix ?? fitted,
+      current: current ?? fitted,
+    );
+
+    test('the first frame fits, having nothing to preserve', () {
+      expect(
+        refit(lastViewport: null, lastContent: null, fittedMatrix: null),
+        isTrue,
+      );
+    });
+
+    test('the sidebar collapsing refits an untouched map', () {
+      // 280px of sidebar goes away and the viewport widens. Nobody has zoomed,
+      // so the map is still the canvas's to arrange.
+      expect(refit(), isTrue);
+    });
+
+    test('adding a step refits, because the drawing grew', () {
+      expect(
+        refit(viewport: small, contentSize: const Size(1600, 900)),
+        isTrue,
+      );
+    });
+
+    test('an unchanged size does not refit — this is the loop guard', () {
+      // Fitting calls setState, which rebuilds, which asks this again. If the
+      // answer at the same size were yes the canvas would never stop fitting,
+      // and the app would hang rather than misdraw.
+      expect(refit(viewport: small), isFalse);
+    });
+
+    test('a map the user has zoomed is left alone', () {
+      // The complaint `_zoomBy` was written to answer, arriving from the other
+      // direction: resizing the window must not throw away a deliberate zoom
+      // onto the sixth step of a flow.
+      expect(refit(current: zoomed), isFalse);
+    });
+
+    test('pressing Fit hands the map back', () {
+      // Fit installs a new matrix as both `fitted` and `current`, so the two
+      // agree again and later resizes resume following the viewport.
+      expect(refit(fittedMatrix: zoomed, current: zoomed), isTrue);
+    });
+
+    test('a viewport with no width yet fits nothing', () {
+      expect(refit(viewport: const Size(0, 600)), isFalse);
+      expect(refit(viewport: const Size(double.infinity, 600)), isFalse);
     });
   });
 }

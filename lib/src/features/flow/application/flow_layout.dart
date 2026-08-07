@@ -10,6 +10,8 @@ library;
 
 import 'dart:ui' show Offset, Rect, Size;
 
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
+
 import 'flow_view.dart';
 
 /// Fixed sizes, in logical pixels. Tuned so a six-step flow fits a 1600px
@@ -289,4 +291,36 @@ FlowLayout layoutFlow(FlowView view) {
       ladderTop + FlowMetrics.ladderHeight * 2 + FlowMetrics.bottomPadding,
     ),
   );
+}
+
+/// Whether the canvas should refit itself to [viewport] (DESIGN.md §12.2).
+///
+/// Two questions, both of which have to be yes.
+///
+/// **Has anything changed size?** The sidebar collapsing, the window being
+/// resized or maximised, a step being added to the flow. [lastViewport] and
+/// [lastContent] are what the previous fit was computed against, and comparing
+/// against them is also what stops a fit from feeding itself: fitting calls
+/// `setState`, which rebuilds, which asks this again — and at an unchanged size
+/// the answer has to be no, or the canvas never stops fitting.
+///
+/// **Is the view still the one the last fit installed?** [fitted] is the matrix
+/// the canvas put there and [current] is what the controller holds now. If they
+/// differ the user has zoomed or panned since, and the view is theirs: a
+/// sidebar toggle must not discard a deliberate zoom onto the sixth step, which
+/// is the same complaint the canvas's own `_zoomBy` exists to answer. Pressing
+/// Fit installs a new matrix and hands ownership back.
+///
+/// A null [fitted] is the first frame, when there is nothing to preserve.
+bool shouldRefitCanvas({
+  required Size viewport,
+  required Size content,
+  required Size? lastViewport,
+  required Size? lastContent,
+  required Matrix4? fitted,
+  required Matrix4 current,
+}) {
+  if (!viewport.width.isFinite || viewport.width <= 0) return false;
+  if (viewport == lastViewport && content == lastContent) return false;
+  return fitted == null || current == fitted;
 }

@@ -967,6 +967,27 @@ whole gap, with a barbed head. That is the VSM convention for material that is p
 pulled, and it is what `drawPushArrow` has always been named for — the first implementation drew a
 plain line under a doc comment promising the shaft.
 
+**The map refits itself when the space it has changes** — the studies sidebar collapsing or
+reopening, the window being resized or maximised, a step being added to the flow. It opened fitted
+already; it now stays fitted.
+
+- **Only while the view is still the canvas's own.** The transform installed by the last fit is
+  kept and compared against what the controller holds. Once they differ the user has zoomed or
+  panned, the view is theirs, and a sidebar toggle must not discard a deliberate zoom onto the sixth
+  step of a flow — which is the same complaint `_zoomBy` was written to answer, arriving from the
+  other direction. Pressing Fit installs a new transform and hands ownership back.
+- **Compared, rather than tracked through gesture callbacks.** `InteractiveViewer.onInteractionEnd`
+  fires for a bare tap that moved nothing, so a single tap on the canvas would otherwise be enough
+  to stop the map ever fitting again.
+- **The decision is `shouldRefitCanvas` in `flow_layout.dart`**, not a condition inside `build` —
+  the same reason the arrow kinds moved there (§5.2): it can then be asserted without pumping a
+  frame, and it is worth asserting, because one of its clauses is a **loop guard**. Fitting calls
+  `setState`, which rebuilds, which asks again; at an unchanged size the answer has to be no, or the
+  canvas fits forever and the app hangs rather than merely misdraws. Nothing in the suite mounts the
+  canvas, so that is the one failure a test could not otherwise see.
+- The sidebar is an `AnimatedSize` over 160 ms, so the refit runs at each width along the way and
+  the map follows the pane rather than snapping after it.
+
 ### 12.3 Undo
 
 Flow and grid edits inside an open study go through **command objects that know their inverse**

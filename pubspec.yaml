@@ -30,6 +30,12 @@ dependencies:
   go_router: ^17.3.0
   uuid: ^4.6.0
 
+  # Matrix4, used by the canvas layout. Flutter re-exports it, but
+  # `flow_layout.dart` is deliberately widget-free so that the map's geometry
+  # can be asserted without pumping a frame — it takes the type from the
+  # geometry package rather than pulling widgets in to reach it.
+  vector_math: any
+
   # Formatting and locales. Durations render as HH:MM:SS, dates per app locale
   # (DESIGN.md §12.4).
   intl: any
