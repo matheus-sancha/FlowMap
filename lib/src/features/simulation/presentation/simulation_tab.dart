@@ -466,6 +466,7 @@ class _PlanTable extends StatelessWidget {
           columns: [
             DataColumn(label: Text(l10n.simPlanOrder), numeric: true),
             DataColumn(label: Text(l10n.demandPartNumber)),
+            DataColumn(label: Text(l10n.demandDescription)),
             DataColumn(label: Text(l10n.demandProject)),
             DataColumn(label: Text(l10n.demandBatchNumber)),
             DataColumn(label: Text(l10n.demandBatchSize), numeric: true),
@@ -473,6 +474,13 @@ class _PlanTable extends StatelessWidget {
             DataColumn(label: Text(l10n.demandMaterialDate), numeric: true),
             DataColumn(label: Text(l10n.simPlanOrderStart), numeric: true),
             DataColumn(label: Text(l10n.simPlanOrderEnd), numeric: true),
+            // Theoretical first: it is the baseline, and the actual beside it
+            // is read against it. The gap between the two is the queueing.
+            DataColumn(
+              label: Text(l10n.simPlanTheoreticalLeadTime),
+              numeric: true,
+            ),
+            DataColumn(label: Text(l10n.simPlanActualLeadTime), numeric: true),
             DataColumn(label: Text(l10n.simAverageFloat), numeric: true),
           ],
           rows: [
@@ -481,6 +489,12 @@ class _PlanTable extends StatelessWidget {
                 cells: [
                   DataCell(Text('${row.orderNumber}')),
                   DataCell(Text(row.partNumber)),
+                  // Free text with no length limit, in a table that sizes each
+                  // column to its widest cell — so one long description would
+                  // push Float off the right edge for every row. Capped and
+                  // ellipsised with the whole string on hover, which is what
+                  // §5.4 does with a node's notes for the same reason.
+                  DataCell(_Description(text: row.partDescription)),
                   // Blank throughout means a run made before schema v12, which
                   // did not record any of this (§16.13). A dash, never a
                   // guess.
@@ -505,6 +519,8 @@ class _PlanTable extends StatelessWidget {
                   DataCell(Text(date(row.materialDate))),
                   DataCell(Text(date(row.orderStart))),
                   DataCell(Text(date(row.delivery))),
+                  DataCell(Text(_duration(l10n, row.theoreticalLeadTime))),
+                  DataCell(Text(_duration(l10n, row.actualLeadTime))),
                   // The one figure here that is a verdict rather than a fact,
                   // so late is coloured. Positive is early (§8).
                   DataCell(
@@ -522,6 +538,42 @@ class _PlanTable extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The plan's Description cell: capped, ellipsised, whole text on hover.
+///
+/// A `DataTable` sizes every column to its widest cell, and a part description
+/// is free text with no length limit — so one long one would widen this column
+/// for all 33 rows and push Float past the right edge. The cap is the same
+/// answer §5.4 gave a node's notes: show that there is one, and put the words
+/// where asking for them costs nothing.
+///
+/// A blank is a dash, and means two things that read the same: nobody typed a
+/// description, or the run predates v13 and did not record one (§16.14).
+class _Description extends StatelessWidget {
+  const _Description({required this.text});
+
+  final String? text;
+
+  static const _maxWidth = 200.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = text;
+    if (value == null || value.isEmpty) return const Text('—');
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maxWidth),
+      // Unconditional, including on a description short enough to be fully
+      // visible. Showing it only when truncated would mean measuring the text
+      // against the cap on every build to save the reader a tooltip that
+      // repeats what they can already read, which is not worth a TextPainter.
+      child: Tooltip(
+        message: value,
+        child: Text(value, overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
     );
   }

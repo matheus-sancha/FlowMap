@@ -1472,6 +1472,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simPlanOrderEnd => 'Fim';
 
   @override
+  String get simPlanTheoreticalLeadTime => 'LT teórico';
+
+  @override
+  String get simPlanActualLeadTime => 'LT real';
+
+  @override
   String simDispatchOverrides(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

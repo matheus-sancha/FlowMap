@@ -702,12 +702,30 @@ output, and the inconsistency becomes permanent once it is in three `.arb` files
 
 ### 8.5 The production plan — orders over time
 
-`Order | Part Number | Project | Batch Number | Batch Size | Need Date | Material Date | Order Start
-| Order End | Float`, a section of the Simulation tab's results.
+`Order | Part Number | Description | Project | Batch Number | Batch Size | Need Date | Material
+Date | Order Start | Order End | Theoretical LT | Actual LT | Float`, a section of the Simulation
+tab's results.
 
 - **A reading of a stored run, not of the demand.** It reads `simulation_run_orders`, so its dates
   cannot disagree with the run that produced them and opening an earlier run from the history menu
-  opens its plan with it. Four of its columns are the copy-in §16.13 added for exactly this.
+  opens its plan with it. Four of its columns are the copy-in §16.13 added for exactly this, and
+  Description is §16.14's.
+- **Description is capped and ellipsised, with the whole string on hover.** Free text with no
+  length limit in a table that sizes each column to its widest cell: uncapped, one long description
+  widens that column for every row and pushes Float off the right edge. The same answer §5.4 gave a
+  node's notes, so the app has one way of putting long free text in a narrow place. It identifies
+  nothing — two parts may share one (§16.14) — so nothing is lost by not reading it in full.
+- **Both lead times, theoretical first.** Theoretical is the stored §7.9 walk, queue-free and
+  changeover-free, from this order's own release. Actual is Order End minus Order Start, read off
+  the outcome rather than stored, so it cannot come from a different subtraction than the tab's
+  average lead time. Both are wall-clock from the same instant, so they are directly comparable, and
+  **theoretical can never exceed actual** — the excess is exactly the queueing, which is why the two
+  sit side by side. Both render through the same formatter the metrics card uses for the same two
+  figures, so §17.4's one-kind-of-day rule holds by construction rather than by care.
+
+_Rejected: a third column for actual ÷ theoretical, or for actual − theoretical._ Either only
+restates the pair, on a table already scrolling horizontally at thirteen columns. The ratio is
+already reported for the run as a whole on the metrics card.
 - **Order is the sequence position, 1-based** — the number the demand grid's row header shows, and
   not a works order number. §9.1's decision that FlowMap carries none of those still holds; Batch
   Number is what a planner matches against their own paperwork.
@@ -727,8 +745,10 @@ output, and the inconsistency becomes permanent once it is in three `.arb` files
   line's plan. §7.2 releases strictly from the head with no reordering, so within a study release
   order *is* sequence order — "over time" needs no sort that could disagree with the Order column,
   and no Study column is needed. The heading appears only when a run carries more than one.
-- **A run stored before v12 shows dashes in four columns.** It did not record them, and that is
-  what a blank says. Backfilling from today's demand would make one run a hybrid of two moments.
+- **A run stored before v12 shows dashes in four columns, and before v13 in a fifth.** It did not
+  record them, and that is what a blank says. Backfilling from today's demand would make one run a
+  hybrid of two moments. A dash in Description is doubly ambiguous — it may equally mean nobody
+  typed one — and that is tolerable precisely because the field identifies nothing.
 
 _Rejected: a flat table sorted by start date across studies._ It shows the true interleaving of the
 plant, which §7.7 exists to model — but it answers "what does the plant do next" when the person

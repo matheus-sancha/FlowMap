@@ -439,6 +439,20 @@ void main() {
     expect(first.delivery, first.outcome.delivered);
     expect(first.float, first.outcome.float);
 
+    // Actual lead time is order end minus order start, read from the outcome
+    // rather than stored, so the column and the tab's average cannot come from
+    // two different subtractions.
+    expect(first.actualLeadTime, first.outcome.leadTime);
+
+    // Theoretical is the stored §7.9 walk, and it is walked from this order's
+    // own release with no queueing and no changeover. So it can never exceed
+    // what actually happened — the excess is precisely the waiting, which is
+    // the whole reason both columns sit side by side.
+    expect(first.theoreticalLeadTime, isNotNull);
+    expect(
+      first.theoreticalLeadTime!, lessThanOrEqualTo(first.actualLeadTime!),
+    );
+
     // An order with no batch number simply has none — a label, not identity.
     expect(plan[1].batchNumber, isNull);
     expect(plan[1].batchSize, 1);

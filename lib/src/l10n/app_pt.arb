@@ -494,6 +494,8 @@
   "simPlanOrder": "Ordem",
   "simPlanOrderStart": "Início",
   "simPlanOrderEnd": "Fim",
+  "simPlanTheoreticalLeadTime": "LT teórico",
+  "simPlanActualLeadTime": "LT real",
   "simDispatchOverrides": "{count, plural, =1{1 estação com regra própria} other{{count} estações com regra própria}}",
   "@simDispatchOverrides": { "placeholders": { "count": { "type": "int" } } },
   "simDispatchOverrideRow": "{name}: {rule}",

@@ -321,6 +321,9 @@ class SimulationRunsRepository {
               batchNumber: row.batchNumber,
               batchSize: row.batchSize,
               materialDate: row.materialDate,
+              theoreticalLeadTime: row.theoreticalSeconds == null
+                  ? null
+                  : Duration(seconds: row.theoreticalSeconds!),
             ),
       ]..sort((a, b) => a.outcome.sequence.compareTo(b.outcome.sequence)),
       metrics: summariseRun(
@@ -415,6 +418,7 @@ class ProductionPlanRow {
     required this.batchNumber,
     required this.batchSize,
     required this.materialDate,
+    required this.theoreticalLeadTime,
   });
 
   final SimOrderOutcome outcome;
@@ -436,6 +440,20 @@ class ProductionPlanRow {
   DateTime? get orderStart => outcome.released;
 
   DateTime? get delivery => outcome.delivered;
+
+  /// §7.9's queue-free walk for this order, as the run stored it.
+  ///
+  /// Null when the run could not cost the order — it never released, or a step
+  /// had no process time — which is the same set of rows [actualLeadTime]
+  /// is null for, bar the orders that released and never finished.
+  final Duration? theoreticalLeadTime;
+
+  /// Order end minus order start: the wall-clock time this order was in the
+  /// flow. Read from [outcome] rather than stored, so the column and the tab's
+  /// average lead time cannot come from two different subtractions.
+  ///
+  /// The gap between this and [theoreticalLeadTime] is what the order queued.
+  Duration? get actualLeadTime => outcome.leadTime;
 
   /// Slack against the need date: positive is early (§8).
   Duration? get float => outcome.float;

@@ -2634,6 +2634,18 @@ abstract class AppLocalizations {
   /// **'Order end'**
   String get simPlanOrderEnd;
 
+  /// No description provided for @simPlanTheoreticalLeadTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Theoretical LT'**
+  String get simPlanTheoreticalLeadTime;
+
+  /// No description provided for @simPlanActualLeadTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual LT'**
+  String get simPlanActualLeadTime;
+
   /// No description provided for @simDispatchOverrides.
   ///
   /// In en, this message translates to:

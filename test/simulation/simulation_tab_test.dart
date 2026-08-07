@@ -98,6 +98,7 @@ void main() {
             batchNumber: 'B-00${outcome.sequence}',
             batchSize: 4,
             materialDate: DateTime(2026, 8, 1),
+            theoreticalLeadTime: const Duration(hours: 6),
           ),
       ],
       metrics: summariseRun(
@@ -242,6 +243,19 @@ void main() {
     expect(find.text('B-000'), findsOne);
     expect(find.text('B-003'), findsOne);
     expect(find.text('Wing 7'), findsWidgets);
+
+    // The description rides in on the same snapshot, and is read from the run
+    // rather than from the part it names (§16.14).
+    expect(find.text('Description'), findsOne);
+    expect(find.text('PWB 10K'), findsWidgets);
+
+    // Both lead times, theoretical first. Actual is order end minus order
+    // start, so it is not the stored figure beside it — the two disagreeing is
+    // the queueing, which is the reason both columns are here.
+    expect(find.text('Theoretical LT'), findsOne);
+    expect(find.text('Actual LT'), findsOne);
+    expect(find.text('Order end'), findsOne);
+    expect(find.text('Delivery'), findsNothing);
   });
 
   testWidgets('a run stored before v12 shows dashes, not invented data', (
@@ -276,6 +290,7 @@ void main() {
               batchNumber: null,
               batchSize: null,
               materialDate: null,
+              theoreticalLeadTime: null,
             ),
         ],
       ),

@@ -364,7 +364,24 @@ shorten `Order start` to `Inicio` / `Início`, so they take `Fin` / `Fim`.
 different question from when the order came off the last station, and OTD is the term the industry
 uses. One label, three files, no migration.
 
-### 2.3 The Production Plan's three new columns
+### 2.3 The Production Plan's three new columns — **done 2026-08-06**
+
+Landed as described; §8.5 rewritten. Two things worth keeping:
+
+- **`theoretical_seconds` was stored but never read back onto a plan row.** It reached `summariseRun`
+  as an aggregate map and stopped there, so the column needed a field on `ProductionPlanRow` — the
+  same "stored by someone, read by nobody" shape §1.5 found in v12's four columns, one layer up.
+  Actual lead time needed nothing: it is `outcome.leadTime`, defined once already.
+- **Theoretical ≤ actual is a real invariant, now asserted.** Both are wall-clock from the same
+  release instant, and theoretical excludes queueing and changeover, so it cannot exceed what
+  happened. That single assertion in `run_storage_test` is worth more than checking the figures
+  render, because it is the property that makes the two columns mean anything side by side.
+
+The description cell's tooltip is unconditional, including on a description short enough to be
+fully visible. Showing it only when truncated means measuring the text against the cap on every
+build, to save the reader a tooltip that repeats what they can already read.
+
+
 
 `Order | Part Number | Description | Project | Batch Number | Batch Size | Need Date | Material
 Date | Order Start | Order End | Theoretical LT | Actual LT | Float`
