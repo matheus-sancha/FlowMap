@@ -186,7 +186,20 @@ the kanban icon's, applied to the connections:
 |---|---|---|
 | **Push** — hatched shaft | the default | With no supermarkets in the model (§5.5) and no WIP cap, material moves downstream whether or not the next step asked. The hatching *is* the mark of a push, so the map now says on purpose what it used to say by accident. |
 | **Pull** — bare shaft | the study has a CONWIP cap (§7.3) | A release that requires a completion is a pull system. It is study-wide, so it reaches every link. |
-| **FIFO lane** — bare shaft, divider, labelled | the station the link feeds is **explicitly** set to FIFO (§7.4) | Someone decided that queue runs in arrival order, and a sequenced lane is what that is. |
+| **FIFO lane** — a channel: two rails, `FIFO` between them, a tick in and a solid triangle out | the station the link feeds is **explicitly** set to FIFO (§7.4) | Someone decided that queue runs in arrival order, and a sequenced lane is what that is. |
+
+**Push and pull share a shaft; a FIFO lane does not.** This section used to say all three were one
+shaft told apart by what went inside it, and the drawing followed: a hatched arrow with a divider
+line and the word written above. That was a principle invented to describe an implementation. A
+reader of a real value stream map recognises a FIFO lane as a *channel* — a fixed width, so it holds
+a sequence rather than a pile; an entry mark and an exit mark that differ, so it has a direction —
+and none of that is available to an arrow. So the lane is its own figure, and the two that genuinely
+are variants of one shaft remain variants of one shaft.
+
+Its stroke is 1.2 px, the same weight as the factory, the inventory triangle and the pool badge,
+for the reason §1.7 gave the badge: a symbol drawn in a different weight reads as pasted onto the
+map rather than part of it. The lane is sized to the 64 px gap the layout leaves between nodes, and
+drops its label rather than overrunning its own rails when a gap is narrower than the word.
 
 - **The kind belongs to the arrow's destination.** A queue forms in front of a station, so it is that
   station's discipline the lane describes. The last link runs into the customer, which is not a

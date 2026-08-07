@@ -58,18 +58,21 @@ abstract final class VsmSymbols {
 
   /// A material-flow arrow, drawn as the [kind] it is (DESIGN.md §5.2).
   ///
-  /// All three share one shaft — a broad arrow spanning the whole gap between
-  /// two nodes rather than a hairline, which is the VSM convention: material
-  /// moving is a substantial thing on the map. What tells them apart is what
-  /// the notation itself uses:
+  /// **Push and pull share one shaft; a FIFO lane is its own figure.** This
+  /// file long said all three shared a shaft and were told apart by what went
+  /// inside it, which was a principle invented to describe an implementation
+  /// rather than the notation. A reader of a real value stream map recognises a
+  /// FIFO lane as a channel, not as a decorated arrow, so it is drawn as one:
   ///
-  /// * **push** — the shaft is hatched. The stripes *are* the mark of a push;
-  ///   without a supermarket in the model (§5.5) this is what an uncapped flow
-  ///   honestly is.
+  /// * **push** — a broad barbed arrow spanning the gap, hatched. The stripes
+  ///   *are* the mark of a push; without a supermarket in the model (§5.5) this
+  ///   is what an uncapped flow honestly is.
   /// * **pull** — the same shaft, bare. A CONWIP cap (§7.3) makes a release
   ///   wait for a completion, so nothing is being pushed anywhere.
-  /// * **fifoLane** — a bare shaft with a divider down it and `FIFO` written
-  ///   above, which is how a sequenced lane is labelled on a real map.
+  /// * **fifoLane** — two rails with `FIFO` between them, a tick inside the
+  ///   entry and a solid triangle at the exit. Material enters one end in the
+  ///   order it arrived and leaves the other in that same order, which is what
+  ///   the channel draws and what an arrow cannot.
   ///
   /// Horizontal only, which the spine always is (§5.1). Taking the general case
   /// would mean rotating the hatching for no drawing this app makes.
@@ -84,6 +87,12 @@ abstract final class VsmSymbols {
   }) {
     final span = to.dx - from.dx;
     if (span <= 1) return;
+
+    // Not a variant of the shaft below, so it leaves before the shaft is built.
+    if (kind == FlowConnectionKind.fifoLane) {
+      _fifoLane(canvas, from, to, color: color);
+      return;
+    }
 
     // A gap narrower than the head is all head: better a small arrowhead than
     // a shaft folded back on itself.
@@ -136,14 +145,87 @@ abstract final class VsmSymbols {
         break;
 
       case FlowConnectionKind.fifoLane:
-        canvas.drawLine(
-          Offset(from.dx, from.dy),
-          Offset(shaftRight, from.dy),
-          Paint()
-            ..color = color.withValues(alpha: 0.45)
-            ..strokeWidth = 0.8,
-        );
-        _label(canvas, 'FIFO', Offset((from.dx + to.dx) / 2, from.dy - half - 11), color);
+        // Handled above — it is not this shape at all.
+        break;
+    }
+  }
+
+  /// The FIFO lane: two rails, `FIFO` between them, a tick in and a point out.
+  ///
+  /// The channel is what carries the meaning. Everything a queue in arrival
+  /// order needs to say is in the picture — a fixed width, so it holds a
+  /// sequence rather than a pile; an entry and an exit that are different marks,
+  /// so it has a direction; and the word, because a lane that is not labelled
+  /// is just a line.
+  ///
+  /// Sized to fit the 64 px gap `FlowMetrics` leaves between nodes: the tick and
+  /// the point take about 9 px each and `FIFO` at 8 pt takes about 22, so the
+  /// three sit inside the narrowest gap the layout ever produces. A lane too
+  /// short to hold them drops the label rather than overrunning its own rails.
+  static void _fifoLane(
+    Canvas canvas,
+    Offset from,
+    Offset to, {
+    required Color color,
+    double height = 18,
+  }) {
+    final half = height / 2;
+    final stroke = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    canvas
+      ..drawLine(
+        Offset(from.dx, from.dy - half),
+        Offset(to.dx, from.dy - half),
+        stroke,
+      )
+      ..drawLine(
+        Offset(from.dx, from.dy + half),
+        Offset(to.dx, from.dy + half),
+        stroke,
+      );
+
+    const mark = 9.0;
+    final span = to.dx - from.dx;
+
+    // Entry: a short bar, thicker than the rails so it reads as a mark on the
+    // lane rather than as a rail that stopped early.
+    canvas.drawLine(
+      Offset(from.dx + 2, from.dy),
+      Offset(from.dx + math.min(mark, span / 2), from.dy),
+      Paint()
+        ..color = color
+        ..strokeWidth = 2.4,
+    );
+
+    // Exit: a filled triangle. Solid rather than stroked, because it is the one
+    // part of the figure that says which way the queue runs.
+    final apex = to.dx - 2;
+    final base = apex - math.min(mark - 2, span / 3);
+    canvas.drawPath(
+      Path()
+        ..moveTo(apex, from.dy)
+        ..lineTo(base, from.dy - 4)
+        ..lineTo(base, from.dy + 4)
+        ..close(),
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+
+    // Between the two marks, not between the rail ends, so the word stays
+    // clear of both. Dropped entirely when the lane is too short to hold it.
+    final inner = base - (from.dx + mark);
+    if (inner >= 24) {
+      _label(
+        canvas,
+        'FIFO',
+        Offset((from.dx + mark + base) / 2, from.dy),
+        color,
+        centreVertically: true,
+      );
     }
   }
 

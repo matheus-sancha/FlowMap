@@ -436,7 +436,22 @@ because "times, quantities, dates read better that way", and that is truer where
 a column of process times for the one that is wrong is what a ragged left edge is *for*. Centring
 those would make `numeric` dead code and take the outlier with it.
 
-### 2.5 The FIFO lane becomes its own figure
+### 2.5 The FIFO lane becomes its own figure — **done 2026-08-06**
+
+Landed as described; §5.2 amended, including its table row. The condition is untouched — only an
+explicitly stored FIFO draws a lane — so `flow_view.dart` and its six tests were not opened.
+
+- **The drawing was checked by rendering it**, not by reading the arithmetic. A throwaway test drew
+  all three kinds at both the narrowest gap the layout produces (64 px) and a wide one, wrote a PNG,
+  and it was looked at. Worth doing again for any symbol change: the geometry compiled and analysed
+  cleanly in a first version whose label sat outside its own rails. `VsmSymbols` has no tests and
+  neither do `factory` or `inventoryTriangle`, which is the file's standing convention — kind
+  *selection* is tested, shape is looked at.
+- **1.2 px rails, not the heavier stroke of the reference clip-art.** §1.7 made the pool badge 1.2
+  precisely so a symbol reads as part of one drawing rather than pasted onto it, and a bolder lane
+  would undo that for the sake of matching a picture that was never drawn to this map's weights.
+
+
 
 The lane drawn by §1.6 is the shared broad arrow plus a divider line and `FIFO` written above it.
 The notation's actual symbol is a channel: two long rails, `FIFO` centred **between** them, a short
