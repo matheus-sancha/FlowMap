@@ -214,7 +214,6 @@ class _PartsGrid extends ConsumerWidget {
                   ),
             columns: [
               DataGridColumn(title: l10n.demandPartNumber, width: 150),
-              DataGridColumn(title: l10n.demandProject, width: 150),
               DataGridColumn(title: l10n.demandDescription, width: 200),
               for (final column in table.columns)
                 DataGridColumn(
@@ -248,7 +247,6 @@ class _PartsGrid extends ConsumerWidget {
     if (row >= table.parts.length) return '';
     final part = table.parts[row];
     if (column == partNumberColumn) return part.partNumber;
-    if (column == partProjectColumn) return part.customerProject;
     if (column == partDescriptionColumn) return part.description ?? '';
     if (column == _totalColumn) {
       return formatDurationInput(table.totalFor(part.id));
@@ -273,9 +271,7 @@ class _PartsGrid extends ConsumerWidget {
       );
       return clash >= 0 && clash != row ? l10n.validationNameTaken : null;
     }
-    if (column == partProjectColumn ||
-        column == partDescriptionColumn ||
-        column == _totalColumn) {
+    if (column == partDescriptionColumn || column == _totalColumn) {
       return null;
     }
     if (text.isEmpty) return null;
@@ -423,7 +419,7 @@ class _SequenceGrid extends ConsumerWidget {
     final part = table.parts.where((p) => p.id == order.partId).firstOrNull;
     return switch (column) {
       orderPartColumn => part?.partNumber ?? '',
-      orderProjectColumn => part?.customerProject ?? '',
+      orderProjectColumn => order.customerProject ?? '',
       orderBatchNumberColumn => order.batchNumber ?? '',
       orderBatchColumn => '${order.batchSize}',
       orderNeedColumn => formatDateInput(order.needDate, locale),
@@ -444,25 +440,20 @@ class _SequenceGrid extends ConsumerWidget {
 
     switch (column) {
       case orderPartColumn:
-      case orderProjectColumn:
-        // Neither half identifies a part on its own, so both cells report the
-        // same thing: whether the pair names one this study carries.
-        final number = column == orderPartColumn
-            ? text
-            : _valueAt(orders, row, orderPartColumn, locale).trim();
-        final project = column == orderProjectColumn
-            ? text
-            : _valueAt(orders, row, orderProjectColumn, locale).trim();
-        if (number.isEmpty) {
+        // The number alone names the part since v14 (§9.3).
+        if (text.isEmpty) {
           return isNewRow ? null : l10n.validationRequired;
         }
         return table.parts.any(
-              (p) =>
-                  p.partNumber.toLowerCase() == number.toLowerCase() &&
-                  p.customerProject.toLowerCase() == project.toLowerCase(),
+              (p) => p.partNumber.toLowerCase() == text.toLowerCase(),
             )
             ? null
             : l10n.validationUnknownPart;
+      case orderProjectColumn:
+        // Never an error, for the reason the batch number is not: it is the
+        // planner's own label on this order, nothing matches on it, and blank
+        // is a legitimate answer (§9.3).
+        return null;
       case orderBatchNumberColumn:
         // Never an error. It is the planner's own label, nothing matches on
         // it, and blank is a legitimate answer — so an explicit arm rather

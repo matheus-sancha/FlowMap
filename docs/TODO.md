@@ -3,8 +3,8 @@
 Working state as of 2026-08-06. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 501 tests passing, not pushed.
-Schema is at **v12**; §2 takes it to v13. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 515 tests passing, not pushed.
+Schema is at **v14**. M4 is code-complete.
 
 **The Release bundle is current, and v12 is on the real database.** Both were done late on
 2026-08-05 and this file did not record it — checked 2026-08-06 and written down here so it is not
@@ -503,6 +503,42 @@ records, arriving from the other direction.
 The sidebar is an `AnimatedSize` over 160 ms, so this refits about ten times across the animation
 and the map follows the pane rather than snapping after it. Nothing needs plumbing down from the
 workspace: `LayoutBuilder` already sees the width change.
+
+### 2.6b The project moves to the order — schema v14 — **done 2026-08-06**
+
+Not in the original six. Field feedback while driving the build: the Parts grid carried a Project
+column that was empty in every real row, because a project is what a *batch* is for, not what a part
+is. §9.3 rewritten, §16.15 new.
+
+Settled by interview before any of it was written, and the answer was the larger of the two on
+offer: the column does not merely move off the grid, the project stops identifying a part.
+`demand_parts` keys on `(study, part_number)`; `demand_orders` carries the project as a label beside
+the batch number. That reversed v10, which had put the project *into* the key eleven versions
+earlier.
+
+Three things worth keeping:
+
+- **A `TableMigration` in an old step is a hostage to every column ever *removed*, not only to every
+  column added.** §16.13 warned about the second; this found the first. The v10 step rebuilt
+  `demand_parts` from the **current** Dart definition to put the project in the key — and with the
+  column gone from that definition, replaying it would have destroyed the very values v14 exists to
+  move onto the orders. It had to be deleted outright rather than amended. The v9 step's
+  `_ensureColumn` had to become raw SQL for the same reason: Drift cannot name a column the current
+  definition does not have, and the step still has to run so v14 has something to read.
+- **`duplicateStudy` was silently dropping `batch_number`, and had been since §1.4 added it.** It
+  copied the figures the engine reads and none of the labels a planner matches against their own
+  paperwork. Found only because the new test asked whether the *project* survived a study copy — the
+  batch number was sitting beside it, lost the whole time. Both are copied now, and both asserted.
+- **The twin case is the whole risk of the migration**, so it is fixtured: two parts differing only
+  by project, each with its own process times, one order for each. Both survive, the later renamed
+  `PN2 (Wing 9)`, and every order still points where it pointed. Merging them would have handed
+  every order of one the other's process times without saying so.
+
+Left standing: a rename that collides with a part number already in the study would fail the new
+unique key. It needs a part literally named `PN2 (Wing 9)` alongside the twins, and is not worth the
+SQL to prevent.
+
+515 tests.
 
 ### 2.7 The Gantt
 

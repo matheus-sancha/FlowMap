@@ -14,10 +14,14 @@ import '../data/demand_repository.dart';
 import 'demand_table.dart';
 
 /// Fixed columns of the parts grid, before the flow's steps begin.
+///
+/// The customer project was here until v14 and is not a property of a part
+/// (§9.3), so it went to the sequence with the orders. That shifted
+/// [partDescriptionColumn] 2 -> 1 and [firstStepColumn] 3 -> 2, so a paste
+/// block a user habitually anchored at a column now lands one to the left.
 const partNumberColumn = 0;
-const partProjectColumn = 1;
-const partDescriptionColumn = 2;
-const firstStepColumn = 3;
+const partDescriptionColumn = 1;
+const firstStepColumn = 2;
 
 /// Columns of the sequence grid.
 ///
@@ -60,14 +64,10 @@ DemandPartsPlan planPartsWrite({
   // already in the table writes into them rather than colliding with the
   // unique key.
   //
-  // Keyed by project **and** number: the same part number under two customer
-  // projects is two parts (§9.3).
-  final known = <String, ({String project, String number})>{
-    for (final part in table.parts)
-      partKeyOf(part.customerProject, part.partNumber): (
-        project: part.customerProject,
-        number: part.partNumber,
-      ),
+  // Keyed by number alone since v14: a part number means one part inside a
+  // study, and the project it is ordered for lives on the order (§9.3).
+  final known = <String, String>{
+    for (final part in table.parts) partKeyOf(part.partNumber): part.partNumber,
   };
 
   for (var r = 0; r < block.length; r++) {
@@ -80,7 +80,6 @@ DemandPartsPlan planPartsWrite({
     }
 
     final typedNumber = cellAt(partNumberColumn)?.trim();
-    final typedProject = cellAt(partProjectColumn)?.trim();
     final typedDescription = cellAt(partDescriptionColumn)?.trim();
     final existing = rowIndex < table.parts.length
         ? table.parts[rowIndex]
@@ -90,30 +89,27 @@ DemandPartsPlan planPartsWrite({
     if (existing == null) {
       if (typedNumber == null || typedNumber.isEmpty) continue;
 
-      final project = typedProject ?? '';
-      partKey = partKeyOf(project, typedNumber);
+      partKey = partKeyOf(typedNumber);
       if (!known.containsKey(partKey)) {
         parts.add(
           PartWrite(
             id: null,
             partNumber: typedNumber,
-            customerProject: project,
             description: (typedDescription?.isEmpty ?? true)
                 ? null
                 : typedDescription,
           ),
         );
-        known[partKey] = (project: project, number: typedNumber);
+        known[partKey] = typedNumber;
       }
     } else {
       final number = (typedNumber == null || typedNumber.isEmpty)
           ? existing.partNumber
           : typedNumber;
-      final project = typedProject ?? existing.customerProject;
-      final wanted = partKeyOf(project, number);
-      final was = partKeyOf(existing.customerProject, existing.partNumber);
+      final wanted = partKeyOf(number);
+      final was = partKeyOf(existing.partNumber);
 
-      // Renaming onto a pair the study already carries would hit the unique
+      // Renaming onto a number the study already carries would hit the unique
       // key inside an async callback, where the user sees nothing happen. The
       // cell reports it; the plan keeps what was there.
       final collides = wanted != was && known.containsKey(wanted);
@@ -129,7 +125,6 @@ DemandPartsPlan planPartsWrite({
           PartWrite(
             id: existing.id,
             partNumber: renamed ? number : existing.partNumber,
-            customerProject: renamed ? project : existing.customerProject,
             description: redescribed
                 ? (typedDescription.isEmpty ? null : typedDescription)
                 : existing.description,
@@ -137,7 +132,7 @@ DemandPartsPlan planPartsWrite({
         );
         if (renamed) {
           known.remove(was);
-          known[wanted] = (project: project, number: number);
+          known[wanted] = number;
         }
       }
     }
@@ -181,10 +176,7 @@ List<OrderWrite> planSequenceWrite({
   required List<List<String>> block,
   required String locale,
 }) {
-  final byKey = {
-    for (final part in parts)
-      partKeyOf(part.customerProject, part.partNumber): part.id,
-  };
+  final byKey = {for (final part in parts) partKeyOf(part.partNumber): part.id};
   final byId = {for (final part in parts) part.id: part};
   final writes = <OrderWrite>[];
 
@@ -199,16 +191,15 @@ List<OrderWrite> planSequenceWrite({
 
     final existing = rowIndex < orders.length ? orders[rowIndex] : null;
 
-    // Both halves of the part's identity, each falling back to what the
-    // existing row already points at (§9.3).
+    // The part number alone says which part this order is for since v14. The
+    // project no longer takes part in that lookup — it is a label on this row
+    // (§9.3), read further down with the other optional cells.
     final was = existing == null ? null : byId[existing.partId];
     final typedPart = cellAt(orderPartColumn)?.trim();
-    final typedRowProject = cellAt(orderProjectColumn)?.trim();
     final number = (typedPart == null || typedPart.isEmpty)
         ? was?.partNumber
         : typedPart;
-    final project = typedRowProject ?? was?.customerProject ?? '';
-    final partId = number == null ? null : byKey[partKeyOf(project, number)];
+    final partId = number == null ? null : byKey[partKeyOf(number)];
     if (partId == null) continue;
 
     final typedNeed = cellAt(orderNeedColumn)?.trim();
@@ -242,6 +233,13 @@ List<OrderWrite> planSequenceWrite({
         ? existing?.batchNumber
         : (typedBatchNumber.trim().isEmpty ? null : typedBatchNumber.trim());
 
+    // Same rule again, now that the project is a label like the batch number
+    // rather than half of which part this is.
+    final typedProject = cellAt(orderProjectColumn);
+    final customerProject = typedProject == null
+        ? existing?.customerProject
+        : (typedProject.trim().isEmpty ? null : typedProject.trim());
+
     writes.add(
       OrderWrite(
         id: existing?.id,
@@ -250,6 +248,7 @@ List<OrderWrite> planSequenceWrite({
         materialDate: materialDate,
         batchSize: batchSize,
         batchNumber: batchNumber,
+        customerProject: customerProject,
       ),
     );
   }

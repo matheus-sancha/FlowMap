@@ -316,22 +316,6 @@ class DemandParts extends Table {
   /// `PN2` — what the sequence, the MM3 chart and every report call it.
   TextColumn get partNumber => text().withLength(min: 1, max: 100)();
 
-  /// The **customer's** project this part belongs to — their programme or
-  /// contract, not the FlowMap project this study sits in.
-  ///
-  /// **Part of the part's identity**, not a label on it: a part number is the
-  /// id of a part or a piece of equipment, and different clients' projects
-  /// legitimately order the same one. `PN2 on Wing 7` and `PN2 on Wing 9` are
-  /// two rows of demand with their own process times and their own place in the
-  /// sequence.
-  ///
-  /// **Empty string rather than null**, for the reason
-  /// [CalendarExceptions.scopeId] is: SQLite treats NULLs as distinct in a
-  /// UNIQUE constraint, so a nullable column would let two unprojected `PN2`s
-  /// exist side by side — the exact duplicate the key below exists to prevent.
-  TextColumn get customerProject =>
-      text().withDefault(const Constant(''))();
-
   TextColumn get description => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -341,9 +325,13 @@ class DemandParts extends Table {
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
-    // Project **and** number, because that pair is what identifies a part to
-    // the planner and what an imported row has to match on (§9).
-    {studyId, customerProject, partNumber},
+    // The number alone, since v14. It used to be project **and** number, on the
+    // argument that different customers' projects legitimately order the same
+    // part number and those are two parts with their own process times. The
+    // field disagreed: a part is a part, and the project is something the
+    // *order* is for — so it moved to [DemandOrders.customerProject] and a part
+    // number now means one part inside a study (§9.3, §16.15).
+    {studyId, partNumber},
   ];
 }
 
@@ -402,9 +390,7 @@ class DemandOrders extends Table {
   /// `LOT7`, whatever their system calls it.
   ///
   /// **A label, not identity**, which is what makes it nullable and unkeyed.
-  /// [DemandParts.customerProject] is part of a part's identity because a part
-  /// number alone is genuinely ambiguous (§9.3); a batch number is not, because
-  /// the order it names already has an identity — its place in the sequence,
+  /// The order it names already has an identity — its place in the sequence,
   /// which is what the engine releases from and what the Production Plan's
   /// `Order` column shows. So two orders may carry the same batch number, or
   /// none, and nothing downstream matches on it.
@@ -414,6 +400,18 @@ class DemandOrders extends Table {
   /// the simulation identified by row anyway, but a planner reading a printed
   /// plan does need the number their paperwork is filed under.
   TextColumn get batchNumber => text().nullable()();
+
+  /// The **customer's** project this order is for — their programme or
+  /// contract, not the FlowMap project the study sits in (§3).
+  ///
+  /// **On the order since v14, and a label like [batchNumber].** It sat on the
+  /// part until then, as half of what identified one, on the argument that
+  /// `PN2 on Wing 7` and `PN2 on Wing 9` were two parts with their own process
+  /// times. In the field a part number means one part: the times are the
+  /// part's, and the project is what a given batch of it is *for*. So it is
+  /// nullable and unkeyed — two orders may name the same project or none, and
+  /// nothing matches a part on it any more (§9.3, §16.15).
+  TextColumn get customerProject => text().nullable()();
 
   DateTimeColumn get needDate => dateTime()();
 

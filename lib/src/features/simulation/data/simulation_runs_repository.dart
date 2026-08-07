@@ -60,10 +60,6 @@ class SimulationRunsRepository {
       for (final study in studies)
         for (final part in study.parts.values) part.id: part.partNumber,
     };
-    final customerProjects = {
-      for (final study in studies)
-        for (final part in study.parts.values) part.id: part.customerProject,
-    };
     final descriptions = {
       for (final study in studies)
         for (final part in study.parts.values)
@@ -123,7 +119,9 @@ class SimulationRunsRepository {
               sequence: order.sequence,
               partId: order.partId,
               partNumber: partNumbers[order.partId] ?? order.partId,
-              customerProject: Value(customerProjects[order.partId]),
+              customerProject: Value(
+                ordersById[order.orderId]?.customerProject,
+              ),
               partDescription: Value(descriptions[order.partId]),
               batchNumber: Value(ordersById[order.orderId]?.batchNumber),
               batchSize: Value(ordersById[order.orderId]?.batchSize),

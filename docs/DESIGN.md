@@ -816,20 +816,32 @@ column and removing one hides the values without destroying them.
 
 ### 9.3 What identifies a part
 
-A part number is the id of a part or a piece of equipment, and different clients' projects
-legitimately order the same one. So a part is identified inside a study by **project and number
-together** — `PN2 on Wing 7` and `PN2 on Wing 9` are two rows of demand, with their own process
-times and their own places in the sequence.
+A part number identifies **one part** inside a study. The unique key is `(study, part number)`, and
+the customer's project — their programme or contract — is a label on the **order**, because what a
+project describes is what a batch is *for*, not what the part is.
 
-- The unique key is `(study, customer project, part number)`, and `customer_project` is **not
-  nullable** — empty string, for the reason `calendar_exceptions.scope_id` is (§16.2): SQLite treats
-  NULLs as distinct in a UNIQUE constraint, so two unprojected `PN2`s would both be allowed.
-- Everything that matches a part matches on the pair: the paste planner, the import's part lookup,
-  and the sequence grid's validation. `partKeyOf` is the one place that spelling lives.
-- The Project column on the **sequence** is therefore editable, not a read-only echo of the part:
-  the number alone cannot say which part an order is for.
-- The customer's project is not the FlowMap project the study sits in, and never was — §3's project
-  is a plant plus a shift pattern.
+- **Everything that matches a part matches on the number alone.** The paste planner, the import's
+  part lookup and the sequence grid's validation all fold through `partKeyOf`, which is the one
+  place that spelling lives.
+- **The Project column lives only on the sequence**, beside Batch Number, and is a label like it:
+  nullable, unkeyed, blank allowed, and nothing downstream matches on it. Two orders of one part may
+  name different projects, which is the case the old model could not represent at all.
+- **It is not the FlowMap project the study sits in**, and never was — §3's project is a plant plus
+  a shift pattern.
+- The Parts grid is therefore `Part Number | Description | one column per step | Total`.
+
+_Rejected, and reversed in v14: project **and** number together identifying a part._ The argument
+was that a part number is the id of a part and different clients' projects legitimately order the
+same one, so `PN2 on Wing 7` and `PN2 on Wing 9` were two parts with their own process times and
+their own places in the sequence. The field disagreed. A part number means one part: the process
+times are a property of the part, not of who ordered it, and making the project part of the identity
+forced a planner to type `PN2` twice — and to maintain two sets of times — to say that one part goes
+to two programmes. It also put a Project column on the Parts grid that was empty in every real
+database, because nobody was using it the way the model assumed.
+
+The reversal is not free, and §16.15 records what it cost: a database that *did* carry twins has to
+keep both, since each has its own times and merging them would silently give every order of one the
+other's numbers.
 
 ### 9.2 The import, as built
 
@@ -1207,6 +1219,11 @@ Decisions taken while building it:
   because a project belongs to the part and two rows of one part must not disagree about it. Part
   numbers stay unique per study; if the same number recurs across two customer projects that key
   has to change, and it is worth deciding deliberately rather than discovering.
+
+  **v10 made that change, and v14 reversed both** (§9.3, §16.15): the project is a label on the
+  *order* now, and a part number identifies one part. The closing sentence above turned out to be
+  the right instinct pointed the wrong way — the recurrence it worried about is the normal case, and
+  the answer was to stop keying on the project rather than to key harder.
 - **MM3 shows the part's equivalence and the slot's load as two columns.** They were one, headed
   "Equivalent", carrying `eq(part) × batch` — so §6.2's quantity, which belongs to the part and does
   not move, appeared to drift between orders. Reported from the field as a calculation bug; it was a
@@ -1487,6 +1504,52 @@ than a decision being re-litigated.
   existed and nothing wrote: the assembly test asserts a `DemandPart`'s description reaches
   `SimPart`, and the run-storage test asserts it survives `saveRun` → `loadRun` and comes back on
   the plan row. Removing either half fails exactly one of them.
+
+### 16.15 Schema v14, from field feedback
+
+The customer's project moves from the part to the order (§9.3), reversing v10. `demand_parts` loses
+`customer_project` and keys on `(study, part_number)`; `demand_orders` gains it, nullable and
+unkeyed like `batch_number`.
+
+**Three steps, and their order is the migration.** The values have to be read off the parts before
+the column carrying them is dropped, and the numbers have to be made unique before a key demanding
+it is applied:
+
+1. Copy each order's project down from the part it is for. Blank becomes **null** — on the part an
+   empty string was forced by SQLite's UNIQUE treating NULLs as distinct (§16.2); on an order, in no
+   key at all, null is what "none" honestly is.
+2. Disambiguate twins. Two parts differing only by project are about to collide, and **both are
+   kept**: each has its own `part_process_times`, so merging them would silently give every order of
+   one the other's numbers, which is §11's one intolerable bug. The earliest keeps the number the
+   planner typed and the rest gain ` (project)`, so the rename is legible on the Parts grid rather
+   than mysterious. A part with no project falls back to a fragment of its id — ugly, unique, and
+   only reachable for an unprojected part that is not the earliest of its twins.
+3. Rebuild `demand_parts` from the current definition, which drops the column precisely by not
+   naming it, and takes the new key.
+
+**Two older steps had to change, and the second is the interesting one.**
+
+- The v9 step adds `customer_project` to `demand_parts`, and Drift can no longer name a column the
+  current definition does not have. It is raw SQL now, still guarded so it stays idempotent. The
+  step cannot simply be deleted: a database arriving from v8 has to grow the column here so v14 can
+  read it, and lose it there.
+- **The v10 step had to go entirely.** It rebuilt `demand_parts` to make the project non-null and
+  put it in the key — via `TableMigration`, which copies from the **current** Dart definition. That
+  definition no longer has the column, so replaying v10 would have *destroyed the very values v14
+  exists to move*. Nothing is lost by dropping it: every upgrade that would have run it now runs
+  v14, which rebuilds the same table with the right shape and key.
+
+That is the mirror image of §16.13's warning, and worth stating as its own rule: **a `TableMigration`
+in an old step is a hostage to every future column — and to every column ever removed.** Adding one
+needs a constant in its `columnTransformer`; removing one can invalidate the step altogether.
+`demand_orders`' new `customer_project` needed the constant, and is the second column to.
+
+_Rejected: merging twins onto one part._ Tidier, and the part numbers stay untouched — but the
+second part's process times vanish without the user being told, and every order that took 3 h at
+CLAD04 silently starts taking 4 h.
+
+_Rejected: refusing to migrate and naming the collisions._ Safest of all, and §16.11 is the record
+of what a database that cannot be opened costs.
 
 ---
 

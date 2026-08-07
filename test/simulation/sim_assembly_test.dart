@@ -56,27 +56,28 @@ void main() {
     updatedAt: now,
   );
 
-  DemandPart part(
-    String id,
-    String number, {
-    String project = '',
-    String? description,
-  }) => DemandPart(
+  DemandPart part(String id, String number, {String? description}) =>
+      DemandPart(
     id: id,
     studyId: 'study-1',
     partNumber: number,
-    customerProject: project,
     description: description,
     createdAt: now,
     updatedAt: now,
   );
 
-  DemandOrder order(int sequence, String partId, {int batch = 1}) => DemandOrder(
+  DemandOrder order(
+    int sequence,
+    String partId, {
+    int batch = 1,
+    String? project,
+  }) => DemandOrder(
     id: 'o$sequence',
     studyId: 'study-1',
     partId: partId,
     sequence: sequence,
     batchSize: batch,
+    customerProject: project,
     needDate: DateTime(2026, 8, 20),
     createdAt: now,
     updatedAt: now,
@@ -360,36 +361,43 @@ void main() {
     });
   });
 
-  test('a part carries its identity and its description into the model', () {
+  test('the part carries its description, the order carries its project', () {
+    // Two orders of **one** part for two different projects — the case that
+    // could not exist before v14, when the project was half of what identified
+    // a part and this would have been two parts with two sets of times (§9.3).
     final built = assembleSimStudy(
       study: study,
       nodes: [step(0, workcenterId: 'W')],
-      parts: [
-        part('p1', 'PN1', project: 'Wing 7', description: 'PWB 10K'),
-        part('p2', 'PN2'),
-      ],
+      parts: [part('p1', 'PN1', description: 'PWB 10K'), part('p2', 'PN2')],
       processTimes: {
         'p1': {'W': const Duration(hours: 2)},
         'p2': {'W': const Duration(hours: 1)},
       },
-      orders: [order(0, 'p1'), order(1, 'p2')],
+      orders: [
+        order(0, 'p1', project: 'Wing 7'),
+        order(1, 'p1', project: 'Wing 9'),
+        order(2, 'p2'),
+      ],
       taktSchedule: taktOf(3, TaktUnit.hours),
       resources: resources(),
       asOf: now,
     );
 
-    // Three passengers the engine never reads. They ride here so `saveRun` can
-    // copy them into the run (§7.10) — the only moment they are still
-    // guaranteed to describe the demand this run was assembled from.
+    // Passengers the engine never reads. They ride here so `saveRun` can copy
+    // them into the run (§7.10) — the only moment they are still guaranteed to
+    // describe the demand this run was assembled from.
     expect(built!.parts['p1']!.partNumber, 'PN1');
-    expect(built.parts['p1']!.customerProject, 'Wing 7');
     expect(built.parts['p1']!.description, 'PWB 10K');
-
-    // A part nobody described carries none, rather than an empty string —
-    // unlike `customerProject`, which is half of what identifies a part and is
-    // blank-not-null for the UNIQUE key's sake (§9.3).
     expect(built.parts['p2']!.description, isNull);
-    expect(built.parts['p2']!.customerProject, '');
+
+    // Both orders point at the same part and its single set of process times,
+    // and each says which project it is for.
+    expect(built.orders.map((o) => o.partId), ['p1', 'p1', 'p2']);
+    expect(built.orders.map((o) => o.customerProject), [
+      'Wing 7',
+      'Wing 9',
+      null,
+    ]);
   });
 
   test('a part with no time anywhere still assembles — §11 reports it', () {

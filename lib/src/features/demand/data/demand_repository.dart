@@ -32,7 +32,6 @@ class DemandRepository {
   Future<String> createPart({
     required String studyId,
     required String partNumber,
-    String customerProject = '',
     String? description,
   }) async {
     final id = newId();
@@ -44,7 +43,6 @@ class DemandRepository {
             id: id,
             studyId: studyId,
             partNumber: partNumber,
-            customerProject: Value(customerProject),
             description: Value(description),
             createdAt: now,
             updatedAt: now,
@@ -56,12 +54,10 @@ class DemandRepository {
   Future<void> updatePart(
     String id, {
     required String partNumber,
-    String customerProject = '',
     String? description,
   }) => (_db.update(_db.demandParts)..where((p) => p.id.equals(id))).write(
     DemandPartsCompanion(
       partNumber: Value(partNumber),
-      customerProject: Value(customerProject),
       description: Value(description),
       updatedAt: Value(DateTime.now()),
     ),
@@ -184,6 +180,7 @@ class DemandRepository {
     DateTime? materialDate,
     int batchSize = 1,
     String? batchNumber,
+    String? customerProject,
     int? atSequence,
   }) => _db.transaction(() async {
     final orders = await loadOrders(studyId);
@@ -209,6 +206,7 @@ class DemandRepository {
             sequence: position,
             batchSize: Value(batchSize),
             batchNumber: Value(batchNumber),
+            customerProject: Value(customerProject),
             needDate: needDate,
             materialDate: Value(materialDate),
             createdAt: now,
@@ -225,6 +223,7 @@ class DemandRepository {
     DateTime? materialDate,
     required int batchSize,
     String? batchNumber,
+    String? customerProject,
   }) => (_db.update(_db.demandOrders)..where((o) => o.id.equals(id))).write(
     DemandOrdersCompanion(
       partId: Value(partId),
@@ -232,6 +231,7 @@ class DemandRepository {
       materialDate: Value(materialDate),
       batchSize: Value(batchSize),
       batchNumber: Value(batchNumber),
+      customerProject: Value(customerProject),
       updatedAt: Value(DateTime.now()),
     ),
   );
@@ -300,7 +300,7 @@ class DemandRepository {
       _db.transaction(() async {
         final ids = {
           for (final part in await loadParts(studyId))
-            partKeyOf(part.customerProject, part.partNumber): part.id,
+            partKeyOf(part.partNumber): part.id,
         };
 
         for (final write in plan.parts) {
@@ -308,14 +308,12 @@ class DemandRepository {
             ids[write.key] = await createPart(
               studyId: studyId,
               partNumber: write.partNumber,
-              customerProject: write.customerProject,
               description: write.description,
             );
           } else {
             await updatePart(
               write.id!,
               partNumber: write.partNumber,
-              customerProject: write.customerProject,
               description: write.description,
             );
             ids[write.key] = write.id!;
@@ -347,6 +345,7 @@ class DemandRepository {
           materialDate: write.materialDate,
           batchSize: write.batchSize,
           batchNumber: write.batchNumber,
+          customerProject: write.customerProject,
         );
       } else {
         await updateOrder(
@@ -356,6 +355,7 @@ class DemandRepository {
           materialDate: write.materialDate,
           batchSize: write.batchSize,
           batchNumber: write.batchNumber,
+          customerProject: write.customerProject,
         );
       }
     }
@@ -389,7 +389,6 @@ class DemandRepository {
             id: idMap[part.id]!,
             studyId: toStudyId,
             partNumber: part.partNumber,
-            customerProject: Value(part.customerProject),
             description: Value(part.description),
             createdAt: now,
             updatedAt: now,
@@ -424,12 +423,19 @@ class DemandRepository {
       for (final order in orders) {
         b.insert(
           _db.demandOrders,
+          // Every column the planner typed, not merely the ones the engine
+          // reads: a duplicated study is the same demand under a new name, and
+          // a copy that quietly drops the labels is a copy nobody can match
+          // against their paperwork. `batch_number` was being lost here from
+          // the day it arrived, which only showed when the project joined it.
           DemandOrdersCompanion.insert(
             id: newId(),
             studyId: toStudyId,
             partId: idMap[order.partId]!,
             sequence: order.sequence,
             batchSize: Value(order.batchSize),
+            batchNumber: Value(order.batchNumber),
+            customerProject: Value(order.customerProject),
             needDate: order.needDate,
             materialDate: Value(order.materialDate),
             createdAt: now,
@@ -441,11 +447,16 @@ class DemandRepository {
   }
 }
 
-/// What identifies a part inside a study: its customer project and its number,
-/// case-folded so `pn2` finds `PN2`.
-String partKeyOf(String customerProject, String partNumber) =>
-    '${customerProject.trim().toLowerCase()}\u0000'
-    '${partNumber.trim().toLowerCase()}';
+/// What identifies a part inside a study: its number, case-folded so `pn2`
+/// finds `PN2`.
+///
+/// The customer project used to be the other half of this, joined by a NUL.
+/// It moved to the order in v14 - a part number means one part, and the
+/// project is what a batch of it is *for* (§9.3). Kept as a named function
+/// rather than inlined, because every lookup in the demand feature has to fold
+/// the same way, and one of them folding differently is a part nobody can
+/// match.
+String partKeyOf(String partNumber) => partNumber.trim().toLowerCase();
 
 /// One cell of the process-time grid, for a batched write.
 class ProcessTimeEdit {
@@ -473,7 +484,6 @@ class PartWrite {
   const PartWrite({
     required this.id,
     required this.partNumber,
-    required this.customerProject,
     required this.description,
   });
 
@@ -482,15 +492,12 @@ class PartWrite {
 
   final String partNumber;
 
-  /// The customer's project. Empty is a project of its own, not "unknown".
-  final String customerProject;
-
   final String? description;
 
   bool get isNew => id == null;
 
-  /// What identifies this part inside a study (§9): the pair, case-folded.
-  String get key => partKeyOf(customerProject, partNumber);
+  /// What identifies this part inside a study (§9.3), case-folded.
+  String get key => partKeyOf(partNumber);
 }
 
 /// A cell of the process-time grid a block asks to be written.
@@ -533,6 +540,7 @@ class OrderWrite {
     required this.materialDate,
     required this.batchSize,
     required this.batchNumber,
+    required this.customerProject,
   });
 
   /// Null for a row past the end of the sequence — an order to be appended.
@@ -546,6 +554,10 @@ class OrderWrite {
   /// The planner's own label for the batch, or null for none (§9.1). Nothing
   /// matches on it, so an emptied cell simply clears it.
   final String? batchNumber;
+
+  /// The customer's project this order is for, or null for none — a label on
+  /// the order since v14, matching nothing and identifying nothing (§9.3).
+  final String? customerProject;
 
   bool get isNew => id == null;
 }

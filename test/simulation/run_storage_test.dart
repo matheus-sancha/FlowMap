@@ -121,7 +121,6 @@ void main() {
         'part-a': const SimPart(
           id: 'part-a',
           partNumber: 'PN1',
-          customerProject: 'Wing 7',
           description: 'PWB 10K',
           processTimes: {
             'wc-1': Duration(hours: 4),
@@ -147,6 +146,7 @@ void main() {
           needDate: DateTime(2026, 8, 10),
           batchSize: 4,
           batchNumber: 'B-0012',
+          customerProject: 'Wing 7',
           materialDate: DateTime(2026, 8, 1),
         ),
         SimOrder(

@@ -203,7 +203,6 @@ SimStudy? assembleSimStudy({
         part.id: SimPart(
           id: part.id,
           partNumber: part.partNumber,
-          customerProject: part.customerProject,
           description: part.description,
           processTimes: processTimes[part.id] ?? const {},
         ),
@@ -216,6 +215,7 @@ SimStudy? assembleSimStudy({
           partId: order.partId,
           batchSize: order.batchSize,
           batchNumber: order.batchNumber,
+          customerProject: order.customerProject,
           needDate: order.needDate,
           materialDate: order.materialDate,
         ),

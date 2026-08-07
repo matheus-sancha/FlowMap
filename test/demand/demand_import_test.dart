@@ -17,7 +17,6 @@ void main() {
     id: id,
     studyId: 'study-1',
     partNumber: number,
-    customerProject: '',
     description: description,
     createdAt: now,
     updatedAt: now,
@@ -34,7 +33,6 @@ void main() {
   List<ImportColumn> partsColumns(DemandTable table) => partsImportColumns(
     table,
     partNumberTitle: 'Part number',
-    projectTitle: 'Project',
     descriptionTitle: 'Description',
   );
 
@@ -359,7 +357,7 @@ void main() {
 
       final plan = planPartsImport(rows: rows, table: table);
       expect(plan.parts.map((p) => p.partNumber), ['PN2']);
-      expect(plan.times.single.partKey, partKeyOf('', 'PN2'));
+      expect(plan.times.single.partKey, partKeyOf('PN2'));
     });
   });
 

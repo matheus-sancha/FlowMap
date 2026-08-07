@@ -18,12 +18,10 @@ void main() {
     String id,
     String number, {
     String? description,
-    String? project,
   }) => DemandPart(
     id: id,
     studyId: 'study-1',
     partNumber: number,
-    customerProject: project ?? '',
     description: description,
     createdAt: now,
     updatedAt: now,
@@ -68,27 +66,25 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', 'Wing 7', 'Housing', '55:00:00', '3:00:00'],
-          ['PN2', '', '', '8:00:00', ''],
+          ['PN1', 'Housing', '55:00:00', '3:00:00'],
+          ['PN2', '', '8:00:00', ''],
         ],
       );
 
       expect(plan.parts.map((p) => p.partNumber), ['PN1', 'PN2']);
       expect(plan.parts.every((p) => p.isNew), isTrue);
-      expect(plan.parts.first.customerProject, 'Wing 7');
       expect(plan.parts.first.description, 'Housing');
-      expect(plan.parts.last.customerProject, '');
       expect(plan.parts.last.description, isNull);
 
       expect(
         plan.times.map((t) => (t.partKey, t.targetId, t.time)),
         [
-          (partKeyOf('Wing 7', 'PN1'), 'wc-1', const Duration(hours: 55)),
-          (partKeyOf('Wing 7', 'PN1'), 'wc-2', const Duration(hours: 3)),
-          (partKeyOf('', 'PN2'), 'wc-1', const Duration(hours: 8)),
+          (partKeyOf('PN1'), 'wc-1', const Duration(hours: 55)),
+          (partKeyOf('PN1'), 'wc-2', const Duration(hours: 3)),
+          (partKeyOf('PN2'), 'wc-1', const Duration(hours: 8)),
           // Blank in the middle of a pasted row means "skips this step", and
           // says so explicitly rather than being dropped (§5.1).
-          (partKeyOf('', 'PN2'), 'wc-2', null),
+          (partKeyOf('PN2'), 'wc-2', null),
         ],
       );
     });
@@ -99,7 +95,7 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['', '', '', '55:00:00'],
+          ['', '', '55:00:00'],
         ],
       );
 
@@ -113,14 +109,14 @@ void main() {
         row: 1,
         column: 0,
         block: [
-          ['PN1', '', '', '60:00:00'],
+          ['PN1', '', '60:00:00'],
         ],
       );
 
       // No second PN1: the unique key would have refused it, and the user's
       // intent was plainly to update.
       expect(plan.parts, isEmpty);
-      expect(plan.times.single.partKey, partKeyOf('', 'PN1'));
+      expect(plan.times.single.partKey, partKeyOf('PN1'));
       expect(plan.times.single.time, const Duration(hours: 60));
     });
 
@@ -130,8 +126,8 @@ void main() {
         row: 0,
         column: 0,
         block: [
-          ['PN1', '', '', '55:00:00'],
-          ['PN1', '', '', '60:00:00'],
+          ['PN1', '', '55:00:00'],
+          ['PN1', '', '60:00:00'],
         ],
       );
 

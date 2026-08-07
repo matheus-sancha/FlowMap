@@ -461,16 +461,17 @@ void main() {
     final db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
 
-    // The part survives and can now carry a customer project; the order keeps
-    // everything that still means something, minus the works order number the
-    // simulation never needed.
+    // The part survives; the order keeps everything that still means
+    // something, minus the works order number the simulation never needed.
     final parts = await db.select(db.demandParts).get();
     expect(parts.single.partNumber, 'PN1');
-    // Empty, not null: the project is half of a part's identity now, and
-    // SQLite would treat two nulls as distinct in the unique key (§9.3).
-    expect(parts.single.customerProject, '');
 
+    // The project this part never had is now a column on the order, and null
+    // is what "none" is there — v9 gave the part an empty string only so
+    // SQLite's UNIQUE would not treat two unprojected parts as distinct, and
+    // v14 took it out of every key (§9.3).
     final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.customerProject, isNull);
     expect(orders.single.id, 'order-1');
     expect(orders.single.batchSize, 4);
     expect(orders.single.sequence, 0);
@@ -580,15 +581,17 @@ void main() {
     expect(await db.select(db.simulationRunEmptySlots).get(), isEmpty);
     expect(await db.select(db.simulationRunWorkcenters).get(), isEmpty);
 
-    // And the demand the user typed came through untouched — parts keep their
-    // numbers and their project, orders keep their sequence and batch size.
+    // And the demand the user typed came through untouched — the part keeps
+    // its number, the order keeps its sequence and batch size, and the project
+    // that was typed against the part has moved onto the order that is for it
+    // (§16.15). Nothing was lost in the move.
     final parts = await db.select(db.demandParts).get();
     expect(parts.single.partNumber, 'PN2');
-    expect(parts.single.customerProject, 'Wing 7');
 
     final orders = await db.select(db.demandOrders).get();
     expect(orders.single.sequence, 0);
     expect(orders.single.batchSize, 6);
+    expect(orders.single.customerProject, 'Wing 7');
   });
 
   test(
@@ -964,6 +967,171 @@ void main() {
     },
   );
 
+  test(
+    'v13 to v14: the project moves to the order, and twins keep their times',
+    () async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+      final withoutWorkcenters = resourceTables.replaceAll(
+        RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+        '',
+      );
+
+      // v13's demand tables: the project is still on the part, and still half
+      // of what identifies one.
+      const v13DemandTables = """
+        CREATE TABLE demand_parts (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_number TEXT NOT NULL,
+          customer_project TEXT NOT NULL DEFAULT '',
+          description TEXT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, customer_project, part_number));
+        CREATE TABLE part_process_times (
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+          PRIMARY KEY (part_id, target_id));
+        CREATE TABLE demand_orders (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+          batch_number TEXT NULL,
+          need_date INTEGER NOT NULL, material_date INTEGER NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, sequence));
+        CREATE TABLE workcenter_dispatch (
+          project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, rule TEXT NOT NULL,
+          updated_at INTEGER NOT NULL, PRIMARY KEY (project_id, target_id));
+      """;
+
+      final v13 = sqlite3.open(file.path)
+        ..execute(withoutWorkcenters)
+        ..execute(v6Workcenters)
+        ..execute(projectTables)
+        ..execute(v13DemandTables)
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+        ..execute(
+          'CREATE TABLE workcenter_lines ('
+          'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+          'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+          'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+        )
+        ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+        ..execute('PRAGMA user_version = 13');
+
+      v13
+        ..execute(
+          'INSERT INTO plants (id, name, created_at, updated_at) '
+          "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_cells '
+          '(id, plant_id, name, created_at, updated_at) '
+          "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_lines '
+          '(id, cell_id, name, created_at, updated_at) '
+          "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO shift_patterns '
+          '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+          "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO projects '
+          '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+          "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO studies (id, project_id, production_cell_id, '
+          'production_line_id, name, created_at, updated_at) '
+          "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+        )
+        // The case v14 has to survive: one part number under two projects,
+        // which v13 called two parts — with their own process times, which is
+        // exactly why they cannot be merged.
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-a', 'study-1', 'PN2', 'Wing 7', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-b', 'study-1', 'PN2', 'Wing 9', ${now + 1}, ${now + 1})",
+        )
+        // And an ordinary part, to show the common case is left alone.
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-c', 'study-1', 'PN5', '', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO part_process_times (part_id, target_id, seconds) '
+          "VALUES ('part-a', 'wc-1', 14400)",
+        )
+        ..execute(
+          'INSERT INTO part_process_times (part_id, target_id, seconds) '
+          "VALUES ('part-b', 'wc-1', 10800)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-1', 'study-1', 'part-a', 0, 4, $now, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-2', 'study-1', 'part-b', 1, 6, $now, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-3', 'study-1', 'part-c', 2, 1, $now, $now, $now)",
+        )
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      // Each order now says which project it is for, read down from the part
+      // it was for. The unprojected one says null rather than an empty string:
+      // on the part the blank existed only to keep SQLite's UNIQUE honest.
+      final orders = await db.select(db.demandOrders).get()
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
+      expect(orders.map((o) => o.customerProject), ['Wing 7', 'Wing 9', null]);
+      expect(orders.map((o) => o.batchSize), [4, 6, 1]);
+
+      // **Both twins survive, and neither lost its times.** Merging them would
+      // have given every order of one the other's process times, silently —
+      // §11's one intolerable bug. The earlier keeps the number the planner
+      // typed; the later says which project it came from, so the rename is
+      // legible on the grid rather than mysterious.
+      final parts = await db.select(db.demandParts).get()
+        ..sort((a, b) => a.id.compareTo(b.id));
+      expect(parts.map((p) => p.id), ['part-a', 'part-b', 'part-c']);
+      expect(parts.map((p) => p.partNumber), ['PN2', 'PN2 (Wing 9)', 'PN5']);
+
+      final times = await db.select(db.partProcessTimes).get()
+        ..sort((a, b) => a.partId.compareTo(b.partId));
+      expect(times.map((t) => (t.partId, t.seconds)), [
+        ('part-a', 14400),
+        ('part-b', 10800),
+      ]);
+
+      // And each order still points at the part it always did, so the rename
+      // moved a label and not a relationship.
+      expect(orders.map((o) => o.partId), ['part-a', 'part-b', 'part-c']);
+    },
+  );
+
   test('an upgrade that died part-way can still be opened', () async {
     // The shape found on the developer's own machine: `user_version` 6, but
     // the v7 and v8 steps had already run — `workcenters` rebuilt without
@@ -1074,11 +1242,11 @@ void main() {
     // The half that had not run, runs — and the user's demand survives it.
     final parts = await db.select(db.demandParts).get();
     expect(parts.single.partNumber, 'PN2');
-    expect(parts.single.customerProject, '');
 
     final orders = await db.select(db.demandOrders).get();
     expect(orders.single.sequence, 0);
     expect(orders.single.batchSize, 6);
+    expect(orders.single.customerProject, isNull);
 
     // And M4's tables arrive, so the counter really did reach the end.
     expect(await db.select(db.simulationRuns).get(), isEmpty);

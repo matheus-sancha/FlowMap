@@ -111,7 +111,6 @@ void main() {
     id: id,
     studyId: 'study-1',
     partNumber: number,
-    customerProject: '',
     createdAt: now,
     updatedAt: now,
   );

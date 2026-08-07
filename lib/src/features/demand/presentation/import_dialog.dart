@@ -122,7 +122,6 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
         ImportTarget.parts => partsImportColumns(
           widget.table,
           partNumberTitle: l10n.demandPartNumber,
-          projectTitle: l10n.demandProject,
           descriptionTitle: l10n.demandDescription,
         ),
         ImportTarget.sequence => sequenceImportColumns(

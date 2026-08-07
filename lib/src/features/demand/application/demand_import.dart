@@ -44,10 +44,13 @@ class ImportColumn {
 
 /// The destination columns of the parts grid: the two fixed ones, then the
 /// flow's steps.
+///
+/// No project column since v14 — a project is something an *order* is for, so
+/// a file's project heading is offered to the sequence import and not to this
+/// one (§9.3).
 List<ImportColumn> partsImportColumns(
   DemandTable table, {
   required String partNumberTitle,
-  required String projectTitle,
   required String descriptionTitle,
 }) => [
   ImportColumn(
@@ -55,11 +58,6 @@ List<ImportColumn> partsImportColumns(
     title: partNumberTitle,
     required: true,
     synonyms: const ['part', 'part no', 'part number', 'pn', 'item', 'sku'],
-  ),
-  ImportColumn(
-    gridColumn: partProjectColumn,
-    title: projectTitle,
-    synonyms: const ['project', 'programme', 'program', 'job', 'contract'],
   ),
   ImportColumn(
     gridColumn: partDescriptionColumn,
@@ -322,8 +320,7 @@ List<ImportRow> validateSequenceImport({
   required int firstSourceRow,
 }) {
   final known = {
-    for (final part in table.parts)
-      partKeyOf(part.customerProject, part.partNumber): part.id,
+    for (final part in table.parts) partKeyOf(part.partNumber): part.id,
   };
   final checked = <ImportRow>[];
 
@@ -345,9 +342,7 @@ List<ImportRow> validateSequenceImport({
           blocking: true,
         ),
       );
-    } else if (!known.containsKey(
-      partKeyOf(row.cell(orderProjectColumn) ?? '', partNumber),
-    )) {
+    } else if (!known.containsKey(partKeyOf(partNumber))) {
       // An order for a part the study has never heard of is the commonest
       // import failure there is, and inventing the part would hide a typo.
       issues.add(
@@ -433,11 +428,9 @@ DemandPartsPlan planPartsImport({
   required List<ImportRow> rows,
   required DemandTable table,
 }) {
-  // Keyed by project **and** number: the same part number under two customer
-  // projects is two parts (§9.3).
+  // Keyed by number alone since v14 (§9.3).
   final existing = {
-    for (final part in table.parts)
-      partKeyOf(part.customerProject, part.partNumber): part,
+    for (final part in table.parts) partKeyOf(part.partNumber): part,
   };
   final parts = <PartWrite>[];
   final times = <PartTimeWrite>[];
@@ -447,27 +440,19 @@ DemandPartsPlan planPartsImport({
     final partNumber = row.cell(partNumberColumn);
     if (partNumber == null) continue;
 
-    final project = row.cell(partProjectColumn) ?? '';
     final description = row.cell(partDescriptionColumn);
-    final partKey = partKeyOf(project, partNumber);
+    final partKey = partKeyOf(partNumber);
     final was = existing[partKey];
 
     if (was == null) {
       parts.add(
-        PartWrite(
-          id: null,
-          partNumber: partNumber,
-          customerProject: project,
-          description: description,
-        ),
+        PartWrite(id: null, partNumber: partNumber, description: description),
       );
     } else if (description != null && description != was.description) {
       parts.add(
         PartWrite(
           id: was.id,
           partNumber: was.partNumber,
-          // An unmapped column is left alone, never cleared (§9.2).
-          customerProject: was.customerProject,
           description: description,
         ),
       );
@@ -499,18 +484,14 @@ List<OrderWrite> planSequenceImport({
   required String locale,
 }) {
   final known = {
-    for (final part in table.parts)
-      partKeyOf(part.customerProject, part.partNumber): part.id,
+    for (final part in table.parts) partKeyOf(part.partNumber): part.id,
   };
   final writes = <OrderWrite>[];
 
   for (final row in rows) {
     if (row.isBlocked) continue;
 
-    final partId = known[partKeyOf(
-      row.cell(orderProjectColumn) ?? '',
-      row.cell(orderPartColumn)!,
-    )];
+    final partId = known[partKeyOf(row.cell(orderPartColumn)!)];
     final needDate = parseDateInput(row.cell(orderNeedColumn)!, locale);
     if (partId == null || needDate == null) continue;
 
@@ -519,11 +500,13 @@ List<OrderWrite> planSequenceImport({
     // never cleared, because a file that does not carry a column has said
     // nothing about it (§9.2).
     final batchNumber = row.cell(orderBatchNumberColumn)?.trim();
+    final project = row.cell(orderProjectColumn)?.trim();
     writes.add(
       OrderWrite(
         id: null,
         partId: partId,
         needDate: needDate,
+        customerProject: (project?.isEmpty ?? true) ? null : project,
         batchNumber: (batchNumber?.isEmpty ?? true) ? null : batchNumber,
         materialDate: materialRaw == null
             ? null

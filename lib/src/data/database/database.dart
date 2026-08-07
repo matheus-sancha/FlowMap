@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -200,7 +200,17 @@ class AppDatabase extends _$AppDatabase {
       if (from < 9) {
         // A part carries the **customer's** project — their programme, not the
         // FlowMap project the study sits in.
-        await _ensureColumn(m, demandParts, demandParts.customerProject);
+        //
+        // Raw SQL, because v14 moved this column off `demand_parts` and Drift
+        // can no longer name a column the current definition does not have.
+        // The step still has to run: v14 reads these values to put them on the
+        // orders, so a database arriving from v8 must grow the column here and
+        // lose it there, in that order.
+        if (!await _hasColumn('demand_parts', 'customer_project')) {
+          await customStatement(
+            'ALTER TABLE demand_parts ADD COLUMN customer_project TEXT',
+          );
+        }
 
         // `demand_orders.order_number` is gone. A simulation identifies an
         // order by the row it is; asking a planner to type a works order
@@ -216,38 +226,30 @@ class AppDatabase extends _$AppDatabase {
         // `batch_number`, which v12 added and which a table this old has never
         // had. Without a constant naming it the copy fails on a column that
         // will not exist until three versions later, and the upgrade dies
-        // here. Every future column on this table needs the same line.
+        // here. Every future column on this table needs the same line —
+        // `customer_project`, added by v14, is the second one to need it.
         if (await _hasColumn('demand_orders', 'order_number')) {
           await m.alterTable(
             TableMigration(
               demandOrders,
               columnTransformer: {
                 demandOrders.batchNumber: const Constant<String>(null),
+                demandOrders.customerProject: const Constant<String>(null),
               },
             ),
           );
         }
       }
 
-      if (from < 10) {
-        // A part is identified by its project **and** its number: the same part
-        // number is legitimately ordered by two clients' projects, and they are
-        // two rows of demand with their own times and their own place in the
-        // sequence. The unique key gains the project, and the column stops
-        // being nullable so SQLite cannot treat two unprojected parts as
-        // distinct (the `scope_id` lesson, §16.2).
-        await m.alterTable(
-          TableMigration(
-            demandParts,
-            columnTransformer: {
-              demandParts.customerProject: coalesce([
-                demandParts.customerProject,
-                const Constant(''),
-              ]),
-            },
-          ),
-        );
-      }
+      // v10 rebuilt `demand_parts` to make `customer_project` non-null and put
+      // it in the unique key, on the argument that project and number together
+      // identify a part. v14 reversed that, and the step had to go rather than
+      // be left alone: `TableMigration` copies from the **current** definition,
+      // which no longer has the column, so replaying it would have destroyed
+      // the very values v14 exists to move onto the orders. Nothing is lost by
+      // dropping it — every upgrade that would have run it now runs v14, which
+      // rebuilds the same table with the right shape and key, and a null
+      // project is legal on an order (§16.15).
 
       if (from < 11) {
         // M4: where a run is kept (DESIGN.md §7.10). Six new tables and no
@@ -315,6 +317,64 @@ class AppDatabase extends _$AppDatabase {
           simulationRunOrders,
           simulationRunOrders.partDescription,
         );
+      }
+
+      if (from < 14) {
+        // Field feedback: the customer's project belongs to the **order**, not
+        // to the part. A part number means one part; the process times are the
+        // part's, and the project is what a given batch of it is for (§9.3).
+        //
+        // Three steps, and the order of them is the whole migration: the values
+        // have to be read off the parts before the column carrying them is
+        // dropped, and the numbers have to be made unique before a key that
+        // demands it is applied.
+        await _ensureColumn(m, demandOrders, demandOrders.customerProject);
+
+        // Guarded because a database that never reached v9 never had the
+        // column — there is then nothing to carry across, which is not an
+        // error.
+        if (await _hasColumn('demand_parts', 'customer_project')) {
+          // 1. Carry each order's project down from the part it is for. Blank
+          //    becomes null: on the part it had to be an empty string so
+          //    SQLite's UNIQUE would not treat two unprojected parts as
+          //    distinct (§16.2), and on the order — a label in no key — null
+          //    is what "none" honestly is.
+          await customStatement('''
+            UPDATE demand_orders SET customer_project = (
+              SELECT NULLIF(p.customer_project, '')
+              FROM demand_parts p WHERE p.id = demand_orders.part_id
+            )
+          ''');
+
+          // 2. Two parts differing only by project are about to collide on
+          //    `(study, number)`. Keep both — each has its own process times,
+          //    and merging them would silently give every order of one the
+          //    other's times, which is §11's one intolerable bug. The earliest
+          //    keeps the number the planner typed; the rest say which project
+          //    they came from, so the rename is legible on the Parts grid
+          //    rather than mysterious. A part with no project falls back to a
+          //    fragment of its id, which is ugly and unique — and only reachable
+          //    for an unprojected part that is *not* the earliest of its twins.
+          await customStatement('''
+            UPDATE demand_parts
+            SET part_number = part_number || ' (' ||
+                  COALESCE(NULLIF(customer_project, ''), substr(id, 1, 4)) || ')'
+            WHERE EXISTS (
+              SELECT 1 FROM demand_parts q
+              WHERE q.study_id = demand_parts.study_id
+                AND q.part_number = demand_parts.part_number
+                AND (q.created_at < demand_parts.created_at
+                     OR (q.created_at = demand_parts.created_at
+                         AND q.id < demand_parts.id))
+            )
+          ''');
+        }
+
+        // 3. Drop the column and take the new key. No `columnTransformer`:
+        //    every column the current definition still has already exists in
+        //    the old table, and `customer_project` is dropped precisely by not
+        //    being named in it.
+        await m.alterTable(TableMigration(demandParts));
       }
 
       // Reference-data seeding runs outside every version guard, on every

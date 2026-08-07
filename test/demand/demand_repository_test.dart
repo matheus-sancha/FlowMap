@@ -293,35 +293,85 @@ void main() {
     expect(await db.select(db.partProcessTimes).get(), isEmpty);
   });
 
-  group("a part carries the customer's project", () {
-    test('it round-trips, and is not the FlowMap project', () async {
+  group("an order carries the customer's project", () {
+    test('two orders of one part can be for different projects', () async {
+      // The case v14 exists for. Before it, the project was half of what
+      // identified a part, so this was two parts with two sets of process
+      // times — and a planner had to type PN1 twice to say that one part goes
+      // to two programmes (§9.3).
       final partId = await demand.createPart(
         studyId: studyId,
         partNumber: 'PN1',
+      );
+      await demand.createOrder(
+        studyId: studyId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 10),
+        customerProject: 'Wing 7',
+      );
+      await demand.createOrder(
+        studyId: studyId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 11),
+        customerProject: 'Wing 9',
+      );
+
+      expect((await demand.loadParts(studyId)), hasLength(1));
+      expect(
+        (await demand.loadOrders(studyId)).map((o) => o.customerProject),
+        ['Wing 7', 'Wing 9'],
+      );
+    });
+
+    test('it is a label: blank is allowed and nothing matches on it', () async {
+      final partId = await demand.createPart(
+        studyId: studyId,
+        partNumber: 'PN1',
+      );
+      final orderId = await demand.createOrder(
+        studyId: studyId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 10),
         customerProject: 'Wing 7',
       );
 
-      final parts = await demand.loadParts(studyId);
-      expect(parts.single.customerProject, 'Wing 7');
-      // The study's own project is a different thing entirely.
-      expect(parts.single.studyId, studyId);
-
-      await demand.updatePart(partId, partNumber: 'PN1');
-      expect((await demand.loadParts(studyId)).single.customerProject, '');
+      // Cleared by an update that does not name it, exactly as the batch
+      // number is — both are the planner's own labels (§9.1, §9.3).
+      await demand.updateOrder(
+        orderId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 10),
+        batchSize: 1,
+      );
+      expect(
+        (await demand.loadOrders(studyId)).single.customerProject,
+        isNull,
+      );
     });
 
-    test('it travels with a duplicated study', () async {
-      await demand.createPart(
+    test('a duplicated study keeps every label the planner typed', () async {
+      final partId = await demand.createPart(
         studyId: studyId,
         partNumber: 'PN1',
+      );
+      await demand.createOrder(
+        studyId: studyId,
+        partId: partId,
+        needDate: DateTime(2026, 8, 10),
         customerProject: 'Wing 7',
+        batchNumber: 'B-0012',
       );
       final copyId = await studies.duplicateStudy(studyId, newName: 'Copy');
 
-      expect(
-        (await demand.loadParts(copyId)).single.customerProject,
-        'Wing 7',
-      );
+      // The batch number was being dropped here from the day it arrived, and
+      // only showed when the project joined it: the copy carried the figures
+      // the engine reads and silently lost the two labels a planner matches
+      // against their own paperwork (§9.1, §9.3).
+      final copied = (await demand.loadOrders(copyId)).single;
+      expect((await demand.loadParts(copyId)).single.partNumber, 'PN1');
+      expect(copied.customerProject, 'Wing 7');
+      expect(copied.batchNumber, 'B-0012');
+      expect(copied.needDate, DateTime(2026, 8, 10));
     });
   });
 
