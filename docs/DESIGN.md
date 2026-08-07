@@ -703,7 +703,7 @@ output, and the inconsistency becomes permanent once it is in three `.arb` files
 ### 8.5 The production plan — orders over time
 
 `Order | Part Number | Project | Batch Number | Batch Size | Need Date | Material Date | Order Start
-Date | Delivery Date | Float`, a section of the Simulation tab's results.
+| Order End | Float`, a section of the Simulation tab's results.
 
 - **A reading of a stored run, not of the demand.** It reads `simulation_run_orders`, so its dates
   cannot disagree with the run that produced them and opening an earlier run from the history menu
@@ -711,9 +711,18 @@ Date | Delivery Date | Float`, a section of the Simulation tab's results.
 - **Order is the sequence position, 1-based** — the number the demand grid's row header shows, and
   not a works order number. §9.1's decision that FlowMap carries none of those still holds; Batch
   Number is what a planner matches against their own paperwork.
-- **Order Start Date is release into the flow** (§7.2), which is stored per order. Delivery is the
-  last semantic step (§18.1). Float is slack, positive early, taken from `SimOrderOutcome.float` so
-  the column and the tab's average float cannot point opposite ways.
+- **Order Start is release into the flow** (§7.2), which is stored per order. **Order End is the
+  last semantic step** (§18.1) — the moment production finishes, which is why it is not called
+  Delivery: nothing here models shipping, and a column headed Delivery invited the reader to think
+  it did. It pairs with Order Start, and the two together are what the order's actual lead time is
+  measured across. Float is slack, positive early, taken from `SimOrderOutcome.float` so the column
+  and the tab's average float cannot point opposite ways.
+
+  The **metrics keep the customer's vocabulary**: `On-time delivery` and `Delivered 31 of 33` both
+  compare against the need date, which is a promise to someone outside the plant, and OTD is what
+  that measure is called everywhere. Only the column moved, because only the column was naming an
+  instant rather than a promise. `SimOrderOutcome.delivered` and the stored column keep their names
+  too — renaming them would be a migration for a word.
 - **One section per study, rows in sequence order.** A study is one production line and a plan is a
   line's plan. §7.2 releases strictly from the head with no reordering, so within a study release
   order *is* sequence order — "over time" needs no sort that could disagree with the Order column,

@@ -2433,7 +2433,7 @@ abstract class AppLocalizations {
   /// No description provided for @simAverageFloatHelp.
   ///
   /// In en, this message translates to:
-  /// **'Need date minus delivery, averaged over the orders that finished. Positive is early, with that much time in hand; negative is late by that much. An undelivered order has no float and is left out here — it still counts as late above.'**
+  /// **'Need date minus order end, averaged over the orders that finished. Positive is early, with that much time in hand; negative is late by that much. An order that never ended has no float and is left out here — it still counts as late above.'**
   String get simAverageFloatHelp;
 
   /// No description provided for @simAverageLeadTime.
@@ -2628,11 +2628,11 @@ abstract class AppLocalizations {
   /// **'Order start'**
   String get simPlanOrderStart;
 
-  /// No description provided for @simPlanDelivery.
+  /// No description provided for @simPlanOrderEnd.
   ///
   /// In en, this message translates to:
-  /// **'Delivery'**
-  String get simPlanDelivery;
+  /// **'Order end'**
+  String get simPlanOrderEnd;
 
   /// No description provided for @simDispatchOverrides.
   ///

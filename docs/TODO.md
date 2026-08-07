@@ -334,7 +334,23 @@ _Rejected: joining `simulation_run_orders.part_id` to `parts` at read time._ No 
 silently rewrites what a stored run says the moment someone re-describes a part. Rejected twice
 already in §1.1 and §8.5; rejecting it a third time is the rule working.
 
-### 2.2 Delivery becomes Order end
+### 2.2 Delivery becomes Order end — **done 2026-08-06**
+
+Landed as described. One thing the plan did not mention:
+
+- **`simAverageFloatHelp` defined float as "need date minus delivery"**, and that text is the
+  explanation of the Float column sitting directly beside the renamed one. Left alone, the table
+  would have had a column headed `Order end` and a help bubble two columns over calling the same
+  instant delivery. Changed in all three languages, along with "an undelivered order has no float"
+  → "an order that never ended", which is the same instant under the same new name. This is the
+  §1.2 rule again: one definition, so the column and the figure cannot disagree.
+
+**`ProductionPlanRow.delivery` keeps its name**, and is now a getter called `delivery` feeding a
+column headed `Order end`. Deliberate — renaming Dart identifiers was ruled out for this item — but
+it is the one place a reader can be surprised, so it is written down rather than left to be found.
+If it grates later it is a pure rename with no migration behind it.
+
+
 
 The plan's ninth column is labelled `Delivery`. It reads `delivered`, which §18.1 defines as the
 order's **last semantic step** — the moment production finishes, not a shipment. `Order end` says

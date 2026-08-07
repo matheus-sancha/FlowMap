@@ -472,7 +472,7 @@ class _PlanTable extends StatelessWidget {
             DataColumn(label: Text(l10n.demandNeedDate), numeric: true),
             DataColumn(label: Text(l10n.demandMaterialDate), numeric: true),
             DataColumn(label: Text(l10n.simPlanOrderStart), numeric: true),
-            DataColumn(label: Text(l10n.simPlanDelivery), numeric: true),
+            DataColumn(label: Text(l10n.simPlanOrderEnd), numeric: true),
             DataColumn(label: Text(l10n.simAverageFloat), numeric: true),
           ],
           rows: [

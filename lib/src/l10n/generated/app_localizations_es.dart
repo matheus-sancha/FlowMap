@@ -1359,7 +1359,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simAverageFloatHelp =>
-      'Fecha de necesidad menos entrega, promediado sobre las órdenes que terminaron. Positivo es adelanto, con ese margen a favor; negativo es ese retraso. Una orden no entregada no tiene holgura y queda fuera de aquí; arriba sigue contando como tarde.';
+      'Fecha de necesidad menos fin de la orden, promediado sobre las órdenes que terminaron. Positivo es adelanto, con ese margen a favor; negativo es ese retraso. Una orden que nunca terminó no tiene holgura y queda fuera de aquí; arriba sigue contando como tarde.';
 
   @override
   String get simAverageLeadTime => 'Lead time medio';
@@ -1469,7 +1469,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simPlanOrderStart => 'Inicio';
 
   @override
-  String get simPlanDelivery => 'Entrega';
+  String get simPlanOrderEnd => 'Fin';
 
   @override
   String simDispatchOverrides(int count) {
