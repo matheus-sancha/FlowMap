@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/centred_table.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
@@ -144,22 +145,23 @@ class _TaktTable extends ConsumerWidget {
     return Card(
       child: DataTable(
         columns: [
-          DataColumn(label: Text(l10n.fieldStart)),
-          DataColumn(label: Text(l10n.fieldEnd)),
-          DataColumn(label: Text(l10n.takt)),
+          centredColumn(l10n.fieldStart),
+          centredColumn(l10n.fieldEnd),
+          centredColumn(l10n.takt),
+          // The actions column stays as it is: edit and delete are not data
+          // read down a column, and this table stretches to fill its card, so
+          // centring would strand them mid-cell away from the row they act on.
           const DataColumn(label: SizedBox.shrink()),
         ],
         rows: [
           for (final period in periods)
             DataRow(
               cells: [
-                DataCell(Text(dates.format(period.startDate))),
-                DataCell(Text(dates.format(period.endDate))),
-                DataCell(
-                  Text(
-                    '${_formatValue(period.taktValue)} '
-                    '${taktUnitLabel(l10n, period.taktUnit)}',
-                  ),
+                centredText(dates.format(period.startDate)),
+                centredText(dates.format(period.endDate)),
+                centredText(
+                  '${_formatValue(period.taktValue)} '
+                  '${taktUnitLabel(l10n, period.taktUnit)}',
                 ),
                 DataCell(
                   Row(

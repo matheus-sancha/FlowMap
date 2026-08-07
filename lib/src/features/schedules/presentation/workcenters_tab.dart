@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/centred_table.dart';
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
@@ -149,12 +150,13 @@ class _WorkcenterCard extends ConsumerWidget {
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 columns: [
-                  DataColumn(label: Text(l10n.fieldStart)),
-                  DataColumn(label: Text(l10n.fieldEnd)),
-                  DataColumn(label: Text(l10n.scheduleShifts)),
-                  DataColumn(label: Text(l10n.scheduleOperatorsPerShift)),
-                  DataColumn(label: Text(l10n.availability)),
-                  DataColumn(label: Text(l10n.rework)),
+                  centredColumn(l10n.fieldStart),
+                  centredColumn(l10n.fieldEnd),
+                  centredColumn(l10n.scheduleShifts),
+                  centredColumn(l10n.scheduleOperatorsPerShift),
+                  centredColumn(l10n.availability),
+                  centredColumn(l10n.rework),
+                  // Actions stay start-aligned beside the row they act on.
                   const DataColumn(label: SizedBox.shrink()),
                 ],
                 rows: [
@@ -179,13 +181,13 @@ class _WorkcenterCard extends ConsumerWidget {
     final operators = parseOperatorsPerShift(period.operatorsPerShift);
     return DataRow(
       cells: [
-        DataCell(Text(dates.format(period.startDate))),
-        DataCell(Text(dates.format(period.endDate))),
+        centredText(dates.format(period.startDate)),
+        centredText(dates.format(period.endDate)),
         // Derived by counting, never stored (DESIGN.md §4.2).
-        DataCell(Text('${staffedShiftCount(operators)}')),
-        DataCell(Text(formatOperatorsPerShift(operators))),
-        DataCell(Text(_percent(period.availability))),
-        DataCell(Text(_percent(period.rework))),
+        centredText('${staffedShiftCount(operators)}'),
+        centredText(formatOperatorsPerShift(operators)),
+        centredText(_percent(period.availability)),
+        centredText(_percent(period.rework)),
         DataCell(
           Row(
             children: [

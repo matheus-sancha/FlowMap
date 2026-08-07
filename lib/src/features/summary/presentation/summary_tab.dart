@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/centred_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -190,20 +191,23 @@ class _OccupationTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
-            DataColumn(label: Text(l10n.workcenter)),
-            DataColumn(label: Text(l10n.summaryRequired), numeric: true),
-            DataColumn(label: Text(l10n.summaryAvailable), numeric: true),
-            DataColumn(label: Text(l10n.occupation), numeric: true),
-            DataColumn(label: Text(l10n.summaryOperatorsAllocated),
-                numeric: true),
-            DataColumn(label: Text(l10n.summaryOperatorsNeeded), numeric: true),
+            centredColumn(l10n.workcenter),
+            centredColumn(l10n.summaryRequired),
+            centredColumn(l10n.summaryAvailable),
+            centredColumn(l10n.occupation),
+            centredColumn(l10n.summaryOperatorsAllocated),
+            centredColumn(l10n.summaryOperatorsNeeded),
           ],
           rows: [
             for (final target in summary.targets)
               DataRow(
                 cells: [
-                  DataCell(
+                  centredCell(
                     Row(
+                      // Without this the Row fills the column and the centring
+                      // around it does nothing — a name with a `×3` badge and
+                      // an error icon still has to read as one centred group.
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(target.title),
                         if (target.visits > 1) ...[
@@ -234,7 +238,7 @@ class _OccupationTable extends StatelessWidget {
                       ],
                     ),
                   ),
-                  DataCell(
+                  centredCell(
                     Tooltip(
                       // §15: every derived figure expands to show its inputs.
                       message: l10n.summaryRequiredHelp(
@@ -245,8 +249,8 @@ class _OccupationTable extends StatelessWidget {
                       child: Text(_hours(target.required)),
                     ),
                   ),
-                  DataCell(Text(_hours(target.availableProductive))),
-                  DataCell(
+                  centredText(_hours(target.availableProductive)),
+                  centredCell(
                     Tooltip(
                       message: l10n.summaryOccupationHelp(
                         _percent(target.occupation),
@@ -264,13 +268,11 @@ class _OccupationTable extends StatelessWidget {
                       ),
                     ),
                   ),
-                  DataCell(Text('${target.operatorsAllocated}')),
-                  DataCell(
-                    Text(
-                      target.operatorsNeeded == null
-                          ? '—'
-                          : target.operatorsNeeded!.toStringAsFixed(1),
-                    ),
+                  centredText('${target.operatorsAllocated}'),
+                  centredText(
+                    target.operatorsNeeded == null
+                        ? '—'
+                        : target.operatorsNeeded!.toStringAsFixed(1),
                   ),
                 ],
               ),

@@ -404,7 +404,27 @@ Date | Order Start | Order End | Theoretical LT | Actual LT | Float`
 _Rejected: a third column for the ratio, or for `actual − theoretical`._ Both only restate the two,
 on a table already scrolling horizontally at thirteen columns.
 
-### 2.4 The read-only tables centre
+### 2.4 The read-only tables centre — **done 2026-08-06**
+
+Landed as **§12.5**. Two things the plan did not anticipate, both found by writing the test first:
+
+- **A one-column fixture lies about centring.** The first version of the test used a single column
+  and failed: the cell centred at the middle of the *table* (400 px) while the heading sat at 165.
+  A lone column is stretched to the full width and the heading does not participate in that stretch
+  the way a cell does. With two columns — which every real table has — header and cell agree
+  exactly. The test now uses two, and covers the stretched-to-fill case as well, because the takt
+  table is the one table with no horizontal scroll view around it.
+- **A `Row` inside a centred cell has to be told to shrink.** The Summary's first column is a
+  workcenter name plus an optional `×3` badge and an error icon. `Row` defaults to filling its
+  parent, so the centring around it did nothing until it got `mainAxisSize: MainAxisSize.min`.
+
+Action columns are left start-aligned, which was a judgement call rather than an oversight: edit and
+delete are not data read down a column, and the takt table stretches, so centring would put its
+buttons mid-cell away from the row they act on.
+
+506 tests.
+
+
 
 Header and cells centred in all seven Material `DataTable`s — Production Plan, Queue, Share of flow,
 Parts, Summary, Takt, Workcenter schedules — dropping `numeric`'s right-align there. Material has no

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/centred_table.dart';
 import '../../../common/date_input.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/unit_labels.dart';
@@ -464,75 +465,64 @@ class _PlanTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
-            DataColumn(label: Text(l10n.simPlanOrder), numeric: true),
-            DataColumn(label: Text(l10n.demandPartNumber)),
-            DataColumn(label: Text(l10n.demandDescription)),
-            DataColumn(label: Text(l10n.demandProject)),
-            DataColumn(label: Text(l10n.demandBatchNumber)),
-            DataColumn(label: Text(l10n.demandBatchSize), numeric: true),
-            DataColumn(label: Text(l10n.demandNeedDate), numeric: true),
-            DataColumn(label: Text(l10n.demandMaterialDate), numeric: true),
-            DataColumn(label: Text(l10n.simPlanOrderStart), numeric: true),
-            DataColumn(label: Text(l10n.simPlanOrderEnd), numeric: true),
+            centredColumn(l10n.simPlanOrder),
+            centredColumn(l10n.demandPartNumber),
+            centredColumn(l10n.demandDescription),
+            centredColumn(l10n.demandProject),
+            centredColumn(l10n.demandBatchNumber),
+            centredColumn(l10n.demandBatchSize),
+            centredColumn(l10n.demandNeedDate),
+            centredColumn(l10n.demandMaterialDate),
+            centredColumn(l10n.simPlanOrderStart),
+            centredColumn(l10n.simPlanOrderEnd),
             // Theoretical first: it is the baseline, and the actual beside it
             // is read against it. The gap between the two is the queueing.
-            DataColumn(
-              label: Text(l10n.simPlanTheoreticalLeadTime),
-              numeric: true,
-            ),
-            DataColumn(label: Text(l10n.simPlanActualLeadTime), numeric: true),
-            DataColumn(label: Text(l10n.simAverageFloat), numeric: true),
+            centredColumn(l10n.simPlanTheoreticalLeadTime),
+            centredColumn(l10n.simPlanActualLeadTime),
+            centredColumn(l10n.simAverageFloat),
           ],
           rows: [
             for (final row in rows)
               DataRow(
                 cells: [
-                  DataCell(Text('${row.orderNumber}')),
-                  DataCell(Text(row.partNumber)),
+                  centredText('${row.orderNumber}'),
+                  centredText(row.partNumber),
                   // Free text with no length limit, in a table that sizes each
                   // column to its widest cell — so one long description would
                   // push Float off the right edge for every row. Capped and
                   // ellipsised with the whole string on hover, which is what
                   // §5.4 does with a node's notes for the same reason.
-                  DataCell(_Description(text: row.partDescription)),
+                  centredCell(_Description(text: row.partDescription)),
                   // Blank throughout means a run made before schema v12, which
                   // did not record any of this (§16.13). A dash, never a
                   // guess.
-                  DataCell(
-                    Text(
-                      (row.customerProject?.isEmpty ?? true)
-                          ? '—'
-                          : row.customerProject!,
-                    ),
+                  centredText(
+                    (row.customerProject?.isEmpty ?? true)
+                        ? '—'
+                        : row.customerProject!,
                   ),
-                  DataCell(
-                    Text(
-                      (row.batchNumber?.isEmpty ?? true)
-                          ? '—'
-                          : row.batchNumber!,
-                    ),
+                  centredText(
+                    (row.batchNumber?.isEmpty ?? true)
+                        ? '—'
+                        : row.batchNumber!,
                   ),
-                  DataCell(
-                    Text(row.batchSize == null ? '—' : '${row.batchSize}'),
-                  ),
-                  DataCell(Text(date(row.outcome.needDate))),
-                  DataCell(Text(date(row.materialDate))),
-                  DataCell(Text(date(row.orderStart))),
-                  DataCell(Text(date(row.delivery))),
-                  DataCell(Text(_duration(l10n, row.theoreticalLeadTime))),
-                  DataCell(Text(_duration(l10n, row.actualLeadTime))),
+                  centredText(row.batchSize == null ? '—' : '${row.batchSize}'),
+                  centredText(date(row.outcome.needDate)),
+                  centredText(date(row.materialDate)),
+                  centredText(date(row.orderStart)),
+                  centredText(date(row.delivery)),
+                  centredText(_duration(l10n, row.theoreticalLeadTime)),
+                  centredText(_duration(l10n, row.actualLeadTime)),
                   // The one figure here that is a verdict rather than a fact,
                   // so late is coloured. Positive is early (§8).
-                  DataCell(
-                    Text(
-                      _duration(l10n, row.float),
-                      style: (row.float?.isNegative ?? false)
-                          ? theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.w600,
-                            )
-                          : null,
-                    ),
+                  centredText(
+                    _duration(l10n, row.float),
+                    style: (row.float?.isNegative ?? false)
+                        ? theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          )
+                        : null,
                   ),
                 ],
               ),
@@ -742,28 +732,28 @@ class _QueueTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
-            DataColumn(label: Text(l10n.workcenter)),
-            DataColumn(label: Text(l10n.utilization), numeric: true),
-            DataColumn(label: Text(l10n.simQueue), numeric: true),
-            DataColumn(label: Text(l10n.simQueueAverage), numeric: true),
-            DataColumn(label: Text(l10n.simVisits), numeric: true),
-            DataColumn(label: Text(l10n.simChangeovers), numeric: true),
+            centredColumn(l10n.workcenter),
+            centredColumn(l10n.utilization),
+            centredColumn(l10n.simQueue),
+            centredColumn(l10n.simQueueAverage),
+            centredColumn(l10n.simVisits),
+            centredColumn(l10n.simChangeovers),
           ],
           rows: [
             for (final station in metrics.workcenters)
               DataRow(
                 cells: [
-                  DataCell(Text(station.name)),
-                  DataCell(
+                  centredText(station.name),
+                  centredCell(
                     Tooltip(
                       message: l10n.simUtilizationHelp,
                       child: Text(_percent(station.utilization)),
                     ),
                   ),
-                  DataCell(Text(_duration(l10n, station.queueTime))),
-                  DataCell(Text(_duration(l10n, station.averageQueue))),
-                  DataCell(Text('${station.visits}')),
-                  DataCell(Text('${station.changeovers}')),
+                  centredText(_duration(l10n, station.queueTime)),
+                  centredText(_duration(l10n, station.averageQueue)),
+                  centredText('${station.visits}'),
+                  centredText('${station.changeovers}'),
                 ],
               ),
           ],
@@ -790,17 +780,17 @@ class _ShareTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
-            DataColumn(label: Text(l10n.workcenter)),
-            DataColumn(label: Text(l10n.simContributed), numeric: true),
-            DataColumn(label: Text(l10n.simShareOfFlow), numeric: true),
+            centredColumn(l10n.workcenter),
+            centredColumn(l10n.simContributed),
+            centredColumn(l10n.simShareOfFlow),
           ],
           rows: [
             for (final station in metrics.byContribution)
               DataRow(
                 cells: [
-                  DataCell(Text(station.name)),
-                  DataCell(Text(_duration(l10n, station.contributedTime))),
-                  DataCell(Text(_percent(metrics.shareOfFlow(station)))),
+                  centredText(station.name),
+                  centredText(_duration(l10n, station.contributedTime)),
+                  centredText(_percent(metrics.shareOfFlow(station))),
                 ],
               ),
           ],
@@ -825,23 +815,23 @@ class _PartsTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
-            DataColumn(label: Text(l10n.demandPartNumber)),
-            DataColumn(label: Text(l10n.simOrders), numeric: true),
-            DataColumn(label: Text(l10n.simDelivered), numeric: true),
-            DataColumn(label: Text(l10n.simOnTime), numeric: true),
-            DataColumn(label: Text(l10n.simAverageLeadTime), numeric: true),
-            DataColumn(label: Text(l10n.simAverageFloat), numeric: true),
+            centredColumn(l10n.demandPartNumber),
+            centredColumn(l10n.simOrders),
+            centredColumn(l10n.simDelivered),
+            centredColumn(l10n.simOnTime),
+            centredColumn(l10n.simAverageLeadTime),
+            centredColumn(l10n.simAverageFloat),
           ],
           rows: [
             for (final part in metrics.parts)
               DataRow(
                 cells: [
-                  DataCell(Text(part.partNumber)),
-                  DataCell(Text('${part.orders}')),
-                  DataCell(Text('${part.delivered}')),
-                  DataCell(Text('${part.onTime}')),
-                  DataCell(Text(_duration(l10n, part.averageLeadTime))),
-                  DataCell(Text(_duration(l10n, part.averageFloat))),
+                  centredText(part.partNumber),
+                  centredText('${part.orders}'),
+                  centredText('${part.delivered}'),
+                  centredText('${part.onTime}'),
+                  centredText(_duration(l10n, part.averageLeadTime)),
+                  centredText(_duration(l10n, part.averageFloat)),
                 ],
               ),
           ],

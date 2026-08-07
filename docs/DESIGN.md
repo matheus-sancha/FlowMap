@@ -971,6 +971,30 @@ pt/es) with a Settings override, stored as local dates — a shift calendar is i
 
 Localised en / es / pt, mirroring Chronus.
 
+### 12.5 The read-only tables are centred
+
+Header and cells sit in the middle of their column in all seven result tables — the production
+plan, the queue and share-of-flow rankings, the per-part table, the occupation table, and the takt
+and workcenter schedules. `numeric: true` is gone from them.
+
+- **The editable grid keeps its right-aligned numerics.** `DataGridColumn.numeric` exists because
+  you *type* into those cells and scan a column of process times for the one that is wrong, and a
+  ragged left edge is what makes the outlier visible. That is a different job from reading a
+  finished figure, so the two families deliberately differ rather than being made uniform.
+- **A wrapper, not a flag.** Material offers start or end alignment and no third, so centring is
+  `centredColumn` / `centredCell` / `centredText` in `common/centred_table.dart`. Doing it inline at
+  forty call sites would leave forty chances to forget one.
+- **Action columns are not centred.** The takt and workcenter schedules end in edit and delete
+  buttons under a blank heading. Those are not data read down a column, and the takt table stretches
+  to fill its card, so centring would strand them mid-cell away from the row they act on.
+- **The mechanism is tested, because it is a fact about Flutter rather than about this app.** A
+  `DataTable` sizes each column to its widest participant and lays every cell out at that width, so
+  a `Center` inside one expands to the column. That holds for tables of two columns or more; with a
+  single column the column is stretched to the full table width, the heading does not participate in
+  the stretch the way a cell does, and the two stop agreeing. Every table here has several columns,
+  so it never arises — but a fixture written with one reports a centring no real table would show,
+  which is why `centred_table_test.dart` uses two and also covers the stretched case.
+
 ---
 
 ## 13. Exports
