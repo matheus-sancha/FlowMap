@@ -6,13 +6,15 @@ is only a plan, and each item should be deleted from it as it lands.
 Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 528 tests passing, not pushed.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
-**The Release bundle is current, and v12 is on the real database.** Both were done late on
-2026-08-05 and this file did not record it — checked 2026-08-06 and written down here so it is not
-re-done a third time. `Release/data/app.so` was compiled 23:45, four minutes after `ebde766`, the
-last commit; the log's session at 23:45:30 reads `db.open schema 12 from 11` under build label
-`0.1.0-2026-08-05` rather than `dev`, and a run on the migrated database succeeded at 23:46:36.
-`flowmap.exe`'s own Aug 3 timestamp still means nothing: it is the C++ host shell from
-`windows/runner/`, which has not changed, so CMake rightly declines to relink it.
+**The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
+§2.10's four commits under label `0.1.0-2026-08-08`, and *launched* rather than merely inspected —
+the session header at 09:33:16 reads that label rather than `dev`, and `db.open schema 14 from 14`,
+which is a no-op open and so the proof that nothing migrated. The file itself was read beforehand:
+`user_version` 14, all 29 declared tables, `integrity_check` ok. This paragraph exists because the
+2026-08-05 rebuild went unrecorded and was nearly done a third time; keep it truthful after every
+drop. `flowmap.exe`'s own Aug 3 timestamp still means nothing: it is the C++ host shell from
+`windows/runner/`, which has not changed, so CMake rightly declines to relink it — only
+`Release/data/app.so` moves.
 
 ---
 
@@ -724,12 +726,12 @@ only.
 - [ ] **The pool fix, against célula 11B.** The CLAD Pool of three reads 63 % occupation and a flow
       equivalent of 0.99, which is the right shape; comparing against what it read *before* the fix
       still needs the old build.
-- [ ] **§2.10's tables and grid, in the real app.** Everything below is covered by widget tests and
-      two rendered PNGs, which is what found the three defects §2.10 records — but nothing has been
-      driven by hand. Worth looking at: the Summary table's first cell, where a long workcenter name
-      now ellipsises inside a declared 190 px beside its `×3` badge and error icon; whether 360 px is
-      the right pane height in a real window; and the parts grid on `Célula 11B` with its real
-      station count, which is the case that started this.
+- [x] ~~**§2.10's tables and grid, in the real app.**~~ Done 2026-08-08, in Debug and then in
+      Release. It found the two-bar defect on the Summary tab that §2.10's fourth commit fixed —
+      which the widget tests could not have, because a bounded pane inside a page that also scrolls
+      is a composition none of them mounted. The parts grid's frozen part number and the production
+      plan's pane were both looked at and stand. **The plan keeps its 360 px pane by decision, not
+      by omission**, and is the next candidate if it ever grates.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
