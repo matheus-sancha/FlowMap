@@ -1344,6 +1344,48 @@ to. The row header goes with it.
 
 All exports stamped with app version, project/study name and run timestamp.
 
+### 13.1 The production plan, in Excel — as built
+
+`.xlsx`, one sheet per study, a header row, §8.5's thirteen columns, built from the same `StoredRun`
+the table renders — so the file and the screen cannot disagree about what the run did (§7.10). A
+planner merges it into their own system, which no PDF allows.
+
+- **Dates as dates and durations as durations**, never the strings the screen shows. A column of
+  `9.1 d` sorts `1.2 d` after `10.4 d` and pivots into nothing, and being able to do arithmetic on
+  the other side is the whole reason this is a spreadsheet rather than a printout. Need date and
+  material date are dates with no time of day, because none was ever entered for them; Order Start
+  and Order End carry the instant, which is *more* than the table shows — thirteen columns leave no
+  room for a clock and a file has no such constraint, so the two agree about the moment and the file
+  says more of it.
+- **A duration is a number of days, not a clock reading.** Excel's own duration is a fraction of a
+  day, and `excel`'s `TimeCellValue.fromDuration` maps onto it by taking the hour, minute and second
+  of `DateTime.utc(0) + duration` — so a thirty-hour lead time would land in the file as `06:00:00`,
+  silently a day short, in a column meant to be averaged. Every figure in these three columns runs
+  to days. A day is 24 hours, which is what §17.4 calls a day for a headline figure, and the unit is
+  in the heading because a column has one where `formatAdaptiveDuration` picks one per value. Not
+  rounded: the value is the stored seconds ÷ 86 400, and how many decimals to show is the
+  spreadsheet's business.
+- **A value the run did not record is a blank cell, not the dash the table shows.** A dash says
+  "this run predates the column" (§16.13) to someone reading; in a column about to be pivoted it is
+  text, and text in a number column is what turns the pivot into a mess. Blank is the same statement
+  in the file's own language. An empty string goes the same way, so the two ways of saying nothing
+  do not both appear in one column.
+- **The stamp is its own sheet**, carrying the build label, the generation timestamp, the project
+  name, the run label and any dispatch overrides (§7.4). Above the header it would put the header in
+  row 2 and break exactly the pivot the export exists for. It also maps each study to the sheet it
+  went to, which is not decoration: a sheet name is capped at 31 characters and cannot carry
+  `: \ / ? * [ ]`, so two long study names can reach the workbook shortened and near-identical, and
+  the stamp is the only place the full name survives. Duplicates are suffixed rather than dropped.
+- **The button sits beside the plan**, not on the tab's chrome: the plan is one of several tables on
+  that view, and a project-level export button would not say which one it takes.
+
+_Rejected: a PDF of the plan._ §13 reserves PDF for the full simulation *report*, and a standalone
+plan PDF pre-empts a document that does not exist yet. Thirteen columns landscape is tight in any
+case.
+
+_The Gantt does not export._ A chart spanning months has to be paged across sheets or scaled to
+illegibility, and it is the hardest of the three to print well.
+
 ---
 
 ## 14. Scale target

@@ -2268,17 +2268,17 @@ abstract class AppLocalizations {
   /// **'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.'**
   String get footerEndDateHelp;
 
-  /// No description provided for @pdfGenerated.
+  /// No description provided for @exportGenerated.
   ///
   /// In en, this message translates to:
   /// **'FlowMap {build} · generated {timestamp}'**
-  String pdfGenerated(String build, String timestamp);
+  String exportGenerated(String build, String timestamp);
 
-  /// No description provided for @pdfSaved.
+  /// No description provided for @exportSaved.
   ///
   /// In en, this message translates to:
   /// **'Saved to {path}'**
-  String pdfSaved(String path);
+  String exportSaved(String path);
 
   /// No description provided for @projectTabSimulation.
   ///
@@ -2741,6 +2741,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.'**
   String get simGanttFlooredHelp;
+
+  /// No description provided for @exportExcel.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to Excel'**
+  String get exportExcel;
+
+  /// No description provided for @simExportRunSheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get simExportRunSheet;
 }
 
 class _AppLocalizationsDelegate

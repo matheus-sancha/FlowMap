@@ -426,8 +426,8 @@
   "footerEndDate": "Data de término",
   "footerRunningDays": "{days} dias corridos · {date}",
   "footerEndDateHelp": "Quando uma ordem iniciada no primeiro dia deste período terminaria, percorrendo os calendários reais. A diferença para o lead time são os fins de semana e as paradas.",
-  "pdfGenerated": "FlowMap {build} · gerado em {timestamp}",
-  "pdfSaved": "Salvo em {path}",
+  "exportGenerated": "FlowMap {build} · gerado em {timestamp}",
+  "exportSaved": "Salvo em {path}",
 
   "projectTabSimulation": "Simulação",
   "simulationRun": "Simular",
@@ -515,5 +515,7 @@
   "simGanttZoomOut": "Afastar",
   "simGanttFloored": "{count, plural, =1{1 barra desenhada mais larga do que é} other{{count} barras desenhadas mais largas do que são}}",
   "@simGanttFloored": { "placeholders": { "count": { "type": "int" } } },
-  "simGanttFlooredHelp": "Neste zoom esses passos são mais finos que um pixel, então são desenhados na largura mínima para continuarem visíveis. A posição é exata; a largura não. Ao aproximar, o aviso some."
+  "simGanttFlooredHelp": "Neste zoom esses passos são mais finos que um pixel, então são desenhados na largura mínima para continuarem visíveis. A posição é exata; a largura não. Ao aproximar, o aviso some.",
+  "exportExcel": "Exportar para Excel",
+  "simExportRunSheet": "Execução"
 }

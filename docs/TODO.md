@@ -3,11 +3,12 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 593 tests passing. **Five commits ahead
-of `origin`** as of 2026-08-08: `f517a74` settles §2.7 by interview and the four after it are all
-four of its commits. **§2.7 is code-complete and has never been run**, which is the next thing: §3's
-Gantt item says what to look at against célula 11B, and it is the step §2.10 is the evidence for.
-§2.8 — the plan in Excel — is the only piece of §2 not yet written.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 608 tests passing. **Six commits ahead of
+`origin`** as of 2026-08-08. **§2 is now written in full**, and the next thing needs a human at the
+GUI rather than more code: §2.7's Gantt and §2.8's export have never been run. §3 says what to look
+at against célula 11B, and §2.10 is the evidence that the step earns its place. **A Release rebuild
+is owed with it** — the bundle under `0.1.0-2026-08-08` predates all five of §2.7's and §2.8's
+commits, and the schema is untouched at v14, so nothing will migrate.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
@@ -722,16 +723,30 @@ Study column; then §3 drives it by hand. §2.10 is the evidence that last step 
      reach for a row by name now: asserting the order there would have been a second, weaker copy of
      what `run_metrics_test` already owns.
 
-### 2.8 The plan, in Excel
+### 2.8 The plan, in Excel — **done 2026-08-08**
 
-`.xlsx`, one sheet per study, header row, §2.3's thirteen columns, from the same `StoredRun` the
-table renders. **Dates as dates and durations as durations**, not text, so they sort and pivot;
-stamped with app version, project name and run timestamp per §13's last line. `excel: ^4.0.6` and
-`file_selector` are already in the tree.
+Landed as described, written up as **§13.1**. 15 tests, 608 in all. Four things worth keeping:
 
-This is what §13 already assigns it — "Excel: any grid in the app, plus **per-order simulation
-results for pivoting**" — and the Production Plan is per-order simulation results. A planner merges
-it with their own system, which no PDF allows.
+- **A duration cannot be an Excel duration, and finding out why is the point of the column.**
+  `TimeCellValue.fromDuration` takes the hour, minute and second of `DateTime.utc(0) + duration`, so
+  a thirty-hour lead time reaches the file as `06:00:00` — silently a day short, in the one column
+  a planner is most likely to average. They are `DoubleCellValue` in 24-hour days with the unit in
+  the heading, and the fixture's lead time is thirty hours precisely so the test fails if anyone
+  ever "improves" it back to a clock reading.
+- **The export is decoded again in its own tests.** A PDF's numbers live inside a compressed content
+  stream and `flow_pdf_test` can only check that the renderer was *asked* the right things; an
+  `.xlsx` reads straight back, so these assert the actual cell types. That is worth more here than
+  anywhere else in the app, because "it is a date, not a string that looks like one" is the entire
+  claim the format is making.
+- **The stamp had to be its own sheet.** §13's last line asks every export to carry the build,
+  the project and the timestamp, and a stamp row above the header would put the header in row 2 and
+  break the pivot the file exists for. It earns its place twice over by mapping each study to its
+  sheet: Excel caps a sheet name at 31 characters and forbids `: \ / ? * [ ]`, so two long study
+  names can arrive shortened and near-identical, and the stamp is the only place the full name is.
+- **`pdfGenerated` and `pdfSaved` are now `exportGenerated` and `exportSaved`.** Both strings were
+  already generic and both exports need them; leaving them keyed to one format would have meant a
+  second copy of the same sentence. Mechanical and compiler-checked, so it cannot be half-done —
+  §1.9's rule.
 
 _Rejected: a PDF of the plan._ §13 reserves PDF for the full simulation *report* — input snapshot,
 metrics, bottleneck ranking, late-order list — and a standalone plan PDF pre-empts a document that
@@ -740,13 +755,18 @@ does not exist yet. Thirteen columns landscape is tight in any case.
 **The Gantt does not export.** §4's parking of exports covers it: a chart spanning months has to be
 paged across sheets or scaled to illegibility, and it is the hardest of the three to print well.
 
-### 2.9 DESIGN.md
+### 2.9 DESIGN.md — **done 2026-08-08**
 
-Written as each piece lands, not swept up at the end — §1.10 is the evidence that doing it that way
-finds things. Sections this round touches: **§5.2** (the FIFO lane is its own figure), **§7.10**
-and **§16.14** (schema v13, new), **§8.5** (three new columns, and Delivery → Order end), **§8.6**
-(the Gantt, new), **§12.2** (refit on viewport change), **§13** (the plan's Excel export). None of
-it is real until those say it, in the same commits that change the behaviour.
+Written as each piece landed, not swept up at the end — §1.10 is the evidence that doing it that way
+finds things. Sections this round touched: **§5.2** (the FIFO lane is its own figure), **§7.10** and
+**§16.14** (schema v13, new), **§8.5** (three new columns, and Delivery → Order end), **§8.6** (the
+Gantt, new — geometry, view and colour), **§12.1** (the run's two views), **§12.2** (refit on
+viewport change), **§12.5** and **§12.6** (the tables centre, and scroll), **§16.15** (schema v14,
+new) and **§13.1** (the plan's Excel export, new).
+
+One thing to be aware of when reading it back: **§8.6 grew from a heading about colour into the
+Gantt's whole section**, so a comment pointing at §8.6 for the palette is still right, just no
+longer pointing at the top of it.
 
 ### 2.10 A wide table scrolls, and says so — **done 2026-08-08**
 
@@ -870,6 +890,13 @@ only.
         not — the hover card should say it either way.
       - **The frozen labels against a long station name**, and the hover card at the right-hand edge
         of the pane and on the bottom row, which are the two places it has to be pushed back inside.
+- [ ] **The plan in Excel, opened in Excel.** §13.1 is asserted by decoding the file back, which
+      proves the cells are typed but says nothing about how Excel *renders* them: a date column
+      whose default format is `45 872` and a duration column reading `1.2500000000` are both
+      technically correct and both unusable. Export the célula 11B plan, open it, and check the
+      dates read as dates, that Order Start shows its time, and that sorting the Float column puts
+      the late orders where a planner expects. In es and pt as well — a locale decides how Excel
+      itself formats a date cell.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
@@ -914,4 +941,6 @@ Run comparison has what it needs: two `StoredRun`s report through the same `summ
 figures on either side of a comparison cannot have been computed two different ways. §1.3's stored
 dispatch overrides are what lets a comparison say the dispatch is what differed.
 
-Export of the Production Plan (§1.5) belongs here, with the other reports.
+The Production Plan already exports (§2.8, §13.1). What is left for M5 is the *report* PDF §13
+reserves — input snapshot, metrics, bottleneck ranking, late-order list — which the plan's `.xlsx`
+was deliberately kept from pre-empting.

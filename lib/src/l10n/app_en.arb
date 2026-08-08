@@ -470,12 +470,12 @@
     "placeholders": { "days": { "type": "String" }, "date": { "type": "String" } }
   },
   "footerEndDateHelp": "When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.",
-  "pdfGenerated": "FlowMap {build} · generated {timestamp}",
-  "@pdfGenerated": {
+  "exportGenerated": "FlowMap {build} · generated {timestamp}",
+  "@exportGenerated": {
     "placeholders": { "build": { "type": "String" }, "timestamp": { "type": "String" } }
   },
-  "pdfSaved": "Saved to {path}",
-  "@pdfSaved": {
+  "exportSaved": "Saved to {path}",
+  "@exportSaved": {
     "placeholders": { "path": { "type": "String" } }
   },
 
@@ -565,5 +565,7 @@
   "simGanttZoomOut": "Zoom out",
   "simGanttFloored": "{count, plural, =1{1 bar drawn wider than it is} other{{count} bars drawn wider than they are}}",
   "@simGanttFloored": { "placeholders": { "count": { "type": "int" } } },
-  "simGanttFlooredHelp": "At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes."
+  "simGanttFlooredHelp": "At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.",
+  "exportExcel": "Export to Excel",
+  "simExportRunSheet": "Run"
 }

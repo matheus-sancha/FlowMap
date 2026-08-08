@@ -108,7 +108,7 @@ Future<void> exportFlowPdf(
     notes: l10n.flowNodeNotes,
     leadTime: l10n.footerLeadTime,
     pce: l10n.footerPce,
-    generated: l10n.pdfGenerated(kBuildLabel, timestamp.format(DateTime.now())),
+    generated: l10n.exportGenerated(kBuildLabel, timestamp.format(DateTime.now())),
     // Named, and named *which* part when it is one: a printed map read a
     // month later has no dropdown to check (DESIGN.md §17.4).
     dataSource: view.selectedPartNumber == null
@@ -148,7 +148,7 @@ Future<void> exportFlowPdf(
   if (context.mounted) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(l10n.pdfSaved(location.path))));
+    ).showSnackBar(SnackBar(content: Text(l10n.exportSaved(location.path))));
   }
 }
 

@@ -1232,12 +1232,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.';
 
   @override
-  String pdfGenerated(String build, String timestamp) {
+  String exportGenerated(String build, String timestamp) {
     return 'FlowMap $build · generated $timestamp';
   }
 
   @override
-  String pdfSaved(String path) {
+  String exportSaved(String path) {
     return 'Saved to $path';
   }
 
@@ -1531,4 +1531,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get simGanttFlooredHelp =>
       'At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.';
+
+  @override
+  String get exportExcel => 'Export to Excel';
+
+  @override
+  String get simExportRunSheet => 'Run';
 }

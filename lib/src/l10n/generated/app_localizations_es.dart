@@ -1248,12 +1248,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'Cuándo terminaría una orden iniciada el primer día de este periodo, recorriendo los calendarios reales. La diferencia con el lead time son los fines de semana y los paros.';
 
   @override
-  String pdfGenerated(String build, String timestamp) {
+  String exportGenerated(String build, String timestamp) {
     return 'FlowMap $build · generado $timestamp';
   }
 
   @override
-  String pdfSaved(String path) {
+  String exportSaved(String path) {
     return 'Guardado en $path';
   }
 
@@ -1549,4 +1549,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get simGanttFlooredHelp =>
       'A este zoom estos pasos son más finos que un píxel, así que se dibujan al ancho mínimo para que se vean. Su posición es exacta; su ancho no. Al acercar, el aviso desaparece.';
+
+  @override
+  String get exportExcel => 'Exportar a Excel';
+
+  @override
+  String get simExportRunSheet => 'Ejecución';
 }

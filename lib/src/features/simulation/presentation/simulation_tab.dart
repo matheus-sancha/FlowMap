@@ -15,6 +15,7 @@ import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
 import 'gantt_view.dart';
+import 'plan_excel.dart';
 
 /// The Simulation tab (DESIGN.md §12.1).
 ///
@@ -260,7 +261,10 @@ class _Body extends StatelessWidget {
                 detail: l10n.simulationNeverRunHelp,
               ),
             ),
-            AsyncValue(value: final run!) => _Results(run: run),
+            AsyncValue(value: final run!) => _Results(
+              run: run,
+              projectName: project.name,
+            ),
           },
         ),
       ],
@@ -333,9 +337,12 @@ enum _RunView { results, gantt }
 /// Held in an `IndexedStack`, so switching to the results and back returns the
 /// zoom the reader left rather than refitting the chart under them.
 class _Results extends StatefulWidget {
-  const _Results({required this.run});
+  const _Results({required this.run, required this.projectName});
 
   final StoredRun run;
+
+  /// Stamped into the workbook the plan exports to (§13).
+  final String projectName;
 
   @override
   State<_Results> createState() => _ResultsState();
@@ -397,7 +404,7 @@ class _ResultsState extends State<_Results> {
             children: [
               SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _ResultTables(run: run),
+                child: _ResultTables(run: run, projectName: widget.projectName),
               ),
               GanttView(run: run),
             ],
@@ -460,9 +467,10 @@ class _RunHeader extends StatelessWidget {
 
 /// The metrics card and the four tables — what the Results view is.
 class _ResultTables extends StatelessWidget {
-  const _ResultTables({required this.run});
+  const _ResultTables({required this.run, required this.projectName});
 
   final StoredRun run;
+  final String projectName;
 
   @override
   Widget build(BuildContext context) {
@@ -494,7 +502,29 @@ class _ResultTables extends StatelessWidget {
         const SizedBox(height: 8),
         _PartsTable(run: run),
         const SizedBox(height: 24),
-        Text(l10n.simProductionPlan, style: theme.textTheme.titleSmall),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.simProductionPlan,
+                style: theme.textTheme.titleSmall,
+              ),
+            ),
+            // Beside the thing it exports rather than on the tab's chrome: the
+            // plan is one of several tables here, and a project-level export
+            // button would not say which one it takes (§13).
+            if (run.plan.isNotEmpty)
+              TextButton.icon(
+                icon: const Icon(Icons.table_view_outlined, size: 18),
+                label: Text(l10n.exportExcel),
+                onPressed: () => exportPlanExcel(
+                  context,
+                  run: run,
+                  projectName: projectName,
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 4),
         Text(
           l10n.simProductionPlanHelp,
