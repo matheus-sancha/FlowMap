@@ -462,6 +462,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Its studies, schedules and flows go with it. This cannot be undone.';
 
   @override
+  String get study => 'Study';
+
+  @override
   String get studyNew => 'New study';
 
   @override

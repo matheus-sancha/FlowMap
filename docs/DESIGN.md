@@ -644,6 +644,30 @@ is the diagnostic — the second ranking would be redundant if it were derived f
   theoretical figure is walked from **its own release instant**, so the comparison is the same
   order in the same plant minus the queueing, not an average against a fixture.
 
+### 8.1.2 The per-part table, as built
+
+Filed here rather than under a heading of its own because §8.1.1 already covers the two tables
+beside it on the Simulation tab, and the three are read together.
+
+`Part Number | Study | Orders | Delivered | On time | Average LT | Average float`, one row per
+**part**, sorted by number.
+
+- **Per part, not per part number.** `DemandParts` is unique on `{studyId, partNumber}` (§16.15), so
+  a part number identifies a part only inside its study. A run spans studies (§7.7), which means two
+  lines' `PN2` can both appear — two parts with their own routings and process times, and two rows
+  that read identically. `PartMetrics` therefore carries `studyId`, and the sort breaks its ties on
+  it so the pair land adjacent and in the same order on every read.
+- **The Study column appears only when the run carries more than one.** §8.5's rule for the plan's
+  section headings, for the same reason: on a single-study run every row holds the same answer, and
+  a column of it says nothing the tab has not already said in its header. The names are the ones the
+  studies had when the run was made (§7.10), so a study renamed since still reads as the one that
+  ran.
+
+_Rejected: keying the table on the part number and merging._ One row per number reads the way people
+talk and never repeats itself — but it would average two different parts' lead times into one figure
+and report it under a name that means neither. §16.15 moved the customer project off the part
+precisely so that a part number would mean one part; merging here would undo that in the reporting.
+
 ### 8.2 Demand takt
 
 Two rows on the Summary, per takt-schedule period, with a month/quarter view toggle:

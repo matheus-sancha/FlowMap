@@ -5,6 +5,7 @@ import 'package:flowmap/src/features/schedules/application/workcenter_schedule.d
 import 'package:flowmap/src/features/simulation/application/engine.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_model.dart';
+import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// What a run reports (DESIGN.md §8), over runs small enough to check by hand.
@@ -471,5 +472,76 @@ void main() {
 
     // Slots at 0, 10 and 20 all go out before the material lands at 25.
     expect(metrics.emptySlots, 3);
+  });
+
+  group('two studies sharing a part number (§8.1.2)', () {
+    // A part number is unique inside a study, not inside a project (§16.15),
+    // so a run spanning two lines can carry two genuinely different parts
+    // called `PN2`. Built through `summariseRun` rather than a run, because
+    // what is under test is how the report keeps them apart.
+    SimRunResult twoLines() => SimRunResult(
+      start: aug1,
+      end: aug1.add(const Duration(days: 10)),
+      guard: aug1.add(const Duration(days: 50)),
+      steps: const [],
+      orders: [
+        SimOrderOutcome(
+          studyId: 'study-b',
+          orderId: 'o-b',
+          sequence: 0,
+          partId: 'part-b',
+          needDate: aug1.add(const Duration(days: 9)),
+          released: aug1,
+          delivered: aug1.add(const Duration(days: 8)),
+        ),
+        SimOrderOutcome(
+          studyId: 'study-a',
+          orderId: 'o-a',
+          sequence: 0,
+          partId: 'part-a',
+          needDate: aug1.add(const Duration(days: 5)),
+          released: aug1,
+          delivered: aug1.add(const Duration(days: 2)),
+        ),
+      ],
+      emptySlots: const [],
+      busyByWorkcenter: const {},
+      openByWorkcenter: const {},
+    );
+
+    RunMetrics report() => summariseRun(
+      result: twoLines(),
+      partNumbers: const {'part-a': 'PN2', 'part-b': 'PN2'},
+      workcenterNames: const {},
+      theoreticalByOrder: const {},
+    );
+
+    test('stay two rows, each naming its own study', () {
+      final parts = report().parts;
+
+      expect(parts.length, 2);
+      expect(parts.map((p) => p.partNumber), ['PN2', 'PN2']);
+      // The only thing on the row that tells them apart.
+      expect(parts.map((p) => p.studyId), ['study-a', 'study-b']);
+      // And they are not merged: each carries its own order.
+      expect(parts.map((p) => p.orders), [1, 1]);
+    });
+
+    test('are not averaged together', () {
+      final parts = report().parts;
+
+      // Two days for study-a's part, eight for study-b's. Merged, both would
+      // read five, which is a figure neither part ever had.
+      expect(parts.first.averageLeadTime, const Duration(days: 2));
+      expect(parts.last.averageLeadTime, const Duration(days: 8));
+    });
+
+    test('sort the same way twice, on the study id', () {
+      // The orders arrive study-b first, so an unbroken tie would leave the
+      // pair in whatever order the map yielded — a list that reorders itself
+      // between two reads of one run.
+      expect(report().parts.map((p) => p.studyId), ['study-a', 'study-b']);
+      expect(report().parts.map((p) => p.studyId), ['study-a', 'study-b']);
+    });
   });
 }

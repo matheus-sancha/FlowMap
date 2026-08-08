@@ -110,6 +110,68 @@ void main() {
     );
   }
 
+  SimulationRunStudy study(String id, String name) => SimulationRunStudy(
+    runId: 'run-1',
+    studyId: id,
+    name: name,
+    releaseSeconds: const Duration(hours: 6).inSeconds,
+    priority: 0,
+  );
+
+  /// A run across two lines whose parts are both called `PN2` (§8.1.2).
+  ///
+  /// Legal, because `DemandParts` is unique on `{studyId, partNumber}` (§16.15)
+  /// — and the case the Study column exists for: without it the table shows two
+  /// rows reading identically.
+  StoredRun twoStudyRun() {
+    final result = SimRunResult(
+      start: DateTime(2026, 8, 3),
+      end: DateTime(2026, 8, 28),
+      guard: DateTime(2027),
+      steps: const [],
+      orders: [
+        SimOrderOutcome(
+          studyId: 'study-1',
+          orderId: 'o-1',
+          sequence: 0,
+          partId: 'part-1',
+          needDate: DateTime(2026, 8, 20),
+          released: DateTime(2026, 8, 3),
+          delivered: DateTime(2026, 8, 10),
+        ),
+        SimOrderOutcome(
+          studyId: 'study-2',
+          orderId: 'o-2',
+          sequence: 0,
+          partId: 'part-2',
+          needDate: DateTime(2026, 8, 20),
+          released: DateTime(2026, 8, 3),
+          delivered: DateTime(2026, 8, 12),
+        ),
+      ],
+      emptySlots: const [],
+      busyByWorkcenter: const {'wc-1': Duration(hours: 60)},
+      openByWorkcenter: const {'wc-1': Duration(hours: 100)},
+    );
+
+    return StoredRun(
+      id: 'run-1',
+      projectId: project.id,
+      createdAt: now,
+      dispatch: DispatchRule.fifo,
+      dispatchOverrides: const [],
+      studies: [study('study-1', 'Célula 11B'), study('study-2', 'Célula 12A')],
+      result: result,
+      plan: const [],
+      metrics: summariseRun(
+        result: result,
+        partNumbers: const {'part-1': 'PN2', 'part-2': 'PN2'},
+        workcenterNames: const {'wc-1': 'CLAD04'},
+        theoreticalByOrder: const {},
+      ),
+    );
+  }
+
   Future<void> pump(
     WidgetTester tester, {
     required SimRunInput assembled,
@@ -216,6 +278,46 @@ void main() {
     expect(find.text('Per part number'), findsOne);
     // Once in the per-part table and once per plan row below it.
     expect(find.text('PN1'), findsWidgets);
+  });
+
+  testWidgets('one study means no Study column on the per-part table', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+        ],
+      ),
+      run: storedRun(),
+    );
+
+    // §8.5's rule: every row would hold the same answer, so the column says
+    // nothing the tab has not said.
+    expect(find.text('Per part number'), findsOne);
+    expect(find.text('Study'), findsNothing);
+  });
+
+  testWidgets('two studies sharing a part number are told apart (§8.1.2)', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+        ],
+      ),
+      run: twoStudyRun(),
+    );
+
+    expect(find.text('Study'), findsOne);
+    // Two rows, both `PN2`, and the only thing separating them is the column.
+    expect(find.text('PN2'), findsExactly(2));
+    // The names the studies had when the run was made (§7.10).
+    expect(find.text('Célula 11B'), findsOne);
+    expect(find.text('Célula 12A'), findsOne);
   });
 
   testWidgets('the production plan lists every order the run placed', (

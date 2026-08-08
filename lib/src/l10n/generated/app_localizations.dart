@@ -940,6 +940,12 @@ abstract class AppLocalizations {
   /// **'Its studies, schedules and flows go with it. This cannot be undone.'**
   String get projectDeleteBody;
 
+  /// No description provided for @study.
+  ///
+  /// In en, this message translates to:
+  /// **'Study'**
+  String get study;
+
   /// No description provided for @studyNew.
   ///
   /// In en, this message translates to:

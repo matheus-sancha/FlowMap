@@ -15,10 +15,11 @@ import 'sim_model.dart';
 import 'sim_result.dart';
 import 'theoretical_lead_time.dart';
 
-/// How one part number fared across the run.
+/// How one part fared across the run.
 class PartMetrics {
   const PartMetrics({
     required this.partId,
+    required this.studyId,
     required this.partNumber,
     required this.orders,
     required this.delivered,
@@ -28,6 +29,16 @@ class PartMetrics {
   });
 
   final String partId;
+
+  /// The study the part belongs to.
+  ///
+  /// A part number is unique **within a study**, not within a project
+  /// (`DemandParts.uniqueKeys`, §16.15), so a run spanning two lines can carry
+  /// two different parts both called `PN2` — different routings, different
+  /// process times, two rows here reading the same. Without this the table
+  /// cannot say which is which, and neither can anything that colours by part.
+  final String studyId;
+
   final String partNumber;
 
   final int orders;
@@ -251,7 +262,10 @@ RunMetrics summariseRun({
   for (final outcome in result.orders) {
     final tally = byPart.putIfAbsent(
       outcome.partId,
-      () => _PartTally(partNumbers[outcome.partId] ?? outcome.partId),
+      () => _PartTally(
+        partNumbers[outcome.partId] ?? outcome.partId,
+        outcome.studyId,
+      ),
     );
     tally.orders++;
 
@@ -324,15 +338,23 @@ RunMetrics summariseRun({
         : theoreticalTotal ~/ theoreticalCount,
     parts: [
       for (final entry in byPart.entries) entry.value.toMetrics(entry.key),
-    ]..sort((a, b) => a.partNumber.compareTo(b.partNumber)),
+    ]..sort((a, b) {
+      final number = a.partNumber.compareTo(b.partNumber);
+      // Study last, so two studies' `PN2` land adjacent and in the same order
+      // twice running. Sorting on the number alone left their order to
+      // whichever the map happened to yield first, which is a list that
+      // reorders itself between reads of one run.
+      return number != 0 ? number : a.studyId.compareTo(b.studyId);
+    }),
     workcenters: ranked,
   );
 }
 
 class _PartTally {
-  _PartTally(this.partNumber);
+  _PartTally(this.partNumber, this.studyId);
 
   final String partNumber;
+  final String studyId;
   int orders = 0;
   int delivered = 0;
   int onTime = 0;
@@ -342,6 +364,7 @@ class _PartTally {
 
   PartMetrics toMetrics(String partId) => PartMetrics(
     partId: partId,
+    studyId: studyId,
     partNumber: partNumber,
     orders: orders,
     delivered: delivered,

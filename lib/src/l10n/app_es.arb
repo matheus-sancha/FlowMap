@@ -168,6 +168,7 @@
   "projectPatternHelp": "La división de turnos con la que se dota a cada centro de trabajo de este proyecto.",
   "projectDeleteBody": "Sus estudios, programaciones y flujos se van con él. Esto no se puede deshacer.",
 
+  "study": "Estudio",
   "studyNew": "Nuevo estudio",
   "studiesEmpty": "Aún no hay estudios en este proyecto.",
   "studyNameHint": "Situación actual",

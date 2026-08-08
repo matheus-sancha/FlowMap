@@ -187,6 +187,7 @@
   "projectPatternHelp": "The shift split every workcenter in this project is staffed against.",
   "projectDeleteBody": "Its studies, schedules and flows go with it. This cannot be undone.",
 
+  "study": "Study",
   "studyNew": "New study",
   "studiesEmpty": "No studies in this project yet.",
   "studyNameHint": "Current state",

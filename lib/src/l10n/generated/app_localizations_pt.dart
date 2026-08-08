@@ -466,6 +466,9 @@ class AppLocalizationsPt extends AppLocalizations {
       'Os estudos, programações e fluxos vão junto. Isso não pode ser desfeito.';
 
   @override
+  String get study => 'Estudo';
+
+  @override
   String get studyNew => 'Novo estudo';
 
   @override

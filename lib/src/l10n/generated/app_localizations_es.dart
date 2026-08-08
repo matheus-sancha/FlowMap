@@ -465,6 +465,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Sus estudios, programaciones y flujos se van con él. Esto no se puede deshacer.';
 
   @override
+  String get study => 'Estudio';
+
+  @override
   String get studyNew => 'Nuevo estudio';
 
   @override

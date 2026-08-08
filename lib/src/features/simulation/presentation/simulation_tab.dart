@@ -379,7 +379,7 @@ class _Results extends StatelessWidget {
         const SizedBox(height: 24),
         Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
-        _PartsTable(metrics: metrics),
+        _PartsTable(run: run),
         const SizedBox(height: 24),
         Text(l10n.simProductionPlan, style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
@@ -774,20 +774,36 @@ class _ShareTable extends StatelessWidget {
   }
 }
 
+/// How each part fared (§8.1.2).
+///
+/// **The Study column appears only when the run carries more than one**, which
+/// is §8.5's rule for the plan's headings: a single-study run has one answer in
+/// every row, and a column of it says nothing the tab has not said. It is not
+/// decoration when there are two — a part number identifies a part only inside
+/// its study (§16.15), so two lines' `PN2` are two parts, and this is the only
+/// thing on the row that tells them apart.
 class _PartsTable extends StatelessWidget {
-  const _PartsTable({required this.metrics});
+  const _PartsTable({required this.run});
 
-  final RunMetrics metrics;
+  final StoredRun run;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final metrics = run.metrics;
     if (metrics.parts.isEmpty) return const SizedBox.shrink();
+
+    // The names the studies had when the run was made (§7.10), so a study
+    // renamed since still reads as the one that ran — as `_ProductionPlan`
+    // does with the same map.
+    final names = {for (final study in run.studies) study.studyId: study.name};
+    final showStudy = run.studies.length > 1;
 
     return Card(
       child: resultTable(
         columns: [
           ResultColumn(label: l10n.demandPartNumber, width: 150),
+          if (showStudy) ResultColumn(label: l10n.study, width: 150),
           ResultColumn(label: l10n.simOrders, width: 100),
           ResultColumn(label: l10n.simDelivered, width: 110),
           ResultColumn(label: l10n.simOnTime, width: 100),
@@ -797,7 +813,14 @@ class _PartsTable extends StatelessWidget {
         rowCount: metrics.parts.length,
         cellAt: (index, column) {
           final part = metrics.parts[index];
-          return switch (column) {
+          // Everything after Part Number shifts right by one when the Study
+          // column is there, so the switch is written against the position the
+          // column would have without it.
+          final slot = showStudy && column > 0 ? column - 1 : column;
+          if (showStudy && column == 1) {
+            return Text(names[part.studyId] ?? part.studyId);
+          }
+          return switch (slot) {
             0 => Text(part.partNumber),
             1 => Text('${part.orders}'),
             2 => Text('${part.delivered}'),
