@@ -550,50 +550,112 @@ is already read back from `simulation_run_steps` with `workcenterId`, `queueStar
 `processEnd` and `changeoverIncurred` per order-step. §7.10 says in as many words that this storage
 exists to make order Gantts a query rather than a re-run; this is the first thing to collect.
 
-- **A section in `_Results` on the Simulation tab**, below the Production Plan, ~360 px tall with
-  its own scroll. It reads the same `StoredRun` as everything else there, so opening an earlier run
-  from the history menu opens its Gantt with it — §8.5's rule for the plan, applied again.
+Settled by interview before any of it was written, and the interview moved five things the first
+draft had wrong. Each is marked below, because the reason it moved is the part worth keeping.
+
+**Its own view, not another block in `_Results`** — the first draft said "a section below the
+Production Plan, ~360 px tall with its own scroll", and that was one section too many on a page
+already carrying a header, a headline, a metrics card, three tables and a thirteen-column plan. The
+run header, abort banner and headline stay put, because they describe *the run* rather than a view
+of it; a **Results | Gantt** segmented control switches the body beneath them. The chart then takes
+the full body height, which removes the 360 px cap, the second vertical scrollbar and the nested
+scroll in one move. Held in an `IndexedStack`, so switching to Results and back returns the zoom the
+reader left. It reads the same `StoredRun` as everything else on the tab, so opening an earlier run
+from the history menu opens its Gantt with it — §8.5's rule for the plan, applied again.
+
 - **One chart for the whole run, all studies together** — deliberately the opposite of §8.5's
   per-study sectioning, and for a stated reason: the plan's rows are orders and an order belongs to
   one line, but a **station is shared**. Splitting per study would draw a station idle during hours
   it was in fact running another study's order, which is the one thing §7.7 exists to model.
-- **Bars are process only**, `processStart → processEnd`. They tile without overlapping — one server
-  runs one order at a time, and a pool's members are separate `workcenterId`s with their own rows.
-  Queue spans do not tile: CEU27 holds 4487 days of queue, which is dozens of orders waiting at
-  once, and drawing those would smear the row solid over the bars underneath. Queue is already
-  reported per station in the Queue table and per order by §2.3's two columns.
-- **A gap means "not running" — closed and starved alike**, stated here rather than left to be
-  inferred. Shading closed time is not a read: `run_metrics.dart:196` records that a stored run
-  "has the numbers but not the calendars that produced them", and `simulation_run_workcenters`
-  keeps only a total `openSeconds`. The station's utilization and open time sit in the Queue table
-  on the same tab, which is where "how much of that gap was even available" is answered.
-- **Rows follow `metrics.stations`**, in the order the Queue table above it uses, so the two cannot
-  disagree about which station is which. That map is built from steps, so a station that never ran
-  has no row.
-- **X-only zoom, opening fitted to the run.** Station rows keep a fixed height and their labels stay
-  pinned in a frozen left column; the painter takes pixels-per-second and a window start. A
-  fit / zoom-in / zoom-out cluster shaped like the canvas's, and horizontal drag to pan. Bars get a
-  ~2 px floor so a step of a few hours is never invisible at whole-run scale — indicative there,
-  and said so.
-- **Geometry lives in a pure `gantt_layout.dart` under `application/`**, returning rows and bar
-  rects; the `CustomPainter` only strokes what it is handed and hover is a lookup against the same
-  rects. This is §1.6's precedent, which moved arrow geometry into `layoutFlow` so that what a link
-  *is* could be asserted without pumping a frame — and the Gantt has strictly more geometry than the
-  arrows did.
+- **A bar is the station committed to an order**, `processStart → processEnd`, **closed hours
+  included** — the second thing the interview moved. The first draft said "bars are process only"
+  and left the inverse of the gap rule unstated, which is the half a reader gets wrong:
+  `engine.dart:642` ends a step at `calendar.advance(now, occupancy)`, so a two-open-hour job started
+  Friday afternoon draws a bar reaching Monday morning. It is the same wall-clock span the plan's
+  Order Start / Order End use and the same one §8.3 calls occupation, so the tab has one meaning of a
+  duration rather than two. Bars tile without overlapping: `engine.dart:521` gives every workcenter
+  its own server, and a pool reaches the run as several `candidates`, so three cladding machines are
+  three rows each running one order at a time.
+- **A gap means "not running" — closed and starved alike**, and both halves are said on screen.
+  Splitting a bar at closed time would need calendars a stored run does not have —
+  `run_metrics.dart:196` records exactly that, and `simulation_run_workcenters` keeps only a total
+  `openSeconds`. The station's utilization and open time sit in the Queue table, which is where "how
+  much of that gap was even available" is answered.
+- **Queue spans are not drawn.** CEU27 holds 4487 days of queue, which is dozens of orders waiting at
+  once, and drawing those would smear the row solid over the bars underneath. Queue is reported per
+  station in the Queue table, per order by §2.3's two columns, and per step in the hover card.
+- **Rows follow `metrics.workcenters`**, in the Queue table's own order, so the bottleneck is the
+  first row read and the two cannot disagree about which station is which. Built from steps, so a
+  station that never ran has no row.
+- **X-only zoom, fitted once per run.** Rows keep a fixed height and their labels stay pinned in a
+  frozen left column. The third thing the interview moved: the canvas refits itself on every viewport
+  change (§12.2) because a map has no intrinsic scale, but a time axis does — so a wider pane keeps
+  its pixels-per-second and simply shows more days. No refit rule, no `Matrix4`, no tracking of
+  whether the reader has zoomed.
+- **A real scroll view, not drag to pan** — the fourth. The first draft said "horizontal drag to
+  pan", written before §12.6 decided that a wide thing must scroll *and say so*, and a bare drag
+  re-creates the complaint §12.6 exists to answer: nothing on screen says how much run is off either
+  edge. The chart is a full-width `CustomPaint` inside `HorizontalScroll`, labels frozen outside it
+  and the axis inside so it pans with the bars. `HorizontalScroll` gains an optional controller,
+  because zooming about the pane's centre has to move the offset. The window start stops being state
+  and becomes the scroll offset, so there is one answer to where you are.
+- **Zoom bounds are absolute, ×2 a press.** Floor is the whole run — there is nothing past it, so
+  zoom-out disables there — and the ceiling is *one hour across the pane*, stated in time so it means
+  the same on a two-week run and a two-year one. The canvas's `clamp(0.2, 3.0)` was tried against the
+  real run and rejected on the arithmetic: 6.3e7 seconds in a 900 px pane is 1.4e-5 px/s, so even at
+  3× a one-hour step is 0.15 px and the chart can never be zoomed into a state where a bar is real.
+  ×1.25 a press would take thirty presses to cross that range; ×2 takes ten.
+- **One axis row, with labels that stand alone.** The first draft named no axis at all. The coarsest
+  unit whose ticks land ≥ 90 px apart, from hour / day / week / month / quarter / year, aligned to
+  the calendar — month starts, Mondays — never "every 30 days from the run start", so a date sits
+  under the same label at every zoom. `Jan 14`, not `14`. Dates follow the locale and clock readings
+  are 24-hour, which is §12.4's split.
+- **Bars get a ~2 px floor** so a step of a few hours is never invisible at whole-run scale —
+  indicative there, and said so *conditionally*: a permanent warning would be a lie at the ceiling,
+  where every bar is drawn true. `layoutGantt` counts the floored bars, so the note appears and goes
+  away on a number out of the pure function.
+- **Hover is a `MouseRegion` and a painted card.** A Material `Tooltip` carries a fixed message per
+  widget, so naming the bar under the cursor would mean one widget per bar — 231 now, 20 000 at §14
+  scale. The card names the order, the part, the station, the span, the committed duration, the wait
+  before starting and whether a changeover was paid.
+- **Geometry lives in a pure `gantt_layout.dart` under `application/`**, in two functions rather than
+  one: `buildGanttChart(StoredRun)` resolves rows and bars in `DateTime` terms — the join, once per
+  run — and `layoutGantt` turns that into rects, tick instants and a content size, per zoom. Geometry
+  is then testable without constructing a whole run, and the join without a pixel. The 2 px floor
+  lives in `layoutGantt`, so the rects hover picks against are the rects that were drawn, which is
+  the whole argument for the file. Tick *labels* are formatted by the widget: the function returns
+  instants and a granularity and never sees a `BuildContext`. This is §1.6's precedent, which moved
+  arrow geometry into `layoutFlow` so that what a link *is* could be asserted without pumping a
+  frame — and the Gantt has strictly more geometry than the arrows did.
 
-**Colour by part number**, which gives the app its first categorical palette:
+**Colour by part**, which gives the app its first categorical palette:
 
-- **A fixed eight-colour `partPalette` in `common/`**, legible against both themes, assigned by the
+- **A fixed eight-colour `partPalette` in `common/`**, one set for both themes, assigned by the
   part's position in the run's sorted part list so the same run always colours the same way. Past
-  eight it wraps; two parts share a hue and the bar label and hover still say which is which. One
-  place to change it when the next part-coloured view arrives.
-- **The Parts table is the legend.** A swatch in its Part Number cell, no separate strip — the
-  table sits directly above the chart and lists exactly the same parts, so the colour is defined
-  once beside that part's orders, on-time and lead-time figures, and the reader learns the mapping
-  while reading the numbers.
-- **Changeover is still marked**, as a short hatched prefix at a bar's leading edge. A colour change
-  between adjacent bars is not the same fact: §7.6 decides changeover by the batching rule, so the
-  two can disagree in both directions.
+  eight it wraps. `app.dart` sets no `themeMode`, so dark is genuinely reachable and "legible against
+  both themes" is a constraint rather than an intention — **a unit test asserts it**: every hue
+  clears 3:1 against the light surface and against the dark one, and 4.5:1 against its own label
+  colour. Mid-luminance hues clear both. One place to change when the next part-coloured view
+  arrives.
+- **Keyed on `partId`, not on the part number** — the fifth thing the interview moved.
+  `project_tables.dart:334` makes the unique key `{studyId, partNumber}`, so a two-study run
+  legitimately carries two distinct parts both called `PN2`, and the first draft's fallback for a
+  shared hue — "the bar label and hover still say which is which" — would have had both of them
+  saying `PN2`. So **the Parts table gains a Study column, shown only when the run carries more than
+  one study**, which is §8.5's existing rule for the plan's headings. `PartMetrics` gains `studyId`;
+  `summariseRun` already has it in hand from `result.orders`.
+- **The Parts table keeps a swatch, and the chart carries a strip.** The first draft rejected a strip
+  because the table would sit directly above the chart — with the Gantt on its own view that premise
+  is gone, and the rejection with it. The swatch stays where it is, because defining a colour beside
+  that part's orders, on-time and lead-time figures still teaches the mapping while the numbers are
+  being read; the strip is the legend for a view that has no table.
+- **Changeover is a leading-edge stroke, above a ~6 px bar width**, not a hatched prefix. A prefix
+  has a width, and `simulation_run_steps` stores only the bool — `engine.dart:638` folds the setup
+  into `occupancy` and never records it — so a reader measuring that prefix against the axis would be
+  measuring an invention, and on a 2 px bar it becomes the whole bar. A line cannot imply a duration.
+  Below the floor the mark is omitted rather than faked; the hover card says it at every scale. A
+  colour change between adjacent bars is not the same fact: §7.6 decides changeover by the batching
+  rule, so the two can disagree in both directions.
 
 _Rejected: hue rotation off the seed colour._ Never runs out, always in the app's family — but
 adjacent hues stop being distinguishable past six or seven parts, and adding a part recolours a run
@@ -601,6 +663,25 @@ that has not changed.
 
 _Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared station.
 Within one study — the common case — every bar is the same colour.
+
+_Rejected: golden-image tests for the painter._ They would catch the class of defect §2.5 and §2.10
+say only rendering finds — at the cost of the first golden infrastructure in the repo and goldens
+that churn on any font, theme or locale change, across three languages and two brightnesses. §15's
+golden scenarios are committed *numbers*. So: exhaustive pure tests on `buildGanttChart`,
+`layoutGantt`, tick selection, the floored count and `barAt`; widget tests for the view switching,
+hover, zoom changing granularity, the floor note appearing and going, the swatch and the conditional
+Study column; then §3 drives it by hand. §2.10 is the evidence that last step earns its place.
+
+**Four commits, logic before pixels**, kept separate the way §2.10's were:
+
+1. `studyId` on `PartMetrics`, and the Parts table's conditional Study column — independently useful,
+   since it closes an ambiguity that predates the Gantt. §8.4.
+2. `common/part_palette.dart` with its contrast test, and the swatch in the Parts table. §8.6's
+   colour paragraph.
+3. `gantt_layout.dart` and its pure tests. No UI at all. §8.6's geometry.
+4. The view — segmented control, painter, hover, zoom cluster, legend strip, `HorizontalScroll`'s
+   optional controller, l10n in three languages, widget tests. §8.6 complete, and §12.1 for the
+   Simulation tab's new view switch.
 
 ### 2.8 The plan, in Excel
 
@@ -733,6 +814,12 @@ only.
       is a composition none of them mounted. The parts grid's frozen part number and the production
       plan's pane were both looked at and stand. **The plan keeps its 360 px pane by decision, not
       by omission**, and is the next candidate if it ever grates.
+- [ ] **The Gantt, against célula 11B.** §2.7 is covered by pure and widget tests only, and the
+      painter is the part none of them reach. Seven rows, 231 bars: check the fit opens on the whole
+      run, that zooming to a day makes bars real rather than floored and the note saying so goes
+      away, that hovering a bar names the right order, and that the colours hold in both themes and
+      the strip matches the Parts table's swatches. In es and pt as well — §2.10's widths were only
+      trustworthy because they were checked.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
