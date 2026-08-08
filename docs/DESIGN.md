@@ -791,7 +791,96 @@ _Rejected: a flat table sorted by start date across studies._ It shows the true 
 plant, which §7.7 exists to model — but it answers "what does the plant do next" when the person
 holding the printout runs one line.
 
-### 8.6 Colour by part
+### 8.6 The Gantt
+
+Y is the workcenter, X is time, the bars are orders — **one chart for the whole run, all studies
+together**. It needs no new data: `simulation_run_steps` already keeps a workcenter, a queue start,
+a process start, a process end and a changeover flag per order-step, which is what §7.10 says that
+storage exists for.
+
+All studies together is deliberately the opposite of §8.5's per-study sectioning, and for a stated
+reason: the plan's rows are orders and an order belongs to one line, but **a station is shared**.
+Splitting per study would draw a station idle during hours it was in fact running another study's
+order, which is the one thing §7.7 exists to model.
+
+- **A bar is the station committed to an order** — `processStart → processEnd`, **closed hours
+  included**. A step ends at `calendar.advance(now, occupancy)`, so a two-open-hour job started on a
+  Friday afternoon reaches Monday morning. That is the same wall-clock span the plan's Order Start
+  and Order End are measured across and the same one §8.3 calls occupation, so the tab has one
+  meaning of a duration rather than two. Bars tile without overlapping: every workcenter is its own
+  server and a pool reaches the run as several candidates (§3.1), so three cladding machines are
+  three rows each running one order at a time.
+- **A gap means "not running" — closed and starved alike.** Splitting a bar at closed time would
+  need calendars a stored run does not have; `simulation_run_workcenters` keeps a total open time
+  and nothing finer. How much of a gap was even available is answered by the station's utilization
+  and open time in the Queue table, which is where that question belongs.
+- **Queue spans are not drawn.** One station can hold dozens of orders at once — the real run has
+  4487 days of queue at CEU27 — and drawing those would smear the row solid over the bars
+  underneath. Queue is reported per station in the Queue table, per order by §8.5's two lead-time
+  columns, and per step in the hover card.
+- **Rows follow `RunMetrics.workcenters`**, the Queue table's own ranking, so the bottleneck is the
+  first row read and the two cannot disagree about which station is which. Built from steps, so a
+  station that never ran has no row.
+
+#### Geometry, in `gantt_layout.dart`
+
+Pure, widget-free and under `application/`, in **two functions rather than one**: `buildGanttChart`
+resolves rows and bars in `DateTime` terms — the join, once per run — and `layoutGantt` turns that
+into rects and a content size, once per zoom. Geometry is then testable without constructing a whole
+run and the join without a pixel. This is §5.2's precedent, which moved arrow geometry into
+`layoutFlow` for the same reason; the Gantt has strictly more geometry than the arrows did.
+
+It takes a result and its metrics rather than a `StoredRun`, which keeps the file out of the data
+layer and its tests out of a database.
+
+- **X-only zoom, fitted once per run.** A map has no intrinsic scale and refits itself on every
+  viewport change (§12.2); a time axis does have one, so a wider pane keeps its pixels per second
+  and simply shows more days. No refit rule and nothing to track about whether the reader has
+  zoomed.
+- **Zoom bounds are absolute, ×2 a press.** The floor is the whole run across the pane — there is
+  nothing past it, so zoom-out disables there — and the ceiling is **one hour across the pane**,
+  stated in time so it means the same on a two-week run and a two-year one. A relative
+  `clamp(0.2, 3.0)`, which is what the canvas uses, was tried against the real run and fails on the
+  arithmetic: 6.3e7 seconds in a 900 px pane is 1.4e-5 px/s, so even at 3× a one-hour step is 0.15 px
+  and no zoom reaches a state where a bar is real. ×1.25 a press would take thirty presses to cross
+  that range; ×2 takes ten.
+- **One axis row, with labels that stand alone.** The finest unit whose ticks land ≥ 90 px apart,
+  from hour / day / week / month / quarter / year, **aligned to the calendar** — month starts,
+  Mondays, the top of the hour, never "every 30 days from wherever this run began" — so a date sits
+  under the same label at every zoom. The function returns instants and a granularity and never sees
+  a `BuildContext`: dates follow the locale and clock readings are 24-hour, which is §12.4's split.
+- **Only the visible ticks are built**, which is why they are not part of the layout. At the ceiling
+  a two-year run is sixteen million pixels wide and carries seventeen thousand hourly ticks, and
+  §16.9 measured local `DateTime` construction on Windows at ~13 µs — building them all would cost a
+  fifth of a second on a zoom press to throw away all but the ten on screen. A scroll listener asks
+  for the range it can see.
+- **Bars get a 2 px floor**, so a step of a few hours is never invisible at whole-run scale: drawn
+  true it would be a fraction of a pixel, and a row would read as idle during hours it was running.
+  The floor lives in `layoutGantt` rather than in the painter, so **the rects the hover picks against
+  are the rects that were drawn** — which is the whole argument for the file. `layoutGantt` counts
+  the floored bars, so the view's "indicative at this zoom" note appears and goes away on a number
+  out of the pure function rather than on a permanent disclaimer, which would be a lie at the
+  ceiling where every bar is drawn true.
+- **Changeover is a leading-edge stroke above a 6 px bar, not a hatched prefix.** A prefix has a
+  width, and `simulation_run_steps` stores only the bool — the setup is folded into the occupancy
+  and never recorded — so a reader measuring that prefix against the axis would be measuring an
+  invention, and on a 2 px bar it would be the whole bar. A line cannot imply a duration. Below the
+  threshold the mark is omitted rather than faked; the hover card says it at every scale. A colour
+  change between adjacent bars is **not** the same fact: §7.6 decides changeover by the batching
+  rule, so the two can disagree in both directions.
+- **Hit-testing takes the whole row band, and is exact horizontally.** A bar at the floor is two
+  pixels wide and a reader aiming at it is aiming at its row; asking them to hit 18 px of height as
+  well would make the thinnest bars — the ones most in need of a hover card — the hardest to ask
+  about. Horizontally it is exact because bars tile: a tolerance either side would make two adjacent
+  bars both answer for the boundary between them.
+
+_Rejected: golden-image tests for the painter._ They would catch the class of defect §12.6 and §5.2
+say only rendering finds — at the cost of the first golden infrastructure in the repo, and goldens
+that churn on any font, theme or locale change across three languages and two brightnesses. §15's
+golden scenarios are committed *numbers*. So: exhaustive pure tests on the join, the layout, tick
+selection, the floored count and the hit test; widget tests for the view; then it is driven by hand.
+
+#### Colour by part
 
 The app's first categorical palette, in `common/part_palette.dart`: eight fixed colours, assigned by
 a part's position in the run's sorted part list, so one run always colours the same way and adding a

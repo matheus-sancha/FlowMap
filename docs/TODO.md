@@ -3,10 +3,11 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 541 tests passing. **Three commits ahead
-of `origin`** as of 2026-08-08: `f517a74` settles §2.7 by interview, `71020dc` and `1b333ba` are the
-first two of its four. **Commit 3 is next — `gantt_layout.dart` and its pure tests, no UI** — and
-§2.7 below specifies it in full; nothing else needs to be recovered to start it.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 582 tests passing. **Four commits ahead
+of `origin`** as of 2026-08-08: `f517a74` settles §2.7 by interview and the three after it are the
+first three of its four. **Commit 4 is next — the view, and nothing but the view** — and §2.7 below
+specifies it in full; the geometry it draws is already written and tested, so nothing needs to be
+recovered to start it.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
@@ -676,14 +677,36 @@ Study column; then §3 drives it by hand. §2.10 is the evidence that last step 
 
 **Four commits, logic before pixels**, kept separate the way §2.10's were:
 
-1. `studyId` on `PartMetrics`, and the Parts table's conditional Study column — independently useful,
-   since it closes an ambiguity that predates the Gantt. §8.4.
-2. `common/part_palette.dart` with its contrast test, and the swatch in the Parts table. §8.6's
-   colour paragraph.
-3. `gantt_layout.dart` and its pure tests. No UI at all. §8.6's geometry.
+1. ~~`studyId` on `PartMetrics`, and the Parts table's conditional Study column~~ — **done
+   2026-08-08.** Independently useful, since it closes an ambiguity that predates the Gantt. §8.4.
+2. ~~`common/part_palette.dart` with its contrast test, and the swatch in the Parts table~~ — **done
+   2026-08-08.** §8.6's colour paragraph.
+3. ~~`gantt_layout.dart` and its pure tests. No UI at all.~~ — **done 2026-08-08.** §8.6 gained the
+   geometry, and the section is now *The Gantt* with colour under it. 41 tests, 582 in all. Three
+   things the plan had wrong, each found by writing it:
+   - **Ticks had to come out of `layoutGantt`.** The plan said it returns "rects, tick instants and
+     a content size", and that is unaffordable at the ceiling: a two-year run is 16 million pixels
+     wide there and carries **17 500 hourly ticks**, which at §16.9's ~13 µs per local `DateTime`
+     is a fifth of a second on a zoom press — to throw away all but the ten on screen. `ganttTicks`
+     takes the visible content range and the scroll listener asks for what it can see. Tick
+     *selection* stayed on the layout, because the unit is a function of zoom alone and the ticks
+     and the content under them must have been decided at one zoom.
+   - **The join takes a result and its metrics, not the `StoredRun` the plan named.** Everything it
+     needs is on those two — the row order and the colour assignment from the metrics, the steps
+     from the result — and taking them keeps the file out of the data layer and its tests out of a
+     database. Asserting geometry would otherwise mean constructing drift rows for studies that
+     nothing reads. One line at the call site: `buildGanttChart(result: run.result, metrics:
+     run.metrics)`.
+   - **The axis covers the run, not the work.** Left unstated by the interview, and the two differ:
+     taking the span from the bars would make a station idle for the last three months read as the
+     run having ended when the last bar did. It is `result.start`/`result.end`, widened only if a
+     bar somehow falls outside them.
 4. The view — segmented control, painter, hover, zoom cluster, legend strip, `HorizontalScroll`'s
    optional controller, l10n in three languages, widget tests. §8.6 complete, and §12.1 for the
-   Simulation tab's new view switch.
+   Simulation tab's new view switch. **`gantt_layout.dart` is the whole contract**: `GanttMetrics`
+   carries every size including the zoom step, `barAt` is the hover's hit test, `ganttScaleBounds`
+   is what disables the two zoom buttons, and `GanttLayout.flooredBars` is what raises and retires
+   the "indicative at this zoom" note.
 
 ### 2.8 The plan, in Excel
 
