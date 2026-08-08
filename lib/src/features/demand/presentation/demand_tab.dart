@@ -197,6 +197,11 @@ class _PartsGrid extends ConsumerWidget {
             // many as it has rows. That is how a planner adds twenty parts.
             rowCount: parts.length + 1,
             rowHeaderWidth: 44,
+            // The part number stays put. A study of fifteen workcenters is far
+            // wider than the window, and scrolling out to the twelfth column
+            // would otherwise take with it the only thing that says which part
+            // the row you are typing into belongs to.
+            frozenColumns: 1,
             rowHeader: (row) => Center(
               child: Text(
                 row < parts.length ? '${row + 1}' : '+',

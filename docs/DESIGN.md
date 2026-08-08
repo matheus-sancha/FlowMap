@@ -1092,6 +1092,26 @@ parts grid, or thirteen columns on the production plan, the table simply read as
 that stretch for no gain. The app therefore has two read-only table shapes, which is a real cost and
 is written down rather than left to be discovered.
 
+**The parts grid freezes its part number** (`DataGrid.frozenColumns`), because a bar you can drag is
+not on its own an answer to fifteen workcenters: the grid is ~2 500 px wide, and scrolling out to the
+twelfth station takes with it the one column that says which part the row you are typing into belongs
+to. The row header goes with it.
+
+- **Two lists, kept equal.** The frozen cells sit outside the horizontal scroll view — that is what
+  makes them frozen — so they cannot be rows of the same list as the cells inside it. Each pane
+  pushes the other, so the wheel works over either; a re-entrancy guard is what stops that being a
+  loop, and the follow clamps rather than trusting the extents equal.
+- **Row height and heading height are declared, for the reason column width is.** The frozen pane
+  carries the row header and the scrolling one the row actions, and an `IconButton` is 48 px where a
+  cell is 44 — so the two panes drifted four pixels further apart with every row down the grid, which
+  is invisible at the top and unusable by row ten. `itemExtent` also makes the two lists' scroll
+  extents identical rather than merely similar. The heading has the same problem from the other end:
+  a column with a `helper` under its title is two lines where one without is one.
+- **A cell keys its focus node by absolute column**, so Tab crosses the seam without knowing there is
+  one. That was true before the split and is what made the split cheap.
+- **The sequence grid does not freeze anything.** Six columns fit, and a second scroll position that
+  cannot disagree beats one that merely does not.
+
 ---
 
 ## 13. Exports

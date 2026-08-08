@@ -57,6 +57,7 @@ class DataGrid extends StatefulWidget {
     this.rowActions,
     this.rowHeaderWidth = 56,
     this.rowActionsWidth = 56,
+    this.frozenColumns = 0,
   });
 
   final List<DataGridColumn> columns;
@@ -80,6 +81,17 @@ class DataGrid extends StatefulWidget {
   final double rowHeaderWidth;
   final double rowActionsWidth;
 
+  /// How many leading columns stay put while the rest scroll sideways, the row
+  /// header going with them.
+  ///
+  /// Zero means one pane and no synchronising, which is what the sequence grid
+  /// wants: six columns fit, and a second scroll position that cannot disagree
+  /// is better than one that merely does not. The parts grid freezes its part
+  /// number, because a study of fifteen workcenters is 2 500 px wide and the
+  /// column that says *which part this row is* would otherwise be the first
+  /// thing to leave the window.
+  final int frozenColumns;
+
   @override
   State<DataGrid> createState() => _DataGridState();
 }
@@ -94,6 +106,50 @@ class _DataGridState extends State<DataGrid> {
   final _nodes = <String, FocusNode>{};
 
   ({int row, int column})? _anchor;
+
+  /// One vertical position per pane, kept equal.
+  ///
+  /// Two lists rather than one is the price of a frozen column: the frozen
+  /// cells sit outside the horizontal scroll view — that is what makes them
+  /// frozen — so they cannot be rows of the same list as the cells inside it.
+  /// Both stay driveable, so the wheel works over either pane, and each pushes
+  /// the other; [_syncing] is what stops that being a loop.
+  final _frozenRows = ScrollController();
+  final _scrollingRows = ScrollController();
+  bool _syncing = false;
+
+  bool get _frozen => widget.frozenColumns > 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _frozenRows.addListener(() => _follow(_frozenRows, _scrollingRows));
+    _scrollingRows.addListener(() => _follow(_scrollingRows, _frozenRows));
+  }
+
+  @override
+  void dispose() {
+    _frozenRows.dispose();
+    _scrollingRows.dispose();
+    super.dispose();
+  }
+
+  void _follow(ScrollController from, ScrollController to) {
+    if (_syncing || !_frozen) return;
+    if (!from.hasClients || !to.hasClients) return;
+    // Clamped rather than trusted equal. The two panes hold the same rows at
+    // the same heights, so their extents agree — but a jumpTo past the end
+    // throws, and being wrong here would break scrolling rather than merely
+    // misalign it.
+    final target = from.offset.clamp(
+      to.position.minScrollExtent,
+      to.position.maxScrollExtent,
+    );
+    if (target == to.offset) return;
+    _syncing = true;
+    to.jumpTo(target);
+    _syncing = false;
+  }
 
   void _register(int row, int column, FocusNode node) =>
       _nodes['$row:$column'] = node;
@@ -137,13 +193,33 @@ class _DataGridState extends State<DataGrid> {
     widget.onCommit(anchor.row, anchor.column, parseTsv(text));
   }
 
+  /// Room for the horizontal bar, which Flutter draws inside the viewport and
+  /// would otherwise lay over the last row (§12.6).
+  ///
+  /// Both panes carry it, though only one has a bar: equal viewport heights are
+  /// what make the two lists' scroll extents agree, and [_follow] is only exact
+  /// while they do.
+  static const _barGutter = 12.0;
+
+  /// Declared, because the two panes hold different things and would otherwise
+  /// measure differently.
+  ///
+  /// The frozen pane carries the row header and the scrolling one the row
+  /// actions — and an `IconButton` is 48 px where a cell is 44, so the rows
+  /// drifted four pixels further apart with every row down the grid. `itemExtent`
+  /// also makes the two lists' scroll extents identical rather than merely
+  /// similar, which is what [_follow] assumes.
+  static const _rowHeight = 48.0;
+
+  /// Likewise for the heading: a column with a `helper` under its title is two
+  /// lines where a column without one is one, so a frozen part number beside a
+  /// helper-bearing station would start its rows higher than the pane next to it.
+  static const _headerHeight = 52.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final width =
-        (widget.rowHeader == null ? 0.0 : widget.rowHeaderWidth) +
-        widget.columns.fold<double>(0, (sum, c) => sum + c.width) +
-        (widget.rowActions == null ? 0.0 : widget.rowActionsWidth);
+    final frozen = widget.frozenColumns.clamp(0, widget.columns.length);
 
     return CallbackShortcuts(
       bindings: {
@@ -154,73 +230,157 @@ class _DataGridState extends State<DataGrid> {
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
         const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _paste,
       },
-      child: HorizontalScroll(
-        child: SizedBox(
-          width: width,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _header(theme),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: widget.rowCount,
-                  itemBuilder: (context, row) => _row(row),
-                ),
+      child: frozen == 0
+          ? HorizontalScroll(
+              child: _pane(
+                theme,
+                from: 0,
+                to: widget.columns.length,
+                leading: true,
+                trailing: true,
+                controller: _scrollingRows,
               ),
-              // Room for the bar, which Flutter draws inside the viewport and
-              // would otherwise lay over the last row (§12.6).
-              const SizedBox(height: 12),
-            ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _pane(
+                  theme,
+                  from: 0,
+                  to: frozen,
+                  leading: true,
+                  trailing: false,
+                  controller: _frozenRows,
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: HorizontalScroll(
+                    child: _pane(
+                      theme,
+                      from: frozen,
+                      to: widget.columns.length,
+                      leading: false,
+                      trailing: true,
+                      controller: _scrollingRows,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  /// One column of the grid's width: a heading, a rule, and the rows under it.
+  ///
+  /// [from] and [to] slice the columns; [leading] carries the row header and
+  /// [trailing] the row actions. A cell keys its focus node by its *absolute*
+  /// column, so Tab crosses the seam between the panes without knowing there is
+  /// one.
+  Widget _pane(
+    ThemeData theme, {
+    required int from,
+    required int to,
+    required bool leading,
+    required bool trailing,
+    required ScrollController controller,
+  }) {
+    final width =
+        (leading && widget.rowHeader != null ? widget.rowHeaderWidth : 0.0) +
+        widget.columns
+            .sublist(from, to)
+            .fold<double>(0, (sum, c) => sum + c.width) +
+        (trailing && widget.rowActions != null ? widget.rowActionsWidth : 0.0);
+
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _header(theme, from: from, to: to, leading: leading,
+              trailing: trailing),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.builder(
+              controller: controller,
+              itemExtent: _rowHeight,
+              itemCount: widget.rowCount,
+              itemBuilder: (context, row) => _row(
+                row,
+                from: from,
+                to: to,
+                leading: leading,
+                trailing: trailing,
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: _barGutter),
+        ],
       ),
     );
   }
 
-  Widget _header(ThemeData theme) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      children: [
-        if (widget.rowHeader != null) SizedBox(width: widget.rowHeaderWidth),
-        for (final column in widget.columns)
-          SizedBox(
-            width: column.width,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Column(
-                crossAxisAlignment: column.numeric
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    column.title,
-                    style: theme.textTheme.labelLarge,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (column.helper != null)
+  Widget _header(
+    ThemeData theme, {
+    required int from,
+    required int to,
+    required bool leading,
+    required bool trailing,
+  }) => SizedBox(
+    height: _headerHeight,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          if (leading && widget.rowHeader != null)
+            SizedBox(width: widget.rowHeaderWidth),
+          for (final column in widget.columns.sublist(from, to))
+            SizedBox(
+              width: column.width,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Column(
+                  crossAxisAlignment: column.numeric
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      column.helper!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
+                      column.title,
+                      style: theme.textTheme.labelLarge,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    if (column.helper != null)
+                      Text(
+                        column.helper!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        if (widget.rowActions != null) SizedBox(width: widget.rowActionsWidth),
-      ],
+          if (trailing && widget.rowActions != null)
+            SizedBox(width: widget.rowActionsWidth),
+        ],
+      ),
     ),
   );
 
-  Widget _row(int row) => Row(
-    key: ValueKey('row-$row'),
+  Widget _row(
+    int row, {
+    required int from,
+    required int to,
+    required bool leading,
+    required bool trailing,
+  }) => Row(
+    key: ValueKey('row-$row-$from'),
     children: [
-      if (widget.rowHeader != null)
+      if (leading && widget.rowHeader != null)
         SizedBox(width: widget.rowHeaderWidth, child: widget.rowHeader!(row)),
-      for (var column = 0; column < widget.columns.length; column++)
+      for (var column = from; column < to; column++)
         SizedBox(
           width: widget.columns[column].width,
           child: _GridCell(
@@ -237,7 +397,7 @@ class _DataGridState extends State<DataGrid> {
             onMove: _move,
           ),
         ),
-      if (widget.rowActions != null)
+      if (trailing && widget.rowActions != null)
         SizedBox(width: widget.rowActionsWidth, child: widget.rowActions!(row)),
     ],
   );

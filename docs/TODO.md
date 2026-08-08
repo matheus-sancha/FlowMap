@@ -3,7 +3,7 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 520 tests passing, not pushed.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 525 tests passing, not pushed.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current, and v12 is on the real database.** Both were done late on
@@ -625,7 +625,7 @@ and **§16.14** (schema v13, new), **§8.5** (three new columns, and Delivery �
 (the Gantt, new), **§12.2** (refit on viewport change), **§13** (the plan's Excel export). None of
 it is real until those say it, in the same commits that change the behaviour.
 
-### 2.10 A wide table scrolls, and says so — **table half done 2026-08-08**
+### 2.10 A wide table scrolls, and says so — **done 2026-08-08**
 
 Not in the original six, and dated 2026-08-08 rather than 2026-08-06 — kept in §2 the way §2.6b was,
 because it is the same "driving the build by hand" round. Field feedback: the Parts grid overflows
@@ -656,17 +656,27 @@ Four things worth keeping, three of them only findable by rendering it:
   clips in any of the three languages — `Cambios de referencia` and `Operadores necessários` are the
   ones that decided the numbers.
 
-520 tests, `flutter analyze` clean.
+All three commits landed the same day. 525 tests, `flutter analyze` clean.
 
-**Still owed, and both were planned as their own commits:**
+**The second and third commits**, planned separately and kept that way:
 
-- [ ] `DataGrid` gets `HorizontalScroll` — replacing the inert `Scrollbar` at `data_grid.dart:155`,
-      which has no controller and so holds no position to drag. Ten lines.
-- [ ] `DataGrid` freezes its row header and Part Number column. This is the actual answer to "too
-      many workcenters": scrolling to workcenter 12 currently takes the part number off screen with
-      it, so you type process times into a row you cannot identify. It restructures the grid into a
-      fixed pane and a scrolling pane with synchronised vertical scroll, and `_move`'s focus nodes
-      span the boundary — which is why it is not a rider on a scrollbar fix. Drive the build after it.
+- `DataGrid` gets `HorizontalScroll`, replacing the inert `Scrollbar` that had no controller and so
+  held no position to drag.
+- **`DataGrid` freezes its row header and part number** (`frozenColumns`, 1 on the parts grid and 0
+  on the sequence grid). Two things the plan did not anticipate, both found by rendering it:
+  - **The two panes drifted four pixels apart per row.** The frozen pane carries the row header and
+    the scrolling one the row actions, and an `IconButton` is 48 px where a cell is 44. Invisible at
+    the top of the grid and unusable by row ten. Row height and heading height are declared now, the
+    same answer §12.6 gave column width — and `itemExtent` has the side benefit of making the two
+    lists' scroll extents identical rather than merely similar, which is what the follow assumes.
+  - **The first version of the sync test could not have caught it.** Its harness had no
+    `rowActions`, so there was no `IconButton` to make the panes disagree. Deleting `itemExtent` now
+    fails the alignment test, which is the check that the test is about the defect rather than about
+    the code.
+
+  Also worth keeping: a horizontal drag inside a cell belongs to the caret, because every cell is a
+  `TextField`. There is no drag-the-content escape hatch on this grid and never was, which is another
+  way of saying the bar was the whole fix.
 
 ---
 
@@ -695,6 +705,12 @@ only.
 - [ ] **The pool fix, against célula 11B.** The CLAD Pool of three reads 63 % occupation and a flow
       equivalent of 0.99, which is the right shape; comparing against what it read *before* the fix
       still needs the old build.
+- [ ] **§2.10's tables and grid, in the real app.** Everything below is covered by widget tests and
+      two rendered PNGs, which is what found the three defects §2.10 records — but nothing has been
+      driven by hand. Worth looking at: the Summary table's first cell, where a long workcenter name
+      now ellipsises inside a declared 190 px beside its `×3` badge and error icon; whether 360 px is
+      the right pane height in a real window; and the parts grid on `Célula 11B` with its real
+      station count, which is the case that started this.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
