@@ -818,9 +818,26 @@ order, which is the one thing §7.7 exists to model.
   4487 days of queue at CEU27 — and drawing those would smear the row solid over the bars
   underneath. Queue is reported per station in the Queue table, per order by §8.5's two lead-time
   columns, and per step in the hover card.
-- **Rows follow `RunMetrics.workcenters`**, the Queue table's own ranking, so the bottleneck is the
-  first row read and the two cannot disagree about which station is which. Built from steps, so a
-  station that never ran has no row.
+- **Rows are in flow order** — the first station of the routing on the first row — so an order is
+  read diagonally down the chart the way it is read left to right along the map (§5.1). Built from
+  steps, so a station that never ran has no row.
+
+  **The run stores no node positions**, because §7.10's rule is that a run joins to nothing and the
+  flow it was made from may have been edited since. So the order is derived from the steps: §5.1
+  makes a study's topology a linear spine, so one order visits its stations in exactly the routing's
+  order, and the order it visited them in *is* the routing. Measured from `queueStart` — when the
+  order arrived, not when it got served — or a station that made everything wait would float up the
+  list. A station shared by two studies takes the **earliest** position it holds in either, since
+  §7.7 gives it one row whichever line is being read.
+
+  **`RunMetrics.workcenters` breaks the ties**, so stations at one position in the routing — a
+  pool's three machines (§3.1) — still come out busiest-queue first and in the same order twice
+  running.
+
+  _This reversed the first decision, which was that rows follow the Queue ranking outright so the
+  bottleneck is the first row read._ It survived until the chart was driven against a real plant,
+  where it turned out that a Gantt is read as a flow and a ranked chart makes an order's path
+  zig-zag. The bottleneck is still ranked, in the Queue table, which is where a ranking belongs.
 
 #### Geometry, in `gantt_layout.dart`
 
@@ -896,9 +913,28 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   the visible ticks are built" true at run time rather than merely possible, and it is what lets the
   painter skip the bars outside the pane — at §14 scale a run carries 20 000 of them and at most a
   screenful can be seen. The layout itself is cached per zoom, so scrolling never re-measures a bar.
-- **Zooming about the centre keeps the instant under the middle of the pane there.** Anything else
-  lands a zoom into a sixteen-million-pixel run somewhere the reader was not looking. Zoom-out is
-  dead at the floor and zoom-in at the ceiling, both read off `ganttScaleBounds`.
+- **Zooming holds one point of the pane still**, so the instant under it is still under it
+  afterwards; anything else lands a zoom into a sixteen-million-pixel run somewhere the reader was
+  not looking. The **buttons hold the centre**, because a press says nothing about where the
+  reader's attention is; **ctrl-scroll holds the pointer**, because it says exactly that. Zoom-out
+  is dead at the floor and zoom-in at the ceiling, both read off `ganttScaleBounds`.
+- **Ctrl-scroll zooms; a plain wheel is untouched.** §12.6's rule against hijacking the wheel stands
+  — the chart sits inside a vertical scroll, and a pointer parked over a tall one would strand the
+  page below it. Ctrl-scroll is a different gesture, claimed by nothing else in the app and the one
+  every other timeline a planner uses is zoomed with. A notch steps ×1.25 where a button steps ×2: a
+  press is expensive and has to cross four orders of magnitude in ten of them, while a notch is
+  cheap and gets spun several at a time.
+
+  The listener has to sit **inside** the two scroll views, not around them. `PointerSignalResolver`
+  gives the event to whoever registers first and registration runs innermost-outwards, so an
+  ancestor would lose to the `Scrollable` beneath it and the chart would pan while it zoomed.
+  Registering is also what stops both scroll views acting on the same notch — exactly one handler
+  wins.
+- **The content carries a gutter below the last row** for the horizontal scrollbar. The bar pins to
+  the bottom of a scroll view exactly as tall as its content, so without it the bar lies across the
+  last row's bars: reaching for the scrollbar means reaching through them, and hovering that row
+  means reaching through the scrollbar. Found by dragging it. `barAt` returns nothing in the gutter,
+  so the two never both answer.
 - **The hover card is one widget, not one per bar.** That is the whole objection to a `Tooltip`
   here: it carries a fixed message, so naming the bar under the cursor that way would mean 231
   widgets on the real run and 20 000 at §14 scale. One card, positioned at whichever bar is under

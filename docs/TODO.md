@@ -3,15 +3,21 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 608 tests passing. **Six commits ahead of
-`origin`** as of 2026-08-08. **§2 is now written in full**, and the next thing needs a human at the
-GUI rather than more code: §2.7's Gantt and §2.8's export have never been run. §3 says what to look
-at against célula 11B, and §2.10 is the evidence that the step earns its place. **A Release rebuild
-is owed with it** — the bundle under `0.1.0-2026-08-08` predates all five of §2.7's and §2.8's
-commits, and the schema is untouched at v14, so nothing will migrate.
-Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 614 tests passing. **Seven commits ahead
+of `origin`** as of 2026-08-08. **§2 is written in full**, and §2.11 is the first pass of driving
+the Gantt by hand — the three things looking at it said. Schema is at **v14**, untouched by
+everything in §2.7, §2.8 and §2.11, all of which are UI only. M4 is code-complete.
 
-**The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
+**What is next needs a human at the GUI, not more code.** §3's Gantt item is only partly closed:
+§2.11 came out of a Debug session that changed three things, and the rest of that list — the axis at
+the fit, ten zoom presses, the changeover stroke, both themes, es and pt — has still not been
+looked at, nor has §2.8's file been opened in Excel.
+
+**The Release bundle is now stale.** It predates all seven commits; a rebuild under a fresh label is
+owed with the next verification pass, and since the schema has not moved the open should read
+`db.open schema 14 from 14`.
+
+**The last Release bundle was built 2026-08-08, and the real database is at v14.** Rebuilt after
 §2.10's four commits under label `0.1.0-2026-08-08`, and *launched* rather than merely inspected —
 the session header at 09:33:16 reads that label rather than `dev`, and `db.open schema 14 from 14`,
 which is a no-op open and so the proof that nothing migrated. The file itself was read beforehand:
@@ -839,6 +845,39 @@ All three commits landed the same day. 525 tests, `flutter analyze` clean.
   Windows. Every test here drags with touch, so none of them exercises what a user on this app
   actually does. Not changed, because it turned out the first report was a stale build; but if the
   bar ever feels fiddly rather than broken, that is the reason and `thickness:` is the lever.
+
+### 2.11 The Gantt, driven — **done 2026-08-08**
+
+The first three things looking at it said. Kept in §2 the way §2.6b and §2.10 were, because it is
+the same "driving the build by hand" round — the Debug build, against the real célula 11B run, the
+day §2.7 landed.
+
+- **Rows go in flow order, not the Queue table's ranking.** This reverses what §2.7 settled by
+  interview, and the interview's reason was sound on paper: rows follow `metrics.workcenters` so the
+  bottleneck is the first row read. Against a real plant it is wrong — a Gantt is read as a flow,
+  and a ranked chart makes an order's path zig-zag down the page instead of running diagonally
+  across it. The bottleneck is still ranked, in the Queue table, which is where a ranking belongs.
+
+  **The run stores no node positions**, so the order had to be derived: §7.10 joins to nothing, and
+  the flow may have been edited since. §5.1's linear spine is what makes it exact — one order visits
+  its stations in routing order, so the order it visited them in *is* the routing. Two details that
+  only writing it settled: it is measured from `queueStart` rather than `processStart`, or a station
+  that made everything wait floats up the list; and a station shared by two studies takes the
+  earliest position it holds in either, because §7.7 gives it one row whichever line is read.
+  `metrics.workcenters` breaks ties, which is what keeps a pool's three machines together and in a
+  stable order.
+- **Ctrl-scroll zooms**, anchored on the pointer rather than the pane's centre — a wheel notch says
+  exactly where the reader is looking where a button press does not. A notch steps ×1.25 where a
+  button steps ×2, because a notch is cheap and gets spun several at a time. A plain wheel is still
+  untouched (§12.6). The listener has to sit **inside** both scroll views: `PointerSignalResolver`
+  gives the event to whoever registers first and registration runs innermost-outwards, so an
+  ancestor would lose to the `Scrollable` beneath it and the chart would pan while it zoomed.
+- **The content gained a gutter under the last row.** The horizontal scrollbar pins to the bottom of
+  a scroll view exactly as tall as its content, so it was lying across the last row's bars — reaching
+  for the bar meant reaching through them, and hovering that row meant reaching through the bar.
+  In `layoutGantt`, so `barAt` returns nothing in the gutter and the two can never both answer.
+
+614 tests.
 
 ---
 

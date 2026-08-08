@@ -80,9 +80,9 @@ void main() {
     );
   }
 
-  /// Three orders across two stations. W1 accumulates three hours of queue and
-  /// W2 none, so the Queue table ranks W1 first — and that is the row order the
-  /// chart has to reproduce.
+  /// Three orders across two stations, each order visiting exactly one — so
+  /// both stations are first in a routing and the tie falls through to the
+  /// Queue table's ranking, where W1's three hours put it above W2.
   GanttChart threeOrders() => chartOf(
     orders: [
       orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
@@ -116,13 +116,170 @@ void main() {
     ],
   );
 
+  /// Two orders through three stations in routing order W1 → W2 → W3.
+  ///
+  /// Each station makes an order wait longer than the one before it, so the
+  /// Queue table ranks them W3, W2, W1 — exactly backwards to the flow, which
+  /// is what makes the row order worth asserting.
+  SimRunResult threeStationResult() => SimRunResult(
+    start: jan1,
+    end: at(48),
+    guard: at(240),
+    steps: [
+      for (final order in ['o1', 'o2'])
+        for (final (index, station) in ['W1', 'W2', 'W3'].indexed)
+          stepOf(
+            orderId: order,
+            workcenterId: station,
+            queueStart: at(index * 6),
+            processStart: at(index * 6 + index),
+            processEnd: at(index * 6 + index + 1),
+          ),
+    ],
+    orders: [
+      orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+      orderOf(orderId: 'o2', sequence: 1, partId: 'p1'),
+    ],
+    emptySlots: const [],
+    busyByWorkcenter: const {},
+    openByWorkcenter: const {},
+  );
+
   group('the join', () {
-    test('rows are the stations that ran, in the Queue table\'s order', () {
+    test('rows are the stations that ran, in flow order', () {
       final chart = threeOrders();
 
       expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W2']);
       expect(chart.rows.first.bars, hasLength(2));
       expect(chart.rows.last.bars, hasLength(1));
+    });
+
+    test('flow order beats the Queue table\'s ranking', () {
+      // The rows *were* the Queue ranking until the chart was driven against a
+      // real plant: an order is read left to right along the map, and reading
+      // it diagonally down the chart needs the routing down the page. The
+      // ranking still decides ties, and the Queue table is still where the
+      // bottleneck is ranked.
+      final result = threeStationResult();
+      final metrics = summariseRun(
+        result: result,
+        partNumbers: const {'p1': 'PN1'},
+        workcenterNames: const {'W1': 'W1', 'W2': 'W2', 'W3': 'W3'},
+        theoreticalByOrder: const {},
+      );
+
+      // The fixture is built so the two orders genuinely disagree — otherwise
+      // this passes whatever the sort does.
+      expect(metrics.workcenters.map((w) => w.workcenterId), [
+        'W3',
+        'W2',
+        'W1',
+      ]);
+      expect(
+        buildGanttChart(result: result, metrics: metrics).rows.map(
+          (r) => r.workcenterId,
+        ),
+        ['W1', 'W2', 'W3'],
+      );
+    });
+
+    test('the routing comes from arrival, not from being served', () {
+      // Sorted by queue start rather than process start: a station that made an
+      // order wait three days is still the station it reached third, and
+      // sorting on when it got served would float the fast ones up the list.
+      final chart = chartOf(
+        orders: [orderOf(orderId: 'o1', sequence: 0, partId: 'p1')],
+        steps: [
+          stepOf(
+            orderId: 'o1',
+            workcenterId: 'W1',
+            queueStart: jan1,
+            // Sat in the queue while the second station ran something else.
+            processStart: at(10),
+            processEnd: at(11),
+          ),
+          stepOf(
+            orderId: 'o1',
+            workcenterId: 'W2',
+            queueStart: at(11),
+            processStart: at(11),
+            processEnd: at(12),
+          ),
+        ],
+      );
+
+      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W2']);
+    });
+
+    test('a station shared by two studies takes its earliest position', () {
+      // §7.7 builds one model of the plant, so one line's third station and
+      // another's first are one row. It has to sit somewhere, and the earliest
+      // is what keeps both routings readable downwards.
+      //
+      // Study 1 runs W1 → W2 → W3; study 2 runs W3 → W4. W3 is third in one
+      // routing and first in the other, so it rises to the top group rather
+      // than sitting below W2 — nothing queues, so within a group the ranking
+      // falls through to name order.
+      final chart = chartOf(
+        workcenterNames: const {'W1': 'W1', 'W2': 'W2', 'W3': 'W3', 'W4': 'W4'},
+        orders: [
+          orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+          orderOf(orderId: 'o2', sequence: 0, partId: 'p2', studyId: 'study-2'),
+        ],
+        steps: [
+          for (final (index, station) in ['W1', 'W2', 'W3'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: station,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+          for (final (index, station) in ['W3', 'W4'].indexed)
+            stepOf(
+              orderId: 'o2',
+              workcenterId: station,
+              queueStart: at(10 + index),
+              processStart: at(10 + index),
+              processEnd: at(11 + index),
+              studyId: 'study-2',
+            ),
+        ],
+      );
+
+      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W3', 'W2', 'W4']);
+    });
+
+    test('stations at one position keep the Queue table\'s order', () {
+      // What a pool looks like from here: §3.1 makes its members
+      // interchangeable, so all three sit at one place in the routing and only
+      // the ranking has anything left to say about them.
+      final chart = chartOf(
+        workcenterNames: const {'W1': 'W1', 'W2': 'W2'},
+        orders: [
+          orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+          orderOf(orderId: 'o2', sequence: 1, partId: 'p1'),
+        ],
+        steps: [
+          stepOf(
+            orderId: 'o1',
+            workcenterId: 'W1',
+            queueStart: jan1,
+            processStart: jan1,
+            processEnd: at(1),
+          ),
+          // The same position in the routing, and the longer queue.
+          stepOf(
+            orderId: 'o2',
+            workcenterId: 'W2',
+            queueStart: jan1,
+            processStart: at(5),
+            processEnd: at(6),
+          ),
+        ],
+      );
+
+      expect(chart.rows.map((r) => r.workcenterId), ['W2', 'W1']);
     });
 
     test('a station that never ran has no row', () {
@@ -538,10 +695,25 @@ void main() {
       final layout = layoutGantt(chart: threeOrders(), pixelsPerSecond: scale);
 
       expect(layout.size.width, closeTo(24 * 3600 * scale, 0.001));
+      // Plus the gutter the horizontal scrollbar sits in: it pins to the bottom
+      // of a scroll view exactly as tall as the content, so without empty
+      // content under the last row it lies across that row's bars and reaching
+      // for the bar means reaching through them.
       expect(
         layout.size.height,
-        GanttMetrics.axisHeight + 2 * GanttMetrics.rowHeight,
+        GanttMetrics.axisHeight +
+            2 * GanttMetrics.rowHeight +
+            GanttMetrics.scrollbarGutter,
       );
+    });
+
+    test('the gutter belongs to no row', () {
+      final layout = layoutGantt(chart: threeOrders(), pixelsPerSecond: 0.01);
+      final inGutter = layout.size.height - GanttMetrics.scrollbarGutter / 2;
+
+      // Otherwise the last row would answer for a pointer that is on the
+      // scrollbar, which is the conflict the gutter exists to end.
+      expect(barAt(layout, Offset(60, inGutter)), isNull);
     });
 
     test('a bar too thin to see is floored, and counted', () {

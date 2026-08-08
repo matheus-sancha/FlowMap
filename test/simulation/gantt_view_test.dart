@@ -9,6 +9,7 @@ import 'package:flowmap/src/features/simulation/presentation/gantt_view.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The zoom cluster. `find.byTooltip` reaches the `Tooltip` an `IconButton`
@@ -103,14 +104,15 @@ void main() {
     );
   }
 
-  /// Two orders filling two days, one per station, plus a twenty-second step
-  /// that is under the floor at whole-run scale and over it near the ceiling.
+  /// Two orders through a two-station routing, CLAD04 then CEU27, plus a
+  /// twenty-second step that is under the floor at whole-run scale and over it
+  /// near the ceiling.
   ///
-  /// Nothing queues anywhere, so `summariseRun` falls through to its name
-  /// tiebreak and the rows come out **CEU27 then CLAD04** — which is why the
-  /// tests below reach for a row by name rather than by position. Depending on
-  /// the position would make them assertions about the ranking, which
-  /// `run_metrics_test` already owns.
+  /// **The queue is all at the second station**, so the Queue table ranks CEU27
+  /// first and the chart has to put CLAD04 there anyway — which is what makes
+  /// the row order a real assertion rather than one alphabetical order would
+  /// satisfy by accident. The tests below still reach for a row by name, so
+  /// only the one test about the order depends on it.
   StoredRun twoDayRun() => runOf(
     orders: [
       orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
@@ -123,20 +125,36 @@ void main() {
         workcenterId: 'W1',
         queueStart: jan1,
         processStart: jan1,
-        processEnd: at(24),
+        processEnd: at(10),
+      ),
+      // Reached CEU27 at 10:00 and waited two hours for it.
+      stepOf(
+        orderId: 'o1',
+        workcenterId: 'W2',
+        queueStart: at(10),
+        processStart: at(12),
+        processEnd: at(22),
+      ),
+      stepOf(
+        orderId: 'o2',
+        workcenterId: 'W1',
+        queueStart: at(10),
+        processStart: at(10),
+        processEnd: at(20),
       ),
       stepOf(
         orderId: 'o2',
         workcenterId: 'W2',
-        processStart: at(24),
-        processEnd: at(48),
+        queueStart: at(20),
+        processStart: at(22),
+        processEnd: at(32),
         changeover: true,
       ),
       stepOf(
         orderId: 'o3',
         workcenterId: 'W1',
-        processStart: at(30),
-        processEnd: at(30).add(const Duration(seconds: 20)),
+        processStart: at(40),
+        processEnd: at(40).add(const Duration(seconds: 20)),
       ),
     ],
   );
@@ -174,6 +192,10 @@ void main() {
   GanttRowLayout rowNamed(GanttLayout layout, String name) =>
       layout.rows.firstWhere((row) => row.row.name == name);
 
+  /// A mouse parked at [at], for the scroll signals the zoom listens to.
+  TestPointer testPointer(Offset at) =>
+      TestPointer(1, PointerDeviceKind.mouse)..hover(at);
+
   /// The layout the view is showing, recomputed here from the pane the test
   /// window gives it.
   GanttLayout shownLayout(WidgetTester tester, StoredRun run) {
@@ -194,13 +216,14 @@ void main() {
     expect(find.text('CLAD04'), findsOne);
     expect(find.text('CEU27'), findsOne);
 
-    // Down the page in the Queue table's own order, so the bottleneck is the
-    // first row read. Neither queues here, so the ranking falls through to its
-    // name tiebreak — and the chart has to follow that too, or the two lists
-    // disagree about which station is which.
+    // Down the page in the order the work flows, so an order is read
+    // diagonally down the chart the way it is read left to right along the map.
+    // CEU27 holds all the queue in this run and would be first under the Queue
+    // table's ranking, which is what the rows followed until the chart was
+    // driven against a real plant.
     expect(
-      tester.getTopLeft(find.text('CEU27')).dy,
-      lessThan(tester.getTopLeft(find.text('CLAD04')).dy),
+      tester.getTopLeft(find.text('CLAD04')).dy,
+      lessThan(tester.getTopLeft(find.text('CEU27')).dy),
     );
   });
 
@@ -334,8 +357,9 @@ void main() {
     addTearDown(gesture.removePointer);
     await tester.pump();
 
-    // o2 is the only bar on CEU27, and the only one that paid a changeover.
-    await gesture.moveTo(onBar(tester, rowNamed(layout, "CEU27").bars.first));
+    // CEU27 runs o1 and then o2, and only o2 paid a changeover — the two parts
+    // are different, which is what §7.6's batching rule charges for.
+    await gesture.moveTo(onBar(tester, rowNamed(layout, 'CEU27').bars.last));
     await tester.pumpAndSettle();
 
     expect(find.text('Order 2  ·  PN2'), findsOne);
@@ -374,6 +398,35 @@ void main() {
     await tester.tap(_zoomIn);
     await tester.pumpAndSettle();
 
+    expect(tester.widget<IconButton>(_zoomOut).onPressed, isNotNull);
+  });
+
+  testWidgets('ctrl and the wheel zoom; the wheel alone does not', (
+    tester,
+  ) async {
+    await pump(tester, twoDayRun());
+    final over = tester.getCenter(find.byKey(ganttCanvasKey));
+
+    // A plain wheel is left alone (§12.6): hijacking it would strand the
+    // vertical scroll this chart sits in.
+    await tester.sendEventToBinding(
+      testPointer(over).scroll(const Offset(0, -80)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<IconButton>(_zoomOut).onPressed,
+      isNull,
+      reason: 'a bare wheel must leave the chart at its fit',
+    );
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    addTearDown(() => tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft));
+    await tester.sendEventToBinding(
+      testPointer(over).scroll(const Offset(0, -80)),
+    );
+    await tester.pumpAndSettle();
+
+    // Off the floor, so there is now something to zoom back out to.
     expect(tester.widget<IconButton>(_zoomOut).onPressed, isNotNull);
   });
 

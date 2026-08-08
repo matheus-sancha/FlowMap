@@ -19,7 +19,9 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // `DateFormat` only: `intl` also exports a `TextDirection`, which would shadow
 // the one the painter's `TextPainter` needs.
 import 'package:intl/intl.dart' show DateFormat;
@@ -134,14 +136,19 @@ class _GanttViewState extends State<GanttView> {
     paneWidth: pane,
   );
 
-  /// Zooms about the centre of the pane.
+  /// Zooms, holding one point of the pane still.
   ///
-  /// The instant under the middle of the pane stays under the middle of the
-  /// pane, which is the only way a zoom into a sixteen-million-pixel run lands
-  /// anywhere near what the reader was looking at. It is also why
-  /// `HorizontalScroll` takes a controller: the window start *is* the offset,
-  /// so moving the window means moving it.
-  void _zoom(double factor, double pane) {
+  /// [anchor] is where in the pane to hold, measured from its left edge; the
+  /// centre when nothing says otherwise. Whatever instant is under that point
+  /// is still under it afterwards, which is the only way a zoom into a
+  /// sixteen-million-pixel run lands anywhere near what the reader was looking
+  /// at. It is also why `HorizontalScroll` takes a controller: the window start
+  /// *is* the offset, so moving the window means moving it.
+  ///
+  /// The buttons hold the centre, because a button press says nothing about
+  /// where on the chart the reader's attention is. Ctrl-scroll holds the
+  /// **pointer**, because it says exactly that.
+  void _zoom(double factor, double pane, {double? anchor}) {
     final current = _effectiveScale(pane);
     final next = clampGanttScale(
       current * factor,
@@ -150,8 +157,9 @@ class _GanttViewState extends State<GanttView> {
     );
     if (next == current) return;
 
-    final centre = (_across.hasClients ? _across.offset : 0.0) + pane / 2;
-    final seconds = centre / current;
+    final hold = anchor ?? pane / 2;
+    final offset = _across.hasClients ? _across.offset : 0.0;
+    final seconds = (offset + hold) / current;
 
     setState(() {
       _scale = next;
@@ -161,9 +169,28 @@ class _GanttViewState extends State<GanttView> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_across.hasClients) return;
-      final target = seconds * next - pane / 2;
+      final target = seconds * next - hold;
       _across.jumpTo(target.clamp(0.0, _across.position.maxScrollExtent));
     });
+  }
+
+  /// One notch of ctrl-scroll, anchored on the pointer.
+  ///
+  /// A gentler step than the buttons' ×2 on purpose: a press is expensive and
+  /// has to cross four orders of magnitude in ten of them, while a notch is
+  /// cheap and a reader spins several without thinking about it. ×2 a notch
+  /// overshoots whatever they were aiming at.
+  static const _wheelStep = 1.25;
+
+  void _zoomAtPointer(PointerScrollEvent event, double pane) {
+    // `localPosition` is in the canvas's own coordinates, which are the
+    // content's, so subtracting the offset gives the point in the pane.
+    final offset = _across.hasClients ? _across.offset : 0.0;
+    _zoom(
+      event.scrollDelta.dy < 0 ? _wheelStep : 1 / _wheelStep,
+      pane,
+      anchor: (event.localPosition.dx - offset).clamp(0.0, pane),
+    );
   }
 
   /// The names the studies had when the run was made (§7.10), so a study
@@ -224,6 +251,7 @@ class _GanttViewState extends State<GanttView> {
                 pane: pane,
                 hovered: _hovered,
                 onHover: (bar) => setState(() => _hovered = bar),
+                onCtrlScroll: (event) => _zoomAtPointer(event, pane),
                 studies: _studyNames,
               ),
             ),
@@ -253,6 +281,7 @@ class _Chart extends StatelessWidget {
     required this.pane,
     required this.hovered,
     required this.onHover,
+    required this.onCtrlScroll,
     required this.studies,
   });
 
@@ -262,6 +291,7 @@ class _Chart extends StatelessWidget {
   final double pane;
   final GanttPlacedBar? hovered;
   final ValueChanged<GanttPlacedBar?> onHover;
+  final ValueChanged<PointerScrollEvent> onCtrlScroll;
   final Map<String, String> studies;
 
   @override
@@ -311,24 +341,27 @@ class _Chart extends StatelessWidget {
                               if (!identical(hit, hovered)) onHover(hit);
                             },
                             onExit: (_) => onHover(null),
-                            child: CustomPaint(
-                              key: ganttCanvasKey,
-                              painter: _GanttPainter(
-                                layout: layout,
-                                ticks: ticks,
-                                visibleFrom: offset,
-                                visibleTo: offset + pane,
-                                hovered: hovered,
-                                band: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.04,
+                            child: _CtrlScroll(
+                              onZoom: onCtrlScroll,
+                              child: CustomPaint(
+                                key: ganttCanvasKey,
+                                painter: _GanttPainter(
+                                  layout: layout,
+                                  ticks: ticks,
+                                  visibleFrom: offset,
+                                  visibleTo: offset + pane,
+                                  hovered: hovered,
+                                  band: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.04,
+                                  ),
+                                  rule: theme.colorScheme.outlineVariant,
+                                  axisStyle:
+                                      theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.outline,
+                                      ) ??
+                                      const TextStyle(fontSize: 12),
+                                  outline: theme.colorScheme.onSurface,
                                 ),
-                                rule: theme.colorScheme.outlineVariant,
-                                axisStyle:
-                                    theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.outline,
-                                    ) ??
-                                    const TextStyle(fontSize: 12),
-                                outline: theme.colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -364,6 +397,41 @@ class _Chart extends StatelessWidget {
     final index = _rowIndexOf(bar);
     return index < layout.rows.length ? layout.rows[index].row.name : '';
   }
+}
+
+/// Turns ctrl-scroll over the chart into a zoom, and leaves every other scroll
+/// alone.
+///
+/// **A plain wheel is not touched**, which is §12.6's standing rule: hijacking
+/// it would strand the vertical scroll this chart sits in, and park the pointer
+/// over a tall chart and the page below could never be reached. Ctrl-scroll is
+/// not that gesture — nothing else in the app claims it, and it is what every
+/// other timeline a planner uses is zoomed with.
+///
+/// It has to be **inside** the two scroll views rather than wrapping them.
+/// `PointerSignalResolver` gives the event to whoever registers first, and
+/// registration runs from the innermost hit target outwards — an ancestor would
+/// lose to the `Scrollable` beneath it and the chart would pan while it zoomed.
+/// Registering is also what stops the scroll views from acting on the same
+/// notch: exactly one handler wins.
+class _CtrlScroll extends StatelessWidget {
+  const _CtrlScroll({required this.onZoom, required this.child});
+
+  final ValueChanged<PointerScrollEvent> onZoom;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Listener(
+    onPointerSignal: (event) {
+      if (event is! PointerScrollEvent) return;
+      if (!HardwareKeyboard.instance.isControlPressed) return;
+      GestureBinding.instance.pointerSignalResolver.register(
+        event,
+        (resolved) => onZoom(resolved as PointerScrollEvent),
+      );
+    },
+    child: child,
+  );
 }
 
 int _rowIndexOf(GanttPlacedBar bar) =>
@@ -777,10 +845,14 @@ class _GanttPainter extends CustomPainter {
       );
     }
 
+    // Down to the last row and no further: below it is the gutter the
+    // horizontal scrollbar sits in, and a grid drawn behind a scrollbar reads
+    // as part of the chart.
+    final floor = size.height - GanttMetrics.scrollbarGutter;
     for (final tick in ticks) {
       canvas.drawLine(
         Offset(tick.x, GanttMetrics.axisHeight),
-        Offset(tick.x, size.height),
+        Offset(tick.x, floor),
         rulePaint,
       );
       _text(canvas, tick.label, Offset(tick.x + 4, 5), axisStyle);

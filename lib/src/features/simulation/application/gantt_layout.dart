@@ -58,6 +58,13 @@ abstract final class GanttMetrics {
   /// the bars.
   static const axisHeight = 26.0;
 
+  /// Empty content below the last row, for the horizontal scrollbar to sit in.
+  ///
+  /// The bar pins to the bottom of the scroll view, which is exactly as tall as
+  /// the content — so without this it lies across the last row's bars, and
+  /// reaching for the bar means reaching through them. Found by dragging it.
+  static const scrollbarGutter = 18.0;
+
   /// The closest two ticks may be drawn.
   ///
   /// Any coarser unit clears it too, so the finest one that does is the one
@@ -178,9 +185,14 @@ class GanttChart {
     required this.end,
   });
 
-  /// One per station, in `RunMetrics.workcenters` order — the Queue table's own
-  /// ranking, so the bottleneck is the first row read and the two cannot
-  /// disagree about which station is which. A station that never ran has no row.
+  /// One per station, **in the order the work flows through them** — the first
+  /// station of the routing on the first row, so an order is read diagonally
+  /// down the chart the way it is read left to right along the map (§5.1).
+  ///
+  /// Ties fall back to `RunMetrics.workcenters`, the Queue table's ranking, so
+  /// stations at one position in the routing — a pool's three machines — still
+  /// come out busiest-first and in the same order twice running. A station that
+  /// never ran has no row.
   final List<GanttRow> rows;
 
   /// Every part in the run, in the Parts table's order. The legend strip is
@@ -265,13 +277,30 @@ GanttChart buildGanttChart({
     if (step.processEnd.isAfter(end)) end = step.processEnd;
   }
 
+  // Down the page in the order the work happens, with the Queue table's
+  // ranking left to break ties.
+  final flow = routingRanks(result);
+  final ordered =
+      [
+        for (var i = 0; i < metrics.workcenters.length; i++)
+          (station: metrics.workcenters[i], queueRank: i),
+      ]..sort((a, b) {
+        final byFlow = (flow[a.station.workcenterId] ?? _unrouted).compareTo(
+          flow[b.station.workcenterId] ?? _unrouted,
+        );
+        // The Queue table's own order underneath, which is what keeps a pool's
+        // three machines — all at one position in the routing — in the same
+        // order twice running, and puts the busiest of them first.
+        return byFlow != 0 ? byFlow : a.queueRank.compareTo(b.queueRank);
+      });
+
   return GanttChart(
     rows: [
-      for (final station in metrics.workcenters)
-        if (byStation[station.workcenterId] case final bars?)
+      for (final entry in ordered)
+        if (byStation[entry.station.workcenterId] case final bars?)
           GanttRow(
-            workcenterId: station.workcenterId,
-            name: station.name,
+            workcenterId: entry.station.workcenterId,
+            name: entry.station.name,
             bars: bars
               ..sort((a, b) {
                 final byStart = a.start.compareTo(b.start);
@@ -285,6 +314,46 @@ GanttChart buildGanttChart({
     start: start,
     end: end,
   );
+}
+
+/// A station nothing routed through, which sorts last.
+const _unrouted = 1 << 30;
+
+/// Where each station sits in the flow, as the run itself reveals it.
+///
+/// **The run stores no node positions.** §7.10's rule is that a run joins to
+/// nothing, so `simulation_run_steps` keeps a node id and a workcenter id but
+/// not the order the flow put them in — and the flow it was made from may have
+/// been edited since. What the run *does* keep is every step of every order,
+/// and §5.1 makes a study's topology a linear spine: one order visits its
+/// stations in exactly the routing's order, so the order it visited them in is
+/// the routing. Sorted by [SimOrderStep.queueStart], which is when the order
+/// arrived rather than when it got served, so a station that made it wait does
+/// not float up the list.
+///
+/// A station takes the **earliest** position it holds in any order's routing.
+/// It matters for a run spanning two studies, where one line's third station is
+/// another's first: there is one row for it either way (§7.7 builds one model
+/// of the plant), so the chart has to choose, and choosing the earliest keeps
+/// every routing readable top to bottom without any of them running backwards
+/// more than it has to.
+Map<String, int> routingRanks(SimRunResult result) {
+  final byOrder = <String, List<SimOrderStep>>{};
+  for (final step in result.steps) {
+    byOrder.putIfAbsent(step.orderId, () => []).add(step);
+  }
+
+  final earliest = <String, int>{};
+  for (final steps in byOrder.values) {
+    steps.sort((a, b) => a.queueStart.compareTo(b.queueStart));
+    for (var position = 0; position < steps.length; position++) {
+      final id = steps[position].workcenterId;
+      final known = earliest[id];
+      if (known == null || position < known) earliest[id] = position;
+    }
+  }
+
+  return earliest;
 }
 
 /// A bar, placed.
@@ -405,7 +474,9 @@ GanttLayout layoutGantt({
     flooredBars: floored,
     size: Size(
       chart.span.inSeconds * pixelsPerSecond,
-      GanttMetrics.axisHeight + chart.rows.length * GanttMetrics.rowHeight,
+      GanttMetrics.axisHeight +
+          chart.rows.length * GanttMetrics.rowHeight +
+          GanttMetrics.scrollbarGutter,
     ),
   );
 }
