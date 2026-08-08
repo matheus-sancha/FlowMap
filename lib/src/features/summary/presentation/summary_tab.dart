@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../common/centred_table.dart';
+import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -187,97 +187,96 @@ class _OccupationTable extends StatelessWidget {
     }
 
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            centredColumn(l10n.workcenter),
-            centredColumn(l10n.summaryRequired),
-            centredColumn(l10n.summaryAvailable),
-            centredColumn(l10n.occupation),
-            centredColumn(l10n.summaryOperatorsAllocated),
-            centredColumn(l10n.summaryOperatorsNeeded),
-          ],
-          rows: [
-            for (final target in summary.targets)
-              DataRow(
-                cells: [
-                  centredCell(
-                    Row(
-                      // Without this the Row fills the column and the centring
-                      // around it does nothing — a name with a `×3` badge and
-                      // an error icon still has to read as one centred group.
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(target.title),
-                        if (target.visits > 1) ...[
-                          const SizedBox(width: 6),
-                          Tooltip(
-                            message: l10n.summaryVisitsHelp('${target.visits}'),
-                            child: Text(
-                              '×${target.visits}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.outline,
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (target.partsWithoutTimes > 0) ...[
-                          const SizedBox(width: 6),
-                          Tooltip(
-                            message: l10n.summaryMissingTimes(
-                              '${target.partsWithoutTimes}',
-                            ),
-                            child: Icon(
-                              Icons.error_outline,
-                              size: 16,
-                              color: theme.colorScheme.error,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+      child: resultTable(
+        columns: [
+          ResultColumn(label: l10n.workcenter, width: 190),
+          ResultColumn(label: l10n.summaryRequired, width: 120),
+          ResultColumn(label: l10n.summaryAvailable, width: 120),
+          ResultColumn(label: l10n.occupation, width: 130),
+          ResultColumn(label: l10n.summaryOperatorsAllocated, width: 140),
+          ResultColumn(label: l10n.summaryOperatorsNeeded, width: 140),
+        ],
+        rowCount: summary.targets.length,
+        cellAt: (index, column) {
+          final target = summary.targets[index];
+          return switch (column) {
+            0 => Row(
+              // Without this the Row fills the column and the centring around
+              // it does nothing — a name with a `×3` badge and an error icon
+              // still has to read as one centred group.
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  // The badge and the icon must survive a long workcenter
+                  // name: the column's width is declared now, so something in
+                  // here has to give, and it is the name that can ellipsise.
+                  child: Text(
+                    target.title,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  centredCell(
-                    Tooltip(
-                      // §15: every derived figure expands to show its inputs.
-                      message: l10n.summaryRequiredHelp(
-                        _hours(target.work),
-                        '${target.changeovers}',
-                        _hours(target.changeoverTime),
-                      ),
-                      child: Text(_hours(target.required)),
-                    ),
-                  ),
-                  centredText(_hours(target.availableProductive)),
-                  centredCell(
-                    Tooltip(
-                      message: l10n.summaryOccupationHelp(
-                        _percent(target.occupation),
-                        _hours(target.required),
-                        _hours(target.availableProductive),
-                      ),
-                      child: Text(
-                        _percent(target.occupation),
-                        style: target.isOverloaded
-                            ? theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.error,
-                                fontWeight: FontWeight.w600,
-                              )
-                            : null,
+                ),
+                if (target.visits > 1) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: l10n.summaryVisitsHelp('${target.visits}'),
+                    child: Text(
+                      '×${target.visits}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
                       ),
                     ),
-                  ),
-                  centredText('${target.operatorsAllocated}'),
-                  centredText(
-                    target.operatorsNeeded == null
-                        ? '—'
-                        : target.operatorsNeeded!.toStringAsFixed(1),
                   ),
                 ],
+                if (target.partsWithoutTimes > 0) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: l10n.summaryMissingTimes(
+                      '${target.partsWithoutTimes}',
+                    ),
+                    child: Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            1 => Tooltip(
+              // §15: every derived figure expands to show its inputs.
+              message: l10n.summaryRequiredHelp(
+                _hours(target.work),
+                '${target.changeovers}',
+                _hours(target.changeoverTime),
               ),
-          ],
-        ),
+              child: Text(_hours(target.required)),
+            ),
+            2 => Text(_hours(target.availableProductive)),
+            3 => Tooltip(
+              message: l10n.summaryOccupationHelp(
+                _percent(target.occupation),
+                _hours(target.required),
+                _hours(target.availableProductive),
+              ),
+              child: Text(
+                _percent(target.occupation),
+                style: target.isOverloaded
+                    ? theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      )
+                    : null,
+              ),
+            ),
+            4 => Text('${target.operatorsAllocated}'),
+            _ => Text(
+              target.operatorsNeeded == null
+                  ? '—'
+                  : target.operatorsNeeded!.toStringAsFixed(1),
+            ),
+          };
+        },
       ),
     );
   }

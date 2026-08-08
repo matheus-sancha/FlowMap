@@ -1,10 +1,10 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-06. `docs/DESIGN.md` remains the source of truth for *why*; this file
+Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 515 tests passing, not pushed.
-Schema is at **v14**. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 520 tests passing, not pushed.
+Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current, and v12 is on the real database.** Both were done late on
 2026-08-05 and this file did not record it — checked 2026-08-06 and written down here so it is not
@@ -625,6 +625,49 @@ and **§16.14** (schema v13, new), **§8.5** (three new columns, and Delivery �
 (the Gantt, new), **§12.2** (refit on viewport change), **§13** (the plan's Excel export). None of
 it is real until those say it, in the same commits that change the behaviour.
 
+### 2.10 A wide table scrolls, and says so — **table half done 2026-08-08**
+
+Not in the original six, and dated 2026-08-08 rather than 2026-08-06 — kept in §2 the way §2.6b was,
+because it is the same "driving the build by hand" round. Field feedback: the Parts grid overflows
+with the number of workcenters and cannot be scrolled sideways; the same on the Simulation tab's
+production plan. Settled by interview before any of it was written, and written up as **§12.6**, with
+§12.5 amended and §14 given the eager-rows note.
+
+**The complaint was not a missing scroll view.** All seven tables already had one. What none of them
+had was a way to drive it — the whole diagnosis is in §12.6. Six of the seven now use
+`common/result_table.dart`; the takt table is deliberately left stretching to fill (§12.5).
+
+Four things worth keeping, three of them only findable by rendering it:
+
+- **"Draggable" is not a default.** Material makes a scrollbar a read-only indicator on Android and a
+  control elsewhere, and `flutter_test` runs as Android — so the drag test failed against a bar that
+  would have worked on Windows. `interactive: true` is stated on both bars. The same test then failed
+  a second time for an honest reason: the bar *fades in*, and a thumb at zero opacity is not
+  hit-testable, so a single pumped frame has nothing to grab.
+- **The vertical bar's track spanned the heading.** It has to sit outside the horizontal scroll view
+  or it pins to the table's right edge instead of the pane's — but then its thumb draws beside rows
+  that do not scroll. Material's `Scrollbar` does not expose `RawScrollbar.padding`; it falls back to
+  the ambient `MediaQuery`, which is how the inset is handed to it, with the real one restored
+  underneath. Found by cropping a rendered PNG, not by reading the widget tree — §2.5's rule again.
+- **`_Description`'s 200 px cap is gone.** It existed because a `DataTable` sized a column to its
+  widest cell and one long description would push Float off the right edge; the column declares its
+  width now, so the cell no longer has to defend itself. The `Tooltip` stays.
+- **es and pt were checked against the declared widths**, not assumed. No column's longest word
+  clips in any of the three languages — `Cambios de referencia` and `Operadores necessários` are the
+  ones that decided the numbers.
+
+520 tests, `flutter analyze` clean.
+
+**Still owed, and both were planned as their own commits:**
+
+- [ ] `DataGrid` gets `HorizontalScroll` — replacing the inert `Scrollbar` at `data_grid.dart:155`,
+      which has no controller and so holds no position to drag. Ten lines.
+- [ ] `DataGrid` freezes its row header and Part Number column. This is the actual answer to "too
+      many workcenters": scrolling to workcenter 12 currently takes the part number off screen with
+      it, so you type process times into a row you cannot identify. It restructures the grid into a
+      fixed pane and a scrolling pane with synchronised vertical scroll, and `_move`'s focus nodes
+      span the boundary — which is why it is not a rider on a scrollbar fix. Drive the build after it.
+
 ---
 
 ## 3. Verify in the running app
@@ -668,6 +711,12 @@ only.
       Windows (~13 µs per construction, versus 0.03 µs for the UTC equivalent). Closing it means
       working in epoch integers inside `WorkingCalendar` and converting only at its edges — a real
       refactor of the most heavily tested code in the app. Worth doing deliberately.
+- [ ] **The result tables build every row.** A `DataTable` is not lazy, so §12.6's 360 px pane on a
+      §14-scale 2000-order plan constructs 2000 rows to show seven. True before the pane existed —
+      the pane only makes it *look* lazy — and it sits behind the item above, because the run that
+      would produce 2000 orders does not finish in time either. Closing it means the read-only twin
+      of `DataGrid`: a heading row over a `ListView.builder`, which is the structure the grid already
+      uses. Recorded in §14.
 - [ ] **§18.3 is still open**: takt changes mid-flight. A run keeps one release cadence throughout,
       resolved at its start by the second assembly pass (§16.10).
 - [ ] **§18.5 is still open**: empty slots as a reported metric. They are counted, dated, stored and

@@ -1027,19 +1027,70 @@ and workcenter schedules. `numeric: true` is gone from them.
   you *type* into those cells and scan a column of process times for the one that is wrong, and a
   ragged left edge is what makes the outlier visible. That is a different job from reading a
   finished figure, so the two families deliberately differ rather than being made uniform.
-- **A wrapper, not a flag.** Material offers start or end alignment and no third, so centring is
-  `centredColumn` / `centredCell` / `centredText` in `common/centred_table.dart`. Doing it inline at
-  forty call sites would leave forty chances to forget one.
+- **How it is done depends on whether the column has a declared width.** Six of the seven do, since
+  §12.6, and centre inside it — `ResultColumn` carries the alignment and `result_table.dart` applies
+  it. The takt table is the exception: it stretches to fill rather than declaring widths, so it
+  keeps `centredColumn` / `centredCell` / `centredText` from `common/centred_table.dart`. Either way
+  it is a wrapper rather than a flag, because Material offers start or end alignment and no third,
+  and doing it inline at forty call sites would leave forty chances to forget one.
 - **Action columns are not centred.** The takt and workcenter schedules end in edit and delete
   buttons under a blank heading. Those are not data read down a column, and the takt table stretches
-  to fill its card, so centring would strand them mid-cell away from the row they act on.
+  to fill its card, so centring would strand them mid-cell away from the row they act on. In a
+  declared-width table that is `ResultColumn.centred: false`.
 - **The mechanism is tested, because it is a fact about Flutter rather than about this app.** A
   `DataTable` sizes each column to its widest participant and lays every cell out at that width, so
   a `Center` inside one expands to the column. That holds for tables of two columns or more; with a
   single column the column is stretched to the full table width, the heading does not participate in
-  the stretch the way a cell does, and the two stop agreeing. Every table here has several columns,
-  so it never arises — but a fixture written with one reports a centring no real table would show,
-  which is why `centred_table_test.dart` uses two and also covers the stretched case.
+  the stretch the way a cell does, and the two stop agreeing. `centred_table_test.dart` uses two and
+  also covers the stretched case — which is now the takt table's own case rather than a hazard the
+  other six could still meet, since a declared width is a width whatever else is in the column.
+
+### 12.6 A wide table scrolls, and says so
+
+Every read-only table except the takt schedule is a fixed-height pane: the heading holds still, the
+body scrolls under it, and both scrollbars pin to the pane's edges. `common/result_table.dart` and
+`common/horizontal_scroll.dart` hold it; `DataGrid` uses the second of those for the same reason.
+
+The starting point was a real defect and not a missing feature. All seven tables *already* sat in a
+horizontal `SingleChildScrollView` — what none of them had was a way to drive it. A plain wheel has a
+vertical job everywhere (rows in the grid, the page on the Simulation tab), Flutter flips a wheel's
+axis only while Shift is held, mouse drag-to-scroll is off by default on desktop, and the one
+`Scrollbar` in the tree was given no controller, so it held no position to drag and faded in only
+*while* scrolling — which is the thing that could not be started. With fifteen workcenters on the
+parts grid, or thirteen columns on the production plan, the table simply read as cut off.
+
+- **The bar is always visible while there is something to reach, and it is draggable.** Both are
+  stated rather than inherited: `thumbVisibility` needs a controller of its own, and Material makes a
+  scrollbar a read-only indicator on Android and a control elsewhere. This is the whole answer to
+  "there is no way to scroll", so it is a control on purpose.
+- **The wheel is deliberately untouched.** Hijacking it would strand the vertical scroll the pane
+  sits in: park the pointer on a production plan and the tables below it could never be reached.
+  Shift+wheel keeps working for anyone who knows it; the bar is for everyone else.
+- **The pane is bounded, because a bar at the foot of a thousand rows is a bar you cannot get to.**
+  `resultTableMaxHeight` is 360 px, and it is one constant so that the Simulation tab has a single
+  answer to "a section taller than it is useful" rather than one per section — the Gantt, when it
+  lands, is the next thing to take it. It only bites once the content reaches it, so a five-row table
+  shrink-wraps and looks exactly as it did.
+- **The heading is pinned, so it is two `DataTable`s over one declared width list.** Material sizes a
+  column to its widest participant, so two tables agree only if handed the same width — which is why
+  `ResultColumn` carries one and why the heading cell and every body cell are built through the same
+  helper. The plan has four adjacent date columns; a label over the wrong column is a misread, which
+  is worse than a heading that scrolls away. The gutters are set to nothing so that
+  `ResultColumn.width` describes the column it names — `DataTable`'s defaults would put 672 px of air
+  into a thirteen-column plan.
+- **The vertical bar sits outside the horizontal scroll view**, holding the inner controller. Nesting
+  alone cannot pin both bars: inside, the vertical bar lands on the *table's* right edge, which on a
+  wide table is off screen. The cost is that its track then spans the heading too, and Material's
+  `Scrollbar` does not expose `RawScrollbar.padding` — it falls back to the ambient `MediaQuery`, so
+  the inset is handed to it that way and the real one restored underneath.
+- **Four facts are tested, because none of them has a compiler behind it**
+  (`result_table_test.dart`): every heading sits over its own column, the heading holds still while
+  the body scrolls, it tracks the body sideways, and each bar drags its own axis. The third is not
+  redundant — a heading placed outside the horizontal scroll view would pass the second and be wrong.
+
+**Not the takt table.** It fits, and §12.5 stretches it to fill on purpose; declared widths would end
+that stretch for no gain. The app therefore has two read-only table shapes, which is a real cost and
+is written down rather than left to be discovered.
 
 ---
 
@@ -1063,6 +1114,13 @@ Design target: one plant, ~50 workcenters, ≤10 studies of ~10 steps, ~500 part
 a 1–3 year horizon. A run is well under a second; grids need only ordinary lazy lists. The
 simulation still runs on a background isolate so the UI cannot freeze. Treat 4× these numbers as
 the "must not fall over" ceiling.
+
+**The result tables are the exception to "ordinary lazy lists", and knowingly so.** A `DataTable`
+builds every row, so a 2000-order production plan constructs 2000 rows to show the seven that fit
+§12.6's pane. That was true before the pane existed; what the pane changes is that it now *looks*
+lazy. Left alone deliberately: real runs are tens of orders, and the run that would produce 2000 of
+them does not yet meet the run-time target stated above — so optimising the table before the engine
+that feeds it would be the cheaper half done first.
 
 ---
 

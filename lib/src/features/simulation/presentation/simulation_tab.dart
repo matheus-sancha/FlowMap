@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../common/centred_table.dart';
 import '../../../common/date_input.dart';
 import '../../../common/dialogs.dart';
+import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -461,85 +461,74 @@ class _PlanTable extends StatelessWidget {
         value == null ? '—' : formatDateInput(value, locale);
 
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            centredColumn(l10n.simPlanOrder),
-            centredColumn(l10n.demandPartNumber),
-            centredColumn(l10n.demandDescription),
-            centredColumn(l10n.demandProject),
-            centredColumn(l10n.demandBatchNumber),
-            centredColumn(l10n.demandBatchSize),
-            centredColumn(l10n.demandNeedDate),
-            centredColumn(l10n.demandMaterialDate),
-            centredColumn(l10n.simPlanOrderStart),
-            centredColumn(l10n.simPlanOrderEnd),
-            // Theoretical first: it is the baseline, and the actual beside it
-            // is read against it. The gap between the two is the queueing.
-            centredColumn(l10n.simPlanTheoreticalLeadTime),
-            centredColumn(l10n.simPlanActualLeadTime),
-            centredColumn(l10n.simAverageFloat),
-          ],
-          rows: [
-            for (final row in rows)
-              DataRow(
-                cells: [
-                  centredText('${row.orderNumber}'),
-                  centredText(row.partNumber),
-                  // Free text with no length limit, in a table that sizes each
-                  // column to its widest cell — so one long description would
-                  // push Float off the right edge for every row. Capped and
-                  // ellipsised with the whole string on hover, which is what
-                  // §5.4 does with a node's notes for the same reason.
-                  centredCell(_Description(text: row.partDescription)),
-                  // Blank throughout means a run made before schema v12, which
-                  // did not record any of this (§16.13). A dash, never a
-                  // guess.
-                  centredText(
-                    (row.customerProject?.isEmpty ?? true)
-                        ? '—'
-                        : row.customerProject!,
-                  ),
-                  centredText(
-                    (row.batchNumber?.isEmpty ?? true)
-                        ? '—'
-                        : row.batchNumber!,
-                  ),
-                  centredText(row.batchSize == null ? '—' : '${row.batchSize}'),
-                  centredText(date(row.outcome.needDate)),
-                  centredText(date(row.materialDate)),
-                  centredText(date(row.orderStart)),
-                  centredText(date(row.delivery)),
-                  centredText(_duration(l10n, row.theoreticalLeadTime)),
-                  centredText(_duration(l10n, row.actualLeadTime)),
-                  // The one figure here that is a verdict rather than a fact,
-                  // so late is coloured. Positive is early (§8).
-                  centredText(
-                    _duration(l10n, row.float),
-                    style: (row.float?.isNegative ?? false)
-                        ? theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.error,
-                            fontWeight: FontWeight.w600,
-                          )
-                        : null,
-                  ),
-                ],
-              ),
-          ],
-        ),
+      child: resultTable(
+        columns: [
+          ResultColumn(label: l10n.simPlanOrder, width: 72),
+          ResultColumn(label: l10n.demandPartNumber, width: 130),
+          ResultColumn(label: l10n.demandDescription, width: 210),
+          ResultColumn(label: l10n.demandProject, width: 140),
+          ResultColumn(label: l10n.demandBatchNumber, width: 120),
+          ResultColumn(label: l10n.demandBatchSize, width: 110),
+          ResultColumn(label: l10n.demandNeedDate, width: 120),
+          ResultColumn(label: l10n.demandMaterialDate, width: 130),
+          ResultColumn(label: l10n.simPlanOrderStart, width: 120),
+          ResultColumn(label: l10n.simPlanOrderEnd, width: 120),
+          // Theoretical first: it is the baseline, and the actual beside it
+          // is read against it. The gap between the two is the queueing.
+          ResultColumn(label: l10n.simPlanTheoreticalLeadTime, width: 130),
+          ResultColumn(label: l10n.simPlanActualLeadTime, width: 120),
+          ResultColumn(label: l10n.simAverageFloat, width: 130),
+        ],
+        rowCount: rows.length,
+        cellAt: (index, column) {
+          final row = rows[index];
+          return switch (column) {
+            0 => Text('${row.orderNumber}'),
+            1 => Text(row.partNumber),
+            2 => _Description(text: row.partDescription),
+            // Blank throughout means a run made before schema v12, which did
+            // not record any of this (§16.13). A dash, never a guess.
+            3 => Text(
+              (row.customerProject?.isEmpty ?? true)
+                  ? '—'
+                  : row.customerProject!,
+            ),
+            4 => Text(
+              (row.batchNumber?.isEmpty ?? true) ? '—' : row.batchNumber!,
+            ),
+            5 => Text(row.batchSize == null ? '—' : '${row.batchSize}'),
+            6 => Text(date(row.outcome.needDate)),
+            7 => Text(date(row.materialDate)),
+            8 => Text(date(row.orderStart)),
+            9 => Text(date(row.delivery)),
+            10 => Text(_duration(l10n, row.theoreticalLeadTime)),
+            11 => Text(_duration(l10n, row.actualLeadTime)),
+            // The one figure here that is a verdict rather than a fact, so
+            // late is coloured. Positive is early (§8).
+            _ => Text(
+              _duration(l10n, row.float),
+              style: (row.float?.isNegative ?? false)
+                  ? theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.error,
+                      fontWeight: FontWeight.w600,
+                    )
+                  : null,
+            ),
+          };
+        },
       ),
     );
   }
 }
 
-/// The plan's Description cell: capped, ellipsised, whole text on hover.
+/// The plan's Description cell: ellipsised, whole text on hover.
 ///
-/// A `DataTable` sizes every column to its widest cell, and a part description
-/// is free text with no length limit — so one long one would widen this column
-/// for all 33 rows and push Float past the right edge. The cap is the same
-/// answer §5.4 gave a node's notes: show that there is one, and put the words
-/// where asking for them costs nothing.
+/// The cap used to live here, because a `DataTable` sized every column to its
+/// widest cell and one long description would push Float off the right edge for
+/// all 33 rows. §12.6 declares the column's width instead, so the cell no longer
+/// has to defend itself — what is left is the part §5.4 decided for a node's
+/// notes: show that there is more, and put the words where asking for them
+/// costs nothing.
 ///
 /// A blank is a dash, and means two things that read the same: nobody typed a
 /// description, or the run predates v13 and did not record one (§16.14).
@@ -548,23 +537,18 @@ class _Description extends StatelessWidget {
 
   final String? text;
 
-  static const _maxWidth = 200.0;
-
   @override
   Widget build(BuildContext context) {
     final value = text;
     if (value == null || value.isEmpty) return const Text('—');
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _maxWidth),
-      // Unconditional, including on a description short enough to be fully
-      // visible. Showing it only when truncated would mean measuring the text
-      // against the cap on every build to save the reader a tooltip that
-      // repeats what they can already read, which is not worth a TextPainter.
-      child: Tooltip(
-        message: value,
-        child: Text(value, overflow: TextOverflow.ellipsis, maxLines: 1),
-      ),
+    // Unconditional, including on a description short enough to be fully
+    // visible. Showing it only when truncated would mean measuring the text
+    // against the column on every build to save the reader a tooltip that
+    // repeats what they can already read, which is not worth a TextPainter.
+    return Tooltip(
+      message: value,
+      child: Text(value, overflow: TextOverflow.ellipsis, maxLines: 1),
     );
   }
 }
@@ -728,36 +712,30 @@ class _QueueTable extends StatelessWidget {
     }
 
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            centredColumn(l10n.workcenter),
-            centredColumn(l10n.utilization),
-            centredColumn(l10n.simQueue),
-            centredColumn(l10n.simQueueAverage),
-            centredColumn(l10n.simVisits),
-            centredColumn(l10n.simChangeovers),
-          ],
-          rows: [
-            for (final station in metrics.workcenters)
-              DataRow(
-                cells: [
-                  centredText(station.name),
-                  centredCell(
-                    Tooltip(
-                      message: l10n.simUtilizationHelp,
-                      child: Text(_percent(station.utilization)),
-                    ),
-                  ),
-                  centredText(_duration(l10n, station.queueTime)),
-                  centredText(_duration(l10n, station.averageQueue)),
-                  centredText('${station.visits}'),
-                  centredText('${station.changeovers}'),
-                ],
-              ),
-          ],
-        ),
+      child: resultTable(
+        columns: [
+          ResultColumn(label: l10n.workcenter, width: 160),
+          ResultColumn(label: l10n.utilization, width: 120),
+          ResultColumn(label: l10n.simQueue, width: 130),
+          ResultColumn(label: l10n.simQueueAverage, width: 130),
+          ResultColumn(label: l10n.simVisits, width: 100),
+          ResultColumn(label: l10n.simChangeovers, width: 130),
+        ],
+        rowCount: metrics.workcenters.length,
+        cellAt: (index, column) {
+          final station = metrics.workcenters[index];
+          return switch (column) {
+            0 => Text(station.name),
+            1 => Tooltip(
+              message: l10n.simUtilizationHelp,
+              child: Text(_percent(station.utilization)),
+            ),
+            2 => Text(_duration(l10n, station.queueTime)),
+            3 => Text(_duration(l10n, station.averageQueue)),
+            4 => Text('${station.visits}'),
+            _ => Text('${station.changeovers}'),
+          };
+        },
       ),
     );
   }
@@ -776,25 +754,21 @@ class _ShareTable extends StatelessWidget {
     if (metrics.workcenters.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            centredColumn(l10n.workcenter),
-            centredColumn(l10n.simContributed),
-            centredColumn(l10n.simShareOfFlow),
-          ],
-          rows: [
-            for (final station in metrics.byContribution)
-              DataRow(
-                cells: [
-                  centredText(station.name),
-                  centredText(_duration(l10n, station.contributedTime)),
-                  centredText(_percent(metrics.shareOfFlow(station))),
-                ],
-              ),
-          ],
-        ),
+      child: resultTable(
+        columns: [
+          ResultColumn(label: l10n.workcenter, width: 160),
+          ResultColumn(label: l10n.simContributed, width: 160),
+          ResultColumn(label: l10n.simShareOfFlow, width: 140),
+        ],
+        rowCount: metrics.byContribution.length,
+        cellAt: (index, column) {
+          final station = metrics.byContribution[index];
+          return switch (column) {
+            0 => Text(station.name),
+            1 => Text(_duration(l10n, station.contributedTime)),
+            _ => Text(_percent(metrics.shareOfFlow(station))),
+          };
+        },
       ),
     );
   }
@@ -811,31 +785,27 @@ class _PartsTable extends StatelessWidget {
     if (metrics.parts.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            centredColumn(l10n.demandPartNumber),
-            centredColumn(l10n.simOrders),
-            centredColumn(l10n.simDelivered),
-            centredColumn(l10n.simOnTime),
-            centredColumn(l10n.simAverageLeadTime),
-            centredColumn(l10n.simAverageFloat),
-          ],
-          rows: [
-            for (final part in metrics.parts)
-              DataRow(
-                cells: [
-                  centredText(part.partNumber),
-                  centredText('${part.orders}'),
-                  centredText('${part.delivered}'),
-                  centredText('${part.onTime}'),
-                  centredText(_duration(l10n, part.averageLeadTime)),
-                  centredText(_duration(l10n, part.averageFloat)),
-                ],
-              ),
-          ],
-        ),
+      child: resultTable(
+        columns: [
+          ResultColumn(label: l10n.demandPartNumber, width: 150),
+          ResultColumn(label: l10n.simOrders, width: 100),
+          ResultColumn(label: l10n.simDelivered, width: 110),
+          ResultColumn(label: l10n.simOnTime, width: 100),
+          ResultColumn(label: l10n.simAverageLeadTime, width: 150),
+          ResultColumn(label: l10n.simAverageFloat, width: 130),
+        ],
+        rowCount: metrics.parts.length,
+        cellAt: (index, column) {
+          final part = metrics.parts[index];
+          return switch (column) {
+            0 => Text(part.partNumber),
+            1 => Text('${part.orders}'),
+            2 => Text('${part.delivered}'),
+            3 => Text('${part.onTime}'),
+            4 => Text(_duration(l10n, part.averageLeadTime)),
+            _ => Text(_duration(l10n, part.averageFloat)),
+          };
+        },
       ),
     );
   }
