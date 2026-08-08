@@ -115,6 +115,133 @@ void main() {
     );
   });
 
+  testWidgets('an unbounded table has no vertical bar of its own', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          // A page that scrolls, which is the only place an unbounded table
+          // belongs. Two vertical bars a few pixels apart — one moving the
+          // table, one the page — is the thing this mode exists to avoid.
+          body: ListView(
+            children: [
+              SizedBox(
+                width: paneWidth,
+                child: resultTable(
+                  columns: const [
+                    ResultColumn(label: 'H0', width: columnWidth),
+                    ResultColumn(label: 'H1', width: columnWidth),
+                    ResultColumn(label: 'H2', width: columnWidth),
+                  ],
+                  rowCount: 40,
+                  maxHeight: null,
+                  cellAt: (row, column) => Text('r${row}c$column'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bars = tester.widgetList<Scrollbar>(find.byType(Scrollbar));
+    expect(bars, hasLength(1));
+    expect(
+      tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byType(HorizontalScroll),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position
+          .axis,
+      Axis.horizontal,
+      reason: 'the only scrollable inside the table must be the sideways one',
+    );
+    // And the row that a 360 px pane would have hidden is simply there.
+    expect(find.text('r30c0'), findsOneWidget);
+  });
+
+  testWidgets('fill widens the columns without moving a heading off one', (
+    tester,
+  ) async {
+    const wide = 900.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: wide,
+            child: resultTable(
+              columns: const [
+                ResultColumn(label: 'H0', width: columnWidth),
+                ResultColumn(label: 'H1', width: columnWidth),
+                ResultColumn(label: 'H2', width: columnWidth),
+              ],
+              rowCount: 3,
+              maxHeight: null,
+              fill: true,
+              cellAt: (row, column) => Text('r${row}c$column'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Stretched: the last column's cell is far to the right of where 3 × 100 px
+    // would have left it.
+    expect(tester.getRect(find.text('r0c2')).center.dx, greaterThan(600));
+
+    // And the promise the declared widths were for still holds.
+    for (var column = 0; column < columns; column++) {
+      expect(
+        tester.getRect(find.text('r0c$column')).center.dx,
+        moreOrLessEquals(
+          tester.getRect(find.text('H$column')).center.dx,
+          epsilon: 1,
+        ),
+      );
+    }
+  });
+
+  testWidgets('fill never narrows a column below what was declared', (
+    tester,
+  ) async {
+    // 220 px of pane against 300 px of columns: there is not enough room, so
+    // the widths stand and the table scrolls. Shrinking to fit would put back
+    // exactly the squeeze the declared widths exist to prevent.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: paneWidth,
+              child: resultTable(
+                columns: const [
+                  ResultColumn(label: 'H0', width: columnWidth),
+                  ResultColumn(label: 'H1', width: columnWidth),
+                  ResultColumn(label: 'H2', width: columnWidth),
+                ],
+                rowCount: 3,
+                maxHeight: null,
+                fill: true,
+                cellAt: (row, column) => Text('r${row}c$column'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final first = tester.getRect(find.text('r0c0')).center.dx;
+    final second = tester.getRect(find.text('r0c1')).center.dx;
+    expect(second - first, moreOrLessEquals(columnWidth, epsilon: 1));
+  });
+
   testWidgets('the vertical bar drives the body, not the pane', (tester) async {
     await tester.pumpWidget(harness());
     await tester.pumpAndSettle();

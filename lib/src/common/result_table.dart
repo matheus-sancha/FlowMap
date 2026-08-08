@@ -83,13 +83,15 @@ Widget resultTable({
   required List<ResultColumn> columns,
   required int rowCount,
   required Widget Function(int row, int column) cellAt,
-  double maxHeight = resultTableMaxHeight,
+  double? maxHeight = resultTableMaxHeight,
+  bool fill = false,
 }) => _ResultTable(
   key: key,
   columns: columns,
   rowCount: rowCount,
   cellAt: cellAt,
   maxHeight: maxHeight,
+  fill: fill,
 );
 
 class _ResultTable extends StatefulWidget {
@@ -99,12 +101,29 @@ class _ResultTable extends StatefulWidget {
     required this.rowCount,
     required this.cellAt,
     required this.maxHeight,
+    required this.fill,
   });
 
   final List<ResultColumn> columns;
   final int rowCount;
   final Widget Function(int row, int column) cellAt;
-  final double maxHeight;
+
+  /// How tall the pane grows before the body scrolls, or **null** for a table
+  /// that is simply as tall as it is.
+  ///
+  /// Null is for a table inside a page that already scrolls and can afford the
+  /// length. A bounded pane there gives the reader two vertical bars a few
+  /// pixels apart, one of which moves the table and one the page — which is not
+  /// a thing anybody wants to have to tell apart. §12.6.
+  final double? maxHeight;
+
+  /// Widen the columns proportionally when the pane is wider than they need.
+  ///
+  /// Declared widths keep a heading over its own column; they do not oblige the
+  /// table to leave the right-hand third of a wide window empty. When there is
+  /// less room than the widths ask for, they are kept as declared and the table
+  /// scrolls — so this is a way of using space, never of losing legibility.
+  final bool fill;
 
   @override
   State<_ResultTable> createState() => _ResultTableState();
@@ -119,33 +138,54 @@ class _ResultTableState extends State<_ResultTable> {
     super.dispose();
   }
 
-  /// Every participant in a column is exactly [ResultColumn.width] wide, which
-  /// is what makes the heading table and the body table compute the same
-  /// layout.
-  Widget _sized(ResultColumn column, Widget child) => SizedBox(
-    width: column.width,
+  /// What each column is actually laid out at.
+  ///
+  /// The declared widths, unless [_ResultTable.fill] is set and there is more
+  /// room than they ask for — in which case every column is stretched by the
+  /// same factor, so the proportions a reader learns from one window are the
+  /// ones they see in the next. Never *narrower* than declared: that would put
+  /// the cap back on the columns the declared widths exist to keep off.
+  List<double> _widths(double available) {
+    final declared = [for (final column in widget.columns) column.width];
+    if (!widget.fill || !available.isFinite) return declared;
+
+    final natural = declared.fold<double>(0, (sum, w) => sum + w);
+    // A pixel in hand, so rounding cannot leave a scroll view with one pixel
+    // of extent and therefore a thumb on a table that fits.
+    final room = available - 2 * _horizontalMargin - 1;
+    if (room <= natural) return declared;
+    return [for (final w in declared) w * room / natural];
+  }
+
+  /// Every participant in a column is exactly the same width, which is what
+  /// makes the heading table and the body table compute the same layout.
+  Widget _sized(ResultColumn column, double width, Widget child) => SizedBox(
+    width: width,
     child: column.centred
         ? Center(child: child)
         : Align(alignment: AlignmentDirectional.centerStart, child: child),
   );
 
-  Widget get _heading => DataTable(
+  Widget _heading(List<double> widths) => DataTable(
     horizontalMargin: _horizontalMargin,
     columnSpacing: _columnSpacing,
     headingRowHeight: _headingHeight,
     columns: [
-      for (final column in widget.columns)
+      for (var i = 0; i < widget.columns.length; i++)
         DataColumn(
           label: _sized(
-            column,
+            widget.columns[i],
+            widths[i],
             // Two lines and then an ellipsis. A declared width is a promise the
             // heading has to keep as well: `Theoretical lead time` in a 120 px
             // column would otherwise run past the heading row's height and
             // overflow, and a label that overflows is one nobody can read
             // anyway.
             Text(
-              column.label,
-              textAlign: column.centred ? TextAlign.center : TextAlign.start,
+              widget.columns[i].label,
+              textAlign: widget.columns[i].centred
+                  ? TextAlign.center
+                  : TextAlign.start,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -155,7 +195,7 @@ class _ResultTableState extends State<_ResultTable> {
     rows: const [],
   );
 
-  Widget get _body => DataTable(
+  Widget _body(List<double> widths) => DataTable(
     horizontalMargin: _horizontalMargin,
     columnSpacing: _columnSpacing,
     // The heading is drawn once, above. This one exists only so the column
@@ -164,8 +204,7 @@ class _ResultTableState extends State<_ResultTable> {
     // a screen reader to find.
     headingRowHeight: 0,
     columns: [
-      for (final column in widget.columns)
-        DataColumn(label: SizedBox(width: column.width)),
+      for (final width in widths) DataColumn(label: SizedBox(width: width)),
     ],
     rows: [
       for (var row = 0; row < widget.rowCount; row++)
@@ -173,7 +212,11 @@ class _ResultTableState extends State<_ResultTable> {
           cells: [
             for (var column = 0; column < widget.columns.length; column++)
               DataCell(
-                _sized(widget.columns[column], widget.cellAt(row, column)),
+                _sized(
+                  widget.columns[column],
+                  widths[column],
+                  widget.cellAt(row, column),
+                ),
               ),
           ],
         ),
@@ -181,27 +224,44 @@ class _ResultTableState extends State<_ResultTable> {
   );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => _build(context, constraints.maxWidth),
+  );
+
+  Widget _build(BuildContext context, double available) {
+    final widths = _widths(available);
+    final maxHeight = widget.maxHeight;
+
     final pane = HorizontalScroll(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _heading,
-          // Loose, so a short table takes only the height it needs and a long
-          // one stops at [maxHeight].
-          Flexible(
-            child: SingleChildScrollView(controller: _vertical, child: _body),
-          ),
+          _heading(widths),
+          if (maxHeight == null)
+            _body(widths)
+          else
+            // Loose, so a short table takes only the height it needs and a long
+            // one stops at [maxHeight].
+            Flexible(
+              child: SingleChildScrollView(
+                controller: _vertical,
+                child: _body(widths),
+              ),
+            ),
           const SizedBox(height: _barGutter),
         ],
       ),
     );
 
+    // Nothing to bound, so nothing to scroll vertically and no second bar. The
+    // page this sits in is the one that scrolls, and it already has one.
+    if (maxHeight == null) return pane;
+
     final media = MediaQuery.of(context);
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: widget.maxHeight),
+      constraints: BoxConstraints(maxHeight: maxHeight),
       // Outside the horizontal scroll view, holding the inner controller:
       // nesting alone cannot pin both bars, but a Scrollbar can be placed
       // anywhere so long as it is handed the position it draws. Here that puts

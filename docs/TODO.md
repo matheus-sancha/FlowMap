@@ -3,7 +3,7 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 525 tests passing, not pushed.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 528 tests passing, not pushed.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current, and v12 is on the real database.** Both were done late on
@@ -677,6 +677,25 @@ All three commits landed the same day. 525 tests, `flutter analyze` clean.
   Also worth keeping: a horizontal drag inside a cell belongs to the caret, because every cell is a
   `TextField`. There is no drag-the-content escape hatch on this grid and never was, which is another
   way of saying the bar was the whole fix.
+
+**A fourth commit, from driving it.** Two things the running app said that the interview had not:
+
+- **The Summary tab showed two vertical bars a few pixels apart** — the occupation table's 360 px
+  pane inside the tab's own scroll. Applying one `maxHeight` to all six was the mistake; the
+  occupation table is long enough to reach the cap and short enough that the page can carry it. It is
+  `maxHeight: null` now and sits last on the tab, and §12.6 states the rule that fell out: bound a
+  table whose length the data decides without limit, let the page carry one whose length the plant
+  decides. **The production plan is the next candidate** and is deliberately left alone — it can run
+  to hundreds of rows where the occupation table is bounded by the workcenter count, so unbounding it
+  makes the Simulation tab very long. Worth a look on real data before deciding.
+- **`fill: true`.** Declared widths were leaving the right-hand third of a wide window empty. Columns
+  scale by one factor when there is room and stand as declared when there is not.
+
+- **A mouse gets a smaller scrollbar than a finger.** `RawScrollbar.hitTestInteractive` pads the
+  thumb to a 48 px minimum for touch and trackpad, and gives a mouse the bare track — 12 px on
+  Windows. Every test here drags with touch, so none of them exercises what a user on this app
+  actually does. Not changed, because it turned out the first report was a stale build; but if the
+  bar ever feels fiddly rather than broken, that is the reason and `thickness:` is the lever.
 
 ---
 

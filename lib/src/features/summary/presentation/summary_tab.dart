@@ -40,18 +40,22 @@ class SummaryTab extends ConsumerWidget {
               _Headline(summary: summary),
               const SizedBox(height: 16),
               Text(
-                l10n.summaryOccupation,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              _OccupationTable(summary: summary),
-              const SizedBox(height: 24),
-              Text(
                 l10n.summaryDemandTakt,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
               _DemandTaktCard(takt: summary.demandTakt),
+              const SizedBox(height: 24),
+              // Last, and as long as it is. It has a row per workcenter, so it
+              // is the one section here whose length is not known in advance —
+              // above the takt card it would push a short, fixed thing off the
+              // bottom of the window behind a scroll.
+              Text(
+                l10n.summaryOccupation,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              _OccupationTable(summary: summary),
             ],
           ),
         ),
@@ -188,6 +192,12 @@ class _OccupationTable extends StatelessWidget {
 
     return Card(
       child: resultTable(
+        // As tall as it is, and as wide as the window allows. A row per
+        // workcenter is long enough to hit a 360 px pane, and a pane inside the
+        // tab's own scroll gives two vertical bars a few pixels apart — one
+        // moving the table, one the page (§12.6).
+        maxHeight: null,
+        fill: true,
         columns: [
           ResultColumn(label: l10n.workcenter, width: 190),
           ResultColumn(label: l10n.summaryRequired, width: 120),

@@ -1071,6 +1071,20 @@ parts grid, or thirteen columns on the production plan, the table simply read as
   answer to "a section taller than it is useful" rather than one per section — the Gantt, when it
   lands, is the next thing to take it. It only bites once the content reaches it, so a five-row table
   shrink-wraps and looks exactly as it did.
+- **Except where the page's own scroll is enough, and then `maxHeight: null`.** A bounded pane inside
+  a page that already scrolls puts two vertical bars a few pixels apart, one moving the table and one
+  the page, and nothing on screen says which is which. The occupation table is the case: a row per
+  workcenter is long enough to reach the cap but short enough that the page can simply carry it. So
+  it is unbounded, and sits last on its tab — it is the one section there whose length is not known
+  in advance, and above a short fixed card it would push that card off the bottom behind a scroll.
+  The rule this leaves: bound a table whose length the data decides without limit, let the page carry
+  one whose length the plant decides.
+- **`fill: true` widens the columns when the window has room to spare.** Declared widths keep a
+  heading over its own column; they do not oblige a six-column table to leave the right-hand third of
+  a wide window empty. It only ever widens — when there is less room than the widths ask for they
+  stand and the table scrolls, because shrinking to fit would put back exactly the squeeze the
+  declared widths exist to prevent. Every column scales by the same factor, so the proportions a
+  reader learns in one window are the ones they meet in the next.
 - **The heading is pinned, so it is two `DataTable`s over one declared width list.** Material sizes a
   column to its widest participant, so two tables agree only if handed the same width — which is why
   `ResultColumn` carries one and why the heading cell and every body cell are built through the same
