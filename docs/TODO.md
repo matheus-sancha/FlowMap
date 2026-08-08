@@ -3,7 +3,8 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 528 tests passing, not pushed.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 528 tests passing, pushed to `origin`
+at `9c5f7bb` on 2026-08-08.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
