@@ -3,19 +3,24 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 614 tests passing. **Seven commits ahead
-of `origin`** as of 2026-08-08. **§2 is written in full**, and §2.11 is the first pass of driving
-the Gantt by hand — the three things looking at it said. Schema is at **v14**, untouched by
-everything in §2.7, §2.8 and §2.11, all of which are UI only. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 614 tests passing. **Pushed and open as
+PR #3** as of 2026-08-08, the third from this branch after #1 (M1–M2) and #2 (the pre-M3 audit).
+**§2 is written in full**, and §2.11 and §2.12 are the first pass of driving it by hand — the four
+things looking at it said. Schema is at **v14**, untouched by all of §2.7, §2.8, §2.11 and §2.12.
+M4 is code-complete.
 
 **What is next needs a human at the GUI, not more code.** §3's Gantt item is only partly closed:
 §2.11 came out of a Debug session that changed three things, and the rest of that list — the axis at
 the fit, ten zoom presses, the changeover stroke, both themes, es and pt — has still not been
 looked at, nor has §2.8's file been opened in Excel.
 
-**The Release bundle is now stale.** It predates all seven commits; a rebuild under a fresh label is
-owed with the next verification pass, and since the schema has not moved the open should read
-`db.open schema 14 from 14`.
+**Célula 11B's stored run predates §2.12 and describes a rule the engine no longer follows.** Re-run
+it before reading its figures against anything: buffers no longer delay an order, so expect roughly
+14 days off the lead time and some of it back as queueing at the stations.
+
+**The Release bundle is stale.** It predates all nine of the pushed commits; a rebuild under a fresh
+label is owed with the next verification pass, and since the schema has not moved the open should
+read `db.open schema 14 from 14`.
 
 **The last Release bundle was built 2026-08-08, and the real database is at v14.** Rebuilt after
 §2.10's four commits under label `0.1.0-2026-08-08`, and *launched* rather than merely inspected —
