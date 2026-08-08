@@ -43,12 +43,12 @@ void main() {
     workcenterId = await resources.createWorkcenter(
       plantId: plantId,
       name: 'CLAD04',
-      homeLineId: lineId,
+      lineIds: {lineId},
     );
     otherWorkcenterId = await resources.createWorkcenter(
       plantId: plantId,
       name: 'TTAT',
-      homeLineId: otherLineId,
+      lineIds: {otherLineId},
     );
 
     final patterns = await resources.watchShiftPatterns().first;

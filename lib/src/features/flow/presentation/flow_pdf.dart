@@ -47,7 +47,11 @@ class FlowPdfStrings {
     required this.dataSource,
     required this.taktValue,
     required this.localEquivalentMark,
+    required this.notes,
   });
+
+  /// Heading for the findings list under the map (§5.4).
+  final String notes;
 
   /// What marks a step whose process time is its own Process Specific Takt
   /// rather than one takt of the line's (DESIGN.md §6.1.1) — the same `*` the
@@ -101,10 +105,16 @@ Future<void> exportFlowPdf(
     operators: l10n.stepOperators,
     shifts: l10n.scheduleShifts,
     takt: l10n.takt,
+    notes: l10n.flowNodeNotes,
     leadTime: l10n.footerLeadTime,
     pce: l10n.footerPce,
-    generated: l10n.pdfGenerated(kBuildLabel, timestamp.format(DateTime.now())),
-    dataSource: flowDataSourceLabel(l10n, view.dataSource),
+    generated: l10n.exportGenerated(kBuildLabel, timestamp.format(DateTime.now())),
+    // Named, and named *which* part when it is one: a printed map read a
+    // month later has no dropdown to check (DESIGN.md §17.4).
+    dataSource: view.selectedPartNumber == null
+        ? flowDataSourceLabel(l10n, view.dataSource)
+        : '${flowDataSourceLabel(l10n, view.dataSource)} · '
+              '${view.selectedPartNumber}',
     taktValue: view.takt == null
         ? '—'
         : '${_number(view.takt!.value)} '
@@ -138,7 +148,7 @@ Future<void> exportFlowPdf(
   if (context.mounted) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(l10n.pdfSaved(location.path))));
+    ).showSnackBar(SnackBar(content: Text(l10n.exportSaved(location.path))));
   }
 }
 
@@ -185,7 +195,12 @@ Future<Uint8List> buildFlowPdf({
             children: [
               _endpoint(strings.supplier),
               for (final node in view.nodes) ...[
-                _arrow(),
+                _arrow(
+                  connectionKindInto(
+                    node,
+                    hasWipCap: view.study.wipCap != null,
+                  ),
+                ),
                 switch (node) {
                   final FlowStepView step => _stepBox(
                     step,
@@ -198,10 +213,14 @@ Future<Uint8List> buildFlowPdf({
                   ),
                 },
               ],
-              _arrow(),
+              // Into the customer, which is not a station and has no queue.
+              _arrow(
+                connectionKindInto(null, hasWipCap: view.study.wipCap != null),
+              ),
               _endpoint(strings.customer),
             ],
           ),
+          _notesList(view, strings),
           pw.Spacer(),
           pw.SizedBox(height: 12),
           _ladder(view, formatDuration),
@@ -235,11 +254,29 @@ pw.Widget _endpoint(String label) => pw.Container(
   ),
 );
 
-pw.Widget _arrow() => pw.Container(
+/// A link, and what kind of link it is (DESIGN.md §5.2).
+///
+/// **The printed map labels rather than redraws.** The canvas tells push from
+/// pull by hatching a shaft that this document does not draw at all — every
+/// symbol here is a bordered box or a glyph, which is why the arrow is a `>`.
+/// Rather than leave the distinction off the page entirely, the two links that
+/// are not the ordinary push say what they are underneath. A push says nothing,
+/// because that is the default and a caption on every arrow is noise.
+pw.Widget _arrow(FlowConnectionKind kind) => pw.Container(
   width: 28,
   height: 40,
   alignment: pw.Alignment.center,
-  child: pw.Text('>', style: const pw.TextStyle(fontSize: 12)),
+  child: pw.Column(
+    mainAxisAlignment: pw.MainAxisAlignment.center,
+    children: [
+      pw.Text('>', style: const pw.TextStyle(fontSize: 12)),
+      if (kind != FlowConnectionKind.push)
+        pw.Text(
+          kind == FlowConnectionKind.fifoLane ? 'FIFO' : 'PULL',
+          style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
+        ),
+    ],
+  ),
 );
 
 pw.Widget _stepBox(
@@ -300,6 +337,67 @@ pw.Widget _stepBox(
     ],
   ),
 );
+
+/// What the walk found, node by node (DESIGN.md §5.4).
+///
+/// A list under the map rather than text inside the boxes: a process box here
+/// is 140pt wide and a finding is a sentence. Named by the box it belongs to,
+/// so the printed map and the list can be read together — which is the whole
+/// point of taking a current state to a meeting on paper.
+///
+/// Absent entirely when nothing has been written, so a map of a flow nobody
+/// has walked yet does not carry an empty heading.
+pw.Widget _notesList(FlowView view, FlowPdfStrings strings) {
+  final noted = [
+    for (final node in view.nodes)
+      if (node.node.notes?.trim().isNotEmpty ?? false)
+        (
+          title: switch (node) {
+            final FlowStepView step => step.title,
+            final FlowInventoryView buffer => buffer.label.isEmpty
+                ? '▲'
+                : buffer.label,
+          },
+          text: node.node.notes!.trim(),
+        ),
+  ];
+  if (noted.isEmpty) return pw.SizedBox.shrink();
+
+  return pw.Padding(
+    padding: const pw.EdgeInsets.only(top: 14),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          strings.notes,
+          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 4),
+        for (final entry in noted)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 2),
+            child: pw.RichText(
+              text: pw.TextSpan(
+                children: [
+                  pw.TextSpan(
+                    text: '${entry.title}  ',
+                    style: pw.TextStyle(
+                      fontSize: 8,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.TextSpan(
+                    text: entry.text,
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
 
 pw.Widget _inventory(
   FlowInventoryView buffer,

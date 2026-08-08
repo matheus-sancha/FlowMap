@@ -2,9 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database.dart';
+import '../../calendar/application/shift_pattern_spec.dart' show dateOnly;
+import '../../demand/application/demand_providers.dart';
 import '../../projects/application/projects_providers.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../schedules/application/schedules_providers.dart';
+import '../../simulation/application/simulation_providers.dart';
 import '../../studies/application/studies_providers.dart';
 import 'flow_view.dart';
 
@@ -50,9 +53,9 @@ class ViewedPeriod extends _$ViewedPeriod {
 
 /// Which numbers the process boxes show.
 ///
-/// Only [FlowDataSource.flowEquivalent] is computable until the demand table
-/// lands (M3); the others are offered but disabled, so the shape of the choice
-/// is visible from the start.
+/// The flow equivalent is the default because it is the only one that needs no
+/// demand: a study opens showing something true about its own capacity before
+/// a single part has been typed.
 @riverpod
 class FlowDataSourceSelection extends _$FlowDataSourceSelection {
   @override
@@ -60,6 +63,51 @@ class FlowDataSourceSelection extends _$FlowDataSourceSelection {
 
   void select(FlowDataSource source) => state = source;
 }
+
+/// What the map reads out of the demand table for a study at one period.
+///
+/// Empty under [FlowDataSource.flowEquivalent] — assembling a mix nothing will
+/// read would make every map redraw on every demand edit.
+final flowDemandProvider = Provider.family<FlowDemandInput, String>((
+  ref,
+  studyId,
+) {
+  final source = ref.watch(flowDataSourceSelectionProvider(studyId));
+  if (!source.isDemandPart) return const FlowDemandInput();
+
+  final table = ref.watch(demandTableProvider(studyId));
+  if (table == null) return const FlowDemandInput();
+
+  // Null means "the first part", resolved here rather than stored, so a
+  // deleted part cannot leave the map pointing at nothing.
+  final selectedId = ref.watch(selectedDemandPartProvider(studyId));
+  final selected =
+      table.parts.where((p) => p.id == selectedId).firstOrNull ??
+      table.parts.firstOrNull;
+
+  final period = ref.watch(viewedPeriodProvider(studyId));
+  final start = period.granularity.startOf(period.anchor);
+  final end = period.granularity.endOf(period.anchor);
+
+  // Pieces, not orders: process times are per piece (§7.6), so an order of ten
+  // weighs ten times as much in the mix as one of one.
+  final pieces = <String, int>{};
+  if (source == FlowDataSource.weightedVariants) {
+    for (final order in ref.watch(demandOrdersProvider(studyId)).value ??
+        const <DemandOrder>[]) {
+      final due = dateOnly(order.needDate);
+      if (due.isBefore(start) || due.isAfter(end)) continue;
+      pieces[order.partId] = (pieces[order.partId] ?? 0) + order.batchSize;
+    }
+  }
+
+  return FlowDemandInput(
+    processTimes: table.times,
+    piecesDueInPeriod: pieces,
+    selectedPartId: selected?.id,
+    selectedPartNumber: selected?.partNumber,
+  );
+});
 
 /// The assembled map.
 ///
@@ -109,6 +157,7 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
   final schedules = ref.watch(schedulesRepositoryProvider);
   final period = ref.watch(viewedPeriodProvider(studyId));
   final dataSource = ref.watch(flowDataSourceSelectionProvider(studyId));
+  final demand = ref.watch(flowDemandProvider(studyId));
 
   // Only the workcenters this map actually touches, directly or through a
   // pool — a plant may have fifty and a study ten.
@@ -150,6 +199,12 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
     asOf: period.anchor,
     granularity: period.granularity,
     dataSource: dataSource,
+    demand: demand,
+    // What the arrows into each station are drawn from (§5.2). Watched, so
+    // changing a station's queue rule in the step editor redraws the link into
+    // it without the map being reopened.
+    dispatchByTarget:
+        ref.watch(workcenterDispatchProvider(study.projectId)).value ?? const {},
   );
 });
 

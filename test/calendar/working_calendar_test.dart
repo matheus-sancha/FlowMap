@@ -347,6 +347,79 @@ void main() {
     });
   });
 
+  group('retreat', () {
+    final dayShift = WorkingCalendar(
+      pattern: abc,
+      operatorsPerShift: const [1, 0, 0],
+    );
+    final threeShift = WorkingCalendar(
+      pattern: abc,
+      operatorsPerShift: const [1, 1, 1],
+    );
+
+    test('within a single shift', () {
+      expect(
+        dayShift.retreat(DateTime(2026, 8, 3, 8, 0), const Duration(hours: 2)),
+        DateTime(2026, 8, 3, 6, 0),
+      );
+    });
+
+    test('zero work is the deadline itself, when the station is open', () {
+      expect(
+        dayShift.retreat(DateTime(2026, 8, 3, 8, 0), Duration.zero),
+        DateTime(2026, 8, 3, 8, 0),
+      );
+    });
+
+    test('steps back over a closed weekend', () {
+      // A Monday 06:00 deadline with an hour of work has to start on the
+      // Friday, not on the Sunday a wall-clock subtraction would give.
+      final start = dayShift.retreat(
+        DateTime(2026, 8, 3, 6, 0),
+        const Duration(hours: 1),
+      );
+      expect(start.weekday, DateTime.friday);
+      expect(start.day, 31);
+    });
+
+    test('is the inverse of advance, over spans that cross closed time', () {
+      // The property worth holding: whatever the pattern does with weekends,
+      // breaks and overlapping windows, walking out and back lands home.
+      for (final calendar in [dayShift, threeShift]) {
+        for (final hours in [1, 7, 19, 53, 120]) {
+          final from = DateTime(2026, 8, 3, 6, 0);
+          final work = Duration(hours: hours);
+          expect(
+            calendar.retreat(calendar.advance(from, work), work),
+            from,
+            reason: '$hours h',
+          );
+        }
+      }
+    });
+
+    test('refuses negative work rather than walking the wrong way', () {
+      expect(
+        () => dayShift.retreat(
+          DateTime(2026, 8, 3, 8, 0),
+          const Duration(hours: -1),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('a calendar that never opens fails loudly rather than looping', () {
+      final shut = WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: const [0, 0, 0],
+      );
+      expect(
+        () => shut.retreat(DateTime(2026, 8, 3), const Duration(hours: 1)),
+        throwsStateError,
+      );
+    });
+  });
+
   group('advance', () {
     final dayShift = WorkingCalendar(
       pattern: abc,
@@ -666,7 +739,7 @@ void main() {
         resolveExceptions(
           [lineExtra],
           workcenterId: 'wc-1',
-          productionLineId: 'line-1',
+          productionLineIds: {'line-1'},
         ),
         isNotEmpty,
       );
@@ -674,7 +747,7 @@ void main() {
         resolveExceptions(
           [lineExtra],
           workcenterId: 'wc-1',
-          productionLineId: 'line-2',
+          productionLineIds: {'line-2'},
         ),
         isEmpty,
       );
@@ -685,7 +758,7 @@ void main() {
       final resolved = resolveExceptions(
         [workcenterExtra, plantShutdown, lineExtra],
         workcenterId: 'wc-1',
-        productionLineId: 'line-1',
+        productionLineIds: {'line-1'},
       );
       final day = resolved[DateTime(2026, 8, 8)]!;
       expect(day.kind, CalendarExceptionKind.extraWorking);

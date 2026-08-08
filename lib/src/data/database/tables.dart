@@ -151,6 +151,15 @@ class ProductionLines extends Table {
 /// type is an identity attribute and renames must propagate (DESIGN.md §3).
 class WorkcenterTypes extends Table {
   TextColumn get id => text()();
+
+  /// Which of the icon library's glyphs a workcenter of this type is drawn
+  /// with, stored as a [WorkcenterIcon] name.
+  ///
+  /// **A name, not a codepoint.** Flutter's icon tree-shaking drops every glyph
+  /// the compiler cannot see referenced, so an `IconData` built from a stored
+  /// number is a blank box in release and correct in debug. The enum resolves
+  /// through an exhaustive switch, which the compiler does see.
+  TextColumn get icon => textEnum<WorkcenterIcon>().nullable()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
   BoolColumn get isBuiltIn => boolean().withDefault(const Constant(false))();
   DateTimeColumn get archivedAt => dateTime().nullable()();
@@ -167,22 +176,17 @@ class WorkcenterTypes extends Table {
 
 /// A machine or station. Belongs to exactly one plant, per the spec.
 ///
-/// **[homeLineId] is where it is drawn in the tree, not a constraint on who may
-/// use it.** The resource hierarchy is Plant → Cell → Line → Workcenter, but
-/// studies on different production lines are explicitly allowed to use the same
+/// **Which lines it is drawn under is a separate table** — [WorkcenterLines].
+/// The resource hierarchy is Plant → Cell → Line → Workcenter, but studies on
+/// different production lines are explicitly allowed to use the same
 /// workcenter, and cross-line contention at a shared workcenter is the point of
 /// a combined simulation run (DESIGN.md §7.7). Making the line a hard parent
 /// would forbid exactly the case the app exists to analyse, so the plant is the
-/// owner and the line is a nullable home for navigation.
+/// owner and the tree is a filing arrangement.
 class Workcenters extends Table {
   TextColumn get id => text()();
   TextColumn get plantId =>
       text().references(Plants, #id, onDelete: KeyAction.cascade)();
-  TextColumn get homeLineId => text().nullable().references(
-    ProductionLines,
-    #id,
-    onDelete: KeyAction.setNull,
-  )();
   TextColumn get typeId => text().nullable().references(
     WorkcenterTypes,
     #id,
@@ -209,6 +213,29 @@ class Workcenters extends Table {
   List<Set<Column<Object>>> get uniqueKeys => [
     {plantId, name},
   ];
+}
+
+/// Which production lines a workcenter is drawn under (DESIGN.md §3).
+///
+/// **A set, not a parent.** `CLAD04` genuinely serves two lines in a real
+/// plant, and the single `home_line_id` this replaces meant filing it under the
+/// second one silently took it out of the first — the tree fought the very
+/// arrangement the app exists to analyse.
+///
+/// It is **organisational only**. Membership constrains nothing: any study of
+/// any line may target any workcenter of the plant, with or without a row here.
+/// The two things it affects are where the workcenter appears in the Resources
+/// tree, and which line-scoped calendar exceptions reach it (§4.3).
+class WorkcenterLines extends Table {
+  TextColumn get workcenterId =>
+      text().references(Workcenters, #id, onDelete: KeyAction.cascade)();
+  TextColumn get lineId =>
+      text().references(ProductionLines, #id, onDelete: KeyAction.cascade)();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {workcenterId, lineId};
 }
 
 /// A named group of interchangeable workcenters (DESIGN.md §3.1). A flow step

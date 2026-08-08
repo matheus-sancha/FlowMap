@@ -6,7 +6,13 @@ import '../../../common/formatters.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
+import '../../../common/dialogs.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../demand/application/demand_providers.dart';
+import '../../demand/application/demand_table.dart' show demandTargetOf;
+import '../../simulation/application/simulation_providers.dart';
+import '../../studies/application/studies_providers.dart';
+import '../../summary/application/summary_providers.dart';
 import '../application/flow_layout.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
@@ -60,6 +66,18 @@ class _Toolbar extends ConsumerWidget {
     final period = ref.watch(viewedPeriodProvider(study.id));
     final source = ref.watch(flowDataSourceSelectionProvider(study.id));
     final view = ref.watch(flowViewProvider(study.id)).value;
+    final parts =
+        ref.watch(demandPartsProvider(study.id)).value ?? const <DemandPart>[];
+    // The view resolves "no choice made" to the first part; the picker has to
+    // show the same one, or it would read as unset.
+    final selectedPart =
+        parts
+            .where(
+              (p) => p.id == ref.watch(selectedDemandPartProvider(study.id)),
+            )
+            .firstOrNull
+            ?.id ??
+        parts.firstOrNull?.id;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -143,16 +161,43 @@ class _Toolbar extends ConsumerWidget {
                   for (final source in FlowDataSource.values)
                     DropdownMenuItem(
                       value: source,
-                      // The other two are offered but not selectable: both need
-                      // the demand table, which arrives in M3. Showing them
-                      // keeps the shape of the choice visible instead of adding
-                      // it later as a surprise.
-                      enabled: source == FlowDataSource.flowEquivalent,
-                      child: Text(flowDataSourceLabel(l10n, source)),
+                      // The two demand sources need a part to read. Offered but
+                      // not selectable until there is one, so the shape of the
+                      // choice stays visible and the reason it is unavailable
+                      // is in the tooltip rather than in a support call.
+                      enabled: !source.isDemandPart || parts.isNotEmpty,
+                      child: Tooltip(
+                        message: !source.isDemandPart || parts.isNotEmpty
+                            ? ''
+                            : l10n.flowSourceNeedsDemand,
+                        child: Text(flowDataSourceLabel(l10n, source)),
+                      ),
                     ),
                 ],
               ),
             ),
+            // Which part, when the map is showing one. The weighted source
+            // reads every part, so it needs no picker.
+            if (source == FlowDataSource.singlePart && parts.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Text(l10n.flowPart, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(width: 8),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedPart,
+                  onChanged: (value) => ref
+                      .read(selectedDemandPartProvider(study.id).notifier)
+                      .select(value),
+                  items: [
+                    for (final part in parts)
+                      DropdownMenuItem(
+                        value: part.id,
+                        child: Text(part.partNumber),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(width: 16),
             TextButton.icon(
               onPressed: view == null
@@ -183,9 +228,24 @@ class _CanvasState extends ConsumerState<_Canvas> {
   /// viewport, and fit-to-screen needs the viewport's measured size.
   final _controller = TransformationController();
 
-  /// Set once the first layout is known, so a map opens fitted rather than at
-  /// 100 % with its right-hand steps off-screen.
-  bool _fittedOnce = false;
+  /// The transform [_fit] last installed, or null before the first fit.
+  ///
+  /// This is how the canvas knows whether the view on screen is still its own
+  /// doing: if the controller still holds exactly what was put there, nobody
+  /// has zoomed or panned since, and the map is free to refit itself when the
+  /// viewport changes. The moment it differs, the view belongs to the user and
+  /// a sidebar toggle must not throw it away — which is the same complaint
+  /// [_zoomBy] was written to answer, arriving from the other direction.
+  ///
+  /// Compared rather than tracked through gesture callbacks because
+  /// `onInteractionEnd` fires for a bare tap that moved nothing, and a tap
+  /// would then be enough to stop the map ever fitting again.
+  Matrix4? _fitted;
+
+  /// What the last fit was computed against, so a rebuild at an unchanged size
+  /// does not refit — and so the post-frame fit below cannot loop.
+  Size? _lastViewport;
+  Size? _lastContent;
 
   @override
   void dispose() {
@@ -201,11 +261,41 @@ class _CanvasState extends ConsumerState<_Canvas> {
     if (content.width <= 0 || content.height <= 0) return;
     final scale = (viewport.width / content.width).clamp(0.1, 1.0).toDouble();
     final dx = (viewport.width - content.width * scale) / 2;
+    final next = Matrix4.identity()
+      ..translateByDouble(dx.clamp(0.0, double.infinity), 0, 0, 1)
+      ..scaleByDouble(scale, scale, 1, 1);
     setState(() {
-      _controller.value = Matrix4.identity()
-        ..translateByDouble(dx.clamp(0.0, double.infinity), 0, 0, 1)
-        ..scaleByDouble(scale, scale, 1, 1);
+      _controller.value = next;
+      // Cloned: the controller is free to mutate the matrix it was handed, and
+      // a shared reference would compare equal to itself forever after.
+      _fitted = next.clone();
     });
+  }
+
+  /// Renames one endpoint, leaving the other alone.
+  ///
+  /// `updateStudy` takes both names, so passing only the one that changed would
+  /// null the other — the same shape of bug that left these fields unwritable
+  /// in the first place (§17.5).
+  Future<void> _renameEndpoint(
+    WidgetRef ref, {
+    String? supplier,
+    String? customer,
+    bool supplierGiven = false,
+    bool customerGiven = false,
+  }) {
+    final study = widget.study;
+    return ref
+        .read(studiesRepositoryProvider)
+        .updateStudy(
+          study.id,
+          name: study.name,
+          supplierName: supplierGiven ? supplier : study.supplierName,
+          customerName: customerGiven ? customer : study.customerName,
+          wipCap: study.wipCap,
+          priority: study.priority,
+          notes: study.notes,
+        );
   }
 
   /// Zooms about the centre of [viewport], keeping what is under it there.
@@ -239,23 +329,32 @@ class _CanvasState extends ConsumerState<_Canvas> {
     final theme = Theme.of(context);
     final view = widget.view;
     final study = widget.study;
+    // The arrows now come from the layout, which knows what each of them is
+    // (§5.2) and can be asserted without a frame.
     final layout = layoutFlow(view);
-
-    final segments = <(Offset, Offset)>[];
-    var previousRight = Offset(layout.supplier.right, layout.spineY);
-    for (final placed in layout.nodes) {
-      segments.add((previousRight, Offset(placed.rect.left, layout.spineY)));
-      previousRight = Offset(placed.rect.right, layout.spineY);
-    }
-    segments.add((previousRight, Offset(layout.customer.left, layout.spineY)));
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewport = Size(constraints.maxWidth, constraints.maxHeight);
-        if (!_fittedOnce && viewport.width.isFinite && viewport.width > 0) {
-          _fittedOnce = true;
-          // After the frame: fitting calls setState, and the first layout pass
-          // is not a legal moment to do that.
+
+        // The sidebar is an `AnimatedSize` over 160 ms, so this runs at each
+        // width along the way and the map follows the pane rather than
+        // snapping after it.
+        if (shouldRefitCanvas(
+          viewport: viewport,
+          content: layout.size,
+          lastViewport: _lastViewport,
+          lastContent: _lastContent,
+          fitted: _fitted,
+          current: _controller.value,
+        )) {
+          // Recorded before the frame, not inside it: two rebuilds at the same
+          // size must schedule one fit, or the post-frame `setState` below
+          // rebuilds into another fit and never stops.
+          _lastViewport = viewport;
+          _lastContent = layout.size;
+          // After the frame: fitting calls setState, and a layout pass is not
+          // a legal moment to do that.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) _fit(viewport, layout.size);
           });
@@ -263,7 +362,7 @@ class _CanvasState extends ConsumerState<_Canvas> {
         return Stack(
           children: [
             Positioned.fill(
-              child: _viewer(theme, layout, segments, view, study),
+              child: _viewer(theme, layout, view, study),
             ),
             Positioned(
               right: 12,
@@ -283,7 +382,6 @@ class _CanvasState extends ConsumerState<_Canvas> {
   Widget _viewer(
     ThemeData theme,
     FlowLayout layout,
-    List<(Offset, Offset)> segments,
     FlowView view,
     Study study,
   ) {
@@ -302,7 +400,7 @@ class _CanvasState extends ConsumerState<_Canvas> {
             Positioned.fill(
               child: CustomPaint(
                 painter: FlowConnectionsPainter(
-                  segments: segments,
+                  connections: layout.connections,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -318,10 +416,14 @@ class _CanvasState extends ConsumerState<_Canvas> {
             _Endpoint(
               rect: layout.supplier,
               label: view.study.supplierName ?? l10n.flowSupplier,
+              onRename: (name) =>
+                  _renameEndpoint(ref, supplier: name, supplierGiven: true),
             ),
             _Endpoint(
               rect: layout.customer,
               label: view.study.customerName ?? l10n.flowCustomer,
+              onRename: (name) =>
+                  _renameEndpoint(ref, customer: name, customerGiven: true),
             ),
             for (final placed in layout.nodes)
               Positioned(
@@ -377,32 +479,65 @@ class _CanvasState extends ConsumerState<_Canvas> {
 }
 
 /// Supplier and customer: the same factory symbol, told apart by position.
+///
+/// One writer for both, so the field the caller does not name keeps its value
+/// rather than being nulled by an update that was not about it.
 class _Endpoint extends StatelessWidget {
-  const _Endpoint({required this.rect, required this.label});
+  const _Endpoint({
+    required this.rect,
+    required this.label,
+    required this.onRename,
+  });
 
   final Rect rect;
   final String label;
 
+  /// Naming the real supplier and customer is the whole point of the fields
+  /// (§16.2): they were stored and drawn from M2, and until now nothing could
+  /// write them, so both endpoints always read their defaults.
+  final ValueChanged<String?> onRename;
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return Positioned(
       left: rect.left,
       top: rect.top,
       width: rect.width,
       height: rect.height + 24,
-      child: Column(
-        children: [
-          SizedBox(
-            width: rect.width,
-            height: rect.height,
-            child: CustomPaint(
-              painter: _FactoryPainter(color: theme.colorScheme.onSurface),
-            ),
+      child: Tooltip(
+        message: l10n.flowEndpointRename,
+        child: InkWell(
+          onTap: () async {
+            final name = await promptForName(
+              context,
+              title: l10n.flowEndpointRename,
+              label: l10n.fieldName,
+              initialValue: label,
+            );
+            // An emptied name puts the default back, rather than leaving a
+            // blank factory nobody can click.
+            if (name != null) onRename(name.trim().isEmpty ? null : name.trim());
+          },
+          child: Column(
+            children: [
+              SizedBox(
+                width: rect.width,
+                height: rect.height,
+                child: CustomPaint(
+                  painter: _FactoryPainter(color: theme.colorScheme.onSurface),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(label, style: theme.textTheme.bodySmall),
-        ],
+        ),
       ),
     );
   }
@@ -445,13 +580,30 @@ class _StepBox extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final hasProblem = step.problems.isNotEmpty;
+    final notes = step.node.notes;
 
     return Tooltip(
+      // A note is the reader's own writing and outranks the box's description
+      // of itself — but never a problem, which is a reason the map cannot be
+      // trusted yet (§11).
       message: hasProblem
           ? _problemText(l10n, step.problems)
-          : _targetText(l10n, step),
+          : (notes?.isNotEmpty ?? false) ? notes! : _targetText(l10n, step),
       child: InkWell(
-        onTap: () => showStepEditor(context, ref, study: study, step: step),
+        onTap: () => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: step,
+          // Watched here rather than read inside the editor: a `ref.read` of a
+          // stream's future can be cancelled by auto-dispose before the stream
+          // emits, and a dialog that never opens is a worse failure than a
+          // dialog opened with a stale map. A real watch is also what makes it
+          // reopen with the rule another study just changed.
+          dispatchByTarget:
+              ref.watch(workcenterDispatchProvider(study.projectId)).value ??
+              const {},
+        ),
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(
@@ -473,17 +625,58 @@ class _StepBox extends ConsumerWidget {
                     bottom: BorderSide(color: theme.colorScheme.outline),
                   ),
                 ),
-                child: Text(
-                  step.title,
-                  style: theme.textTheme.titleSmall,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        step.title,
+                        style: theme.textTheme.titleSmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // A pool is several machines behind one box, and a reader
+                    // comparing two boxes has to know which one is four
+                    // stations. `#4` is how a shop floor writes it — drawn
+                    // rather than chipped, so it is part of the map.
+                    if (step.poolMemberCount != null) ...[
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 22,
+                        height: 16,
+                        child: CustomPaint(
+                          painter: _PoolBadgePainter(
+                            count: step.poolMemberCount!,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                    // That there *is* a note has to be visible without
+                    // hovering — a finding nobody can see is a finding nobody
+                    // acts on. The words themselves are in the tooltip and on
+                    // the PDF, because a box sized for eight data rows has no
+                    // room for a paragraph.
+                    if (notes?.isNotEmpty ?? false) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.sticky_note_2_outlined,
+                        size: 14,
+                        color: theme.colorScheme.tertiary,
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Expanded(
                 child: Padding(
+                  // The vertical half is what `FlowMetrics.nodeHeight` budgets
+                  // for, so the two are the same number rather than two that
+                  // happen to agree.
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
-                    vertical: 4,
+                    vertical: FlowMetrics.nodeDataPadding,
                   ),
                   child: Column(
                     children: [
@@ -498,6 +691,29 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : formatDurationHms(step.processTime!),
                       ),
+                      // One takt of this station's own capacity (§6.1) — the
+                      // yardstick the row above is measured against. Shown
+                      // whatever the data source, so a part's process time can
+                      // be read against the takt without changing anything;
+                      // under the flow equivalent the two are the same number
+                      // by construction, which is itself worth seeing.
+                      _DataRow(
+                        label: l10n.stepCycleTime,
+                        value: step.equivalentProcessTime == null
+                            ? '—'
+                            : formatDurationHms(step.equivalentProcessTime!),
+                      ),
+                      // How many takts of this station's capacity the part
+                      // actually consumes (DESIGN.md §6.2). Only under a demand
+                      // source: the equivalent's own equivalence is 1.00 by
+                      // construction, and a row of ones says nothing.
+                      if (step.dataSource.isDemandPart)
+                        _DataRow(
+                          label: l10n.stepEquivalence,
+                          value: step.equivalence == null
+                              ? '—'
+                              : step.equivalence!.toStringAsFixed(2),
+                        ),
                       _DataRow(
                         label: l10n.stepChangeover,
                         value: formatDurationHms(step.changeover),
@@ -520,10 +736,16 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : '${step.staffedShiftCount}',
                       ),
-                      // Occupation needs demand to divide into capacity, so it
-                      // stays a dash until M3 rather than showing a zero
-                      // someone might read as "idle".
-                      _DataRow(label: l10n.occupation, value: '—'),
+                      // Required hours over available productive hours for
+                      // the period (§8.1). It comes from the Summary because
+                      // that is the only thing that knows what demand asks of
+                      // this station; a station two steps both visit reports
+                      // the load of both, because it is one machine.
+                      _DataRow(
+                        label: l10n.occupation,
+                        value: _occupation(ref, step),
+                        warning: (_occupationValue(ref, step) ?? 0) > 1,
+                      ),
                     ],
                   ),
                 ),
@@ -533,6 +755,21 @@ class _StepBox extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  double? _occupationValue(WidgetRef ref, FlowStepView step) {
+    final targetId = demandTargetOf(step.node);
+    if (targetId == null) return null;
+    return ref
+        .watch(summaryViewProvider(study.id))
+        ?.occupationByTarget[targetId];
+  }
+
+  String _occupation(WidgetRef ref, FlowStepView step) {
+    final value = _occupationValue(ref, step);
+    // A dash, never a zero: a station nobody has given demand to is not idle,
+    // it is unmeasured, and the two must not look alike.
+    return value == null ? '—' : '${(value * 100).round()}%';
   }
 
   /// What the box is, beyond what it is called: the workcenter's type, or how
@@ -558,6 +795,7 @@ class _StepBox extends ConsumerWidget {
             StepProblem.archivedTarget => l10n.stepProblemArchived,
             StepProblem.noSchedule => l10n.stepProblemNoSchedule,
             StepProblem.emptyPool => l10n.stepProblemEmptyPool,
+            StepProblem.noProcessTime => l10n.stepProblemNoProcessTime,
           },
         )
         .join('\n');
@@ -565,14 +803,23 @@ class _StepBox extends ConsumerWidget {
 }
 
 class _DataRow extends StatelessWidget {
-  const _DataRow({required this.label, required this.value});
+  const _DataRow({
+    required this.label,
+    required this.value,
+    this.warning = false,
+  });
 
   final String label;
   final String value;
 
+  /// Colours the value, for the one figure on the box that can be a hard
+  /// constraint: occupation above 100 % (DESIGN.md §8.1).
+  final bool warning;
+
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall;
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
@@ -581,7 +828,15 @@ class _DataRow extends StatelessWidget {
           Flexible(
             child: Text(label, style: style, overflow: TextOverflow.ellipsis),
           ),
-          Text(value, style: style),
+          Text(
+            value,
+            style: warning
+                ? style?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  )
+                : style,
+          ),
         ],
       ),
     );
@@ -598,25 +853,42 @@ class _InventoryNode extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    return InkWell(
+    final notes = buffer.node.notes;
+    return Tooltip(
+      message: (notes?.isNotEmpty ?? false) ? notes! : '',
+      child: InkWell(
       onTap: () =>
           showInventoryEditor(context, ref, study: study, buffer: buffer),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      // A Stack rather than a Column: the triangle has to sit *on* the spine,
+      // and a centred column of symbol-plus-two-labels puts its middle above
+      // the line the arrows run along.
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: CustomPaint(
-              painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+          const SizedBox(
+            width: FlowMetrics.bufferSymbol,
+            height: FlowMetrics.bufferSymbol,
+          ),
+          Center(
+            child: SizedBox(
+              width: FlowMetrics.bufferSymbol,
+              height: FlowMetrics.bufferSymbol,
+              child: CustomPaint(
+                painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            buffer.quantity == null ? '' : '${buffer.quantity}',
-            style: theme.textTheme.titleSmall,
-          ),
-          Text(
+          Positioned(
+            top: FlowMetrics.nodeHeight / 2 + FlowMetrics.bufferSymbol / 2 + 4,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                Text(
+                  buffer.quantity == null ? '' : '${buffer.quantity}',
+                  style: theme.textTheme.titleSmall,
+                ),
+                Text(
             // The same rendering as this node's own rung on the ladder
             // directly below it. Showing the value as typed instead put two
             // different numbers for one wait on the screen at once.
@@ -627,13 +899,53 @@ class _InventoryNode extends ConsumerWidget {
                     buffer.wait,
                     workingDay: buffer.referenceWorkingDay,
                   ),
-            style: theme.textTheme.bodySmall,
-            overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
+          // Same marker as a process box carries, in the triangle's own
+          // corner: a buffer is exactly where a walk finds something to say.
+          if (notes?.isNotEmpty ?? false)
+            Positioned(
+              top: FlowMetrics.nodeHeight / 2 - FlowMetrics.bufferSymbol / 2,
+              right: FlowMetrics.bufferInset - 14,
+              child: Icon(
+                Icons.sticky_note_2_outlined,
+                size: 14,
+                color: theme.colorScheme.tertiary,
+              ),
+            ),
         ],
+      ),
       ),
     );
   }
+}
+
+class _PoolBadgePainter extends CustomPainter {
+  const _PoolBadgePainter({required this.count, required this.color});
+
+  final int count;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Inset by half the stroke so the square's edge lands inside the box
+    // rather than being clipped in half by it.
+    VsmSymbols.drawPoolBadge(
+      canvas,
+      Rect.fromLTWH(0.6, 0.6, size.width - 1.2, size.height - 1.2),
+      count,
+      color: color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_PoolBadgePainter old) =>
+      old.count != count || old.color != color;
 }
 
 class _TrianglePainter extends CustomPainter {
@@ -726,6 +1038,9 @@ class _InsertButton extends ConsumerWidget {
             ref,
             study: study,
             position: position,
+            dispatchByTarget:
+                ref.watch(workcenterDispatchProvider(study.projectId)).value ??
+                const {},
           ),
           child: Icon(
             Icons.add,
@@ -800,6 +1115,12 @@ class _FooterMetrics extends StatelessWidget {
                     ),
               help: l10n.footerEndDateHelp,
             ),
+            if (view!.flowEquivalence != null)
+              _Metric(
+                label: l10n.footerEquivalence,
+                value: view!.flowEquivalence!.toStringAsFixed(2),
+                help: l10n.footerEquivalenceHelp,
+              ),
             _Metric(
               label: l10n.footerPce,
               value:

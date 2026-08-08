@@ -301,6 +301,171 @@ class FlowNodes extends Table {
   ];
 }
 
+/// A part number in a study's demand (DESIGN.md §5.1, §9).
+///
+/// **Study-scoped, not project-scoped.** A part's data here is entirely about
+/// one flow — its process times are keyed by that flow's own step targets — and
+/// §10.2 leaves demand out of a template by default. Two studies of the same
+/// line are scenarios of one reality, so duplicating a study deep-copies its
+/// parts and lets the copy be re-sequenced without disturbing the original.
+class DemandParts extends Table {
+  TextColumn get id => text()();
+  TextColumn get studyId =>
+      text().references(Studies, #id, onDelete: KeyAction.cascade)();
+
+  /// `PN2` — what the sequence, the MM3 chart and every report call it.
+  TextColumn get partNumber => text().withLength(min: 1, max: 100)();
+
+  TextColumn get description => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    // The number alone, since v14. It used to be project **and** number, on the
+    // argument that different customers' projects legitimately order the same
+    // part number and those are two parts with their own process times. The
+    // field disagreed: a part is a part, and the project is something the
+    // *order* is for — so it moved to [DemandOrders.customerProject] and a part
+    // number now means one part inside a study (§9.3, §16.15).
+    {studyId, partNumber},
+  ];
+}
+
+/// One part's process time at one step target — a cell of the demand grid
+/// (DESIGN.md §9).
+///
+/// **Keyed by the target, not by the flow node.** Adding a step to the flow
+/// adds an empty column, and removing one hides its values rather than
+/// destroying them, so a step deleted by mistake costs nothing to restore.
+/// Keying by node id would take the column's data down with the node.
+///
+/// [targetId] is a workcenter id or a pool id, whichever the step targets. It
+/// carries no foreign key for the reason [CalendarExceptions.scopeId] does not:
+/// one column cannot reference two tables, and a column per kind makes "exactly
+/// one is set" a rule the schema still could not express.
+///
+/// **A part that skips a step simply has no row here** (§5.1). That is what
+/// keeps a blank cell and a zero different things — a zero that should have
+/// been a number is the one bug this app cannot afford (§11).
+class PartProcessTimes extends Table {
+  TextColumn get partId =>
+      text().references(DemandParts, #id, onDelete: KeyAction.cascade)();
+
+  /// The workcenter or pool the step targets.
+  TextColumn get targetId => text()();
+
+  /// **Per piece**, in canonical seconds (§7.6, §12.4). An order of batch 10
+  /// occupies its workcenter for ten times this, which is what makes batch size
+  /// a real lever rather than metadata.
+  IntColumn get seconds => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {partId, targetId};
+}
+
+/// One order in the sequence under study (DESIGN.md §7.2, §7.6).
+class DemandOrders extends Table {
+  TextColumn get id => text()();
+  TextColumn get studyId =>
+      text().references(Studies, #id, onDelete: KeyAction.cascade)();
+  TextColumn get partId =>
+      text().references(DemandParts, #id, onDelete: KeyAction.cascade)();
+
+  /// Position in the release sequence — dense and zero-based, renumbered on
+  /// every structural edit, the same convention the flow spine uses.
+  ///
+  /// The sequence is the thing under study: the engine releases from its head
+  /// and never reorders it (§7.2), and MM3 measures how smooth it is (§6.3).
+  IntColumn get sequence => integer()();
+
+  /// Pieces in the order. Process times are per piece, so this multiplies the
+  /// work at every step (§7.6).
+  IntColumn get batchSize => integer().withDefault(const Constant(1))();
+
+  /// The planner's own identifier for this batch of this part number — `B-0012`,
+  /// `LOT7`, whatever their system calls it.
+  ///
+  /// **A label, not identity**, which is what makes it nullable and unkeyed.
+  /// The order it names already has an identity — its place in the sequence,
+  /// which is what the engine releases from and what the Production Plan's
+  /// `Order` column shows. So two orders may carry the same batch number, or
+  /// none, and nothing downstream matches on it.
+  ///
+  /// It is the same argument that removed `order_number` in v9, reaching the
+  /// opposite answer for a different reason: nobody needed a works order number
+  /// the simulation identified by row anyway, but a planner reading a printed
+  /// plan does need the number their paperwork is filed under.
+  TextColumn get batchNumber => text().nullable()();
+
+  /// The **customer's** project this order is for — their programme or
+  /// contract, not the FlowMap project the study sits in (§3).
+  ///
+  /// **On the order since v14, and a label like [batchNumber].** It sat on the
+  /// part until then, as half of what identified one, on the argument that
+  /// `PN2 on Wing 7` and `PN2 on Wing 9` were two parts with their own process
+  /// times. In the field a part number means one part: the times are the
+  /// part's, and the project is what a given batch of it is *for*. So it is
+  /// nullable and unkeyed — two orders may name the same project or none, and
+  /// nothing matches a part on it any more (§9.3, §16.15).
+  TextColumn get customerProject => text().nullable()();
+
+  DateTimeColumn get needDate => dateTime()();
+
+  /// When material is on hand. Null means unconstrained — the order may take
+  /// the first release slot it is offered (§7.2).
+  DateTimeColumn get materialDate => dateTime().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {studyId, sequence},
+  ];
+}
+
+/// One station's queue discipline, where it differs from the run's
+/// (DESIGN.md §7.4).
+///
+/// **Keyed by target, exactly as [PartProcessTimes] is.** A pool's members are
+/// interchangeable (§3.1), so the queue forms at the pool and the rule belongs
+/// to the pool — not to whichever member happens to stand for it on the map.
+/// [targetId] is therefore a workcenter id or a pool id and carries no foreign
+/// key, for the reason [CalendarExceptions.scopeId] does not: one column cannot
+/// reference two tables.
+///
+/// **Project-scoped, not study-scoped.** A run builds one resource model of the
+/// plant and a station exists in it once however many studies point at it
+/// (§7.7) — so a study-scoped rule would let two studies demand different
+/// disciplines of one machine, with nothing able to choose between them. The
+/// step editor writes it from inside a study and says so.
+///
+/// **A missing row means "use the run's rule."** Storing the default instead
+/// would make a station that was never touched indistinguishable from one
+/// deliberately set back to FIFO, and would freeze the run's own setting out of
+/// every station the moment the project was created.
+class WorkcenterDispatch extends Table {
+  TextColumn get projectId =>
+      text().references(Projects, #id, onDelete: KeyAction.cascade)();
+
+  /// The workcenter or pool whose queue this orders.
+  TextColumn get targetId => text()();
+
+  TextColumn get rule => textEnum<DispatchRule>()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {projectId, targetId};
+}
+
 /// The decorative layer (DESIGN.md §5.2): standard VSM symbols that document
 /// intent but take part in no calculation, freely placed at stored coordinates.
 class FlowAnnotations extends Table {

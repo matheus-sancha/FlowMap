@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/centred_table.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
@@ -144,22 +145,23 @@ class _TaktTable extends ConsumerWidget {
     return Card(
       child: DataTable(
         columns: [
-          DataColumn(label: Text(l10n.fieldStart)),
-          DataColumn(label: Text(l10n.fieldEnd)),
-          DataColumn(label: Text(l10n.takt)),
+          centredColumn(l10n.fieldStart),
+          centredColumn(l10n.fieldEnd),
+          centredColumn(l10n.takt),
+          // The actions column stays as it is: edit and delete are not data
+          // read down a column, and this table stretches to fill its card, so
+          // centring would strand them mid-cell away from the row they act on.
           const DataColumn(label: SizedBox.shrink()),
         ],
         rows: [
           for (final period in periods)
             DataRow(
               cells: [
-                DataCell(Text(dates.format(period.startDate))),
-                DataCell(Text(dates.format(period.endDate))),
-                DataCell(
-                  Text(
-                    '${_formatValue(period.taktValue)} '
-                    '${taktUnitLabel(l10n, period.taktUnit)}',
-                  ),
+                centredText(dates.format(period.startDate)),
+                centredText(dates.format(period.endDate)),
+                centredText(
+                  '${_formatValue(period.taktValue)} '
+                  '${taktUnitLabel(l10n, period.taktUnit)}',
                 ),
                 DataCell(
                   Row(
@@ -253,6 +255,13 @@ class _TaktDialogState extends State<_TaktDialog> {
     return value != null && value > 0 ? value : null;
   }
 
+  void _submit() {
+    if (_parsed == null || _end.isBefore(_start)) return;
+    Navigator.of(context).pop(
+      _TaktDraft(start: _start, end: _end, value: _parsed!, unit: _unit),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -285,6 +294,7 @@ class _TaktDialogState extends State<_TaktDialog> {
                     ),
                     decoration: InputDecoration(labelText: l10n.takt),
                     onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _submit(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -326,16 +336,7 @@ class _TaktDialogState extends State<_TaktDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: valid
-              ? () => Navigator.of(context).pop(
-                  _TaktDraft(
-                    start: _start,
-                    end: _end,
-                    value: _parsed!,
-                    unit: _unit,
-                  ),
-                )
-              : null,
+          onPressed: valid ? _submit : null,
           child: Text(l10n.actionSave),
         ),
       ],

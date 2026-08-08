@@ -8,7 +8,9 @@
 /// in a test without pumping a frame.
 library;
 
-import 'dart:ui' show Rect, Size;
+import 'dart:ui' show Offset, Rect, Size;
+
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 import 'flow_view.dart';
 
@@ -17,10 +19,45 @@ import 'flow_view.dart';
 abstract final class FlowMetrics {
   /// A process box, and the inventory triangle's bounding box.
   static const nodeWidth = 168.0;
-  static const nodeHeight = 150.0;
 
   /// The header strip carrying the workcenter code.
   static const nodeHeaderHeight = 34.0;
+
+  /// The most data rows a box can carry. Equivalent appears only under a demand
+  /// data source (§6.2), so seven of these are always there and the eighth
+  /// comes and goes.
+  static const nodeDataRows = 8;
+
+  /// One data row: `bodySmall` and the 1px padding either side of it.
+  static const nodeDataRowHeight = 18.5;
+
+  /// Above and below the rows.
+  static const nodeDataPadding = 4.0;
+
+  /// Tall enough for every row the box can carry, and **spelled as the sum**
+  /// rather than as the number it comes to.
+  ///
+  /// It was a flat `186.0` under a comment claiming it fitted eight rows. It
+  /// fitted seven: switching the map to a demand source added Equivalent and
+  /// the box overflowed by two pixels, which a release build hides and a debug
+  /// build paints in yellow stripes. Written this way, a ninth row is a
+  /// one-character change that resizes the box with it.
+  ///
+  /// Fixed rather than sized to content, so changing the data source does not
+  /// reflow the whole map under the reader.
+  static const nodeHeight =
+      nodeHeaderHeight + nodeDataPadding * 2 + nodeDataRows * nodeDataRowHeight;
+
+  /// The inventory triangle's drawn size.
+  ///
+  /// A buffer occupies the same slot as a process box so the spine stays
+  /// evenly spaced, but it *draws* a small symbol — so the arrows either side
+  /// must reach that symbol rather than the empty slot around it, or they
+  /// stop short of nothing.
+  static const bufferSymbol = 56.0;
+
+  /// How far in from a buffer's slot the arrows should stop.
+  static double get bufferInset => (nodeWidth - bufferSymbol) / 2;
 
   /// The supplier and customer factory symbols.
   static const endpointWidth = 104.0;
@@ -62,6 +99,19 @@ class InsertionPoint {
   final ({double x, double y}) center;
 }
 
+/// One straight run of the spine, and what it is drawn as.
+class FlowConnection {
+  const FlowConnection({
+    required this.from,
+    required this.to,
+    required this.kind,
+  });
+
+  final Offset from;
+  final Offset to;
+  final FlowConnectionKind kind;
+}
+
 /// One rung of the lead-time ladder.
 class LadderSegment {
   const LadderSegment({
@@ -90,6 +140,7 @@ class FlowLayout {
     required this.nodes,
     required this.customer,
     required this.insertionPoints,
+    required this.connections,
     required this.ladder,
     required this.size,
   });
@@ -98,6 +149,12 @@ class FlowLayout {
   final List<PlacedNode> nodes;
   final Rect customer;
   final List<InsertionPoint> insertionPoints;
+
+  /// The arrows, in flow order. Computed here rather than in the canvas so the
+  /// geometry **and** the kind of every link can be asserted without pumping a
+  /// frame, which is the whole argument for this file.
+  final List<FlowConnection> connections;
+
   final List<LadderSegment> ladder;
   final Size size;
 
@@ -123,17 +180,6 @@ FlowLayout layoutFlow(FlowView view) {
   x += FlowMetrics.endpointWidth + FlowMetrics.gap;
 
   for (var i = 0; i < view.nodes.length; i++) {
-    // The insertion point before this node.
-    insertions.add(
-      InsertionPoint(
-        position: i,
-        center: (
-          x: x - FlowMetrics.gap / 2,
-          y: top + FlowMetrics.nodeHeight / 2,
-        ),
-      ),
-    );
-
     nodes.add(
       PlacedNode(
         view: view.nodes[i],
@@ -147,14 +193,6 @@ FlowLayout layoutFlow(FlowView view) {
     );
     x += FlowMetrics.nodeWidth + FlowMetrics.gap;
   }
-
-  // And one after the last node, so a flow can be extended at the end.
-  insertions.add(
-    InsertionPoint(
-      position: view.nodes.length,
-      center: (x: x - FlowMetrics.gap / 2, y: top + FlowMetrics.nodeHeight / 2),
-    ),
-  );
 
   final customer = Rect.fromLTWH(
     x,
@@ -190,15 +228,99 @@ FlowLayout layoutFlow(FlowView view) {
     );
   }
 
+  // The arrows. A buffer draws a small triangle inside a full-width slot, so
+  // an arrow beside one stops where the symbol actually starts rather than at
+  // the empty slot edge — otherwise there is a gap either side and the triangle
+  // reads as off centre.
+  final connections = <FlowConnection>[];
+  final spine = FlowMetrics.marginTop + FlowMetrics.nodeHeight / 2;
+  final hasWipCap = view.study.wipCap != null;
+  var previousRight = Offset(supplier.right, spine);
+  for (final placed in nodes) {
+    final inset = placed.view is FlowInventoryView
+        ? FlowMetrics.bufferInset
+        : 0.0;
+    connections.add(
+      FlowConnection(
+        from: previousRight,
+        to: Offset(placed.rect.left + inset, spine),
+        kind: connectionKindInto(placed.view, hasWipCap: hasWipCap),
+      ),
+    );
+    previousRight = Offset(placed.rect.right - inset, spine);
+  }
+  // Into the customer, which is not a station and so has no queue of its own.
+  connections.add(
+    FlowConnection(
+      from: previousRight,
+      to: Offset(customer.left, spine),
+      kind: connectionKindInto(null, hasWipCap: hasWipCap),
+    ),
+  );
+
+  // `+ Insert here`, one per link — centred on **the arrow it sits on**, not on
+  // the gap.
+  //
+  // They are the same point everywhere except beside an inventory node, where
+  // the arrow is inset by `bufferInset` on the buffer's side: that segment is
+  // 56px longer than the gap on one end, so its middle is 28px from the gap's,
+  // and the button sat visibly off the line it belongs to. Deriving it from the
+  // connection means the two cannot drift apart again — there is one place the
+  // arrow's extent is decided, and this reads it.
+  for (var i = 0; i < connections.length; i++) {
+    insertions.add(
+      InsertionPoint(
+        position: i,
+        center: (
+          x: (connections[i].from.dx + connections[i].to.dx) / 2,
+          y: spine,
+        ),
+      ),
+    );
+  }
+
   return FlowLayout(
     supplier: supplier,
     nodes: nodes,
     customer: customer,
     insertionPoints: insertions,
+    connections: connections,
     ladder: ladder,
     size: Size(
       width,
       ladderTop + FlowMetrics.ladderHeight * 2 + FlowMetrics.bottomPadding,
     ),
   );
+}
+
+/// Whether the canvas should refit itself to [viewport] (DESIGN.md §12.2).
+///
+/// Two questions, both of which have to be yes.
+///
+/// **Has anything changed size?** The sidebar collapsing, the window being
+/// resized or maximised, a step being added to the flow. [lastViewport] and
+/// [lastContent] are what the previous fit was computed against, and comparing
+/// against them is also what stops a fit from feeding itself: fitting calls
+/// `setState`, which rebuilds, which asks this again — and at an unchanged size
+/// the answer has to be no, or the canvas never stops fitting.
+///
+/// **Is the view still the one the last fit installed?** [fitted] is the matrix
+/// the canvas put there and [current] is what the controller holds now. If they
+/// differ the user has zoomed or panned since, and the view is theirs: a
+/// sidebar toggle must not discard a deliberate zoom onto the sixth step, which
+/// is the same complaint the canvas's own `_zoomBy` exists to answer. Pressing
+/// Fit installs a new matrix and hands ownership back.
+///
+/// A null [fitted] is the first frame, when there is nothing to preserve.
+bool shouldRefitCanvas({
+  required Size viewport,
+  required Size content,
+  required Size? lastViewport,
+  required Size? lastContent,
+  required Matrix4? fitted,
+  required Matrix4 current,
+}) {
+  if (!viewport.width.isFinite || viewport.width <= 0) return false;
+  if (viewport == lastViewport && content == lastContent) return false;
+  return fitted == null || current == fitted;
 }

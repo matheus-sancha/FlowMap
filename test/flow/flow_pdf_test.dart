@@ -40,6 +40,7 @@ void main() {
     operators: 'Operators',
     shifts: 'Shifts',
     takt: 'Takt',
+    notes: 'Notes',
     leadTime: 'Lead time',
     pce: 'PCE',
     generated: 'FlowMap test',
@@ -115,7 +116,7 @@ void main() {
     );
   }
 
-  FlowNode step(int position) => FlowNode(
+  FlowNode step(int position, {String? notes}) => FlowNode(
     id: 'node-$position',
     studyId: 'study-1',
     position: position,
@@ -123,6 +124,7 @@ void main() {
     workcenterId: 'WC',
     changeoverSeconds: 1800,
     inventoryUsesWorkingTime: false,
+    notes: notes,
     createdAt: now,
     updatedAt: now,
   );
@@ -152,6 +154,26 @@ void main() {
     // failed render fails one of the two.
     expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
     expect(String.fromCharCodes(bytes.skip(bytes.length - 6)), contains('EOF'));
+  });
+
+  test('a walk\'s findings reach the printed map', () async {
+    // A note is why anyone prints a current state to take to a meeting, so a
+    // PDF that drops it is a PDF of half the work (§5.4).
+    final withNotes = await buildFlowPdf(
+      view: viewWith([step(0, notes: 'Operator waits for the crane')]),
+      strings: strings,
+      formatDuration: _Format().call,
+    );
+    final without = await buildFlowPdf(
+      view: viewWith([step(0)]),
+      strings: strings,
+      formatDuration: _Format().call,
+    );
+
+    expect(withNotes, isNotEmpty);
+    // The findings list is absent entirely when nothing was written, so a map
+    // of a flow nobody has walked carries no empty heading.
+    expect(withNotes.length, greaterThan(without.length));
   });
 
   test('an empty flow still renders rather than throwing', () async {

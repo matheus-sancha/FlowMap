@@ -140,6 +140,109 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workcenterTypeNew => 'New workcenter type';
 
   @override
+  String get workcenterLines => 'Drawn under these lines';
+
+  @override
+  String get workcenterLinesHelp =>
+      'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.';
+
+  @override
+  String get workcenterNoLines => 'This plant has no production lines yet.';
+
+  @override
+  String workcenterOnLines(String count) {
+    return 'on $count lines';
+  }
+
+  @override
+  String workcenterRemoveFromLine(String line) {
+    return 'Take out of $line';
+  }
+
+  @override
+  String get workcenterDeleteBody =>
+      'This removes the workcenter from the plant, not just from this line. Its schedules go with it.';
+
+  @override
+  String get workcenterTypeIcon => 'Icon';
+
+  @override
+  String get workcenterTypeIconHelp =>
+      'Workcenters of this type are drawn with it, in the tree and in the pickers.';
+
+  @override
+  String get workcenterTypeNone => 'No icon';
+
+  @override
+  String get workcenterTypeEdit => 'Workcenter type';
+
+  @override
+  String get iconMachining => 'Machining';
+
+  @override
+  String get iconLathe => 'Lathe';
+
+  @override
+  String get iconMilling => 'Milling';
+
+  @override
+  String get iconDrilling => 'Drilling';
+
+  @override
+  String get iconGrinding => 'Grinding';
+
+  @override
+  String get iconCutting => 'Cutting';
+
+  @override
+  String get iconBending => 'Bending';
+
+  @override
+  String get iconPress => 'Press';
+
+  @override
+  String get iconWelding => 'Welding';
+
+  @override
+  String get iconCladding => 'Cladding';
+
+  @override
+  String get iconHeatTreatment => 'Heat treatment';
+
+  @override
+  String get iconCoating => 'Coating';
+
+  @override
+  String get iconPainting => 'Painting';
+
+  @override
+  String get iconCleaning => 'Cleaning';
+
+  @override
+  String get iconAssembly => 'Assembly';
+
+  @override
+  String get iconRobot => 'Robot';
+
+  @override
+  String get iconConveyor => 'Conveyor';
+
+  @override
+  String get iconInspection => 'Inspection';
+
+  @override
+  String get iconTesting => 'Testing';
+
+  @override
+  String get iconMeasuring => 'Measuring';
+
+  @override
+  String get iconPacking => 'Packing';
+
+  @override
+  String get iconStorage => 'Storage';
+
+  @override
   String get workcenterPool => 'Workcenter pool';
 
   @override
@@ -359,6 +462,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Its studies, schedules and flows go with it. This cannot be undone.';
 
   @override
+  String get study => 'Study';
+
+  @override
   String get studyNew => 'New study';
 
   @override
@@ -385,6 +491,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studyExcludeFromSimulation => 'Exclude from simulation';
 
   @override
+  String get studiesCollapse => 'Hide the studies list';
+
+  @override
+  String get studiesExpand => 'Show the studies list';
+
+  @override
   String get studyTabFlow => 'Flow';
 
   @override
@@ -397,10 +509,382 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studyTabSummary => 'Summary';
 
   @override
-  String get milestoneDemand => 'Demand tables arrive with the next milestone.';
+  String get actionMoveUp => 'Move up';
 
   @override
-  String get milestoneSummary => 'The summary arrives with the next milestone.';
+  String get actionMoveDown => 'Move down';
+
+  @override
+  String get validationNotADuration => 'Not a time';
+
+  @override
+  String get validationNotADate => 'Not a date';
+
+  @override
+  String get validationPositiveWhole => 'A whole number above zero';
+
+  @override
+  String get validationUnknownPart => 'No part with that number in this study';
+
+  @override
+  String get stepProblemNoProcessTime => 'This part has no process time here.';
+
+  @override
+  String get stepEquivalence => 'Equivalent';
+
+  @override
+  String get flowPart => 'Part';
+
+  @override
+  String get flowNoParts => 'No parts yet';
+
+  @override
+  String get footerEquivalence => 'Equivalent';
+
+  @override
+  String get footerEquivalenceHelp =>
+      'This part\'s process time across the flow divided by the flow equivalent\'s. 1.13 means it consumes 1.13 takts of the line\'s capacity.';
+
+  @override
+  String get flowSourceNeedsDemand =>
+      'Needs at least one part in the Demand tab';
+
+  @override
+  String get mm3 => 'MM3';
+
+  @override
+  String get mm3Column => 'MM3';
+
+  @override
+  String get mm3Scope => 'Measured over';
+
+  @override
+  String get mm3WholeFlow => 'Whole flow';
+
+  @override
+  String get mm3Smoothness => 'Average deviation';
+
+  @override
+  String get mm3SmoothnessHelp =>
+      'How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope\'s capacity per order, which is a perfectly levelled sequence.';
+
+  @override
+  String get mm3SlotLoad => 'Slot load';
+
+  @override
+  String get mm3SlotLoadHelp =>
+      'The part\'s equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.';
+
+  @override
+  String get mm3NoSequence => 'No orders in the sequence yet.';
+
+  @override
+  String get mm3NotMeasurable =>
+      'Nothing to measure yet: the parts in this sequence have no process times in this scope.';
+
+  @override
+  String get mm3Help =>
+      'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.';
+
+  @override
+  String get summaryOccupation => 'Occupation by workcenter';
+
+  @override
+  String get summaryDemandTakt => 'Demand takt';
+
+  @override
+  String get summaryRequired => 'Required';
+
+  @override
+  String get summaryAvailable => 'Available';
+
+  @override
+  String get summaryOperatorsAllocated => 'Operators allocated';
+
+  @override
+  String get summaryOperatorsNeeded => 'Operators needed';
+
+  @override
+  String get summaryNoSteps => 'This flow has no bound process steps yet.';
+
+  @override
+  String get summaryNothingToRank =>
+      'Nothing to rank yet: no step has both a schedule and demand.';
+
+  @override
+  String get summaryOverloaded =>
+      'Above 100 %: this station cannot do it however the sequence is arranged.';
+
+  @override
+  String get summaryWithinCapacity => 'Within capacity for this period.';
+
+  @override
+  String get summaryNoDemandTakt =>
+      'No demand takt yet: it needs a station with hours and orders due in this period.';
+
+  @override
+  String summaryBottleneck(String name, String occupation) {
+    return 'Bottleneck: $name at $occupation';
+  }
+
+  @override
+  String summaryOrdersDue(String count) {
+    return '$count orders due';
+  }
+
+  @override
+  String summaryVisitsHelp(String count) {
+    return 'The flow routes through this station $count times, and every visit loads it.';
+  }
+
+  @override
+  String summaryMissingTimes(String count) {
+    return '$count parts due here have no process time, so the required hours are an understatement.';
+  }
+
+  @override
+  String summaryRequiredHelp(
+    String work,
+    String changeovers,
+    String changeover,
+  ) {
+    return '$work of process time plus $changeovers changeovers worth $changeover.';
+  }
+
+  @override
+  String summaryOccupationHelp(
+    String occupation,
+    String required,
+    String available,
+  ) {
+    return '$occupation = $required required over $available available.';
+  }
+
+  @override
+  String summaryPaceSetter(String name, String available) {
+    return 'Measured at $name, the busiest station, which has $available available this period.';
+  }
+
+  @override
+  String get summaryTaktConfigured => 'Configured takt';
+
+  @override
+  String get summaryTaktConfiguredHelp =>
+      'The takt this line is set to run at, resolved at the pace-setting station.';
+
+  @override
+  String get summaryTaktRaw => 'Raw demand takt';
+
+  @override
+  String summaryTaktRawHelp(String orders) {
+    return 'Available time over $orders orders due. What a visitor expects.';
+  }
+
+  @override
+  String get summaryTaktAdjusted => 'Equivalent-adjusted demand takt';
+
+  @override
+  String summaryTaktAdjustedHelp(String equivalents) {
+    return 'Available time over $equivalents part-equivalents due. What actually matters under a mixed part mix: an order worth two takts of work counts twice.';
+  }
+
+  @override
+  String get actionImport => 'Import';
+
+  @override
+  String importTitle(String file) {
+    return 'Import from $file';
+  }
+
+  @override
+  String get importSheet => 'Sheet';
+
+  @override
+  String get importMapping => 'Their columns to ours';
+
+  @override
+  String get importNotMapped => 'Not mapped';
+
+  @override
+  String importColumnNumber(String n) {
+    return 'Column $n';
+  }
+
+  @override
+  String importUnmapped(String columns) {
+    return 'Nothing found for: $columns. Those values will be left as they are.';
+  }
+
+  @override
+  String get importPreview => 'What will go in';
+
+  @override
+  String importCountOk(String count) {
+    return '$count rows ready';
+  }
+
+  @override
+  String importCountSkipped(String count) {
+    return '$count skipped';
+  }
+
+  @override
+  String importCountWarned(String count) {
+    return '$count to look at';
+  }
+
+  @override
+  String importPreviewTruncated(String count) {
+    return 'and $count more rows';
+  }
+
+  @override
+  String importAccept(String count) {
+    return 'Import $count rows';
+  }
+
+  @override
+  String importDone(String count) {
+    return 'Imported $count rows.';
+  }
+
+  @override
+  String importFailed(String error) {
+    return 'Nothing was imported: $error';
+  }
+
+  @override
+  String importUnreadable(String error) {
+    return 'That file could not be read: $error';
+  }
+
+  @override
+  String get importEmpty => 'That file has no rows under a heading row.';
+
+  @override
+  String get importIssueMissingPart => 'No part number';
+
+  @override
+  String get importIssueDuplicatePart => 'This part appears twice in the file';
+
+  @override
+  String get importIssueNeedBeforeMaterial =>
+      'Needed before its material arrives';
+
+  @override
+  String get fieldNote => 'Note';
+
+  @override
+  String get exceptions => 'Calendar exceptions';
+
+  @override
+  String get exceptionNew => 'New exception';
+
+  @override
+  String get exceptionsEmpty =>
+      'None. The plant runs its shift pattern every working day.';
+
+  @override
+  String get exceptionsHelp =>
+      'Holidays, shutdowns and extra hours. The most specific scope wins, so a plant-wide shutdown can be overridden by opening one workcenter that Saturday.';
+
+  @override
+  String get exceptionKindNonWorking => 'Closed';
+
+  @override
+  String get exceptionKindExtraWorking => 'Extra hours';
+
+  @override
+  String get exceptionScope => 'Applies to';
+
+  @override
+  String get exceptionScopePlant => 'Whole plant';
+
+  @override
+  String get exceptionScopeHelp =>
+      'A pool can be chosen under Workcenter; it is saved as one exception per member.';
+
+  @override
+  String get exceptionOperatorsHelp =>
+      'Who is on each shift that day. A zero closes that shift.';
+
+  @override
+  String get exceptionDeleteTitle => 'Delete this exception?';
+
+  @override
+  String get flowEndpointRename => 'Rename endpoint';
+
+  @override
+  String get demandProject => 'Project';
+
+  @override
+  String get demandDeleteAll => 'Delete all orders';
+
+  @override
+  String get demandDeleteAllBody =>
+      'Every order in the sequence goes. The parts and their process times stay.';
+
+  @override
+  String get stepCycleTime => 'Takt C/T';
+
+  @override
+  String get demandParts => 'Parts';
+
+  @override
+  String get demandSequence => 'Sequence';
+
+  @override
+  String get demandPartNumber => 'Part number';
+
+  @override
+  String get demandDescription => 'Description';
+
+  @override
+  String get demandTotal => 'Total';
+
+  @override
+  String get demandOrderNumber => 'Order';
+
+  @override
+  String get demandBatchSize => 'Batch size';
+
+  @override
+  String get demandBatchNumber => 'Batch no.';
+
+  @override
+  String get demandBatchNumberHelp =>
+      'Your own identifier for this batch of this part — whatever the paperwork calls it. Free text: nothing matches on it, duplicates are allowed and it may be left blank. It appears on the production plan so a printed order can be found in your system.';
+
+  @override
+  String get demandNeedDate => 'Need date';
+
+  @override
+  String get demandMaterialDate => 'Material date';
+
+  @override
+  String get demandMaterialDateHelp => 'optional';
+
+  @override
+  String get demandUnbound => 'not bound';
+
+  @override
+  String get demandTimesHelp =>
+      'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.';
+
+  @override
+  String get demandSequenceHelp =>
+      'The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.';
+
+  @override
+  String get demandNoSteps =>
+      'This flow has no process steps yet, so there is nothing to cost a part against.';
+
+  @override
+  String get demandNeedsPart => 'Add a part before adding orders.';
+
+  @override
+  String get demandPartDeleteBody =>
+      'Its process times go with it, and every order for it leaves the sequence.';
 
   @override
   String get takt => 'Takt';
@@ -630,6 +1114,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowNodeLabelHelp => 'Shown instead of the workcenter code.';
 
   @override
+  String get flowNodeNotes => 'Notes';
+
+  @override
+  String get flowNodeNotesHelp =>
+      'Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.';
+
+  @override
+  String get flowNodeHasNotes => 'Has notes';
+
+  @override
   String get flowMoveLeft => 'Move earlier';
 
   @override
@@ -647,6 +1141,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get stepChangeoverHelp =>
       'Charged only when the previous order on this workcenter was a different part.';
+
+  @override
+  String get stepDispatch => 'Queue order';
+
+  @override
+  String get stepDispatchHelp =>
+      'How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.';
+
+  @override
+  String get stepDispatchFollowsRun => 'Follow the run\'s rule';
 
   @override
   String get stepOperators => 'Operators';
@@ -728,12 +1232,309 @@ class AppLocalizationsEn extends AppLocalizations {
       'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.';
 
   @override
-  String pdfGenerated(String build, String timestamp) {
+  String exportGenerated(String build, String timestamp) {
     return 'FlowMap $build · generated $timestamp';
   }
 
   @override
-  String pdfSaved(String path) {
+  String exportSaved(String path) {
     return 'Saved to $path';
   }
+
+  @override
+  String get projectTabSimulation => 'Simulation';
+
+  @override
+  String get simulationRun => 'Simulate';
+
+  @override
+  String get simulationRunning => 'Running…';
+
+  @override
+  String get simulationDispatch => 'Dispatch';
+
+  @override
+  String get simulationDispatchHelp =>
+      'How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.';
+
+  @override
+  String get dispatchFifo => 'FIFO — by arrival';
+
+  @override
+  String get dispatchEarliestDueDate => 'Earliest need date';
+
+  @override
+  String get dispatchShortestProcessing => 'Shortest processing time';
+
+  @override
+  String simulationStudiesIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count studies in this run',
+      one: '1 study in this run',
+      zero: 'No studies selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simulationNoStudies => 'No study is selected for a run';
+
+  @override
+  String get simulationNoStudiesHelp =>
+      'Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.';
+
+  @override
+  String get simulationNotReady => 'Not ready to run';
+
+  @override
+  String get simProblemNoTakt =>
+      'No takt period covers the day this run would start.';
+
+  @override
+  String get simProblemNoOrders =>
+      'The demand sequence is empty — there is nothing to release.';
+
+  @override
+  String get simProblemUnboundStep =>
+      'A step targets no workcenter, or its pool is empty.';
+
+  @override
+  String get simProblemNoPaceSetter =>
+      'No step can pace the releases: every one of them is unbound.';
+
+  @override
+  String get simulationNeverRun => 'No run yet';
+
+  @override
+  String get simulationNeverRunHelp =>
+      'Simulate runs every selected study against one model of the plant, so one line’s orders genuinely delay another’s.';
+
+  @override
+  String simulationAbortHorizon(String count) {
+    return 'Demand exceeds capacity. $count orders never completed, and the run was abandoned rather than looping forever.';
+  }
+
+  @override
+  String get simulationAbortNothingToRun =>
+      'Nothing could be started: every station’s calendar is shut, or no study had a costable first order.';
+
+  @override
+  String get simOnTimeDelivery => 'On-time delivery';
+
+  @override
+  String simOnTimeOfOrders(String onTime, String orders) {
+    return '$onTime of $orders orders on time';
+  }
+
+  @override
+  String get simOnTimeHelp =>
+      'Counted over every order, not only the delivered ones: an order that never came out is not on time, whatever its need date says.';
+
+  @override
+  String get simDelivered => 'Delivered';
+
+  @override
+  String simDeliveredOf(String delivered, String orders) {
+    return '$delivered of $orders';
+  }
+
+  @override
+  String get simAverageFloat => 'Average float';
+
+  @override
+  String get simAverageFloatHelp =>
+      'Need date minus order end, averaged over the orders that finished. Positive is early, with that much time in hand; negative is late by that much. An order that never ended has no float and is left out here — it still counts as late above.';
+
+  @override
+  String get simAverageLeadTime => 'Average lead time';
+
+  @override
+  String get simAverageLeadTimeHelp =>
+      'Wall-clock time in the flow, from release to the last step.';
+
+  @override
+  String get simTheoreticalLeadTime => 'Theoretical lead time';
+
+  @override
+  String get simTheoreticalLeadTimeHelp =>
+      'The same orders without queueing, each walked from its own release through the real calendars. Excludes changeover, which depends on what ran before and so is not a property of the part.';
+
+  @override
+  String get simLeadTimeEfficiency => 'Lead-time efficiency';
+
+  @override
+  String get simLeadTimeEfficiencyHelp =>
+      'Actual ÷ theoretical. 1.0 is queue-free and higher is worse; the excess over 1.0 is exactly the waiting.';
+
+  @override
+  String get simEmptySlots => 'Empty release slots';
+
+  @override
+  String get simEmptySlotsHelp =>
+      'Slots that came round with nothing to put in them: the head of the sequence had no material yet, or the flow was already at its WIP cap. The sequence is the thing under study, so an empty slot is counted rather than quietly repaired.';
+
+  @override
+  String get simByQueue => 'Ranked by queue time';
+
+  @override
+  String get simByShare => 'Ranked by share of the flow';
+
+  @override
+  String get simRankingsHelp =>
+      'Both rankings are here because their disagreement is the diagnostic: a long queue at a station that is not busy is a sequencing problem, not a capacity one.';
+
+  @override
+  String get simQueue => 'Queue';
+
+  @override
+  String get simQueueAverage => 'Average queue';
+
+  @override
+  String get simVisits => 'Visits';
+
+  @override
+  String get simChangeovers => 'Changeovers';
+
+  @override
+  String get utilization => 'Utilization';
+
+  @override
+  String get simUtilizationHelp =>
+      'Busy ÷ open time observed in this run. Not the same as occupation, which is required ÷ available before any run — where the two disagree, sequencing or starvation got in the way.';
+
+  @override
+  String get simContributed => 'Queue + processing';
+
+  @override
+  String get simShareOfFlow => 'Share of flow';
+
+  @override
+  String get simPerPart => 'Per part number';
+
+  @override
+  String get simOrders => 'Orders';
+
+  @override
+  String get simOnTime => 'On time';
+
+  @override
+  String get simNothingRanked => 'No station ran anything.';
+
+  @override
+  String simRunSpan(String start, String end) {
+    return '$start → $end';
+  }
+
+  @override
+  String get simEarlierRuns => 'Earlier runs';
+
+  @override
+  String simRunLabel(String timestamp, String rule) {
+    return '$timestamp · $rule';
+  }
+
+  @override
+  String get simViewResults => 'View results';
+
+  @override
+  String get simulationRunFailed => 'The run could not be completed';
+
+  @override
+  String get simProductionPlan => 'Production plan — orders over time';
+
+  @override
+  String get simProductionPlanHelp =>
+      'What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.';
+
+  @override
+  String get simPlanOrder => 'Order';
+
+  @override
+  String get simPlanOrderStart => 'Order start';
+
+  @override
+  String get simPlanOrderEnd => 'Order end';
+
+  @override
+  String get simPlanTheoreticalLeadTime => 'Theoretical LT';
+
+  @override
+  String get simPlanActualLeadTime => 'Actual LT';
+
+  @override
+  String simDispatchOverrides(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stations overridden',
+      one: '1 station overridden',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String simDispatchOverrideRow(String name, String rule) {
+    return '$name: $rule';
+  }
+
+  @override
+  String get simRunDeleteBody =>
+      'The run and everything it recorded go. The studies it was made from are untouched.';
+
+  @override
+  String get simResultsView => 'Results';
+
+  @override
+  String get simGanttView => 'Gantt';
+
+  @override
+  String get simGanttEmpty =>
+      'This run recorded no steps, so there is nothing to draw.';
+
+  @override
+  String get simGanttGapHelp =>
+      'One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line\'s order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.';
+
+  @override
+  String simGanttOrder(String number) {
+    return 'Order $number';
+  }
+
+  @override
+  String get simGanttCommitted => 'Committed';
+
+  @override
+  String get simGanttWaited => 'Waited before starting';
+
+  @override
+  String get simGanttChangeover => 'A changeover was paid to start it';
+
+  @override
+  String get simGanttZoomIn => 'Zoom in';
+
+  @override
+  String get simGanttZoomOut => 'Zoom out';
+
+  @override
+  String simGanttFloored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bars drawn wider than they are',
+      one: '1 bar drawn wider than it is',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttFlooredHelp =>
+      'At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.';
+
+  @override
+  String get exportExcel => 'Export to Excel';
+
+  @override
+  String get simExportRunSheet => 'Run';
 }

@@ -136,6 +136,23 @@ class WorkingCalendar {
   /// Friday's capacity, and a Saturday shutdown does not cut it short.
   List<OpenInterval> intervalsStartingOn(DateTime date) {
     final day = dateOnly(date);
+    // Keyed by epoch milliseconds rather than by the DateTime: an int hashes
+    // and compares in a handful of instructions where a DateTime does not, and
+    // this is the hottest lookup in a run.
+    final key = day.millisecondsSinceEpoch;
+    final cached = _intervalCache[key];
+    if (cached != null) return cached;
+    return _intervalCache[key] = _computeIntervalsStartingOn(day);
+  }
+
+  /// Memoised because a calendar is immutable and the callers ask the same
+  /// question over and over: `advance`, `nextOpen` and `openTimeBetween` all
+  /// walk day by day, and a simulation walks them tens of thousands of times
+  /// (§7.1, §14). Recomputing a day's shift windows on every visit was the
+  /// engine's whole cost.
+  final Map<int, List<OpenInterval>> _intervalCache = {};
+
+  List<OpenInterval> _computeIntervalsStartingOn(DateTime day) {
     final exception = exceptions[day];
 
     if (exception?.kind == CalendarExceptionKind.nonWorking) {
@@ -187,6 +204,24 @@ class WorkingCalendar {
       if (interval.contains(t)) return true;
     }
     return false;
+  }
+
+  /// The open window containing [from], or the next one after it.
+  ///
+  /// Null if there is none within [_searchLimitDays]. Where [nextOpen] answers
+  /// "when could work start", this answers "and how long does that opening
+  /// last" — which lets a caller that asks repeatedly, like the simulation's
+  /// dispatcher, cache the answer until the window closes instead of walking
+  /// the calendar on every event (§7.1, §14).
+  OpenInterval? openWindowFrom(DateTime from) {
+    var day = _previousDay(dateOnly(from));
+    for (var i = 0; i <= _searchLimitDays; i++) {
+      for (final interval in intervalsStartingOn(day)) {
+        if (interval.end.isAfter(from)) return interval;
+      }
+      day = _nextDay(day);
+    }
+    return null;
   }
 
   /// The first instant at or after [from] when the workcenter is open.
@@ -256,6 +291,48 @@ class WorkingCalendar {
     }
     throw StateError(
       'Could not advance ${work.inMinutes} min of open time from $from on '
+      '${pattern.name} within $_searchLimitDays days. Check that at least one '
+      'shift has operators assigned.',
+    );
+  }
+
+  /// The instant at which [work] of open time would have to **begin** to end
+  /// no later than [until] — [advance] read backwards (DESIGN.md §7.8).
+  ///
+  /// A run starts at the first order's need date minus that part's theoretical
+  /// lead time (§7.9), and "minus" there is a walk, not a subtraction: taking
+  /// 40 open hours off a Monday morning lands on the previous Tuesday, not on
+  /// the previous Saturday. Nothing else can answer that, because a working
+  /// day is not a fixed fraction of a calendar one.
+  ///
+  /// Throws [StateError] if the calendar cannot supply that much open time
+  /// within [_searchLimitDays], for the same reason [advance] does: a calendar
+  /// with no staffed shift must fail loudly rather than loop.
+  DateTime retreat(DateTime until, Duration work) {
+    if (work.isNegative) {
+      throw ArgumentError.value(work, 'work', 'must not be negative');
+    }
+    var remaining = work;
+    var cursor = until;
+    // One day ahead, so a window that started yesterday and runs past midnight
+    // into `until` is seen; the mirror of [advance]'s step backwards.
+    var day = _nextDay(dateOnly(until));
+
+    for (var i = 0; i <= _searchLimitDays; i++) {
+      // Latest first: walking backwards spends the time nearest the deadline
+      // before reaching for anything earlier.
+      for (final interval in intervalsStartingOn(day).reversed) {
+        if (!interval.start.isBefore(cursor)) continue;
+        final end = interval.end.isBefore(cursor) ? interval.end : cursor;
+        final available = end.difference(interval.start);
+        if (remaining <= available) return end.subtract(remaining);
+        remaining -= available;
+        cursor = interval.start;
+      }
+      day = _previousDay(day);
+    }
+    throw StateError(
+      'Could not retreat ${work.inMinutes} min of open time from $until on '
       '${pattern.name} within $_searchLimitDays days. Check that at least one '
       'shift has operators assigned.',
     );

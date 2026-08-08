@@ -141,7 +141,7 @@ void main() {
       await repository.createWorkcenter(
         plantId: plantId,
         name: 'Cladding 04',
-        homeLineId: lineId,
+        lineIds: {lineId},
       );
 
       final lines = await repository.watchPlantLines(plantId).first;
@@ -150,13 +150,19 @@ void main() {
 
       final workcenters = await repository.watchWorkcenters(plantId).first;
       expect(workcenters.single.name, 'Cladding 04');
-      expect(workcenters.single.homeLineId, lineId);
+      expect(await repository.loadWorkcenterLines(workcenters.single.id), {
+        lineId,
+      });
     });
 
     test('a workcenter needs no line — it belongs to the plant', () async {
-      await repository.createWorkcenter(plantId: plantId, name: 'Shared oven');
+      final id = await repository.createWorkcenter(
+        plantId: plantId,
+        name: 'Shared oven',
+      );
       final workcenters = await repository.watchWorkcenters(plantId).first;
-      expect(workcenters.single.homeLineId, isNull);
+      expect(workcenters.single.name, 'Shared oven');
+      expect(await repository.loadWorkcenterLines(id), isEmpty);
     });
 
     test('deleting a line leaves its workcenters on the plant', () async {
@@ -171,7 +177,7 @@ void main() {
       await repository.createWorkcenter(
         plantId: plantId,
         name: 'Cladding 04',
-        homeLineId: lineId,
+        lineIds: {lineId},
       );
 
       await repository.deleteLine(lineId);
@@ -182,7 +188,10 @@ void main() {
         hasLength(1),
         reason: 'the line is where it is drawn, not what owns it',
       );
-      expect(workcenters.single.homeLineId, isNull);
+      expect(
+        await repository.loadWorkcenterLines(workcenters.single.id),
+        isEmpty,
+      );
     });
 
     test('deleting a plant cascades to its cells and workcenters', () async {
@@ -381,6 +390,101 @@ void main() {
       );
     });
   });
+
+  group('a workcenter can be drawn under several lines', () {
+    late String plantId;
+    late String lineA;
+    late String lineB;
+    late String workcenterId;
+
+    setUp(() async {
+      plantId = await repository.createPlant(name: 'Plant 1');
+      final cellId = await repository.createCell(
+        plantId: plantId,
+        name: 'Cell A',
+      );
+      lineA = await repository.createLine(cellId: cellId, name: 'Line 1');
+      lineB = await repository.createLine(cellId: cellId, name: 'Line 2');
+      workcenterId = await repository.createWorkcenter(
+        plantId: plantId,
+        name: 'CLAD04',
+        lineIds: {lineA},
+      );
+    });
+
+    test('adding a second line keeps the first', () async {
+      // The bug this replaces: a single `home_line_id` meant filing CLAD04
+      // under Line 2 silently took it out of Line 1 — the tree fought the very
+      // arrangement the app exists to analyse (DESIGN.md §7.7).
+      await repository.addWorkcenterToLine(workcenterId, lineB);
+
+      expect(await repository.loadWorkcenterLines(workcenterId), {
+        lineA,
+        lineB,
+      });
+    });
+
+    test('adding the same line twice is not an error', () async {
+      await repository.addWorkcenterToLine(workcenterId, lineA);
+      expect(await repository.loadWorkcenterLines(workcenterId), {lineA});
+    });
+
+    test('taking it out of one line leaves the other', () async {
+      await repository.addWorkcenterToLine(workcenterId, lineB);
+      await repository.removeWorkcenterFromLine(workcenterId, lineA);
+
+      expect(await repository.loadWorkcenterLines(workcenterId), {lineB});
+      // The workcenter itself is untouched: it belongs to the plant.
+      final workcenters = await repository.watchWorkcenters(plantId).first;
+      expect(workcenters.map((w) => w.name), contains('CLAD04'));
+    });
+
+    test('a workcenter under no line at all is still a workcenter', () async {
+      await repository.removeWorkcenterFromLine(workcenterId, lineA);
+
+      expect(await repository.loadWorkcenterLines(workcenterId), isEmpty);
+      expect(await repository.watchWorkcenters(plantId).first, hasLength(1));
+    });
+
+    test('setWorkcenterLines replaces the whole set', () async {
+      await repository.setWorkcenterLines(workcenterId, {lineB});
+      expect(await repository.loadWorkcenterLines(workcenterId), {lineB});
+
+      await repository.setWorkcenterLines(workcenterId, {});
+      expect(await repository.loadWorkcenterLines(workcenterId), isEmpty);
+    });
+
+    test('updateWorkcenter leaves membership alone unless asked', () async {
+      await repository.updateWorkcenter(workcenterId, name: 'CLAD05');
+
+      // Null lineIds means "not editing membership" — distinct from an empty
+      // set, which means "under no line at all".
+      expect(await repository.loadWorkcenterLines(workcenterId), {lineA});
+    });
+
+    test('the plant-wide membership map is keyed by workcenter', () async {
+      await repository.addWorkcenterToLine(workcenterId, lineB);
+      final other = await repository.createWorkcenter(
+        plantId: plantId,
+        name: 'TTAT',
+        lineIds: {lineB},
+      );
+
+      expect(await repository.watchWorkcenterLines(plantId).first, {
+        workcenterId: {lineA, lineB},
+        other: {lineB},
+      });
+    });
+
+    test('deleting a line un-files it, leaving the workcenter', () async {
+      await repository.addWorkcenterToLine(workcenterId, lineB);
+      await repository.deleteLine(lineB);
+
+      expect(await repository.loadWorkcenterLines(workcenterId), {lineA});
+      expect(await repository.watchWorkcenters(plantId).first, hasLength(1));
+    });
+  });
+
 }
 
 ShiftWindow _window(

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
+import '../../demand/data/demand_repository.dart';
 
 /// A study and its flow, together.
 ///
@@ -10,9 +11,16 @@ import '../../../data/database/enums.dart';
 /// reorder, delete — have to renumber siblings in the same transaction that
 /// changes one row.
 class StudiesRepository {
-  StudiesRepository(this._db);
+  /// The demand repository is built here rather than injected through a
+  /// provider: demand depends on the flow view for its columns, and a provider
+  /// dependency the other way would close a cycle. Both wrap the same database
+  /// and hold no state, so a second instance costs nothing.
+  StudiesRepository(AppDatabase db)
+    : _db = db,
+      _demand = DemandRepository(db);
 
   final AppDatabase _db;
+  final DemandRepository _demand;
 
   // --- Studies ------------------------------------------------------------
 
@@ -25,6 +33,27 @@ class StudiesRepository {
   Stream<Study?> watchStudy(String id) => (_db.select(
     _db.studies,
   )..where((s) => s.id.equals(id))).watchSingleOrNull();
+
+  /// The studies flagged to take part in the next run (DESIGN.md §10.1).
+  ///
+  /// At most one per line, which [setIncludedInSimulation] enforces at the
+  /// moment of the edit rather than the run checking for it — so the user
+  /// always sees which study is selected instead of finding out when they
+  /// press Simulate.
+  Stream<List<Study>> watchFlaggedStudies(String projectId) =>
+      _flaggedQuery(projectId).watch();
+
+  Future<List<Study>> loadFlaggedStudies(String projectId) =>
+      _flaggedQuery(projectId).get();
+
+  SimpleSelectStatement<$StudiesTable, Study> _flaggedQuery(String projectId) =>
+      _db.select(_db.studies)
+        ..where(
+          (s) =>
+              s.projectId.equals(projectId) &
+              s.includeInSimulation.equals(true),
+        )
+        ..orderBy([(s) => OrderingTerm(expression: s.name)]);
 
   Future<Study?> loadStudy(String id) => (_db.select(
     _db.studies,
@@ -191,6 +220,12 @@ class StudiesRepository {
           }
         });
 
+        // The demand goes with the scenario. A duplicate exists to be
+        // re-sequenced against the same orders (§6.3, §10.1); one that arrived
+        // empty would have to be re-imported before it could be compared with
+        // the study it came from.
+        await _demand.copyDemandInto(fromStudyId: id, toStudyId: copyId);
+
         return copyId;
       });
 
@@ -222,6 +257,7 @@ class StudiesRepository {
     double? equivalentValue,
     TaktUnit? equivalentUnit,
     String? label,
+    String? notes,
   }) => _insertNode(
     studyId: studyId,
     atPosition: atPosition,
@@ -236,6 +272,7 @@ class StudiesRepository {
       equivalentValue: Value(equivalentValue),
       equivalentUnit: Value(equivalentUnit),
       label: Value(label),
+      notes: Value(notes),
       createdAt: now,
       updatedAt: now,
     ),
@@ -250,6 +287,7 @@ class StudiesRepository {
     DurationUnit? waitUnit,
     bool usesWorkingTime = false,
     String? label,
+    String? notes,
   }) => _insertNode(
     studyId: studyId,
     atPosition: atPosition,
@@ -264,6 +302,7 @@ class StudiesRepository {
       inventoryUnit: Value(waitUnit),
       inventoryUsesWorkingTime: Value(usesWorkingTime),
       label: Value(label),
+      notes: Value(notes),
       createdAt: now,
       updatedAt: now,
     ),

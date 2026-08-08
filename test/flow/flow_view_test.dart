@@ -1,3 +1,6 @@
+import 'dart:ui' show Size;
+
+import 'package:drift/drift.dart' show Value;
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dart';
@@ -7,6 +10,7 @@ import 'package:flowmap/src/features/flow/application/flow_view.dart';
 import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/schedules/application/workcenter_schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 /// The map's arithmetic, with no database and no widget tree — the seam that
 /// makes "what does this box say" a unit test (DESIGN.md §5.4, §6.1).
@@ -151,14 +155,17 @@ void main() {
     TaktScheduleSpec? takt,
     Map<String, WorkcenterPool> pools = const {},
     Map<String, List<String>> members = const {},
+    Map<String, DispatchRule> dispatch = const {},
+    int? wipCap,
   }) => buildFlowView(
-    study: study(),
+    study: wipCap == null ? study() : study().copyWith(wipCap: Value(wipCap)),
     nodes: nodes,
     contexts: contexts,
     pools: pools,
     poolMembers: members,
     taktSchedule: takt ?? taktOf(3, TaktUnit.days),
     asOf: asOf,
+    dispatchByTarget: dispatch,
   );
 
   group('the flow equivalent', () {
@@ -1066,11 +1073,194 @@ void main() {
       expect(waiting.rect.top, lessThan(processing.rect.top));
     });
 
+    test('every + sits on the middle of its own arrow', () {
+      // It was on the middle of the *gap*, which is the same point everywhere
+      // except beside a buffer: the arrow there is inset by bufferInset on the
+      // triangle's side, so its midpoint is 28px away and the button sat
+      // visibly off the line it belongs to.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'CLAD04'),
+            inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
+            step(2, workcenterId: 'CEU27'),
+          ],
+          contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
+        ),
+      );
+
+      expect(layout.insertionPoints, hasLength(layout.connections.length));
+      for (var i = 0; i < layout.connections.length; i++) {
+        final connection = layout.connections[i];
+        expect(
+          layout.insertionPoints[i].center.x,
+          (connection.from.dx + connection.to.dx) / 2,
+        );
+        // And on the spine, which is where the arrow is drawn.
+        expect(layout.insertionPoints[i].center.y, connection.from.dy);
+      }
+
+      // The two links either side of the buffer really are inset, so the test
+      // above is exercising the case it was written for rather than passing
+      // because every segment happens to be a plain gap.
+      expect(
+        layout.connections[1].to.dx - layout.connections[1].from.dx,
+        greaterThan(FlowMetrics.gap),
+      );
+    });
+
     test('an empty flow still lays out its endpoints', () {
       final layout = layoutFlow(build(nodes: const [], contexts: {}));
       expect(layout.nodes, isEmpty);
       expect(layout.insertionPoints, hasLength(1));
       expect(layout.size.width, greaterThan(0));
+    });
+  });
+
+  group('what an arrow is (§5.2)', () {
+    List<FlowConnectionKind> kinds({
+      Map<String, DispatchRule> dispatch = const {},
+      int? wipCap,
+    }) => layoutFlow(
+      build(
+        nodes: [
+          step(0, workcenterId: 'CLAD04'),
+          step(1, workcenterId: 'CEU27'),
+        ],
+        contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
+        dispatch: dispatch,
+        wipCap: wipCap,
+      ),
+    ).connections.map((c) => c.kind).toList();
+
+    test('an uncapped flow is push all the way through', () {
+      // Which is honest rather than lazy: with no supermarkets in the model
+      // (§5.5) and no WIP cap, nothing here is pulled.
+      expect(kinds(), [
+        FlowConnectionKind.push,
+        FlowConnectionKind.push,
+        FlowConnectionKind.push,
+      ]);
+    });
+
+    test('a CONWIP cap pulls the whole spine', () {
+      // A release requiring a completion (§7.3) is the only real pull lever
+      // FlowMap has, and it is study-wide — so it reaches every link.
+      expect(kinds(wipCap: 4), [
+        FlowConnectionKind.pull,
+        FlowConnectionKind.pull,
+        FlowConnectionKind.pull,
+      ]);
+    });
+
+    test('a station set to FIFO is fed by a lane', () {
+      expect(kinds(dispatch: const {'CEU27': DispatchRule.fifo}), [
+        // Into CLAD04, which has no rule of its own.
+        FlowConnectionKind.push,
+        // Into CEU27, which does.
+        FlowConnectionKind.fifoLane,
+        // Into the customer, which is not a station.
+        FlowConnectionKind.push,
+      ]);
+    });
+
+    test('a station following the run draws no lane', () {
+      // The whole point of storing only overrides (§7.4): under the default
+      // rule every station in the plant is FIFO, so "is it FIFO" would be true
+      // everywhere and a lane on every link would say nothing.
+      expect(kinds(dispatch: const {}), isNot(contains(FlowConnectionKind.fifoLane)));
+    });
+
+    test('a lane beats the cap on the link it marks', () {
+      // The cap describes the flow; the lane describes one queue in it. Where
+      // both apply the more specific one is drawn, and the rest stay pull.
+      expect(
+        kinds(wipCap: 4, dispatch: const {'CEU27': DispatchRule.fifo}),
+        [
+          FlowConnectionKind.pull,
+          FlowConnectionKind.fifoLane,
+          FlowConnectionKind.pull,
+        ],
+      );
+    });
+
+    test('a station set to EDD is not a lane', () {
+      // Only FIFO is a sequenced lane. A queue re-ordered by due date is not
+      // first-in-first-out, whatever else it is.
+      expect(
+        kinds(dispatch: const {'CEU27': DispatchRule.earliestDueDate}),
+        isNot(contains(FlowConnectionKind.fifoLane)),
+      );
+    });
+  });
+
+  group('refitting the canvas (§12.2)', () {
+    const small = Size(800, 600);
+    const wide = Size(1080, 600);
+    const content = Size(1400, 900);
+
+    final fitted = Matrix4.identity()..scaleByDouble(0.5, 0.5, 1, 1);
+    final zoomed = Matrix4.identity()..scaleByDouble(2, 2, 1, 1);
+
+    bool refit({
+      Size viewport = wide,
+      Size contentSize = content,
+      Size? lastViewport = small,
+      Size? lastContent = content,
+      Matrix4? fittedMatrix,
+      Matrix4? current,
+    }) => shouldRefitCanvas(
+      viewport: viewport,
+      content: contentSize,
+      lastViewport: lastViewport,
+      lastContent: lastContent,
+      fitted: fittedMatrix ?? fitted,
+      current: current ?? fitted,
+    );
+
+    test('the first frame fits, having nothing to preserve', () {
+      expect(
+        refit(lastViewport: null, lastContent: null, fittedMatrix: null),
+        isTrue,
+      );
+    });
+
+    test('the sidebar collapsing refits an untouched map', () {
+      // 280px of sidebar goes away and the viewport widens. Nobody has zoomed,
+      // so the map is still the canvas's to arrange.
+      expect(refit(), isTrue);
+    });
+
+    test('adding a step refits, because the drawing grew', () {
+      expect(
+        refit(viewport: small, contentSize: const Size(1600, 900)),
+        isTrue,
+      );
+    });
+
+    test('an unchanged size does not refit — this is the loop guard', () {
+      // Fitting calls setState, which rebuilds, which asks this again. If the
+      // answer at the same size were yes the canvas would never stop fitting,
+      // and the app would hang rather than misdraw.
+      expect(refit(viewport: small), isFalse);
+    });
+
+    test('a map the user has zoomed is left alone', () {
+      // The complaint `_zoomBy` was written to answer, arriving from the other
+      // direction: resizing the window must not throw away a deliberate zoom
+      // onto the sixth step of a flow.
+      expect(refit(current: zoomed), isFalse);
+    });
+
+    test('pressing Fit hands the map back', () {
+      // Fit installs a new matrix as both `fitted` and `current`, so the two
+      // agree again and later resizes resume following the viewport.
+      expect(refit(fittedMatrix: zoomed, current: zoomed), isTrue);
+    });
+
+    test('a viewport with no width yet fits nothing', () {
+      expect(refit(viewport: const Size(0, 600)), isFalse);
+      expect(refit(viewport: const Size(double.infinity, 600)), isFalse);
     });
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../common/dialogs.dart';
+import '../../../common/result_table.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -13,6 +14,7 @@ import '../application/schedule_problems.dart';
 import '../application/schedules_providers.dart';
 import '../application/workcenter_schedule.dart';
 import 'date_range_field.dart';
+import 'exceptions_view.dart';
 import 'schedule_issues_banner.dart';
 
 /// Staffing, availability and rework for every workcenter this study's flow
@@ -76,6 +78,14 @@ class WorkcentersTab extends ConsumerWidget {
             workcenter: workcenter,
             shiftLabels: shifts.map((s) => s.label).toList(),
           ),
+        const SizedBox(height: 8),
+        // Beside the schedules they override: the two answer one question —
+        // what is this station open for — and separating them would put the
+        // answer in two places (DESIGN.md §4.3).
+        CalendarExceptionsView(
+          project: project,
+          shiftLabels: shifts.map((s) => s.label).toList(),
+        ),
       ],
     );
   }
@@ -136,83 +146,74 @@ class _WorkcenterCard extends ConsumerWidget {
           ),
           ScheduleIssuesBanner(issues: issues),
           if (periods.isNotEmpty)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: [
-                  DataColumn(label: Text(l10n.fieldStart)),
-                  DataColumn(label: Text(l10n.fieldEnd)),
-                  DataColumn(label: Text(l10n.scheduleShifts)),
-                  DataColumn(label: Text(l10n.scheduleOperatorsPerShift)),
-                  DataColumn(label: Text(l10n.availability)),
-                  DataColumn(label: Text(l10n.rework)),
-                  const DataColumn(label: SizedBox.shrink()),
-                ],
-                rows: [
-                  for (final period in periods)
-                    _row(context, ref, period, dates, periods),
-                ],
-              ),
+            resultTable(
+              columns: [
+                ResultColumn(label: l10n.fieldStart, width: 120),
+                ResultColumn(label: l10n.fieldEnd, width: 120),
+                ResultColumn(label: l10n.scheduleShifts, width: 100),
+                ResultColumn(label: l10n.scheduleOperatorsPerShift, width: 150),
+                ResultColumn(label: l10n.availability, width: 130),
+                ResultColumn(label: l10n.rework, width: 110),
+                // Actions stay start-aligned beside the row they act on.
+                const ResultColumn(label: '', width: 112, centred: false),
+              ],
+              rowCount: periods.length,
+              cellAt: (index, column) =>
+                  _cell(context, ref, periods[index], dates, periods, column),
             ),
         ],
       ),
     );
   }
 
-  DataRow _row(
+  Widget _cell(
     BuildContext context,
     WidgetRef ref,
     WorkcenterSchedulePeriod period,
     DateFormat dates,
     List<WorkcenterSchedulePeriod> periods,
+    int column,
   ) {
     final l10n = AppLocalizations.of(context);
     final operators = parseOperatorsPerShift(period.operatorsPerShift);
-    return DataRow(
-      cells: [
-        DataCell(Text(dates.format(period.startDate))),
-        DataCell(Text(dates.format(period.endDate))),
-        // Derived by counting, never stored (DESIGN.md §4.2).
-        DataCell(Text('${staffedShiftCount(operators)}')),
-        DataCell(Text(formatOperatorsPerShift(operators))),
-        DataCell(Text(_percent(period.availability))),
-        DataCell(Text(_percent(period.rework))),
-        DataCell(
-          Row(
-            children: [
-              IconButton(
-                tooltip: l10n.actionEdit,
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => _editPeriod(
-                  context,
-                  ref,
-                  periods: periods,
-                  existing: period,
-                ),
-              ),
-              IconButton(
-                tooltip: l10n.actionDelete,
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () async {
-                  final confirmed = await confirmAction(
-                    context,
-                    title: l10n.schedulePeriodDeleteTitle,
-                    message: l10n.confirmDeleteBody,
-                    confirmLabel: l10n.actionDelete,
-                    destructive: true,
-                  );
-                  if (confirmed) {
-                    await ref
-                        .read(schedulesRepositoryProvider)
-                        .deleteWorkcenterSchedulePeriod(period.id);
-                  }
-                },
-              ),
-            ],
+    return switch (column) {
+      0 => Text(dates.format(period.startDate)),
+      1 => Text(dates.format(period.endDate)),
+      // Derived by counting, never stored (DESIGN.md §4.2).
+      2 => Text('${staffedShiftCount(operators)}'),
+      3 => Text(formatOperatorsPerShift(operators)),
+      4 => Text(_percent(period.availability)),
+      5 => Text(_percent(period.rework)),
+      _ => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: l10n.actionEdit,
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () =>
+                _editPeriod(context, ref, periods: periods, existing: period),
           ),
-        ),
-      ],
-    );
+          IconButton(
+            tooltip: l10n.actionDelete,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () async {
+              final confirmed = await confirmAction(
+                context,
+                title: l10n.schedulePeriodDeleteTitle,
+                message: l10n.confirmDeleteBody,
+                confirmLabel: l10n.actionDelete,
+                destructive: true,
+              );
+              if (confirmed) {
+                await ref
+                    .read(schedulesRepositoryProvider)
+                    .deleteWorkcenterSchedulePeriod(period.id);
+              }
+            },
+          ),
+        ],
+      ),
+    };
   }
 
   Future<void> _editPeriod(

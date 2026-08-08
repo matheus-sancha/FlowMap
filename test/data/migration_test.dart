@@ -189,11 +189,11 @@ void main() {
     final workcenters = await db.select(db.workcenters).get();
     expect(workcenters.single.name, 'CLAD04');
     expect(workcenters.single.plantId, 'plant-1');
-    expect(
-      workcenters.single.homeLineId,
-      'line-1',
-      reason: 'the v3 table rebuild must carry every surviving column across',
-    );
+    // v7 moved the single home line into `workcenter_lines`; a v1 row that
+    // named one keeps it, now as a set of one.
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership.single.workcenterId, 'wc-1');
+    expect(membership.single.lineId, 'line-1');
 
     // The v1 pattern survived and was not re-seeded into a duplicate.
     final patterns = await db.select(db.shiftPatterns).get();
@@ -207,6 +207,12 @@ void main() {
     expect(await db.select(db.workcenterSchedulePeriods).get(), isEmpty);
     expect(await db.select(db.calendarExceptions).get(), isEmpty);
     expect(await db.select(db.flowAnnotations).get(), isEmpty);
+
+    // And the v6 demand tables, which are created at every starting version
+    // rather than guarded like the two `addColumn` steps.
+    expect(await db.select(db.demandParts).get(), isEmpty);
+    expect(await db.select(db.partProcessTimes).get(), isEmpty);
+    expect(await db.select(db.demandOrders).get(), isEmpty);
 
     // Seeding reached a database that already existed.
     expect(patterns.map((p) => p.name), contains('ABCD'));
@@ -250,7 +256,8 @@ void main() {
 
     final workcenters = await db.select(db.workcenters).get();
     expect(workcenters.single.name, 'CLAD04');
-    expect(workcenters.single.homeLineId, 'line-1');
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership.single.lineId, 'line-1');
 
     // The rebuild recreates the table; rows pointing at it must survive, which
     // is what `legacy_alter_table` during the rename is for.
@@ -268,6 +275,981 @@ void main() {
     expect(schedules.single.availability, 0.74);
 
     expect((await db.select(db.studies).get()).single.name, 'Current');
+
+    // The v6 demand tables reached a database that already carried studies, so
+    // a part can be keyed to one that existed before them.
+    expect(await db.select(db.demandParts).get(), isEmpty);
+    expect(await db.select(db.demandOrders).get(), isEmpty);
+  });
+
+  /// A **v6** database: what shipped with M3, and what is on a user's machine
+  /// right now. It has been through the v3 rebuild, so `workcenters` has no
+  /// `code` — but it still carries `home_line_id`, which is the column the v7
+  /// step has to harvest before dropping.
+  ///
+  /// This is the branch a real user upgrades through, and it is not the one
+  /// the v1 and v2 fixtures exercise: those reach v7 with the column already
+  /// gone, dropped by the v3 step running against today's definition.
+  const v6Workcenters = """
+    CREATE TABLE workcenters (
+      id TEXT NOT NULL,
+      plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+      home_line_id TEXT NULL REFERENCES production_lines (id) ON DELETE SET NULL,
+      type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+      name TEXT NOT NULL, notes TEXT NULL,
+      archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+  """;
+
+  const v6DemandTables = """
+    CREATE TABLE demand_parts (
+      id TEXT NOT NULL,
+      study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+      part_number TEXT NOT NULL, description TEXT NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      PRIMARY KEY (id), UNIQUE (study_id, part_number));
+    CREATE TABLE part_process_times (
+      part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+      target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+      PRIMARY KEY (part_id, target_id));
+    CREATE TABLE demand_orders (
+      id TEXT NOT NULL,
+      study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+      part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+      sequence INTEGER NOT NULL, order_number TEXT NULL,
+      batch_size INTEGER NOT NULL DEFAULT 1, need_date INTEGER NOT NULL,
+      material_date INTEGER NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      PRIMARY KEY (id), UNIQUE (study_id, sequence));
+  """;
+
+  test('v6 to v7: the home line becomes a set of one', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // `resourceTables` carries the v1 `workcenters`; v6 has its own shape.
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    final v6 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v6Workcenters)
+      ..execute(projectTables)
+      ..execute(v6DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute('PRAGMA user_version = 6');
+
+    v6
+      ..execute(
+        'INSERT INTO plants (id, name, code, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', 'WN', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters '
+        '(id, plant_id, home_line_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'line-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters '
+        '(id, plant_id, home_line_id, name, created_at, updated_at) '
+        "VALUES ('wc-2', 'plant-1', NULL, 'Shared oven', $now, $now)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final workcenters = await db.select(db.workcenters).get();
+    expect(
+      workcenters.map((w) => w.name),
+      containsAll(['CLAD04', 'Shared oven']),
+    );
+
+    // The one that had a home line keeps it, now as a set of one — nobody's
+    // tree rearranges itself under them on upgrade.
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership, hasLength(1));
+    expect(membership.single.workcenterId, 'wc-1');
+    expect(membership.single.lineId, 'line-1');
+
+    // A workcenter that had no home line is filed under nothing, which is now
+    // a first-class state rather than a null.
+    expect(membership.where((m) => m.workcenterId == 'wc-2'), isEmpty);
+  });
+
+  test('v8 to v9: parts gain a project, orders lose their number', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    final v8 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v6Workcenters)
+      ..execute(projectTables)
+      ..execute(v6DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      ..execute('PRAGMA user_version = 8');
+
+    v8
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_parts '
+        '(id, study_id, part_number, created_at, updated_at) '
+        "VALUES ('part-1', 'study-1', 'PN1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+        'order_number, batch_size, need_date, created_at, updated_at) '
+        "VALUES ('order-1', 'study-1', 'part-1', 0, 'SO-9', 4, $now, "
+        '$now, $now)',
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    // The part survives; the order keeps everything that still means
+    // something, minus the works order number the simulation never needed.
+    final parts = await db.select(db.demandParts).get();
+    expect(parts.single.partNumber, 'PN1');
+
+    // The project this part never had is now a column on the order, and null
+    // is what "none" is there — v9 gave the part an empty string only so
+    // SQLite's UNIQUE would not treat two unprojected parts as distinct, and
+    // v14 took it out of every key (§9.3).
+    final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.customerProject, isNull);
+    expect(orders.single.id, 'order-1');
+    expect(orders.single.batchSize, 4);
+    expect(orders.single.sequence, 0);
+  });
+
+  test('v10 to v11: run storage arrives and the demand survives', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    // v10's demand tables: `demand_orders` has lost its `order_number` and
+    // `demand_parts` carries a non-null `customer_project` in its unique key.
+    const v10DemandTables = """
+      CREATE TABLE demand_parts (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_number TEXT NOT NULL,
+        customer_project TEXT NOT NULL DEFAULT '',
+        description TEXT NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, customer_project, part_number));
+      CREATE TABLE part_process_times (
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+        PRIMARY KEY (part_id, target_id));
+      CREATE TABLE demand_orders (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+        need_date INTEGER NOT NULL, material_date INTEGER NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, sequence));
+    """;
+
+    final v10 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v6Workcenters)
+      ..execute(projectTables)
+      ..execute(v10DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      ..execute('PRAGMA user_version = 10');
+
+    v10
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_parts (id, study_id, part_number, '
+        'customer_project, created_at, updated_at) '
+        "VALUES ('part-1', 'study-1', 'PN2', 'Wing 7', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+        'batch_size, need_date, created_at, updated_at) '
+        "VALUES ('order-1', 'study-1', 'part-1', 0, 6, $now, $now, $now)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    // The six run-storage tables exist and are usable — six `createTable`s and
+    // no change to an existing table, so nothing above them can have moved.
+    expect(await db.select(db.simulationRuns).get(), isEmpty);
+    expect(await db.select(db.simulationRunStudies).get(), isEmpty);
+    expect(await db.select(db.simulationRunOrders).get(), isEmpty);
+    expect(await db.select(db.simulationRunSteps).get(), isEmpty);
+    expect(await db.select(db.simulationRunEmptySlots).get(), isEmpty);
+    expect(await db.select(db.simulationRunWorkcenters).get(), isEmpty);
+
+    // And the demand the user typed came through untouched — the part keeps
+    // its number, the order keeps its sequence and batch size, and the project
+    // that was typed against the part has moved onto the order that is for it
+    // (§16.15). Nothing was lost in the move.
+    final parts = await db.select(db.demandParts).get();
+    expect(parts.single.partNumber, 'PN2');
+
+    final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.sequence, 0);
+    expect(orders.single.batchSize, 6);
+    expect(orders.single.customerProject, 'Wing 7');
+  });
+
+  test(
+    'v11 to v12: a stored run keeps its rows and gains blank columns',
+    () async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+      final withoutWorkcenters = resourceTables.replaceAll(
+        RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+        '',
+      );
+
+      // v11's demand tables — no `batch_number` yet.
+      const v11DemandTables = """
+        CREATE TABLE demand_parts (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_number TEXT NOT NULL,
+          customer_project TEXT NOT NULL DEFAULT '',
+          description TEXT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, customer_project, part_number));
+        CREATE TABLE part_process_times (
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+          PRIMARY KEY (part_id, target_id));
+        CREATE TABLE demand_orders (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+          need_date INTEGER NOT NULL, material_date INTEGER NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, sequence));
+      """;
+
+      // M4's run storage as v11 left it: `simulation_run_orders` carries none
+      // of the four columns the Production Plan reads, and there is no
+      // `simulation_run_dispatch` at all.
+      const v11RunTables = """
+        CREATE TABLE simulation_runs (
+          id TEXT NOT NULL,
+          project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+          dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+          run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+          abort_reason TEXT NULL, created_at INTEGER NOT NULL,
+          PRIMARY KEY (id));
+        CREATE TABLE simulation_run_studies (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, name TEXT NOT NULL,
+          release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+          priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+          PRIMARY KEY (run_id, study_id));
+        CREATE TABLE simulation_run_orders (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+          sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+          part_number TEXT NOT NULL, need_date INTEGER NOT NULL,
+          released INTEGER NULL, delivered INTEGER NULL,
+          theoretical_seconds INTEGER NULL, PRIMARY KEY (run_id, order_id));
+        CREATE TABLE simulation_run_steps (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+          workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+          process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+          changeover_incurred INTEGER NOT NULL DEFAULT 0
+            CHECK (changeover_incurred IN (0, 1)),
+          PRIMARY KEY (run_id, order_id, node_id));
+        CREATE TABLE simulation_run_empty_slots (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+          PRIMARY KEY (run_id, study_id, slot_at));
+        CREATE TABLE simulation_run_workcenters (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+          busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+          PRIMARY KEY (run_id, workcenter_id));
+      """;
+
+      final v11 = sqlite3.open(file.path)
+        ..execute(withoutWorkcenters)
+        ..execute(v6Workcenters)
+        ..execute(projectTables)
+        ..execute(v11DemandTables)
+        ..execute(v11RunTables)
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+        ..execute(
+          'CREATE TABLE workcenter_lines ('
+          'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+          'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+          'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+        )
+        ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+        ..execute('PRAGMA user_version = 11');
+
+      v11
+        ..execute(
+          'INSERT INTO plants (id, name, created_at, updated_at) '
+          "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_cells '
+          '(id, plant_id, name, created_at, updated_at) '
+          "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_lines '
+          '(id, cell_id, name, created_at, updated_at) '
+          "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO shift_patterns '
+          '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+          "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO projects '
+          '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+          "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO studies (id, project_id, production_cell_id, '
+          'production_line_id, name, created_at, updated_at) '
+          "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-1', 'study-1', 'PN2', 'Wing 7', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-1', 'study-1', 'part-1', 0, 6, $now, $now, $now)",
+        )
+        // A run made before any of this existed — the case the whole "nullable,
+        // never backfilled" decision is about.
+        ..execute(
+          'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+          'run_end, guard, created_at) '
+          "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO simulation_run_orders (run_id, study_id, order_id, '
+          'sequence, part_id, part_number, need_date, released, delivered) '
+          "VALUES ('run-1', 'study-1', 'order-1', 0, 'part-1', 'PN2', "
+          '$now, $now, $now)',
+        )
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      // The order the planner typed is untouched, and can now carry a batch
+      // number — null, because nobody has typed one, which is not the same as
+      // an empty string and is why the column is nullable (§9.1).
+      final orders = await db.select(db.demandOrders).get();
+      expect(orders.single.batchSize, 6);
+      expect(orders.single.batchNumber, isNull);
+
+      // The stored run survived, and its order row gained four columns with
+      // nothing in them. Blank because that run genuinely did not record them —
+      // backfilling from the demand above would make it a hybrid of two moments.
+      final runOrders = await db.select(db.simulationRunOrders).get();
+      expect(runOrders.single.partNumber, 'PN2');
+      expect(runOrders.single.delivered, isNotNull);
+      expect(runOrders.single.customerProject, isNull);
+      expect(runOrders.single.batchNumber, isNull);
+      expect(runOrders.single.batchSize, isNull);
+      expect(runOrders.single.materialDate, isNull);
+
+      // The run header itself is undisturbed — this step rebuilds no table.
+      expect((await db.select(db.simulationRuns).get()).single.id, 'run-1');
+
+      // And the two new tables exist and are usable.
+      expect(await db.select(db.workcenterDispatch).get(), isEmpty);
+      expect(await db.select(db.simulationRunDispatch).get(), isEmpty);
+    },
+  );
+
+  test(
+    'v12 to v13: a stored run keeps its v12 columns and gains a blank one',
+    () async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+      final withoutWorkcenters = resourceTables.replaceAll(
+        RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+        '',
+      );
+
+      // v12's demand tables — `batch_number` has arrived.
+      const v12DemandTables = """
+        CREATE TABLE demand_parts (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_number TEXT NOT NULL,
+          customer_project TEXT NOT NULL DEFAULT '',
+          description TEXT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, customer_project, part_number));
+        CREATE TABLE part_process_times (
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+          PRIMARY KEY (part_id, target_id));
+        CREATE TABLE demand_orders (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+          batch_number TEXT NULL,
+          need_date INTEGER NOT NULL, material_date INTEGER NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, sequence));
+        CREATE TABLE workcenter_dispatch (
+          project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, rule TEXT NOT NULL,
+          updated_at INTEGER NOT NULL, PRIMARY KEY (project_id, target_id));
+      """;
+
+      // Run storage as v12 left it: the four Production Plan columns are
+      // there, `part_description` is not.
+      const v12RunTables = """
+        CREATE TABLE simulation_runs (
+          id TEXT NOT NULL,
+          project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+          dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+          run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+          abort_reason TEXT NULL, created_at INTEGER NOT NULL,
+          PRIMARY KEY (id));
+        CREATE TABLE simulation_run_studies (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, name TEXT NOT NULL,
+          release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+          priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+          PRIMARY KEY (run_id, study_id));
+        CREATE TABLE simulation_run_orders (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+          sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+          part_number TEXT NOT NULL,
+          customer_project TEXT NULL, batch_number TEXT NULL,
+          batch_size INTEGER NULL, material_date INTEGER NULL,
+          need_date INTEGER NOT NULL,
+          released INTEGER NULL, delivered INTEGER NULL,
+          theoretical_seconds INTEGER NULL, PRIMARY KEY (run_id, order_id));
+        CREATE TABLE simulation_run_steps (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+          workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+          process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+          changeover_incurred INTEGER NOT NULL DEFAULT 0
+            CHECK (changeover_incurred IN (0, 1)),
+          PRIMARY KEY (run_id, order_id, node_id));
+        CREATE TABLE simulation_run_empty_slots (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+          PRIMARY KEY (run_id, study_id, slot_at));
+        CREATE TABLE simulation_run_workcenters (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+          busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+          PRIMARY KEY (run_id, workcenter_id));
+        CREATE TABLE simulation_run_dispatch (
+          run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, name TEXT NOT NULL, rule TEXT NOT NULL,
+          PRIMARY KEY (run_id, target_id));
+      """;
+
+      final v12 = sqlite3.open(file.path)
+        ..execute(withoutWorkcenters)
+        ..execute(v6Workcenters)
+        ..execute(projectTables)
+        ..execute(v12DemandTables)
+        ..execute(v12RunTables)
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+        ..execute(
+          'CREATE TABLE workcenter_lines ('
+          'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+          'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+          'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+        )
+        ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+        ..execute('PRAGMA user_version = 12');
+
+      v12
+        ..execute(
+          'INSERT INTO plants (id, name, created_at, updated_at) '
+          "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_cells '
+          '(id, plant_id, name, created_at, updated_at) '
+          "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_lines '
+          '(id, cell_id, name, created_at, updated_at) '
+          "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO shift_patterns '
+          '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+          "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO projects '
+          '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+          "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO studies (id, project_id, production_cell_id, '
+          'production_line_id, name, created_at, updated_at) '
+          "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+        )
+        // The part carries a description all along — v13's point is that the
+        // *run* could not see it, not that nobody had typed one.
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, description, created_at, updated_at) '
+          "VALUES ('part-1', 'study-1', 'PN2', 'Wing 7', 'AWB 10K 1.0', "
+          '$now, $now)',
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-1', 'study-1', 'part-1', 0, 6, $now, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+          'run_end, guard, created_at) '
+          "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+        )
+        // A v12 run: the four plan columns are populated, so this fixture can
+        // tell "the column arrived blank" from "the step wiped the row".
+        ..execute(
+          'INSERT INTO simulation_run_orders (run_id, study_id, order_id, '
+          'sequence, part_id, part_number, customer_project, batch_number, '
+          'batch_size, material_date, need_date, released, delivered) '
+          "VALUES ('run-1', 'study-1', 'order-1', 0, 'part-1', 'PN2', "
+          "'Wing 7', 'B-001', 6, $now, $now, $now, $now)",
+        )
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final runOrders = await db.select(db.simulationRunOrders).get();
+
+      // v12's four columns still hold what they held. This step adds a column
+      // and rebuilds nothing, and that is the assertion which would fail if it
+      // ever started rebuilding.
+      expect(runOrders.single.customerProject, 'Wing 7');
+      expect(runOrders.single.batchNumber, 'B-001');
+      expect(runOrders.single.batchSize, 6);
+      expect(runOrders.single.materialDate, isNotNull);
+
+      // The new one is blank, even though the part it points at has a
+      // description sitting right there in `demand_parts`. Reaching across for
+      // it is the join §7.10 forbids: this run did not record one, and a blank
+      // saying so is true.
+      expect(runOrders.single.partDescription, isNull);
+
+      // The run header is undisturbed, and the demand is where it was.
+      expect((await db.select(db.simulationRuns).get()).single.id, 'run-1');
+      expect(
+        (await db.select(db.demandParts).get()).single.description,
+        'AWB 10K 1.0',
+      );
+    },
+  );
+
+  test(
+    'v13 to v14: the project moves to the order, and twins keep their times',
+    () async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+      final withoutWorkcenters = resourceTables.replaceAll(
+        RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+        '',
+      );
+
+      // v13's demand tables: the project is still on the part, and still half
+      // of what identifies one.
+      const v13DemandTables = """
+        CREATE TABLE demand_parts (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_number TEXT NOT NULL,
+          customer_project TEXT NOT NULL DEFAULT '',
+          description TEXT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, customer_project, part_number));
+        CREATE TABLE part_process_times (
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+          PRIMARY KEY (part_id, target_id));
+        CREATE TABLE demand_orders (
+          id TEXT NOT NULL,
+          study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+          part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+          sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+          batch_number TEXT NULL,
+          need_date INTEGER NOT NULL, material_date INTEGER NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (id), UNIQUE (study_id, sequence));
+        CREATE TABLE workcenter_dispatch (
+          project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+          target_id TEXT NOT NULL, rule TEXT NOT NULL,
+          updated_at INTEGER NOT NULL, PRIMARY KEY (project_id, target_id));
+      """;
+
+      final v13 = sqlite3.open(file.path)
+        ..execute(withoutWorkcenters)
+        ..execute(v6Workcenters)
+        ..execute(projectTables)
+        ..execute(v13DemandTables)
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+        ..execute(
+          'CREATE TABLE workcenter_lines ('
+          'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+          'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+          'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+        )
+        ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+        ..execute('PRAGMA user_version = 13');
+
+      v13
+        ..execute(
+          'INSERT INTO plants (id, name, created_at, updated_at) '
+          "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_cells '
+          '(id, plant_id, name, created_at, updated_at) '
+          "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO production_lines '
+          '(id, cell_id, name, created_at, updated_at) '
+          "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO shift_patterns '
+          '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+          "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO projects '
+          '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+          "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO studies (id, project_id, production_cell_id, '
+          'production_line_id, name, created_at, updated_at) '
+          "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+        )
+        // The case v14 has to survive: one part number under two projects,
+        // which v13 called two parts — with their own process times, which is
+        // exactly why they cannot be merged.
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-a', 'study-1', 'PN2', 'Wing 7', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-b', 'study-1', 'PN2', 'Wing 9', ${now + 1}, ${now + 1})",
+        )
+        // And an ordinary part, to show the common case is left alone.
+        ..execute(
+          'INSERT INTO demand_parts (id, study_id, part_number, '
+          'customer_project, created_at, updated_at) '
+          "VALUES ('part-c', 'study-1', 'PN5', '', $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO part_process_times (part_id, target_id, seconds) '
+          "VALUES ('part-a', 'wc-1', 14400)",
+        )
+        ..execute(
+          'INSERT INTO part_process_times (part_id, target_id, seconds) '
+          "VALUES ('part-b', 'wc-1', 10800)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-1', 'study-1', 'part-a', 0, 4, $now, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-2', 'study-1', 'part-b', 1, 6, $now, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+          'batch_size, need_date, created_at, updated_at) '
+          "VALUES ('order-3', 'study-1', 'part-c', 2, 1, $now, $now, $now)",
+        )
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      // Each order now says which project it is for, read down from the part
+      // it was for. The unprojected one says null rather than an empty string:
+      // on the part the blank existed only to keep SQLite's UNIQUE honest.
+      final orders = await db.select(db.demandOrders).get()
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
+      expect(orders.map((o) => o.customerProject), ['Wing 7', 'Wing 9', null]);
+      expect(orders.map((o) => o.batchSize), [4, 6, 1]);
+
+      // **Both twins survive, and neither lost its times.** Merging them would
+      // have given every order of one the other's process times, silently —
+      // §11's one intolerable bug. The earlier keeps the number the planner
+      // typed; the later says which project it came from, so the rename is
+      // legible on the grid rather than mysterious.
+      final parts = await db.select(db.demandParts).get()
+        ..sort((a, b) => a.id.compareTo(b.id));
+      expect(parts.map((p) => p.id), ['part-a', 'part-b', 'part-c']);
+      expect(parts.map((p) => p.partNumber), ['PN2', 'PN2 (Wing 9)', 'PN5']);
+
+      final times = await db.select(db.partProcessTimes).get()
+        ..sort((a, b) => a.partId.compareTo(b.partId));
+      expect(times.map((t) => (t.partId, t.seconds)), [
+        ('part-a', 14400),
+        ('part-b', 10800),
+      ]);
+
+      // And each order still points at the part it always did, so the rename
+      // moved a label and not a relationship.
+      expect(orders.map((o) => o.partId), ['part-a', 'part-b', 'part-c']);
+    },
+  );
+
+  test('an upgrade that died part-way can still be opened', () async {
+    // The shape found on the developer's own machine: `user_version` 6, but
+    // the v7 and v8 steps had already run — `workcenters` rebuilt without
+    // `home_line_id`, `workcenter_lines` created, `workcenter_types.icon`
+    // added — while `demand_parts` and `demand_orders` were still v6.
+    //
+    // A migration cannot run in a transaction (`alterTable` needs foreign keys
+    // off, which SQLite refuses to change mid-transaction), so a step that
+    // throws leaves exactly this: tables ahead of the counter. Replaying from
+    // the counter then read a column the v7 step had already dropped, and the
+    // app could not open the database again at all.
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    // `workcenters` as the v7 rebuild leaves it: no `code`, no `home_line_id`.
+    const rebuiltWorkcenters = """
+      CREATE TABLE workcenters (
+        id TEXT NOT NULL,
+        plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+        type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+        name TEXT NOT NULL, notes TEXT NULL,
+        archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+    """;
+
+    final stuck = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(rebuiltWorkcenters)
+      ..execute(projectTables)
+      ..execute(v6DemandTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      // The counter never moved, because the step after these threw.
+      ..execute('PRAGMA user_version = 6');
+
+    stuck
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines '
+        '(id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        "INSERT INTO workcenter_lines VALUES ('wc-1', 'line-1', $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_parts '
+        '(id, study_id, part_number, created_at, updated_at) '
+        "VALUES ('part-1', 'study-1', 'PN2', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO demand_orders (id, study_id, part_id, sequence, '
+        'order_number, batch_size, need_date, created_at, updated_at) '
+        "VALUES ('order-1', 'study-1', 'part-1', 0, 'SO-9', 6, $now, $now, $now)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    // It opens at all, which is the whole point.
+    final workcenters = await db.select(db.workcenters).get();
+    expect(workcenters.single.name, 'CLAD04');
+
+    // The half that had already run is not run again and not undone.
+    final membership = await db.select(db.workcenterLines).get();
+    expect(membership.single.lineId, 'line-1');
+
+    // The half that had not run, runs — and the user's demand survives it.
+    final parts = await db.select(db.demandParts).get();
+    expect(parts.single.partNumber, 'PN2');
+
+    final orders = await db.select(db.demandOrders).get();
+    expect(orders.single.sequence, 0);
+    expect(orders.single.batchSize, 6);
+    expect(orders.single.customerProject, isNull);
+
+    // And M4's tables arrive, so the counter really did reach the end.
+    expect(await db.select(db.simulationRuns).get(), isEmpty);
   });
 
   test(

@@ -239,8 +239,8 @@ class ResourcesRepository {
   Future<String> createWorkcenter({
     required String plantId,
     required String name,
-    String? homeLineId,
     String? typeId,
+    Set<String> lineIds = const {},
   }) async {
     final id = newId();
     final now = DateTime.now();
@@ -251,43 +251,114 @@ class ResourcesRepository {
             id: id,
             plantId: plantId,
             name: name,
-            homeLineId: Value(homeLineId),
             typeId: Value(typeId),
             createdAt: now,
             updatedAt: now,
           ),
         );
+    await setWorkcenterLines(id, lineIds);
     return id;
   }
 
   Future<void> updateWorkcenter(
     String id, {
     required String name,
-    String? homeLineId,
     String? typeId,
-  }) => (_db.update(_db.workcenters)..where((w) => w.id.equals(id))).write(
-    WorkcentersCompanion(
-      name: Value(name),
-      homeLineId: Value(homeLineId),
-      typeId: Value(typeId),
-      updatedAt: Value(DateTime.now()),
-    ),
-  );
+    Set<String>? lineIds,
+  }) async {
+    await (_db.update(_db.workcenters)..where((w) => w.id.equals(id))).write(
+      WorkcentersCompanion(
+        name: Value(name),
+        typeId: Value(typeId),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    // Null means "the caller was not editing membership" — distinct from an
+    // empty set, which means "under no line at all".
+    if (lineIds != null) await setWorkcenterLines(id, lineIds);
+  }
 
-  /// Puts an existing workcenter under a line in the resource tree, or takes it
-  /// out of one with a null [homeLineId].
+  /// Every workcenter's lines in one plant, as `workcenterId → lineIds`.
+  Stream<Map<String, Set<String>>> watchWorkcenterLines(String plantId) {
+    final query = _db.select(_db.workcenterLines).join([
+      innerJoin(
+        _db.workcenters,
+        _db.workcenters.id.equalsExp(_db.workcenterLines.workcenterId),
+      ),
+    ])..where(_db.workcenters.plantId.equals(plantId));
+
+    return query.watch().map((rows) {
+      final byWorkcenter = <String, Set<String>>{};
+      for (final row in rows) {
+        final link = row.readTable(_db.workcenterLines);
+        (byWorkcenter[link.workcenterId] ??= {}).add(link.lineId);
+      }
+      return byWorkcenter;
+    });
+  }
+
+  Future<Set<String>> loadWorkcenterLines(String workcenterId) async {
+    final rows = await (_db.select(
+      _db.workcenterLines,
+    )..where((l) => l.workcenterId.equals(workcenterId))).get();
+    return {for (final row in rows) row.lineId};
+  }
+
+  /// Draws a workcenter under exactly [lineIds] in the resource tree.
   ///
-  /// A workcenter belongs to its **plant**, not to a line (see
-  /// `Workcenters.homeLineId`); this only changes where it is drawn. Any study
-  /// of any line can use it either way, which is what makes cross-line
+  /// Membership is **organisational only** and a *set*: `CLAD04` genuinely
+  /// serves two lines in a real plant. Any study of any line can target any
+  /// workcenter of the plant either way, which is what makes cross-line
   /// contention possible (DESIGN.md §7.7).
-  Future<void> setWorkcenterHomeLine(String id, String? homeLineId) =>
-      (_db.update(_db.workcenters)..where((w) => w.id.equals(id))).write(
-        WorkcentersCompanion(
-          homeLineId: Value(homeLineId),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
+  Future<void> setWorkcenterLines(
+    String workcenterId,
+    Set<String> lineIds,
+  ) => _db.transaction(() async {
+    await (_db.delete(
+      _db.workcenterLines,
+    )..where((l) => l.workcenterId.equals(workcenterId))).go();
+
+    if (lineIds.isEmpty) return;
+    final now = DateTime.now();
+    await _db.batch((b) {
+      for (final lineId in lineIds) {
+        b.insert(
+          _db.workcenterLines,
+          WorkcenterLinesCompanion.insert(
+            workcenterId: workcenterId,
+            lineId: lineId,
+            createdAt: now,
+          ),
+        );
+      }
+    });
+  });
+
+  /// Adds one line without disturbing the others — "add existing" in the tree.
+  ///
+  /// This is the operation the single `home_line_id` could not express: filing
+  /// a workcenter under a second line used to take it out of the first.
+  Future<void> addWorkcenterToLine(String workcenterId, String lineId) =>
+      _db
+          .into(_db.workcenterLines)
+          .insert(
+            WorkcenterLinesCompanion.insert(
+              workcenterId: workcenterId,
+              lineId: lineId,
+              createdAt: DateTime.now(),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+
+  /// Takes a workcenter out of one line's group. The workcenter itself is
+  /// untouched — it still belongs to the plant, and every study still reaches
+  /// it.
+  Future<void> removeWorkcenterFromLine(String workcenterId, String lineId) =>
+      (_db.delete(_db.workcenterLines)..where(
+            (l) =>
+                l.workcenterId.equals(workcenterId) & l.lineId.equals(lineId),
+          ))
+          .go();
 
   Future<void> setWorkcenterArchived(String id, bool archived) =>
       (_db.update(_db.workcenters)..where((w) => w.id.equals(id))).write(
@@ -311,7 +382,10 @@ class ResourcesRepository {
     return query.watch();
   }
 
-  Future<String> createWorkcenterType(String name) async {
+  Future<String> createWorkcenterType(
+    String name, {
+    WorkcenterIcon? icon,
+  }) async {
     final id = newId();
     await _db
         .into(_db.workcenterTypes)
@@ -324,6 +398,14 @@ class ResourcesRepository {
         );
     return id;
   }
+
+  Future<void> updateWorkcenterType(
+    String id, {
+    required String name,
+    WorkcenterIcon? icon,
+  }) => (_db.update(_db.workcenterTypes)..where((t) => t.id.equals(id))).write(
+    WorkcenterTypesCompanion(name: Value(name), icon: Value(icon)),
+  );
 
   Future<void> renameWorkcenterType(String id, String name) =>
       (_db.update(_db.workcenterTypes)..where((t) => t.id.equals(id))).write(
@@ -376,34 +458,39 @@ class ResourcesRepository {
   ///
   /// One query for the whole plant: the flow view needs the members of any pool
   /// a step targets, and a stream per pool would multiply with the map.
-  Stream<Map<String, List<String>>> watchPoolMembership(String plantId) {
-    final query =
-        _db.select(_db.workcenterPoolMembers).join([
-            innerJoin(
-              _db.workcenterPools,
-              _db.workcenterPools.id.equalsExp(
-                _db.workcenterPoolMembers.poolId,
-              ),
+  Stream<Map<String, List<String>>> watchPoolMembership(String plantId) =>
+      _poolMembershipQuery(plantId).watch().map(_toMembership);
+
+  /// The same, once — for a simulation, which assembles a run rather than
+  /// watching one.
+  Future<Map<String, List<String>>> loadPoolMembership(String plantId) async =>
+      _toMembership(await _poolMembershipQuery(plantId).get());
+
+  JoinedSelectStatement<HasResultSet, dynamic> _poolMembershipQuery(
+    String plantId,
+  ) =>
+      _db.select(_db.workcenterPoolMembers).join([
+          innerJoin(
+            _db.workcenterPools,
+            _db.workcenterPools.id.equalsExp(_db.workcenterPoolMembers.poolId),
+          ),
+          innerJoin(
+            _db.workcenters,
+            _db.workcenters.id.equalsExp(
+              _db.workcenterPoolMembers.workcenterId,
             ),
-            innerJoin(
-              _db.workcenters,
-              _db.workcenters.id.equalsExp(
-                _db.workcenterPoolMembers.workcenterId,
-              ),
-            ),
-          ])
-          ..where(_db.workcenterPools.plantId.equals(plantId))
-          ..orderBy([OrderingTerm(expression: _db.workcenters.name)]);
-    return query.watch().map((rows) {
-      final membership = <String, List<String>>{};
-      for (final row in rows) {
-        final member = row.readTable(_db.workcenterPoolMembers);
-        membership
-            .putIfAbsent(member.poolId, () => [])
-            .add(member.workcenterId);
-      }
-      return membership;
-    });
+          ),
+        ])
+        ..where(_db.workcenterPools.plantId.equals(plantId))
+        ..orderBy([OrderingTerm(expression: _db.workcenters.name)]);
+
+  Map<String, List<String>> _toMembership(List<TypedResult> rows) {
+    final membership = <String, List<String>>{};
+    for (final row in rows) {
+      final member = row.readTable(_db.workcenterPoolMembers);
+      membership.putIfAbsent(member.poolId, () => []).add(member.workcenterId);
+    }
+    return membership;
   }
 
   Future<String> createPool({

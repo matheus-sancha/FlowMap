@@ -125,7 +125,7 @@ class ResolvedCalendarException {
 Map<DateTime, ResolvedCalendarException> resolveExceptions(
   Iterable<ScopedCalendarException> exceptions, {
   required String workcenterId,
-  String? productionLineId,
+  Set<String> productionLineIds = const {},
 }) {
   const rank = {
     CalendarExceptionScope.plant: 0,
@@ -137,8 +137,11 @@ Map<DateTime, ResolvedCalendarException> resolveExceptions(
   for (final exception in exceptions) {
     final applies = switch (exception.scope) {
       CalendarExceptionScope.plant => true,
+      // A workcenter is drawn under a *set* of lines, so a line-scoped
+      // exception reaches it if any of them match. `CLAD04` shared by two
+      // lines is closed when either line shuts.
       CalendarExceptionScope.productionLine =>
-        productionLineId != null && exception.scopeId == productionLineId,
+        productionLineIds.contains(exception.scopeId),
       CalendarExceptionScope.workcenter => exception.scopeId == workcenterId,
     };
     if (!applies) continue;
@@ -164,4 +167,50 @@ Map<DateTime, ResolvedCalendarException> resolveExceptions(
 /// Built from components rather than by subtracting a Duration: shift times are
 /// wall-clock readings, and component construction is what keeps a day boundary
 /// at midnight through a daylight-saving change.
-DateTime dateOnly(DateTime t) => DateTime(t.year, t.month, t.day);
+///
+/// **Memoised, because building a local `DateTime` is expensive.** On Windows,
+/// `DateTime(y, m, d)` costs about 13 µs — its UTC twin costs 0.03 µs — because
+/// every local construction asks the OS for the zone offset. This is the
+/// hottest call in the app: a simulation of two thousand orders reaches it
+/// millions of times through `advance`, and it was most of a six-second run
+/// (DESIGN.md §14).
+///
+/// The cache is **verified, not trusted**: a hit only counts when the instant
+/// falls inside the cached day's real `[midnight, next midnight)` range, which
+/// is computed once per day the same careful way as before. A 23- or 25-hour
+/// daylight-saving day is therefore still exactly one day wide, and the answer
+/// is identical to the unmemoised one for every input.
+DateTime dateOnly(DateTime t) {
+  final ms = t.millisecondsSinceEpoch;
+  // Direct-mapped on the UTC day, which is within one of the local day. The
+  // calendar walks days forwards and backwards, so a single slot would thrash.
+  final slot = (ms ~/ Duration.millisecondsPerDay) & _dayCacheMask;
+  final cached = _dayCache[slot];
+  if (cached != null && ms >= cached.fromMs && ms < cached.toMs) {
+    return cached.day;
+  }
+
+  final day = DateTime(t.year, t.month, t.day);
+  final next = DateTime(day.year, day.month, day.day + 1);
+  _dayCache[slot] = _CachedDay(
+    day: day,
+    fromMs: day.millisecondsSinceEpoch,
+    toMs: next.millisecondsSinceEpoch,
+  );
+  return day;
+}
+
+const _dayCacheMask = 31;
+final List<_CachedDay?> _dayCache = List.filled(_dayCacheMask + 1, null);
+
+class _CachedDay {
+  const _CachedDay({
+    required this.day,
+    required this.fromMs,
+    required this.toMs,
+  });
+
+  final DateTime day;
+  final int fromMs;
+  final int toMs;
+}

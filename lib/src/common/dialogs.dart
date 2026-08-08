@@ -83,7 +83,6 @@ class _NamePromptDialogState extends State<_NamePromptDialog> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initialValue,
   );
-  String? _error;
 
   @override
   void dispose() {
@@ -91,40 +90,59 @@ class _NamePromptDialogState extends State<_NamePromptDialog> {
     super.dispose();
   }
 
-  void _onChanged(String value) {
-    final error = widget.validate?.call(value.trim());
-    if (error != _error) setState(() => _error = error);
-  }
-
-  void _submit() {
-    final value = _controller.text.trim();
-    if (value.isEmpty || _error != null) return;
+  void _submit(String value) {
+    if (value.isEmpty || widget.validate?.call(value) != null) return;
     Navigator.of(context).pop(value);
   }
 
+  /// Built inside a [ValueListenableBuilder] on the controller, so everything
+  /// derived from the typed name — the error, and whether Save is enabled —
+  /// rebuilds because the text changed, not because someone remembered to call
+  /// `setState`.
+  ///
+  /// That is the bug this shape exists to prevent, and it was a real one: the
+  /// error was cached in a field and `setState` was called only when the error
+  /// itself changed. Typing a perfectly good name into an empty field changed
+  /// no error, so nothing rebuilt, and Save stayed greyed out — leaving Enter
+  /// as the only way to create a plant, a cell, a line, a pool or a workcenter
+  /// type.
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final value = _controller.text.trim();
-    return AlertDialog(
-      title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(labelText: widget.label, errorText: _error),
-        onChanged: _onChanged,
-        onSubmitted: (_) => _submit(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.actionCancel),
-        ),
-        FilledButton(
-          onPressed: value.isEmpty || _error != null ? null : _submit,
-          child: Text(l10n.actionSave),
-        ),
-      ],
+
+    return ValueListenableBuilder(
+      valueListenable: _controller,
+      builder: (context, editing, _) {
+        final value = editing.text.trim();
+        // An empty field disables Save; there is no need to shout at someone
+        // who has not typed anything yet.
+        final error = value.isEmpty ? null : widget.validate?.call(value);
+
+        return AlertDialog(
+          title: Text(widget.title),
+          content: TextField(
+            controller: _controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: widget.label,
+              errorText: error,
+            ),
+            onSubmitted: (_) => _submit(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.actionCancel),
+            ),
+            FilledButton(
+              onPressed: value.isEmpty || error != null
+                  ? null
+                  : () => _submit(value),
+              child: Text(l10n.actionSave),
+            ),
+          ],
+        );
+      },
     );
   }
 }
