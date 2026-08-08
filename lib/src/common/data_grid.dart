@@ -11,6 +11,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'horizontal_scroll.dart';
+
 /// One column of a [DataGrid].
 class DataGridColumn {
   const DataGridColumn({
@@ -152,24 +154,24 @@ class _DataGridState extends State<DataGrid> {
         const SingleActivator(LogicalKeyboardKey.keyV, control: true): _paste,
         const SingleActivator(LogicalKeyboardKey.keyV, meta: true): _paste,
       },
-      child: Scrollbar(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: width,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _header(theme),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: widget.rowCount,
-                    itemBuilder: (context, row) => _row(row),
-                  ),
+      child: HorizontalScroll(
+        child: SizedBox(
+          width: width,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _header(theme),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: widget.rowCount,
+                  itemBuilder: (context, row) => _row(row),
                 ),
-              ],
-            ),
+              ),
+              // Room for the bar, which Flutter draws inside the viewport and
+              // would otherwise lay over the last row (§12.6).
+              const SizedBox(height: 12),
+            ],
           ),
         ),
       ),
