@@ -436,23 +436,17 @@ class _Engine {
     final order = _orders['${study.id}/${event.orderId}']!;
     var index = event.index!;
 
-    // Buffers are pure delay, so walk through as many as follow before parking
-    // the order in a queue (§5.5).
-    while (index < study.nodes.length) {
-      final node = study.nodes[index];
-      if (node is! SimBuffer) break;
-
-      final until = node.usesWorkingTime
-          ? _bufferCalendar(study, node)?.advance(_now, node.wait)
-          : _now.add(node.wait);
-      _schedule(
-        until ?? _now.add(node.wait),
-        _EventKind.arrive,
-        key: study.id,
-        orderId: order.id,
-        index: index + 1,
-      );
-      return;
+    // Buffers cost nothing to pass through, so walk over as many as follow and
+    // park the order in the next station's queue (§5.5).
+    //
+    // They used to hold it for their stored figure. That figure is an
+    // *observation* of a current state, and how long an order really waits is
+    // the question this engine exists to answer — so imposing it charged the
+    // order twice: the fixed wait, and then the queue at the station anyway.
+    // On the real célula 11B run it was 14 of the 39.8 days, held whether or
+    // not the next station was free.
+    while (index < study.nodes.length && study.nodes[index] is SimBuffer) {
+      index++;
     }
 
     if (index >= study.nodes.length) {
@@ -479,26 +473,6 @@ class _Engine {
         perPiece: perPiece,
       ),
     );
-  }
-
-  /// A working-time buffer runs on the clock of the step it feeds, or at the
-  /// end of a flow the one it just left (§17.2).
-  dynamic _bufferCalendar(SimStudy study, SimBuffer buffer) {
-    SimStep? neighbour;
-    for (final node in study.nodes) {
-      if (node.position > buffer.position && node is SimStep) {
-        neighbour = node;
-        break;
-      }
-    }
-    if (neighbour == null) {
-      for (final node in study.nodes) {
-        if (node.position < buffer.position && node is SimStep) {
-          neighbour = node;
-        }
-      }
-    }
-    return workcenters[neighbour?.candidates.firstOrNull]?.calendar;
   }
 
   void _deliver(SimStudy study, SimOrder order) {

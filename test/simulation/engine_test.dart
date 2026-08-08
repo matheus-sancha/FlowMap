@@ -130,8 +130,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 2)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 2)}),
+            },
             orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
           ),
         ],
@@ -154,8 +158,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
             orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
             release: const Duration(hours: 10),
           ),
@@ -174,8 +182,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
             orders: [order(0, 'p1', batch: 4)],
           ),
         ],
@@ -191,8 +203,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
             orders: [order(0, 'p1'), order(1, 'p1')],
             release: const Duration(hours: 4),
           ),
@@ -256,8 +272,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
             orders: [
               order(0, 'p1', material: aug1.add(const Duration(hours: 15))),
               order(1, 'p1'),
@@ -289,8 +309,12 @@ void main() {
       final capped = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 25)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 25)}),
+            },
             orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
             release: const Duration(hours: 5),
             wipCap: 1,
@@ -312,8 +336,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
             orders: [order(0, 'p1')],
           ),
         ],
@@ -334,7 +362,9 @@ void main() {
       dispatch: rule,
       studies: [
         study(
-          nodes: [step(0, ['W'])],
+          nodes: [
+            step(0, ['W']),
+          ],
           parts: {
             'slow': part('slow', {'W': const Duration(hours: 8)}),
             'quick': part('quick', {'W': const Duration(hours: 1)}),
@@ -379,7 +409,9 @@ void main() {
       dispatch: run,
       studies: [
         study(
-          nodes: [step(0, ['W'])],
+          nodes: [
+            step(0, ['W']),
+          ],
           parts: {
             'slow': part('slow', {'W': const Duration(hours: 8)}),
             'quick': part('quick', {'W': const Duration(hours: 1)}),
@@ -433,7 +465,9 @@ void main() {
             dispatch: DispatchRule.shortestProcessing,
             studies: [
               study(
-                nodes: [step(0, ['W'])],
+                nodes: [
+                  step(0, ['W']),
+                ],
                 parts: {
                   'slow': part('slow', {'W': const Duration(hours: 8)}),
                   'quick': part('quick', {'W': const Duration(hours: 1)}),
@@ -466,7 +500,9 @@ void main() {
             nodes: [
               step(0, ['LAT01', 'LAT02'], demandKey: 'pool'),
             ],
-            parts: {'p1': part('p1', {'pool': const Duration(hours: 4)})},
+            parts: {
+              'p1': part('p1', {'pool': const Duration(hours: 4)}),
+            },
             orders: [order(0, 'p1'), order(1, 'p1')],
             release: const Duration(hours: 1),
           ),
@@ -479,10 +515,10 @@ void main() {
       );
 
       // Real parallel capacity comes from a pool, not from operators (§7.5).
-      expect(
-        result.steps.map((s) => s.workcenterId).toSet(),
-        {'LAT01', 'LAT02'},
-      );
+      expect(result.steps.map((s) => s.workcenterId).toSet(), {
+        'LAT01',
+        'LAT02',
+      });
       expect(result.end, aug1.add(const Duration(hours: 5)));
     });
 
@@ -516,8 +552,12 @@ void main() {
   group('contention between studies (§7.7)', () {
     test('one workcenter, two studies, and the queue is shared', () {
       final shared = {'W': workcenter('W')};
-      final nodes = [step(0, ['W'])];
-      final parts = {'p1': part('p1', {'W': const Duration(hours: 6)})};
+      final nodes = [
+        step(0, ['W']),
+      ];
+      final parts = {
+        'p1': part('p1', {'W': const Duration(hours: 6)}),
+      };
 
       final result = runSimulation(
         studies: [
@@ -554,15 +594,23 @@ void main() {
         studies: [
           study(
             id: 'A',
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 3)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 3)}),
+            },
             orders: [order(0, 'p1')],
             priority: 5,
           ),
           study(
             id: 'B',
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 3)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 3)}),
+            },
             orders: [order(0, 'p1')],
             priority: priorityOfB,
           ),
@@ -587,8 +635,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 15)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 15)}),
+            },
             orders: [order(0, 'p1')],
           ),
         ],
@@ -613,8 +665,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['SHUT'])],
-            parts: {'p1': part('p1', {'SHUT': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['SHUT']),
+            ],
+            parts: {
+              'p1': part('p1', {'SHUT': const Duration(hours: 1)}),
+            },
             orders: [order(0, 'p1')],
           ),
         ],
@@ -644,8 +700,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 50)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 50)}),
+            },
             orders: [
               for (var i = 0; i < 40; i++) order(i, 'p1', needDay: 2 + i ~/ 4),
             ],
@@ -665,8 +725,12 @@ void main() {
       final result = runSimulation(
         studies: [
           study(
-            nodes: [step(0, ['W'])],
-            parts: {'p1': part('p1', {'W': const Duration(hours: 1)})},
+            nodes: [
+              step(0, ['W']),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
             orders: const [],
           ),
         ],
@@ -685,12 +749,7 @@ void main() {
             id: 'A',
             nodes: [
               step(0, ['LAT01', 'LAT02'], demandKey: 'pool'),
-              SimBuffer(
-                id: 'buffer',
-                position: 1,
-                wait: const Duration(hours: 3),
-                usesWorkingTime: false,
-              ),
+              const SimBuffer(id: 'buffer', position: 1),
               step(2, ['W'], changeover: const Duration(minutes: 30)),
             ],
             parts: {
@@ -733,18 +792,19 @@ void main() {
     });
   });
 
-  test('a buffer delays without occupying anything', () {
+  test('a buffer costs an order nothing to pass through (§5.5)', () {
+    // It used to hold the order for its stored figure. That figure is an
+    // observation of a current state, and how long an order really waits is
+    // what the run is for — so imposing it charged the order twice, once for
+    // the fixed wait and again for the queue at the station behind it. On the
+    // real célula 11B run it was 14 of the 39.8 days, held whether or not the
+    // next station was free.
     final result = runSimulation(
       studies: [
         study(
           nodes: [
             step(0, ['W']),
-            SimBuffer(
-              id: 'cool',
-              position: 1,
-              wait: const Duration(hours: 12),
-              usesWorkingTime: false,
-            ),
+            const SimBuffer(id: 'cool', position: 1),
             step(2, ['X']),
           ],
           parts: {
@@ -760,9 +820,50 @@ void main() {
       start: aug1,
     );
 
-    // An hour of work, twelve of cooling, an hour of work.
-    expect(result.orders.single.delivered, aug1.add(const Duration(hours: 14)));
+    // An hour of work and an hour of work, with nothing in between: X is free,
+    // so the order goes straight to it.
+    expect(result.orders.single.delivered, aug1.add(const Duration(hours: 2)));
     expect(result.busyByWorkcenter['W'], const Duration(hours: 1));
     expect(result.busyByWorkcenter['X'], const Duration(hours: 1));
+  });
+
+  test('an order behind another still waits, at the station', () {
+    // The other half of the same rule: taking the fixed wait out does not make
+    // a flow instant, it moves the waiting to where the engine measures it.
+    //
+    // Two orders half an hour apart, an hour at W and three at X. The second
+    // clears W at 02:00 and X is busy until 04:00, so it waits two hours —
+    // against X, which is the station that made it wait, rather than against
+    // the lane it passed through on the way.
+    final result = runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['W']),
+            const SimBuffer(id: 'lane', position: 1),
+            step(2, ['X']),
+          ],
+          parts: {
+            'p1': part('p1', {
+              'W': const Duration(hours: 1),
+              'X': const Duration(hours: 3),
+            }),
+          },
+          orders: [order(0, 'p1'), order(1, 'p1')],
+          release: const Duration(minutes: 30),
+        ),
+      ],
+      workcenters: {'W': workcenter('W'), 'X': workcenter('X')},
+      start: aug1,
+    );
+
+    final second = result.steps
+        .where(
+          (s) =>
+              s.orderId == result.orders.last.orderId && s.workcenterId == 'X',
+        )
+        .single;
+
+    expect(second.wait, const Duration(hours: 2));
   });
 }

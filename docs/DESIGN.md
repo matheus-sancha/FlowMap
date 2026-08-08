@@ -272,7 +272,32 @@ Two modes:
   of stock"; re-reads correctly when takt changes).
 - **DURATION** — a fixed wait (24 h cooling, 2 days transport) in working or calendar time.
 
-In simulation an order simply waits that long between steps.
+**In simulation a buffer costs nothing to pass through.** The figure on it is an *observation of a
+current state* — what is standing between two stations today — and how long an order really waits is
+the question a run exists to answer. Imposing the observed figure as a delay makes a run partly a
+restatement of what was typed into it, and charges the order twice over: the fixed wait, and then
+the queue at the next station anyway. So an order passes straight through and waits, if it waits, in
+that station's queue, where the engine measures it and the Queue table reports it.
+
+The figure keeps its two real jobs, neither of which is the engine's: the **lead-time ladder on the
+map**, which is read off the flow rather than off a run, and the **days-of-stock** a current-state
+VSM exists to state. Both are unchanged.
+
+§7.9's theoretical lead time excludes it for the same reason, and that half is not optional: that
+figure is only meaningful as a floor under what a run observes, so it can count only what the engine
+can also charge. Counted in one and not the other, célula 11B reported 35.1 theoretical days against
+25.8 actual ones — a lead-time efficiency below 1.0, which §8 says cannot happen.
+
+_This replaced "an order simply waits that long between steps."_ It survived until the model was
+driven against a real plant, where six buffers named `FIFO CLAD09`, `FIFO TTAT`, `FIFO CEU27` and so
+on held every order for a fixed 14 days of a 39.8-day lead time whether or not the next station was
+free. The names are the tell: what was being modelled was the queue between stations, and a queue is
+an outcome.
+
+_Left open: a genuine process delay._ Cooling, curing and transport really do take their time
+whether or not the next station is free, and nothing now expresses that — a 24 h cooling rack is
+modelled as free. It needs a per-node switch saying which of the two a buffer is, and the day a
+plant has one is the day to add it.
 
 _Rejected: capacity-limited buffers that block upstream._ Real pull behaviour, but it couples the
 engine, can deadlock, and needs blocking-time metrics to be interpretable.
@@ -570,15 +595,23 @@ capacity — N orders never completed" rather than looping forever.
 ### 7.9 Theoretical lead time
 
 ```
-theoretical_LT(part) = Σ_steps (part_pt × batch ÷ availability × (1 + rework)) + Σ inventory delays
+theoretical_LT(part) = Σ_steps (part_pt × batch ÷ availability × (1 + rework))
 ```
 
 walked through the working calendar so it lands on real dates. **Excludes queueing** (the point of
 the measure) and **excludes changeover** (it depends on what ran before, so it is not a property of
 the part). Used for both the study start offset and the Lead Time Efficiency denominator.
 
+**Excludes inventory**, which it counted until §5.5's buffers stopped delaying a run. This figure is
+only meaningful as a **floor** under what a run observes — the gap between the two *is* the queueing
+— so it can count only what the engine can also charge. Counted here and not there, célula 11B
+reported 35.1 theoretical days against 25.8 actual ones, an efficiency of 0.73× where §8 says 1.0 is
+the queue-free minimum. `coldStartDate` walks the same nodes backwards and skips them for the same
+reason: a run that will not spend the time must not have it reserved.
+
 Flow-equivalent lead time (`takt × steps + inventory`) is kept as a separate footer reference — the
-mockup shows both (6.0 vs 9.0 working days).
+mockup shows both (6.0 vs 9.0 working days). **That one keeps its inventory**, because it is a
+statement about the map rather than a bound on a run.
 
 ### 7.10 What a run stores
 

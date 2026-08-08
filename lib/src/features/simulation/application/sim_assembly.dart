@@ -164,14 +164,7 @@ SimStudy? assembleSimStudy({
         );
 
       case FlowNodeKind.inventory:
-        simNodes.add(
-          _buffer(
-            node: node,
-            nodes: nodes,
-            takt: takt,
-            resources: resources,
-          ),
-        );
+        simNodes.add(_buffer(node));
     }
   }
 
@@ -277,38 +270,14 @@ List<String> _candidatesFor(FlowNode node, SimResourceContext resources) {
   return workcenterId == null ? const [] : [workcenterId];
 }
 
-/// A buffer's wait, resolved before the run (§5.5).
+/// A buffer, which a run carries but does not time (§5.5).
 ///
-/// A fixed wait is what it says. A quantity buffer is `pieces × takt`, and the
-/// takt is resolved on the day of the **step it drains into** — stock leaves at
-/// the rate the next station consumes it.
-SimBuffer _buffer({
-  required FlowNode node,
-  required List<FlowNode> nodes,
-  required TaktPeriodSpec takt,
-  required SimResourceContext resources,
-}) {
-  if (node.inventoryMode == InventoryMode.duration) {
-    return SimBuffer(
-      id: node.id,
-      position: node.position,
-      wait: Duration(seconds: node.inventorySeconds ?? 0),
-      usesWorkingTime: node.inventoryUsesWorkingTime,
-    );
-  }
-
-  final downstream = _nextStep(nodes, node.position);
-  final target = downstream == null ? null : _firstCandidate(downstream, resources);
-  final productive = resources.productivePerWorkingDay[target] ?? Duration.zero;
-
-  return SimBuffer(
-    id: node.id,
-    position: node.position,
-    wait: takt.equivalentAt(productive) * (node.inventoryQuantity ?? 0),
-    // Pieces drain at the rate the line runs, which is working time.
-    usesWorkingTime: true,
-  );
-}
+/// Its stored figure — pieces of stock, or a wait in days — is an observation
+/// of a current state, and how long an order really waits is the question the
+/// run exists to answer. Neither `inventorySeconds` nor `inventoryQuantity` is
+/// read here; both stay on the node for the map's lead-time ladder.
+SimBuffer _buffer(FlowNode node) =>
+    SimBuffer(id: node.id, position: node.position);
 
 /// The step whose work content across the whole demand is largest.
 String? _paceSetter({
@@ -340,7 +309,8 @@ String? _paceSetter({
   // Ties break by id, so two identically loaded stations do not make two runs
   // of the same study disagree (§4.4).
   final best = work.entries.reduce(
-    (a, b) => b.value > a.value || (b.value == a.value && b.key.compareTo(a.key) < 0)
+    (a, b) =>
+        b.value > a.value || (b.value == a.value && b.key.compareTo(a.key) < 0)
         ? b
         : a,
   );
@@ -349,12 +319,3 @@ String? _paceSetter({
 
 String? _firstCandidate(FlowNode node, SimResourceContext resources) =>
     _candidatesFor(node, resources).firstOrNull;
-
-FlowNode? _nextStep(List<FlowNode> nodes, int afterPosition) {
-  for (final node in nodes) {
-    if (node.position > afterPosition && node.kind == FlowNodeKind.step) {
-      return node;
-    }
-  }
-  return null;
-}

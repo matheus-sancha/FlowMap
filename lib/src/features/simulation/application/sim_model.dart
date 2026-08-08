@@ -95,23 +95,23 @@ class SimStep extends SimNode {
 
 /// An inventory buffer (§5.5).
 ///
-/// The wait is **resolved before the run**: a quantity buffer is
-/// `pieces × takt`, and which takt depends on the period, which is a question
-/// the map already answers. The engine is given a duration and does not ask
-/// where it came from.
+/// **It carries no time.** A buffer's figure — N pieces of stock, or a wait in
+/// days — is an *observation* of a current state, and what a simulation is for
+/// is working out how long an order actually waits. Imposing the observed
+/// figure as a delay makes the run partly a restatement of what was typed into
+/// it, and does it twice over: the order serves the fixed wait and *then*
+/// queues at the station anyway.
+///
+/// So an order passes through instantly and waits, if it waits, in the queue at
+/// the next station — where the engine measures it. The figure keeps its two
+/// real jobs, neither of which is here: the lead-time ladder on the map (§5.5),
+/// which is read off the flow rather than off a run, and the days-of-stock a
+/// current-state VSM exists to state.
+///
+/// Kept as a node rather than dropped from the model, so the engine's view of a
+/// flow stays a faithful image of the map's — same nodes, same positions.
 class SimBuffer extends SimNode {
-  const SimBuffer({
-    required super.id,
-    required super.position,
-    required this.wait,
-    required this.usesWorkingTime,
-  });
-
-  final Duration wait;
-
-  /// Whether it is consumed in working time or on the wall clock. A cooling
-  /// rack does not stop for the weekend; a manual inspection queue does.
-  final bool usesWorkingTime;
+  const SimBuffer({required super.id, required super.position});
 }
 
 /// One part's per-piece process times, keyed by step target (§9).

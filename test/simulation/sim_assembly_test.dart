@@ -22,19 +22,23 @@ void main() {
     updatedAt: now,
   );
 
-  FlowNode step(int position, {String? workcenterId, String? poolId, int changeover = 0}) =>
-      FlowNode(
-        id: 'node-$position',
-        studyId: 'study-1',
-        position: position,
-        kind: FlowNodeKind.step,
-        workcenterId: workcenterId,
-        poolId: poolId,
-        changeoverSeconds: changeover,
-        inventoryUsesWorkingTime: false,
-        createdAt: now,
-        updatedAt: now,
-      );
+  FlowNode step(
+    int position, {
+    String? workcenterId,
+    String? poolId,
+    int changeover = 0,
+  }) => FlowNode(
+    id: 'node-$position',
+    studyId: 'study-1',
+    position: position,
+    kind: FlowNodeKind.step,
+    workcenterId: workcenterId,
+    poolId: poolId,
+    changeoverSeconds: changeover,
+    inventoryUsesWorkingTime: false,
+    createdAt: now,
+    updatedAt: now,
+  );
 
   FlowNode buffer(
     int position, {
@@ -58,13 +62,13 @@ void main() {
 
   DemandPart part(String id, String number, {String? description}) =>
       DemandPart(
-    id: id,
-    studyId: 'study-1',
-    partNumber: number,
-    description: description,
-    createdAt: now,
-    updatedAt: now,
-  );
+        id: id,
+        studyId: 'study-1',
+        partNumber: number,
+        description: description,
+        createdAt: now,
+        updatedAt: now,
+      );
 
   DemandOrder order(
     int sequence,
@@ -99,7 +103,12 @@ void main() {
       'X': Duration(hours: 10),
     },
   }) => SimResourceContext(
-    workcenterNames: const {'W': 'CLAD04', 'X': 'TTAT', 'L1': 'LAT01', 'L2': 'LAT02'},
+    workcenterNames: const {
+      'W': 'CLAD04',
+      'X': 'TTAT',
+      'L1': 'LAT01',
+      'L2': 'LAT02',
+    },
     poolNames: const {'pool-1': 'CNC Lathes'},
     poolMembers: pools,
     productivePerWorkingDay: productive,
@@ -108,7 +117,10 @@ void main() {
   test('a plain flow assembles into steps, parts and a sequence', () {
     final built = assembleSimStudy(
       study: study,
-      nodes: [step(0, workcenterId: 'W', changeover: 1800), step(1, workcenterId: 'X')],
+      nodes: [
+        step(0, workcenterId: 'W', changeover: 1800),
+        step(1, workcenterId: 'X'),
+      ],
       parts: [part('p1', 'PN1')],
       processTimes: {
         'p1': {'W': const Duration(hours: 2), 'X': const Duration(hours: 1)},
@@ -152,7 +164,10 @@ void main() {
       // is 10 productive hours (§6.1).
       final built = assembleSimStudy(
         study: study,
-        nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+        nodes: [
+          step(0, workcenterId: 'W'),
+          step(1, workcenterId: 'X'),
+        ],
         parts: [part('p1', 'PN1')],
         processTimes: {
           'p1': {'W': const Duration(hours: 9), 'X': const Duration(hours: 1)},
@@ -160,10 +175,7 @@ void main() {
         orders: [order(0, 'p1')],
         taktSchedule: taktOf(3, TaktUnit.days),
         resources: resources(
-          productive: const {
-            'W': Duration(hours: 10),
-            'X': Duration(hours: 4),
-          },
+          productive: const {'W': Duration(hours: 10), 'X': Duration(hours: 4)},
         ),
         asOf: now,
       );
@@ -180,7 +192,10 @@ void main() {
       String? paceFor({required int pn1Batch, required int pn2Batch}) =>
           assembleSimStudy(
             study: study,
-            nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+            nodes: [
+              step(0, workcenterId: 'W'),
+              step(1, workcenterId: 'X'),
+            ],
             parts: [part('p1', 'PN1'), part('p2', 'PN2')],
             processTimes: {
               'p1': {'W': const Duration(hours: 10)},
@@ -201,36 +216,18 @@ void main() {
   });
 
   group('buffers (§5.5)', () {
-    test('a fixed wait is what it says, in the mode it was typed', () {
+    /// A run carries a buffer as a node and nothing else.
+    ///
+    /// Whatever was typed on it — a wait in hours, or a count of pieces — stays
+    /// on the node for the map's lead-time ladder and never reaches the engine.
+    /// The figure is an *observation* of a current state, and how long an order
+    /// really waits is the question the run exists to answer.
+    void expectsNoTime(InventoryMode mode, {int? seconds, int? quantity}) {
       final built = assembleSimStudy(
         study: study,
         nodes: [
           step(0, workcenterId: 'W'),
-          buffer(1, mode: InventoryMode.duration, seconds: 48 * 3600),
-          step(2, workcenterId: 'X'),
-        ],
-        parts: [part('p1', 'PN1')],
-        processTimes: {
-          'p1': {'W': const Duration(hours: 1), 'X': const Duration(hours: 1)},
-        },
-        orders: [order(0, 'p1')],
-        taktSchedule: taktOf(1, TaktUnit.hours),
-        resources: resources(),
-        asOf: now,
-      );
-
-      final wait = built!.nodes.whereType<SimBuffer>().single;
-      expect(wait.wait, const Duration(hours: 48));
-      // Cooling does not stop for the weekend.
-      expect(wait.usesWorkingTime, isFalse);
-    });
-
-    test('a quantity buffer is pieces times the takt of the step it feeds', () {
-      final built = assembleSimStudy(
-        study: study,
-        nodes: [
-          step(0, workcenterId: 'W'),
-          buffer(1, mode: InventoryMode.quantity, quantity: 5),
+          buffer(1, mode: mode, seconds: seconds, quantity: quantity),
           step(2, workcenterId: 'X'),
         ],
         parts: [part('p1', 'PN1')],
@@ -240,19 +237,22 @@ void main() {
         orders: [order(0, 'p1')],
         taktSchedule: taktOf(1, TaktUnit.days),
         resources: resources(
-          productive: const {
-            'W': Duration(hours: 10),
-            // The downstream station's day is what stock drains against.
-            'X': Duration(hours: 4),
-          },
+          productive: const {'W': Duration(hours: 10), 'X': Duration(hours: 4)},
         ),
         asOf: now,
       );
 
-      final wait = built!.nodes.whereType<SimBuffer>().single;
-      expect(wait.wait, const Duration(hours: 20));
-      // Stock drains at the rate the line runs, which is working time.
-      expect(wait.usesWorkingTime, isTrue);
+      // Still a node, so the engine's view of a flow stays a faithful image of
+      // the map's — same nodes, same positions.
+      expect(built!.nodes.whereType<SimBuffer>().single.position, 1);
+    }
+
+    test('a fixed wait reaches the run carrying no time', () {
+      expectsNoTime(InventoryMode.duration, seconds: 48 * 3600);
+    });
+
+    test('a piece count reaches the run carrying no time', () {
+      expectsNoTime(InventoryMode.quantity, quantity: 5);
     });
   });
 
@@ -271,7 +271,10 @@ void main() {
           pools: const {
             'pool-1': ['L2', 'L1'],
           },
-          productive: const {'L1': Duration(hours: 10), 'L2': Duration(hours: 10)},
+          productive: const {
+            'L1': Duration(hours: 10),
+            'L2': Duration(hours: 10),
+          },
         ),
         asOf: now,
       );
@@ -368,7 +371,10 @@ void main() {
     final built = assembleSimStudy(
       study: study,
       nodes: [step(0, workcenterId: 'W')],
-      parts: [part('p1', 'PN1', description: 'PWB 10K'), part('p2', 'PN2')],
+      parts: [
+        part('p1', 'PN1', description: 'PWB 10K'),
+        part('p2', 'PN2'),
+      ],
       processTimes: {
         'p1': {'W': const Duration(hours: 2)},
         'p2': {'W': const Duration(hours: 1)},
@@ -428,12 +434,14 @@ void main() {
       'poolB': ['W2', 'W3'],
     };
 
-    DispatchRule? resolve(String workcenterId, Map<String, DispatchRule> rules) =>
-        resolveDispatch(
-          workcenterId: workcenterId,
-          byTarget: rules,
-          poolMembers: members,
-        );
+    DispatchRule? resolve(
+      String workcenterId,
+      Map<String, DispatchRule> rules,
+    ) => resolveDispatch(
+      workcenterId: workcenterId,
+      byTarget: rules,
+      poolMembers: members,
+    );
 
     test('a station nobody set follows the run', () {
       expect(resolve('W1', const {}), isNull);

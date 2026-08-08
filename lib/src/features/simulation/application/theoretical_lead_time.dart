@@ -2,7 +2,6 @@
 ///
 /// ```
 /// theoretical_LT = Σ_steps (part_pt × batch ÷ availability × (1 + rework))
-///                + Σ inventory delays
 /// ```
 ///
 /// **Excludes queueing**, which is the point of the measure: it is the
@@ -10,6 +9,13 @@
 /// actually observes *is* the queueing. **Excludes changeover** too, because
 /// changeover depends on what ran before and is therefore not a property of the
 /// part.
+///
+/// **Excludes inventory**, which it did not until the model was driven against
+/// a real plant. This figure has to stay a floor under what a run observes, or
+/// the efficiency it feeds inverts its meaning — so it can only count what the
+/// engine can also charge, and §5.5's buffers no longer delay a run at all. On
+/// célula 11B they were 14 of both figures' days; counted here and not there,
+/// theoretical would have come out at 35.1 d against an actual of 25.8 d.
 ///
 /// Walked through the working calendar rather than summed, so it lands on real
 /// dates: forty open hours off a Monday morning is the previous Tuesday, not
@@ -100,23 +106,10 @@ TheoreticalLeadTime? theoreticalLeadTime({
           cursor = workcenter.calendar.advance(cursor, occupancy);
           working += occupancy;
 
+        // Costs nothing: the engine no longer charges for one either, and this
+        // figure is only meaningful as a floor under what the engine observes.
         case SimBuffer():
-          if (!node.usesWorkingTime) {
-            // Cooling and transport do not stop for the weekend.
-            cursor = cursor.add(node.wait);
-            continue;
-          }
-          // A working-time wait runs on the calendar of the step it feeds, or
-          // at the end of a flow the one it just left — the same rule the
-          // lead-time ladder measures its days against (§17.2).
-          final neighbour =
-              _nextStep(nodes, node.position) ??
-              _previousStep(nodes, node.position);
-          final calendar =
-              workcenters[neighbour?.candidates.firstOrNull]?.calendar;
-          cursor = calendar == null
-              ? cursor.add(node.wait)
-              : calendar.advance(cursor, node.wait);
+          continue;
       }
     }
   } on StateError {
@@ -175,19 +168,10 @@ DateTime? coldStartDate({
             ),
           );
 
+        // As above: the run will not spend it, so the cold start must not
+        // reserve it (§7.8).
         case SimBuffer():
-          if (!node.usesWorkingTime) {
-            cursor = cursor.subtract(node.wait);
-            continue;
-          }
-          final neighbour =
-              _nextStep(nodes, node.position) ??
-              _previousStep(nodes, node.position);
-          final calendar =
-              workcenters[neighbour?.candidates.firstOrNull]?.calendar;
-          cursor = calendar == null
-              ? cursor.subtract(node.wait)
-              : calendar.retreat(cursor, node.wait);
+          continue;
       }
     }
   } on StateError {
@@ -196,19 +180,4 @@ DateTime? coldStartDate({
   }
 
   return cursor;
-}
-
-SimStep? _previousStep(List<SimNode> nodes, int beforePosition) {
-  SimStep? found;
-  for (final node in nodes) {
-    if (node.position < beforePosition && node is SimStep) found = node;
-  }
-  return found;
-}
-
-SimStep? _nextStep(List<SimNode> nodes, int afterPosition) {
-  for (final node in nodes) {
-    if (node.position > afterPosition && node is SimStep) return node;
-  }
-  return null;
 }

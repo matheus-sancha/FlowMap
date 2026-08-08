@@ -879,6 +879,41 @@ day §2.7 landed.
 
 614 tests.
 
+### 2.12 A buffer stops holding orders — **done 2026-08-08**
+
+Field feedback, from the same session: *"the inventories hold the orders even if the next workcenter
+is not processing any order."* Correct, and it was §5.5 working as specified — "in simulation an
+order simply waits that long between steps." The spec was wrong for what the field models.
+
+**What the model showed.** Célula 11B's six inventory nodes are named `FIFO CLAD09`, `FIFO TTAT`,
+`FIFO CEU27`, `FIFO CEU26`, `FIFO BAN`, `FIFO END`, `FIFO COATING`, five of them DURATION at
+3/3/3/2/2/1 days in calendar time. The names are the tell: what is being modelled is the **queue
+between stations**, and a queue is an outcome. Measured on the stored run, per order: **14.0 d of
+buffer delay**, 5.9 d of queueing at stations, 19.9 d of processing, 39.8 d of lead time. So 35 % of
+every order's lead time was a fixed wait that ignored the plant — and it was charged twice, since
+the order then queued at the station anyway.
+
+**It had to come out of the theoretical walk as well**, which is the part the interview did not
+anticipate. §7.9 counted `Σ inventory delays`, and that figure is only meaningful as a floor under
+what a run observes. Removing the delay from the engine alone would have given 35.1 theoretical days
+against 25.8 actual ones — an efficiency of 0.73× where §8 says 1.0 is the queue-free minimum, and a
+straight violation of the invariant §2.3 asserts. `coldStartDate` skips them for the same reason: a
+run that will not spend the time must not reserve it.
+
+**`SimBuffer` now carries no time at all** — not the wait, not `usesWorkingTime`. Keeping a field
+nothing reads is the failure §1.5 already found once from the other direction. It stays a node so
+the engine's view of a flow remains a faithful image of the map's, same nodes and same positions.
+The stored columns are untouched: the map's lead-time ladder and its days-of-stock read them, and
+neither goes near a run.
+
+**Left open, and worth knowing:** a genuine process delay — cooling, curing, transport — really does
+take its time whether or not the next station is free, and nothing now expresses that. A 24 h
+cooling rack is modelled as free. It needs a per-node switch saying which of the two a buffer is;
+the day a plant has one is the day to add it. Recorded in §5.5.
+
+**The stored célula 11B run now describes a rule the engine no longer follows.** Re-run it before
+reading its figures against anything.
+
 ---
 
 ## 3. Verify in the running app

@@ -64,16 +64,8 @@ void main() {
     changeover: changeover,
   );
 
-  SimBuffer buffer(
-    int position,
-    Duration wait, {
-    bool usesWorkingTime = false,
-  }) => SimBuffer(
-    id: 'node-$position',
-    position: position,
-    wait: wait,
-    usesWorkingTime: usesWorkingTime,
-  );
+  SimBuffer buffer(int position) =>
+      SimBuffer(id: 'node-$position', position: position);
 
   SimPart part(Map<String, Duration> times) =>
       SimPart(id: 'p1', partNumber: 'PN1', processTimes: times);
@@ -140,36 +132,25 @@ void main() {
       expect(withSetup!.workingTime, const Duration(hours: 5));
     });
 
-    test('a calendar buffer runs on the wall clock, weekend included', () {
-      // Friday 06:00 + a two-day cooling wait lands on Sunday, and the next
-      // step picks up on Monday.
+    test('a buffer costs nothing, because the run will not spend it', () {
+      // This figure is only meaningful as a **floor** under what a run
+      // observes: it is the denominator of lead-time efficiency, and the gap
+      // between it and the run is the queueing. §5.5's buffers no longer delay
+      // a run, so counting them here would put the floor above the ceiling —
+      // on célula 11B, 35.1 theoretical days against 25.8 actual ones.
+      //
+      // Friday 06:00, two hours of work, and a buffer either side of it: the
+      // answer is the same as if neither were there.
       final result = theoreticalLeadTime(
-        nodes: [buffer(0, const Duration(days: 2)), step(1, 'CLAD04')],
+        nodes: [buffer(0), step(1, 'CLAD04'), buffer(2)],
         workcenters: {'CLAD04': workcenter('CLAD04')},
         part: part({'CLAD04': const Duration(hours: 2)}),
         batchSize: 1,
         from: DateTime(2026, 8, 7, 6),
       );
 
-      expect(result!.end, DateTime(2026, 8, 10, 8));
-    });
-
-    test('a working-time buffer runs on the calendar of the step it feeds', () {
-      // 12 open hours from Friday 06:00: 10 on Friday, 2 on Monday.
-      final result = theoreticalLeadTime(
-        nodes: [
-          buffer(0, const Duration(hours: 12), usesWorkingTime: true),
-          step(1, 'CLAD04'),
-        ],
-        workcenters: {'CLAD04': workcenter('CLAD04')},
-        part: part({'CLAD04': const Duration(hours: 1)}),
-        batchSize: 1,
-        from: DateTime(2026, 8, 7, 6),
-      );
-
-      expect(result!.end, DateTime(2026, 8, 10, 9));
-      // The buffer is waiting, not working, so it is not value-adding time.
-      expect(result.workingTime, const Duration(hours: 1));
+      expect(result!.end, DateTime(2026, 8, 7, 8));
+      expect(result.workingTime, const Duration(hours: 2));
     });
 
     test('a part with no time at a step it must visit is not costed', () {
@@ -226,11 +207,7 @@ void main() {
 
   group('coldStartDate', () {
     test('is the walk run backwards, and lands where it started', () {
-      final nodes = [
-        step(0, 'CLAD04'),
-        buffer(1, const Duration(days: 1)),
-        step(2, 'TTAT'),
-      ];
+      final nodes = [step(0, 'CLAD04'), buffer(1), step(2, 'TTAT')];
       final workcenters = {
         'CLAD04': workcenter('CLAD04'),
         'TTAT': workcenter('TTAT'),
