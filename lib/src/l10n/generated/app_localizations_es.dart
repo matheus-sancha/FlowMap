@@ -1499,4 +1499,54 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get simRunDeleteBody =>
       'Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan.';
+
+  @override
+  String get simResultsView => 'Resultados';
+
+  @override
+  String get simGanttView => 'Gantt';
+
+  @override
+  String get simGanttEmpty =>
+      'Esta ejecución no registró ningún paso, así que no hay nada que dibujar.';
+
+  @override
+  String get simGanttGapHelp =>
+      'Una fila por estación, una barra por orden, todos los estudios juntos: una estación se comparte, así que separar el gráfico por estudio la dibujaría parada mientras estaba procesando una orden de otra línea. Una barra es la estación comprometida con esa orden, incluidas las horas cerradas. Un hueco es una estación que no está procesando: cerrada o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.';
+
+  @override
+  String simGanttOrder(String number) {
+    return 'Orden $number';
+  }
+
+  @override
+  String get simGanttCommitted => 'Comprometida';
+
+  @override
+  String get simGanttWaited => 'Espera antes de empezar';
+
+  @override
+  String get simGanttChangeover =>
+      'Se pagó un cambio de referencia para empezarla';
+
+  @override
+  String get simGanttZoomIn => 'Acercar';
+
+  @override
+  String get simGanttZoomOut => 'Alejar';
+
+  @override
+  String simGanttFloored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count barras dibujadas más anchas de lo que son',
+      one: '1 barra dibujada más ancha de lo que es',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttFlooredHelp =>
+      'A este zoom estos pasos son más finos que un píxel, así que se dibujan al ancho mínimo para que se vean. Su posición es exacta; su ancho no. Al acercar, el aviso desaparece.';
 }

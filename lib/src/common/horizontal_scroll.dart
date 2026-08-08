@@ -23,20 +23,34 @@ library;
 import 'package:flutter/material.dart';
 
 class HorizontalScroll extends StatefulWidget {
-  const HorizontalScroll({super.key, required this.child});
+  const HorizontalScroll({super.key, required this.child, this.controller});
 
   final Widget child;
+
+  /// A controller to use instead of the one this would otherwise make, for the
+  /// callers that have to *read or move* the offset rather than merely let the
+  /// user drag it.
+  ///
+  /// The Gantt is the case (§8.6): zooming about the pane's centre has to put
+  /// the offset back where the same instant is still centred, and the axis has
+  /// to know which slice of a sixteen-million-pixel run is on screen so it can
+  /// build ticks for that and nothing else. Ownership follows provision — a
+  /// controller passed in is disposed by whoever passed it.
+  final ScrollController? controller;
 
   @override
   State<HorizontalScroll> createState() => _HorizontalScrollState();
 }
 
 class _HorizontalScrollState extends State<HorizontalScroll> {
-  final _controller = ScrollController();
+  ScrollController? _own;
+
+  ScrollController get _controller =>
+      widget.controller ?? (_own ??= ScrollController());
 
   @override
   void dispose() {
-    _controller.dispose();
+    _own?.dispose();
     super.dispose();
   }
 

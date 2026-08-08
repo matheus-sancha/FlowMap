@@ -14,6 +14,7 @@ import '../application/sim_model.dart';
 import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
+import 'gantt_view.dart';
 
 /// The Simulation tab (DESIGN.md §12.1).
 ///
@@ -58,7 +59,11 @@ class SimulationTab extends ConsumerWidget {
 }
 
 class _RunBar extends ConsumerWidget {
-  const _RunBar({required this.project, required this.input, required this.busy});
+  const _RunBar({
+    required this.project,
+    required this.input,
+    required this.busy,
+  });
 
   final Project project;
   final SimRunInput? input;
@@ -192,9 +197,8 @@ class _RunsMenu extends ConsumerWidget {
                 IconButton(
                   tooltip: l10n.actionDelete,
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  onPressed: () => Navigator.of(
-                    context,
-                  ).pop((runId: run.id, delete: true)),
+                  onPressed: () =>
+                      Navigator.of(context).pop((runId: run.id, delete: true)),
                 ),
               ],
             ),
@@ -231,29 +235,34 @@ class _Body extends StatelessWidget {
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    // A Column rather than the single scrolling page this was, because the
+    // Gantt takes the body's full height (§8.6) and a child of a `ListView`
+    // cannot. The readiness panel stays above whatever the body turns out to
+    // be: it is about the *next* run, not about the one being read.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!input.canRun) ...[
-          _ReadinessPanel(input: input),
-          const SizedBox(height: 16),
-        ],
-        switch (runner) {
-          AsyncError(:final error) => _Message(
-            icon: Icons.error_outline,
-            title: '$error',
+        if (!input.canRun)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: _ReadinessPanel(input: input),
           ),
-          AsyncLoading() => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          AsyncValue(value: null) => _Message(
-            icon: Icons.timeline_outlined,
-            title: l10n.simulationNeverRun,
-            detail: l10n.simulationNeverRunHelp,
-          ),
-          AsyncValue(value: final run!) => _Results(run: run),
-        },
+        Expanded(
+          child: switch (runner) {
+            AsyncError(:final error) => SingleChildScrollView(
+              child: _Message(icon: Icons.error_outline, title: '$error'),
+            ),
+            AsyncLoading() => const Center(child: CircularProgressIndicator()),
+            AsyncValue(value: null) => SingleChildScrollView(
+              child: _Message(
+                icon: Icons.timeline_outlined,
+                title: l10n.simulationNeverRun,
+                detail: l10n.simulationNeverRunHelp,
+              ),
+            ),
+            AsyncValue(value: final run!) => _Results(run: run),
+          },
+        ),
       ],
     );
   }
@@ -308,9 +317,100 @@ class _ReadinessPanel extends StatelessWidget {
   }
 }
 
-/// Everything §8 asks a run to report.
-class _Results extends StatelessWidget {
+/// Which of the two views of a run is showing.
+enum _RunView { results, gantt }
+
+/// Everything §8 asks a run to report, in two views of it.
+///
+/// **The run header, the abort banner and the headline stay put**, because they
+/// describe *the run* rather than a view of it; the segmented control switches
+/// only the body beneath them. That is what lets the Gantt take the full body
+/// height — it was a section below the production plan in the first draft, which
+/// was one more block on a page already carrying a header, a headline, a metrics
+/// card, three tables and a thirteen-column plan, and it would have needed a
+/// height cap, a second vertical scrollbar and a nested scroll to fit there.
+///
+/// Held in an `IndexedStack`, so switching to the results and back returns the
+/// zoom the reader left rather than refitting the chart under them.
+class _Results extends StatefulWidget {
   const _Results({required this.run});
+
+  final StoredRun run;
+
+  @override
+  State<_Results> createState() => _ResultsState();
+}
+
+class _ResultsState extends State<_Results> {
+  var _view = _RunView.results;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final run = widget.run;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RunHeader(run: run),
+              const SizedBox(height: 12),
+              if (run.result.abort != null) ...[
+                _AbortBanner(result: run.result),
+                const SizedBox(height: 12),
+              ],
+              _Headline(metrics: run.metrics),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SegmentedButton<_RunView>(
+                  segments: [
+                    ButtonSegment(
+                      value: _RunView.results,
+                      label: Text(l10n.simResultsView),
+                      icon: const Icon(Icons.table_rows_outlined),
+                    ),
+                    ButtonSegment(
+                      value: _RunView.gantt,
+                      label: Text(l10n.simGanttView),
+                      icon: const Icon(Icons.view_timeline_outlined),
+                    ),
+                  ],
+                  selected: {_view},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) =>
+                      setState(() => _view = selection.first),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _view.index,
+            sizing: StackFit.expand,
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: _ResultTables(run: run),
+              ),
+              GanttView(run: run),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// When the run was made, what it ran under, and where it sat in time.
+class _RunHeader extends StatelessWidget {
+  const _RunHeader({required this.run});
 
   final StoredRun run;
 
@@ -319,7 +419,6 @@ class _Results extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).toString();
-    final metrics = run.metrics;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -354,13 +453,26 @@ class _Results extends StatelessWidget {
               ),
             ),
           ),
-        const SizedBox(height: 12),
-        if (run.result.abort != null) ...[
-          _AbortBanner(result: run.result),
-          const SizedBox(height: 12),
-        ],
-        _Headline(metrics: metrics),
-        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+/// The metrics card and the four tables — what the Results view is.
+class _ResultTables extends StatelessWidget {
+  const _ResultTables({required this.run});
+
+  final StoredRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final metrics = run.metrics;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         _MetricsCard(metrics: metrics),
         const SizedBox(height: 24),
         Text(l10n.simByQueue, style: theme.textTheme.titleSmall),

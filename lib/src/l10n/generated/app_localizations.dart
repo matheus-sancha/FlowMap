@@ -2669,6 +2669,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The run and everything it recorded go. The studies it was made from are untouched.'**
   String get simRunDeleteBody;
+
+  /// No description provided for @simResultsView.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get simResultsView;
+
+  /// No description provided for @simGanttView.
+  ///
+  /// In en, this message translates to:
+  /// **'Gantt'**
+  String get simGanttView;
+
+  /// No description provided for @simGanttEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This run recorded no steps, so there is nothing to draw.'**
+  String get simGanttEmpty;
+
+  /// No description provided for @simGanttGapHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line\'s order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.'**
+  String get simGanttGapHelp;
+
+  /// No description provided for @simGanttOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Order {number}'**
+  String simGanttOrder(String number);
+
+  /// No description provided for @simGanttCommitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Committed'**
+  String get simGanttCommitted;
+
+  /// No description provided for @simGanttWaited.
+  ///
+  /// In en, this message translates to:
+  /// **'Waited before starting'**
+  String get simGanttWaited;
+
+  /// No description provided for @simGanttChangeover.
+  ///
+  /// In en, this message translates to:
+  /// **'A changeover was paid to start it'**
+  String get simGanttChangeover;
+
+  /// No description provided for @simGanttZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get simGanttZoomIn;
+
+  /// No description provided for @simGanttZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get simGanttZoomOut;
+
+  /// No description provided for @simGanttFloored.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bar drawn wider than it is} other{{count} bars drawn wider than they are}}'**
+  String simGanttFloored(int count);
+
+  /// No description provided for @simGanttFlooredHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.'**
+  String get simGanttFlooredHelp;
 }
 
 class _AppLocalizationsDelegate

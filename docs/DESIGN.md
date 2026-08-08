@@ -880,6 +880,40 @@ that churn on any font, theme or locale change across three languages and two br
 golden scenarios are committed *numbers*. So: exhaustive pure tests on the join, the layout, tick
 selection, the floored count and the hit test; widget tests for the view; then it is driven by hand.
 
+#### The view, in `gantt_view.dart`
+
+Its own view rather than a section of the results (§12.1), and **nothing in it decides a position**:
+it reads the layout, paints it, and hands the pointer straight back to `barAt`.
+
+- **A real scroll view, not drag-to-pan.** §12.6's rule is that a wide thing must scroll *and say
+  so*, and a bare drag re-creates the complaint that rule exists to answer — nothing on screen would
+  say how much run is off either edge. So the chart is a `CustomPaint` inside `HorizontalScroll`,
+  which gains an optional controller for it: the window start **is** the scroll offset, so there is
+  one answer to where the reader is, and zooming about the pane's centre is a matter of moving it.
+  Labels are frozen outside the scroll view; the axis is inside it, so it pans with the bars.
+- **The pane is repainted on scroll, and that is deliberate.** The axis and the bar culling both
+  need to know which slice of the content is on screen. Rebuilding on the offset is what makes "only
+  the visible ticks are built" true at run time rather than merely possible, and it is what lets the
+  painter skip the bars outside the pane — at §14 scale a run carries 20 000 of them and at most a
+  screenful can be seen. The layout itself is cached per zoom, so scrolling never re-measures a bar.
+- **Zooming about the centre keeps the instant under the middle of the pane there.** Anything else
+  lands a zoom into a sixteen-million-pixel run somewhere the reader was not looking. Zoom-out is
+  dead at the floor and zoom-in at the ceiling, both read off `ganttScaleBounds`.
+- **The hover card is one widget, not one per bar.** That is the whole objection to a `Tooltip`
+  here: it carries a fixed message, so naming the bar under the cursor that way would mean 231
+  widgets on the real run and 20 000 at §14 scale. One card, positioned at whichever bar is under
+  the pointer, and `IgnorePointer` so it cannot take the hover away from what it is describing. It
+  is **anchored to the bar rather than followed to the cursor** — it then moves only when the answer
+  changes, and it is easier to read for standing still. It names the order, the part, the station,
+  the span, the committed duration, the wait before starting, and the changeover at every scale
+  including the zooms where the mark on the bar is omitted for want of room.
+- **A card, not a painted box**, which is a departure from how the bars are drawn and earns it: the
+  text is then localized, themed and findable by a widget test, at no cost to the argument above.
+- **What a gap means is on screen.** A gap is a station not running — closed and starved alike — and
+  this chart cannot tell the two apart, because splitting a bar at closed time would need calendars
+  a stored run does not have. The line above the chart says so and names the Queue table as where
+  "how much of that gap was open at all" is answered.
+
 #### Colour by part
 
 The app's first categorical palette, in `common/part_palette.dart`: eight fixed colours, assigned by
@@ -903,10 +937,13 @@ part to the plant never recolours a run that has not changed. Past eight it wrap
   hex down says nothing about any of them, and the field is where the failure would otherwise show
   up. The first draft's collapse was caught by the test rather than by looking.
 
-**The Parts table is the legend.** A swatch in its Part Number cell, taken from the row's own
-position — which *is* the part's position in the sorted list — so the swatch and the bar cannot come
-from two different lookups. It is defined there, beside that part's orders, on-time and lead-time
-figures, so the reader learns the mapping while reading the numbers.
+**The Parts table is the legend, and the chart carries a strip.** A swatch in the table's Part
+Number cell, taken from the row's own position — which *is* the part's position in the sorted list —
+so the swatch and the bar cannot come from two different lookups. It is defined there, beside that
+part's orders, on-time and lead-time figures, so the reader learns the mapping while reading the
+numbers. The strip under the chart is the same list in the same order, because the Gantt is its own
+view (§12.1) and the table is not on it; it names the study beside the part number when the run
+carries more than one, which is §8.1.2's rule for the table's Study column.
 
 _Rejected: rotating hue off the seed colour._ Never runs out and always in the app's family — but
 adjacent hues stop being distinguishable past six or seven parts, and adding a part recolours a run
@@ -1117,6 +1154,21 @@ to the project (§7.7), so it should not require being on one of six tabs to sta
   button. One reason rather than all of them: a tooltip is a sentence and the panel is the list.
 - **The Simulation tab keeps the rest** — the rule to dispatch by, the runs already made, the
   readiness panel and the results. Only the trigger moved.
+
+**A run has two views of it, switched by a segmented control**: Results and Gantt (§8.6). What sits
+*above* the control is what describes the run rather than a view of it — the timestamp and dispatch
+line, the abort banner and the headline — so those stay put across the switch and only the body
+beneath them changes. The Gantt then takes the full body height, which is what removes the height
+cap, the second vertical scrollbar and the nested scroll it would have needed as one more section
+under the production plan.
+
+Held in an `IndexedStack`, so switching to the results and back returns the zoom the reader left
+rather than refitting the chart under them. Both views read the same `StoredRun`, so opening an
+earlier run from the history menu opens its Gantt with it — §8.5's rule for the plan, applied again.
+
+This is why the tab's body stopped being one scrolling `ListView`: a child of a list cannot take the
+viewport's height. The readiness panel stays above the switch, because it is about the *next* run
+rather than the one being read.
 
 ### 12.2 Canvas
 

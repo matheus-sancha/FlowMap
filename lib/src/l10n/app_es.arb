@@ -501,5 +501,19 @@
   "@simDispatchOverrides": { "placeholders": { "count": { "type": "int" } } },
   "simDispatchOverrideRow": "{name}: {rule}",
   "@simDispatchOverrideRow": { "placeholders": { "name": { "type": "String" }, "rule": { "type": "String" } } },
-  "simRunDeleteBody": "Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan."
+  "simRunDeleteBody": "Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan.",
+  "simResultsView": "Resultados",
+  "simGanttView": "Gantt",
+  "simGanttEmpty": "Esta ejecución no registró ningún paso, así que no hay nada que dibujar.",
+  "simGanttGapHelp": "Una fila por estación, una barra por orden, todos los estudios juntos: una estación se comparte, así que separar el gráfico por estudio la dibujaría parada mientras estaba procesando una orden de otra línea. Una barra es la estación comprometida con esa orden, incluidas las horas cerradas. Un hueco es una estación que no está procesando: cerrada o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.",
+  "simGanttOrder": "Orden {number}",
+  "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
+  "simGanttCommitted": "Comprometida",
+  "simGanttWaited": "Espera antes de empezar",
+  "simGanttChangeover": "Se pagó un cambio de referencia para empezarla",
+  "simGanttZoomIn": "Acercar",
+  "simGanttZoomOut": "Alejar",
+  "simGanttFloored": "{count, plural, =1{1 barra dibujada más ancha de lo que es} other{{count} barras dibujadas más anchas de lo que son}}",
+  "@simGanttFloored": { "placeholders": { "count": { "type": "int" } } },
+  "simGanttFlooredHelp": "A este zoom estos pasos son más finos que un píxel, así que se dibujan al ancho mínimo para que se vean. Su posición es exacta; su ancho no. Al acercar, el aviso desaparece."
 }

@@ -1499,4 +1499,53 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get simRunDeleteBody =>
       'A execução e tudo o que ela registrou são apagados. Os estudos com que foi feita ficam intactos.';
+
+  @override
+  String get simResultsView => 'Resultados';
+
+  @override
+  String get simGanttView => 'Gantt';
+
+  @override
+  String get simGanttEmpty =>
+      'Esta execução não registrou nenhum passo, então não há o que desenhar.';
+
+  @override
+  String get simGanttGapHelp =>
+      'Uma linha por estação, uma barra por ordem, todos os estudos juntos: uma estação é compartilhada, então separar o gráfico por estudo a desenharia parada enquanto processava a ordem de outra linha. Uma barra é a estação comprometida com aquela ordem, incluindo as horas fechadas. Um vão é uma estação que não está processando: fechada ou sem material. Quanto desse vão estava sequer aberto é respondido na tabela de filas.';
+
+  @override
+  String simGanttOrder(String number) {
+    return 'Ordem $number';
+  }
+
+  @override
+  String get simGanttCommitted => 'Comprometida';
+
+  @override
+  String get simGanttWaited => 'Espera antes de começar';
+
+  @override
+  String get simGanttChangeover => 'Houve troca de referência para começá-la';
+
+  @override
+  String get simGanttZoomIn => 'Aproximar';
+
+  @override
+  String get simGanttZoomOut => 'Afastar';
+
+  @override
+  String simGanttFloored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count barras desenhadas mais largas do que são',
+      one: '1 barra desenhada mais larga do que é',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttFlooredHelp =>
+      'Neste zoom esses passos são mais finos que um pixel, então são desenhados na largura mínima para continuarem visíveis. A posição é exata; a largura não. Ao aproximar, o aviso some.';
 }

@@ -3,11 +3,11 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 582 tests passing. **Four commits ahead
-of `origin`** as of 2026-08-08: `f517a74` settles §2.7 by interview and the three after it are the
-first three of its four. **Commit 4 is next — the view, and nothing but the view** — and §2.7 below
-specifies it in full; the geometry it draws is already written and tested, so nothing needs to be
-recovered to start it.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 593 tests passing. **Five commits ahead
+of `origin`** as of 2026-08-08: `f517a74` settles §2.7 by interview and the four after it are all
+four of its commits. **§2.7 is code-complete and has never been run**, which is the next thing: §3's
+Gantt item says what to look at against célula 11B, and it is the step §2.10 is the evidence for.
+§2.8 — the plan in Excel — is the only piece of §2 not yet written.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
@@ -701,12 +701,26 @@ Study column; then §3 drives it by hand. §2.10 is the evidence that last step 
      taking the span from the bars would make a station idle for the last three months read as the
      run having ended when the last bar did. It is `result.start`/`result.end`, widened only if a
      bar somehow falls outside them.
-4. The view — segmented control, painter, hover, zoom cluster, legend strip, `HorizontalScroll`'s
-   optional controller, l10n in three languages, widget tests. §8.6 complete, and §12.1 for the
-   Simulation tab's new view switch. **`gantt_layout.dart` is the whole contract**: `GanttMetrics`
-   carries every size including the zoom step, `barAt` is the hover's hit test, `ganttScaleBounds`
-   is what disables the two zoom buttons, and `GanttLayout.flooredBars` is what raises and retires
-   the "indicative at this zoom" note.
+4. ~~The view — segmented control, painter, hover, zoom cluster, legend strip, `HorizontalScroll`'s
+   optional controller, l10n in three languages, widget tests.~~ — **done 2026-08-08.** §8.6 is
+   complete and §12.1 carries the view switch. 11 tests, 593 in all. `gantt_layout.dart` turned out
+   to be the whole contract, exactly as commit 3 left it: nothing in the view decides a position.
+   Four things worth keeping:
+   - **The tab's body stopped being one `ListView`.** A child of a list cannot take the viewport's
+     height, and the Gantt has to. So `_Body` is a `Column` with an `Expanded` body, `_Results`
+     splits into the part that describes *the run* — header, abort banner, headline — and the
+     `IndexedStack` beneath it, and the results half moved into `_ResultTables` behind its own
+     scroll view. The readiness panel stays above the switch, because it is about the *next* run.
+   - **The hover card is a widget, not the painted box the interview specified.** The objection to a
+     `Tooltip` was one widget *per bar*; a single card positioned at whichever bar is under the
+     pointer answers that in full, and being a widget keeps its text localized, themed and findable
+     by a test. `IgnorePointer` is what stops it taking the hover away from what it describes.
+   - **`intl` exports a `TextDirection`** that shadows the one a `TextPainter` needs, so the import
+     is `show DateFormat`. A one-line fix, but the error names the getter rather than the clash.
+   - **The row order is the Queue table's, ties broken by name** — and the first draft of the widget
+     tests assumed alphabetical station order was the *chart's* rule rather than the ranking's. They
+     reach for a row by name now: asserting the order there would have been a second, weaker copy of
+     what `run_metrics_test` already owns.
 
 ### 2.8 The plan, in Excel
 
@@ -845,6 +859,17 @@ only.
       away, that hovering a bar names the right order, and that the colours hold in both themes and
       the strip matches the Parts table's swatches. In es and pt as well — §2.10's widths were only
       trustworthy because they were checked.
+
+      Specifically worth looking at, because nothing in the suite can:
+      - **The axis at the opening fit.** The run is ~2 years, so the ticks should be quarters and
+        each label should read as a date that stands alone. At the ceiling they become hours.
+      - **Zooming ten times from the fit** should reach one hour across the pane and stop, with
+        zoom-in going dead there and zoom-out dead at the fit. The instant under the middle of the
+        pane should still be under it after each press.
+      - **The changeover stroke** on a bar wide enough to carry it, and its absence on one that is
+        not — the hover card should say it either way.
+      - **The frozen labels against a long station name**, and the hover card at the right-hand edge
+        of the pane and on the bottom row, which are the two places it has to be pushed back inside.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.

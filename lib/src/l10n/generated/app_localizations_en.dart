@@ -1482,4 +1482,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get simRunDeleteBody =>
       'The run and everything it recorded go. The studies it was made from are untouched.';
+
+  @override
+  String get simResultsView => 'Results';
+
+  @override
+  String get simGanttView => 'Gantt';
+
+  @override
+  String get simGanttEmpty =>
+      'This run recorded no steps, so there is nothing to draw.';
+
+  @override
+  String get simGanttGapHelp =>
+      'One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line\'s order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.';
+
+  @override
+  String simGanttOrder(String number) {
+    return 'Order $number';
+  }
+
+  @override
+  String get simGanttCommitted => 'Committed';
+
+  @override
+  String get simGanttWaited => 'Waited before starting';
+
+  @override
+  String get simGanttChangeover => 'A changeover was paid to start it';
+
+  @override
+  String get simGanttZoomIn => 'Zoom in';
+
+  @override
+  String get simGanttZoomOut => 'Zoom out';
+
+  @override
+  String simGanttFloored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bars drawn wider than they are',
+      one: '1 bar drawn wider than it is',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttFlooredHelp =>
+      'At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.';
 }

@@ -50,11 +50,7 @@ void main() {
     readiness: readiness,
   );
 
-  StoredRun storedRun({
-    SimAbortReason? abort,
-    int orders = 4,
-    int onTime = 3,
-  }) {
+  StoredRun storedRun({SimAbortReason? abort, int orders = 4, int onTime = 3}) {
     final result = SimRunResult(
       start: DateTime(2026, 8, 3),
       end: DateTime(2026, 8, 28),
@@ -181,7 +177,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          simRunInputProvider(project.id).overrideWith((ref) async => assembled),
+          simRunInputProvider(
+            project.id,
+          ).overrideWith((ref) async => assembled),
           simulationRunnerProvider(
             project.id,
           ).overrideWith(() => _StubRunner(run)),
@@ -263,7 +261,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: storedRun(),
@@ -288,7 +290,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: storedRun(),
@@ -307,7 +313,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: storedRun(),
@@ -316,13 +326,15 @@ void main() {
     // One part, so the first colour — and the swatch is beside the number
     // rather than in a strip of its own.
     final swatch = tester.widget<Container>(
-      find.descendant(
-        of: find.ancestor(
-          of: find.text('PN1').first,
-          matching: find.byType(Row),
-        ),
-        matching: find.byType(Container),
-      ).first,
+      find
+          .descendant(
+            of: find.ancestor(
+              of: find.text('PN1').first,
+              matching: find.byType(Row),
+            ),
+            matching: find.byType(Container),
+          )
+          .first,
     );
     final decoration = swatch.decoration! as BoxDecoration;
     expect(decoration.color, partPalette.first.fill);
@@ -335,7 +347,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: twoStudyRun(),
@@ -356,7 +372,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: storedRun(),
@@ -399,7 +419,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: StoredRun(
@@ -433,6 +457,48 @@ void main() {
     expect(find.text('Wing 7'), findsNothing);
   });
 
+  testWidgets('the run switches between two views of itself (§8.6)', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
+        ],
+      ),
+      run: storedRun(),
+    );
+
+    // The header, the headline and the abort banner describe *the run*, so the
+    // control switches only what is beneath them.
+    expect(find.text('Results'), findsOne);
+    expect(find.text('Gantt'), findsOne);
+    expect(find.text('Production plan — orders over time'), findsOne);
+
+    await tester.tap(find.text('Gantt'));
+    await tester.pumpAndSettle();
+
+    // The headline stays put across the switch; the tables do not.
+    expect(find.text('On-time delivery: 75%'), findsOne);
+    expect(find.text('Production plan — orders over time'), findsNothing);
+    // This fixture stores no steps, which is exactly what a Gantt has nothing
+    // to draw from.
+    expect(
+      find.text('This run recorded no steps, so there is nothing to draw.'),
+      findsOne,
+    );
+
+    await tester.tap(find.text('Results'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Production plan — orders over time'), findsOne);
+  });
+
   testWidgets('an aborted run says why rather than just reading badly', (
     tester,
   ) async {
@@ -440,7 +506,11 @@ void main() {
       tester,
       assembled: input(
         readiness: const [
-          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
         ],
       ),
       run: storedRun(abort: SimAbortReason.horizonExceeded, onTime: 0),

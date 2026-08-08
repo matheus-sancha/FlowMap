@@ -551,5 +551,19 @@
   "@simDispatchOverrides": { "placeholders": { "count": { "type": "int" } } },
   "simDispatchOverrideRow": "{name}: {rule}",
   "@simDispatchOverrideRow": { "placeholders": { "name": { "type": "String" }, "rule": { "type": "String" } } },
-  "simRunDeleteBody": "The run and everything it recorded go. The studies it was made from are untouched."
+  "simRunDeleteBody": "The run and everything it recorded go. The studies it was made from are untouched.",
+  "simResultsView": "Results",
+  "simGanttView": "Gantt",
+  "simGanttEmpty": "This run recorded no steps, so there is nothing to draw.",
+  "simGanttGapHelp": "One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line's order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.",
+  "simGanttOrder": "Order {number}",
+  "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
+  "simGanttCommitted": "Committed",
+  "simGanttWaited": "Waited before starting",
+  "simGanttChangeover": "A changeover was paid to start it",
+  "simGanttZoomIn": "Zoom in",
+  "simGanttZoomOut": "Zoom out",
+  "simGanttFloored": "{count, plural, =1{1 bar drawn wider than it is} other{{count} bars drawn wider than they are}}",
+  "@simGanttFloored": { "placeholders": { "count": { "type": "int" } } },
+  "simGanttFlooredHelp": "At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes."
 }
