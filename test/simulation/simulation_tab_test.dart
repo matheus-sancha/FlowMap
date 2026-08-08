@@ -1,3 +1,4 @@
+import 'package:flowmap/src/common/part_palette.dart';
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_assembly.dart';
@@ -297,6 +298,34 @@ void main() {
     // nothing the tab has not said.
     expect(find.text('Per part number'), findsOne);
     expect(find.text('Study'), findsNothing);
+  });
+
+  testWidgets('the Parts table carries the legend swatch (§8.6)', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(studyId: 'study-1', name: 'Current state', problems: []),
+        ],
+      ),
+      run: storedRun(),
+    );
+
+    // One part, so the first colour — and the swatch is beside the number
+    // rather than in a strip of its own.
+    final swatch = tester.widget<Container>(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('PN1').first,
+          matching: find.byType(Row),
+        ),
+        matching: find.byType(Container),
+      ).first,
+    );
+    final decoration = swatch.decoration! as BoxDecoration;
+    expect(decoration.color, partPalette.first.fill);
   });
 
   testWidgets('two studies sharing a part number are told apart (§8.1.2)', (

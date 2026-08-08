@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/date_input.dart';
 import '../../../common/dialogs.dart';
+import '../../../common/part_palette.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
@@ -802,7 +803,10 @@ class _PartsTable extends StatelessWidget {
     return Card(
       child: resultTable(
         columns: [
-          ResultColumn(label: l10n.demandPartNumber, width: 150),
+          // Wider than the other tables' part number column by the width of
+          // the swatch and its gap, so the number itself has the room it had
+          // before the legend moved in.
+          ResultColumn(label: l10n.demandPartNumber, width: 172),
           if (showStudy) ResultColumn(label: l10n.study, width: 150),
           ResultColumn(label: l10n.simOrders, width: 100),
           ResultColumn(label: l10n.simDelivered, width: 110),
@@ -821,7 +825,11 @@ class _PartsTable extends StatelessWidget {
             return Text(names[part.studyId] ?? part.studyId);
           }
           return switch (slot) {
-            0 => Text(part.partNumber),
+            // The swatch is the legend (§8.6). It is defined here, beside that
+            // part's orders, on-time and lead-time figures, so the reader
+            // learns the mapping while reading the numbers rather than from a
+            // strip that says nothing else.
+            0 => _PartSwatch(index: index, partNumber: part.partNumber),
             1 => Text('${part.orders}'),
             2 => Text('${part.delivered}'),
             3 => Text('${part.onTime}'),
@@ -830,6 +838,44 @@ class _PartsTable extends StatelessWidget {
           };
         },
       ),
+    );
+  }
+}
+
+/// A part number with the colour it is drawn in (§8.6).
+///
+/// [index] is the row's position in `metrics.parts`, which **is** the part's
+/// position in the run's sorted part list — the thing `partColour` is keyed on.
+/// Taking it from the row rather than searching for the part is what keeps the
+/// swatch here and the bar on the chart the same colour by construction.
+///
+/// Outlined, because eight fills at one luminance sit close to the dark theme's
+/// card and a bare square of colour reads as a smudge against it. The outline
+/// is the surface's own, so it disappears into whatever it is drawn on.
+class _PartSwatch extends StatelessWidget {
+  const _PartSwatch({required this.index, required this.partNumber});
+
+  final int index;
+  final String partNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: partColour(index).fill,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(partNumber),
+      ],
     );
   }
 }

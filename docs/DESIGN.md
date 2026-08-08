@@ -791,6 +791,45 @@ _Rejected: a flat table sorted by start date across studies._ It shows the true 
 plant, which §7.7 exists to model — but it answers "what does the plant do next" when the person
 holding the printout runs one line.
 
+### 8.6 Colour by part
+
+The app's first categorical palette, in `common/part_palette.dart`: eight fixed colours, assigned by
+a part's position in the run's sorted part list, so one run always colours the same way and adding a
+part to the plant never recolours a run that has not changed. Past eight it wraps.
+
+- **One set, the same in both themes.** `app.dart` sets no `themeMode`, so the app follows the
+  system and both surfaces are real. A screenshot taken in light mode therefore names the colours a
+  reader sees in dark, which two tuned sets would have given up.
+- **All eight sit at one luminance (≈0.165), and that is the whole constraint.** A hue clears 3:1
+  against a near-white surface *and* a near-black one only inside a band of roughly 0.13 to 0.28
+  relative luminance. These were solved to the middle of it: every fill clears at least 3.5:1
+  against all four surfaces they sit on — page and card, in each brightness — and white clears
+  4.5:1 on all eight, which is why every `onFill` is white.
+- **So they are separated by hue, not by lightness**, at ≥ 35° around the wheel, and none of them is
+  a low-chroma colour. This is not a preference. At one luminance the only axes left are hue and
+  chroma, and the first draft's brown and olive were desaturated oranges that collapsed onto
+  vermillion and gold.
+- **The palette is a tested artefact, not a list of hexes.** `part_palette_test` asserts the contrast
+  against all four surfaces, the label contrast, the hue spacing and the saturation floor. Writing a
+  hex down says nothing about any of them, and the field is where the failure would otherwise show
+  up. The first draft's collapse was caught by the test rather than by looking.
+
+**The Parts table is the legend.** A swatch in its Part Number cell, taken from the row's own
+position — which *is* the part's position in the sorted list — so the swatch and the bar cannot come
+from two different lookups. It is defined there, beside that part's orders, on-time and lead-time
+figures, so the reader learns the mapping while reading the numbers.
+
+_Rejected: rotating hue off the seed colour._ Never runs out and always in the app's family — but
+adjacent hues stop being distinguishable past six or seven parts, and adding a part recolours a run
+that has not changed.
+
+_Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared station.
+Within one study — the common case — every bar is the same colour.
+
+_Rejected: colour by part number rather than by part._ `DemandParts` is unique on
+`{studyId, partNumber}` (§16.15), so two lines' `PN2` are two parts; merging them would give one
+colour to two routings. §8.1.2 is the other half of this decision.
+
 ---
 
 ## 9. Data entry
