@@ -3,8 +3,10 @@
 Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 528 tests passing, pushed to `origin`
-at `9c5f7bb` on 2026-08-08.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 541 tests passing. **Three commits ahead
+of `origin`** as of 2026-08-08: `f517a74` settles §2.7 by interview, `71020dc` and `1b333ba` are the
+first two of its four. **Commit 3 is next — `gantt_layout.dart` and its pure tests, no UI** — and
+§2.7 below specifies it in full; nothing else needs to be recovered to start it.
 Schema is at **v14** — untouched by §2.10, which is UI only. M4 is code-complete.
 
 **The Release bundle is current as of 2026-08-08, and the real database is at v14.** Rebuilt after
