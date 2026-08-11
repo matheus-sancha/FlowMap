@@ -1,45 +1,61 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-10. `docs/DESIGN.md` remains the source of truth for *why*; this file
+Working state as of 2026-08-11. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **627 tests passing**. Schema is at
-**v15**. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **628 tests passing** (one of them
+`live`-tagged and skipped without a database). Schema is at **v15**. M4 is code-complete.
 
-**§3's round one is done, in five commits, and none of it has been driven by hand.** The lanes
-govern the flow, a station may hold more than one order, the pacemaker gates the release, a study
-may add a start buffer, and every one of those is reachable from the UI. What is owed now is §4 —
-including the two things that only exist as tests: a lane with a capacity, and a station with two
-units.
+**§3's round one is done, in five commits, and about half of it has now been driven by hand.** The
+lanes govern the flow, a station may hold more than one order, the pacemaker gates the release, a
+study may add a start buffer, and every one of those is reachable from the UI. **All five of §4's
+round-one checks have now met the real database**, in Release `0.1.0-2026-08-11` — evidence under
+§4. The round did what it was for: with the gate on the capped lane, the average order lost 16 days
+and `laneFull` was observed for the first time. What is owed is one run to settle the takt
+confounder, and es and pt.
 
 **What is next needs a human at the GUI, not more code.** §4's Gantt item is only partly closed:
 §2.11 came out of a Debug session that changed three things, and the rest of that list — the axis at
 the fit, ten zoom presses, the changeover stroke, both themes, es and pt — has still not been
 looked at, nor has §2.8's file been opened in Excel.
 
-**Célula 11B was re-run on 2026-08-10** — six runs that day, the newest `01e61863`. §2.12's
-prediction held: the 14 days of buffer delay are gone and the wait reappeared at the plant, almost
-all of it at CEU27. The demand has also grown from 33 orders to **60**, so every figure recorded in
-§1 and §2 describes a smaller problem than the one on the screen now. §3.0 has the measurements.
+**Célula 11B was re-run on 2026-08-09** — nine runs that evening, the last `01e61863` at 18:59.
+§2.12's prediction held: the 14 days of buffer delay are gone and the wait reappeared at the plant,
+almost all of it at CEU27. The demand has also grown from 33 orders to **60**, so every figure
+recorded in §1 and §2 describes a smaller problem than the one on the screen now. §3.0 has the
+measurements. (The header said 2026-08-10 until 2026-08-11; the runs are dated 08-09 in the file.)
 
 **§3 is the plan that came out of that session**, settled by interview. Round one has landed and
-**moved the dispatch rule off the station onto the inventory node, so those six runs are stale
-again** — re-run before reading any figure against anything. Rounds two to four are untouched.
+moved the dispatch rule off the station onto the inventory node, which invalidated those nine runs
+— and they have since been superseded by four v15 runs. **Read figures against `2f4c8db4`**
+(2026-08-11, capacity 2 on `FIFO CEU27`, pacemaker CEU27, 30-day buffer — the configuration the
+round was arguing for), with `676fb0e3` as the capped-but-ungated comparison and `5bf76ac1` as the
+v15 baseline with nothing set. Rounds two to four are untouched.
 
-**The Release bundle is stale**, and now by a schema version. A rebuild under a fresh label is owed
-with the next verification pass, and the open should read `db.open schema 15 from 14` — the first
-time in this round that a migration will have run against the real database. §16.16 says what it
-does; the carry-over of the four stored dispatch rules onto the lanes is the part to check by eye.
+**The v14 → v15 migration has run against the real database** — in the Debug build on 2026-08-10,
+between the `flowmap.sqlite.backup-v14-20260810-222300` beside it and the first v15 run at 22:25:49.
+Verified on a copy on 2026-08-11 by `test/data/live_v15_check_test.dart`, which is run by hand with
+`--tags live` and `FLOWMAP_LIVE_DB` pointing at a **copy**: `user_version` 15, `integrity_check` ok,
+both superseded tables gone, 60 orders and 32 runs intact.
 
-**The last Release bundle was built 2026-08-08, and the real database is at v14.** Rebuilt after
-§2.10's four commits under label `0.1.0-2026-08-08`, and *launched* rather than merely inspected —
-the session header at 09:33:16 reads that label rather than `dev`, and `db.open schema 14 from 14`,
-which is a no-op open and so the proof that nothing migrated. The file itself was read beforehand:
-`user_version` 14, all 29 declared tables, `integrity_check` ok. This paragraph exists because the
-2026-08-05 rebuild went unrecorded and was nearly done a third time; keep it truthful after every
-drop. `flowmap.exe`'s own Aug 3 timestamp still means nothing: it is the C++ host shell from
-`windows/runner/`, which has not changed, so CMake rightly declines to relink it — only
-`Release/data/app.so` moves.
+**The carry-over landed on two lanes, not the three §3.1 predicted**, and the difference is
+instructive rather than a defect. §3.1 said CEU26, CLAD04 and CLAD Pool would migrate onto the lane
+in front of each target. In the file, `FIFO CLAD09` (which feeds the CLAD Pool step) and
+`FIFO CEU26` carry `fifo`; **CLAD04's rule went nowhere, because CLAD04 is a pool member and never a
+step target of its own**, so it has no lane in front of it — the same reason CLAD09's was dropped.
+All four stored rules were `fifo`, so no behaviour changed either way.
+
+**The Release bundle was rebuilt 2026-08-11 under label `0.1.0-2026-08-11`**, after round one, and
+*launched* rather than merely inspected: the session header at 20:17:56 reads that label rather than
+`dev`, and `db.open schema 15 from 15` — a no-op open, and so the proof that Release found the
+database already migrated and did not touch it. Round one's five field checks were then driven in
+that build. A v15 backup was taken first, as `flowmap.sqlite.backup-v15-20260811-201650`.
+
+This paragraph exists because the 2026-08-05 rebuild went unrecorded and was nearly done a third
+time; keep it truthful after every drop. **`flowmap.exe`'s own Aug 3 timestamp still means
+nothing** — it is the C++ host shell from `windows/runner/`, which has not changed, so CMake rightly
+declines to relink it and only `Release/data/app.so` moves. That held again on 2026-08-11: `app.so`
+is stamped 20:17 and the exe beside it still reads Aug 3.
 
 ---
 
@@ -1297,22 +1313,53 @@ only.
       dates read as dates, that Order Start shows its time, and that sorting the Float column puts
       the late orders where a planner expects. In es and pt as well — a locale decides how Excel
       itself formats a date cell.
-- [ ] **Round one, against célula 11B.** None of it has been driven by hand, and two things exist
-      only as tests: a lane with a capacity, and a station with two units. Specifically:
-      - **The v14 → v15 migration on the real database**, which is the first migration this round
-        runs in the field. Four stored dispatch rules should arrive on the lanes feeding CEU26,
-        CLAD04 and CLAD Pool; CLAD09's is in no flow and should be gone. Check by eye before
-        trusting anything else.
-      - **Give `FIFO CEU27` a capacity** — it is the lane in front of the constraint, holding 8
-        orders at once today — and re-run. Expect blocked time to appear on TTAT and the stations
-        behind it, and the WIP to fall. This is the whole point of the round.
-      - **Set TTAT to two units** and check the Summary halves its occupation while the Queue table
-        keeps reporting one station.
-      - **Name CEU27 the pacemaker** and check empty slots start reading `Lane full` rather than the
-        line simply piling up.
-      - **A start buffer of ten days** should move every date in the production plan ten days
-        earlier and leave the lead times alone.
-      - In es and pt as well — the four new dialogs carry the longest help text in the app.
+- [ ] **Round one, against célula 11B.** Half driven, on 2026-08-10 in Debug and confirmed off the
+      stored runs on 2026-08-11. What is left is the pacemaker, the buffer, and es and pt.
+      - [x] ~~**The v14 → v15 migration on the real database.**~~ Ran 2026-08-10; verified on a copy
+        2026-08-11. Two rules carried, not the three predicted — the header says why, and it is a
+        consequence of §3.1's own rule rather than a defect.
+      - [x] ~~**Give `FIFO CEU27` a capacity** and re-run.~~ Set to **2**, and run twice — `7f541565`
+        and `676fb0e3`, against `5bf76ac1` as the uncapped v15 baseline. **Blocked time appeared
+        exactly where it should and nowhere else: TTAT 216.4 d, every other station 0.0 d.** TTAT is
+        the station immediately behind the capped lane, and nothing propagated past it because
+        `FIFO TTAT` above it is uncapped. **Utilization stayed at 20 %**, which is §3.1's requirement
+        observed rather than asserted — blocked seconds are out of `busySeconds`, so a jammed station
+        does not read as a productive one.
+      - [x] ~~**Name CEU27 the pacemaker.**~~ Done 2026-08-11 in Release `0.1.0-2026-08-11`, run
+        `2f4c8db4`, together with a 30-day buffer. **`laneFull = 7`** — the first time
+        `EmptySlotReason.laneFull` has been observed outside a test, and §18.5's *no material* versus
+        *nowhere to put it* is now a distinction the app has actually drawn. `awaitingMaterial` went
+        6 → 8.
+      - [x] ~~**A start buffer.**~~ 30 days rather than the ten this list guessed, and it behaved as
+        predicted: it moves the dates and leaves the lead times alone, because a uniform shift of
+        every release cannot change `delivered − released`.
+      - [x] ~~**Set TTAT to two units.**~~ Set, and it is in the file. Still worth **one look at the
+        Summary** — that its occupation halves while the Queue table keeps reporting one station is
+        the part no stored run can show.
+      - [x] ~~**And the WIP fell, once the gate was on the capped lane.**~~ Against `676fb0e3`:
+
+        | | `676fb0e3` capped only | `2f4c8db4` capped + gated |
+        |---|---|---|
+        | avg lead time | 47.2 d | **31.1 d** |
+        | TTAT blocked | 216.4 d | **4.6 d** |
+        | empty slots | 6 material | 8 material + **7 lane-full** |
+
+        This is what the round was for, and it corrects an assumption this list was built on: **the
+        capacity does nothing to WIP until the gate is on the capped lane.** Capping alone moved
+        the queue out of the lane and onto TTAT (216 d of blocking) without removing it, because
+        release runs on the takt and only the pace setter's lane gates it (§3.1). Gating it stopped
+        the line being stuffed: blocking nearly vanished and 16 days came out of the average order.
+      - [ ] **One confounder, worth a run to settle.** Naming CEU27 the pacemaker also changed the
+        **takt, 2.42 d → 3.14 d**, because §7.2 measures it on the pace setter's productive day and
+        CEU27's calendar is not CLAD08's. Releases are therefore 30 % further apart in `2f4c8db4`,
+        and that alone relieves congestion — so the 16-day drop is **not yet attributable to the
+        lane gate alone**. A run with the pacemaker on CEU27 and the capacity taken off
+        `FIFO CEU27` would isolate it: same takt, no gate. Worth doing before §3.4 draws lane rows
+        that will be read as showing the gate working.
+      - [ ] In es and pt as well — the four new dialogs carry the longest help text in the app.
+- [ ] **Layout polish, from the 2026-08-11 session.** Noted at the GUI as wanting improvement and
+      explicitly deferred; **the specifics were not captured**, so this is a placeholder rather than
+      an item. Write down what grated before it is worked on, or it will be guessed at.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
