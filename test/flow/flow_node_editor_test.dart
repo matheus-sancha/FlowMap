@@ -1,4 +1,3 @@
-import 'package:flowmap/src/common/unit_labels.dart';
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/flow/application/flow_providers.dart';
@@ -118,7 +117,6 @@ void main() {
           ref,
           study: study,
           position: 0,
-          dispatchByTarget: const {},
         ),
       );
 
@@ -275,7 +273,6 @@ void main() {
           ref,
           study: study,
           step: step,
-          dispatchByTarget: const {},
         ),
         overrides: [
           flowTargetsProvider('study-1').overrideWith(
@@ -300,84 +297,6 @@ void main() {
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
       expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-    });
-
-    testWidgets('shows the station\'s own queue rule, not the step\'s', (
-      tester,
-    ) async {
-      final step = FlowStepView(
-        FlowNode(
-          id: 'node-1',
-          studyId: 'study-1',
-          position: 0,
-          kind: FlowNodeKind.step,
-          // Bound, because the rule is keyed by what the step targets.
-          workcenterId: 'wc-1',
-          changeoverSeconds: 1800,
-          inventoryUsesWorkingTime: false,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        title: 'CLAD04',
-        typeName: 'Cladding',
-        poolMemberCount: null,
-        dataSource: FlowDataSource.flowEquivalent,
-        processTime: const Duration(hours: 68),
-        equivalentProcessTime: const Duration(hours: 68),
-        changeover: const Duration(minutes: 30),
-        openPerWorkingDay: const Duration(hours: 22, minutes: 40),
-        productivePerWorkingDay: const Duration(hours: 16, minutes: 46),
-        openInPeriod: const Duration(hours: 476),
-        capacityInPeriod: const Duration(hours: 352),
-        operatorsAllocated: 3,
-        operatorsPerShift: const [1, 1, 1],
-        availability: 0.74,
-        rework: 0.037,
-        problems: const [],
-      );
-
-      await pumpHost(
-        tester,
-        (context, ref) => showStepEditor(
-          context,
-          ref,
-          study: study,
-          step: step,
-          // The rule is stored against the target, not the node — so the
-          // dialog has to find it by the station the step points at.
-          dispatchByTarget: const {'wc-1': DispatchRule.earliestDueDate},
-        ),
-        overrides: [
-          flowTargetsProvider('study-1').overrideWith(
-            (ref) async => (
-              workcenters: <Workcenter>[
-                Workcenter(
-                  id: 'wc-1',
-                  plantId: 'plant-1',
-                  parallelCapacity: 1,
-                  name: 'CLAD04',
-                  createdAt: now,
-                  updatedAt: now,
-                ),
-              ],
-              pools: <WorkcenterPool>[],
-            ),
-          ),
-        ],
-      );
-
-      expect(tester.takeException(), isNull);
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      expect(find.text(l10n.stepDispatch), findsOneWidget);
-      // Notes were stored and carried through the repository from M2 and
-      // editable from nothing (§17.5). The field is the whole fix.
-      expect(find.text(l10n.flowNodeNotes), findsOneWidget);
-      // Selected, not merely offered: a control that opened on the default
-      // would silently reset the station on the next save.
-      expect(
-        find.text(dispatchRuleLabel(l10n, DispatchRule.earliestDueDate)),
-        findsOneWidget,
-      );
     });
   });
 }

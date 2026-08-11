@@ -49,13 +49,11 @@ const _seededAtKey = 'reference_data.seeded_at';
     DemandParts,
     PartProcessTimes,
     DemandOrders,
-    WorkcenterDispatch,
     SimulationRuns,
     SimulationRunStudies,
     SimulationRunOrders,
     SimulationRunSteps,
     SimulationRunEmptySlots,
-    SimulationRunDispatch,
     SimulationRunWorkcenters,
     SimulationRunLanes,
     SimulationRunLaneVisits,
@@ -302,7 +300,6 @@ class AppDatabase extends _$AppDatabase {
         // (§16.11), and a step that cannot rebuild a table cannot leave one
         // half-rebuilt.
         await _ensureColumn(m, demandOrders, demandOrders.batchNumber);
-        await _ensureTable(m, workcenterDispatch);
 
         // Deliberately not backfilled from the demand: a run stored before now
         // has no answer, and a blank saying so is true (§7.10).
@@ -326,7 +323,6 @@ class AppDatabase extends _$AppDatabase {
           simulationRunOrders,
           simulationRunOrders.materialDate,
         );
-        await _ensureTable(m, simulationRunDispatch);
       }
 
       if (from < 13) {
@@ -411,13 +407,12 @@ class AppDatabase extends _$AppDatabase {
         // may run more than one order at once (§3.1), and a study may add a
         // margin ahead of its derived cold start (§7.8).
         //
-        // **Purely additive**, which is deliberate on a database that has
-        // already survived a half-finished upgrade (§16.11): six nullable or
-        // defaulted columns and two new tables, so no table is rebuilt and no
-        // step here can leave one half-copied. `workcenter_dispatch` is read
-        // below and *not* dropped — the code that still reads it goes in the
-        // commit that teaches the engine to read lanes instead, and dropping a
-        // table before its readers is how an upgrade strands a build.
+        // **No table is rebuilt**, which is deliberate on a database that has
+        // already survived a half-finished upgrade (§16.11): nullable or
+        // defaulted columns and two new tables, so no step here can leave one
+        // half-copied. The two tables that go are dropped outright at the end,
+        // after their values have been carried across and after the code that
+        // read them has gone.
         await _ensureColumn(m, flowNodes, flowNodes.laneRule);
         await _ensureColumn(m, flowNodes, flowNodes.laneCapacity);
         await _ensureColumn(m, studies, studies.startBufferDays);
@@ -428,6 +423,11 @@ class AppDatabase extends _$AppDatabase {
           m,
           simulationRunStudies,
           simulationRunStudies.startBufferDays,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.laneNodeId,
         );
         await _ensureColumn(
           m,
@@ -478,6 +478,13 @@ class AppDatabase extends _$AppDatabase {
             WHERE flow_nodes.kind = 'inventory'
           ''');
         }
+
+        // Dropped last, and only once nothing reads them. `workcenter_dispatch`
+        // has been carried onto the lanes above; `simulation_run_dispatch` is
+        // superseded by `simulation_run_lanes`, which records the same fact
+        // about the queue that actually held the orders.
+        await customStatement('DROP TABLE IF EXISTS workcenter_dispatch');
+        await customStatement('DROP TABLE IF EXISTS simulation_run_dispatch');
       }
 
       // Reference-data seeding runs outside every version guard, on every

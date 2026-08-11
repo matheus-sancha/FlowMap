@@ -173,6 +173,15 @@ class SimulationRunSteps extends Table {
   BoolColumn get changeoverIncurred =>
       boolean().withDefault(const Constant(false))();
 
+  /// The lane the order waited in before this step, or null when the step had
+  /// none and it queued at the station itself (§5.5).
+  ///
+  /// With it, [queueStart] and [processStart] become the two ends of a stay in
+  /// a named lane — which is what makes `simulation_run_lane_visits` derivable
+  /// rather than a second record of the same event. Null on every run made
+  /// before lanes governed anything.
+  TextColumn get laneNodeId => text().nullable()();
+
   /// How long the station stood holding this order after finishing it, because
   /// the lane ahead was full (§5.5).
   ///
@@ -216,25 +225,6 @@ class SimulationRunEmptySlots extends Table {
 /// changed two writes two rows, and a run that changed nothing writes none.
 /// Without this, [SimulationRuns.dispatch] would report `FIFO` for a run in
 /// which three stations dispatched by due date — and M5's comparison could not
-/// tell you that the dispatch is what differed between two runs.
-class SimulationRunDispatch extends Table {
-  TextColumn get runId =>
-      text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
-
-  /// The workcenter or pool, whether or not it still exists.
-  TextColumn get targetId => text()();
-
-  /// `CLAD04` — copied in, as everything else in this file is, so an override
-  /// still reads as a station after the workcenter is renamed or removed.
-  TextColumn get name => text()();
-
-  /// The rule that station actually used, by name. Plain text and parsed on
-  /// read, for the reason [SimulationRuns.dispatch] is.
-  TextColumn get rule => text()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {runId, targetId};
-}
 
 /// What one station did across the run — utilization's two halves (§8.3).
 ///

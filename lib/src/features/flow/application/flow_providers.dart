@@ -7,7 +7,6 @@ import '../../demand/application/demand_providers.dart';
 import '../../projects/application/projects_providers.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../schedules/application/schedules_providers.dart';
-import '../../simulation/application/simulation_providers.dart';
 import '../../studies/application/studies_providers.dart';
 import 'flow_view.dart';
 
@@ -200,11 +199,6 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
     granularity: period.granularity,
     dataSource: dataSource,
     demand: demand,
-    // What the arrows into each station are drawn from (§5.2). Watched, so
-    // changing a station's queue rule in the step editor redraws the link into
-    // it without the map being reopened.
-    dispatchByTarget:
-        ref.watch(workcenterDispatchProvider(study.projectId)).value ?? const {},
   );
 });
 

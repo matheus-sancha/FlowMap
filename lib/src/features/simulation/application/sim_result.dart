@@ -17,6 +17,8 @@ class SimOrderStep {
     required this.processStart,
     required this.processEnd,
     required this.changeoverIncurred,
+    this.laneNodeId,
+    this.blocked = Duration.zero,
   });
 
   final String studyId;
@@ -37,11 +39,32 @@ class SimOrderStep {
   /// (§7.6).
   final bool changeoverIncurred;
 
+  /// The lane the order waited in before this step, or null when the step has
+  /// none and the order queued at the station itself (§5.5).
+  ///
+  /// [queueStart] is when it entered that lane and [processStart] is when it was
+  /// pulled out, so a lane's occupancy over time is readable off these rows
+  /// without the engine keeping a second record of the same fact.
+  final String? laneNodeId;
+
+  /// How long the workcenter stood holding this order after finishing it,
+  /// because the lane ahead was full (§5.5).
+  ///
+  /// Blocking is **after service**: a station cannot know whether there will be
+  /// room until it has something to put down, so it finishes and then waits.
+  /// [processEnd] is when the work stopped; `processEnd + blocked` is when the
+  /// station was free again.
+  final Duration blocked;
+
   /// Time spent queueing — the difference between this run and the theoretical
   /// lead time, which excludes exactly this (§7.9).
   Duration get wait => processStart.difference(queueStart);
 
   /// Wall-clock time the workcenter was committed, closed hours included.
+  ///
+  /// Work only. The blocked tail is [blocked] and is deliberately not folded in
+  /// here: a jammed station is occupied and producing nothing, and adding the
+  /// two would make utilization report the jam as output.
   Duration get occupied => processEnd.difference(processStart);
 }
 
@@ -112,6 +135,34 @@ enum EmptySlotReason {
 
   /// The flow is already at its CONWIP cap (§7.3).
   wipCap,
+
+  /// The lane the release would put the order into is full (§5.5).
+  ///
+  /// Distinct from [wipCap] on purpose: that one is a policy the user set for
+  /// the whole flow, this one is the floor running out at one place. Counting
+  /// them together would have made §18.5's empty-slot metric say "the line was
+  /// held back" without ever saying by what.
+  laneFull,
+}
+
+/// An order still standing in a lane when the run ended (§5.5).
+///
+/// Every other stay in a lane is readable off [SimOrderStep] — `queueStart` is
+/// when the order entered and `processStart` is when it was pulled out — but an
+/// order the guard caught mid-wait never produces a step, and dropping it would
+/// draw the lane emptier than it was at exactly the moment a jam is the finding.
+class SimOpenLaneVisit {
+  const SimOpenLaneVisit({
+    required this.studyId,
+    required this.orderId,
+    required this.laneNodeId,
+    required this.enteredAt,
+  });
+
+  final String studyId;
+  final String orderId;
+  final String laneNodeId;
+  final DateTime enteredAt;
 }
 
 /// Why a run stopped early, if it did.
@@ -136,6 +187,8 @@ class SimRunResult {
     required this.emptySlots,
     required this.busyByWorkcenter,
     required this.openByWorkcenter,
+    this.blockedByWorkcenter = const {},
+    this.openLaneVisits = const [],
     this.abort,
   });
 
@@ -159,6 +212,18 @@ class SimRunResult {
   /// utilization is measured against, and the thing that makes it different
   /// from occupation.
   final Map<String, Duration> openByWorkcenter;
+
+  /// Time each workcenter spent holding a finished order it could not put down,
+  /// because the lane ahead was full (§5.5).
+  ///
+  /// **Not part of [busyByWorkcenter].** A blocked station is occupied and
+  /// producing nothing; folding the two would let a jam read as output, and on
+  /// a line whose constraint already sits at 86 % utilization that is not a
+  /// rounding error. Empty on every run made before lanes had capacity.
+  final Map<String, Duration> blockedByWorkcenter;
+
+  /// Orders still standing in a lane when the run ended.
+  final List<SimOpenLaneVisit> openLaneVisits;
 
   final SimAbortReason? abort;
 

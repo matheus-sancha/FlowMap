@@ -100,6 +100,8 @@ void main() {
     int? quantity,
     int? seconds,
     bool usesWorkingTime = false,
+    DispatchRule? laneRule,
+    int? laneCapacity,
   }) => FlowNode(
     id: 'node-$position',
     studyId: 'study-1',
@@ -110,6 +112,8 @@ void main() {
     inventoryQuantity: quantity,
     inventorySeconds: seconds,
     inventoryUsesWorkingTime: usesWorkingTime,
+    laneRule: laneRule,
+    laneCapacity: laneCapacity,
     createdAt: now,
     updatedAt: now,
   );
@@ -157,7 +161,6 @@ void main() {
     TaktScheduleSpec? takt,
     Map<String, WorkcenterPool> pools = const {},
     Map<String, List<String>> members = const {},
-    Map<String, DispatchRule> dispatch = const {},
     int? wipCap,
   }) => buildFlowView(
     study: wipCap == null ? study() : study().copyWith(wipCap: Value(wipCap)),
@@ -167,7 +170,6 @@ void main() {
     poolMembers: members,
     taktSchedule: takt ?? taktOf(3, TaktUnit.days),
     asOf: asOf,
-    dispatchByTarget: dispatch,
   );
 
   group('the flow equivalent', () {
@@ -1120,79 +1122,70 @@ void main() {
   });
 
   group('what an arrow is (§5.2)', () {
-    List<FlowConnectionKind> kinds({
-      Map<String, DispatchRule> dispatch = const {},
-      int? wipCap,
-    }) => layoutFlow(
-      build(
-        nodes: [
-          step(0, workcenterId: 'CLAD04'),
-          step(1, workcenterId: 'CEU27'),
-        ],
-        contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
-        dispatch: dispatch,
-        wipCap: wipCap,
-      ),
-    ).connections.map((c) => c.kind).toList();
+    /// Two stations with a lane between them, so the link the rule governs is
+    /// a real one. The rule lives on the lane now (§5.5), which is also the
+    /// node a reader can see it on.
+    List<FlowConnectionKind> kinds({DispatchRule? laneRule, int? wipCap}) =>
+        layoutFlow(
+          build(
+            nodes: [
+              step(0, workcenterId: 'CLAD04'),
+              inventory(
+                1,
+                mode: InventoryMode.quantity,
+                quantity: 0,
+                laneRule: laneRule,
+              ),
+              step(2, workcenterId: 'CEU27'),
+            ],
+            contexts: {
+              'CLAD04': context('CLAD04'),
+              'CEU27': context('CEU27'),
+            },
+            wipCap: wipCap,
+          ),
+        ).connections.map((c) => c.kind).toList();
 
     test('an uncapped flow is push all the way through', () {
       // Which is honest rather than lazy: with no supermarkets in the model
       // (§5.5) and no WIP cap, nothing here is pulled.
-      expect(kinds(), [
-        FlowConnectionKind.push,
-        FlowConnectionKind.push,
-        FlowConnectionKind.push,
-      ]);
+      expect(kinds(), everyElement(FlowConnectionKind.push));
     });
 
     test('a CONWIP cap pulls the whole spine', () {
       // A release requiring a completion (§7.3) is the only real pull lever
       // FlowMap has, and it is study-wide — so it reaches every link.
-      expect(kinds(wipCap: 4), [
-        FlowConnectionKind.pull,
-        FlowConnectionKind.pull,
-        FlowConnectionKind.pull,
-      ]);
+      expect(kinds(wipCap: 4), everyElement(FlowConnectionKind.pull));
     });
 
-    test('a station set to FIFO is fed by a lane', () {
-      expect(kinds(dispatch: const {'CEU27': DispatchRule.fifo}), [
-        // Into CLAD04, which has no rule of its own.
+    test('a lane set to FIFO draws itself as one', () {
+      // Supplier -> CLAD04 -> lane -> CEU27 -> customer. Only the link out of
+      // the lane into the station it feeds is a lane, because that is the one
+      // the rule describes.
+      expect(kinds(laneRule: DispatchRule.fifo), [
         FlowConnectionKind.push,
-        // Into CEU27, which does.
+        FlowConnectionKind.push,
         FlowConnectionKind.fifoLane,
-        // Into the customer, which is not a station.
         FlowConnectionKind.push,
       ]);
     });
 
-    test('a station following the run draws no lane', () {
+    test('a lane following the run draws no lane', () {
       // The whole point of storing only overrides (§7.4): under the default
-      // rule every station in the plant is FIFO, so "is it FIFO" would be true
+      // rule every queue in the plant is FIFO, so "is it FIFO" would be true
       // everywhere and a lane on every link would say nothing.
-      expect(kinds(dispatch: const {}), isNot(contains(FlowConnectionKind.fifoLane)));
+      expect(kinds(), isNot(contains(FlowConnectionKind.fifoLane)));
     });
 
     test('a lane beats the cap on the link it marks', () {
       // The cap describes the flow; the lane describes one queue in it. Where
       // both apply the more specific one is drawn, and the rest stay pull.
-      expect(
-        kinds(wipCap: 4, dispatch: const {'CEU27': DispatchRule.fifo}),
-        [
-          FlowConnectionKind.pull,
-          FlowConnectionKind.fifoLane,
-          FlowConnectionKind.pull,
-        ],
-      );
-    });
-
-    test('a station set to EDD is not a lane', () {
-      // Only FIFO is a sequenced lane. A queue re-ordered by due date is not
-      // first-in-first-out, whatever else it is.
-      expect(
-        kinds(dispatch: const {'CEU27': DispatchRule.earliestDueDate}),
-        isNot(contains(FlowConnectionKind.fifoLane)),
-      );
+      expect(kinds(wipCap: 4, laneRule: DispatchRule.fifo), [
+        FlowConnectionKind.pull,
+        FlowConnectionKind.pull,
+        FlowConnectionKind.fifoLane,
+        FlowConnectionKind.pull,
+      ]);
     });
   });
 

@@ -511,21 +511,6 @@ class DemandOrders extends Table {
 /// **A missing row means "use the run's rule."** Storing the default instead
 /// would make a station that was never touched indistinguishable from one
 /// deliberately set back to FIFO, and would freeze the run's own setting out of
-/// every station the moment the project was created.
-class WorkcenterDispatch extends Table {
-  TextColumn get projectId =>
-      text().references(Projects, #id, onDelete: KeyAction.cascade)();
-
-  /// The workcenter or pool whose queue this orders.
-  TextColumn get targetId => text()();
-
-  TextColumn get rule => textEnum<DispatchRule>()();
-
-  DateTimeColumn get updatedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {projectId, targetId};
-}
 
 /// The decorative layer (DESIGN.md §5.2): standard VSM symbols that document
 /// intent but take part in no calculation, freely placed at stored coordinates.

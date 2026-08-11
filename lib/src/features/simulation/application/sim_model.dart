@@ -27,7 +27,6 @@ class SimWorkcenter {
     required this.name,
     required this.calendar,
     required this.schedule,
-    this.dispatch,
     this.units = 1,
   });
 
@@ -57,17 +56,6 @@ class SimWorkcenter {
   /// where the staffing changes (§4.2).
   final WorkcenterScheduleSpec schedule;
 
-  /// This station's own queue discipline, or null to follow the run's (§7.4).
-  ///
-  /// **Resolved onto the server, not left on the step's target.** The rule is
-  /// stored against a workcenter *or a pool* (§3.1), but the engine picks when
-  /// a single machine frees, and one machine can be a candidate for two steps —
-  /// its own and a pool's. If the rule travelled with the step, two orders
-  /// waiting at one machine could be governed by different comparators, and
-  /// "which runs first" would have no answer. The assembly flattens pool
-  /// membership down to the member before the engine ever sees it, so each
-  /// server has exactly one rule and the ordering stays a total one.
-  final DispatchRule? dispatch;
 }
 
 /// A node of a study's flow, as the engine walks it.
@@ -107,25 +95,51 @@ class SimStep extends SimNode {
   bool get isPool => candidates.length > 1;
 }
 
-/// An inventory buffer (§5.5).
+/// An inventory lane (§5.5).
 ///
-/// **It carries no time.** A buffer's figure — N pieces of stock, or a wait in
-/// days — is an *observation* of a current state, and what a simulation is for
-/// is working out how long an order actually waits. Imposing the observed
-/// figure as a delay makes the run partly a restatement of what was typed into
-/// it, and does it twice over: the order serves the fixed wait and *then*
-/// queues at the station anyway.
+/// **It still carries no time**, and that half of §2.12 stands: a buffer's
+/// stored figure — N pieces of stock, or a wait in days — is an *observation* of
+/// a current state, and imposing it as a delay made the run a restatement of
+/// what was typed into it, charged twice over. What the lane carries instead is
+/// **governance**: who goes next, and how many fit.
 ///
-/// So an order passes through instantly and waits, if it waits, in the queue at
-/// the next station — where the engine measures it. The figure keeps its two
-/// real jobs, neither of which is here: the lead-time ladder on the map (§5.5),
-/// which is read off the flow rather than off a run, and the days-of-stock a
-/// current-state VSM exists to state.
-///
-/// Kept as a node rather than dropped from the model, so the engine's view of a
-/// flow stays a faithful image of the map's — same nodes, same positions.
+/// So an order does not serve a fixed wait here; it waits exactly as long as the
+/// station ahead makes it wait, in this lane, in the order this lane's [rule]
+/// says — and when the lane is full, the station behind it cannot unload and
+/// stops. That is what the names on a real map mean. `FIFO CEU27` is not a
+/// three-day delay, it is a channel with a discipline and a floor space.
 class SimBuffer extends SimNode {
-  const SimBuffer({required super.id, required super.position});
+  const SimBuffer({
+    required super.id,
+    required super.position,
+    this.name,
+    this.rule,
+    this.capacity,
+  });
+
+  /// `FIFO CEU27` — the node's label. A passenger the engine never reads, like
+  /// [SimPart.partNumber]: it rides along so the run can copy it in at save
+  /// time, which is the only moment it still describes the flow the run was
+  /// made from (§7.10).
+  final String? name;
+
+  /// How the station ahead chooses from what is standing here, or null to
+  /// follow the run's rule (§7.4).
+  ///
+  /// **The rule lives on the lane, not on the station**, which reverses §7.4 as
+  /// first built. On a physical lane you cannot take from the back, so a
+  /// discipline is not a property of the channel — it is how the next station
+  /// chooses, and that is something the map can draw. §5.1's spine keeps the
+  /// ordering total: a step has at most one lane in front of it, so a queue has
+  /// exactly one comparator even when its station also belongs to a pool.
+  final DispatchRule? rule;
+
+  /// How many orders fit, or null for unlimited.
+  ///
+  /// In orders, because the order is the unit of flow here; a piece-level limit
+  /// would need a rule for a batch that half fits, which the spine cannot
+  /// express. Null is what every lane was before capacity existed.
+  final int? capacity;
 }
 
 /// One part's per-piece process times, keyed by step target (§9).

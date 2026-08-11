@@ -173,6 +173,13 @@ class SimulationRunsRepository {
                   (result.busyByWorkcenter[entry.key] ?? Duration.zero)
                       .inSeconds,
               openSeconds: entry.value.inSeconds,
+              // Kept out of `busySeconds` on purpose (§8.3): a station holding
+              // a finished order it cannot put down is occupied and producing
+              // nothing, and folding the two would report the jam as output.
+              blockedSeconds: Value(
+                (result.blockedByWorkcenter[entry.key] ?? Duration.zero)
+                    .inSeconds,
+              ),
               // Copied in like the name, and for the same reason: a station
               // re-rated from one unit to two afterwards would otherwise
               // silently change what this run's utilization meant (§3.1).
@@ -180,22 +187,54 @@ class SimulationRunsRepository {
             ),
         ]);
 
-        // Only the stations that did **not** follow the run's rule (§7.4).
+        // Every lane in the flow, whether or not anything queued in it (§5.5).
         //
-        // Recorded per workcenter rather than per stored target, because a
-        // workcenter is what actually dispatched: a pool's rule reaches the
-        // run as each member's own, and the row that explains why CLAD02 ran
-        // what it ran should name CLAD02. It also keeps the grain the same as
-        // `simulation_run_workcenters` right above it.
-        b.insertAll(_db.simulationRunDispatch, [
-          for (final entry in workcenters.entries)
-            if (entry.value.dispatch != null)
-              SimulationRunDispatchCompanion.insert(
+        // All of it copied in: the name a reader recognises, the discipline
+        // that decided the order, the capacity that decided the blocking, and
+        // the position §8.6 needs to draw a lane row between the two station
+        // rows it connects. §7.10 joins to nothing, and the flow beneath a run
+        // may be edited the moment after it is stored.
+        b.insertAll(_db.simulationRunLanes, [
+          for (final study in studies)
+            for (final node in study.nodes)
+              if (node is SimBuffer)
+                SimulationRunLanesCompanion.insert(
+                  runId: runId,
+                  studyId: study.id,
+                  nodeId: node.id,
+                  name: Value(node.name),
+                  position: node.position,
+                  rule: Value(node.rule?.name),
+                  capacity: Value(node.capacity),
+                ),
+        ]);
+
+        // One stay per order per lane, read off the steps: an order enters a
+        // lane when it starts queueing and leaves it when the station pulls it,
+        // which `queueStart` and `processStart` already record. Deriving rather
+        // than having the engine keep a second list of the same fact — two
+        // records of one event are two things to keep in step.
+        b.insertAll(_db.simulationRunLaneVisits, [
+          for (final step in result.steps)
+            if (step.laneNodeId case final laneId?)
+              SimulationRunLaneVisitsCompanion.insert(
                 runId: runId,
-                targetId: entry.key,
-                name: entry.value.name,
-                rule: entry.value.dispatch!.name,
+                studyId: step.studyId,
+                orderId: step.orderId,
+                nodeId: laneId,
+                enteredAt: step.queueStart,
+                leftAt: Value(step.processStart),
               ),
+          // And whatever was still standing in a lane when the run stopped,
+          // which produced no step at all.
+          for (final open in result.openLaneVisits)
+            SimulationRunLaneVisitsCompanion.insert(
+              runId: runId,
+              studyId: open.studyId,
+              orderId: open.orderId,
+              nodeId: open.laneNodeId,
+              enteredAt: open.enteredAt,
+            ),
         ]);
       });
     });
@@ -230,11 +269,22 @@ class SimulationRunsRepository {
       _db.simulationRunWorkcenters,
     )..where((w) => w.runId.equals(runId))).get();
     final byOrderId = {for (final row in orders) row.orderId: row};
-    final overrides = await (_db.select(
-      _db.simulationRunDispatch,
-    )..where((d) => d.runId.equals(runId))).get()
-      // By name, so the list reads as a list of stations rather than of uuids.
-      ..sort((a, b) => a.name.compareTo(b.name));
+    final lanes = await (_db.select(
+      _db.simulationRunLanes,
+    )..where((l) => l.runId.equals(runId))).get();
+
+    // The lanes that did **not** follow the run's rule (§7.4). The rule lives
+    // on the lane now, so the row that explains why an order ran when it did
+    // names the queue it was standing in rather than the machine that took it.
+    final overrides = lanes.where((l) => l.rule != null).toList()
+      // By name, so the list reads as a list of lanes rather than of uuids. An
+      // unlabelled lane sorts last under its position, which is the only thing
+      // there is to call it.
+      ..sort((a, b) {
+        final byName = (a.name ?? '~${a.position}')
+            .compareTo(b.name ?? '~${b.position}');
+        return byName;
+      });
 
     final result = SimRunResult(
       start: header.runStart,
@@ -251,6 +301,8 @@ class SimulationRunsRepository {
             processStart: row.processStart,
             processEnd: row.processEnd,
             changeoverIncurred: row.changeoverIncurred,
+            laneNodeId: row.laneNodeId,
+            blocked: Duration(seconds: row.blockedSeconds),
           ),
       ],
       orders: [
@@ -287,6 +339,11 @@ class SimulationRunsRepository {
           seconds: row.openSeconds,
         ),
       },
+      blockedByWorkcenter: {
+        for (final row in stations) row.workcenterId: Duration(
+          seconds: row.blockedSeconds,
+        ),
+      },
       abort: header.abortReason == null
           ? null
           : _parse(
@@ -304,8 +361,9 @@ class SimulationRunsRepository {
       dispatchOverrides: [
         for (final row in overrides)
           (
-            name: row.name,
-            rule: _parse(DispatchRule.values, row.rule, DispatchRule.fifo),
+            // An unlabelled lane has nothing to be called but where it sits.
+            name: row.name ?? '#${row.position}',
+            rule: _parse(DispatchRule.values, row.rule!, DispatchRule.fifo),
           ),
       ],
       studies: studies,

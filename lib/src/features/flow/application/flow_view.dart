@@ -594,11 +594,6 @@ FlowView buildFlowView({
   PeriodGranularity granularity = PeriodGranularity.month,
   FlowDataSource dataSource = FlowDataSource.flowEquivalent,
   FlowDemandInput demand = const FlowDemandInput(),
-  /// Only the stations that override the run's rule (§7.4) — what the arrows
-  /// into them are drawn from. Empty is the ordinary case and draws nothing
-  /// special, which is right: a plant nobody has given a queue rule is a plant
-  /// where every arrow is a push.
-  Map<String, DispatchRule> dispatchByTarget = const {},
 }) {
   final start = granularity.startOf(asOf);
   final end = granularity.endOf(asOf);
@@ -616,10 +611,13 @@ FlowView buildFlowView({
   }
 
   final views = <FlowNodeView>[];
-  for (final node in nodes) {
+  for (var i = 0; i < nodes.length; i++) {
+    final node = nodes[i];
+    final before = i > 0 ? nodes[i - 1] : null;
     views.add(switch (node.kind) {
       FlowNodeKind.step => _buildStep(
         node: node,
+        lane: before?.kind == FlowNodeKind.inventory ? before : null,
         contexts: contexts,
         pools: pools,
         poolMembers: poolMembers,
@@ -628,7 +626,6 @@ FlowView buildFlowView({
         periodEnd: end,
         dataSource: dataSource,
         demand: demand,
-        dispatchByTarget: dispatchByTarget,
       ),
       FlowNodeKind.inventory => _buildInventory(
         node: node,
@@ -675,6 +672,11 @@ FlowView buildFlowView({
 
 FlowStepView _buildStep({
   required FlowNode node,
+
+  /// The inventory node immediately before this step, or null when there is
+  /// none. What governs this step's queue (§5.5) — and therefore what the link
+  /// into it is drawn as (§5.2).
+  required FlowNode? lane,
   required Map<String, WorkcenterContext> contexts,
   required Map<String, WorkcenterPool> pools,
   required Map<String, List<String>> poolMembers,
@@ -683,7 +685,6 @@ FlowStepView _buildStep({
   required DateTime periodEnd,
   required FlowDataSource dataSource,
   required FlowDemandInput demand,
-  required Map<String, DispatchRule> dispatchByTarget,
 }) {
   final problems = <StepProblem>[];
   final changeover = Duration(seconds: node.changeoverSeconds);
@@ -843,9 +844,11 @@ FlowStepView _buildStep({
 
   return FlowStepView(
     node,
-    // Keyed by what the step targets — the pool when there is one, exactly as
-    // the rule is stored (§7.4).
-    queueDiscipline: dispatchByTarget[node.poolId ?? node.workcenterId],
+    // Read off the lane in front of it, which is where the rule is stored and
+    // where the queue actually forms (§5.5). It used to be keyed by the step's
+    // target, which meant the map drew a decision it could not show the reader
+    // the source of.
+    queueDiscipline: lane?.laneRule,
     title: title,
     typeName: typeName,
     poolMemberCount: poolMemberCount,

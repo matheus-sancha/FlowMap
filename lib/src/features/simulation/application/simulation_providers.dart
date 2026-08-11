@@ -46,19 +46,6 @@ final projectRunsProvider = StreamProvider.family<List<SimulationRun>, String>(
       ref.watch(simulationRunsRepositoryProvider).watchRuns(projectId),
 );
 
-/// The stations that override the run's rule, by target id (§7.4).
-///
-/// Stored, unlike [DispatchRuleSelection] below: the run's rule is the knob the
-/// experiment turns and belongs to the moment, while "CEU27 is run to due date"
-/// is a fact about how that cell is actually managed and should survive
-/// closing the app. Project-scoped, because a station exists once in a run
-/// however many studies reach it (§7.7).
-final workcenterDispatchProvider =
-    StreamProvider.family<Map<String, DispatchRule>, String>(
-      (ref, projectId) =>
-          ref.watch(simulationRepositoryProvider).watchDispatchRules(projectId),
-    );
-
 /// Which rule the workcenters dispatch by (§7.4).
 ///
 /// Per project and held in memory, not stored: it is the knob the experiment
@@ -91,10 +78,6 @@ final simRunInputProvider = FutureProvider.family<SimRunInput, String>((
   ref.watch(projectSchedulesProvider(projectId));
   ref.watch(calendarExceptionsProvider(projectId));
   ref.watch(shiftPatternsProvider);
-  // A station's queue discipline is resolved onto its [SimWorkcenter] at
-  // assembly time (§7.4), so changing one on the map has to rebuild this the
-  // same way rebinding a step does.
-  ref.watch(workcenterDispatchProvider(projectId));
   for (final study in flagged) {
     ref.watch(flowNodesProvider(study.id));
     ref.watch(demandOrdersProvider(study.id));

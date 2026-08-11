@@ -47,7 +47,6 @@ void main() {
     ShiftPatternSpec? pattern,
     double availability = 1,
     double rework = 0,
-    DispatchRule? dispatch,
     int units = 1,
   }) {
     final schedule = WorkcenterScheduleSpec([
@@ -67,7 +66,6 @@ void main() {
         staffing: schedule,
       ),
       schedule: schedule,
-      dispatch: dispatch,
       units: units,
     );
   }
@@ -224,6 +222,150 @@ void main() {
       expect(result.busyByWorkcenter['W'], const Duration(hours: 2));
       expect(result.openByWorkcenter['W'], const Duration(hours: 5));
       expect(result.utilization['W'], closeTo(0.4, 0.0001));
+    });
+  });
+
+  group('a lane holds only so many (§5.5)', () {
+    /// Two stations with a lane between them. The first is quick and the
+    /// second is slow, so orders pile into the lane and the capacity bites.
+    SimRunResult twoStations({int? capacity}) => runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['FAST']),
+            SimBuffer(id: 'lane', position: 1, capacity: capacity),
+            step(2, ['SLOW']),
+          ],
+          parts: {
+            'p1': part('p1', {
+              'FAST': const Duration(hours: 1),
+              'SLOW': const Duration(hours: 6),
+            }),
+          },
+          orders: [for (var i = 0; i < 5; i++) order(i, 'p1')],
+          release: const Duration(hours: 1),
+        ),
+      ],
+      workcenters: {'FAST': workcenter('FAST'), 'SLOW': workcenter('SLOW')},
+      start: aug1,
+    );
+
+    test('an uncapped lane holds as many as arrive', () {
+      final result = twoStations();
+      expect(result.completed, isTrue);
+      // Nothing is ever held back, so the quick station never waits to unload.
+      expect(result.blockedByWorkcenter['FAST'], Duration.zero);
+      expect(result.steps.every((s) => s.blocked == Duration.zero), isTrue);
+    });
+
+    test('a full lane blocks the station behind it', () {
+      final result = twoStations(capacity: 1);
+      expect(result.completed, isTrue);
+
+      // FAST can only put an order down when the lane has room, so it spends
+      // most of the run holding finished work. This is the behaviour the whole
+      // item exists for: congestion at SLOW reaches back up the line instead
+      // of piling into an inventory nobody has floor space for.
+      expect(result.blockedByWorkcenter['FAST'], greaterThan(Duration.zero));
+      expect(result.steps.any((s) => s.blocked > Duration.zero), isTrue);
+
+      // And the lane never held more than it was told to. Counted as orders
+      // that had entered but not yet been pulled, at each instant one entered.
+      final atSlow = result.steps.where((s) => s.laneNodeId == 'lane').toList();
+      for (final probe in atSlow) {
+        final standing = atSlow
+            .where(
+              (s) =>
+                  !s.queueStart.isAfter(probe.queueStart) &&
+                  s.processStart.isAfter(probe.queueStart),
+            )
+            .length;
+        expect(standing, lessThanOrEqualTo(1));
+      }
+    });
+
+    test('blocked time is not busy time', () {
+      final result = twoStations(capacity: 1);
+
+      // The jam must not read as output (§8.3). FAST does five one-hour jobs
+      // however long it stands holding them, so its busy total is the work and
+      // nothing else — which is what keeps utilization a measure of running.
+      expect(result.busyByWorkcenter['FAST'], const Duration(hours: 5));
+      expect(
+        result.busyByWorkcenter['FAST']!.inSeconds,
+        lessThan(result.openByWorkcenter['FAST']!.inSeconds),
+      );
+    });
+
+    test('a full lane at the head of the flow sends the slot out empty', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              const SimBuffer(id: 'inbound', position: 0, capacity: 1),
+              step(1, ['SLOW']),
+            ],
+            parts: {
+              'p1': part('p1', {'SLOW': const Duration(hours: 8)}),
+            },
+            orders: [for (var i = 0; i < 4; i++) order(i, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {'SLOW': workcenter('SLOW')},
+        start: aug1,
+      );
+
+      // Nothing upstream can be blocked, so the only thing that can be held
+      // back is the release — and §7.2's slots are strict, so the slot is
+      // spent rather than deferred.
+      expect(
+        result.emptySlots.map((s) => s.reason),
+        contains(EmptySlotReason.laneFull),
+      );
+      // Distinct from a WIP cap on purpose: this study has none.
+      expect(
+        result.emptySlots.map((s) => s.reason),
+        isNot(contains(EmptySlotReason.wipCap)),
+      );
+    });
+
+    test('a linear line with full lanes still drains', () {
+      // §5.5 rejected capacity-limited buffers partly over deadlock. On §5.1's
+      // spine it cannot happen: the last station has an unlimited sink ahead of
+      // it, so the head of the chain always moves and the jam unwinds
+      // backwards. Three stations, every lane holding one.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              const SimBuffer(id: 'l1', position: 1, capacity: 1),
+              step(2, ['B']),
+              const SimBuffer(id: 'l2', position: 3, capacity: 1),
+              step(4, ['C']),
+            ],
+            parts: {
+              'p1': part('p1', {
+                'A': const Duration(hours: 1),
+                'B': const Duration(hours: 4),
+                'C': const Duration(hours: 2),
+              }),
+            },
+            orders: [for (var i = 0; i < 6; i++) order(i, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {
+          'A': workcenter('A'),
+          'B': workcenter('B'),
+          'C': workcenter('C'),
+        },
+        start: aug1,
+      );
+
+      expect(result.completed, isTrue);
+      expect(result.orders.every((o) => o.delivered != null), isTrue);
     });
   });
 
@@ -497,16 +639,18 @@ void main() {
       expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
     });
 
-    /// The same contention, but the station carries its own rule.
-    SimRunResult contendWithStationRule({
+    /// The same contention, but the lane in front of the station carries its
+    /// own rule (§5.5).
+    SimRunResult contendWithLaneRule({
       required DispatchRule run,
-      required DispatchRule station,
+      required DispatchRule lane,
     }) => runSimulation(
       dispatch: run,
       studies: [
         study(
           nodes: [
-            step(0, ['W']),
+            SimBuffer(id: 'lane-0', position: 0, rule: lane),
+            step(1, ['W']),
           ],
           parts: {
             'slow': part('slow', {'W': const Duration(hours: 8)}),
@@ -521,40 +665,40 @@ void main() {
           release: const Duration(hours: 1),
         ),
       ],
-      workcenters: {'W': workcenter('W', dispatch: station)},
+      workcenters: {'W': workcenter('W')},
       start: aug1,
     );
 
-    test("a station's own rule beats the run's", () {
-      // The run says FIFO, which would take o1; the station says shortest
-      // first, which takes o2. The station wins.
+    test("a lane's own rule beats the run's", () {
+      // The run says FIFO, which would take o1; the lane says shortest first,
+      // which takes o2. The lane wins.
       expect(
         secondPart(
-          contendWithStationRule(
+          contendWithLaneRule(
             run: DispatchRule.fifo,
-            station: DispatchRule.shortestProcessing,
+            lane: DispatchRule.shortestProcessing,
           ),
         ),
         'o2',
       );
     });
 
-    test('a station may also be pinned against a non-default run rule', () {
-      // The mirror: the run is SPT and would take o2, but this station is held
-      // to arrival order. Proves the override is a real substitution rather
-      // than "any station rule wins over FIFO only".
+    test('a lane may also be pinned against a non-default run rule', () {
+      // The mirror: the run is SPT and would take o2, but this lane is held to
+      // arrival order. Proves the override is a real substitution rather than
+      // "any lane rule wins over FIFO only".
       expect(
         secondPart(
-          contendWithStationRule(
+          contendWithLaneRule(
             run: DispatchRule.shortestProcessing,
-            station: DispatchRule.fifo,
+            lane: DispatchRule.fifo,
           ),
         ),
         'o1',
       );
     });
 
-    test('a station with no rule of its own still follows the run', () {
+    test('a step with no lane in front of it still follows the run', () {
       expect(
         secondPart(
           runSimulation(
@@ -577,8 +721,8 @@ void main() {
                 release: const Duration(hours: 1),
               ),
             ],
-            // Explicitly null, which is the state a station that was never
-            // touched is in — distinct from one set back to FIFO.
+            // No buffer before the step at all, so there is no lane to carry
+            // a rule and the run's is what governs.
             workcenters: {'W': workcenter('W')},
             start: aug1,
           ),

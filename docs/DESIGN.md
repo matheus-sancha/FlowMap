@@ -324,8 +324,33 @@ whether or not the next station is free, and nothing now expresses that — a 24
 modelled as free. It needs a per-node switch saying which of the two a buffer is, and the day a
 plant has one is the day to add it.
 
-_Rejected: capacity-limited buffers that block upstream._ Real pull behaviour, but it couples the
-engine, can deadlock, and needs blocking-time metrics to be interpretable.
+**A lane governs the queue in front of the step it feeds.** It carries a **discipline** (§7.4) and a
+**capacity in orders**; when it is full the station behind it has finished an order it cannot put
+down, and stops. That is what the names on a real map mean — `FIFO CEU27` is not a three-day delay,
+it is a channel with a rule and a floor space.
+
+**Blocking is after service.** A station cannot know whether the lane ahead will have room until it
+has something to put down, so it finishes and then waits. While it waits it is neither idle nor
+working, and that is what carries a jam backwards up the line. The held time is recorded per step
+and per station and kept **out of `busySeconds`**: a blocked station is occupied and producing
+nothing, and folding the two would make utilization report the jam as output (§8.3).
+
+**A full lane at the head of the flow sends a release slot out empty**, with its own reason. There
+is no station behind it to block, so the only thing that can be held back is the release itself —
+and §7.2's slots are strict, so the slot is spent rather than deferred. Kept distinct from the WIP
+cap's reason on purpose: one is a policy set for the whole flow, the other is the floor running out
+in one place, and counting them together would say "the line was held back" without saying by what.
+
+**Capacity is its own column, not `inventory_quantity`.** That figure means *N pieces standing here
+today* — an observation — and the correction above is precisely that an observation must not be read
+as a rule. They would share a unit and mean opposite things. Null capacity is unlimited, which is
+what every lane was before.
+
+_Rejected: capacity-limited buffers that block upstream_ — **reversed.** The original objection was
+that it couples the engine, can deadlock, and needs blocking-time metrics to be interpretable. The
+third is answered above. The second does not arise on §5.1's spine: it is linear with no branches
+and no rework loops, so the last station always has an unlimited sink ahead of it and a blocked
+chain always drains from the head. The rejection was written against a general graph.
 
 ---
 
@@ -546,33 +571,44 @@ shared-workcenter contention is reproducible. A per-simulation setting offers **
 need date) and **SPT** (shortest processing time) — "what if we dispatched by due date" is exactly
 the experiment this app exists to run.
 
-**A station may keep its own rule**, which the run's default only fills in for. Stored in
-`workcenter_dispatch` and set in the flow step editor, where the queue is visible.
+**The lane in front of a step keeps the rule**, which the run's default only fills in for. Stored on
+`flow_nodes.lane_rule` and set on the inventory node, which is where the queue is drawn.
 
-- **Keyed by target**, a workcenter id or a pool id — the `part_process_times` convention. A queue
-  forms at a pool and not at whichever member stands for it on the map (§3.1), so a pool of four
-  lathes is one queue with one discipline.
-- **Project-scoped, not study-scoped.** A run builds one resource model and a station exists in it
-  once however many studies point at it (§7.7); a study-scoped rule would let two studies demand
-  different disciplines of one machine with nothing able to choose. The editor says so, because it
-  is set from inside a study.
-- **Resolved onto the server at assembly time**, never carried on the step. The engine picks when a
-  single machine frees, and one machine can be a candidate for two steps — its own and a pool's. If
-  the rule travelled with the step, two orders waiting at one machine would be governed by different
-  comparators and "which runs first" would have no answer. `resolveDispatch` flattens it: the
-  workcenter's own rule, else a pool's, else the run's. Several pools may name one workcenter
-  (§18.2) and may disagree — the lowest pool id wins, arbitrary but fixed, the same tie-break the
-  pace setter uses and for the same reason. Setting the workcenter itself overrides all of it.
-- **A missing row means "follow the run", and is not the same as FIFO.** Storing the default would
-  pin every station the first time one was edited, and would freeze the run's own setting out.
-- **The run records the overrides** in `simulation_run_dispatch`, per workcenter, name copied in.
-  Without it `simulation_runs.dispatch` would report FIFO for a run in which three stations
+This reverses the first build of this section, which put the rule on the station. The argument for
+moving it: on a physical FIFO lane you cannot take from the back, so a discipline is not a property
+of the channel — it is **how the next station chooses from what is standing in front of it**, and
+that is something the map can show. Stored on the station it governed a queue the reader could not
+see it on.
+
+- **§5.1's spine is what keeps the ordering total.** A step has at most one lane in front of it, so
+  a queue has exactly one comparator — including at a machine that is a candidate for its own step
+  and for a pool's, which is the ambiguity a station-level rule could not resolve. A run of several
+  buffers collapses to the last, the one the station actually pulls from; the earlier ones stay
+  free to pass through. Two lanes in a row is a modelling oddity rather than a case with an agreed
+  meaning, and inventing one would make a typed capacity mean something nobody asked for.
+- **A step with no lane before it follows the run's rule**, queueing at the station as before.
+- **A missing rule means "follow the run", and is not the same as FIFO.** Storing the default would
+  pin every queue the first time one was edited, and would freeze the run's own setting out. It is
+  also what keeps §5.2 honest: under the default every queue is FIFO, so drawing a lane wherever
+  one *is* FIFO would put a lane on every link and say nothing.
+- **The run records the lanes** in `simulation_run_lanes` — name, position, rule and capacity copied
+  in. Without it `simulation_runs.dispatch` would report FIFO for a run in which three queues
   dispatched by due date, and M5's comparison could not say the dispatch is what differed.
+
+_Rejected: FEFO as a fifth rule._ It was asked for by name, and for this line the expiry that
+matters *is* the need date — so it is EDD under the name the floor uses, and no expiry column is
+stored. A real shelf life, independent of when the customer wants it, would be a column and a fifth
+rule; nothing has one yet.
+
+_Rejected: `resolveDispatch`, and the flattening of pool rules onto members._ It existed to give one
+machine one comparator when the rule was a property of the machine. With the rule on the queue the
+question does not arise, and the whole function went.
 
 ### 7.5 Operators
 
-A workcenter is a **single server**: one order at a time. Real parallel capacity is modelled by
-putting several workcenters in a pool. A shift with 0 operators is closed; any count ≥ 1 runs
+A workcenter is a **single server** by default: one order at a time. Parallel capacity is modelled
+either by putting several workcenters in a pool or by raising the station's own
+`parallel_capacity` (§3.1), which gives it that many independent servers. A shift with 0 operators is closed; any count ≥ 1 runs
 identically. **Operators Needed** is computed from load (required hours ÷ productive hours per
 operator) and compared against Allocated — the "6.7 operators required" figure.
 

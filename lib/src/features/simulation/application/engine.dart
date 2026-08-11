@@ -249,10 +249,24 @@ class _Server {
   /// every pass.
   bool dead = false;
 
+  /// When it finished an order it could not put down, or null when it is not
+  /// blocked (§5.5).
+  ///
+  /// A blocked server is **not idle**: it is holding a finished order and
+  /// cannot start another. That is what makes blocking propagate backwards up
+  /// the line, which is the whole behaviour a lane's capacity buys.
+  DateTime? blockedSince;
+
+  /// Total time spent holding finished orders with nowhere to put them.
+  ///
+  /// Kept apart from [busy] rather than added to it, so utilization keeps
+  /// meaning "working" and a jam cannot be reported as output (§8.3).
+  Duration blocked = Duration.zero;
+
   bool get isIdle => busyUntil == null;
 }
 
-/// An order waiting at a step.
+/// An order standing in the queue in front of a step.
 class _Waiting {
   _Waiting({
     required this.study,
@@ -261,6 +275,7 @@ class _Waiting {
     required this.step,
     required this.since,
     required this.perPiece,
+    required this.lane,
   });
 
   final SimStudy study;
@@ -272,7 +287,32 @@ class _Waiting {
   /// Per-piece process time at this step, kept for the SPT rule.
   final Duration perPiece;
 
+  /// The lane it is standing in, or null when the step has none in front of it
+  /// and the order queues at the station (§5.5).
+  final SimBuffer? lane;
+
   Duration get work => perPiece * order.batchSize;
+}
+
+/// What governs the queue in front of one step (§5.5).
+///
+/// **The lane immediately before the step, and only that one.** §5.1's spine
+/// gives a step at most one, which is what keeps the ordering total: a machine
+/// that is a candidate for its own step and for a pool's still has exactly one
+/// comparator per queue, which a rule stored on the station could not promise.
+///
+/// A run of several buffers is collapsed to the last of them — the one the
+/// station actually pulls from. The earlier ones stay what §2.12 made every
+/// buffer: free to pass through. Two lanes in a row is a modelling oddity
+/// rather than a case with an agreed meaning, and inventing one here would make
+/// the capacity a reader typed mean something they did not ask for.
+class _Gate {
+  const _Gate({required this.stepIndex, required this.lane});
+
+  final int stepIndex;
+  final SimBuffer? lane;
+
+  int? get capacity => lane?.capacity;
 }
 
 class _Engine {
@@ -315,6 +355,17 @@ class _Engine {
   /// The order a server is running, so a finish knows what it completed.
   final Map<String, _Waiting> _running = {};
 
+  /// Where each step's queue forms, per study, indexed by node position (§5.5).
+  ///
+  /// Resolved once at the start rather than walked backwards on every arrival:
+  /// the answer cannot change during a run, and an arrival happens sixteen
+  /// thousand times at the scale target (§14).
+  final Map<String, List<_Gate?>> _gates = {};
+
+  /// Which `_rows` entry belongs to the order a server is holding, so the block
+  /// it is serving can be written onto that row when it ends.
+  final Map<String, int> _rowOfServer = {};
+
   int _seq = 0;
   late DateTime _now = start;
 
@@ -336,6 +387,7 @@ class _Engine {
       _studies[study.id] = study;
       _open[study.id] = 0;
       _head[study.id] = 0;
+      _gates[study.id] = _gatesOf(study);
       for (final order in study.orders) {
         _orders['${study.id}/${order.id}'] = order;
         _released[order.id] = null;
@@ -422,6 +474,18 @@ class _Engine {
           reason: EmptySlotReason.wipCap,
         ),
       );
+    } else if (_entry(study) case final first? when !_hasRoom(study, first)) {
+      // Nowhere to put it. The lane at the head of the flow has no station
+      // behind it to block, so the only thing that can be held back is the
+      // release itself — and §7.2's slots are strict, so the slot is spent
+      // rather than deferred.
+      _empties.add(
+        SimEmptySlot(
+          studyId: study.id,
+          at: _now,
+          reason: EmptySlotReason.laneFull,
+        ),
+      );
     } else {
       _head[study.id] = head + 1;
       _open[study.id] = _open[study.id]! + 1;
@@ -449,29 +513,75 @@ class _Engine {
 
   // --- Movement --------------------------------------------------------------
 
-  void _onArrive(_Event event) {
-    final study = _studyById(event.key!);
-    final order = _orders['${study.id}/${event.orderId}']!;
-    var index = event.index!;
+  /// Where each step's queue forms, by node position.
+  ///
+  /// A step's gate is the buffer immediately before it, or null when the node
+  /// before it is another step and the order queues at the station itself. A
+  /// run of buffers collapses to the last — see [_Gate].
+  List<_Gate?> _gatesOf(SimStudy study) {
+    final gates = List<_Gate?>.filled(study.nodes.length, null);
+    for (var i = 0; i < study.nodes.length; i++) {
+      if (study.nodes[i] is! SimStep) continue;
+      final before = i > 0 ? study.nodes[i - 1] : null;
+      gates[i] = _Gate(
+        stepIndex: i,
+        lane: before is SimBuffer ? before : null,
+      );
+    }
+    return gates;
+  }
 
-    // Buffers cost nothing to pass through, so walk over as many as follow and
-    // park the order in the next station's queue (§5.5).
-    //
-    // They used to hold it for their stored figure. That figure is an
-    // *observation* of a current state, and how long an order really waits is
-    // the question this engine exists to answer — so imposing it charged the
-    // order twice: the fixed wait, and then the queue at the station anyway.
-    // On the real célula 11B run it was 14 of the 39.8 days, held whether or
-    // not the next station was free.
+  /// How many orders are standing in the queue in front of [stepIndex].
+  ///
+  /// Counted off `_waiting` rather than tracked separately, because that list
+  /// *is* the queue: an order is in it from the moment it enters the lane until
+  /// a server pulls it out. A second counter would be a second truth to keep in
+  /// step, and the run is small enough that scanning is not the cost — the
+  /// events are (§16.9).
+  int _queued(String studyId, int stepIndex) => _waiting
+      .where((w) => w.study.id == studyId && w.nodeIndex == stepIndex)
+      .length;
+
+  /// Whether the queue in front of [stepIndex] has room for one more.
+  bool _hasRoom(SimStudy study, int stepIndex) {
+    final capacity = _gates[study.id]![stepIndex]?.capacity;
+    return capacity == null || _queued(study.id, stepIndex) < capacity;
+  }
+
+  /// The first step of a study's flow, which is where a release lands.
+  int? _entry(SimStudy study) => _nextStep(study, 0);
+
+  /// The next step an order at [from] must visit, or null when it has finished
+  /// the flow.
+  ///
+  /// Buffers still cost nothing to pass through (§2.12): what they cost is
+  /// *room*, and that is charged by [_hasRoom] at the step they feed rather
+  /// than as a delay here.
+  int? _nextStep(SimStudy study, int from) {
+    var index = from;
     while (index < study.nodes.length && study.nodes[index] is SimBuffer) {
       index++;
     }
+    return index >= study.nodes.length ? null : index;
+  }
 
-    if (index >= study.nodes.length) {
+  void _onArrive(_Event event) {
+    final study = _studyById(event.key!);
+    final order = _orders['${study.id}/${event.orderId}']!;
+    final index = _nextStep(study, event.index!);
+
+    if (index == null) {
       _deliver(study, order);
       return;
     }
 
+    _admit(study, order, index);
+  }
+
+  /// Puts [order] into the queue in front of the step at [index].
+  ///
+  /// The caller has already established there is room; this is the write.
+  void _admit(SimStudy study, SimOrder order, int index) {
     final step = study.nodes[index] as SimStep;
     final perPiece = study.parts[order.partId]?.timeAt(step.demandKey);
     if (perPiece == null) {
@@ -489,6 +599,7 @@ class _Engine {
         step: step,
         since: _now,
         perPiece: perPiece,
+        lane: _gates[study.id]![index]?.lane,
       ),
     );
   }
@@ -509,6 +620,20 @@ class _Engine {
     var progressed = true;
     while (progressed) {
       progressed = false;
+
+      // **Unload before dispatching.** Taking an order out of a lane is what
+      // makes room in it, so a station blocked on that lane can move the moment
+      // the pick happens — and it must be offered the space before the next
+      // order is admitted, or a jam would clear only when something else
+      // happened to arrive. Held in the same settle loop as dispatch so one
+      // release can cascade back up a line of blocked stations at one instant.
+      for (final server in _servers.values.toList()) {
+        if (server.blockedSince == null) continue;
+        final waiting = _running[server.id];
+        if (waiting == null) continue;
+        _tryUnload(server, waiting);
+        if (server.blockedSince == null) progressed = true;
+      }
 
       final idle = _servers.values
           .where((s) => s.isIdle && !s.dead)
@@ -560,20 +685,27 @@ class _Engine {
     }
   }
 
+  /// The order this server takes next, by the rule of the lane it is taking it
+  /// from (§5.5, §7.4).
+  ///
+  /// **The comparator comes from the queue, not from the machine.** A server may
+  /// be a candidate for its own step and for a pool's, so it can face two
+  /// queues; each is governed by the lane in front of *it*, and the two are
+  /// compared only after their own rules have chosen a head. Ordering stays
+  /// total because a step has at most one lane (§5.1) and a lane has one rule.
   _Waiting? _pick(_Server server) {
-    // The station's own rule if it has one, otherwise the run's (§7.4). Read
-    // once per pick rather than per comparison: it cannot change while the
-    // server chooses, and a comparator whose rule could vary mid-sort would
-    // not be ordering anything.
-    final rule = server.workcenter.dispatch ?? dispatch;
-
     _Waiting? best;
     for (final candidate in _waiting) {
       if (!candidate.step.candidates.contains(server.workcenter.id)) continue;
-      if (best == null || _prefers(candidate, best, rule)) best = candidate;
+      if (best == null || _prefers(candidate, best, _ruleFor(candidate))) {
+        best = candidate;
+      }
     }
     return best;
   }
+
+  /// The lane's rule, or the run's where a step has no lane (§7.4).
+  DispatchRule _ruleFor(_Waiting waiting) => waiting.lane?.rule ?? dispatch;
 
   /// Whether [a] should run before [b] under [rule] (§7.4).
   ///
@@ -648,6 +780,7 @@ class _Engine {
       ..busy += occupancy;
     _running[server.id] = waiting;
 
+    _rowOfServer[server.id] = _rows.length;
     _rows.add(
       SimOrderStep(
         studyId: waiting.study.id,
@@ -658,25 +791,78 @@ class _Engine {
         processStart: _now,
         processEnd: end,
         changeoverIncurred: changeover > Duration.zero,
+        // The lane it was pulled out of, so the run can say where it stood
+        // without joining back to a flow that may have been edited (§7.10).
+        laneNodeId: waiting.lane?.id,
       ),
     );
 
     _schedule(end, _EventKind.finish, key: server.id);
   }
 
+  /// A server has finished. It puts the order down if it can, and holds it if
+  /// it cannot (§5.5).
   void _onFinish(String serverId) {
     final server = _servers[serverId]!;
-    final waiting = _running.remove(serverId);
-    server.busyUntil = null;
-    if (waiting == null) return;
+    final waiting = _running[serverId];
+    if (waiting == null) {
+      server.busyUntil = null;
+      return;
+    }
+    _tryUnload(server, waiting);
+  }
 
-    _schedule(
-      _now,
-      _EventKind.arrive,
-      key: waiting.study.id,
-      orderId: waiting.order.id,
-      index: waiting.nodeIndex + 1,
-    );
+  /// Moves the order a server has finished on to its next queue, or blocks.
+  ///
+  /// **Blocking is after service**, which is not a simplification but the
+  /// physical case: a station cannot know whether the lane ahead will have room
+  /// until it has something to put down. So it finishes, and then waits — and
+  /// while it waits it is neither idle nor working, which is what carries the
+  /// jam backwards up the line.
+  void _tryUnload(_Server server, _Waiting waiting) {
+    final study = waiting.study;
+    final next = _nextStep(study, waiting.nodeIndex + 1);
+
+    // Nothing ahead: the flow is finished and the customer is an unlimited
+    // sink, so the last station can never block. That is also why a linear
+    // spine cannot deadlock — the head of the chain always drains (§5.1).
+    if (next != null && !_hasRoom(study, next)) {
+      server.blockedSince ??= _now;
+      return;
+    }
+
+    if (server.blockedSince case final since?) {
+      final held = _now.difference(since);
+      server.blocked += held;
+      server.blockedSince = null;
+      // Written onto the step that was blocked, not onto the one about to
+      // start: the jam belongs to the order the station could not put down.
+      if (_rowOfServer[server.id] case final index?) {
+        final row = _rows[index];
+        _rows[index] = SimOrderStep(
+          studyId: row.studyId,
+          orderId: row.orderId,
+          nodeId: row.nodeId,
+          workcenterId: row.workcenterId,
+          queueStart: row.queueStart,
+          processStart: row.processStart,
+          processEnd: row.processEnd,
+          changeoverIncurred: row.changeoverIncurred,
+          laneNodeId: row.laneNodeId,
+          blocked: held,
+        );
+      }
+    }
+
+    _running.remove(server.id);
+    _rowOfServer.remove(server.id);
+    server.busyUntil = null;
+
+    if (next == null) {
+      _deliver(study, waiting.order);
+    } else {
+      _admit(study, waiting.order, next);
+    }
   }
 
   // --- Result ----------------------------------------------------------------
@@ -722,9 +908,21 @@ class _Engine {
     // — the Queue table, the bottleneck ranking, the Summary — keeps reading one
     // row per station and never learns that servers exist.
     final busy = <String, Duration>{};
+    final blocked = <String, Duration>{};
     for (final server in _servers.values) {
       busy[server.workcenter.id] =
           (busy[server.workcenter.id] ?? Duration.zero) + server.busy;
+      // A server still holding an order when the run ends has been blocked
+      // since `blockedSince` and will never be released. Closing the span here
+      // rather than dropping it: the guard stopping a run is exactly the case
+      // where the jam is the finding (§7.8).
+      final open = server.blockedSince == null
+          ? Duration.zero
+          : _now.difference(server.blockedSince!);
+      blocked[server.workcenter.id] =
+          (blocked[server.workcenter.id] ?? Duration.zero) +
+          server.blocked +
+          open;
     }
 
     return SimRunResult(
@@ -736,6 +934,19 @@ class _Engine {
       emptySlots: _empties,
       busyByWorkcenter: busy,
       openByWorkcenter: open,
+      blockedByWorkcenter: blocked,
+      // Whatever is still standing in a lane. `_waiting` is the queue itself,
+      // so what is left in it at the end is exactly what never got pulled.
+      openLaneVisits: [
+        for (final waiting in _waiting)
+          if (waiting.lane case final lane?)
+            SimOpenLaneVisit(
+              studyId: waiting.study.id,
+              orderId: waiting.order.id,
+              laneNodeId: lane.id,
+              enteredAt: waiting.since,
+            ),
+      ],
       abort: abort,
     );
   }

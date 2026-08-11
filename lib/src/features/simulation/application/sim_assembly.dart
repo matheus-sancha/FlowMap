@@ -222,45 +222,6 @@ SimStudy? assembleSimStudy({
   );
 }
 
-/// One workcenter's effective queue discipline, from the rules stored against
-/// targets (DESIGN.md §7.4).
-///
-/// The rule is stored per **target** — a workcenter id or a pool id, since a
-/// queue forms at a pool and not at whichever member stands for it (§3.1) — but
-/// the engine picks when a single machine frees. So membership is flattened
-/// here, once, before the engine sees any of it.
-///
-/// Resolution, most specific first:
-///
-/// 1. the workcenter's own rule, if it has one — a station set directly is a
-///    statement about that machine, and it outranks anything it inherits;
-/// 2. otherwise the rule of a pool it belongs to;
-/// 3. otherwise null, meaning the run's rule.
-///
-/// **Several pools may name one workcenter** (§18.2), and they may disagree.
-/// The lowest pool id wins — arbitrary, but fixed, so two runs of the same
-/// project cannot rank the same queue two different ways. It is the tie-break
-/// the pace setter already uses for the same reason (§4.4). A user who cares
-/// which pool wins can set the workcenter itself, which is rule 1.
-DispatchRule? resolveDispatch({
-  required String workcenterId,
-  required Map<String, DispatchRule> byTarget,
-  required Map<String, List<String>> poolMembers,
-}) {
-  final own = byTarget[workcenterId];
-  if (own != null) return own;
-
-  String? bestPool;
-  for (final entry in poolMembers.entries) {
-    if (!entry.value.contains(workcenterId)) continue;
-    if (!byTarget.containsKey(entry.key)) continue;
-    if (bestPool == null || entry.key.compareTo(bestPool) < 0) {
-      bestPool = entry.key;
-    }
-  }
-  return bestPool == null ? null : byTarget[bestPool];
-}
-
 /// The workcenters a step may run on, in a stable order.
 List<String> _candidatesFor(FlowNode node, SimResourceContext resources) {
   if (node.poolId != null) {
@@ -270,14 +231,24 @@ List<String> _candidatesFor(FlowNode node, SimResourceContext resources) {
   return workcenterId == null ? const [] : [workcenterId];
 }
 
-/// A buffer, which a run carries but does not time (§5.5).
+/// A lane, which a run governs by but does not time (§5.5).
 ///
 /// Its stored figure — pieces of stock, or a wait in days — is an observation
 /// of a current state, and how long an order really waits is the question the
 /// run exists to answer. Neither `inventorySeconds` nor `inventoryQuantity` is
 /// read here; both stay on the node for the map's lead-time ladder.
-SimBuffer _buffer(FlowNode node) =>
-    SimBuffer(id: node.id, position: node.position);
+///
+/// What *is* read is the discipline and the capacity, which are rules rather
+/// than observations. `lane_capacity` is deliberately a different column from
+/// `inventory_quantity` for exactly that reason — they share a unit and mean
+/// opposite things (§16.16).
+SimBuffer _buffer(FlowNode node) => SimBuffer(
+  id: node.id,
+  position: node.position,
+  name: node.label,
+  rule: node.laneRule,
+  capacity: node.laneCapacity,
+);
 
 /// The step whose work content across the whole demand is largest.
 String? _paceSetter({

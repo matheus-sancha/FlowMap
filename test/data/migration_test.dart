@@ -769,9 +769,10 @@ void main() {
       // The run header itself is undisturbed — this step rebuilds no table.
       expect((await db.select(db.simulationRuns).get()).single.id, 'run-1');
 
-      // And the two new tables exist and are usable.
-      expect(await db.select(db.workcenterDispatch).get(), isEmpty);
-      expect(await db.select(db.simulationRunDispatch).get(), isEmpty);
+      // v12's two tables were dropped again by v15, once the lanes had taken
+      // over what they held — so what this step now has to prove is that a
+      // database arriving from v11 still reaches the end.
+      expect(await db.select(db.simulationRunLanes).get(), isEmpty);
     },
   );
 
