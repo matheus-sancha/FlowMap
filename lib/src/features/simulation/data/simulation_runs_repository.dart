@@ -105,6 +105,9 @@ class SimulationRunsRepository {
               name: study.name,
               releaseSeconds: study.releaseInterval.inSeconds,
               releaseCalendarId: Value(study.releaseCalendarId),
+              // Copied in so a run can still say why it began where it did
+              // after the study's buffer is changed (§7.10).
+              startBufferDays: Value(study.startBuffer.inDays),
               priority: study.priority,
               wipCap: Value(study.wipCap),
             ),

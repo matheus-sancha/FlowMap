@@ -169,19 +169,30 @@ SimStudy? assembleSimStudy({
   }
 
   // Which station's clock the takt's days are measured in, and therefore how
-  // often a slot comes round (§7.2). The busiest step by work content across
-  // the whole demand: it must be one station's clock, and it must not depend
-  // on a period, because a run spans years while §8.2's occupation is monthly.
+  // often a slot comes round (§7.2). It must be one station's clock, and it
+  // must not depend on a period, because a run spans years while §8.2's
+  // occupation is monthly.
+  //
+  // **The study may name it**; the busiest step by work content is only the
+  // default. The pacemaker gained a second job when lanes got capacity — §7.2
+  // gates a release on whether its queue has room — and a station chosen
+  // silently by summing batch sizes would be a gate that moves to another
+  // machine because someone edited the demand, and tells nobody (§18.8).
   //
   // Computed after the loop above, so a flow with an unbound step is reported
   // as unbound rather than as having nothing to pace it — the second is true
   // but it is not the thing to go and fix.
-  final paceSetter = _paceSetter(
-    nodes: nodes,
-    orders: orders,
-    processTimes: processTimes,
-    resources: resources,
-  );
+  final paceNode =
+      _chosenPaceSetter(nodes, study.paceSetterTargetId) ??
+      _paceSetter(
+        nodes: nodes,
+        orders: orders,
+        processTimes: processTimes,
+        resources: resources,
+      );
+  final paceSetter = paceNode == null
+      ? null
+      : _firstCandidate(paceNode, resources);
   if (paceSetter == null) {
     report(SimAssemblyProblem.noPaceSetter);
     return null;
@@ -217,6 +228,10 @@ SimStudy? assembleSimStudy({
       resources.productivePerWorkingDay[paceSetter] ?? Duration.zero,
     ),
     releaseCalendarId: paceSetter,
+    paceSetterNodeId: paceNode!.id,
+    // Calendar days, which is what the column stores and what every surface
+    // showing it says (§7.8, §17.4).
+    startBuffer: Duration(days: study.startBufferDays),
     priority: study.priority,
     wipCap: study.wipCap,
   );
@@ -250,21 +265,42 @@ SimBuffer _buffer(FlowNode node) => SimBuffer(
   capacity: node.laneCapacity,
 );
 
+/// The step the study named as its pacemaker, or null when it named none — or
+/// named one that is no longer in the flow.
+///
+/// Falling back to the derivation rather than refusing to run: a study whose
+/// pacemaker was deleted from the map still has a defensible cadence, and
+/// stopping the run over it would make a node deletion look like a broken
+/// study. The readiness panel has nothing to add that the Flow tab does not
+/// already show by not highlighting anything.
+FlowNode? _chosenPaceSetter(List<FlowNode> nodes, String? targetId) {
+  if (targetId == null) return null;
+  for (final node in nodes) {
+    if (node.kind != FlowNodeKind.step) continue;
+    if ((node.poolId ?? node.workcenterId) == targetId) return node;
+  }
+  return null;
+}
+
 /// The step whose work content across the whole demand is largest.
-String? _paceSetter({
+///
+/// Returns the **node** rather than the workcenter it targets, because the
+/// pacemaker is now a place in the flow as well as a clock: §7.2 gates a
+/// release on the room in the lane in front of it, and a workcenter id cannot
+/// say which of two appearances of one machine is meant.
+FlowNode? _paceSetter({
   required List<FlowNode> nodes,
   required List<DemandOrder> orders,
   required Map<String, Map<String, Duration>> processTimes,
   required SimResourceContext resources,
 }) {
-  final work = <String, int>{};
-  String? fallback;
+  final work = <FlowNode, int>{};
+  FlowNode? fallback;
 
   for (final node in nodes) {
     if (node.kind != FlowNodeKind.step) continue;
-    final workcenterId = _firstCandidate(node, resources);
-    if (workcenterId == null) continue;
-    fallback ??= workcenterId;
+    if (_firstCandidate(node, resources) == null) continue;
+    fallback ??= node;
 
     final key = demandTargetOf(node);
     if (key == null) continue;
@@ -273,15 +309,18 @@ String? _paceSetter({
       final stored = processTimes[order.partId]?[key];
       if (stored != null) total += stored.inSeconds * order.batchSize;
     }
-    work[workcenterId] = (work[workcenterId] ?? 0) + total;
+    work[node] = (work[node] ?? 0) + total;
   }
 
   if (work.isEmpty) return fallback;
-  // Ties break by id, so two identically loaded stations do not make two runs
-  // of the same study disagree (§4.4).
+  // Ties break by position, so two identically loaded steps do not make two
+  // runs of the same study disagree (§4.4). Position rather than workcenter id
+  // because the node is what is being chosen — and a step's position is the one
+  // thing about it that is unique within a study by construction (§5.1).
   final best = work.entries.reduce(
     (a, b) =>
-        b.value > a.value || (b.value == a.value && b.key.compareTo(a.key) < 0)
+        b.value > a.value ||
+            (b.value == a.value && b.key.position < a.key.position)
         ? b
         : a,
   );

@@ -217,9 +217,32 @@ class SimStudy {
     required this.orders,
     required this.releaseInterval,
     this.releaseCalendarId,
+    this.paceSetterNodeId,
+    this.startBuffer = Duration.zero,
     this.priority = 100,
     this.wipCap,
   });
+
+  /// The step whose lane gates the releases — the pacemaker (§7.2).
+  ///
+  /// Lean injects the schedule at the pacemaker, so that is the queue whose
+  /// room decides whether a slot can be used. It is a node id rather than a
+  /// workcenter id because the gate is a *place in the flow*: the same machine
+  /// may appear in two studies, and only one of those appearances is this
+  /// study's pacemaker.
+  ///
+  /// Null leaves the releases ungated by room, which is what every study did
+  /// before lanes had capacity.
+  final String? paceSetterNodeId;
+
+  /// Margin subtracted from the derived cold start, in wall-clock time (§7.8).
+  ///
+  /// Calendar days rather than working ones: a start buffer protects against
+  /// real-world slippage, and slippage accrues on a wall calendar whether or
+  /// not the plant was open. It also composes — the theoretical walk already
+  /// returns a wall-clock instant, so the cold start stays one subtraction on
+  /// one clock (§17.4).
+  final Duration startBuffer;
 
   /// One takt — the gap between release slots (§7.2).
   ///

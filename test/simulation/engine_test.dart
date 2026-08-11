@@ -105,6 +105,8 @@ void main() {
     required List<SimOrder> orders,
     Duration release = const Duration(hours: 10),
     String? releaseCalendarId,
+    String? paceSetterNodeId,
+    Duration startBuffer = Duration.zero,
     int priority = 100,
     int? wipCap,
     String id = 'study-1',
@@ -116,6 +118,8 @@ void main() {
     orders: orders,
     releaseInterval: release,
     releaseCalendarId: releaseCalendarId,
+    paceSetterNodeId: paceSetterNodeId,
+    startBuffer: startBuffer,
     priority: priority,
     wipCap: wipCap,
   );
@@ -366,6 +370,123 @@ void main() {
 
       expect(result.completed, isTrue);
       expect(result.orders.every((o) => o.delivered != null), isTrue);
+    });
+  });
+
+  group('the pacemaker gates the release (§7.2)', () {
+    /// A quick first station and a slow third, with a lane in front of the
+    /// slow one. Gating on the pacemaker holds the release at the front of the
+    /// line rather than letting orders pile up in front of the constraint.
+    SimRunResult line({String? pacemaker, int? laneCapacity}) => runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['FAST']),
+            SimBuffer(id: 'lane', position: 1, capacity: laneCapacity),
+            step(2, ['SLOW']),
+          ],
+          parts: {
+            'p1': part('p1', {
+              'FAST': const Duration(hours: 1),
+              'SLOW': const Duration(hours: 6),
+            }),
+          },
+          orders: [for (var i = 0; i < 5; i++) order(i, 'p1')],
+          release: const Duration(hours: 1),
+          paceSetterNodeId: pacemaker,
+        ),
+      ],
+      workcenters: {'FAST': workcenter('FAST'), 'SLOW': workcenter('SLOW')},
+      start: aug1,
+    );
+
+    test('a full lane at the pacemaker holds the release back', () {
+      final gated = line(pacemaker: 'node-2', laneCapacity: 1);
+
+      // The slot is spent rather than deferred (§7.2), and it says which of the
+      // two reasons it was: the flow has no WIP cap, so this can only be room.
+      expect(
+        gated.emptySlots.map((s) => s.reason),
+        contains(EmptySlotReason.laneFull),
+      );
+    });
+
+    test('naming no pacemaker leaves the release ungated', () {
+      // Which is what every study did before lanes had capacity, and what a
+      // study with no capacity anywhere still does.
+      final ungated = line(laneCapacity: 1);
+      final gated = line(pacemaker: 'node-2', laneCapacity: 1);
+      expect(
+        ungated.emptySlots.length,
+        lessThan(gated.emptySlots.length),
+      );
+    });
+
+    test('a lane with no capacity gates nothing', () {
+      expect(line(pacemaker: 'node-2').emptySlots, isEmpty);
+    });
+
+    test('a pacemaker that is not in the flow is ignored, not fatal', () {
+      // A node deleted from the map must not stop the study running: the
+      // cadence is still defensible and the Flow tab already shows that
+      // nothing is highlighted.
+      final result = line(pacemaker: 'node-does-not-exist', laneCapacity: 1);
+      expect(result.completed, isTrue);
+      expect(
+        result.emptySlots.map((s) => s.reason),
+        isNot(contains(EmptySlotReason.laneFull)),
+      );
+    });
+  });
+
+  group('the start buffer (§7.8)', () {
+    /// No explicit start, so §7.8's derivation is what is under test: the need
+    /// date, back through the theoretical walk, then back again by the buffer.
+    SimRunResult withBuffer(Duration buffer) => runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['W']),
+          ],
+          parts: {
+            'p1': part('p1', {'W': const Duration(hours: 4)}),
+          },
+          orders: [order(0, 'p1', needDay: 20)],
+          startBuffer: buffer,
+        ),
+      ],
+      workcenters: {'W': workcenter('W')},
+    );
+
+    test('it moves the cold start earlier by exactly its length', () {
+      // Calendar days, on the wall clock: ten days is ten days whether or not
+      // the plant was open for them (§17.4).
+      expect(
+        withBuffer(Duration.zero).start.difference(
+          withBuffer(const Duration(days: 10)).start,
+        ),
+        const Duration(days: 10),
+      );
+    });
+
+    test('no buffer leaves §7.8 exactly as it was', () {
+      // The derived start is the need date less the theoretical walk: four
+      // hours of work against a need date of the 20th, on a station open round
+      // the clock.
+      expect(
+        withBuffer(Duration.zero).start,
+        DateTime(2026, 8, 20).subtract(const Duration(hours: 4)),
+      );
+    });
+
+    test('the order gains the margin against its need date', () {
+      final none = withBuffer(Duration.zero).orders.single.delivered!;
+      final ten = withBuffer(const Duration(days: 10)).orders.single.delivered!;
+
+      // It finishes ten days earlier against the same need date, which is what
+      // a safety margin is: the same work, started sooner.
+      expect(none.difference(ten), const Duration(days: 10));
+      expect(ten.isBefore(DateTime(2026, 8, 20)), isTrue);
     });
   });
 

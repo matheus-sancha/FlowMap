@@ -100,14 +100,20 @@ RunPlan planRun({
     final part = first == null ? null : study.parts[first.partId];
     if (first == null || part == null) continue;
 
-    final candidate = coldStartDate(
+    final walked = coldStartDate(
       nodes: study.nodes,
       workcenters: workcenters,
       part: part,
       batchSize: first.batchSize,
       needDate: first.needDate,
     );
-    if (candidate == null) continue;
+    if (walked == null) continue;
+
+    // The study's own safety margin, on the wall clock (§7.8). Subtracted here
+    // rather than inside the walk: the walk is the queue-free minimum and has
+    // to stay comparable with what the run observes (§7.9), while this is a
+    // deliberate margin on top of it.
+    final candidate = walked.subtract(study.startBuffer);
     if (start == null || candidate.isBefore(start)) start = candidate;
   }
 
@@ -474,11 +480,13 @@ class _Engine {
           reason: EmptySlotReason.wipCap,
         ),
       );
-    } else if (_entry(study) case final first? when !_hasRoom(study, first)) {
-      // Nowhere to put it. The lane at the head of the flow has no station
-      // behind it to block, so the only thing that can be held back is the
-      // release itself — and §7.2's slots are strict, so the slot is spent
-      // rather than deferred.
+    } else if (_gateIsFull(study)) {
+      // Nowhere to put it. Two lanes can say so, and both are places nothing
+      // upstream can be blocked on behalf of: the lane at the head of the flow,
+      // which has no station behind it, and the pacemaker's, which is where
+      // lean injects the schedule and therefore what the release is really
+      // pulled by. §7.2's slots are strict, so the slot is spent rather than
+      // deferred.
       _empties.add(
         SimEmptySlot(
           studyId: study.id,
@@ -550,6 +558,34 @@ class _Engine {
 
   /// The first step of a study's flow, which is where a release lands.
   int? _entry(SimStudy study) => _nextStep(study, 0);
+
+  /// Whether a release has to be held back for want of room (§7.2, §5.5).
+  ///
+  /// **The pacemaker's lane as well as the entry lane.** Lean injects the
+  /// schedule at the pacemaker, so the question "may another order start" is
+  /// really "can the pacemaker take one" — and gating there makes the
+  /// constraint govern the line directly rather than through a chain of blocked
+  /// stations propagating backwards, which on célula 11B is four stations deep.
+  /// The entry lane is checked too because nothing upstream of it can be
+  /// blocked on its behalf.
+  ///
+  /// Both are no-ops on a lane with no capacity, which is every lane until
+  /// someone types one.
+  bool _gateIsFull(SimStudy study) {
+    if (_entry(study) case final first? when !_hasRoom(study, first)) {
+      return true;
+    }
+    final pacemaker = _paceSetterIndex(study);
+    return pacemaker != null && !_hasRoom(study, pacemaker);
+  }
+
+  /// Where the pacemaker sits in the flow, or null when the study names none.
+  int? _paceSetterIndex(SimStudy study) {
+    final nodeId = study.paceSetterNodeId;
+    if (nodeId == null) return null;
+    final index = study.nodes.indexWhere((n) => n.id == nodeId);
+    return index < 0 || study.nodes[index] is! SimStep ? null : index;
+  }
 
   /// The next step an order at [from] must visit, or null when it has finished
   /// the flow.

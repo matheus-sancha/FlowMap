@@ -536,9 +536,17 @@ Release slots are generated at takt intervals from the study start date. At each
 looks at the **head of the user's sequence only** and releases it if:
 
 1. material delivery date ≤ slot time, **and**
-2. orders currently in the flow < kanban WIP cap.
+2. orders currently in the flow < kanban WIP cap, **and**
+3. the lane at the head of the flow, and the **pacemaker's** lane, both have room (§5.5).
 
-Otherwise the slot is recorded **EMPTY** and the head waits for the next slot. No reordering.
+Otherwise the slot is recorded **EMPTY** with the reason, and the head waits for the next slot. No
+reordering.
+
+**Why the pacemaker's lane and not just the first.** Lean injects the schedule at the pacemaker, so
+"may another order start" is really "can the pacemaker take one" — and gating there makes the
+constraint govern the line directly rather than through a chain of blocked stations propagating
+backwards, which on célula 11B is four stations deep. The entry lane is checked as well because
+nothing upstream of it can be blocked on its behalf. Both are no-ops until someone types a capacity.
 
 The user's sequence is the thing under study — the app must not silently repair a bad one.
 
@@ -546,6 +554,13 @@ The user's sequence is the thing under study — the app must not silently repai
 so a cadence needs one station's clock. The engine is handed a resolved interval and the id of the
 station whose open time it is measured in; slots then walk that calendar, so a 3-day takt is three
 *working* days apart rather than 72 hours.
+
+**Which station that is, as built.** The study may name its pacemaker; the default is the step whose
+work content across the whole demand is largest, ties broken by position (§4.4). It became a choice
+rather than a derivation when it gained the second job above: a gate that moves to another machine
+because someone edited a batch size, and tells nobody, is a gate nobody can reason about (§18.8). A
+named pacemaker that is no longer in the flow falls back to the derivation rather than failing the
+study — a deleted node should not read as a broken study.
 
 The station is the **busiest step by work content across the whole demand** — `Σ (part_pt × batch)`
 at each step, over every order in the sequence. Deliberately not §8.2's occupation-based bottleneck,
@@ -649,7 +664,18 @@ Results are reported per study and rolled up per plant.
 ### 7.8 Initial state and horizon
 
 **Cold start**: the plant is empty at the study start date (= first order's need date − that part's
-theoretical lead time, §7.9). The run ends when every order in every selected study is delivered,
+theoretical lead time (§7.9) − the study's **start buffer**).
+
+The buffer is a deliberate margin on top of the derivation, in **calendar days**, zero by default.
+Slippage accrues on a wall calendar — a week late is a week late whether or not the plant was open —
+and the theoretical walk already returns a wall-clock instant, so the cold start stays one
+subtraction on one clock (§17.4). It is subtracted outside the walk rather than inside it, because
+the walk is the queue-free minimum and has to stay comparable with what the run observes (§7.9).
+
+**It is one lever, not one per order.** The cold start is derived from the *first* order and every
+later one releases on a takt slot from there, so a 10-day buffer moves every release 10 days earlier
+and gives the whole sequence the same margin. Worth saying because the formula reads as if it were
+per order. The run ends when every order in every selected study is delivered,
 with a hard guard (≈5× the horizon implied by demand) that aborts and reports "demand exceeds
 capacity — N orders never completed" rather than looping forever.
 
