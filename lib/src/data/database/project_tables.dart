@@ -196,6 +196,38 @@ class Studies extends Table {
   /// (DESIGN.md §7.3).
   IntColumn get wipCap => integer().nullable()();
 
+  /// Safety margin ahead of the derived cold start, in **calendar days**
+  /// (DESIGN.md §7.8).
+  ///
+  /// `order start = need date − theoretical lead time − this`. §7.8 derives the
+  /// first half and it is correct; this is the deliberate margin on top, which
+  /// nothing expressed before.
+  ///
+  /// **Calendar days, and every surface that shows it says so.** A start buffer
+  /// protects against real-world slippage and slippage accrues on a wall
+  /// calendar — a week late is a week late whether or not the plant was open.
+  /// It also composes: the theoretical walk already returns a wall-clock
+  /// instant, so the cold start stays one subtraction on one clock. §17.4 is
+  /// why the unit is stated rather than assumed.
+  ///
+  /// Zero is no buffer, which is what every study did before this column.
+  IntColumn get startBufferDays =>
+      integer().withDefault(const Constant(0))();
+
+  /// The workcenter or pool whose clock paces the releases, or null to derive
+  /// it (DESIGN.md §7.2, §18.8).
+  ///
+  /// Derived by work content across the demand when null, which is what
+  /// `_paceSetter` has always done. It is selectable now because the pacemaker
+  /// gained a second job: §7.2 gates a release on whether the lane in front of
+  /// it has room, so a station chosen silently by summing batch sizes would be
+  /// a gate that moves when the demand is edited and tells nobody.
+  ///
+  /// A target id — workcenter or pool — the convention `part_process_times`
+  /// and `workcenter_dispatch` already use, and unreferenced for the same
+  /// reason they are: no one foreign key can point at two tables.
+  TextColumn get paceSetterTargetId => text().nullable()();
+
   /// Endpoint labels on the map. Stored on the study rather than as nodes:
   /// they carry no data and take part in no calculation, so a row for each
   /// would be a row that can only ever be renamed.
@@ -286,6 +318,35 @@ class FlowNodes extends Table {
   /// queue does.
   BoolColumn get inventoryUsesWorkingTime =>
       boolean().withDefault(const Constant(false))();
+
+  /// The queue discipline of the lane, or null to follow the run's rule
+  /// (DESIGN.md §5.5, §7.4).
+  ///
+  /// **The rule lives here rather than on the station**, which reverses §7.4 as
+  /// it was first built. On a physical FIFO lane you cannot take from the back,
+  /// so a discipline is not a property of the channel — it is how the next
+  /// station *chooses* from what is standing in front of it, and that is a
+  /// thing the map draws. Stored on the station it was invisible; stored here
+  /// it sits on the node the reader is already looking at.
+  ///
+  /// §5.1's spine is what makes this a total order: a step has at most one lane
+  /// in front of it, so there is exactly one comparator per queue. That is the
+  /// ambiguity a station-level rule could not avoid — one machine can be a
+  /// candidate for its own step and for a pool's.
+  TextColumn get laneRule => textEnum<DispatchRule>().nullable()();
+
+  /// How many orders the lane holds, or null for unlimited.
+  ///
+  /// **In orders, and its own column rather than [inventoryQuantity].** That
+  /// figure means *N pieces standing here today* — an observation of a current
+  /// state — and §5.5's whole correction is that an observation must not be
+  /// read as a rule. They would share a unit and mean opposite things.
+  ///
+  /// Counted in orders because the order is the engine's unit of flow; a
+  /// piece-level limit would need a rule for a batch that half fits, which the
+  /// spine has no way to express. Null keeps a lane unbounded, which is what
+  /// every node did before this column existed.
+  IntColumn get laneCapacity => integer().nullable()();
 
   TextColumn get label => text().nullable()();
   TextColumn get notes => text().nullable()();

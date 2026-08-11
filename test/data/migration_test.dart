@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -1131,6 +1132,284 @@ void main() {
       expect(orders.map((o) => o.partId), ['part-a', 'part-b', 'part-c']);
     },
   );
+
+  test('v14 to v15: the dispatch rule moves onto the lane that feeds it', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    // v14's shape: `code` and `home_line_id` both long gone, so neither the v3
+    // nor the v7 rebuild runs and `parallel_capacity` has to arrive by
+    // `addColumn` on a live table rather than by a copy.
+    const v14Workcenters = """
+      CREATE TABLE workcenters (
+        id TEXT NOT NULL,
+        plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+        type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+        name TEXT NOT NULL, notes TEXT NULL,
+        archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+    """;
+
+    const v14DemandTables = """
+      CREATE TABLE demand_parts (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_number TEXT NOT NULL, description TEXT NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, part_number));
+      CREATE TABLE part_process_times (
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+        PRIMARY KEY (part_id, target_id));
+      CREATE TABLE demand_orders (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+        batch_number TEXT NULL, customer_project TEXT NULL,
+        need_date INTEGER NOT NULL, material_date INTEGER NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, sequence));
+      CREATE TABLE workcenter_dispatch (
+        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, rule TEXT NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (project_id, target_id));
+    """;
+
+    // M4's storage, as v11 built it. It has to be here: the v15 step adds
+    // columns to three of these tables and only a database below v11 gets them
+    // created on the way past.
+    const v14RunTables = """
+      CREATE TABLE simulation_runs (
+        id TEXT NOT NULL,
+        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+        run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+        abort_reason TEXT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (id));
+      CREATE TABLE simulation_run_studies (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, name TEXT NOT NULL,
+        release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+        priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+        PRIMARY KEY (run_id, study_id));
+      CREATE TABLE simulation_run_orders (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+        part_number TEXT NOT NULL, customer_project TEXT NULL,
+        batch_number TEXT NULL, batch_size INTEGER NULL,
+        material_date INTEGER NULL, part_description TEXT NULL,
+        need_date INTEGER NOT NULL, released INTEGER NULL,
+        delivered INTEGER NULL, theoretical_seconds INTEGER NULL,
+        PRIMARY KEY (run_id, order_id));
+      CREATE TABLE simulation_run_steps (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+        workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+        process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+        changeover_incurred INTEGER NOT NULL DEFAULT 0
+          CHECK (changeover_incurred IN (0, 1)),
+        PRIMARY KEY (run_id, order_id, node_id));
+      CREATE TABLE simulation_run_empty_slots (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+        PRIMARY KEY (run_id, study_id, slot_at));
+      CREATE TABLE simulation_run_dispatch (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, name TEXT NOT NULL, rule TEXT NOT NULL,
+        PRIMARY KEY (run_id, target_id));
+      CREATE TABLE simulation_run_workcenters (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+        busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+        PRIMARY KEY (run_id, workcenter_id));
+    """;
+
+    final v14 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v14Workcenters)
+      ..execute(projectTables)
+      ..execute(v14DemandTables)
+      ..execute(v14RunTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      ..execute('PRAGMA user_version = 14');
+
+    v14
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-2', 'plant-1', 'TTAT', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_pools (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('pool-1', 'plant-1', 'CLAD Pool', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      );
+
+    // The flow the rules have to land on. Positions 0-3 are the ordinary case
+    // — a lane, then the step it feeds, twice — and position 4 is the case with
+    // nowhere to carry a rule to: a step whose upstream neighbour is another
+    // step rather than a lane.
+    for (final (id, position, kind, target) in [
+      ('node-0', 0, 'inventory', null),
+      ('node-1', 1, 'step', 'pool-1'),
+      ('node-2', 2, 'inventory', null),
+      ('node-3', 3, 'step', 'wc-1'),
+      ('node-4', 4, 'step', 'wc-2'),
+    ]) {
+      final pool = kind == 'step' && target!.startsWith('pool')
+          ? "'$target'"
+          : 'NULL';
+      final workcenter = kind == 'step' && target!.startsWith('wc')
+          ? "'$target'"
+          : 'NULL';
+      v14.execute(
+        'INSERT INTO flow_nodes (id, study_id, position, kind, workcenter_id, '
+        'pool_id, label, created_at, updated_at) '
+        "VALUES ('$id', 'study-1', $position, '$kind', $workcenter, $pool, "
+        "'FIFO $position', $now, $now)",
+      );
+    }
+
+    v14
+      // One rule per kind of target, plus one for the step that has no lane.
+      ..execute(
+        'INSERT INTO workcenter_dispatch '
+        '(project_id, target_id, rule, updated_at) '
+        "VALUES ('proj-1', 'pool-1', 'shortestProcessing', $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_dispatch '
+        '(project_id, target_id, rule, updated_at) '
+        "VALUES ('proj-1', 'wc-1', 'earliestDueDate', $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_dispatch '
+        '(project_id, target_id, rule, updated_at) '
+        "VALUES ('proj-1', 'wc-2', 'earliestDueDate', $now)",
+      )
+      // A stored run, to show the added columns land on real rows rather than
+      // only on an empty table.
+      ..execute(
+        'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+        'run_end, guard, created_at) '
+        "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_studies (run_id, study_id, name, '
+        'release_seconds, priority) '
+        "VALUES ('run-1', 'study-1', 'Current', 3600, 100)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_steps (run_id, study_id, order_id, node_id, '
+        'workcenter_id, queue_start, process_start, process_end) '
+        "VALUES ('run-1', 'study-1', 'order-1', 'node-3', 'wc-1', "
+        '$now, $now, $now)',
+      )
+      ..execute(
+        'INSERT INTO simulation_run_workcenters '
+        '(run_id, workcenter_id, name, busy_seconds, open_seconds) '
+        "VALUES ('run-1', 'wc-1', 'CLAD04', 3600, 7200)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final nodes = await db.select(db.flowNodes).get()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    // **The rule now sits on the lane that feeds the step, not on the step's
+    // target.** Both kinds of target carry across: a pool's rule and a single
+    // workcenter's, because the queue forms in the same place either way.
+    expect(nodes[0].laneRule, DispatchRule.shortestProcessing);
+    expect(nodes[2].laneRule, DispatchRule.earliestDueDate);
+
+    // A step is not a lane, so nothing was written to one.
+    expect(nodes[1].laneRule, isNull);
+    expect(nodes[3].laneRule, isNull);
+
+    // And `wc-2`'s rule had nowhere to go: node-4 is a step whose upstream
+    // neighbour is node-3, another step. The rule is dropped rather than
+    // guessed at, which is the honest outcome — it described a queue this model
+    // no longer holds anywhere — and the upgrade does not fail over it.
+    expect(nodes[4].laneRule, isNull);
+
+    // Capacity is untouched by the carry-over: a rule says how to choose, not
+    // how many fit, and nothing in v14 knew the second thing.
+    expect(nodes.map((n) => n.laneCapacity), everyElement(isNull));
+
+    // The defaults land on rows that already existed, which is what makes them
+    // safe: every station is one unit and every study has no buffer, exactly as
+    // they behaved before the columns were there.
+    final workcenters = await db.select(db.workcenters).get()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    expect(workcenters.map((w) => w.parallelCapacity), [1, 1]);
+
+    final study = await db.select(db.studies).getSingle();
+    expect(study.startBufferDays, 0);
+    expect(study.paceSetterTargetId, isNull);
+
+    // A run stored before lanes had capacity says nothing was ever blocked and
+    // every station was one unit, which is true of it.
+    final step = await db.select(db.simulationRunSteps).getSingle();
+    expect(step.blockedSeconds, 0);
+
+    final station = await db.select(db.simulationRunWorkcenters).getSingle();
+    expect(station.blockedSeconds, 0);
+    expect(station.units, 1);
+    expect(station.busySeconds, 3600);
+
+    final runStudy = await db.select(db.simulationRunStudies).getSingle();
+    expect(runStudy.startBufferDays, 0);
+
+    // The two new tables arrive empty, so the counter really did reach the end.
+    expect(await db.select(db.simulationRunLanes).get(), isEmpty);
+    expect(await db.select(db.simulationRunLaneVisits).get(), isEmpty);
+  });
 
   test('an upgrade that died part-way can still be opened', () async {
     // The shape found on the developer's own machine: `user_version` 6, but

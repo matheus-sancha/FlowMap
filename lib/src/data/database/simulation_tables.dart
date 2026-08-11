@@ -76,6 +76,12 @@ class SimulationRunStudies extends Table {
   IntColumn get priority => integer()();
   IntColumn get wipCap => integer().nullable()();
 
+  /// The margin that was added ahead of the derived cold start (§7.8), in
+  /// calendar days. Copied in so a run can say why it began where it did after
+  /// the study's buffer is changed.
+  IntColumn get startBufferDays =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {runId, studyId};
 }
@@ -167,6 +173,21 @@ class SimulationRunSteps extends Table {
   BoolColumn get changeoverIncurred =>
       boolean().withDefault(const Constant(false))();
 
+  /// How long the station stood holding this order after finishing it, because
+  /// the lane ahead was full (§5.5).
+  ///
+  /// Blocking is after service — a station cannot know in advance whether there
+  /// will be room, so it finishes and then waits — which means [processEnd] is
+  /// when the work stopped and `processEnd + this` is when the station was free
+  /// again. Kept apart from the work for the reason it is kept out of
+  /// `busySeconds` on the station: a jammed machine is occupied and not
+  /// producing, and folding the two would make utilization report the jam as
+  /// output.
+  ///
+  /// Zero on every run made before lanes had capacity, which is true of them.
+  IntColumn get blockedSeconds =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {runId, orderId, nodeId};
 }
@@ -234,8 +255,97 @@ class SimulationRunWorkcenters extends Table {
   IntColumn get busySeconds => integer()();
 
   /// Open time it had available across the run — the denominator.
+  ///
+  /// Already multiplied by [units]: a station with two of them has twice the
+  /// time to be busy in, and utilization is meaningless if the numerator counts
+  /// two servers and the denominator one.
   IntColumn get openSeconds => integer()();
+
+  /// Open time it spent holding a finished order with nowhere to put it (§5.5).
+  ///
+  /// **Not part of [busySeconds].** A blocked station is occupied and producing
+  /// nothing, so counting it as busy would report a jam as output — and on a
+  /// line whose constraint already sits at 86 % utilization that is not a
+  /// rounding error. Reported as its own column, which is what §5.5 meant by
+  /// "needs blocking-time metrics to be interpretable".
+  IntColumn get blockedSeconds =>
+      integer().withDefault(const Constant(0))();
+
+  /// How many orders it could run at once when the run was made (§3.1).
+  ///
+  /// Copied in like [name], for the same reason: a station re-rated from one
+  /// unit to two afterwards must not silently rewrite what a finished run's
+  /// utilization meant.
+  IntColumn get units => integer().withDefault(const Constant(1))();
 
   @override
   Set<Column<Object>> get primaryKey => {runId, workcenterId};
+}
+
+/// A lane as it stood when the run was made (§5.5, §7.10).
+///
+/// The snapshot beside [SimulationRunLaneVisits], and the same copy-in rule as
+/// [SimulationRunWorkcenters]: a lane renamed, re-disciplined or re-sized after
+/// the run must not change what the run says happened in it.
+///
+/// It also carries the geometry the Gantt needs. §7.10 joins to nothing and the
+/// flow may have been edited since, so without [position] there is no way to
+/// place a lane row between the two station rows it connects.
+class SimulationRunLanes extends Table {
+  TextColumn get runId =>
+      text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
+
+  TextColumn get studyId => text()();
+
+  /// The `flow_nodes` row it was, whether or not it still exists.
+  TextColumn get nodeId => text()();
+
+  /// `FIFO CEU27` — the node's label, copied in. Null when it was never
+  /// labelled, which is what an unnamed buffer on the map looks like.
+  TextColumn get name => text().nullable()();
+
+  /// Its place on the spine, so a lane row can be drawn between the stations it
+  /// sits between.
+  IntColumn get position => integer()();
+
+  /// The discipline in force, by name. Null means the run's own rule was used.
+  ///
+  /// Plain text rather than `textEnum` for the reason [SimulationRuns.dispatch]
+  /// gives: a run written by a later build must not stop an older one opening
+  /// the list of runs.
+  TextColumn get rule => text().nullable()();
+
+  /// Orders it could hold, or null for unlimited.
+  IntColumn get capacity => integer().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {runId, nodeId};
+}
+
+/// One order's stay in one lane (§5.5, §7.10).
+///
+/// Keyed by (run, order, node) like [SimulationRunSteps], and for the same
+/// reason: §5.1's spine is linear, so an order passes each lane exactly once.
+///
+/// **This is what makes the lane rows on the Gantt drawable.** Steps leave a
+/// trace in the run and buffers did not, so before this a lane could be neither
+/// placed nor populated without joining back to a flow that may have changed.
+class SimulationRunLaneVisits extends Table {
+  TextColumn get runId =>
+      text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
+
+  TextColumn get studyId => text()();
+  TextColumn get orderId => text()();
+  TextColumn get nodeId => text()();
+
+  /// When the order took a place in the lane.
+  DateTimeColumn get enteredAt => dateTime()();
+
+  /// When the station ahead pulled it out. Null means it was still in the lane
+  /// when the run ended, which is the honest reading of an order the guard
+  /// caught mid-flight.
+  DateTimeColumn get leftAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {runId, orderId, nodeId};
 }

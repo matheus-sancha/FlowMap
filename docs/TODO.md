@@ -9,14 +9,19 @@ PR #3** as of 2026-08-08, the third from this branch after #1 (M1–M2) and #2 (
 things looking at it said. Schema is at **v14**, untouched by all of §2.7, §2.8, §2.11 and §2.12.
 M4 is code-complete.
 
-**What is next needs a human at the GUI, not more code.** §3's Gantt item is only partly closed:
+**What is next needs a human at the GUI, not more code.** §4's Gantt item is only partly closed:
 §2.11 came out of a Debug session that changed three things, and the rest of that list — the axis at
 the fit, ten zoom presses, the changeover stroke, both themes, es and pt — has still not been
 looked at, nor has §2.8's file been opened in Excel.
 
-**Célula 11B's stored run predates §2.12 and describes a rule the engine no longer follows.** Re-run
-it before reading its figures against anything: buffers no longer delay an order, so expect roughly
-14 days off the lead time and some of it back as queueing at the stations.
+**Célula 11B was re-run on 2026-08-10** — six runs that day, the newest `01e61863`. §2.12's
+prediction held: the 14 days of buffer delay are gone and the wait reappeared at the plant, almost
+all of it at CEU27. The demand has also grown from 33 orders to **60**, so every figure recorded in
+§1 and §2 describes a smaller problem than the one on the screen now. §3.0 has the measurements.
+
+**§3 is the plan that came out of that session**, settled by interview and not yet started. It moves
+the dispatch rule off the station and onto the inventory node, so it will invalidate those six runs
+in turn.
 
 **The Release bundle is stale.** It predates all nine of the pushed commits; a rebuild under a fresh
 label is owed with the next verification pass, and since the schema has not moved the open should
@@ -685,7 +690,7 @@ that churn on any font, theme or locale change, across three languages and two b
 golden scenarios are committed *numbers*. So: exhaustive pure tests on `buildGanttChart`,
 `layoutGantt`, tick selection, the floored count and `barAt`; widget tests for the view switching,
 hover, zoom changing granularity, the floor note appearing and going, the swatch and the conditional
-Study column; then §3 drives it by hand. §2.10 is the evidence that last step earns its place.
+Study column; then §4 drives it by hand. §2.10 is the evidence that last step earns its place.
 
 **Four commits, logic before pixels**, kept separate the way §2.10's were:
 
@@ -763,7 +768,7 @@ _Rejected: a PDF of the plan._ §13 reserves PDF for the full simulation *report
 metrics, bottleneck ranking, late-order list — and a standalone plan PDF pre-empts a document that
 does not exist yet. Thirteen columns landscape is tight in any case.
 
-**The Gantt does not export.** §4's parking of exports covers it: a chart spanning months has to be
+**The Gantt does not export.** §5's parking of exports covers it: a chart spanning months has to be
 paged across sheets or scaled to illegibility, and it is the hardest of the three to print well.
 
 ### 2.9 DESIGN.md — **done 2026-08-08**
@@ -921,7 +926,260 @@ reading its figures against anything.
 
 ---
 
-## 3. Verify in the running app
+## 3. Field feedback, 2026-08-10
+
+Nine items from driving the build by hand against a re-run Célula 11B, each settled by interview
+before any of it was written. Ordered the way §1 and §2 were — the schema lands once and the UI sits
+on top of it — and split into **four rounds with a hand-driven pass between them**, which is §2.0's
+rule and §16.11 is the record of what ignoring it costs.
+
+**This changes what a dispatch rule is, so it invalidates all six stored runs**, exactly as §2.12
+did. Re-run before reading any figure against anything.
+
+### 3.0 What the re-run said
+
+Measured off run `01e61863`, 2025-11-10 → 2026-11-13. The demand has grown to **60 orders**, so
+none of §2's recorded figures carry over.
+
+| Station | Bars | Max waiting at once | Avg wait |
+|---|---|---|---|
+| CEU27 | 60 | **8** | **21.3 d** |
+| CLAD08 | 28 | 1 | 2.7 d |
+| CLAD04 | 32 | 2 | 2.3 d |
+| Coating | 60 | 1 | 0.1 d |
+| TTAT | 60 | 1 | 0.0 d |
+| BAN11 | 60 | 1 | 0.0 d |
+| CEU26, END | 60 | 0 | 0.0 d |
+
+Four things it settles before any of the work below, and each of them moved a decision:
+
+- **CEU27 holds the whole queue** — 1 275 order-days of it. Every other station is starved rather
+  than congested, which is what §2.12 predicted would happen once the buffers stopped charging their
+  14 days: the wait did not vanish, it moved to where the plant actually causes it.
+- **TTAT is not a constraint.** Zero average wait, never more than one order queued. §3.2 is a
+  fidelity fix and will not move the lead time, and it is worth knowing that before it is built.
+- **The sequence is scrambled by the pool, not by the dispatch rule.** TTAT ran order 4 before 3, 8
+  before 7, 17 before 16, 19 before 18, 28 before 27 — and TTAT is strictly FIFO and never reorders
+  anything. Cladding is a pool of two running at different speeds, so orders leave it out of
+  sequence and every station downstream faithfully serves them in the order they turn up. **The
+  dispatch rule was not the problem**, which is why §3.1 is about governance rather than about
+  comparators.
+- **The map claims 21 days the run ignores.** All seven 11B inventory nodes are DURATION —
+  4/3/4/4/2/2/2 days — and §2.12 made the engine walk straight over every one. The lead-time ladder
+  says 21 days of inventory and the run says nothing at all, and both are right by their own rules.
+  That gap is what the field feedback was really pointing at.
+
+### 3.1 Lanes govern the flow — schema v15 — **round one**
+
+*"I don't know if the dispatch method for the flow is making much sense — the inventories should have
+the governance over it?"* Yes, and the answer is larger than the question: the discipline **moves
+onto the buffer** and the station keeps none.
+
+The argument is that on a physical FIFO lane you cannot take from the back, so "LIFO lane" is not a
+property of the channel — it is how the next station **chooses** from what is standing in front of
+it. Which is precisely what §7.4's per-station rule already was, stored where the map cannot draw it.
+An invisible station property governing a queue the map draws as a visible lane is the whole
+complaint.
+
+- **The rule lives on the inventory node.** FIFO, LIFO, EDD and SPT. FEFO was asked for and is EDD
+  under the name the floor uses — the need date *is* the expiry here — so it is not a fifth rule and
+  no expiry column is stored. Whether the picker reads `FEFO` or `Earliest due date` is a wording
+  call for the day it is built.
+- **`workcenter_dispatch` goes.** Its four stored rows are all `fifo`: CEU26, CLAD04 and CLAD Pool
+  migrate onto the lane immediately upstream of each target, and CLAD09 — which is in no flow —
+  migrates to nothing and is dropped. `simulation_run_dispatch` becomes lane-keyed; it is empty
+  today, so nothing is lost.
+- **This reverses §1.3**, knowingly. That item put the rule on the station and flattened pool
+  membership onto the server because *"one machine can be a candidate for two steps — its own and a
+  pool's,"* and a rule travelling with the step would leave two orders at one machine governed by
+  different comparators. §5.1's spine is what makes the reversal safe: a step has **at most one lane
+  in front of it**, so there is exactly one comparator per queue. A step with no lane before it —
+  Teste's CEU19 — falls back to the run's rule.
+- **A capacity, in orders, nullable, null meaning unlimited.** The engine's unit of flow is the
+  order, so a lane holding "up to 3 orders" is countable without inventing a piece-level model that
+  the spine does not have. **Its own column, not `inventory_quantity`**: that figure means *N pieces
+  standing there today*, an observation, and §2.12's entire lesson is that an observation must not be
+  used as a rule. Nullable means every existing node keeps today's unbounded behaviour.
+- **Blocking after service, recorded separately.** A station that finishes an order into a full lane
+  holds it and stays occupied until room appears — physical, and the only version that needs no
+  clairvoyance. Blocked seconds are stored per step and per workcenter and kept **out of
+  `busySeconds`**, or a jammed CEU27 at 86 % utilization would report as a productive one and §8.3's
+  three capacity terms would stop meaning what they say. Its own column in the Queue table.
+- **§5.5's deadlock objection does not apply.** That rejection — *"it couples the engine, can
+  deadlock, and needs blocking-time metrics to be interpretable"* — was written against a general
+  graph. §5.1's spine is linear with no branches and no rework loops, so a blocked chain always
+  drains from the last station and cannot deadlock. The third clause stands and is answered above.
+- **A full lane can send a release slot out empty**, with a new `EmptySlotReason`. This reuses
+  §7.3's machinery wholesale and finally lets the empty-slot count distinguish *no material* from
+  *nowhere to put it* — which is §18.5's open question answering itself. The run already records 6
+  `awaitingMaterial` slots, so the shape is proven.
+- **The lane that gates release is the pace setter's**, not the first step's. Lean puts the schedule
+  in at the pacemaker, and it makes the constraint govern the line directly rather than through a
+  chain of blocked stations propagating backwards. In 11B those are different lanes: the first step
+  is the CLAD Pool, the pace setter is CEU27.
+- **So the pace setter becomes user-selectable**, defaulting to the derivation `_paceSetter` does
+  today and shown on the Flow tab. It now decides both the release cadence and when the line stops,
+  and a gate that can move to another station because someone edited a batch size is a gate nobody
+  can reason about. One nullable column on `studies`; the derivation stays as the default.
+
+The run has to store lane visits — order in, order out, per lane, with the lane's name, discipline
+and capacity copied in — because §7.10 joins to nothing and §3.4 needs them to place its rows.
+Same shape as `simulation_run_steps`.
+
+_Rejected: the supermarket, for this round._ It was asked for alongside the four disciplines and it
+is not the same mechanism. A supermarket **decouples**: downstream withdraws from stock rather than
+waiting for a specific order, and the withdrawal is what authorises upstream to replace it — so the
+part that comes out is not the order that went in, and the upstream segment stops being driven by
+§7.2's takt release. It needs stock levels, a replenishment trigger and stockout metrics, and it
+changes what an order *is* through a buffer. Its own round. §5.2 keeps it decorative until then.
+
+_Rejected: defaulting a lane's capacity from its stored figure._ Every 11B lane would have a limit on
+day one with no typing — by reading an observation as a rule, which is §2.12 arriving from the other
+direction.
+
+### 3.2 A station can hold more than one order — **round one**
+
+*"TTAT can process two orders at the same time."* Workcenters gain a nullable parallel capacity,
+default 1, and the engine builds that many servers for the station rather than one.
+
+**Two independent units, not a batch process** — and the run says which: TTAT's process times are
+0.3, 0.4, 0.7, 1.4 and 3.4 days across different orders, so they scale with batch size. An oven or
+autoclave curing a load takes the same time whether one order goes in or three, and would need a
+loading policy and a process time that belongs to the load rather than to the batch — which
+contradicts §7.6's per-piece model. That is a different feature, and this is not it.
+
+**Capacity means the same thing everywhere.** §8.4's occupation is `load ÷ available`, §6.1's flow
+equivalent divides by a station's productive day, and utilization's denominator is `openSeconds` —
+all three assume one unit, so a two-unit TTAT would read 200 % loaded on the Summary while the run
+reported it comfortable. All of them take the capacity. **Any station given one has its existing
+Summary figures change**, correctly but visibly, so it wants a line in the release note.
+
+_Rejected: a pool of TTAT-A and TTAT-B._ Works today with no code — by inventing two machines that
+do not exist, which the Summary, the Queue table and the Gantt would then report forever.
+
+### 3.3 A start buffer per study — **round one**
+
+*"Order Start = Need Date − Lead Time − Start Buffer."* §7.8's derivation is correct and stays; what
+is added is a deliberate safety margin on top of it, per study.
+
+**In calendar days, and the field says so.** A start buffer is protection against real-world
+slippage and slippage accrues on a wall calendar — a week late is a week late whether or not the
+plant was open. It also composes: the theoretical lead-time walk already returns a wall-clock
+instant, so the cold start stays one subtraction on one clock. §17.4 is the scar that makes stating
+the unit non-optional.
+
+**It is one lever, not sixty.** `planRun` derives the cold start from the **first** order only and
+every later order releases on a takt slot from there, so a 10-day buffer moves every release 10 days
+earlier and gives the whole sequence the same margin. That is the wanted behaviour, and it is worth
+writing down because the formula reads as if it were per order.
+
+_Rejected: a run start override._ It was the first thing offered and the buffer is better: it keeps
+§7.8's derivation working rather than replacing it with a date that goes stale the moment the demand
+moves.
+
+### 3.4 The Gantt reads as a flow — **round two**
+
+- **A lane row per inventory node, between the two station rows it connects**, so the chart reads
+  down the page the way the line runs. **Orders stack inside it and the row's height is the
+  capacity**, so a full lane is visibly full and blocking is something the reader *sees* rather than
+  infers. Same part colours, drawn hatched or outlined so a waiting order never reads as a running
+  one. Uncapped lanes need a height rule — the open question in this item.
+- **This is what makes drawing the queue affordable at all.** §2.7 rejected queue spans because
+  *"CEU27 holds dozens of orders waiting at once, and drawing those would smear the row solid"* — and
+  it would, on a station row. A capacity bounds the height by a number the user typed, which is the
+  premise that rejection did not have.
+- **Row placement needs the stored lane visits** from §3.1. `routingRanks` derives station order from
+  the run because §7.10 forbids joining to the flow, and buffers leave no trace in
+  `simulation_run_steps` today.
+- **Bar labels gain the order number**: part number first, order number appended when the bar is wide
+  enough for both. Keeps every label that reads correctly today reading the same way. `barAt` and the
+  hover card extend to lane rows unchanged.
+
+### 3.5 Closed time on the Gantt — **round two**
+
+*"Gantt not showing the weekends/holidays."* §2.7 ruled this out — *"splitting a bar at closed time
+would need calendars a stored run does not have"* — so it needs new stored data whatever is chosen,
+and joining to the live plant is not available: shading that changed silently when someone edited a
+shift pattern would be worse than none.
+
+**Each station's calendar is snapshotted into the run** — shift pattern, staffing and exceptions.
+Compact: `ShiftPatternSpec` is a weekday bitmask plus shift windows, and `staffing_codec.dart`
+already renders operators as `1/1/1`. `WorkingCalendar` is pure, so the view rebuilds it and computes
+closed spans **for the visible window only**, the way `ganttTicks` already does for the same reason
+(§16.9's ~13 µs per local `DateTime`). Per row, because stations genuinely differ and per-station
+calendars are the whole of M1.
+
+This turns §2.7's *"a gap means not running — closed and starved alike"* into two distinguishable
+states, which is a knowing reversal rather than an oversight.
+
+_Rejected: one shading for the whole chart from the pace setter._ One snapshot instead of eight and
+it reads like every other Gantt tool — and it is a lie on every row whose station works a different
+pattern.
+
+### 3.6 The date format is the user's — **round three**
+
+*"Date format DD/MM/YYYY — user set in settings."* §12.4 currently says dates follow the locale, and
+the app has no locale setting at all: it follows Windows, so an en-US machine shows `8/10/2026`.
+
+**An explicit format, independent of language** — DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD — stored in the
+`app_settings` table that exists and is unused, picked on the Settings screen that is still a
+`PlaceholderScreen`. Independent of UI language deliberately: English UI with Brazilian dates is
+reachable this way and is not reachable through a locale picker.
+
+**It must reach the parser in the same commit.** `date_input.dart:30` parses typed dates with
+`DateFormat.yMd(locale).parseStrict`, so a display format changed alone would make every date field
+reject what it had just shown.
+
+**And the Excel export**, as a number format on the date columns. §13.1 writes real `DateCellValue`s
+with no format, which Excel renders by *the viewer's* Windows locale — which is exactly how a date
+column ends up reading `45 872`. This closes the open §4 item about opening the file in Excel.
+
+The Gantt axis keeps its month names (`Jan 14`); they are not a numeric format and `14/01/2026`
+under every tick is worse. §12.4 is amended from *dates follow the locale* to *dates follow the
+user's setting, defaulting to the locale*.
+
+### 3.7 The result stays until it is dismissed — **round three**
+
+*"View results persistent bar after run, add a close button."* Today it is a plain `SnackBar` with
+Flutter's 4-second default (`project_workspace_screen.dart:221`), so it is not currently persistent.
+
+**A `MaterialBanner` above the tabs**, carrying the headline figure, `View results` and a close
+button. A snackbar anchors to the bottom of the window, and since §2.7 gave the Gantt the full body
+height, a bar that never goes away parks permanently over the last station's row and the scrollbar
+gutter §2.11 added to get at it. A banner pushes content down instead of covering it, and a
+persistent statement about the project is not what a snackbar is for.
+
+### 3.8 A map that never runs — **round four**
+
+*"VSM only feature, without the simulation, just for visual but in a more free."* A study can be
+marked map-only: excluded from runs, so readiness stops demanding takt periods, process times and
+bound steps, and Simulate ignores it. §5.2's decorative layer — free-placed trucks, supermarkets,
+kaizen bursts, notes — becomes reachable, which closes half of §17.5's built-but-unreachable list.
+
+**And free topology**, which is the larger of the two options and was chosen deliberately. §5.1
+rejected branching because it *"forces part-specific routings, join synchronisation, and branch-aware
+lead-time roll-up"* — every one of those objections is about **simulating** it, and a map that never
+runs owes none of them.
+
+**The cost is a second layout path.** `flow_layout.dart`, §1.6's arrow geometry, `flow_pdf.dart` and
+the lead-time ladder all assume the spine, so this is closer to a sibling of the existing canvas than
+a flag on it. It is M5-sized and it is last for that reason.
+
+### 3.9 DESIGN.md
+
+Written as each piece lands rather than swept up at the end — §1.10 and §2.9 are the evidence that
+doing it that way finds things. Sections this round will touch: **§5.2** (the supermarket stays
+decorative; the decorative layer becomes reachable), **§5.5** (lanes govern: discipline, capacity,
+blocking), **§6.1** and **§8.3** and **§8.4** (parallel capacity means the same thing everywhere),
+**§7.2** (a full lane sends a slot out empty), **§7.3**, **§7.4** (the rule moves off the station),
+**§7.7**, **§7.8** (the start buffer), **§7.10** (lane visits, blocked seconds, calendar snapshots),
+**§8.6** (lane rows, closed-time shading, bar labels), **§12.1** (the results banner), **§12.4**
+(dates follow the setting), **§13.1** (the export's number formats), **§16.16** (schema v15, new),
+**§17.5**, **§18.5** (empty slots, answered) and **§18.8** (the pace setter is chosen, not derived).
+
+---
+
+## 4. Verify in the running app
 
 The rest of this has not been driven by hand — it is covered by unit, repository and mounting tests
 only.
@@ -985,7 +1243,7 @@ only.
 
 ---
 
-## 4. Known gaps, deliberately left
+## 5. Known gaps, deliberately left
 
 - [ ] **§14's performance target is not met.** A 2000-order, 10-step run takes ~2.8 s against "well
       under a second". §16.9 has the measurements: the cost is local `DateTime` arithmetic on
@@ -1012,7 +1270,7 @@ only.
 
 ---
 
-## 5. M5
+## 6. M5
 
 Reports (§13), run comparison, templates and binding (§10.2), the About screen, and the drop.
 

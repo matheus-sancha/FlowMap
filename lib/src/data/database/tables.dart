@@ -201,6 +201,28 @@ class Workcenters extends Table {
   /// identical columns in every picker. One name is what a workcenter has.
   TextColumn get name => text().withLength(min: 1, max: 200)();
 
+  /// How many orders it can run at once (DESIGN.md §3.1, §8.3).
+  ///
+  /// One is a single machine, which is what every workcenter was before this
+  /// column. Above one the engine gives the station that many servers, and it
+  /// genuinely runs that many orders side by side, each with its own process
+  /// time — which is what distinguishes this from a batch process, where one
+  /// window holds several orders and the time does not double. The observed
+  /// data is what decided it: TTAT's process times scale with batch size, and
+  /// an oven curing a load would not.
+  ///
+  /// **It means the same thing everywhere.** §8.4's occupation, §8.3's
+  /// utilization denominator and §6.1's flow equivalent all divide by a
+  /// station's available time, so all three take this — otherwise a two-unit
+  /// station reads 200 % loaded on the Summary while the run reports it
+  /// comfortable.
+  ///
+  /// _Rejected: a pool of two invented members._ It needs no code at all, and
+  /// it puts two machines that do not exist into the plant, the Summary, the
+  /// Queue table and every Gantt from then on.
+  IntColumn get parallelCapacity =>
+      integer().withDefault(const Constant(1))();
+
   TextColumn get notes => text().nullable()();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();

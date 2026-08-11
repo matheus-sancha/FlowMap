@@ -47,6 +47,7 @@ void main() {
     name: name,
     releaseSeconds: 3600,
     priority: 0,
+    startBufferDays: 0,
   );
 
   ProductionPlanRow planRow({

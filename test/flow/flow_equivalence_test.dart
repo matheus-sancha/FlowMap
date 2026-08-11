@@ -52,6 +52,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
+    startBufferDays: 0,
     priority: 100,
     createdAt: now,
     updatedAt: now,
@@ -90,6 +91,7 @@ void main() {
       workcenter: Workcenter(
         id: id,
         plantId: 'plant-1',
+        parallelCapacity: 1,
         name: id,
         createdAt: now,
         updatedAt: now,

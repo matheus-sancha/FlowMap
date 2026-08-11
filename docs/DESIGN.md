@@ -1958,6 +1958,47 @@ CLAD04 silently starts taking 4 h.
 _Rejected: refusing to migrate and naming the collisions._ Safest of all, and §16.11 is the record
 of what a database that cannot be opened costs.
 
+### 16.16 Schema v15, from field feedback
+
+The inventories take over the governance of the flow (§5.5, §7.4), a station may run more than one
+order at once (§3.1), and a study may add a margin ahead of its derived cold start (§7.8).
+
+**Purely additive**: six columns and two tables, no rebuild anywhere. That is deliberate rather than
+lucky — the database this runs against first is the one that already survived a half-finished
+upgrade (§16.11), and a step that rebuilds nothing cannot leave anything half-rebuilt.
+
+| Change | Why |
+|---|---|
+| `flow_nodes.lane_rule` — nullable `DispatchRule` | The queue discipline, moved off the station. Null follows the run's rule. |
+| `flow_nodes.lane_capacity` — nullable int, **in orders** | How many the lane holds; null is unlimited, which is what every lane was. **Its own column, not `inventory_quantity`** — that figure is an observation of today's WIP, and §5.5's correction is that an observation must not be read as a rule. |
+| `workcenters.parallel_capacity` — int, default 1 | How many orders the station runs at once (§3.1). |
+| `studies.start_buffer_days` — int, default 0 | Calendar days of margin ahead of §7.8's cold start. |
+| `studies.pace_setter_target_id` — nullable text | The chosen pacemaker; null derives it as before (§18.8). |
+| `simulation_run_studies.start_buffer_days`, `simulation_run_steps.blocked_seconds`, `simulation_run_workcenters.blocked_seconds` + `units` | §7.10's copy-in rule: a run says what it was run with. |
+| New `simulation_run_lanes`, `simulation_run_lane_visits` | Lanes leave a trace in the run, so §8.6 can place and populate a lane row without joining back to a flow that may have been edited. |
+
+**The carry-over is the only interesting part.** Every stored `workcenter_dispatch` rule moves onto
+the lane feeding its target — the inventory node at `position - 1` of the step pointing at that
+workcenter or pool, which §5.1's dense ordered spine makes exact. A target with no lane in front of
+it loses its rule, which is the honest outcome rather than a loss: it described a queue the model no
+longer holds anywhere, and §7.4's fallback to the run's rule is what it becomes. `workcenter_dispatch`
+is **not dropped by this step** — the code reading it goes first, because dropping a table ahead of
+its readers is how an upgrade strands a build.
+
+**Two older steps had to change, for the third time.** `workcenters` is rebuilt by both the v3 step
+(dropping `code`) and the v7 step (dropping `home_line_id`), and `TableMigration` copies from the
+*current* Dart definition — so both now need a constant for `parallel_capacity`, a column twelve
+versions in their future. This is §16.13's rule and §16.15's restatement of it arriving a third
+time, now on a second table: **every column added to `workcenters` or `demand_orders` needs a line
+in the old steps that rebuild them.**
+
+**`_ensureColumn` now asks whether the table exists**, not only whether the column does. A step adds
+columns to tables an earlier step creates, and `from` says only where the counter stopped — a
+database whose upgrade died between the two has the version of the second and the tables of neither.
+`_ensureTable` had always asked; this is the same rule applied to the other half, and it is what the
+note at the top of `onUpgrade` requires. Skipping is safe rather than quiet: whatever creates the
+table later builds it from the current definition, which already carries the column.
+
 ---
 
 ## 17. Done between M2 and M3

@@ -284,6 +284,7 @@ void main() {
             name: 'Célula 11B',
             releaseSeconds: 3600,
             priority: 0,
+            startBufferDays: 0,
           ),
           SimulationRunStudy(
             runId: 'run-1',
@@ -291,6 +292,7 @@ void main() {
             name: 'Célula 12A',
             releaseSeconds: 3600,
             priority: 0,
+            startBufferDays: 0,
           ),
         ],
         partNumbers: const {'p1': 'PN2', 'p2': 'PN2'},

@@ -113,6 +113,7 @@ void main() {
     name: name,
     releaseSeconds: const Duration(hours: 6).inSeconds,
     priority: 0,
+    startBufferDays: 0,
   );
 
   /// A run across two lines whose parts are both called `PN2` (§8.1.2).

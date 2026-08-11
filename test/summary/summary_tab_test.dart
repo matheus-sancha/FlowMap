@@ -18,6 +18,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
+    startBufferDays: 0,
     priority: 100,
     createdAt: now,
     updatedAt: now,

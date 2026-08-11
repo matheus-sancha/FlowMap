@@ -57,6 +57,8 @@ const _seededAtKey = 'reference_data.seeded_at';
     SimulationRunEmptySlots,
     SimulationRunDispatch,
     SimulationRunWorkcenters,
+    SimulationRunLanes,
+    SimulationRunLaneVisits,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -73,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -127,8 +129,24 @@ class AppDatabase extends _$AppDatabase {
         // the dropped column is simply not carried across — and every other
         // value survives whatever column order this machine's table has,
         // which is the reason not to hand-roll the copy.
+        //
+        // **The transformer is not optional**, and it is the third time this
+        // file has learned that (§16.13, §16.15). `TableMigration` copies from
+        // the *current* Dart definition, so this reaches for every column
+        // `workcenters` has today — including `parallel_capacity`, which v15
+        // added and which a table this old has never had. Without a constant
+        // naming it the copy fails on a column twelve versions in the future.
+        // Every future column on this table needs the same line, here and in
+        // the v7 step below.
         if (await _hasColumn('workcenters', 'code')) {
-          await m.alterTable(TableMigration(workcenters));
+          await m.alterTable(
+            TableMigration(
+              workcenters,
+              columnTransformer: {
+                workcenters.parallelCapacity: const Constant<int>(1),
+              },
+            ),
+          );
         }
       }
 
@@ -169,8 +187,17 @@ class AppDatabase extends _$AppDatabase {
         // already been rebuilt by the v3 step above, from a definition that no
         // longer carries it, and so has a database whose upgrade died after
         // this point last time.
+        // The v3 step's note about `parallel_capacity` applies here too: this
+        // rebuild copies from the same current definition.
         if (await _hasColumn('workcenters', 'home_line_id')) {
-          await m.alterTable(TableMigration(workcenters));
+          await m.alterTable(
+            TableMigration(
+              workcenters,
+              columnTransformer: {
+                workcenters.parallelCapacity: const Constant<int>(1),
+              },
+            ),
+          );
         }
         await _ensureTable(m, workcenterLines);
 
@@ -377,6 +404,82 @@ class AppDatabase extends _$AppDatabase {
         await m.alterTable(TableMigration(demandParts));
       }
 
+      if (from < 15) {
+        // Field feedback: the inventories should govern the flow. The queue
+        // discipline moves off the station and onto the lane in front of it
+        // (§5.5, §7.4), lanes gain a capacity that blocks upstream, a station
+        // may run more than one order at once (§3.1), and a study may add a
+        // margin ahead of its derived cold start (§7.8).
+        //
+        // **Purely additive**, which is deliberate on a database that has
+        // already survived a half-finished upgrade (§16.11): six nullable or
+        // defaulted columns and two new tables, so no table is rebuilt and no
+        // step here can leave one half-copied. `workcenter_dispatch` is read
+        // below and *not* dropped — the code that still reads it goes in the
+        // commit that teaches the engine to read lanes instead, and dropping a
+        // table before its readers is how an upgrade strands a build.
+        await _ensureColumn(m, flowNodes, flowNodes.laneRule);
+        await _ensureColumn(m, flowNodes, flowNodes.laneCapacity);
+        await _ensureColumn(m, studies, studies.startBufferDays);
+        await _ensureColumn(m, studies, studies.paceSetterTargetId);
+        await _ensureColumn(m, workcenters, workcenters.parallelCapacity);
+
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.startBufferDays,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.blockedSeconds,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.blockedSeconds,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.units,
+        );
+        await _ensureTable(m, simulationRunLanes);
+        await _ensureTable(m, simulationRunLaneVisits);
+
+        // Carry every stored dispatch rule onto the lane that feeds its target.
+        //
+        // The rule was keyed by workcenter or pool; a lane is the inventory
+        // node immediately before the step pointing at that target, which is
+        // the same queue seen from the other side. §5.1's spine is what makes
+        // "immediately before" exact — positions are dense and ordered, so the
+        // lane feeding a step is the node at `position - 1` if that node is an
+        // inventory.
+        //
+        // A target with no lane in front of it — a step that opens a flow, or a
+        // workcenter in no flow at all — has nowhere to carry its rule to and
+        // loses it. That is the honest outcome rather than a loss: the rule
+        // described a queue that the model no longer holds anywhere, and §7.4's
+        // fallback to the run's rule is what it becomes. `workcenter_dispatch`
+        // is still here if a value ever needs recovering by hand.
+        if (await _hasTable('workcenter_dispatch')) {
+          await customStatement('''
+            UPDATE flow_nodes SET lane_rule = (
+              SELECT d.rule
+              FROM flow_nodes step
+              JOIN studies s ON s.id = step.study_id
+              JOIN workcenter_dispatch d
+                ON d.project_id = s.project_id
+               AND d.target_id = COALESCE(step.pool_id, step.workcenter_id)
+              WHERE step.study_id = flow_nodes.study_id
+                AND step.position = flow_nodes.position + 1
+                AND step.kind = 'step'
+            )
+            WHERE flow_nodes.kind = 'inventory'
+          ''');
+        }
+      }
+
       // Reference-data seeding runs outside every version guard, on every
       // upgrade, so content added to a later build reaches the people
       // already running the app — who are exactly who it is for.
@@ -422,11 +525,23 @@ class AppDatabase extends _$AppDatabase {
     if (!await _hasTable(table.actualTableName)) await m.createTable(table);
   }
 
+  /// Adds [column] unless it is already there — or the table is not.
+  ///
+  /// **The missing-table case is not defensive padding.** A step adds columns to
+  /// tables an earlier step creates, and `from` says only where the counter
+  /// stopped: a database whose upgrade died between the two has the version of
+  /// the second and the tables of neither (§16.11). Asking is what the note at
+  /// the top of `onUpgrade` requires, and [_ensureTable] has always asked.
+  ///
+  /// Skipping is safe rather than merely quiet: whatever creates the table
+  /// later builds it from the current Dart definition, which already carries
+  /// the column. There is no path where this loses one.
   Future<void> _ensureColumn(
     Migrator m,
     TableInfo<Table, dynamic> table,
     GeneratedColumn<Object> column,
   ) async {
+    if (!await _hasTable(table.actualTableName)) return;
     if (!await _hasColumn(table.actualTableName, column.name)) {
       await m.addColumn(table, column);
     }
