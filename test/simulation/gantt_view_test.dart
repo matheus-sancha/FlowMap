@@ -69,6 +69,7 @@ void main() {
     required List<SimOrderOutcome> orders,
     Map<String, String> partNumbers = const {'p1': 'PN1', 'p2': 'PN2'},
     List<SimulationRunStudy> studies = const [],
+    List<SimLane> lanes = const [],
     // The view rebuilds its chart when the id changes and not otherwise, which
     // is right for an app where a run is written once and never edited — so a
     // test pumping a second run into the same tree has to give it its own id or
@@ -84,6 +85,7 @@ void main() {
       emptySlots: const [],
       busyByWorkcenter: const {},
       openByWorkcenter: const {},
+      lanes: lanes,
     );
 
     return StoredRun(
@@ -170,23 +172,20 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// Where the pointer has to be to sit on [bar]'s row, in global coordinates.
+  /// A point on [hit], in global coordinates.
   ///
   /// Built from the same `layoutGantt` the view drew with, which is the point of
   /// having the geometry outside the widget: a test can ask where a bar is
   /// without reading pixels back off a canvas.
-  Offset onBar(WidgetTester tester, GanttPlacedBar bar) {
+  ///
+  /// It aims at the rect's own middle rather than at a row's. That used to be
+  /// computed by dividing the band index out of the rect's top, which held only
+  /// while every band was `rowHeight` tall — it would aim at the wrong row on
+  /// any chart with a buffer in it now, and it has to work for a lane's slot as
+  /// well as for a station's bar.
+  Offset onBar(WidgetTester tester, GanttHit hit) {
     final origin = tester.getTopLeft(find.byKey(ganttCanvasKey));
-    final rowIndex =
-        ((bar.rect.top - GanttMetrics.axisHeight) / GanttMetrics.rowHeight)
-            .floor();
-    return origin +
-        Offset(
-          bar.rect.left + 2,
-          GanttMetrics.axisHeight +
-              rowIndex * GanttMetrics.rowHeight +
-              GanttMetrics.rowHeight / 2,
-        );
+    return origin + Offset(hit.rect.left + 2, hit.rect.center.dy);
   }
 
   GanttRowLayout rowNamed(GanttLayout layout, String name) =>
@@ -346,6 +345,67 @@ void main() {
     expect(find.text('Committed'), findsOne);
     expect(find.text('Waited before starting'), findsOne);
   });
+
+  testWidgets('hovering an order waiting in a lane names it and the lane', (
+    tester,
+  ) async {
+    // The same run, with the buffer CEU27 pulls from carried on it. Both orders
+    // waited there — o1 from 10:00 and o2 from 20:00 — so the band has stays in
+    // it to pick.
+    final run = runOf(
+      id: 'run-lane',
+      orders: twoDayRun().result.orders,
+      steps: [
+        for (final step in twoDayRun().result.steps)
+          if (step.workcenterId == 'W2')
+            SimOrderStep(
+              studyId: step.studyId,
+              orderId: step.orderId,
+              nodeId: step.nodeId,
+              workcenterId: step.workcenterId,
+              queueStart: step.queueStart,
+              processStart: step.processStart,
+              processEnd: step.processEnd,
+              changeoverIncurred: step.changeoverIncurred,
+              laneNodeId: 'lane-1',
+            )
+          else
+            step,
+      ],
+      lanes: const [
+        SimLane(
+          studyId: 'study-1',
+          nodeId: 'lane-1',
+          position: 1,
+          name: 'FIFO CEU27',
+          capacity: 2,
+        ),
+      ],
+    );
+    await pump(tester, run);
+
+    final layout = shownLayout(tester, run);
+    final lane = rowNamed(layout, 'FIFO CEU27');
+    expect(lane.band, isA<GanttLaneRow>());
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(onBar(tester, lane.visits.first));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order 1  ·  PN1'), findsOne);
+    // What it stood there for — the lane's own question, and the same label the
+    // station below uses for the same duration.
+    expect(find.text('Waited before starting'), findsOne);
+    // The lane's real depth, which is not necessarily the depth it is drawn at.
+    expect(find.text('Lane holds 2 orders'), findsOne);
+    // A station's card would say this; a lane's must not.
+    expect(find.text('Committed'), findsNothing);
+  });
+
 
   testWidgets('the card says a changeover was paid, at any zoom', (
     tester,

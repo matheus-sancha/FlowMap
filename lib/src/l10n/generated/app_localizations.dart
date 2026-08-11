@@ -2796,6 +2796,24 @@ abstract class AppLocalizations {
   /// **'A changeover was paid to start it'**
   String get simGanttChangeover;
 
+  /// No description provided for @simGanttLaneHolds.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Lane holds 1 order} other{Lane holds {count} orders}}'**
+  String simGanttLaneHolds(int count);
+
+  /// No description provided for @simGanttLaneUncapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane has no limit'**
+  String get simGanttLaneUncapped;
+
+  /// No description provided for @simGanttStillWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Still standing here when the run ended'**
+  String get simGanttStillWaiting;
+
   /// No description provided for @simGanttZoomIn.
   ///
   /// In en, this message translates to:

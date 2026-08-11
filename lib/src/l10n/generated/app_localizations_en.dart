@@ -1556,6 +1556,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simGanttChangeover => 'A changeover was paid to start it';
 
   @override
+  String simGanttLaneHolds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Lane holds $count orders',
+      one: 'Lane holds 1 order',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttLaneUncapped => 'Lane has no limit';
+
+  @override
+  String get simGanttStillWaiting => 'Still standing here when the run ended';
+
+  @override
   String get simGanttZoomIn => 'Zoom in';
 
   @override

@@ -1151,18 +1151,27 @@ spine position; a capped lane is drawn at its capacity and an uncapped one at it
 and bands stopped being a uniform height, so the row index is carried on the hit rather than divided
 back out of a rect.
 
-**What is left of this item, and it needs no new decisions:**
+**The card and the labels landed the same day.** One card describes both kinds, because a reader
+asking *what is this* wants the same six answers either way — which order, which part, where, when,
+how long, and what it was doing. Three new strings in en, es and pt. Two things worth keeping:
 
-- [ ] **The hover card for a stay in a lane.** `barAt` returns it and the view drops it on the
-      floor deliberately — a waiting order is drawn and picked but reports nothing, rather than
-      putting a station's card over the wrong subject. The card wants the order, the part, the lane,
-      when it arrived, when it was pulled out and how long it stood there, which is new l10n in
-      three languages.
-- [ ] **Bar labels gain the order number** — part number first, order number appended when the bar
-      is wide enough for both, so every label that reads correctly today reads the same way.
+- **The card says the lane's real depth, not the depth it is drawn at.** §8.6 caps the band at four,
+  so a reader measuring the stack against the capacity would otherwise be measuring the cap.
+- **`onBar` in the view tests was computing a row from a rect's top**, which held only while every
+  band was `rowHeight` tall. It aims at the rect's own middle now — it would have aimed at the wrong
+  row on any chart with a buffer in it, and none of the existing tests would have caught that,
+  because none of their fixtures had one.
+
+The order number is appended to a bar's label above 92 px, where the part number alone starts at 46.
+Strictly additional: a bar between the two widths reads exactly as it did before.
+
+**What is left of this item:**
+
 - [ ] **Drive it against célula 11B.** `2f4c8db4` is the run to open: `FIFO CEU27` is capped at 2
       and the band should be visibly full while TTAT's 4.6 d of blocking sits in the row above it.
-      Nothing in the suite renders a pixel — §2.5's rule.
+      Nothing in the suite renders a pixel — §2.5's rule, and the lane bands, the wash-out fill and
+      the two rails have never been looked at. In es and pt as well; `El carril admite 2 pedidos` is
+      the longest of the three new strings.
 
 _Original wording, for the record:_
 

@@ -51,6 +51,15 @@ const _cardHeight = 132.0;
 /// The narrowest bar that can carry its own part number.
 const _labelledBarWidth = 46.0;
 
+/// The narrowest that can carry the order number after it.
+///
+/// A part number alone is what a bar has always shown, so the threshold for it
+/// is untouched and the order number is strictly additional: a bar between the
+/// two widths reads exactly as it did before. `_text` still ellipsizes at the
+/// bar's own width, so an unusually long part number cannot push the number
+/// past the edge — this decides whether to *offer* it, not whether it fits.
+const _numberedBarWidth = 92.0;
+
 /// The painted chart itself, so a test can put a pointer on a known bar.
 ///
 /// The bars are painted rather than built, which is the point — 20 000 of them
@@ -87,7 +96,7 @@ class _GanttViewState extends State<GanttView> {
   /// The bar under the pointer, if any. One at a time and no widget per bar: a
   /// `Tooltip` carries a fixed message, so naming the bar under the cursor that
   /// way would mean 231 widgets on the real run and 20 000 at §14 scale.
-  GanttPlacedBar? _hovered;
+  GanttHit? _hovered;
 
   GanttLayout? _cached;
 
@@ -289,8 +298,8 @@ class _Chart extends StatelessWidget {
   final ScrollController across;
   final ScrollController down;
   final double pane;
-  final GanttPlacedBar? hovered;
-  final ValueChanged<GanttPlacedBar?> onHover;
+  final GanttHit? hovered;
+  final ValueChanged<GanttHit?> onHover;
   final ValueChanged<PointerScrollEvent> onCtrlScroll;
   final Map<String, String> studies;
 
@@ -338,12 +347,7 @@ class _Chart extends StatelessWidget {
                           child: MouseRegion(
                             onHover: (event) {
                               final hit = barAt(layout, event.localPosition);
-                              // A lane's waiting order is drawn and picked, but
-                              // the card that would describe it is not built
-                              // yet — so it reports nothing rather than putting
-                              // a station's card over the wrong subject.
-                              final next = hit is GanttPlacedBar ? hit : null;
-                              if (!identical(next, hovered)) onHover(next);
+                              if (!identical(hit, hovered)) onHover(hit);
                             },
                             onExit: (_) => onHover(null),
                             child: _CtrlScroll(
@@ -378,8 +382,9 @@ class _Chart extends StatelessWidget {
               ),
               if (hovered case final bar?)
                 _HoverCard(
-                  bar: bar,
+                  hit: bar,
                   bandTop: layout.rows[bar.bandIndex].top,
+                  bandHeight: layout.rows[bar.bandIndex].band.height,
                   across: offset,
                   down: scrolledDown,
                   pane: pane,
@@ -638,8 +643,9 @@ class _LegendEntry extends StatelessWidget {
 /// stops it from taking the hover away from the bar it is describing.
 class _HoverCard extends StatelessWidget {
   const _HoverCard({
-    required this.bar,
+    required this.hit,
     required this.bandTop,
+    required this.bandHeight,
     required this.across,
     required this.down,
     required this.pane,
@@ -648,11 +654,17 @@ class _HoverCard extends StatelessWidget {
     required this.station,
   });
 
-  final GanttPlacedBar bar;
+  /// The bar or the stay in a lane. One card describes both, because a reader
+  /// asking "what is this" wants the same six answers either way — which order,
+  /// which part, where, when, how long, and what it was doing.
+  final GanttHit hit;
 
-  /// The top of the band the bar sits in, so the card can be put under it
-  /// without assuming every band is the same height.
+  /// The top of the band it sits in, so the card can be put under it without
+  /// assuming every band is the same height.
   final double bandTop;
+
+  /// And that band's height, for the same reason.
+  final double bandHeight;
 
   final double across;
   final double down;
@@ -670,13 +682,14 @@ class _HoverCard extends StatelessWidget {
     // The band's own top, carried on the hit. It used to be divided back out
     // of the rect, which held only while every band was `rowHeight` tall.
     final rowTop = bandTop;
-    final left = (_labelWidth + bar.rect.left - across)
+    final left = (_labelWidth + hit.rect.left - across)
         .clamp(
           _labelWidth + 4,
           math.max(_labelWidth + 4, _labelWidth + pane - _cardWidth - 4),
         )
         .toDouble();
-    final top = (rowTop + GanttMetrics.rowHeight + 6 - down)
+    // Below the band, whatever height the band is — a lane's is its depth.
+    final top = (rowTop + bandHeight + 6 - down)
         .clamp(0.0, math.max(0.0, paneHeight - _cardHeight))
         .toDouble();
 
@@ -684,9 +697,32 @@ class _HoverCard extends StatelessWidget {
         '${formatDateInput(value, locale)} '
         '${formatMinuteOfDay(value.hour * 60 + value.minute)}';
 
-    final study = studies.length > 1
-        ? studies[bar.bar.studyId] ?? bar.bar.studyId
-        : null;
+    // The two kinds, reduced to what the card actually shows. Pulled apart
+    // once here rather than switched at every line below.
+    final (
+      GanttPart part,
+      int orderNumber,
+      String studyId,
+      DateTime from,
+      DateTime to,
+    ) = switch (hit) {
+      GanttPlacedBar(:final bar) => (
+        bar.part,
+        bar.orderNumber,
+        bar.studyId,
+        bar.start,
+        bar.end,
+      ),
+      GanttPlacedVisit(:final visit) => (
+        visit.part,
+        visit.orderNumber,
+        visit.studyId,
+        visit.entered,
+        visit.left,
+      ),
+    };
+
+    final study = studies.length > 1 ? studies[studyId] ?? studyId : null;
 
     return Positioned(
       left: left,
@@ -709,15 +745,15 @@ class _HoverCard extends StatelessWidget {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: partColour(bar.bar.part.colourIndex).fill,
+                          color: partColour(part.colourIndex).fill,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${l10n.simGanttOrder('${bar.bar.orderNumber}')}'
-                          '  ·  ${bar.bar.part.partNumber}',
+                          '${l10n.simGanttOrder('$orderNumber')}'
+                          '  ·  ${part.partNumber}',
                           style: theme.textTheme.titleSmall,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -728,24 +764,44 @@ class _HoverCard extends StatelessWidget {
                   _CardLine(
                     text: study == null ? station : '$station  ·  $study',
                   ),
-                  _CardLine(
-                    text: l10n.simRunSpan(
-                      instant(bar.bar.start),
-                      instant(bar.bar.end),
+                  _CardLine(text: l10n.simRunSpan(instant(from), instant(to))),
+                  switch (hit) {
+                    // What the station was committed to it for.
+                    GanttPlacedBar(:final bar) => _CardValue(
+                      label: l10n.simGanttCommitted,
+                      value: formatAdaptiveDuration(l10n, bar.occupied),
                     ),
-                  ),
-                  _CardValue(
-                    label: l10n.simGanttCommitted,
-                    value: formatAdaptiveDuration(l10n, bar.bar.occupied),
-                  ),
-                  _CardValue(
-                    label: l10n.simGanttWaited,
-                    value: formatAdaptiveDuration(l10n, bar.bar.wait),
-                  ),
-                  // Said at every scale, including the zooms where the mark on
-                  // the bar itself is omitted for want of room.
-                  if (bar.bar.changeover)
-                    _CardLine(text: l10n.simGanttChangeover),
+                    // What it stood in the lane for, which is the same question
+                    // the row below answers as `Waited before starting`.
+                    GanttPlacedVisit(:final visit) => _CardValue(
+                      label: l10n.simGanttWaited,
+                      value: formatAdaptiveDuration(l10n, visit.waited),
+                    ),
+                  },
+                  if (hit case GanttPlacedBar(:final bar)) ...[
+                    _CardValue(
+                      label: l10n.simGanttWaited,
+                      value: formatAdaptiveDuration(l10n, bar.wait),
+                    ),
+                    // Said at every scale, including the zooms where the mark
+                    // on the bar itself is omitted for want of room.
+                    if (bar.changeover)
+                      _CardLine(text: l10n.simGanttChangeover),
+                  ],
+                  if (hit case GanttPlacedVisit(:final lane, :final visit)) ...[
+                    // How deep the lane really is, not how deep it is drawn:
+                    // §8.6 caps the band, and a reader measuring the stack
+                    // against the capacity would otherwise be measuring the cap.
+                    _CardLine(
+                      text: lane.capacity == null
+                          ? l10n.simGanttLaneUncapped
+                          : l10n.simGanttLaneHolds(lane.capacity!),
+                    ),
+                    // The order never left. Its bar ends at the run's end
+                    // because that is where the chart stops, not because
+                    // anything happened there.
+                    if (visit.open) _CardLine(text: l10n.simGanttStillWaiting),
+                  ],
                 ],
               ),
             ),
@@ -844,7 +900,7 @@ class _GanttPainter extends CustomPainter {
   final double visibleFrom;
   final double visibleTo;
 
-  final GanttPlacedBar? hovered;
+  final GanttHit? hovered;
   final Color band;
   final Color rule;
   final TextStyle axisStyle;
@@ -969,9 +1025,16 @@ class _GanttPainter extends CustomPainter {
         }
 
         if (placed.rect.width >= _labelledBarWidth) {
+          // The part number first and the order number after it, and only when
+          // there is room for both — so every label that reads correctly at a
+          // given zoom today reads the same way, and the order number is what
+          // the extra width buys rather than what it costs.
+          final label = placed.rect.width >= _numberedBarWidth
+              ? '${placed.bar.part.partNumber}  #${placed.bar.orderNumber}'
+              : placed.bar.part.partNumber;
           _text(
             canvas,
-            placed.bar.part.partNumber,
+            label,
             Offset(placed.rect.left + 6, placed.rect.top + 2),
             axisStyle.copyWith(color: colour.onFill),
             maxWidth: placed.rect.width - 10,

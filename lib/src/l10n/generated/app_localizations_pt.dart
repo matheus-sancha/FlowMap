@@ -1573,6 +1573,24 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simGanttChangeover => 'Houve troca de referência para começá-la';
 
   @override
+  String simGanttLaneHolds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'A pista comporta $count pedidos',
+      one: 'A pista comporta 1 pedido',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttLaneUncapped => 'A pista não tem limite';
+
+  @override
+  String get simGanttStillWaiting =>
+      'Ainda estava aqui ao terminar a simulação';
+
+  @override
   String get simGanttZoomIn => 'Aproximar';
 
   @override

@@ -1574,6 +1574,23 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se pagó un cambio de referencia para empezarla';
 
   @override
+  String simGanttLaneHolds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'El carril admite $count pedidos',
+      one: 'El carril admite 1 pedido',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simGanttLaneUncapped => 'El carril no tiene límite';
+
+  @override
+  String get simGanttStillWaiting => 'Seguía aquí al terminar la simulación';
+
+  @override
   String get simGanttZoomIn => 'Acercar';
 
   @override
