@@ -63,21 +63,45 @@ void main() {
     ).get();
     expect(dropped, isEmpty, reason: 'both superseded tables are dropped');
 
-    // Every station keeps its single unit, and every study its zero buffer —
-    // the defaults are what make v15 a no-op on behaviour.
+    // v15's three new settings are asserted **in their domain, not at their
+    // defaults**. The first version of this test demanded one unit per station,
+    // a zero buffer and no pacemaker — which is only true for the instant
+    // between the migration and the first hand-driven check, and §4 asks for
+    // exactly those three to be changed. It failed on 2026-08-11 against a
+    // TTAT the field had set to two units, which is the check working
+    // correctly and the assertion being wrong.
     final stations = await db.select(db.workcenters).get();
-    expect(stations.every((w) => w.parallelCapacity == 1), isTrue);
+    expect(stations.every((w) => w.parallelCapacity >= 1), isTrue);
+    for (final w in stations.where((w) => w.parallelCapacity != 1)) {
+      // ignore: avoid_print
+      print('units: ${w.name} = ${w.parallelCapacity}');
+    }
 
     final studies = await db.select(db.studies).get();
-    expect(studies.every((s) => s.startBufferDays == 0), isTrue);
-    expect(studies.every((s) => s.paceSetterTargetId == null), isTrue);
+    expect(studies.every((s) => s.startBufferDays >= 0), isTrue);
+    for (final s in studies) {
+      // ignore: avoid_print
+      print(
+        'study ${s.name}: buffer=${s.startBufferDays}d '
+        'pacemaker=${s.paceSetterTargetId ?? '(derived)'}',
+      );
+    }
 
     // The demand and the stored runs are untouched: this step rebuilds nothing.
+    // Asserted rather than only printed, because "the migration destroyed the
+    // demand" is the one failure that would be silent — an empty table reads
+    // like a fresh install.
+    final orders = await db.select(db.demandOrders).get();
+    final runs = await db.select(db.simulationRuns).get();
+    final steps = await db.select(db.simulationRunSteps).get();
+    expect(orders, isNotEmpty, reason: 'the demand survived the migration');
+    expect(runs, isNotEmpty, reason: 'the stored runs survived it too');
+
     // ignore: avoid_print
-    print('orders: ${(await db.select(db.demandOrders).get()).length}');
+    print('orders: ${orders.length}');
     // ignore: avoid_print
-    print('runs: ${(await db.select(db.simulationRuns).get()).length}');
+    print('runs: ${runs.length}');
     // ignore: avoid_print
-    print('run steps: ${(await db.select(db.simulationRunSteps).get()).length}');
+    print('run steps: ${steps.length}');
   });
 }
