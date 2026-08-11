@@ -1,13 +1,16 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-08. `docs/DESIGN.md` remains the source of truth for *why*; this file
+Working state as of 2026-08-10. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, 614 tests passing. **Pushed and open as
-PR #3** as of 2026-08-08, the third from this branch after #1 (M1–M2) and #2 (the pre-M3 audit).
-**§2 is written in full**, and §2.11 and §2.12 are the first pass of driving it by hand — the four
-things looking at it said. Schema is at **v14**, untouched by all of §2.7, §2.8, §2.11 and §2.12.
-M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **627 tests passing**. Schema is at
+**v15**. M4 is code-complete.
+
+**§3's round one is done, in five commits, and none of it has been driven by hand.** The lanes
+govern the flow, a station may hold more than one order, the pacemaker gates the release, a study
+may add a start buffer, and every one of those is reachable from the UI. What is owed now is §4 —
+including the two things that only exist as tests: a lane with a capacity, and a station with two
+units.
 
 **What is next needs a human at the GUI, not more code.** §4's Gantt item is only partly closed:
 §2.11 came out of a Debug session that changed three things, and the rest of that list — the axis at
@@ -19,13 +22,14 @@ prediction held: the 14 days of buffer delay are gone and the wait reappeared at
 all of it at CEU27. The demand has also grown from 33 orders to **60**, so every figure recorded in
 §1 and §2 describes a smaller problem than the one on the screen now. §3.0 has the measurements.
 
-**§3 is the plan that came out of that session**, settled by interview and not yet started. It moves
-the dispatch rule off the station and onto the inventory node, so it will invalidate those six runs
-in turn.
+**§3 is the plan that came out of that session**, settled by interview. Round one has landed and
+**moved the dispatch rule off the station onto the inventory node, so those six runs are stale
+again** — re-run before reading any figure against anything. Rounds two to four are untouched.
 
-**The Release bundle is stale.** It predates all nine of the pushed commits; a rebuild under a fresh
-label is owed with the next verification pass, and since the schema has not moved the open should
-read `db.open schema 14 from 14`.
+**The Release bundle is stale**, and now by a schema version. A rebuild under a fresh label is owed
+with the next verification pass, and the open should read `db.open schema 15 from 14` — the first
+time in this round that a migration will have run against the real database. §16.16 says what it
+does; the carry-over of the four stored dispatch rules onto the lanes is the part to check by eye.
 
 **The last Release bundle was built 2026-08-08, and the real database is at v14.** Rebuilt after
 §2.10's four commits under label `0.1.0-2026-08-08`, and *launched* rather than merely inspected —
@@ -969,7 +973,30 @@ Four things it settles before any of the work below, and each of them moved a de
   says 21 days of inventory and the run says nothing at all, and both are right by their own rules.
   That gap is what the field feedback was really pointing at.
 
-### 3.1 Lanes govern the flow — schema v15 — **round one**
+### 3.1 Lanes govern the flow — schema v15 — **done 2026-08-10**
+
+Landed in three commits, written up as **§16.16** (the schema), **§5.5** (what a lane does) and
+**§7.4** (where the rule lives). Four things worth keeping, each found by doing it:
+
+- **`_ensureColumn` was adding columns to tables it never checked existed.** The v13 fixture predates
+  M4's run tables and died on `ALTER TABLE simulation_run_studies`. `_ensureTable` had always asked;
+  this half had not, and `onUpgrade`'s own opening note says to ask. Skipping is safe rather than
+  quiet — whatever creates the table later builds it from the current definition.
+- **`workcenters` needed a `columnTransformer` constant in the v3 and v7 steps.** Third time this
+  file has hit that trap, and the first on a second table.
+- **A run of consecutive buffers had to be given a meaning**, and the interview had not covered it.
+  It collapses to the last — the lane the station actually pulls from — and the earlier ones stay
+  free to pass through. Two in a row is a modelling oddity rather than a case with an agreed
+  meaning, and summing capacities while recording occupancy on one node would have been incoherent.
+  11B alternates strictly, so nothing real is affected.
+- **A full lane at the *head* of a flow had to do something**, which the interview also had not
+  covered: there is no station behind it to block, so it sends the release slot out empty under its
+  own reason. §3.4's pacemaker gate then sits on top of that rather than replacing it.
+
+_Rejected: dropping `workcenter_dispatch` in the schema commit._ It would have stranded every reader
+for two commits. The values are carried onto the lanes there and the table is dropped in the commit
+that removes the code reading it.
+
 
 *"I don't know if the dispatch method for the flow is making much sense — the inventories should have
 the governance over it?"* Yes, and the answer is larger than the question: the discipline **moves
@@ -1037,7 +1064,23 @@ _Rejected: defaulting a lane's capacity from its stored figure._ Every 11B lane 
 day one with no typing — by reading an observation as a rule, which is §2.12 arriving from the other
 direction.
 
-### 3.2 A station can hold more than one order — **round one**
+### 3.2 A station can hold more than one order — **done 2026-08-10**
+
+Landed as described, in §3.1 of DESIGN.md and §8.3's glossary. One thing the plan did not settle,
+decided while writing it:
+
+- **Units multiply capacity and never the clock.** The interview said "everywhere", meaning
+  occupation, utilization's denominator and the flow equivalent's available time. It cannot mean the
+  takt clock: §7.2 measures a takt given in days on the pace setter's *productive day*, so folding
+  units in there would have halved the release rate of a two-unit pacemaker. The pool turned out to
+  be the exact precedent — three cladding machines already raise occupation while leaving the
+  per-machine equivalent alone — so units use the same arithmetic and the Summary cannot disagree
+  with the run.
+
+The test that earns its place: four orders alternating two parts pay **three changeovers on one unit
+and none on two**, because the units settle onto one part each. That is only true because
+`lastPartId` lives on the unit rather than on the station.
+
 
 *"TTAT can process two orders at the same time."* Workcenters gain a nullable parallel capacity,
 default 1, and the engine builds that many servers for the station rather than one.
@@ -1057,7 +1100,11 @@ Summary figures change**, correctly but visibly, so it wants a line in the relea
 _Rejected: a pool of TTAT-A and TTAT-B._ Works today with no code — by inventing two machines that
 do not exist, which the Summary, the Queue table and the Gantt would then report forever.
 
-### 3.3 A start buffer per study — **round one**
+### 3.3 A start buffer per study — **done 2026-08-10**
+
+Landed as described, in §7.8. Written together with the pacemaker because both are per-study run
+settings and both needed the same new dialog.
+
 
 *"Order Start = Need Date − Lead Time − Start Buffer."* §7.8's derivation is correct and stays; what
 is added is a deliberate safety margin on top of it, per study.
@@ -1179,6 +1226,22 @@ blocking), **§6.1** and **§8.3** and **§8.4** (parallel capacity means the sa
 
 ---
 
+### 3.3b The pacemaker, and where round one's settings live — **done 2026-08-10**
+
+Not in the plan as its own item; it fell out of §3.1's release gate. The pace setter became a study
+setting rather than a derivation, because it now decides both the cadence and when the line stops.
+Written up in §7.2 and §12.1.
+
+- **It is resolved as a node, not a workcenter id.** The gate is a place in the flow, and one machine
+  may appear in two studies with only one of those appearances being this study's pacemaker. A named
+  pacemaker that has since been deleted falls back to the derivation — a deleted node should not read
+  as a broken study.
+- **`Run settings` is a new dialog** on the study menu, carrying the buffer and the pacemaker.
+  `wipCap` and `priority` belong in it and are still unreachable (§17.5); they were left rather than
+  smuggled into this round.
+
+---
+
 ## 4. Verify in the running app
 
 The rest of this has not been driven by hand — it is covered by unit, repository and mounting tests
@@ -1234,6 +1297,22 @@ only.
       dates read as dates, that Order Start shows its time, and that sorting the Float column puts
       the late orders where a planner expects. In es and pt as well — a locale decides how Excel
       itself formats a date cell.
+- [ ] **Round one, against célula 11B.** None of it has been driven by hand, and two things exist
+      only as tests: a lane with a capacity, and a station with two units. Specifically:
+      - **The v14 → v15 migration on the real database**, which is the first migration this round
+        runs in the field. Four stored dispatch rules should arrive on the lanes feeding CEU26,
+        CLAD04 and CLAD Pool; CLAD09's is in no flow and should be gone. Check by eye before
+        trusting anything else.
+      - **Give `FIFO CEU27` a capacity** — it is the lane in front of the constraint, holding 8
+        orders at once today — and re-run. Expect blocked time to appear on TTAT and the stations
+        behind it, and the WIP to fall. This is the whole point of the round.
+      - **Set TTAT to two units** and check the Summary halves its occupation while the Queue table
+        keeps reporting one station.
+      - **Name CEU27 the pacemaker** and check empty slots start reading `Lane full` rather than the
+        line simply piling up.
+      - **A start buffer of ten days** should move every date in the production plan ten days
+        earlier and leave the lead times alone.
+      - In es and pt as well — the four new dialogs carry the longest help text in the app.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
