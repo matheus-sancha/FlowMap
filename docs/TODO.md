@@ -1165,8 +1165,18 @@ how long, and what it was doing. Three new strings in en, es and pt. Two things 
 The order number is appended to a bar's label above 92 px, where the part number alone starts at 46.
 Strictly additional: a bar between the two widths reads exactly as it did before.
 
+**Driven 2026-08-11, in Release `0.1.0-2026-08-11b`, and it found one defect** — the only thing that
+looked off, and a real one: **a station running two or more orders at once drew them on top of each
+other.** Not a drawing bug but a stale premise. §8.6 said bars tile without overlapping because every
+workcenter was its own server, which **§3.2 made false this round** without anything coming back to
+the chart; TTAT is the two-unit station, which is where it showed. Station bars take a sub-row each
+now, by the same greedy pass the lane stacks use, and §8.6 records what happened. Four tests, 643 in
+all.
+
 **What is left of this item:**
 
+- [ ] **Look at it again in `0.1.0-2026-08-11c`.** The overlap fix changes every band's height, so
+      the things already looked at are worth a second glance rather than being taken as still true.
 - [ ] **Drive it against célula 11B.** `2f4c8db4` is the run to open: `FIFO CEU27` is capped at 2
       and the band should be visibly full while TTAT's 4.6 d of blocking sits in the row above it.
       Nothing in the suite renders a pixel — §2.5's rule, and the lane bands, the wash-out fill and

@@ -930,9 +930,23 @@ order, which is the one thing §7.7 exists to model.
   included**. A step ends at `calendar.advance(now, occupancy)`, so a two-open-hour job started on a
   Friday afternoon reaches Monday morning. That is the same wall-clock span the plan's Order Start
   and Order End are measured across and the same one §8.3 calls occupation, so the tab has one
-  meaning of a duration rather than two. Bars tile without overlapping: every workcenter is its own
-  server and a pool reaches the run as several candidates (§3.1), so three cladding machines are
-  three rows each running one order at a time.
+  meaning of a duration rather than two.
+- **A station's bars take a sub-row each, and the band is as deep as the station was busy.** A pool
+  still reaches the run as several candidates (§3.1), so three cladding machines are three rows;
+  what this answers is one machine with more than one unit.
+
+  _This sentence used to read "bars tile without overlapping: every workcenter is its own server."_
+  That was true when it was written and **§3.2 made it false**, by letting a station hold more than
+  one order at a time — and nothing came back to the chart, so two concurrent orders were drawn on
+  top of each other. Found by looking at it, on a TTAT set to two units. It is worth keeping as an
+  instance of the hazard §2.5 names from the other direction: a premise recorded as a principle
+  outlives the implementation that made it true.
+
+  **The depth is derived, not stored.** `simulation_run_workcenters` keeps no unit count and §7.10
+  forbids joining back to the plant to ask, but the overlap is already in the steps — so the depth a
+  station needs is the depth it was observed to use. A two-unit station that never held two orders
+  at one instant draws one deep, which is the honest reading: the chart shows the run, not the
+  plant.
 - **A gap means "not running" — closed and starved alike.** Splitting a bar at closed time would
   need calendars a stored run does not have; `simulation_run_workcenters` keeps a total open time
   and nothing finer. How much of a gap was even available is answered by the station's utilization
