@@ -904,6 +904,78 @@ void main() {
     });
   });
 
+  group('a station with more than one unit', () {
+    /// One station running two orders whose spans overlap, which is what §3.2
+    /// made possible and what §8.6 had assumed could not happen.
+    GanttChart twoAtOnce() => chartOf(
+      orders: [
+        orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+        orderOf(orderId: 'o2', sequence: 1, partId: 'p2'),
+      ],
+      steps: [
+        stepOf(
+          orderId: 'o1',
+          workcenterId: 'W1',
+          queueStart: jan1,
+          processStart: jan1,
+          processEnd: at(10),
+        ),
+        stepOf(
+          orderId: 'o2',
+          workcenterId: 'W1',
+          queueStart: at(2),
+          processStart: at(2),
+          processEnd: at(8),
+        ),
+      ],
+      workcenterNames: const {'W1': 'TTAT'},
+    );
+
+    test('overlapping bars take their own sub-row', () {
+      final row = twoAtOnce().stations.single;
+
+      expect(row.bars.map((b) => b.slot), [0, 1]);
+      expect(row.depth, 2);
+      // Two units, so the band is twice a station's row.
+      expect(row.height, 2 * GanttMetrics.rowHeight);
+    });
+
+    test('a station that never ran two at once is unchanged', () {
+      // The premise §8.6 was written under, and the case that must keep
+      // drawing exactly as it did: every bar on slot 0, one row deep.
+      final row = threeOrders().stations.first;
+
+      expect(row.bars.every((b) => b.slot == 0), isTrue);
+      expect(row.depth, 1);
+      expect(row.height, GanttMetrics.rowHeight);
+    });
+
+    test('the bars do not overlap once they are placed', () {
+      final layout = layoutGantt(chart: twoAtOnce(), pixelsPerSecond: 0.01);
+      final bars = layout.rows.single.bars;
+
+      // The defect, stated as geometry: two bars covering the same instant
+      // must not cover the same pixel. Both are true of the rects, so this
+      // fails on the drawing rather than on the arithmetic behind it.
+      expect(bars.first.rect.overlaps(bars.last.rect), isFalse);
+      expect(bars.first.rect.top, isNot(bars.last.rect.top));
+    });
+
+    test('barAt tells the two units apart', () {
+      final chart = twoAtOnce();
+      final layout = layoutGantt(chart: chart, pixelsPerSecond: 0.01);
+      final row = layout.rows.single;
+
+      double slotMiddle(int slot) =>
+          row.top + slot * GanttMetrics.rowHeight + GanttMetrics.rowHeight / 2;
+
+      // Hour 4 has both orders running; only the sub-row separates them.
+      final x = at(4).difference(chart.start).inSeconds * 0.01;
+      expect(stationAt(layout, Offset(x, slotMiddle(0)))?.bar.orderId, 'o1');
+      expect(stationAt(layout, Offset(x, slotMiddle(1)))?.bar.orderId, 'o2');
+    });
+  });
+
   group('lane bands', () {
     /// Orders queueing in one lane in front of W2, which W1 feeds.
     ///

@@ -154,6 +154,7 @@ class GanttBar {
     required this.end,
     required this.wait,
     required this.changeover,
+    this.slot = 0,
   });
 
   final String orderId;
@@ -179,8 +180,35 @@ class GanttBar {
   /// Whether a changeover was paid to start it (§7.6).
   final bool changeover;
 
+  /// Which unit of the station ran it, as far as the chart can tell: the
+  /// topmost sub-row no overlapping bar is using.
+  ///
+  /// **A station's bars stopped tiling when §3.2 landed.** §8.6 was written when
+  /// every workcenter was one server, so two bars could not overlap and one
+  /// sub-row was enough; a station given parallel units genuinely runs two
+  /// orders at once, and drawing both at one height puts one on top of the
+  /// other. Found by looking at it — TTAT is set to two units on célula 11B.
+  ///
+  /// **Derived, not stored.** `simulation_run_workcenters` keeps no unit count,
+  /// and §7.10 forbids joining back to the plant to ask — but the overlap is in
+  /// the steps, so the depth a station needs is the depth it was observed to
+  /// use. A station that never ran two at once draws exactly as it did before.
+  final int slot;
+
   /// Wall-clock time the station was committed.
   Duration get occupied => end.difference(start);
+
+  GanttBar _atSlot(int slot) => GanttBar(
+    orderId: orderId,
+    orderNumber: orderNumber,
+    studyId: studyId,
+    part: part,
+    start: start,
+    end: end,
+    wait: wait,
+    changeover: changeover,
+    slot: slot,
+  );
 }
 
 /// One order's stay in a lane: from reaching it to being pulled out (§5.5).
@@ -248,6 +276,7 @@ class GanttRow extends GanttBand {
     required this.workcenterId,
     required this.name,
     required this.bars,
+    this.depth = 1,
   });
 
   final String workcenterId;
@@ -256,13 +285,23 @@ class GanttRow extends GanttBand {
   @override
   final String name;
 
-  /// In start order. They tile without overlapping: every workcenter is its own
-  /// server and a pool reaches the run as several candidates, so three cladding
-  /// machines are three rows each running one order at a time.
+  /// In start order, each carrying the sub-row it is drawn on.
+  ///
+  /// A pool still reaches the run as several candidates, so three cladding
+  /// machines are three rows; what [depth] answers is one machine with more
+  /// than one unit (§3.2).
   final List<GanttBar> bars;
 
+  /// How many orders this station was ever running at once, at least one.
+  ///
+  /// Bounded by the station's parallel capacity, which the run does not store —
+  /// so this is what was observed rather than what was allowed, and a two-unit
+  /// station that never had two orders in hand at the same moment draws one
+  /// deep. That is the honest reading: the chart shows the run, not the plant.
+  final int depth;
+
   @override
-  double get height => GanttMetrics.rowHeight;
+  double get height => depth * GanttMetrics.rowHeight;
 }
 
 /// One lane's band, drawn immediately above the station it feeds (§3.4, §8.6).
@@ -431,21 +470,43 @@ GanttChart buildGanttChart({
         return byFlow != 0 ? byFlow : a.queueRank.compareTo(b.queueRank);
       });
 
-  final stations = [
-    for (final entry in ordered)
-      if (byStation[entry.station.workcenterId] case final bars?)
-        GanttRow(
-          workcenterId: entry.station.workcenterId,
-          name: entry.station.name,
-          bars: bars
-            ..sort((a, b) {
-              final byStart = a.start.compareTo(b.start);
-              // Order id last, so a station handed two bars starting in the
-              // same second draws them the same way twice running.
-              return byStart != 0 ? byStart : a.orderId.compareTo(b.orderId);
-            }),
-        ),
-  ];
+  final stations = <GanttRow>[];
+  for (final entry in ordered) {
+    final bars = byStation[entry.station.workcenterId];
+    if (bars == null) continue;
+
+    bars.sort((a, b) {
+      final byStart = a.start.compareTo(b.start);
+      // Order id last, so a station handed two bars starting in the same
+      // second draws them the same way twice running.
+      return byStart != 0 ? byStart : a.orderId.compareTo(b.orderId);
+    });
+
+    // The topmost sub-row free when each bar starts. One unit re-uses slot 0
+    // throughout, which is what keeps every single-unit station drawn exactly
+    // as it was before §3.2 gave a station more than one.
+    final freeAt = <DateTime>[];
+    final placed = <GanttBar>[];
+    for (final bar in bars) {
+      var slot = freeAt.indexWhere((free) => !free.isAfter(bar.start));
+      if (slot < 0) {
+        slot = freeAt.length;
+        freeAt.add(bar.end);
+      } else {
+        freeAt[slot] = bar.end;
+      }
+      placed.add(bar._atSlot(slot));
+    }
+
+    stations.add(
+      GanttRow(
+        workcenterId: entry.station.workcenterId,
+        name: entry.station.name,
+        bars: placed,
+        depth: freeAt.isEmpty ? 1 : freeAt.length,
+      ),
+    );
+  }
 
   final lanes = _laneRows(
     result: result,
@@ -796,10 +857,13 @@ GanttLayout layoutGantt({
 
     switch (band) {
       case GanttRow():
-        final barTop =
-            top + (GanttMetrics.rowHeight - GanttMetrics.barHeight) / 2;
+        double barTopFor(int slot) =>
+            top +
+            slot * GanttMetrics.rowHeight +
+            (GanttMetrics.rowHeight - GanttMetrics.barHeight) / 2;
         final placed = <GanttPlacedBar>[];
         for (final bar in band.bars) {
+          final barTop = barTopFor(bar.slot);
           final width = bar.occupied.inSeconds * pixelsPerSecond;
           final isFloored = width < GanttMetrics.minBarWidth;
           if (isFloored) floored++;
@@ -893,7 +957,13 @@ GanttHit? barAt(GanttLayout layout, Offset position) {
 
     switch (row.band) {
       case GanttRow():
+        // By sub-row first, for the same reason a lane is picked by slot: two
+        // units running at once are only told apart by which one the pointer
+        // is over. A one-unit station has a single sub-row and this is the
+        // whole band, exactly as it was.
+        final slot = ((position.dy - row.top) / GanttMetrics.rowHeight).floor();
         for (final placed in row.bars) {
+          if (placed.bar.slot != slot) continue;
           if (position.dx >= placed.rect.left &&
               position.dx <= placed.rect.right) {
             return placed;
