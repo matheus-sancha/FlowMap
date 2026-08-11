@@ -9,11 +9,16 @@ class WorkcenterDraft {
   const WorkcenterDraft({
     required this.name,
     this.typeId,
+    this.parallelCapacity = 1,
     this.lineIds = const {},
   });
 
   final String name;
   final String? typeId;
+
+  /// How many orders it runs at once (DESIGN.md §3.1). One is a single
+  /// machine, which is what every workcenter was before the field existed.
+  final int parallelCapacity;
 
   /// Which lines it is drawn under. A **set**, and possibly empty: a
   /// workcenter belongs to its plant, and filing it in the tree is
@@ -72,11 +77,22 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
   );
   late String? _typeId = widget.existing?.typeId;
   late final Set<String> _lineIds = {...widget.initialLineIds};
+  late final TextEditingController _units = TextEditingController(
+    text: '${widget.existing?.parallelCapacity ?? 1}',
+  );
 
   @override
   void dispose() {
     _name.dispose();
+    _units.dispose();
     super.dispose();
+  }
+
+  /// At least one, always: a station that runs no orders is a station that is
+  /// closed, and an unstaffed shift already says that (§4.2).
+  int? get _unitsValue {
+    final value = int.tryParse(_units.text.trim());
+    return value != null && value >= 1 ? value : null;
   }
 
   String? get _nameError {
@@ -88,11 +104,16 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
   }
 
   void _submit() {
-    if (_name.text.trim().isEmpty || _nameError != null) return;
+    if (_name.text.trim().isEmpty ||
+        _nameError != null ||
+        _unitsValue == null) {
+      return;
+    }
     Navigator.of(context).pop(
       WorkcenterDraft(
         name: _name.text.trim(),
         typeId: _typeId,
+        parallelCapacity: _unitsValue!,
         lineIds: _lineIds,
       ),
     );
@@ -101,7 +122,10 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final canSave = _name.text.trim().isNotEmpty && _nameError == null;
+    final canSave =
+        _name.text.trim().isNotEmpty &&
+        _nameError == null &&
+        _unitsValue != null;
 
     return AlertDialog(
       title: Text(
@@ -109,95 +133,113 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
       ),
       content: SizedBox(
         width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _name,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: l10n.fieldName,
-                // The name is what the process box is labelled with, so it is
-                // the shop-floor code, not a description.
-                helperText: l10n.workcenterNameHelp,
-                // `helperMaxLines` defaults to 1 however long the string is,
-                // so without this the sentence is clipped mid-word — which is
-                // exactly what was reported from the field.
-                helperMaxLines: 3,
-                errorText: _nameError,
+        // Scrolls for the same reason the step and inventory dialogs do: with
+        // the units field and its explanation in, this outgrows a short window.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _name,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.fieldName,
+                  // The name is what the process box is labelled with, so it is
+                  // the shop-floor code, not a description.
+                  helperText: l10n.workcenterNameHelp,
+                  // `helperMaxLines` defaults to 1 however long the string is,
+                  // so without this the sentence is clipped mid-word — which is
+                  // exactly what was reported from the field.
+                  helperMaxLines: 3,
+                  errorText: _nameError,
+                ),
+                onChanged: (_) => setState(() {}),
+                // The name is the only thing that has to be typed here, so Enter
+                // finishes the job rather than doing nothing.
+                onSubmitted: (_) => _submit(),
               ),
-              onChanged: (_) => setState(() {}),
-              // The name is the only thing that has to be typed here, so Enter
-              // finishes the job rather than doing nothing.
-              onSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String?>(
-              initialValue: _typeId,
-              decoration: InputDecoration(labelText: l10n.workcenterType),
-              items: [
-                DropdownMenuItem(value: null, child: Text(l10n.valueNone)),
-                for (final type in widget.types)
-                  DropdownMenuItem(value: type.id, child: Text(type.name)),
-              ],
-              onChanged: (value) => setState(() => _typeId = value),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.workcenterLines,
-                style: Theme.of(context).textTheme.labelLarge,
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _typeId,
+                decoration: InputDecoration(labelText: l10n.workcenterType),
+                items: [
+                  DropdownMenuItem(value: null, child: Text(l10n.valueNone)),
+                  for (final type in widget.types)
+                    DropdownMenuItem(value: type.id, child: Text(type.name)),
+                ],
+                onChanged: (value) => setState(() => _typeId = value),
               ),
-            ),
-            const SizedBox(height: 2),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.workcenterLinesHelp,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
+              const SizedBox(height: 12),
+              TextField(
+                controller: _units,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: l10n.workcenterParallelCapacity,
+                  helperText: l10n.workcenterParallelCapacityHelp,
+                  helperMaxLines: 4,
+                  errorText: _unitsValue == null
+                      ? l10n.validationRequired
+                      : null,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.workcenterLines,
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
-            ),
-            if (widget.lines.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    l10n.workcenterNoLines,
-                    style: Theme.of(context).textTheme.bodySmall,
+              const SizedBox(height: 2),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.workcenterLinesHelp,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
                   ),
                 ),
-              )
-            else
-              // Checkboxes, not a dropdown: a station that serves two lines is
-              // filed under both, and a single-choice control is what made
-              // adding it to a second line silently remove it from the first.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 180),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final line in widget.lines)
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        value: _lineIds.contains(line.line.id),
-                        title: Text(line.qualifiedName),
-                        onChanged: (checked) => setState(() {
-                          if (checked ?? false) {
-                            _lineIds.add(line.line.id);
-                          } else {
-                            _lineIds.remove(line.line.id);
-                          }
-                        }),
-                      ),
-                  ],
-                ),
               ),
-          ],
+              if (widget.lines.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      l10n.workcenterNoLines,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                )
+              else
+                // Checkboxes, not a dropdown: a station that serves two lines is
+                // filed under both, and a single-choice control is what made
+                // adding it to a second line silently remove it from the first.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final line in widget.lines)
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: _lineIds.contains(line.line.id),
+                          title: Text(line.qualifiedName),
+                          onChanged: (checked) => setState(() {
+                            if (checked ?? false) {
+                              _lineIds.add(line.line.id);
+                            } else {
+                              _lineIds.remove(line.line.id);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [

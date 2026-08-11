@@ -484,6 +484,7 @@ class _WorkcenterTile extends ConsumerWidget {
                 workcenter.id,
                 name: draft.name,
                 typeId: draft.typeId,
+                parallelCapacity: draft.parallelCapacity,
                 lineIds: draft.lineIds,
               );
             }
@@ -532,6 +533,7 @@ Future<void> _addWorkcenter(
         plantId: plantId,
         name: draft.name,
         typeId: draft.typeId,
+        parallelCapacity: draft.parallelCapacity,
         lineIds: draft.lineIds,
       );
 }

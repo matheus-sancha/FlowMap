@@ -1329,6 +1329,22 @@ This is why the tab's body stopped being one scrolling `ListView`: a child of a 
 viewport's height. The readiness panel stays above the switch, because it is about the *next* run
 rather than the one being read.
 
+**Where round-one's settings live, as built.**
+
+- **A lane's rule and capacity** are on the inventory node's editor, below its figure and above its
+  label, separated by a rule. The figure is an observation of today and these two are decisions about
+  the future — the same distinction the schema makes by giving capacity its own column (§16.16).
+- **A station's parallel capacity** is on the workcenter editor, beside its type. That dialog gained
+  a scroll view with it, for the reason the step and inventory dialogs already had one.
+- **A study's start buffer and pacemaker** are a `Run settings` item on the study's menu in the
+  sidebar, beside Rename and Duplicate. A dialog rather than a panel: neither is read while working,
+  both are set once and left, and the Flow tab already carries everything that *is* read while
+  working. `wipCap` and `priority` are still stored-but-unreachable there (§17.5) — they belong in
+  the same dialog and were left for the round that needs them.
+- **Blocked time** is a column in the Queue table, beside utilization rather than folded into it: a
+  station at 40 % and blocked half the run is a different plant from one at 40 % and idle, and only
+  the first is fixed downstream (§8.3).
+
 ### 12.2 Canvas
 
 Each node is a real Flutter widget positioned by the layout engine in a `Stack`; connectors, the

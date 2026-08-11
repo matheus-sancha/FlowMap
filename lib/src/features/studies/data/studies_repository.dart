@@ -90,6 +90,9 @@ class StudiesRepository {
     String? customerName,
     int? wipCap,
     int? priority,
+    int? startBufferDays,
+    String? paceSetterTargetId,
+    bool paceSetterGiven = false,
     String? notes,
   }) => (_db.update(_db.studies)..where((s) => s.id.equals(id))).write(
     StudiesCompanion(
@@ -98,6 +101,15 @@ class StudiesRepository {
       customerName: Value(customerName),
       wipCap: Value(wipCap),
       priority: priority == null ? const Value.absent() : Value(priority),
+      startBufferDays: startBufferDays == null
+          ? const Value.absent()
+          : Value(startBufferDays),
+      // Null is a real value here — "derive it" — so absence has to be said
+      // separately, or every caller that is not editing the pacemaker would
+      // silently clear it. The same shape `lineIds` uses on a workcenter.
+      paceSetterTargetId: paceSetterGiven
+          ? Value(paceSetterTargetId)
+          : const Value.absent(),
       notes: Value(notes),
       updatedAt: Value(DateTime.now()),
     ),
@@ -286,6 +298,8 @@ class StudiesRepository {
     Duration? wait,
     DurationUnit? waitUnit,
     bool usesWorkingTime = false,
+    DispatchRule? laneRule,
+    int? laneCapacity,
     String? label,
     String? notes,
   }) => _insertNode(
@@ -301,6 +315,8 @@ class StudiesRepository {
       inventorySeconds: Value(wait?.inSeconds),
       inventoryUnit: Value(waitUnit),
       inventoryUsesWorkingTime: Value(usesWorkingTime),
+      laneRule: Value(laneRule),
+      laneCapacity: Value(laneCapacity),
       label: Value(label),
       notes: Value(notes),
       createdAt: now,
@@ -363,6 +379,8 @@ class StudiesRepository {
     Duration? wait,
     DurationUnit? waitUnit,
     required bool usesWorkingTime,
+    DispatchRule? laneRule,
+    int? laneCapacity,
     String? label,
     String? notes,
   }) async {
@@ -373,6 +391,8 @@ class StudiesRepository {
         inventorySeconds: Value(wait?.inSeconds),
         inventoryUnit: Value(waitUnit),
         inventoryUsesWorkingTime: Value(usesWorkingTime),
+        laneRule: Value(laneRule),
+        laneCapacity: Value(laneCapacity),
         label: Value(label),
         notes: Value(notes),
         updatedAt: Value(DateTime.now()),

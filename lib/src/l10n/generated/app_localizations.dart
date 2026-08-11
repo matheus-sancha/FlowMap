@@ -2112,23 +2112,101 @@ abstract class AppLocalizations {
   /// **'Charged only when the previous order on this workcenter was a different part.'**
   String get stepChangeoverHelp;
 
-  /// No description provided for @stepDispatch.
+  /// No description provided for @laneRule.
   ///
   /// In en, this message translates to:
   /// **'Queue order'**
-  String get stepDispatch;
+  String get laneRule;
 
-  /// No description provided for @stepDispatchHelp.
+  /// No description provided for @laneRuleHelp.
   ///
   /// In en, this message translates to:
-  /// **'How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.'**
-  String get stepDispatchHelp;
+  /// **'How the station ahead picks the next order out of this lane. On a real lane you cannot take from the back, so this is a decision about the queue rather than about the machine — and it belongs here, where the queue is drawn.'**
+  String get laneRuleHelp;
 
-  /// No description provided for @stepDispatchFollowsRun.
+  /// No description provided for @laneRuleFollowsRun.
   ///
   /// In en, this message translates to:
   /// **'Follow the run\'s rule'**
-  String get stepDispatchFollowsRun;
+  String get laneRuleFollowsRun;
+
+  /// No description provided for @laneCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane capacity (orders)'**
+  String get laneCapacity;
+
+  /// No description provided for @laneCapacityHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How many orders fit here. Leave blank for unlimited. When it is full the station behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.'**
+  String get laneCapacityHelp;
+
+  /// No description provided for @workcenterParallelCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders at once'**
+  String get workcenterParallelCapacity;
+
+  /// No description provided for @workcenterParallelCapacityHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.'**
+  String get workcenterParallelCapacityHelp;
+
+  /// No description provided for @studyRunSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Run settings'**
+  String get studyRunSettings;
+
+  /// No description provided for @studyStartBuffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Start buffer (calendar days)'**
+  String get studyStartBuffer;
+
+  /// No description provided for @studyStartBufferHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra margin ahead of the calculated start. A run begins at the first order\'s need date, less its theoretical lead time, less this. Calendar days, because slippage happens whether or not the plant is open.'**
+  String get studyStartBufferHelp;
+
+  /// No description provided for @studyPaceSetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Pacemaker'**
+  String get studyPaceSetter;
+
+  /// No description provided for @studyPaceSetterHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The station whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.'**
+  String get studyPaceSetterHelp;
+
+  /// No description provided for @studyPaceSetterAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic — the busiest step'**
+  String get studyPaceSetterAutomatic;
+
+  /// No description provided for @simBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get simBlocked;
+
+  /// No description provided for @simBlockedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Time the station spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed station is occupied and producing nothing.'**
+  String get simBlockedHelp;
+
+  /// No description provided for @simEmptySlotLaneFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane full'**
+  String get simEmptySlotLaneFull;
 
   /// No description provided for @stepOperators.
   ///

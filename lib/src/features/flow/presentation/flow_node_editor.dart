@@ -81,6 +81,8 @@ Future<void> showInsertNodeMenu(
       wait: draft.wait,
       waitUnit: draft.waitUnit,
       usesWorkingTime: draft.usesWorkingTime,
+      laneRule: draft.laneRule,
+      laneCapacity: draft.laneCapacity,
       label: draft.label,
       notes: draft.notes,
     );
@@ -164,6 +166,8 @@ Future<void> showInventoryEditor(
         wait: draft.wait,
         waitUnit: draft.waitUnit,
         usesWorkingTime: draft.usesWorkingTime,
+        laneRule: draft.laneRule,
+        laneCapacity: draft.laneCapacity,
         label: draft.label,
         notes: draft.notes,
       );
@@ -246,12 +250,21 @@ class _InventoryDraft implements _InventoryResult {
     this.wait,
     this.waitUnit,
     required this.usesWorkingTime,
+    this.laneRule,
+    this.laneCapacity,
     this.label,
     this.notes,
   });
 
   /// What a walk found at this buffer — why the stock is here, what it costs.
   final String? notes;
+
+  /// How the station ahead picks out of this lane, or null to follow the run's
+  /// rule (§5.5, §7.4).
+  final DispatchRule? laneRule;
+
+  /// Orders that fit, or null for unlimited.
+  final int? laneCapacity;
 
   final InventoryMode mode;
   final int? quantity;
@@ -583,6 +596,17 @@ class _InventoryDialogState extends State<_InventoryDialog> {
   );
   late bool _workingTime =
       widget.existing?.node.inventoryUsesWorkingTime ?? false;
+
+  /// Null means "follow the run's rule", which is a real choice rather than a
+  /// blank: storing the default would pin every queue the first time one was
+  /// edited, and would freeze the run's own setting out (§7.4).
+  late DispatchRule? _laneRule = widget.existing?.node.laneRule;
+
+  /// Empty means unlimited, which is what every lane was before capacity
+  /// existed — so a blank is the state to preserve rather than a zero.
+  late final TextEditingController _capacity = TextEditingController(
+    text: widget.existing?.node.laneCapacity?.toString() ?? '',
+  );
   late final TextEditingController _label = TextEditingController(
     text: widget.existing?.node.label ?? '',
   );
@@ -594,10 +618,25 @@ class _InventoryDialogState extends State<_InventoryDialog> {
   void dispose() {
     _quantity.dispose();
     _wait.dispose();
+    _capacity.dispose();
     _label.dispose();
     _notes.dispose();
     super.dispose();
   }
+
+  /// Blank is unlimited; anything else has to be a positive whole number of
+  /// orders. Zero is refused rather than treated as unlimited — a lane that
+  /// holds nothing would stop the line for good, and is far more likely to be
+  /// a typo than an intention.
+  int? get _capacityValue {
+    final text = _capacity.text.trim();
+    if (text.isEmpty) return null;
+    final value = int.tryParse(text);
+    return value != null && value > 0 ? value : null;
+  }
+
+  bool get _capacityIsValid =>
+      _capacity.text.trim().isEmpty || _capacityValue != null;
 
   double? get _waitValue {
     final value = double.tryParse(_wait.text.trim().replaceAll(',', '.'));
@@ -625,9 +664,11 @@ class _InventoryDialogState extends State<_InventoryDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final quantity = int.tryParse(_quantity.text.trim());
-    final valid = _mode == InventoryMode.quantity
-        ? quantity != null && quantity >= 0
-        : _waitValue != null;
+    final valid =
+        (_mode == InventoryMode.quantity
+            ? quantity != null && quantity >= 0
+            : _waitValue != null) &&
+        _capacityIsValid;
 
     return AlertDialog(
       title: Text(
@@ -727,6 +768,47 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                   onChanged: (value) => setState(() => _workingTime = value),
                 ),
               ],
+
+              // --- what the lane governs (§5.5) ---
+              //
+              // Below the figure and above the label, because the figure is an
+              // observation of today and these two are rules about the future.
+              // Keeping them apart on screen is the same distinction the schema
+              // makes by giving capacity its own column.
+              const Divider(height: 24),
+              DropdownButtonFormField<DispatchRule?>(
+                initialValue: _laneRule,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: l10n.laneRule,
+                  helperText: l10n.laneRuleHelp,
+                  helperMaxLines: 4,
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text(l10n.laneRuleFollowsRun),
+                  ),
+                  for (final rule in DispatchRule.values)
+                    DropdownMenuItem(
+                      value: rule,
+                      child: Text(dispatchRuleLabel(l10n, rule)),
+                    ),
+                ],
+                onChanged: (rule) => setState(() => _laneRule = rule),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _capacity,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: l10n.laneCapacity,
+                  helperText: l10n.laneCapacityHelp,
+                  helperMaxLines: 4,
+                  errorText: _capacityIsValid ? null : l10n.validationRequired,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _label,
@@ -774,6 +856,8 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                           : null,
                       waitUnit: isDuration ? _waitUnit : null,
                       usesWorkingTime: _workingTime,
+                      laneRule: _laneRule,
+                      laneCapacity: _capacityValue,
                       label: label.isEmpty ? null : label,
                       notes: notes.isEmpty ? null : notes,
                     ),

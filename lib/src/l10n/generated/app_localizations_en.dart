@@ -1143,14 +1143,58 @@ class AppLocalizationsEn extends AppLocalizations {
       'Charged only when the previous order on this workcenter was a different part.';
 
   @override
-  String get stepDispatch => 'Queue order';
+  String get laneRule => 'Queue order';
 
   @override
-  String get stepDispatchHelp =>
-      'How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.';
+  String get laneRuleHelp =>
+      'How the station ahead picks the next order out of this lane. On a real lane you cannot take from the back, so this is a decision about the queue rather than about the machine — and it belongs here, where the queue is drawn.';
 
   @override
-  String get stepDispatchFollowsRun => 'Follow the run\'s rule';
+  String get laneRuleFollowsRun => 'Follow the run\'s rule';
+
+  @override
+  String get laneCapacity => 'Lane capacity (orders)';
+
+  @override
+  String get laneCapacityHelp =>
+      'How many orders fit here. Leave blank for unlimited. When it is full the station behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.';
+
+  @override
+  String get workcenterParallelCapacity => 'Orders at once';
+
+  @override
+  String get workcenterParallelCapacityHelp =>
+      'How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.';
+
+  @override
+  String get studyRunSettings => 'Run settings';
+
+  @override
+  String get studyStartBuffer => 'Start buffer (calendar days)';
+
+  @override
+  String get studyStartBufferHelp =>
+      'Extra margin ahead of the calculated start. A run begins at the first order\'s need date, less its theoretical lead time, less this. Calendar days, because slippage happens whether or not the plant is open.';
+
+  @override
+  String get studyPaceSetter => 'Pacemaker';
+
+  @override
+  String get studyPaceSetterHelp =>
+      'The station whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.';
+
+  @override
+  String get studyPaceSetterAutomatic => 'Automatic — the busiest step';
+
+  @override
+  String get simBlocked => 'Blocked';
+
+  @override
+  String get simBlockedHelp =>
+      'Time the station spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed station is occupied and producing nothing.';
+
+  @override
+  String get simEmptySlotLaneFull => 'Lane full';
 
   @override
   String get stepOperators => 'Operators';

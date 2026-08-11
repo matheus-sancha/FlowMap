@@ -63,6 +63,7 @@ class WorkcenterRunMetrics {
     required this.visits,
     required this.changeovers,
     required this.contributedTime,
+    this.blocked = Duration.zero,
   });
 
   final String workcenterId;
@@ -73,6 +74,15 @@ class WorkcenterRunMetrics {
 
   /// Open time the station had across the run.
   final Duration open;
+
+  /// Time it stood holding a finished order because the lane ahead was full
+  /// (§5.5).
+  ///
+  /// **Not part of [busy]**, so [utilization] keeps meaning "running". Read
+  /// beside it rather than folded into it: a station at 40 % utilization and
+  /// 50 % blocked is a different plant from one at 40 % and idle, and only the
+  /// first is fixed by making room downstream.
+  final Duration blocked;
 
   /// Total time orders spent waiting here — §8.1's first post-run ranking.
   final Duration queueTime;
@@ -318,6 +328,7 @@ RunMetrics summariseRun({
             visits: entry.value.visits,
             changeovers: entry.value.changeovers,
             contributedTime: entry.value.contributed,
+            blocked: result.blockedByWorkcenter[entry.key] ?? Duration.zero,
           ),
       ]..sort((a, b) {
         final queue = b.queueTime.compareTo(a.queueTime);

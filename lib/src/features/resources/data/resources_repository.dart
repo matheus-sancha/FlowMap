@@ -240,6 +240,7 @@ class ResourcesRepository {
     required String plantId,
     required String name,
     String? typeId,
+    int parallelCapacity = 1,
     Set<String> lineIds = const {},
   }) async {
     final id = newId();
@@ -252,6 +253,7 @@ class ResourcesRepository {
             plantId: plantId,
             name: name,
             typeId: Value(typeId),
+            parallelCapacity: Value(parallelCapacity),
             createdAt: now,
             updatedAt: now,
           ),
@@ -264,12 +266,18 @@ class ResourcesRepository {
     String id, {
     required String name,
     String? typeId,
+    int? parallelCapacity,
     Set<String>? lineIds,
   }) async {
     await (_db.update(_db.workcenters)..where((w) => w.id.equals(id))).write(
       WorkcentersCompanion(
         name: Value(name),
         typeId: Value(typeId),
+        // Absent rather than null when the caller was not editing it, so a
+        // screen that does not offer the field cannot reset a station to one.
+        parallelCapacity: parallelCapacity == null
+            ? const Value.absent()
+            : Value(parallelCapacity),
         updatedAt: Value(DateTime.now()),
       ),
     );

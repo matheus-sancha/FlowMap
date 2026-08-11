@@ -15,6 +15,7 @@ import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
 import '../../simulation/presentation/simulation_tab.dart';
 import '../../studies/application/studies_providers.dart';
+import '../../studies/presentation/study_run_settings.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
 
@@ -353,6 +354,8 @@ class _StudyTile extends ConsumerWidget {
                 study.id,
                 !study.includeInSimulation,
               );
+            case 'runSettings':
+              await showStudyRunSettings(context, ref, study: study);
             case 'rename':
               final name = await promptForName(
                 context,
@@ -421,6 +424,10 @@ class _StudyTile extends ConsumerWidget {
             ),
           ),
           PopupMenuItem(value: 'rename', child: Text(l10n.actionRename)),
+          PopupMenuItem(
+            value: 'runSettings',
+            child: Text(l10n.studyRunSettings),
+          ),
           PopupMenuItem(value: 'duplicate', child: Text(l10n.actionDuplicate)),
           PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
         ],

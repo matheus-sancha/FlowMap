@@ -1157,14 +1157,58 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se cobra solo cuando la orden anterior en este centro de trabajo era de otra pieza.';
 
   @override
-  String get stepDispatch => 'Orden de la cola';
+  String get laneRule => 'Orden de la cola';
 
   @override
-  String get stepDispatchHelp =>
-      'Cómo elige esta estación la siguiente orden de su cola. Pertenece a la estación, no a este paso: todos los estudios del proyecto que la usan despachan igual. Un pool hace cola como uno solo.';
+  String get laneRuleHelp =>
+      'Cómo elige la estación siguiente la próxima orden de este carril. En un carril real no se puede sacar por detrás, así que es una decisión sobre la cola y no sobre la máquina — y pertenece aquí, donde se dibuja la cola.';
 
   @override
-  String get stepDispatchFollowsRun => 'Seguir la regla de la simulación';
+  String get laneRuleFollowsRun => 'Seguir la regla de la simulación';
+
+  @override
+  String get laneCapacity => 'Capacidad del carril (órdenes)';
+
+  @override
+  String get laneCapacityHelp =>
+      'Cuántas órdenes caben aquí. Déjalo vacío para ilimitado. Cuando está lleno, la estación anterior no puede dejar la orden terminada y se detiene, que es como la congestión sube por la línea. Distinto de las piezas de arriba: esa cifra es lo que hay hoy, esta es lo que permite el suelo.';
+
+  @override
+  String get workcenterParallelCapacity => 'Órdenes a la vez';
+
+  @override
+  String get workcenterParallelCapacityHelp =>
+      'Cuántas órdenes procesa esta estación en paralelo. Uno es una sola máquina. Más de uno son unidades independientes, cada una con sus propios cambios de referencia — y el doble de capacidad en todo lo que se mide. Usa un pool cuando las máquinas sean realmente separadas y quieras ver cuál hizo qué.';
+
+  @override
+  String get studyRunSettings => 'Ajustes de simulación';
+
+  @override
+  String get studyStartBuffer => 'Margen de inicio (días naturales)';
+
+  @override
+  String get studyStartBufferHelp =>
+      'Margen adicional antes del inicio calculado. Una simulación empieza en la fecha de necesidad de la primera orden, menos su lead time teórico, menos esto. Días naturales, porque los retrasos ocurren esté la planta abierta o no.';
+
+  @override
+  String get studyPaceSetter => 'Marcapasos';
+
+  @override
+  String get studyPaceSetterHelp =>
+      'La estación cuyo reloj marca la cadencia de liberación, y cuyo carril decide cuándo puede entrar otra orden. Déjalo en automático para usar el paso más cargado.';
+
+  @override
+  String get studyPaceSetterAutomatic => 'Automático — el paso más cargado';
+
+  @override
+  String get simBlocked => 'Bloqueado';
+
+  @override
+  String get simBlockedHelp =>
+      'Tiempo que la estación pasó sujetando una orden terminada porque el carril siguiente estaba lleno. No cuenta como ocupado: una estación atascada está ocupada y no produce nada.';
+
+  @override
+  String get simEmptySlotLaneFull => 'Carril lleno';
 
   @override
   String get stepOperators => 'Operarios';

@@ -861,6 +861,10 @@ class _QueueTable extends StatelessWidget {
           ResultColumn(label: l10n.utilization, width: 120),
           ResultColumn(label: l10n.simQueue, width: 130),
           ResultColumn(label: l10n.simQueueAverage, width: 130),
+          // Beside utilization rather than folded into it: a station at 40 %
+          // and blocked half the run is a different plant from one at 40 % and
+          // idle, and only the first is fixed downstream (§8.3).
+          ResultColumn(label: l10n.simBlocked, width: 130),
           ResultColumn(label: l10n.simVisits, width: 100),
           ResultColumn(label: l10n.simChangeovers, width: 130),
         ],
@@ -875,7 +879,11 @@ class _QueueTable extends StatelessWidget {
             ),
             2 => Text(_duration(l10n, station.queueTime)),
             3 => Text(_duration(l10n, station.averageQueue)),
-            4 => Text('${station.visits}'),
+            4 => Tooltip(
+              message: l10n.simBlockedHelp,
+              child: Text(_duration(l10n, station.blocked)),
+            ),
+            5 => Text('${station.visits}'),
             _ => Text('${station.changeovers}'),
           };
         },

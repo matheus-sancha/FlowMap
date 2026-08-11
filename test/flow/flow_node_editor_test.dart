@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // `Override` lives in flutter_riverpod's `misc` library, not its main one.
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:flowmap/src/common/unit_labels.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Mounting tests for the node dialogs.
@@ -26,6 +27,8 @@ void main() {
     int? seconds = 48 * 3600,
     DurationUnit? unit = DurationUnit.hours,
     int? quantity,
+    DispatchRule? laneRule,
+    int? laneCapacity,
   }) => FlowNode(
     id: 'node-1',
     studyId: 'study-1',
@@ -37,6 +40,8 @@ void main() {
     inventorySeconds: seconds,
     inventoryUnit: unit,
     inventoryUsesWorkingTime: false,
+    laneRule: laneRule,
+    laneCapacity: laneCapacity,
     createdAt: now,
     updatedAt: now,
   );
@@ -201,6 +206,64 @@ void main() {
       // 48 hours is 2 days — the duration is what the user meant, not the 48.
       expect(find.widgetWithText(TextField, '2'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('it carries the lane rule and capacity it was given', (
+      tester,
+    ) async {
+      await pumpHost(
+        tester,
+        (context, ref) => showInventoryEditor(
+          context,
+          ref,
+          study: study,
+          buffer: FlowInventoryView(
+            inventoryNode(
+              laneRule: DispatchRule.earliestDueDate,
+              laneCapacity: 3,
+            ),
+            wait: const Duration(hours: 48),
+            label: '',
+            waitUnit: DurationUnit.hours,
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      // Selected rather than merely offered: a control that opened on the
+      // default would silently reset the lane on the next save (§7.4).
+      expect(
+        find.text(dispatchRuleLabel(l10n, DispatchRule.earliestDueDate)),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextField, '3'), findsOneWidget);
+    });
+
+    testWidgets('an untouched lane says it follows the run, not FIFO', (
+      tester,
+    ) async {
+      await pumpHost(
+        tester,
+        (context, ref) => showInventoryEditor(
+          context,
+          ref,
+          study: study,
+          buffer: FlowInventoryView(
+            inventoryNode(),
+            wait: const Duration(hours: 48),
+            label: '',
+            waitUnit: DurationUnit.hours,
+          ),
+        ),
+      );
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      // The distinction §5.2 rests on: "nobody has decided" is not the same
+      // state as "someone chose FIFO", and only the second draws a lane.
+      expect(find.text(l10n.laneRuleFollowsRun), findsOneWidget);
+      expect(find.text(l10n.laneCapacity), findsOneWidget);
     });
 
     testWidgets('a quantity buffer shows pieces rather than a wait', (

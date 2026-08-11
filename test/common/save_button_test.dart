@@ -169,6 +169,12 @@ void main() {
       );
     }
 
+    /// The first field in the dialog. Named rather than taken as "the"
+    /// TextField, because the units field (§3.1) is a second one — and a
+    /// finder that breaks when a field is added was never asserting anything
+    /// about which field it meant.
+    final nameField = find.byType(TextField).first;
+
     testWidgets('Save enables as soon as a name is typed', (tester) async {
       await open(tester);
       await tester.tap(find.text('open'));
@@ -176,7 +182,7 @@ void main() {
 
       expect(saveButton(tester), isNull);
 
-      await tester.enterText(find.byType(TextField), 'CLAD04');
+      await tester.enterText(nameField, 'CLAD04');
       await tester.pumpAndSettle();
 
       expect(saveButton(tester), isNotNull);
@@ -189,7 +195,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), 'CLAD04');
+      await tester.enterText(nameField, 'CLAD04');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
@@ -201,7 +207,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), 'CLAD04');
+      await tester.enterText(nameField, 'CLAD04');
       await tester.pumpAndSettle();
 
       expect(saveButton(tester), isNull);
