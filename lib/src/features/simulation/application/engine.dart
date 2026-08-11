@@ -212,9 +212,17 @@ class _EventQueue {
   }
 }
 
-/// A workcenter's state during a run.
+/// One unit of a workcenter, during a run.
+///
+/// A station with `units > 1` has several of these, and they are independent in
+/// every way that matters: each has its own clock, its own busy total and its
+/// own [lastPartId], so two units of one machine pay changeovers separately —
+/// which is what running two orders at once means (§3.1).
 class _Server {
-  _Server(this.workcenter);
+  _Server(this.id, this.workcenter);
+
+  /// `wc-1#0`. Distinct from the workcenter id, which several servers share.
+  final String id;
 
   final SimWorkcenter workcenter;
 
@@ -312,7 +320,17 @@ class _Engine {
 
   SimRunResult run() {
     for (final entry in workcenters.entries) {
-      _servers[entry.key] = _Server(entry.value);
+      // One server per unit (§3.1). The id carries the index so a finish event
+      // names the unit that finished rather than the station it belongs to —
+      // two units of one machine can be busy with different orders, and a
+      // station-keyed event could not say which had ended.
+      final units = entry.value.units < 1 ? 1 : entry.value.units;
+      for (var unit = 0; unit < units; unit++) {
+        _servers['${entry.key}#$unit'] = _Server(
+          '${entry.key}#$unit',
+          entry.value,
+        );
+      }
     }
     for (final study in studies) {
       _studies[study.id] = study;
@@ -498,7 +516,11 @@ class _Engine {
         ..sort((a, b) {
           final busy = a.busy.compareTo(b.busy);
           if (busy != 0) return busy;
-          return a.workcenter.name.compareTo(b.workcenter.name);
+          final name = a.workcenter.name.compareTo(b.workcenter.name);
+          if (name != 0) return name;
+          // Two units of one station share a name, so the id is what stops a
+          // genuine tie between them being resolved by map order (§4.4).
+          return a.id.compareTo(b.id);
         });
 
       for (final server in idle) {
@@ -525,7 +547,7 @@ class _Engine {
           // to be queued first.
           if (server.wakeAt != openAt) {
             server.wakeAt = openAt;
-            _schedule(openAt, _EventKind.wake, key: server.workcenter.id);
+            _schedule(openAt, _EventKind.wake, key: server.id);
           }
           continue;
         }
@@ -624,7 +646,7 @@ class _Engine {
       ..busyUntil = end
       ..lastPartId = waiting.order.partId
       ..busy += occupancy;
-    _running[server.workcenter.id] = waiting;
+    _running[server.id] = waiting;
 
     _rows.add(
       SimOrderStep(
@@ -639,12 +661,12 @@ class _Engine {
       ),
     );
 
-    _schedule(end, _EventKind.finish, key: server.workcenter.id);
+    _schedule(end, _EventKind.finish, key: server.id);
   }
 
-  void _onFinish(String workcenterId) {
-    final server = _servers[workcenterId]!;
-    final waiting = _running.remove(workcenterId);
+  void _onFinish(String serverId) {
+    final server = _servers[serverId]!;
+    final waiting = _running.remove(serverId);
     server.busyUntil = null;
     if (waiting == null) return;
 
@@ -679,16 +701,30 @@ class _Engine {
 
     // Open time each station had between the cold start and the last event —
     // utilization's denominator, and what makes it different from occupation.
+    //
+    // **Multiplied by the unit count**, because the numerator is summed across
+    // units below: a two-unit station that ran both of them flat out is 100 %
+    // utilised, and a denominator counting one clock would report it at 200 %.
+    // Asked once per station rather than once per server — the calendar walk is
+    // the expensive part (§16.9) and every unit of a station shares one.
     final open = <String, Duration>{};
-    for (final entry in _servers.entries) {
+    for (final entry in workcenters.entries) {
+      final units = entry.value.units < 1 ? 1 : entry.value.units;
       try {
-        open[entry.key] = entry.value.workcenter.calendar.openTimeBetween(
-          start,
-          _now,
-        );
+        open[entry.key] =
+            entry.value.calendar.openTimeBetween(start, _now) * units;
       } on StateError {
         open[entry.key] = Duration.zero;
       }
+    }
+
+    // Busy time summed back across a station's units, so everything downstream
+    // — the Queue table, the bottleneck ranking, the Summary — keeps reading one
+    // row per station and never learns that servers exist.
+    final busy = <String, Duration>{};
+    for (final server in _servers.values) {
+      busy[server.workcenter.id] =
+          (busy[server.workcenter.id] ?? Duration.zero) + server.busy;
     }
 
     return SimRunResult(
@@ -698,9 +734,7 @@ class _Engine {
       steps: _rows,
       orders: outcomes,
       emptySlots: _empties,
-      busyByWorkcenter: {
-        for (final entry in _servers.entries) entry.key: entry.value.busy,
-      },
+      busyByWorkcenter: busy,
       openByWorkcenter: open,
       abort: abort,
     );

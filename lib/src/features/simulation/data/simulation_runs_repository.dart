@@ -173,6 +173,10 @@ class SimulationRunsRepository {
                   (result.busyByWorkcenter[entry.key] ?? Duration.zero)
                       .inSeconds,
               openSeconds: entry.value.inSeconds,
+              // Copied in like the name, and for the same reason: a station
+              // re-rated from one unit to two afterwards would otherwise
+              // silently change what this run's utilization meant (§3.1).
+              units: Value(workcenters[entry.key]?.units ?? 1),
             ),
         ]);
 

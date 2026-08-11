@@ -28,9 +28,23 @@ class SimWorkcenter {
     required this.calendar,
     required this.schedule,
     this.dispatch,
+    this.units = 1,
   });
 
   final String id;
+
+  /// How many orders it runs at once (§3.1).
+  ///
+  /// The engine gives the station this many servers, each with its own clock
+  /// and its own last-part memory — so two units of one machine pay changeovers
+  /// independently, which is what two units are.
+  ///
+  /// **A pool is the precedent, not the alternative.** Three cladding machines
+  /// already reach a run as three candidates on one step, and a two-unit
+  /// workcenter is the same arithmetic with one name: the capacity doubles and
+  /// the per-machine yardstick does not, which is why §6.1's equivalent still
+  /// reads per machine while §8.4's occupation halves.
+  final int units;
 
   /// `CLAD04` — what a result names, so a bottleneck reads as a station rather
   /// than as a uuid.

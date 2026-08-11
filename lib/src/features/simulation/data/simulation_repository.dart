@@ -100,6 +100,7 @@ class SimulationRepository {
           byTarget: dispatchByTarget,
           poolMembers: poolMembers,
         ),
+        units: row.parallelCapacity,
       );
     }
 

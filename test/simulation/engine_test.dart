@@ -48,6 +48,7 @@ void main() {
     double availability = 1,
     double rework = 0,
     DispatchRule? dispatch,
+    int units = 1,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
@@ -67,6 +68,7 @@ void main() {
       ),
       schedule: schedule,
       dispatch: dispatch,
+      units: units,
     );
   }
 
@@ -222,6 +224,100 @@ void main() {
       expect(result.busyByWorkcenter['W'], const Duration(hours: 2));
       expect(result.openByWorkcenter['W'], const Duration(hours: 5));
       expect(result.utilization['W'], closeTo(0.4, 0.0001));
+    });
+  });
+
+  group('parallel units (§3.1)', () {
+    /// Four orders alternating between two parts, released faster than one
+    /// unit can absorb them, so a queue forms and the units have a choice.
+    SimStudy alternating({Duration process = const Duration(hours: 2)}) => study(
+      nodes: [
+        step(0, ['W'], changeover: const Duration(hours: 1)),
+      ],
+      parts: {
+        'p1': part('p1', {'W': process}),
+        'p2': part('p2', {'W': process}),
+      },
+      orders: [
+        order(0, 'p1'),
+        order(1, 'p2'),
+        order(2, 'p1'),
+        order(3, 'p2'),
+      ],
+      release: const Duration(hours: 1),
+    );
+
+    test('two units run two orders at the same time', () {
+      final result = runSimulation(
+        studies: [alternating(process: const Duration(hours: 5))],
+        workcenters: {'W': workcenter('W', units: 2)},
+        start: aug1,
+      );
+
+      expect(result.completed, isTrue);
+      expect(result.steps, hasLength(4));
+
+      // The first two overlap, which a single server could not do. This is the
+      // whole claim: TTAT holds two orders at once.
+      final byOrder = {for (final s in result.steps) s.orderId: s};
+      expect(byOrder['o1']!.processStart.isBefore(byOrder['o0']!.processEnd),
+          isTrue);
+    });
+
+    test('each unit keeps its own last part, so it pays its own changeovers',
+        () {
+      final two = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W', units: 2)},
+        start: aug1,
+      );
+      final one = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // One unit alternating p1/p2/p1/p2 changes over three times. Two units
+      // settle one part each, so nobody changes over at all — which is only
+      // true because `lastPartId` lives on the unit rather than on the station.
+      expect(one.steps.where((s) => s.changeoverIncurred), hasLength(3));
+      expect(two.steps.where((s) => s.changeoverIncurred), isEmpty);
+    });
+
+    test('open time counts every unit, so utilization stays a fraction', () {
+      final two = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W', units: 2)},
+        start: aug1,
+      );
+
+      // The denominator is unit-hours, because the numerator is summed across
+      // units. Counting one clock against two servers' work is how a busy
+      // station comes to report 200 %.
+      final elapsed = two.end.difference(two.start);
+      expect(two.openByWorkcenter['W'], elapsed * 2);
+      expect(
+        two.busyByWorkcenter['W']!.inSeconds,
+        lessThanOrEqualTo(two.openByWorkcenter['W']!.inSeconds),
+      );
+    });
+
+    test('one unit is exactly what it was before the column existed', () {
+      final explicit = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W', units: 1)},
+        start: aug1,
+      );
+      final defaulted = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      expect(
+        explicit.steps.map((s) => (s.orderId, s.processStart, s.processEnd)),
+        defaulted.steps.map((s) => (s.orderId, s.processStart, s.processEnd)),
+      );
     });
   });
 

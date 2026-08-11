@@ -766,6 +766,14 @@ FlowStepView _buildStep({
   // Capacity is summed across everything that can run this step. For a single
   // workcenter that is the same figure again; for a pool it is the whole
   // group, which is the point of having one.
+  //
+  // **A station's parallel units multiply here and nowhere else** (§3.1). A
+  // pool of three is the precedent: its members raise this total while
+  // `productivePerDay` below stays one machine's clock, so §8.4's occupation
+  // halves for two units and §6.1's equivalent still reads per machine. Putting
+  // units into the clock instead would also stretch the release cadence, since
+  // §7.2 measures a takt in days on the pace setter's productive day — and how
+  // many machines a station has is not how long its day is.
   final capacityMembers = node.poolId != null
       ? (poolMembers[node.poolId] ?? const <String>[])
       : [?targetId];
@@ -777,7 +785,8 @@ FlowStepView _buildStep({
     if (lookup.isMissing) continue;
     capacityInPeriod +=
         member.calendar.openTimeBetween(asOf, until) *
-        lookup.period!.availability;
+        lookup.period!.availability *
+        member.workcenter.parallelCapacity;
     operatorsAllocated += lookup.period!.operatorsPerShift.fold(
       0,
       (sum, count) => sum + count,

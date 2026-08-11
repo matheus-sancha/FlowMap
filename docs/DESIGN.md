@@ -84,6 +84,31 @@ Pools are how two production lines genuinely compete for the same capacity.
 _Rejected: pool as an N-slot capacity bucket._ Loses per-machine availability/operators and cannot
 say which machine ran an order.
 
+**A workcenter may itself hold more than one order at a time** — `parallel_capacity`, one by
+default. The engine gives it that many servers, and they are independent in every way that matters:
+each has its own clock, its own busy total and its own memory of the last part it ran, so two units
+of one machine pay changeovers separately. That is what running two orders at once *is*.
+
+**A pool is the precedent, not the alternative**, and the arithmetic is deliberately identical: a
+station's units raise its capacity exactly as a pool's members do, and leave the per-machine
+yardstick alone. So §8.4's occupation halves for two units while §6.1's flow equivalent still reads
+one machine — which is what a pool of three already does, reporting 63 % occupation against an
+equivalent of 0.99.
+
+**Units multiply capacity and never the clock.** §7.2 measures a takt given in days on the pace
+setter's *productive day*, so folding units into that figure would stretch the release cadence — and
+how many machines a station has is not how long its day is. Utilization's denominator does take
+them, because its numerator is summed across units: counting one clock against two servers' work is
+how a busy station comes to report 200 %.
+
+_Rejected: modelling it as a pool of invented members._ It needs no code at all — and it puts two
+machines that do not exist into the plant, the Summary, the Queue table and every Gantt thereafter.
+
+_Rejected: treating it as a batch process._ An oven or autoclave holds several orders in one window
+and does not take twice as long for the second, which is a different model: it needs a loading policy
+and a process time belonging to the load rather than to the batch size, contradicting §7.6. The
+observed data decided it — TTAT's process times scale with batch size, so it is two units.
+
 ---
 
 ## 4. Calendar engine
@@ -718,6 +743,9 @@ adjusted one is what actually matters under a mixed part mix.
 | **Availability** | input | fraction of open time the machine can run (74 %), on the workcenter schedule |
 | **Occupation** | static output | required hours ÷ available productive hours for a period |
 | **Utilization** | simulated output | busy time ÷ open time observed in a run |
+
+Both denominators are **unit-hours**: a station with `parallel_capacity` 2 has twice the available
+time and twice the open time, because both numerators are summed across its units (§3.1).
 
 Occupation and Utilization differ whenever sequencing or starvation gets in the way. Defined once
 in an in-app glossary and translated consistently across en/es/pt.

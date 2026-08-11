@@ -61,6 +61,7 @@ void main() {
     List<int> operators = const [1],
     double availability = 1,
     double rework = 0,
+    int units = 1,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
@@ -75,7 +76,7 @@ void main() {
       workcenter: Workcenter(
         id: id,
         plantId: 'plant-1',
-        parallelCapacity: 1,
+        parallelCapacity: units,
         name: id,
         createdAt: now,
         updatedAt: now,
@@ -164,6 +165,42 @@ void main() {
       expect(target.required, const Duration(hours: 200));
       expect(target.occupation, closeTo(200 / 310, 0.0001));
       expect(target.isOverloaded, isFalse);
+    });
+
+    test('a second unit doubles the hours, as a second pool member does', () {
+      SummaryView summaryWith(int units) => buildSummary(
+        flow: flowOf(
+          nodes: [step(0, 'TTAT')],
+          contexts: {'TTAT': context('TTAT', units: units)},
+        ),
+        demand: DemandTable(
+          parts: [part('p1', 'PN1')],
+          columns: oneColumn,
+          times: {
+            'p1': {'TTAT': const Duration(hours: 10)},
+          },
+        ),
+        orders: [
+          for (var i = 0; i < 31; i++) order('o$i', i, 'p1'),
+        ],
+      );
+
+      final alone = summaryWith(1).targets.single;
+      final pair = summaryWith(2).targets.single;
+
+      // 31 days x 10 h against 31 orders x 10 h: exactly full on one unit.
+      expect(alone.availableProductive, const Duration(hours: 310));
+      expect(alone.occupation, closeTo(1.0, 0.0001));
+
+      // A second unit is the same arithmetic a second pool member gets, and it
+      // has to be — otherwise the Summary calls TTAT overloaded while the run
+      // has it idle half the time.
+      expect(pair.availableProductive, const Duration(hours: 620));
+      expect(pair.occupation, closeTo(0.5, 0.0001));
+
+      // The work itself is untouched. Units are capacity, not a discount on
+      // what a part needs — §4.4's oldest trap, arriving from a new direction.
+      expect(pair.required, alone.required);
     });
 
     test('availability derates the hours once, never twice', () {
