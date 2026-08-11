@@ -338,7 +338,12 @@ class _Chart extends StatelessWidget {
                           child: MouseRegion(
                             onHover: (event) {
                               final hit = barAt(layout, event.localPosition);
-                              if (!identical(hit, hovered)) onHover(hit);
+                              // A lane's waiting order is drawn and picked, but
+                              // the card that would describe it is not built
+                              // yet — so it reports nothing rather than putting
+                              // a station's card over the wrong subject.
+                              final next = hit is GanttPlacedBar ? hit : null;
+                              if (!identical(next, hovered)) onHover(next);
                             },
                             onExit: (_) => onHover(null),
                             child: _CtrlScroll(
@@ -374,6 +379,7 @@ class _Chart extends StatelessWidget {
               if (hovered case final bar?)
                 _HoverCard(
                   bar: bar,
+                  bandTop: layout.rows[bar.bandIndex].top,
                   across: offset,
                   down: scrolledDown,
                   pane: pane,
@@ -388,15 +394,16 @@ class _Chart extends StatelessWidget {
     );
   }
 
-  /// Which row the bar was placed on, from the rect alone.
+  /// Which band the hit was placed on.
   ///
-  /// `layoutGantt` puts a bar at `axisHeight + i × rowHeight` plus a fixed
-  /// inset, so the index divides straight back out. Searching the rows for it
-  /// would be a walk over every bar in the run on every hover.
-  static String _stationOf(GanttLayout layout, GanttPlacedBar bar) {
-    final index = _rowIndexOf(bar);
-    return index < layout.rows.length ? layout.rows[index].row.name : '';
-  }
+  /// This used to divide the index back out of the rect's top, which worked
+  /// while every band was `rowHeight` tall. Lane bands are as deep as the lane
+  /// is (§8.6), so the index is carried on the hit instead — the layout knows
+  /// it for nothing and no arithmetic can drift from it.
+  static String _stationOf(GanttLayout layout, GanttHit hit) =>
+      hit.bandIndex < layout.rows.length
+      ? layout.rows[hit.bandIndex].band.name
+      : '';
 }
 
 /// Turns ctrl-scroll over the chart into a zoom, and leaves every other scroll
@@ -434,10 +441,7 @@ class _CtrlScroll extends StatelessWidget {
   );
 }
 
-int _rowIndexOf(GanttPlacedBar bar) =>
-    ((bar.rect.top - GanttMetrics.axisHeight) / GanttMetrics.rowHeight).floor();
-
-/// The station names, one per row, aligned to the bands beside them.
+/// The station and lane names, one per band, aligned to the bands beside them.
 class _Labels extends StatelessWidget {
   const _Labels({required this.layout});
 
@@ -458,18 +462,33 @@ class _Labels extends StatelessWidget {
           const SizedBox(height: GanttMetrics.axisHeight),
           for (final row in layout.rows)
             SizedBox(
-              height: GanttMetrics.rowHeight,
+              height: row.band.height,
               child: Padding(
                 padding: const EdgeInsets.only(left: 12, right: 10),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Tooltip(
-                    message: row.row.name,
+                    message: switch (row.band) {
+                      // The capacity is on the label rather than only implied
+                      // by the band's depth, so a lane drawn shallower than it
+                      // is (§8.6's cap) still says how deep it really was.
+                      final GanttLaneRow lane when lane.capacity != null =>
+                        '${lane.name} (${lane.capacity})',
+                      final band => band.name,
+                    },
                     child: Text(
-                      row.row.name,
+                      row.band.name,
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
-                      style: theme.textTheme.bodySmall,
+                      style: switch (row.band) {
+                        // A lane is not a station, and the label column is
+                        // where that reads most cheaply: same size, lighter.
+                        GanttLaneRow() => theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        GanttRow() => theme.textTheme.bodySmall,
+                      },
                     ),
                   ),
                 ),
@@ -620,6 +639,7 @@ class _LegendEntry extends StatelessWidget {
 class _HoverCard extends StatelessWidget {
   const _HoverCard({
     required this.bar,
+    required this.bandTop,
     required this.across,
     required this.down,
     required this.pane,
@@ -629,6 +649,11 @@ class _HoverCard extends StatelessWidget {
   });
 
   final GanttPlacedBar bar;
+
+  /// The top of the band the bar sits in, so the card can be put under it
+  /// without assuming every band is the same height.
+  final double bandTop;
+
   final double across;
   final double down;
   final double pane;
@@ -642,8 +667,9 @@ class _HoverCard extends StatelessWidget {
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).toString();
 
-    final rowTop =
-        GanttMetrics.axisHeight + _rowIndexOf(bar) * GanttMetrics.rowHeight;
+    // The band's own top, carried on the hit. It used to be divided back out
+    // of the rect, which held only while every band was `rowHeight` tall.
+    final rowTop = bandTop;
     final left = (_labelWidth + bar.rect.left - across)
         .clamp(
           _labelWidth + 4,
@@ -832,17 +858,38 @@ class _GanttPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     // Alternate bands, so a bar hours away from its label still reads as that
-    // row's.
-    for (var i = 1; i < layout.rows.length; i += 2) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          0,
-          layout.rows[i].top,
-          size.width,
-          GanttMetrics.rowHeight,
-        ),
-        bandPaint,
-      );
+    // row's. Counted over **stations only**: the lanes between them get a fill
+    // of their own below, and striping the merged sequence would put the
+    // stripe on a lane half the time and break the alternation a reader is
+    // using to follow one station across.
+    var stations = 0;
+    for (final row in layout.rows) {
+      switch (row.band) {
+        case GanttRow():
+          if (stations.isOdd) {
+            canvas.drawRect(
+              Rect.fromLTWH(0, row.top, size.width, row.band.height),
+              bandPaint,
+            );
+          }
+          stations++;
+
+        case GanttLaneRow():
+          // A lane is a channel, and the map draws it as one (§2.5): a fill
+          // between two rails, so the band reads as somewhere orders stand
+          // rather than as another machine.
+          canvas.drawRect(
+            Rect.fromLTWH(0, row.top, size.width, row.band.height),
+            bandPaint,
+          );
+          for (final y in [row.top, row.top + row.band.height]) {
+            canvas.drawLine(
+              Offset(visibleFrom, y),
+              Offset(visibleTo, y),
+              rulePaint,
+            );
+          }
+      }
     }
 
     // Down to the last row and no further: below it is the gutter the
@@ -863,6 +910,36 @@ class _GanttPainter extends CustomPainter {
       Offset(visibleTo, GanttMetrics.axisHeight),
       rulePaint,
     );
+
+    // The waiting orders, under the bars so a station's work always wins the
+    // pixel where the two meet.
+    for (final row in layout.rows) {
+      for (final placed in row.visits) {
+        if (placed.rect.right < visibleFrom || placed.rect.left > visibleTo) {
+          continue;
+        }
+        final colour = partColour(placed.visit.part.colourIndex);
+        final shape = RRect.fromRectAndRadius(
+          placed.rect,
+          const Radius.circular(1),
+        );
+        // **Washed out and outlined, never solid.** The same part colour, so an
+        // order is followed down the chart by hue, but a waiting order must not
+        // read as a running one — which is the whole reason §2.7 refused to
+        // draw queue spans on a station's own row.
+        canvas.drawRRect(
+          shape,
+          Paint()..color = colour.fill.withValues(alpha: 0.30),
+        );
+        canvas.drawRRect(
+          shape,
+          Paint()
+            ..color = colour.fill
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
+    }
 
     for (final row in layout.rows) {
       for (final placed in row.bars) {

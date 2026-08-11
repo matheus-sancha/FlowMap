@@ -38,6 +38,32 @@ abstract final class GanttMetrics {
   /// The bar inside it, centred.
   static const barHeight = 18.0;
 
+  /// One waiting order's slot down a lane band (§8.6).
+  ///
+  /// A lane's band is as deep as the lane is, so a full lane is visibly full
+  /// rather than something a reader has to infer from a gap in the row below
+  /// it. Shorter than [rowHeight] because a lane of three would otherwise be
+  /// three times the height of the station it feeds and dominate a chart whose
+  /// subject is the stations.
+  static const laneSlotHeight = 10.0;
+
+  /// The waiting bar inside that slot.
+  static const laneBarHeight = 7.0;
+
+  /// Above and below a lane's stack, so its orders do not touch the station
+  /// bands either side.
+  static const lanePadding = 3.0;
+
+  /// The deepest a lane band is drawn, however deep the lane is.
+  ///
+  /// An uncapped lane takes its depth from how full it actually got (§5.5), and
+  /// CEU27's held **8 orders at once** on the 2026-08-09 run — 80 px of band
+  /// above a 30 px station, for a lane whose depth is an observation rather
+  /// than a rule. Past this the stack is drawn full and the count is in the
+  /// label, which is the same bargain [minBarWidth] makes: legible beats
+  /// literal, and the number is never hidden.
+  static const maxLaneDepth = 4;
+
   /// The narrowest a bar is ever drawn.
   ///
   /// At whole-run scale a step of a few hours is a fraction of a pixel and
@@ -157,8 +183,67 @@ class GanttBar {
   Duration get occupied => end.difference(start);
 }
 
+/// One order's stay in a lane: from reaching it to being pulled out (§5.5).
+///
+/// Read off [SimOrderStep] rather than stored twice — `queueStart` is when the
+/// order entered the lane in front of that step and `processStart` is when the
+/// station took it — with [SimOpenLaneVisit] supplying the orders the guard
+/// caught still standing there, which produce no step at all.
+class GanttLaneVisit {
+  const GanttLaneVisit({
+    required this.orderId,
+    required this.orderNumber,
+    required this.studyId,
+    required this.part,
+    required this.entered,
+    required this.left,
+    required this.slot,
+    required this.open,
+  });
+
+  final String orderId;
+  final int orderNumber;
+  final String studyId;
+  final GanttPart part;
+
+  final DateTime entered;
+
+  /// When the station pulled it out — or the run's end, when [open].
+  final DateTime left;
+
+  /// Which slot down the band it is drawn in, 0 at the top.
+  ///
+  /// Assigned so that no two overlapping stays share one, which is what makes a
+  /// full lane read as full. A capped lane never needs more slots than its
+  /// capacity, because the engine never let more in than that.
+  final int slot;
+
+  /// Still standing in the lane when the run ended. Its [left] is the run's end
+  /// rather than a departure that happened.
+  final bool open;
+
+  Duration get waited => left.difference(entered);
+}
+
+/// A band down the chart: either a station or the lane feeding it.
+///
+/// A union rather than a flag, because the two carry different things and are
+/// drawn differently — a station's bars tile along one line, a lane's stack
+/// down its depth — and a reader of this file should not have to know which
+/// fields are live for which kind.
+sealed class GanttBand {
+  const GanttBand();
+
+  /// What the frozen label column shows.
+  String get name;
+
+  /// How tall the band is. **Not a constant**, since §8.6 makes a lane as deep
+  /// as the lane is, so nothing downstream may assume a uniform row.
+  double get height;
+}
+
 /// One station's row.
-class GanttRow {
+class GanttRow extends GanttBand {
   const GanttRow({
     required this.workcenterId,
     required this.name,
@@ -168,12 +253,56 @@ class GanttRow {
   final String workcenterId;
 
   /// The name the station had when the run was made (§7.10).
+  @override
   final String name;
 
   /// In start order. They tile without overlapping: every workcenter is its own
   /// server and a pool reaches the run as several candidates, so three cladding
   /// machines are three rows each running one order at a time.
   final List<GanttBar> bars;
+
+  @override
+  double get height => GanttMetrics.rowHeight;
+}
+
+/// One lane's band, drawn immediately above the station it feeds (§3.4, §8.6).
+class GanttLaneRow extends GanttBand {
+  const GanttLaneRow({
+    required this.laneNodeId,
+    required this.name,
+    required this.capacity,
+    required this.depth,
+    required this.visits,
+  });
+
+  final String laneNodeId;
+
+  /// `FIFO CEU27`, or a stand-in when the buffer was never labelled.
+  @override
+  final String name;
+
+  /// What the lane could hold, or null for unlimited (§5.5).
+  final int? capacity;
+
+  /// Slots drawn: the capacity, or for an uncapped lane the most it ever
+  /// actually held. At least one, so a lane nothing ever waited in is still a
+  /// band the reader can see — the lane existed, and drawing nothing there
+  /// would say the flow had no buffer at that point.
+  ///
+  /// Capped at [GanttMetrics.maxLaneDepth].
+  final int depth;
+
+  final List<GanttLaneVisit> visits;
+
+  /// Whether the stack is drawn shallower than the lane really went, so the
+  /// view can say the depth is indicative here and stop saying it elsewhere.
+  bool get truncated => capacity == null
+      ? depth >= GanttMetrics.maxLaneDepth
+      : capacity! > depth;
+
+  @override
+  double get height =>
+      depth * GanttMetrics.laneSlotHeight + 2 * GanttMetrics.lanePadding;
 }
 
 /// The whole run, resolved but not yet measured.
@@ -187,13 +316,21 @@ class GanttChart {
 
   /// One per station, **in the order the work flows through them** — the first
   /// station of the routing on the first row, so an order is read diagonally
-  /// down the chart the way it is read left to right along the map (§5.1).
+  /// down the chart the way it is read left to right along the map (§5.1) —
+  /// with each lane's band immediately above the station it feeds, so the chart
+  /// reads down the page the way the line runs.
   ///
   /// Ties fall back to `RunMetrics.workcenters`, the Queue table's ranking, so
   /// stations at one position in the routing — a pool's three machines — still
   /// come out busiest-first and in the same order twice running. A station that
   /// never ran has no row.
-  final List<GanttRow> rows;
+  final List<GanttBand> rows;
+
+  /// Just the station bands, in the same order.
+  Iterable<GanttRow> get stations => rows.whereType<GanttRow>();
+
+  /// Just the lane bands, in the same order.
+  Iterable<GanttLaneRow> get lanes => rows.whereType<GanttLaneRow>();
 
   /// Every part in the run, in the Parts table's order. The legend strip is
   /// this list, so it and the table's swatches cannot come apart.
@@ -294,26 +431,188 @@ GanttChart buildGanttChart({
         return byFlow != 0 ? byFlow : a.queueRank.compareTo(b.queueRank);
       });
 
+  final stations = [
+    for (final entry in ordered)
+      if (byStation[entry.station.workcenterId] case final bars?)
+        GanttRow(
+          workcenterId: entry.station.workcenterId,
+          name: entry.station.name,
+          bars: bars
+            ..sort((a, b) {
+              final byStart = a.start.compareTo(b.start);
+              // Order id last, so a station handed two bars starting in the
+              // same second draws them the same way twice running.
+              return byStart != 0 ? byStart : a.orderId.compareTo(b.orderId);
+            }),
+        ),
+  ];
+
+  final lanes = _laneRows(
+    result: result,
+    partsById: partsById,
+    ordersById: ordersById,
+  );
+
   return GanttChart(
     rows: [
-      for (final entry in ordered)
-        if (byStation[entry.station.workcenterId] case final bars?)
-          GanttRow(
-            workcenterId: entry.station.workcenterId,
-            name: entry.station.name,
-            bars: bars
-              ..sort((a, b) {
-                final byStart = a.start.compareTo(b.start);
-                // Order id last, so a station handed two bars starting in the
-                // same second draws them the same way twice running.
-                return byStart != 0 ? byStart : a.orderId.compareTo(b.orderId);
-              }),
-          ),
+      for (final station in stations) ...[
+        // The lane in front of it first: an order stands in the lane and is
+        // then taken by the station, so upstream is up the page.
+        ?lanes[station.workcenterId],
+        station,
+      ],
     ],
     parts: parts,
     start: start,
     end: end,
   );
+}
+
+/// Each lane's band, keyed by the workcenter whose row it is drawn above.
+///
+/// **The lane is placed by the step it feeds, not by its stored position.**
+/// `SimLane.position` is a place on one study's spine, and the chart merges
+/// every study into one set of station rows (§7.7) — so a spine position cannot
+/// be turned into a row index without the very join to the flow §7.10 forbids.
+/// What the run does keep is which lane each step waited in, and `routingRanks`
+/// already places the stations; a lane therefore goes directly above the
+/// station its own visits were pulled into.
+///
+/// A lane no step ever names is **dropped rather than guessed at**. It means no
+/// order passed that point, so the run holds nothing that says where it sat.
+/// Drawing it at an invented position would put a band between two stations it
+/// may never have joined, which is worse than a chart that shows only the
+/// buffers the run can actually place.
+///
+/// A lane feeding a pool is placed above the **first** of that pool's machines,
+/// which is where the ordering above has already put the busiest of them.
+Map<String, GanttLaneRow> _laneRows({
+  required SimRunResult result,
+  required Map<String, GanttPart> partsById,
+  required Map<String, SimOrderOutcome> ordersById,
+}) {
+  if (result.lanes.isEmpty) return const {};
+
+  final laneById = {for (final lane in result.lanes) lane.nodeId: lane};
+
+  // Where each lane's orders went next, and every stay in it.
+  final feeds = <String, String>{};
+  final stays =
+      <String, List<({DateTime from, DateTime to, String orderId, bool open})>>{};
+
+  for (final step in result.steps) {
+    final laneId = step.laneNodeId;
+    if (laneId == null || !laneById.containsKey(laneId)) continue;
+    feeds.putIfAbsent(laneId, () => step.workcenterId);
+    stays
+        .putIfAbsent(laneId, () => [])
+        .add((
+          from: step.queueStart,
+          to: step.processStart,
+          orderId: step.orderId,
+          open: false,
+        ));
+  }
+
+  // Orders the guard caught mid-wait leave no step, and dropping them would
+  // draw the lane emptiest exactly when a jam is the finding.
+  for (final open in result.openLaneVisits) {
+    if (!laneById.containsKey(open.laneNodeId)) continue;
+    stays
+        .putIfAbsent(open.laneNodeId, () => [])
+        .add((
+          from: open.enteredAt,
+          to: result.end,
+          orderId: open.orderId,
+          open: true,
+        ));
+  }
+
+  final rows = <String, GanttLaneRow>{};
+  for (final entry in feeds.entries) {
+    final lane = laneById[entry.key]!;
+    final held = stays[entry.key] ?? const [];
+
+    final visits = _stackVisits(
+      held,
+      lane: lane,
+      partsById: partsById,
+      ordersById: ordersById,
+    );
+
+    // An uncapped lane's depth is how full it actually got — an observation,
+    // which §5.5 is careful to say is not a rule. A capped one is drawn at its
+    // capacity whether or not it ever filled, because the empty slots are the
+    // headroom and hiding them would make every capped lane look full.
+    final deepest = visits.fold(0, (most, v) => v.slot + 1 > most ? v.slot + 1 : most);
+    final wanted = lane.capacity ?? deepest;
+    final depth = wanted.clamp(1, GanttMetrics.maxLaneDepth);
+
+    rows[entry.value] = GanttLaneRow(
+      laneNodeId: lane.nodeId,
+      name: lane.name ?? _unnamedLane,
+      capacity: lane.capacity,
+      depth: depth,
+      visits: visits,
+    );
+  }
+  return rows;
+}
+
+/// A buffer that was never labelled. Named rather than blank, so the frozen
+/// label column does not have a nameless band in it.
+const _unnamedLane = 'Buffer';
+
+/// Assigns each stay the topmost slot no overlapping stay is using.
+///
+/// The classic greedy pass over intervals sorted by arrival: a lane holding
+/// three orders at once uses three slots, and one holding them one after
+/// another re-uses the first. A capped lane can never need more slots than its
+/// capacity, because the engine did not let more in — so the stack fits the
+/// band by construction rather than by clamping, and a slot past the drawn
+/// depth means an **uncapped** lane deeper than [GanttMetrics.maxLaneDepth].
+List<GanttLaneVisit> _stackVisits(
+  List<({DateTime from, DateTime to, String orderId, bool open})> stays, {
+  required SimLane lane,
+  required Map<String, GanttPart> partsById,
+  required Map<String, SimOrderOutcome> ordersById,
+}) {
+  final sorted = [...stays]..sort((a, b) {
+    final byArrival = a.from.compareTo(b.from);
+    return byArrival != 0 ? byArrival : a.orderId.compareTo(b.orderId);
+  });
+
+  // When each slot next falls free.
+  final freeAt = <DateTime>[];
+  final visits = <GanttLaneVisit>[];
+
+  for (final stay in sorted) {
+    final outcome = ordersById[stay.orderId];
+    final part = outcome == null ? null : partsById[outcome.partId];
+    if (outcome == null || part == null) continue;
+
+    var slot = freeAt.indexWhere((free) => !free.isAfter(stay.from));
+    if (slot < 0) {
+      slot = freeAt.length;
+      freeAt.add(stay.to);
+    } else {
+      freeAt[slot] = stay.to;
+    }
+
+    visits.add(
+      GanttLaneVisit(
+        orderId: stay.orderId,
+        orderNumber: outcome.sequence + 1,
+        studyId: lane.studyId,
+        part: part,
+        entered: stay.from,
+        left: stay.to,
+        slot: slot,
+        open: stay.open,
+      ),
+    );
+  }
+  return visits;
 }
 
 /// A station nothing routed through, which sorts last.
@@ -356,16 +655,35 @@ Map<String, int> routingRanks(SimRunResult result) {
   return earliest;
 }
 
+/// Something the pointer can be over: a station's bar or an order waiting in a
+/// lane. Both answer [barAt], and the hover card asks which it got.
+sealed class GanttHit {
+  const GanttHit();
+
+  Rect get rect;
+
+  /// Which band it belongs to. **Carried rather than derived**: bands are no
+  /// longer a uniform height, so `(top − axisHeight) ÷ rowHeight` stopped being
+  /// able to answer it the moment lanes arrived.
+  int get bandIndex;
+}
+
 /// A bar, placed.
-class GanttPlacedBar {
+class GanttPlacedBar extends GanttHit {
   const GanttPlacedBar({
     required this.bar,
     required this.rect,
     required this.floored,
+    required this.bandIndex,
   });
 
   final GanttBar bar;
+
+  @override
   final Rect rect;
+
+  @override
+  final int bandIndex;
 
   /// Whether [rect] is wider than the bar really is, because the bar would
   /// otherwise have been thinner than [GanttMetrics.minBarWidth].
@@ -376,20 +694,47 @@ class GanttPlacedBar {
       bar.changeover && rect.width >= GanttMetrics.changeoverBarWidth;
 }
 
-/// A station's row, placed.
-class GanttRowLayout {
-  const GanttRowLayout({
-    required this.row,
-    required this.top,
-    required this.bars,
+/// An order waiting in a lane, placed.
+class GanttPlacedVisit extends GanttHit {
+  const GanttPlacedVisit({
+    required this.visit,
+    required this.lane,
+    required this.rect,
+    required this.bandIndex,
   });
 
-  final GanttRow row;
+  final GanttLaneVisit visit;
 
-  /// The top of the band, which is [GanttMetrics.rowHeight] tall.
+  /// The lane it is standing in, so the hover card can name it and say how deep
+  /// it was without a second lookup.
+  final GanttLaneRow lane;
+
+  @override
+  final Rect rect;
+
+  @override
+  final int bandIndex;
+}
+
+/// A band, placed.
+class GanttRowLayout {
+  const GanttRowLayout({
+    required this.band,
+    required this.top,
+    this.bars = const [],
+    this.visits = const [],
+  });
+
+  final GanttBand band;
+
+  /// The top of the band, which is [GanttBand.height] tall.
   final double top;
 
+  /// Populated for a station band.
   final List<GanttPlacedBar> bars;
+
+  /// Populated for a lane band.
+  final List<GanttPlacedVisit> visits;
 }
 
 /// The chart, measured at one zoom.
@@ -438,32 +783,76 @@ GanttLayout layoutGantt({
   final origin = chart.start;
   var floored = 0;
 
-  final rows = <GanttRowLayout>[];
-  for (var i = 0; i < chart.rows.length; i++) {
-    final top = GanttMetrics.axisHeight + i * GanttMetrics.rowHeight;
-    final barTop = top + (GanttMetrics.rowHeight - GanttMetrics.barHeight) / 2;
+  double xOf(DateTime at) =>
+      at.difference(origin).inSeconds * pixelsPerSecond;
 
-    final placed = <GanttPlacedBar>[];
-    for (final bar in chart.rows[i].bars) {
-      final left = bar.start.difference(origin).inSeconds * pixelsPerSecond;
-      final width = bar.occupied.inSeconds * pixelsPerSecond;
-      final isFloored = width < GanttMetrics.minBarWidth;
-      if (isFloored) floored++;
-      placed.add(
-        GanttPlacedBar(
-          bar: bar,
-          rect: Rect.fromLTWH(
-            left,
-            barTop,
-            isFloored ? GanttMetrics.minBarWidth : width,
-            GanttMetrics.barHeight,
-          ),
-          floored: isFloored,
-        ),
-      );
+  // Bands are stacked by accumulating their own heights rather than by
+  // multiplying an index, because a lane is as deep as the lane is (§8.6).
+  final rows = <GanttRowLayout>[];
+  var top = GanttMetrics.axisHeight;
+
+  for (var i = 0; i < chart.rows.length; i++) {
+    final band = chart.rows[i];
+
+    switch (band) {
+      case GanttRow():
+        final barTop =
+            top + (GanttMetrics.rowHeight - GanttMetrics.barHeight) / 2;
+        final placed = <GanttPlacedBar>[];
+        for (final bar in band.bars) {
+          final width = bar.occupied.inSeconds * pixelsPerSecond;
+          final isFloored = width < GanttMetrics.minBarWidth;
+          if (isFloored) floored++;
+          placed.add(
+            GanttPlacedBar(
+              bar: bar,
+              rect: Rect.fromLTWH(
+                xOf(bar.start),
+                barTop,
+                isFloored ? GanttMetrics.minBarWidth : width,
+                GanttMetrics.barHeight,
+              ),
+              floored: isFloored,
+              bandIndex: i,
+            ),
+          );
+        }
+        rows.add(GanttRowLayout(band: band, top: top, bars: placed));
+
+      case GanttLaneRow():
+        final placed = <GanttPlacedVisit>[];
+        for (final visit in band.visits) {
+          // A stay deeper than the band is drawn in the last slot rather than
+          // outside it. Only an uncapped lane past `maxLaneDepth` gets here.
+          final slot = visit.slot >= band.depth ? band.depth - 1 : visit.slot;
+          final left = xOf(visit.entered);
+          final width = visit.waited.inSeconds * pixelsPerSecond;
+          placed.add(
+            GanttPlacedVisit(
+              visit: visit,
+              lane: band,
+              rect: Rect.fromLTWH(
+                left,
+                top +
+                    GanttMetrics.lanePadding +
+                    slot * GanttMetrics.laneSlotHeight,
+                // The same floor the bars get, and for the same reason: a wait
+                // of a few hours at whole-run scale is otherwise not there at
+                // all, and an empty lane is precisely the wrong thing to say
+                // about a queue.
+                width < GanttMetrics.minBarWidth
+                    ? GanttMetrics.minBarWidth
+                    : width,
+                GanttMetrics.laneBarHeight,
+              ),
+              bandIndex: i,
+            ),
+          );
+        }
+        rows.add(GanttRowLayout(band: band, top: top, visits: placed));
     }
 
-    rows.add(GanttRowLayout(row: chart.rows[i], top: top, bars: placed));
+    top += band.height;
   }
 
   return GanttLayout(
@@ -474,9 +863,7 @@ GanttLayout layoutGantt({
     flooredBars: floored,
     size: Size(
       chart.span.inSeconds * pixelsPerSecond,
-      GanttMetrics.axisHeight +
-          chart.rows.length * GanttMetrics.rowHeight +
-          GanttMetrics.scrollbarGutter,
+      top + GanttMetrics.scrollbarGutter,
     ),
   );
 }
@@ -491,17 +878,45 @@ GanttLayout layoutGantt({
 /// Horizontally it is exact, because bars tile: a tolerance either side would
 /// make two adjacent bars both answer for the boundary between them. Floored
 /// bars are the one case where two can overlap, and there the earlier one wins.
-GanttPlacedBar? barAt(GanttLayout layout, Offset position) {
+///
+/// **A lane band is picked by slot, not as one strip.** Its stays do not tile —
+/// that is the whole point of stacking them — so two orders waiting at once are
+/// only distinguishable by which slot the pointer is in. The band is scanned
+/// for the row under the pointer and then along it, which is the station rule
+/// applied one level down.
+GanttHit? barAt(GanttLayout layout, Offset position) {
   if (position.dy < GanttMetrics.axisHeight) return null;
-  final index =
-      ((position.dy - GanttMetrics.axisHeight) / GanttMetrics.rowHeight)
-          .floor();
-  if (index < 0 || index >= layout.rows.length) return null;
 
-  for (final placed in layout.rows[index].bars) {
-    if (position.dx >= placed.rect.left && position.dx <= placed.rect.right) {
-      return placed;
+  for (final row in layout.rows) {
+    if (position.dy < row.top) continue;
+    if (position.dy >= row.top + row.band.height) continue;
+
+    switch (row.band) {
+      case GanttRow():
+        for (final placed in row.bars) {
+          if (position.dx >= placed.rect.left &&
+              position.dx <= placed.rect.right) {
+            return placed;
+          }
+        }
+      case GanttLaneRow():
+        final slot =
+            ((position.dy - row.top - GanttMetrics.lanePadding) /
+                    GanttMetrics.laneSlotHeight)
+                .floor();
+        for (final placed in row.visits) {
+          final drawn =
+              ((placed.rect.top - row.top - GanttMetrics.lanePadding) /
+                      GanttMetrics.laneSlotHeight)
+                  .round();
+          if (drawn != slot) continue;
+          if (position.dx >= placed.rect.left &&
+              position.dx <= placed.rect.right) {
+            return placed;
+          }
+        }
     }
+    return null;
   }
   return null;
 }

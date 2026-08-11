@@ -10,6 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// layout takes the chart, so everything the view will draw can be asserted as
 /// arithmetic. The one thing this cannot check is what the drawing looks like —
 /// §2.5's rule stands, and §3 drives it by hand.
+/// [barAt] narrowed to a station's bar.
+///
+/// It answers with a lane's waiting order too now, and every test below this
+/// point is about a run with no lanes in it — so the cast states that, and
+/// fails loudly rather than quietly if a fixture ever grows one.
+GanttPlacedBar? stationAt(GanttLayout layout, Offset position) =>
+    barAt(layout, position) as GanttPlacedBar?;
+
 void main() {
   // January, so no test lands on a daylight-saving change wherever it is run.
   // 2026-01-01 is a Thursday, which is what makes the Monday alignment below a
@@ -25,6 +33,7 @@ void main() {
     required DateTime processEnd,
     bool changeover = false,
     String studyId = 'study-1',
+    String? laneNodeId,
   }) => SimOrderStep(
     studyId: studyId,
     orderId: orderId,
@@ -34,6 +43,7 @@ void main() {
     processStart: processStart,
     processEnd: processEnd,
     changeoverIncurred: changeover,
+    laneNodeId: laneNodeId,
   );
 
   SimOrderOutcome orderOf({
@@ -149,9 +159,9 @@ void main() {
     test('rows are the stations that ran, in flow order', () {
       final chart = threeOrders();
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W2']);
-      expect(chart.rows.first.bars, hasLength(2));
-      expect(chart.rows.last.bars, hasLength(1));
+      expect(chart.stations.map((r) => r.workcenterId), ['W1', 'W2']);
+      expect(chart.stations.first.bars, hasLength(2));
+      expect(chart.stations.last.bars, hasLength(1));
     });
 
     test('flow order beats the Queue table\'s ranking', () {
@@ -176,7 +186,7 @@ void main() {
         'W1',
       ]);
       expect(
-        buildGanttChart(result: result, metrics: metrics).rows.map(
+        buildGanttChart(result: result, metrics: metrics).stations.map(
           (r) => r.workcenterId,
         ),
         ['W1', 'W2', 'W3'],
@@ -208,7 +218,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W2']);
+      expect(chart.stations.map((r) => r.workcenterId), ['W1', 'W2']);
     });
 
     test('a station shared by two studies takes its earliest position', () {
@@ -247,7 +257,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W3', 'W2', 'W4']);
+      expect(chart.stations.map((r) => r.workcenterId), ['W1', 'W3', 'W2', 'W4']);
     });
 
     test('stations at one position keep the Queue table\'s order', () {
@@ -279,7 +289,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W2', 'W1']);
+      expect(chart.stations.map((r) => r.workcenterId), ['W2', 'W1']);
     });
 
     test('a station that never ran has no row', () {
@@ -298,7 +308,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1']);
+      expect(chart.stations.map((r) => r.workcenterId), ['W1']);
     });
 
     test('bars run in start order however the steps arrived', () {
@@ -325,11 +335,11 @@ void main() {
         ],
       );
 
-      expect(chart.rows.single.bars.map((b) => b.orderNumber), [1, 2]);
+      expect(chart.stations.single.bars.map((b) => b.orderNumber), [1, 2]);
     });
 
     test('a bar carries the order number, the wait and the changeover', () {
-      final bars = threeOrders().rows.first.bars;
+      final bars = threeOrders().stations.first.bars;
 
       // 1-based, as the plan's Order column is.
       expect(bars[0].orderNumber, 1);
@@ -349,8 +359,8 @@ void main() {
       expect(chart.parts.map((p) => p.colourIndex), [0, 1]);
       // Which is what makes the swatch beside a part in that table and the bars
       // for its orders here one lookup rather than two that agree by luck.
-      expect(chart.rows.first.bars[0].part.colourIndex, 0);
-      expect(chart.rows.first.bars[1].part.colourIndex, 1);
+      expect(chart.stations.first.bars[0].part.colourIndex, 0);
+      expect(chart.stations.first.bars[1].part.colourIndex, 1);
     });
 
     test('two studies\' PN2 are two parts, and are coloured apart', () {
@@ -383,7 +393,7 @@ void main() {
       );
 
       expect(chart.parts.map((p) => p.studyId), ['study-1', 'study-2']);
-      expect(chart.rows.single.bars.map((b) => b.part.colourIndex), [0, 1]);
+      expect(chart.stations.single.bars.map((b) => b.part.colourIndex), [0, 1]);
     });
 
     test('a step whose order the run cannot name is dropped', () {
@@ -410,7 +420,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.single.bars.map((b) => b.orderId), ['o1']);
+      expect(chart.stations.single.bars.map((b) => b.orderId), ['o1']);
     });
 
     test('the axis covers the run, not merely the work', () {
@@ -713,7 +723,7 @@ void main() {
 
       // Otherwise the last row would answer for a pointer that is on the
       // scrollbar, which is the conflict the gutter exists to end.
-      expect(barAt(layout, Offset(60, inGutter)), isNull);
+      expect(stationAt(layout, Offset(60, inGutter)), isNull);
     });
 
     test('a bar too thin to see is floored, and counted', () {
@@ -831,13 +841,13 @@ void main() {
         GanttMetrics.rowHeight / 2;
 
     test('names the bar under the cursor', () {
-      final hit = barAt(layout, Offset(60, rowMiddle(0)));
+      final hit = stationAt(layout, Offset(60, rowMiddle(0)));
 
       expect(hit?.bar.orderNumber, 1);
     });
 
     test('picks the right row', () {
-      expect(barAt(layout, Offset(60, rowMiddle(1)))?.bar.orderNumber, 3);
+      expect(stationAt(layout, Offset(60, rowMiddle(1)))?.bar.orderNumber, 3);
     });
 
     test('the whole row band is the target, not the bar\'s own height', () {
@@ -847,26 +857,26 @@ void main() {
       final top = GanttMetrics.axisHeight + 0.5;
       final bottom = GanttMetrics.axisHeight + GanttMetrics.rowHeight - 0.5;
 
-      expect(barAt(layout, Offset(60, top))?.bar.orderNumber, 1);
-      expect(barAt(layout, Offset(60, bottom))?.bar.orderNumber, 1);
+      expect(stationAt(layout, Offset(60, top))?.bar.orderNumber, 1);
+      expect(stationAt(layout, Offset(60, bottom))?.bar.orderNumber, 1);
     });
 
     test('a gap between bars is not a bar', () {
       // W2's only bar ends at 05:00, which is 180 px.
-      expect(barAt(layout, Offset(200, rowMiddle(1))), isNull);
+      expect(stationAt(layout, Offset(200, rowMiddle(1))), isNull);
     });
 
     test('the axis strip is not a row', () {
-      expect(barAt(layout, const Offset(60, 4)), isNull);
+      expect(stationAt(layout, const Offset(60, 4)), isNull);
     });
 
     test('below the last row is nothing', () {
-      expect(barAt(layout, Offset(60, layout.size.height + 10)), isNull);
+      expect(stationAt(layout, Offset(60, layout.size.height + 10)), isNull);
     });
 
     test('past the end of the run is nothing', () {
       expect(
-        barAt(layout, Offset(layout.size.width + 50, rowMiddle(0))),
+        stationAt(layout, Offset(layout.size.width + 50, rowMiddle(0))),
         isNull,
       );
     });
@@ -890,7 +900,236 @@ void main() {
       final left = thin.rows.single.bars.single.rect.left;
 
       expect(thin.rows.single.bars.single.floored, isTrue);
-      expect(barAt(thin, Offset(left + 1.5, rowMiddle(0)))?.bar.orderId, 'o1');
+      expect(stationAt(thin, Offset(left + 1.5, rowMiddle(0)))?.bar.orderId, 'o1');
+    });
+  });
+
+  group('lane bands', () {
+    /// Orders queueing in one lane in front of W2, which W1 feeds.
+    ///
+    /// [stays] is one `(order, entered, left)` per visit in hours, so a test
+    /// says what it is about — two orders waiting at once, or one after the
+    /// other — without building a plausible-looking run around it.
+    GanttChart laneChart({
+      required List<({String order, int from, int to})> stays,
+      int? capacity,
+      String? laneName = 'FIFO W2',
+      List<SimOpenLaneVisit> open = const [],
+      bool laneOnResult = true,
+    }) {
+      final steps = [
+        for (final stay in stays)
+          stepOf(
+            orderId: stay.order,
+            workcenterId: 'W2',
+            queueStart: at(stay.from),
+            processStart: at(stay.to),
+            processEnd: at(stay.to + 1),
+            laneNodeId: 'lane-1',
+          ),
+      ];
+      final orders = [
+        for (final (index, stay) in stays.indexed)
+          orderOf(orderId: stay.order, sequence: index, partId: 'p1'),
+        for (final visit in open)
+          orderOf(orderId: visit.orderId, sequence: 90, partId: 'p1'),
+      ];
+
+      final result = SimRunResult(
+        start: jan1,
+        end: at(48),
+        guard: at(240),
+        steps: steps,
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+        openLaneVisits: open,
+        lanes: laneOnResult
+            ? [
+                SimLane(
+                  studyId: 'study-1',
+                  nodeId: 'lane-1',
+                  position: 1,
+                  name: laneName,
+                  capacity: capacity,
+                ),
+              ]
+            : const [],
+      );
+
+      return buildGanttChart(
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: const {'W2': 'W2'},
+          theoreticalByOrder: const {},
+        ),
+      );
+    }
+
+    test('a lane is drawn immediately above the station it feeds', () {
+      final chart = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+      );
+
+      expect(chart.rows.map((b) => b.name), ['FIFO W2', 'W2']);
+      expect(chart.rows.first, isA<GanttLaneRow>());
+      expect(chart.rows.last, isA<GanttRow>());
+    });
+
+    test('overlapping stays take different slots, sequential ones re-use one', () {
+      final together = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      ).lanes.single;
+      expect(together.visits.map((v) => v.slot), [0, 1]);
+
+      final apart = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 2),
+          (order: 'o2', from: 3, to: 5),
+        ],
+      ).lanes.single;
+      // The second arrives after the first has gone, so the lane never held
+      // two at once and the stack does not grow.
+      expect(apart.visits.map((v) => v.slot), [0, 0]);
+    });
+
+    test('a capped lane is as deep as its capacity, however empty it stayed', () {
+      final lane = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        capacity: 3,
+      ).lanes.single;
+
+      // The empty slots are the headroom. Drawing it one deep because only one
+      // order ever stood there would make every capped lane look full.
+      expect(lane.depth, 3);
+      expect(lane.capacity, 3);
+      expect(lane.truncated, isFalse);
+    });
+
+    test('an uncapped lane takes its depth from how full it got', () {
+      final lane = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      ).lanes.single;
+
+      expect(lane.capacity, isNull);
+      expect(lane.depth, 2);
+    });
+
+    test('a lane nothing ever waited in is still one band deep', () {
+      // Every order passed straight through: entered and left at the same
+      // instant. The lane existed, and drawing no band would say the flow had
+      // no buffer at that point.
+      final lane = laneChart(
+        stays: [(order: 'o1', from: 2, to: 2)],
+      ).lanes.single;
+
+      expect(lane.depth, 1);
+    });
+
+    test('depth stops at the cap, and says that it did', () {
+      final lane = laneChart(
+        stays: [
+          for (var i = 0; i < GanttMetrics.maxLaneDepth + 2; i++)
+            (order: 'o$i', from: i, to: 20),
+        ],
+      ).lanes.single;
+
+      expect(lane.depth, GanttMetrics.maxLaneDepth);
+      expect(lane.truncated, isTrue);
+    });
+
+    test('an order still standing there when the run ended is drawn', () {
+      final lane = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        open: [
+          SimOpenLaneVisit(
+            studyId: 'study-1',
+            orderId: 'o9',
+            laneNodeId: 'lane-1',
+            enteredAt: at(30),
+          ),
+        ],
+      ).lanes.single;
+
+      final caught = lane.visits.firstWhere((v) => v.orderId == 'o9');
+      expect(caught.open, isTrue);
+      // It leaves no step, so without this the lane would read emptiest at
+      // exactly the moment a jam is the finding.
+      expect(caught.left, at(48));
+    });
+
+    test('a lane the run never names is not drawn', () {
+      final chart = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        laneOnResult: false,
+      );
+
+      expect(chart.lanes, isEmpty);
+      expect(chart.rows.map((b) => b.name), ['W2']);
+    });
+
+    test('bands stack by their own heights, not by a fixed row', () {
+      final chart = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      );
+      final layout = layoutGantt(chart: chart, pixelsPerSecond: 0.01);
+
+      final lane = layout.rows.first;
+      final station = layout.rows.last;
+
+      expect(lane.top, GanttMetrics.axisHeight);
+      // Two slots deep, so the station below starts that much further down —
+      // the arithmetic the old `i × rowHeight` could not have produced.
+      expect(station.top, GanttMetrics.axisHeight + lane.band.height);
+      expect(
+        lane.band.height,
+        2 * GanttMetrics.laneSlotHeight + 2 * GanttMetrics.lanePadding,
+      );
+    });
+
+    test('barAt picks a waiting order by its slot', () {
+      final chart = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      );
+      final layout = layoutGantt(chart: chart, pixelsPerSecond: 0.01);
+      final lane = layout.rows.first;
+
+      double slotMiddle(int slot) =>
+          lane.top +
+          GanttMetrics.lanePadding +
+          slot * GanttMetrics.laneSlotHeight +
+          GanttMetrics.laneBarHeight / 2;
+
+      // Both are on the chart at hour 4; only the slot tells them apart, which
+      // is the whole reason the stack exists.
+      final x = at(4).difference(chart.start).inSeconds * 0.01;
+      expect(
+        (barAt(layout, Offset(x, slotMiddle(0))) as GanttPlacedVisit?)
+            ?.visit
+            .orderId,
+        'o1',
+      );
+      expect(
+        (barAt(layout, Offset(x, slotMiddle(1))) as GanttPlacedVisit?)
+            ?.visit
+            .orderId,
+        'o2',
+      );
     });
   });
 }

@@ -190,7 +190,7 @@ void main() {
   }
 
   GanttRowLayout rowNamed(GanttLayout layout, String name) =>
-      layout.rows.firstWhere((row) => row.row.name == name);
+      layout.rows.firstWhere((row) => row.band.name == name);
 
   /// A mouse parked at [at], for the scroll signals the zoom listens to.
   TestPointer testPointer(Offset at) =>
