@@ -971,6 +971,21 @@ class _Engine {
       busyByWorkcenter: busy,
       openByWorkcenter: open,
       blockedByWorkcenter: blocked,
+      // Every lane the run walked, so §8.6 can place a row for one that never
+      // held anything — an empty lane between two busy stations is a fact
+      // about the line, not a row to leave out.
+      lanes: [
+        for (final study in studies)
+          for (final node in study.nodes)
+            if (node is SimBuffer)
+              SimLane(
+                studyId: study.id,
+                nodeId: node.id,
+                position: node.position,
+                name: node.name,
+                capacity: node.capacity,
+              ),
+      ],
       // Whatever is still standing in a lane. `_waiting` is the queue itself,
       // so what is left in it at the end is exactly what never got pulled.
       openLaneVisits: [

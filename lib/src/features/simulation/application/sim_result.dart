@@ -145,6 +145,43 @@ enum EmptySlotReason {
   laneFull,
 }
 
+/// A lane, as it stood when the run was made (§5.5, §7.10).
+///
+/// **Carried on the result so the chart never joins back to the flow.** §8.6
+/// draws a lane row between the two station rows it connects, and the run
+/// stores no node positions otherwise — `routingRanks` derives a station's
+/// place from the steps, but a buffer leaves no step behind. [position] is what
+/// makes a lane placeable, and it has to be the position the flow had *then*,
+/// because the map may have been edited since.
+///
+/// Deliberately not carrying the discipline: nothing that draws a lane reads
+/// it, and a field nothing reads is the failure §1.5 found once already. The
+/// run records the rule separately for the label that names the overrides.
+class SimLane {
+  const SimLane({
+    required this.studyId,
+    required this.nodeId,
+    required this.position,
+    this.name,
+    this.capacity,
+  });
+
+  final String studyId;
+
+  /// The `flow_nodes` row it was, whether or not it still exists.
+  final String nodeId;
+
+  /// Its place on the spine at the time of the run.
+  final int position;
+
+  /// `FIFO CEU27`, or null when the buffer was never labelled.
+  final String? name;
+
+  /// Orders it could hold, or null for unlimited — in which case §8.6 takes the
+  /// row's depth from how full it actually got.
+  final int? capacity;
+}
+
 /// An order still standing in a lane when the run ended (§5.5).
 ///
 /// Every other stay in a lane is readable off [SimOrderStep] — `queueStart` is
@@ -188,6 +225,7 @@ class SimRunResult {
     required this.busyByWorkcenter,
     required this.openByWorkcenter,
     this.blockedByWorkcenter = const {},
+    this.lanes = const [],
     this.openLaneVisits = const [],
     this.abort,
   });
@@ -221,6 +259,12 @@ class SimRunResult {
   /// a line whose constraint already sits at 86 % utilization that is not a
   /// rounding error. Empty on every run made before lanes had capacity.
   final Map<String, Duration> blockedByWorkcenter;
+
+  /// Every lane in every study that ran, whether or not anything queued in it.
+  ///
+  /// Empty on runs made before lanes existed, which draws no lane rows — the
+  /// honest reading of a run that had none.
+  final List<SimLane> lanes;
 
   /// Orders still standing in a lane when the run ended.
   final List<SimOpenLaneVisit> openLaneVisits;

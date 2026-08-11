@@ -150,6 +150,11 @@ class SimulationRunsRepository {
               processStart: step.processStart,
               processEnd: step.processEnd,
               changeoverIncurred: Value(step.changeoverIncurred),
+              // The lane it was pulled out of, and how long the station then
+              // stood holding it (§5.5). Both are read back below, and a column
+              // written by nobody is the failure §1.5 found once already.
+              laneNodeId: Value(step.laneNodeId),
+              blockedSeconds: Value(step.blocked.inSeconds),
             ),
         ]);
 
@@ -275,6 +280,9 @@ class SimulationRunsRepository {
     final lanes = await (_db.select(
       _db.simulationRunLanes,
     )..where((l) => l.runId.equals(runId))).get();
+    final laneVisits = await (_db.select(
+      _db.simulationRunLaneVisits,
+    )..where((v) => v.runId.equals(runId))).get();
 
     // The lanes that did **not** follow the run's rule (§7.4). The rule lives
     // on the lane now, so the row that explains why an order ran when it did
@@ -347,6 +355,29 @@ class SimulationRunsRepository {
           seconds: row.blockedSeconds,
         ),
       },
+      lanes: [
+        for (final row in lanes)
+          SimLane(
+            studyId: row.studyId,
+            nodeId: row.nodeId,
+            position: row.position,
+            name: row.name,
+            capacity: row.capacity,
+          ),
+      ],
+      // Only the stays that never ended. Every other one is readable off the
+      // steps — `queueStart` and `processStart` are its two ends — so reading
+      // them back as well would give the chart two records of one event.
+      openLaneVisits: [
+        for (final row in laneVisits)
+          if (row.leftAt == null)
+            SimOpenLaneVisit(
+              studyId: row.studyId,
+              orderId: row.orderId,
+              laneNodeId: row.nodeId,
+              enteredAt: row.enteredAt,
+            ),
+      ],
       abort: header.abortReason == null
           ? null
           : _parse(

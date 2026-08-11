@@ -172,6 +172,111 @@ void main() {
     return (studies: [study], plant: plant);
   }
 
+  test('the lanes survive storage, so the chart can draw them', () async {
+    final projectId = await seedProject();
+    final plant = {
+      'wc-1': workcenter('wc-1', 'CLAD04'),
+      'wc-2': workcenter('wc-2', 'CEU27'),
+    };
+    final study = SimStudy(
+      id: 'study-1',
+      name: 'Current state',
+      nodes: const [
+        SimStep(
+          id: 'node-0',
+          position: 0,
+          title: 'Cladding',
+          candidates: ['wc-1'],
+          demandKey: 'wc-1',
+        ),
+        // A named, capped lane and an anonymous uncapped one, so both halves of
+        // §8.6's row-height rule have something to read.
+        SimBuffer(
+          id: 'lane-1',
+          position: 1,
+          name: 'FIFO CEU27',
+          capacity: 1,
+        ),
+        SimStep(
+          id: 'node-2',
+          position: 2,
+          title: 'CEU27',
+          candidates: ['wc-2'],
+          demandKey: 'wc-2',
+        ),
+      ],
+      parts: {
+        'part-a': const SimPart(
+          id: 'part-a',
+          partNumber: 'PN1',
+          processTimes: {
+            'wc-1': Duration(hours: 1),
+            'wc-2': Duration(hours: 6),
+          },
+        ),
+      },
+      orders: [
+        for (var i = 0; i < 4; i++)
+          SimOrder(
+            id: 'o$i',
+            sequence: i,
+            partId: 'part-a',
+            needDate: DateTime(2026, 8, 20),
+          ),
+      ],
+      releaseInterval: const Duration(hours: 1),
+      releaseCalendarId: 'wc-1',
+    );
+
+    final result = runSimulation(studies: [study], workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      dispatch: DispatchRule.fifo,
+      result: result,
+      studies: [study],
+      workcenters: plant,
+    );
+    final stored = (await runs.loadRun(runId))!;
+
+    // The snapshot the chart places a row from. §7.10 joins to nothing, so
+    // without the position there is no way to draw the lane between the two
+    // stations it connects.
+    final lane = stored.result.lanes.single;
+    expect(lane.nodeId, 'lane-1');
+    expect(lane.name, 'FIFO CEU27');
+    expect(lane.position, 1);
+    expect(lane.capacity, 1);
+
+    // And the stays themselves: every order that was pulled leaves a step
+    // naming the lane it stood in, which is what the occupancy is read from.
+    final visits = stored.result.steps.where((s) => s.laneNodeId == 'lane-1');
+    expect(visits, isNotEmpty);
+    expect(visits.every((s) => !s.processStart.isBefore(s.queueStart)), isTrue);
+
+    // A capped lane with a slow station behind it blocks, and that time is
+    // stored beside the step rather than inside its occupancy.
+    expect(stored.result.blockedByWorkcenter['wc-1'], greaterThan(Duration.zero));
+
+    // **Per step as well as per station**, and the two have to agree. Both of
+    // these columns were being read back and written by nobody until this test
+    // asked — §1.5's failure, from the other direction.
+    final blockedSteps = stored.result.steps.where(
+      (s) => s.workcenterId == 'wc-1' && s.blocked > Duration.zero,
+    );
+    expect(blockedSteps, isNotEmpty);
+    expect(
+      blockedSteps.fold(Duration.zero, (sum, s) => sum + s.blocked),
+      stored.result.blockedByWorkcenter['wc-1'],
+    );
+
+    // And the fresh result says the same as the stored one, which is the whole
+    // claim of this file.
+    expect(
+      stored.result.steps.map((s) => (s.orderId, s.laneNodeId, s.blocked)).toSet(),
+      result.steps.map((s) => (s.orderId, s.laneNodeId, s.blocked)).toSet(),
+    );
+  });
+
   test('a stored run reports exactly what it reported when it was made',
       () async {
     final projectId = await seedProject();
