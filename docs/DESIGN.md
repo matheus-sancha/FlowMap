@@ -937,10 +937,38 @@ order, which is the one thing §7.7 exists to model.
   need calendars a stored run does not have; `simulation_run_workcenters` keeps a total open time
   and nothing finer. How much of a gap was even available is answered by the station's utilization
   and open time in the Queue table, which is where that question belongs.
-- **Queue spans are not drawn.** One station can hold dozens of orders at once — the real run has
-  4487 days of queue at CEU27 — and drawing those would smear the row solid over the bars
-  underneath. Queue is reported per station in the Queue table, per order by §8.5's two lead-time
-  columns, and per step in the hover card.
+- **Queue spans are not drawn on a station's own row.** One station can hold dozens of orders at
+  once — the real run has 4487 days of queue at CEU27 — and drawing those there would smear the row
+  solid over the bars underneath. Queue is reported per station in the Queue table, per order by
+  §8.5's two lead-time columns, and per step in the hover card.
+- **A lane gets a band of its own, immediately above the station it feeds**, so the chart reads down
+  the page the way the line runs (§5.5). Orders **stack** inside it and the band is as deep as the
+  lane is, so a full lane is something the reader sees rather than infers from a gap in the row
+  below it. They are drawn in the part's own colour but washed out and outlined, never solid: an
+  order waiting must not read as one running.
+
+  **This is what makes drawing a queue affordable at all**, and it is the premise the rejection
+  above did not have. A capacity bounds the band's height by a number the user typed, where a
+  station's row is bounded by nothing.
+
+  **A lane is placed by the step it feeds, not by its stored position.** `SimLane.position` is a
+  place on one study's spine, and the chart merges every study into one set of station rows (§7.7),
+  so a spine position cannot become a row index without the join to the flow §7.10 forbids. What the
+  run does keep is which lane each step waited in, and `queueStart → processStart` is the stay
+  itself. A lane fed by a pool sits above the first of that pool's machines. **A lane no step ever
+  names is not drawn**: no order passed that point, so the run holds nothing that says where it sat,
+  and an invented position would put a band between two stations it may never have joined.
+
+  **A capped lane is drawn at its capacity; an uncapped one at how full it actually got.** The empty
+  slots of a capped lane are its headroom, and hiding them would make every capped lane look full. An
+  uncapped lane has no rule to draw, only the observation §5.5 is careful to say is not one — so the
+  depth is capped, and the band says when it is drawn shallower than the lane went. An order the
+  guard caught still standing in a lane leaves no step at all, and is carried separately: dropping it
+  would draw the lane emptiest at exactly the moment a jam is the finding.
+
+  **Bands are therefore not a uniform height**, which is the one thing this cost elsewhere. Anything
+  that had been dividing a row index back out of a rect's top now takes it from the layout, which
+  knew it already.
 - **Rows are in flow order** — the first station of the routing on the first row — so an order is
   read diagonally down the chart the way it is read left to right along the map (§5.1). Built from
   steps, so a station that never ran has no row.

@@ -1140,7 +1140,31 @@ _Rejected: a run start override._ It was the first thing offered and the buffer 
 §7.8's derivation working rather than replacing it with a date that goes stale the moment the demand
 moves.
 
-### 3.4 The Gantt reads as a flow — **round two**
+### 3.4 The Gantt reads as a flow — **round two, the geometry has landed**
+
+**Done 2026-08-11**, in one commit: the bands, the stacking, the depth rule and `barAt`. 10 pure
+tests, 638 in all, `flutter analyze` clean. The open question is answered — an uncapped lane takes
+its depth from **how full it actually got**, which is what `SimLane.capacity` had already written
+down when the lanes were carried out of the run. Three things only writing it settled, all three in
+the commit message and in §8.6: a lane is placed by the step it feeds rather than by its stored
+spine position; a capped lane is drawn at its capacity and an uncapped one at its observed depth;
+and bands stopped being a uniform height, so the row index is carried on the hit rather than divided
+back out of a rect.
+
+**What is left of this item, and it needs no new decisions:**
+
+- [ ] **The hover card for a stay in a lane.** `barAt` returns it and the view drops it on the
+      floor deliberately — a waiting order is drawn and picked but reports nothing, rather than
+      putting a station's card over the wrong subject. The card wants the order, the part, the lane,
+      when it arrived, when it was pulled out and how long it stood there, which is new l10n in
+      three languages.
+- [ ] **Bar labels gain the order number** — part number first, order number appended when the bar
+      is wide enough for both, so every label that reads correctly today reads the same way.
+- [ ] **Drive it against célula 11B.** `2f4c8db4` is the run to open: `FIFO CEU27` is capped at 2
+      and the band should be visibly full while TTAT's 4.6 d of blocking sits in the row above it.
+      Nothing in the suite renders a pixel — §2.5's rule.
+
+_Original wording, for the record:_
 
 - **A lane row per inventory node, between the two station rows it connects**, so the chart reads
   down the page the way the line runs. **Orders stack inside it and the row's height is the
