@@ -3,8 +3,14 @@
 Working state as of 2026-08-11. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **628 tests passing** (one of them
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **664 tests passing** (one of them
 `live`-tagged and skipped without a database). Schema is at **v15**. M4 is code-complete.
+
+**§3 is code-complete except §3.8, which is deferred by decision until the rest of the plan is
+done.** Rounds one, two and three have all landed; §3.5 was dropped on the field's verdict rather
+than built. **So the initial plan has no code left in it** — what remains before M5 is §4's
+hand-driven verification, and the two §4 items that need a second look after this round: the date
+format in the demand grid and in Excel, and the results banner.
 
 **§3's round one is done, in five commits, and about half of it has now been driven by hand.** The
 lanes govern the flow, a station may hold more than one order, the pacemaker gates the release, a
@@ -14,7 +20,8 @@ round-one checks have now met the real database**, in Release `0.1.0-2026-08-11`
 and `laneFull` was observed for the first time. What is owed is one run to settle the takt
 confounder, and es and pt.
 
-**What is next needs a human at the GUI, not more code.** §4's Gantt item is only partly closed:
+**What is next needs a human at the GUI, not more code**, and that is now true of the whole plan
+rather than of one round. §4's Gantt item is only partly closed:
 §2.11 came out of a Debug session that changed three things, and the rest of that list — the axis at
 the fit, ten zoom presses, the changeover stroke, both themes, es and pt — has still not been
 looked at, nor has §2.8's file been opened in Excel.
@@ -1447,6 +1454,16 @@ only.
 - [ ] **Layout polish, from the 2026-08-11 session.** Noted at the GUI as wanting improvement and
       explicitly deferred; **the specifics were not captured**, so this is a placeholder rather than
       an item. Write down what grated before it is worked on, or it will be guessed at.
+- [ ] **Round three, against célula 11B.** Landed 2026-08-11 and not yet driven:
+      - **The date format**, set on Settings. Check the demand grid re-parses what it renders after
+        the format changes — that is the pair §3.6 exists to keep together — and that the Gantt's
+        axis still reads `Jan 14` rather than a numeric date.
+      - **The plan in Excel, opened in Excel**, which is also the standing §4 item below. The date
+        columns should read as the chosen format rather than `45 872`.
+      - **The results banner**: that it pushes the tabs down rather than covering the Gantt's last
+        row, that `View results` both navigates and dismisses, and that a failed run offers no
+        `View results` but can still be closed. **The workspace screen has no test coverage at
+        all**, so the wiring from Simulate to banner to tab switch is only covered by pressing it.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
