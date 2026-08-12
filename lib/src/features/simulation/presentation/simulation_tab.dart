@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/part_palette.dart';
 import '../../../common/result_table.dart';
@@ -156,14 +156,14 @@ class _RunsMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
     final runs =
         ref.watch(projectRunsProvider(projectId)).value ??
         const <SimulationRun>[];
     if (runs.isEmpty) return const SizedBox.shrink();
 
     String label(SimulationRun run) => l10n.simRunLabel(
-      formatDateInput(run.createdAt, locale),
+      dateStyle.format(run.createdAt),
       dispatchRuleLabel(l10n, _ruleOf(run.dispatch)),
     );
 
@@ -425,15 +425,15 @@ class _RunHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '${l10n.simRunLabel(formatDateInput(run.createdAt, locale), dispatchRuleLabel(l10n, run.dispatch))}'
+          '${l10n.simRunLabel(dateStyle.format(run.createdAt), dispatchRuleLabel(l10n, run.dispatch))}'
           '  ·  '
-          '${l10n.simRunSpan(formatDateInput(run.result.start, locale), formatDateInput(run.result.end, locale))}'
+          '${l10n.simRunSpan(dateStyle.format(run.result.start), dateStyle.format(run.result.end))}'
           // Named here rather than left to the reader to notice, because the
           // rule beside the timestamp would otherwise describe a dispatch that
           // did not happen at every station (§7.4).
@@ -598,10 +598,10 @@ class _PlanTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
     String date(DateTime? value) =>
-        value == null ? '—' : formatDateInput(value, locale);
+        value == null ? '—' : dateStyle.format(value);
 
     return Card(
       child: resultTable(

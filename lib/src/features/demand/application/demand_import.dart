@@ -316,7 +316,7 @@ List<ImportRow> validatePartsImport({
 List<ImportRow> validateSequenceImport({
   required List<Map<int, String>> rows,
   required DemandTable table,
-  required String locale,
+  required DateStyle dateStyle,
   required int firstSourceRow,
 }) {
   final known = {
@@ -355,7 +355,7 @@ List<ImportRow> validateSequenceImport({
     }
 
     final needRaw = row.cell(orderNeedColumn);
-    final needDate = needRaw == null ? null : parseDateInput(needRaw, locale);
+    final needDate = needRaw == null ? null : dateStyle.parse(needRaw);
     if (needRaw == null) {
       issues.add(
         const ImportIssue(
@@ -377,7 +377,7 @@ List<ImportRow> validateSequenceImport({
     final materialRaw = row.cell(orderMaterialColumn);
     final materialDate = materialRaw == null
         ? null
-        : parseDateInput(materialRaw, locale);
+        : dateStyle.parse(materialRaw);
     if (materialRaw != null && materialDate == null) {
       issues.add(
         const ImportIssue(
@@ -481,7 +481,7 @@ DemandPartsPlan planPartsImport({
 List<OrderWrite> planSequenceImport({
   required List<ImportRow> rows,
   required DemandTable table,
-  required String locale,
+  required DateStyle dateStyle,
 }) {
   final known = {
     for (final part in table.parts) partKeyOf(part.partNumber): part.id,
@@ -492,7 +492,7 @@ List<OrderWrite> planSequenceImport({
     if (row.isBlocked) continue;
 
     final partId = known[partKeyOf(row.cell(orderPartColumn)!)];
-    final needDate = parseDateInput(row.cell(orderNeedColumn)!, locale);
+    final needDate = dateStyle.parse(row.cell(orderNeedColumn)!);
     if (partId == null || needDate == null) continue;
 
     final materialRaw = row.cell(orderMaterialColumn);
@@ -510,7 +510,7 @@ List<OrderWrite> planSequenceImport({
         batchNumber: (batchNumber?.isEmpty ?? true) ? null : batchNumber,
         materialDate: materialRaw == null
             ? null
-            : parseDateInput(materialRaw, locale),
+            : dateStyle.parse(materialRaw),
         batchSize: int.tryParse(row.cell(orderBatchColumn) ?? '') ?? 1,
       ),
     );

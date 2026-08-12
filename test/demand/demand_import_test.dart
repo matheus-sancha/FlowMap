@@ -3,6 +3,7 @@ import 'package:flowmap/src/features/demand/application/demand_import.dart';
 import 'package:flowmap/src/features/demand/application/demand_paste.dart';
 import 'package:flowmap/src/features/demand/application/demand_table.dart';
 import 'package:flowmap/src/features/demand/data/demand_repository.dart';
+import 'package:flowmap/src/common/date_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -239,7 +240,7 @@ void main() {
             },
           ),
           table: tableWith([part('p1', 'PN1')]),
-          locale: 'en_US',
+          dateStyle: const DateStyle(locale: 'en_US'),
           firstSourceRow: 2,
         );
 
@@ -380,14 +381,14 @@ void main() {
           },
         ),
         table: table,
-        locale: 'en_US',
+        dateStyle: const DateStyle(locale: 'en_US'),
         firstSourceRow: 2,
       );
 
       final writes = planSequenceImport(
         rows: rows,
         table: table,
-        locale: 'en_US',
+        dateStyle: const DateStyle(locale: 'en_US'),
       );
 
       expect(writes, hasLength(1));
@@ -407,14 +408,14 @@ void main() {
           mapping: {orderPartColumn: 0, orderNeedColumn: 1},
         ),
         table: table,
-        locale: 'en_US',
+        dateStyle: const DateStyle(locale: 'en_US'),
         firstSourceRow: 2,
       );
 
       final writes = planSequenceImport(
         rows: rows,
         table: table,
-        locale: 'en_US',
+        dateStyle: const DateStyle(locale: 'en_US'),
       );
       expect(writes.single.batchSize, 1);
     });
@@ -433,7 +434,7 @@ void main() {
         mapping: {orderPartColumn: 0, orderNeedColumn: 1},
       ),
       table: table,
-      locale: 'en_US',
+      dateStyle: const DateStyle(locale: 'en_US'),
       firstSourceRow: 2,
     );
 

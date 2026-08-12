@@ -1030,7 +1030,8 @@ layer and its tests out of a database.
   from hour / day / week / month / quarter / year, **aligned to the calendar** — month starts,
   Mondays, the top of the hour, never "every 30 days from wherever this run began" — so a date sits
   under the same label at every zoom. The function returns instants and a granularity and never sees
-  a `BuildContext`: dates follow the locale and clock readings are 24-hour, which is §12.4's split.
+  a `BuildContext`: dates follow the user's setting and clock readings are 24-hour, which is
+  §12.4's split.
 - **Only the visible ticks are built**, which is why they are not part of the layout. At the ceiling
   a two-year run is sixteen million pixels wide and carries seventeen thousand hourly ticks, and
   §16.9 measured local `DateTime` construction on Windows at ~13 µs — building them all would cost a
@@ -1433,8 +1434,32 @@ dialogs, the right trade for infrequent deliberate operations.
 
 All durations stored as **integer seconds**. Process time, changeover and takt carry a display unit
 (d/h/min/s) — a 3-day takt reads `3 d`, a 30-hour process time reads `30:00:00`. Inputs accept
-`1.5h`, `90m`, `30:00`, `2d` and normalise on commit. Dates render per app locale (dd/MM/yyyy under
-pt/es) with a Settings override, stored as local dates — a shift calendar is inherently local.
+`1.5h`, `90m`, `30:00`, `2d` and normalise on commit. Dates are stored as local dates — a shift
+calendar is inherently local.
+
+**Dates follow the user's setting, defaulting to the locale.** Day/month/year, month/day/year or
+ISO, chosen on the Settings screen and kept in `app_settings`. It was *dates follow the locale*
+until a planner on an en-US machine read `8/10/2026` and had to work out which month that was.
+
+- **Independent of the interface language, deliberately.** English UI with Brazilian dates is a real
+  combination and is not reachable through a language picker.
+- **It reaches the parser in the same change, because the two are one contract.** `date_input.dart`
+  formats and parses through a single `DateStyle`; a display format moved on its own would make
+  every date field reject what it had just shown. **ISO is accepted on input whatever the setting**,
+  since it is what exports and half the spreadsheets in circulation produce and it cannot be read
+  two ways — and a pinned format also still accepts what the locale would have written, because that
+  is a string the app itself produced a moment earlier.
+- **And it reaches the Excel export**, as a number format on the date columns (§13.1). The pattern is
+  *derived* from the same `DateStyle` the screen renders with rather than listed per setting, so the
+  file and the app cannot disagree — including under the default, where the pattern is whatever
+  `intl` chose for that locale and no table in this repo could have known it.
+- **Clock readings do not follow it.** They are 24-hour everywhere, which is this section's standing
+  split, and the Gantt's axis keeps its month names (`Jan 14`): a tick is not a numeric date field,
+  and `14/01/2026` under every tick is worse.
+- **Reached through a scope, not a provider read per site.** Almost nothing that renders a date is a
+  consumer — the hover card, the run header and the plan table are plain widgets deep inside painted
+  or scrolled trees — so one `Consumer` at the root installs `DateStyleScope` and everything below
+  reads it the way it reads `Theme`.
 
 Localised en / es / pt, mirroring Chronus.
 
@@ -1574,6 +1599,12 @@ planner merges it into their own system, which no PDF allows.
   and Order End carry the instant, which is *more* than the table shows — thirteen columns leave no
   room for a clock and a file has no such constraint, so the two agree about the moment and the file
   says more of it.
+- **And each of them carries a number format**, taken from §12.4's `DateStyle`. A typed cell with no
+  format is rendered by whatever the *viewer's* Excel defaults to, which is how a column of genuine
+  dates reaches a planner reading `45 872` — so being typed correctly was necessary and not
+  sufficient. The pattern is derived from the same object the screen renders with, so the file says
+  the date the way the app that produced it does; the two Order columns append `hh:mm`, 24-hour.
+  A blank cell is left unformatted, since giving it a date format would claim it holds a date.
 - **A duration is a number of days, not a clock reading.** Excel's own duration is a fraction of a
   day, and `excel`'s `TimeCellValue.fromDuration` maps onto it by taking the hour, minute and second
   of `DateTime.utc(0) + duration` — so a thirty-hour lead time would land in the file as `06:00:00`,

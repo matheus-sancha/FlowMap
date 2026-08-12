@@ -2796,6 +2796,42 @@ abstract class AppLocalizations {
   /// **'A changeover was paid to start it'**
   String get simGanttChangeover;
 
+  /// No description provided for @settingsDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get settingsDisplay;
+
+  /// No description provided for @settingsDateFormatHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How dates are written and read across the app, including the Excel export. Independent of the interface language. ISO dates are always accepted when typing, whichever format is chosen.'**
+  String get settingsDateFormatHelp;
+
+  /// No description provided for @dateFormatLocale.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the system language'**
+  String get dateFormatLocale;
+
+  /// No description provided for @dateFormatDayMonthYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Day/month/year'**
+  String get dateFormatDayMonthYear;
+
+  /// No description provided for @dateFormatMonthDayYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Month/day/year'**
+  String get dateFormatMonthDayYear;
+
+  /// No description provided for @dateFormatIso.
+  ///
+  /// In en, this message translates to:
+  /// **'Year-month-day (ISO)'**
+  String get dateFormatIso;
+
   /// No description provided for @simGanttLaneHolds.
   ///
   /// In en, this message translates to:

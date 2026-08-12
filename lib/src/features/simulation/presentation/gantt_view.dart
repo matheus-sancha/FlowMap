@@ -26,7 +26,7 @@ import 'package:flutter/services.dart';
 // the one the painter's `TextPainter` needs.
 import 'package:intl/intl.dart' show DateFormat;
 
-import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/formatters.dart';
 import '../../../common/horizontal_scroll.dart';
 import '../../../common/part_palette.dart';
@@ -306,7 +306,7 @@ class _Chart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
     return LayoutBuilder(
       builder: (context, constraints) => AnimatedBuilder(
@@ -324,7 +324,7 @@ class _Chart extends StatelessWidget {
               from: offset,
               to: offset + pane,
             ))
-              (x: tick.x, label: _tickLabel(layout.unit, tick.at, locale)),
+              (x: tick.x, label: _tickLabel(layout.unit, tick.at, dateStyle.locale)),
           ];
 
           return Stack(
@@ -677,7 +677,7 @@ class _HoverCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
     // The band's own top, carried on the hit. It used to be divided back out
     // of the rect, which held only while every band was `rowHeight` tall.
@@ -694,7 +694,7 @@ class _HoverCard extends StatelessWidget {
         .toDouble();
 
     String instant(DateTime value) =>
-        '${formatDateInput(value, locale)} '
+        '${dateStyle.format(value)} '
         '${formatMinuteOfDay(value.hour * 60 + value.minute)}';
 
     // The two kinds, reduced to what the card actually shows. Pulled apart

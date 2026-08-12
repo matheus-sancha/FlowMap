@@ -1264,7 +1264,12 @@ height, a bar that never goes away parks permanently over the last station's row
 gutter §2.11 added to get at it. A banner pushes content down instead of covering it, and a
 persistent statement about the project is not what a snackbar is for.
 
-### 3.8 A map that never runs — **round four**
+### 3.8 A map that never runs — **deferred 2026-08-11, until the initial plan is complete**
+
+Not dropped and not disagreed with — **sequenced**. It is the one item in §3 that is M5-sized and
+the one that buys nothing for the plant already being modelled, so it waits until everything else
+in the plan has landed. The argument below stands as written; nothing about it needs revisiting when
+it is picked up.
 
 *"VSM only feature, without the simulation, just for visual but in a more free."* A study can be
 marked map-only: excluded from runs, so readiness stops demanding takt periods, process times and

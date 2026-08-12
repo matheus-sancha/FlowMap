@@ -1574,6 +1574,25 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se pagó un cambio de referencia para empezarla';
 
   @override
+  String get settingsDisplay => 'Presentación';
+
+  @override
+  String get settingsDateFormatHelp =>
+      'Cómo se escriben y se leen las fechas en toda la aplicación, incluida la exportación a Excel. Independiente del idioma de la interfaz. Las fechas ISO siempre se aceptan al escribir, sea cual sea el formato elegido.';
+
+  @override
+  String get dateFormatLocale => 'Seguir el idioma del sistema';
+
+  @override
+  String get dateFormatDayMonthYear => 'Día/mes/año';
+
+  @override
+  String get dateFormatMonthDayYear => 'Mes/día/año';
+
+  @override
+  String get dateFormatIso => 'Año-mes-día (ISO)';
+
+  @override
   String simGanttLaneHolds(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

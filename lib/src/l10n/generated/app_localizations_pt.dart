@@ -1573,6 +1573,25 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simGanttChangeover => 'Houve troca de referência para começá-la';
 
   @override
+  String get settingsDisplay => 'Apresentação';
+
+  @override
+  String get settingsDateFormatHelp =>
+      'Como as datas são escritas e lidas em toda a aplicação, incluindo a exportação para Excel. Independente do idioma da interface. Datas ISO são sempre aceitas ao digitar, qualquer que seja o formato escolhido.';
+
+  @override
+  String get dateFormatLocale => 'Seguir o idioma do sistema';
+
+  @override
+  String get dateFormatDayMonthYear => 'Dia/mês/ano';
+
+  @override
+  String get dateFormatMonthDayYear => 'Mês/dia/ano';
+
+  @override
+  String get dateFormatIso => 'Ano-mês-dia (ISO)';
+
+  @override
   String simGanttLaneHolds(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -174,7 +174,7 @@ List<OrderWrite> planSequenceWrite({
   required int row,
   required int column,
   required List<List<String>> block,
-  required String locale,
+  required DateStyle dateStyle,
 }) {
   final byKey = {for (final part in parts) partKeyOf(part.partNumber): part.id};
   final byId = {for (final part in parts) part.id: part};
@@ -205,7 +205,7 @@ List<OrderWrite> planSequenceWrite({
     final typedNeed = cellAt(orderNeedColumn)?.trim();
     final needDate = typedNeed == null || typedNeed.isEmpty
         ? existing?.needDate
-        : parseDateInput(typedNeed, locale);
+        : dateStyle.parse(typedNeed);
     if (needDate == null) continue;
 
     final typedMaterial = cellAt(orderMaterialColumn);
@@ -213,7 +213,7 @@ List<OrderWrite> planSequenceWrite({
         ? existing?.materialDate
         : (typedMaterial.trim().isEmpty
               ? null
-              : parseDateInput(typedMaterial.trim(), locale) ??
+              : dateStyle.parse(typedMaterial.trim()) ??
                     existing?.materialDate);
 
     final typedBatch = cellAt(orderBatchColumn)?.trim();

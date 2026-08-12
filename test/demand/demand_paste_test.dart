@@ -2,6 +2,7 @@ import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/features/demand/application/demand_paste.dart';
 import 'package:flowmap/src/features/demand/data/demand_repository.dart';
 import 'package:flowmap/src/features/demand/application/demand_table.dart';
+import 'package:flowmap/src/common/date_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -255,7 +256,7 @@ void main() {
           ['PN1', '', 'B-0012', '4', '2026-08-13', '2026-08-01'],
           ['PN2', '', '', '1', '2026-08-14', ''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.every((w) => w.isNew), isTrue);
@@ -280,7 +281,7 @@ void main() {
           ['PN1', '', 'LOT7', '1', '2026-08-13'],
           ['PN2', '', 'LOT7', '1', '2026-08-14'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, hasLength(2));
@@ -296,7 +297,7 @@ void main() {
         block: [
           [''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.batchNumber, isNull);
@@ -311,7 +312,7 @@ void main() {
         block: [
           ['10'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.batchSize, 10);
@@ -327,7 +328,7 @@ void main() {
         block: [
           ['PN404', '', '', '1', '2026-08-13'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, isEmpty);
@@ -344,7 +345,7 @@ void main() {
         block: [
           ['PN1', '', '', '1', ''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, isEmpty);
@@ -359,7 +360,7 @@ void main() {
         block: [
           ['10'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.id, 'o1');
@@ -379,7 +380,7 @@ void main() {
         block: [
           [''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.materialDate, isNull);
@@ -394,7 +395,7 @@ void main() {
         block: [
           ['0'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, isEmpty);
@@ -409,7 +410,7 @@ void main() {
         block: [
           ['PN1', '', '', '1', '03/08/2026'],
         ],
-        locale: 'pt_BR',
+        dateStyle: const DateStyle(locale: 'pt_BR'),
       );
       expect(ptBr.single.needDate, DateTime(2026, 8, 3));
 
@@ -421,7 +422,7 @@ void main() {
         block: [
           ['PN1', '', '', '1', '03/08/2026'],
         ],
-        locale: 'en_US',
+        dateStyle: const DateStyle(locale: 'en_US'),
       );
       expect(enUs.single.needDate, DateTime(2026, 3, 8));
     });

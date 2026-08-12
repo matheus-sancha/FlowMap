@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/data_grid.dart';
 import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/duration_input.dart';
 import '../../../data/database/database.dart';
@@ -337,7 +338,7 @@ class _SequenceGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
     final orders = ref.watch(demandOrdersProvider(study.id)).value;
     if (orders == null) return const Center(child: CircularProgressIndicator());
 
@@ -405,11 +406,11 @@ class _SequenceGrid extends ConsumerWidget {
           helper: l10n.demandMaterialDateHelp,
         ),
       ],
-      valueAt: (row, column) => _valueAt(orders, row, column, locale),
+      valueAt: (row, column) => _valueAt(orders, row, column, dateStyle),
       errorAt: (row, column, raw) =>
-          _errorAt(l10n, locale, orders, row, column, raw),
+          _errorAt(l10n, dateStyle, orders, row, column, raw),
       onCommit: (row, column, block) =>
-          _commit(ref, locale, orders, row, column, block),
+          _commit(ref, dateStyle, orders, row, column, block),
     );
   }
 
@@ -417,7 +418,7 @@ class _SequenceGrid extends ConsumerWidget {
     List<DemandOrder> orders,
     int row,
     int column,
-    String locale,
+    DateStyle dateStyle,
   ) {
     if (row >= orders.length) return '';
     final order = orders[row];
@@ -427,14 +428,14 @@ class _SequenceGrid extends ConsumerWidget {
       orderProjectColumn => order.customerProject ?? '',
       orderBatchNumberColumn => order.batchNumber ?? '',
       orderBatchColumn => '${order.batchSize}',
-      orderNeedColumn => formatDateInput(order.needDate, locale),
-      _ => formatDateInput(order.materialDate, locale),
+      orderNeedColumn => dateStyle.format(order.needDate),
+      _ => dateStyle.format(order.materialDate),
     };
   }
 
   String? _errorAt(
     AppLocalizations l10n,
-    String locale,
+    DateStyle dateStyle,
     List<DemandOrder> orders,
     int row,
     int column,
@@ -470,12 +471,12 @@ class _SequenceGrid extends ConsumerWidget {
         return batch != null && batch > 0 ? null : l10n.validationPositiveWhole;
       case orderNeedColumn:
         if (text.isEmpty) return isNewRow ? null : l10n.validationRequired;
-        return parseDateInput(text, locale) == null
+        return dateStyle.parse(text) == null
             ? l10n.validationNotADate
             : null;
       default:
         if (text.isEmpty) return null;
-        return parseDateInput(text, locale) == null
+        return dateStyle.parse(text) == null
             ? l10n.validationNotADate
             : null;
     }
@@ -487,7 +488,7 @@ class _SequenceGrid extends ConsumerWidget {
   /// through.
   Future<void> _commit(
     WidgetRef ref,
-    String locale,
+    DateStyle dateStyle,
     List<DemandOrder> orders,
     int row,
     int column,
@@ -499,7 +500,7 @@ class _SequenceGrid extends ConsumerWidget {
       row: row,
       column: column,
       block: block,
-      locale: locale,
+      dateStyle: dateStyle,
     );
     if (writes.isEmpty) return;
     await ref

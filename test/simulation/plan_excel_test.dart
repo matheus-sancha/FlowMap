@@ -5,6 +5,7 @@ import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/simulation/presentation/plan_excel.dart';
+import 'package:flowmap/src/common/date_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The plan as a workbook (DESIGN.md §8.5, §13).
@@ -116,9 +117,21 @@ void main() {
     );
   }
 
+  // Pinned rather than left to the locale, so the number-format assertions
+  // below are about the export rather than about whatever machine runs them.
+  const dateStyle = DateStyle(
+    locale: 'en_US',
+    setting: DateFormatSetting.dayMonthYear,
+  );
+
   xl.Excel decoded(StoredRun run, {String projectName = 'H2 2026'}) =>
       xl.Excel.decodeBytes(
-        buildPlanWorkbook(run: run, projectName: projectName, strings: strings),
+        buildPlanWorkbook(
+          run: run,
+          projectName: projectName,
+          strings: strings,
+          dateStyle: dateStyle,
+        ),
       );
 
   List<xl.CellValue?> row(xl.Excel book, String sheet, int index) =>
@@ -358,6 +371,43 @@ void main() {
       expect(row(book, 'Line', 1)[0], const xl.IntCellValue(1));
       expect(row(book, 'Line', 2)[0], const xl.IntCellValue(2));
       expect(row(book, 'Line', 3)[0], const xl.IntCellValue(3));
+    });
+  });
+
+  group('the date columns carry a number format (§12.4)', () {
+    xl.CellStyle? styleAt(xl.Excel book, int column) => book
+        .sheets['Line']!
+        .cell(xl.CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 1))
+        .cellStyle;
+
+    test("a date says which way round it means, in the user's format", () {
+      // Typed cells were never the problem — §13.1 already proved they are
+      // dates. What was missing is the format, without which Excel renders
+      // them by the *viewer's* default and a date column reads `45 872`.
+      final book = decoded(
+        runOf(studies: [study('study-1', 'Line')], plan: [planRow(sequence: 0)]),
+      );
+
+      expect(styleAt(book, 6)?.numberFormat.formatCode, 'dd/mm/yyyy');
+      expect(styleAt(book, 7)?.numberFormat.formatCode, 'dd/mm/yyyy');
+    });
+
+    test('the two Order columns keep their clock reading', () {
+      // The file says more than the screen does, deliberately — and the time
+      // is 24-hour whatever the date format, which is §12.4's split.
+      final book = decoded(
+        runOf(studies: [study('study-1', 'Line')], plan: [planRow(sequence: 0)]),
+      );
+
+      expect(styleAt(book, 8)?.numberFormat.formatCode, 'dd/mm/yyyy hh:mm');
+      expect(styleAt(book, 9)?.numberFormat.formatCode, 'dd/mm/yyyy hh:mm');
+    });
+
+    test('it is the format the screen would have written', () {
+      // The claim worth asserting: the file and the app cannot disagree,
+      // because both come from one `DateStyle`.
+      expect(dateStyle.excelPattern, 'dd/mm/yyyy');
+      expect(dateStyle.format(DateTime(2026, 8, 3)), '03/08/2026');
     });
   });
 }

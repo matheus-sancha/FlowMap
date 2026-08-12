@@ -22,6 +22,8 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../app/build_info.dart';
 import '../../../common/unit_labels.dart';
+import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../diagnostics/application/diagnostics.dart';
 import '../data/simulation_runs_repository.dart';
@@ -73,6 +75,7 @@ Uint8List buildPlanWorkbook({
   required StoredRun run,
   required String projectName,
   required PlanExcelStrings strings,
+  required DateStyle dateStyle,
 }) {
   final book = xl.Excel.createExcel();
   // Whatever `createExcel` opens with. Deleted once there is something else in
@@ -122,6 +125,7 @@ Uint8List buildPlanWorkbook({
     ]);
     for (final row in entry.value) {
       sheet.appendRow(_planRow(row));
+      _formatDates(sheet, sheet.maxRows - 1, dateStyle);
     }
   }
 
@@ -134,6 +138,50 @@ Uint8List buildPlanWorkbook({
   // cannot happen here: the stamp sheet always has rows.
   return Uint8List.fromList(bytes ?? const []);
 }
+
+/// The date columns of the row just written, in the user's own format (§12.4).
+///
+/// **Without this a date column reads `45 872`.** The cells are already typed —
+/// §13.1's whole claim is that they are dates rather than strings that look
+/// like dates — but a typed cell with no number format is rendered by whatever
+/// the *viewer's* Excel defaults to, which for this package is `mm-dd-yy`. So
+/// the one thing the file could not say was which way round it meant.
+///
+/// The pattern comes from the same [DateStyle] the screen renders with, so the
+/// exported file and the table it was exported from cannot disagree.
+///
+/// Applied per cell after the row is appended, because `appendRow` takes values
+/// and not styles.
+void _formatDates(xl.Sheet sheet, int row, DateStyle dateStyle) {
+  final date = xl.NumFormat.custom(formatCode: dateStyle.excelPattern);
+  // The two Order columns carry the instant, which is why the file says more
+  // than the screen does (§13.1). 24-hour, which is §12.4's split: dates follow
+  // the user, clock readings do not.
+  final instant = xl.NumFormat.custom(
+    formatCode: '${dateStyle.excelPattern} hh:mm',
+  );
+
+  for (final (column, format) in [
+    (_needDateColumn, date),
+    (_materialDateColumn, date),
+    (_orderStartColumn, instant),
+    (_orderEndColumn, instant),
+  ]) {
+    final cell = sheet.cell(
+      xl.CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row),
+    );
+    // An empty cell is left alone: a blank means blank (see `_planRow`), and
+    // giving it a date format would be claiming it holds a date.
+    if (cell.value == null) continue;
+    cell.cellStyle = xl.CellStyle(numberFormat: format);
+  }
+}
+
+/// Where the dates sit in [_planRow], which is §8.5's column order.
+const _needDateColumn = 6;
+const _materialDateColumn = 7;
+const _orderStartColumn = 8;
+const _orderEndColumn = 9;
 
 /// One order, typed.
 ///
@@ -230,6 +278,7 @@ Future<void> exportPlanExcel(
   final bytes = buildPlanWorkbook(
     run: run,
     projectName: projectName,
+    dateStyle: DateStyleScope.of(context),
     strings: PlanExcelStrings(
       runSheet: l10n.simExportRunSheet,
       unnamedStudy: l10n.study,

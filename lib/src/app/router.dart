@@ -7,6 +7,7 @@ import '../features/diagnostics/application/diagnostics.dart';
 import '../features/projects/presentation/project_workspace_screen.dart';
 import '../features/projects/presentation/projects_screen.dart';
 import '../features/resources/presentation/resources_screen.dart';
+import '../features/settings/presentation/settings_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'app_shell.dart';
 
@@ -74,10 +75,7 @@ GoRouter router(Ref ref) {
             routes: [
               GoRoute(
                 path: '/settings',
-                builder: (context, state) => PlaceholderScreen(
-                  title: AppLocalizations.of(context).navSettings,
-                  icon: Icons.settings_outlined,
-                ),
+                builder: (context, state) => const SettingsScreen(),
               ),
             ],
           ),
