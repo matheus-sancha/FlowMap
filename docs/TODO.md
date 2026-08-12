@@ -30,7 +30,11 @@ moved the dispatch rule off the station onto the inventory node, which invalidat
 — and they have since been superseded by four v15 runs. **Read figures against `2f4c8db4`**
 (2026-08-11, capacity 2 on `FIFO CEU27`, pacemaker CEU27, 30-day buffer — the configuration the
 round was arguing for), with `676fb0e3` as the capped-but-ungated comparison and `5bf76ac1` as the
-v15 baseline with nothing set. Rounds two to four are untouched.
+v15 baseline with nothing set.
+
+**Round two is closed.** §3.4 landed and was driven, and §3.5 was dropped on the field's verdict
+that the chart already reads correctly — so no schema bump this round and the Gantt is done being
+changed. Rounds three and four are untouched.
 
 **The v14 → v15 migration has run against the real database** — in the Debug build on 2026-08-10,
 between the `flowmap.sqlite.backup-v14-20260810-222300` beside it and the first v15 run at 22:25:49.
@@ -1201,26 +1205,31 @@ _Original wording, for the record:_
   enough for both. Keeps every label that reads correctly today reading the same way. `barAt` and the
   hover card extend to lane rows unchanged.
 
-### 3.5 Closed time on the Gantt — **round two**
+### 3.5 Closed time on the Gantt — **dropped 2026-08-11**
 
-*"Gantt not showing the weekends/holidays."* §2.7 ruled this out — *"splitting a bar at closed time
-would need calendars a stored run does not have"* — so it needs new stored data whatever is chosen,
-and joining to the live plant is not available: shading that changed silently when someone edited a
-shift pattern would be worse than none.
+**Dropped after looking at the chart, not on the argument.** The field verdict was that the Gantt
+reads correctly as it stands, so §2.7's *"a gap means not running — closed and starved alike"*
+stays, and it stays as a decision that has now been **checked against the running app** rather than
+only reasoned about. §8.6 needs no change; the sentence it already carries is the one that stands.
 
-**Each station's calendar is snapshotted into the run** — shift pattern, staffing and exceptions.
-Compact: `ShiftPatternSpec` is a weekday bitmask plus shift windows, and `staffing_codec.dart`
-already renders operators as `1/1/1`. `WorkingCalendar` is pure, so the view rebuilds it and computes
-closed spans **for the visible window only**, the way `ganttTicks` already does for the same reason
-(§16.9's ~13 µs per local `DateTime`). Per row, because stations genuinely differ and per-station
-calendars are the whole of M1.
+Worth keeping, because the cost of the reversal is what makes dropping it cheap: this was the only
+item in round two that needed **new stored data and a schema bump**. Each station's calendar would
+have had to be snapshotted into the run — shift pattern, staffing and exceptions — because §7.10
+forbids joining to the live plant, and shading that changed silently when someone edited a shift
+pattern would be worse than none.
 
-This turns §2.7's *"a gap means not running — closed and starved alike"* into two distinguishable
-states, which is a knowing reversal rather than an oversight.
+**If it ever comes back**, the design was settled and only the wanting was missing: snapshot per
+station (compact — `ShiftPatternSpec` is a weekday bitmask plus shift windows, and
+`staffing_codec.dart` already renders operators as `1/1/1`), rebuild `WorkingCalendar` in the view
+and compute closed spans **for the visible window only**, the way `ganttTicks` already does for the
+same reason (§16.9's ~13 µs per local `DateTime`).
 
-_Rejected: one shading for the whole chart from the pace setter._ One snapshot instead of eight and
-it reads like every other Gantt tool — and it is a lie on every row whose station works a different
-pattern.
+_Rejected then and still rejected: one shading for the whole chart from the pace setter._ One
+snapshot instead of eight and it reads like every other Gantt tool — and it is a lie on every row
+whose station works a different pattern.
+
+_The original request was_ **"Gantt not showing the weekends/holidays."** _It is answered by the
+Queue table, which is where "how much of that gap was even available" already lives._
 
 ### 3.6 The date format is the user's — **round three**
 
@@ -1278,8 +1287,8 @@ doing it that way finds things. Sections this round will touch: **§5.2** (the s
 decorative; the decorative layer becomes reachable), **§5.5** (lanes govern: discipline, capacity,
 blocking), **§6.1** and **§8.3** and **§8.4** (parallel capacity means the same thing everywhere),
 **§7.2** (a full lane sends a slot out empty), **§7.3**, **§7.4** (the rule moves off the station),
-**§7.7**, **§7.8** (the start buffer), **§7.10** (lane visits, blocked seconds, calendar snapshots),
-**§8.6** (lane rows, closed-time shading, bar labels), **§12.1** (the results banner), **§12.4**
+**§7.7**, **§7.8** (the start buffer), **§7.10** (lane visits, blocked seconds), **§8.6** (lane rows,
+bar labels, and a station's sub-rows), **§12.1** (the results banner), **§12.4**
 (dates follow the setting), **§13.1** (the export's number formats), **§16.16** (schema v15, new),
 **§17.5**, **§18.5** (empty slots, answered) and **§18.8** (the pace setter is chosen, not derived).
 
