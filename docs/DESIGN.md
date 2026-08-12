@@ -1347,10 +1347,23 @@ to the project (§7.7), so it should not require being on one of six tabs to sta
 
 - **Pressing it never moves the reader.** A run takes a second or two on a background isolate
   (§7.1); being thrown out of a half-typed sequence cell to watch it is worse than not seeing the
-  result the instant it exists. The spinner stays on the button, and a snackbar reports the headline
-  with a single action that brings you to the rest. The tab controller therefore belongs to the
-  workspace rather than to the tab strip — a controller one level below the button that needs it
-  cannot be reached without threading a callback down and an index back up.
+  result the instant it exists. The spinner stays on the button, and a **banner above the tabs**
+  reports the headline with one action that brings you to the rest and a close button. The tab
+  controller therefore belongs to the workspace rather than to the tab strip — a controller one
+  level below the button that needs it cannot be reached without threading a callback down and an
+  index back up.
+
+  **A banner, not a snackbar, and it stays until it is dismissed.** It was a plain `SnackBar` on
+  Flutter's four-second default, which is not long enough to read a figure you asked for and is
+  anchored to the bottom of the window — where, since the Gantt took the full body height (§8.6), a
+  bar that never went away would park permanently over the last station's row and the scrollbar
+  gutter §2.11 added to reach it. A banner pushes content down instead of covering it, and a run's
+  outcome is a statement about the project rather than a transient acknowledgement.
+
+  Two details: **the action dismisses as well as navigating**, because a bar still offering to take
+  you to results you are now looking at is asking a question already answered; and **a failed run
+  offers no `View results`**, since there is no run to look at and a button promising one would be
+  a lie. It stays dismissible either way.
 - **The disabled tooltip names the first thing in the way, and the study it belongs to.** §11's
   readiness panel is on a tab the reader may not be looking at, so the reason travels with the
   button. One reason rather than all of them: a tooltip is a sentence and the panel is the list.

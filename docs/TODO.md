@@ -1231,7 +1231,23 @@ whose station works a different pattern.
 _The original request was_ **"Gantt not showing the weekends/holidays."** _It is answered by the
 Queue table, which is where "how much of that gap was even available" already lives._
 
-### 3.6 The date format is the user's — **round three**
+### 3.6 The date format is the user's — **done 2026-08-11**
+
+Landed as described, written up in **§12.4** and **§13.1**. 17 tests, 660 in all. The
+`app_settings` table and the Settings screen were both built-but-unreachable since M1 (§17.5) and
+are now both reached. Three things worth keeping:
+
+- **The Excel pattern is derived from the same `DateFormat` the screen renders with**, not listed
+  per setting — which is the only way it can be right under the locale default, where no table in
+  this repo could know what `intl` chose for that locale. `intl`'s `M` becomes Excel's `m`, and
+  widths are padded so a locale's `M/d/y` does not reach a planner as `8/3/26`.
+- **A scope, not a provider read at each site.** Almost nothing that renders a date is a consumer —
+  the hover card, the run header and the plan table are plain widgets deep inside painted or
+  scrolled trees — so one `Consumer` at the root installs `DateStyleScope`.
+- **The round-trip test runs over every setting**, not the one being added, so a fifth format
+  cannot land with only half of it wired.
+
+### 3.6 The date format is the user's — _original wording_
 
 *"Date format DD/MM/YYYY — user set in settings."* §12.4 currently says dates follow the locale, and
 the app has no locale setting at all: it follows Windows, so an en-US machine shows `8/10/2026`.
@@ -1253,7 +1269,21 @@ The Gantt axis keeps its month names (`Jan 14`); they are not a numeric format a
 under every tick is worse. §12.4 is amended from *dates follow the locale* to *dates follow the
 user's setting, defaulting to the locale*.
 
-### 3.7 The result stays until it is dismissed — **round three**
+### 3.7 The result stays until it is dismissed — **done 2026-08-11**
+
+Landed as described, in **§12.1**. Two things the plan did not settle, both decided by writing it:
+
+- **The action dismisses as well as navigating.** A bar still offering to take you to results you
+  are now looking at is asking a question already answered.
+- **A failed run offers no `View results`** — there is no run to look at, and a button promising
+  one would be a lie. It stays dismissible either way, since a bar that cannot be got rid of would
+  be worse than the snackbar it replaced.
+
+`RunBanner` is `@visibleForTesting` rather than private: the workspace needs a project, a study
+list and a database to mount, and **there is no test coverage of that screen at all** — §1.8 moved
+the last of it out. Four widget tests, 664 in all.
+
+### 3.7 The result stays until it is dismissed — _original wording_
 
 *"View results persistent bar after run, add a close button."* Today it is a plain `SnackBar` with
 Flutter's 4-second default (`project_workspace_screen.dart:221`), so it is not currently persistent.

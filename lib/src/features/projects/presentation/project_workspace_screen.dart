@@ -50,8 +50,19 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   /// The Simulation tab, after the five study ones.
   static const _simulation = 5;
 
+  /// What the last run said, until the reader dismisses it (§12.1).
+  ///
+  /// **A banner rather than a snackbar.** A snackbar anchors to the bottom of
+  /// the window, and since the Gantt took the full body height (§8.6) one that
+  /// never goes away parks permanently over the last station's row and the
+  /// scrollbar gutter §2.11 added to reach it. A banner pushes content down
+  /// instead of covering it — and a run's outcome is a statement about the
+  /// project that should stay until it is read, which is not what a snackbar
+  /// is for.
+  ({String message, bool failed})? _outcome;
+
   /// Owned here rather than by [_StudyTabs], because Simulate now lives in the
-  /// app bar (§12.1) and the snackbar it raises has to be able to bring the
+  /// app bar (§12.1) and the banner it raises has to be able to bring the
   /// reader to the results. A controller one level below the button that needs
   /// it cannot be reached without passing a callback down and an index back up.
   late final TabController _tabs = TabController(length: 6, vsync: this);
@@ -129,12 +140,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               _SimulateButton(
                 project: project,
                 onViewResults: () => _tabs.index = _simulation,
+                onFinished: (outcome) => setState(() => _outcome = outcome),
               ),
               const SizedBox(width: 8),
             ],
           ),
-          body: Row(
+          body: Column(
             children: [
+              // Above the tabs and across the full width, so it pushes the
+              // workspace down rather than covering any part of it.
+              if (_outcome case final outcome?)
+                RunBanner(
+                  outcome: outcome,
+                  onViewResults: () {
+                    _tabs.index = _simulation;
+                    setState(() => _outcome = null);
+                  },
+                  onDismiss: () => setState(() => _outcome = null),
+                ),
+              Expanded(
+                child: Row(
+                  children: [
               // Animated rather than snapped: a pane that vanishes leaves the
               // reader hunting for what moved.
               AnimatedSize(
@@ -160,6 +186,9 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                         study: selected,
                         tabs: _tabs,
                       ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -169,18 +198,85 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   }
 }
 
+/// What the last run said, until it is dismissed (DESIGN.md §12.1).
+///
+/// Carries the headline figure, one way to the rest of it, and a close button.
+/// The action dismisses as well as navigating: having arrived at the results,
+/// a bar still offering to take you there is asking a question already
+/// answered.
+///
+/// Visible for testing: the workspace itself needs a project, a study list and
+/// a database to mount, and none of that is what the two rules here are about.
+@visibleForTesting
+class RunBanner extends StatelessWidget {
+  const RunBanner({
+    super.key,
+    required this.outcome,
+    required this.onViewResults,
+    required this.onDismiss,
+  });
+
+  final ({String message, bool failed}) outcome;
+  final VoidCallback onViewResults;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return MaterialBanner(
+      backgroundColor: outcome.failed
+          ? theme.colorScheme.errorContainer
+          : theme.colorScheme.surfaceContainerHighest,
+      leading: Icon(
+        outcome.failed ? Icons.error_outline : Icons.check_circle_outline,
+        color: outcome.failed
+            ? theme.colorScheme.onErrorContainer
+            : theme.colorScheme.primary,
+      ),
+      content: Text(
+        outcome.message,
+        style: TextStyle(
+          color: outcome.failed
+              ? theme.colorScheme.onErrorContainer
+              : theme.colorScheme.onSurface,
+        ),
+      ),
+      actions: [
+        // Nowhere to go when there is no run to look at.
+        if (!outcome.failed)
+          TextButton(
+            onPressed: onViewResults,
+            child: Text(l10n.simViewResults),
+          ),
+        TextButton(onPressed: onDismiss, child: Text(l10n.actionClose)),
+      ],
+    );
+  }
+}
+
 /// Simulate, on the project's own chrome (DESIGN.md §12.1).
 ///
 /// **Pressing it never moves the reader.** A run takes a second or two on a
 /// background isolate (§7.1), and being thrown out of a half-typed sequence
 /// cell to watch it is worse than not seeing the result immediately. The
-/// spinner stays on the button and a snackbar reports the headline with one
-/// way to the rest.
+/// spinner stays on the button and a banner reports the headline with one way
+/// to the rest.
 class _SimulateButton extends ConsumerWidget {
-  const _SimulateButton({required this.project, required this.onViewResults});
+  const _SimulateButton({
+    required this.project,
+    required this.onViewResults,
+    required this.onFinished,
+  });
 
   final Project project;
   final VoidCallback onViewResults;
+
+  /// What to say once the run is over. Raised here and rendered by the
+  /// workspace, because the banner belongs above the tabs rather than beside
+  /// the button that started it.
+  final ValueChanged<({String message, bool failed})> onFinished;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -214,25 +310,18 @@ class _SimulateButton extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations l10n,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     await ref.read(simulationRunnerProvider(project.id).notifier).run();
 
     final run = ref.read(simulationRunnerProvider(project.id));
     final metrics = run.value?.metrics;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          run.hasError || metrics == null
-              ? l10n.simulationRunFailed
-              : '${l10n.simOnTimeDelivery}: '
-                    '${(metrics.onTimeDelivery * 100).round()}%',
-        ),
-        action: SnackBarAction(
-          label: l10n.simViewResults,
-          onPressed: onViewResults,
-        ),
-      ),
-    );
+    final failed = run.hasError || metrics == null;
+    onFinished((
+      message: failed
+          ? l10n.simulationRunFailed
+          : '${l10n.simOnTimeDelivery}: '
+                '${(metrics.onTimeDelivery * 100).round()}%',
+      failed: failed,
+    ));
   }
 
   /// The first thing standing in the way, named with the study it belongs to.
