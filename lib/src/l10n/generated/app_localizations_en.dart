@@ -1556,6 +1556,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simGanttChangeover => 'A changeover was paid to start it';
 
   @override
+  String simScheduleTail(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count orders finished after $date using the last defined schedule',
+      one: '1 order finished after $date using the last defined schedule',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simScheduleTailHelp =>
+      'Takt and workcenter schedule periods stop at that date, so the run carried the last one forward past it. That is not an error — a run goes until the last order completes — but the figures after that date describe capacity nobody has defined. Extend the periods and run again to be sure of them.';
+
+  @override
   String get settingsDisplay => 'Display';
 
   @override

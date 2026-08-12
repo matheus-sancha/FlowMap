@@ -370,6 +370,12 @@ class _ResultsState extends State<_Results> {
                 _AbortBanner(result: run.result),
                 const SizedBox(height: 12),
               ],
+              // Beneath the abort banner and above the headline, because it
+              // qualifies every figure below it rather than replacing them.
+              if (run.result.ordersPastHorizon.isNotEmpty) ...[
+                _ScheduleTailBanner(result: run.result),
+                const SizedBox(height: 12),
+              ],
               _Headline(metrics: run.metrics),
               const SizedBox(height: 12),
               Align(
@@ -718,6 +724,44 @@ class _AbortBanner extends StatelessWidget {
           ),
           SimAbortReason.nothingToRun => l10n.simulationAbortNothingToRun,
         }),
+      ),
+    );
+  }
+}
+
+/// The run went past the last schedule anyone defined (DESIGN.md §11.1).
+///
+/// **A warning rather than an error.** Schedule periods are finite while a run
+/// goes until the last order completes, so refusing here would make an
+/// overloaded plant unsimulatable exactly when the simulation is most
+/// informative — and the reader cannot know how far to extend their periods
+/// until they have run it. What the app owes them is to say which figures are
+/// standing on capacity nobody defined.
+class _ScheduleTailBanner extends StatelessWidget {
+  const _ScheduleTailBanner({required this.result});
+
+  final SimRunResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dateStyle = DateStyleScope.of(context);
+
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: ListTile(
+        leading: Icon(
+          Icons.event_busy_outlined,
+          color: theme.colorScheme.tertiary,
+        ),
+        title: Text(
+          l10n.simScheduleTail(
+            result.ordersPastHorizon.length,
+            dateStyle.format(result.scheduleHorizon),
+          ),
+        ),
+        subtitle: Text(l10n.simScheduleTailHelp),
       ),
     );
   }

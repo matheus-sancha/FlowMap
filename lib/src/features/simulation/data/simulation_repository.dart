@@ -162,6 +162,10 @@ class SimulationRepository {
         studies: assembled,
         workcenters: workcenters,
         readiness: readiness,
+        scheduleHorizon: _horizonOf(
+          takts: [for (final study in flagged) demand[study.id]!.takt],
+          stations: workcenters.values,
+        ),
       );
     }
 
@@ -191,3 +195,33 @@ typedef _StudyDemand = ({
   Map<String, Map<String, Duration>> processTimes,
   TaktScheduleSpec takt,
 });
+
+/// The last date every schedule in the run is actually defined for (§11.1).
+///
+/// **The minimum of each schedule's own last end date**, because past the
+/// earliest of them at least one schedule is being carried forward — and a
+/// figure is only as defined as the least-defined thing that produced it.
+/// Taking the maximum would say the run was covered right up to whichever
+/// station happened to have the longest schedule.
+///
+/// Null when nothing has any periods, which is a state the readiness panel
+/// already blocks on: there is no horizon to be past.
+DateTime? _horizonOf({
+  required Iterable<TaktScheduleSpec> takts,
+  required Iterable<SimWorkcenter> stations,
+}) {
+  DateTime? earliest;
+  void consider(Iterable<DateTime> ends) {
+    if (ends.isEmpty) return;
+    final last = ends.reduce((a, b) => a.isAfter(b) ? a : b);
+    if (earliest == null || last.isBefore(earliest!)) earliest = last;
+  }
+
+  for (final takt in takts) {
+    consider([for (final period in takt.periods) period.endDate]);
+  }
+  for (final station in stations) {
+    consider([for (final period in station.schedule.periods) period.endDate]);
+  }
+  return earliest;
+}

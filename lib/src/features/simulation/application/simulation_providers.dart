@@ -129,6 +129,7 @@ class SimulationRunner extends _$SimulationRunner {
           studies: assembled.studies,
           workcenters: assembled.workcenters,
           dispatch: dispatch,
+          scheduleHorizon: assembled.scheduleHorizon,
         ),
       );
       // The measurement §14 is still short of, recorded where a field report
@@ -169,6 +170,7 @@ typedef SimRunRequest = ({
   List<SimStudy> studies,
   Map<String, SimWorkcenter> workcenters,
   DispatchRule dispatch,
+  DateTime? scheduleHorizon,
 });
 
 /// The run, on a background isolate (DESIGN.md §7.1).
@@ -182,4 +184,5 @@ SimRunResult runSimulationOffThread(SimRunRequest request) => runSimulation(
   studies: request.studies,
   workcenters: request.workcenters,
   dispatch: request.dispatch,
+  scheduleHorizon: request.scheduleHorizon,
 );

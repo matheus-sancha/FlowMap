@@ -2796,6 +2796,18 @@ abstract class AppLocalizations {
   /// **'A changeover was paid to start it'**
   String get simGanttChangeover;
 
+  /// No description provided for @simScheduleTail.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 order finished after {date} using the last defined schedule} other{{count} orders finished after {date} using the last defined schedule}}'**
+  String simScheduleTail(int count, String date);
+
+  /// No description provided for @simScheduleTailHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt and workcenter schedule periods stop at that date, so the run carried the last one forward past it. That is not an error — a run goes until the last order completes — but the figures after that date describe capacity nobody has defined. Extend the periods and run again to be sure of them.'**
+  String get simScheduleTailHelp;
+
   /// No description provided for @settingsDisplay.
   ///
   /// In en, this message translates to:

@@ -227,6 +227,7 @@ class SimRunResult {
     this.blockedByWorkcenter = const {},
     this.lanes = const [],
     this.openLaneVisits = const [],
+    this.scheduleHorizon,
     this.abort,
   });
 
@@ -268,6 +269,30 @@ class SimRunResult {
 
   /// Orders still standing in a lane when the run ended.
   final List<SimOpenLaneVisit> openLaneVisits;
+
+  /// The last date every schedule this run used was defined for (§11.1).
+  ///
+  /// Anything happening after it used a period carried forward from before it.
+  /// That is the right behaviour — schedule periods are finite while a run goes
+  /// until the last order completes, and refusing would make an overloaded
+  /// plant unsimulatable exactly when the simulation is most informative — but
+  /// it has to be **said**, because the reader cannot know how far to extend
+  /// their periods until they have run it.
+  ///
+  /// Null on a run made before v16, and on one whose plant had no periods.
+  final DateTime? scheduleHorizon;
+
+  /// Orders that finished past [scheduleHorizon].
+  ///
+  /// Derived rather than stored beside the date, so the two cannot disagree
+  /// about a set of orders both are describing.
+  Iterable<SimOrderOutcome> get ordersPastHorizon {
+    final horizon = scheduleHorizon;
+    if (horizon == null) return const [];
+    return orders.where(
+      (o) => o.delivered != null && o.delivered!.isAfter(horizon),
+    );
+  }
 
   final SimAbortReason? abort;
 

@@ -567,4 +567,100 @@ void main() {
     // (§16.14). The plan draws a dash for both, which is honest either way.
     expect(plan[1].partDescription, isNull);
   });
+
+  test('the schedule horizon survives, and with it the warning', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+
+    // A run that finished past the last defined schedule. The horizon has to
+    // be stored, not recomputed: how far the periods reach is a fact about the
+    // plant, and §7.10 forbids a stored run joining back to it — so a run that
+    // could not say this would drop its own caveat exactly when the reader
+    // comes back to quote the figures.
+    final horizon = DateTime(2026, 12, 31);
+    final result = SimRunResult(
+      start: DateTime(2026, 8),
+      end: DateTime(2027, 2),
+      guard: DateTime(2027, 6),
+      steps: const [],
+      orders: [
+        SimOrderOutcome(
+          studyId: 'study-1',
+          orderId: 'o1',
+          sequence: 0,
+          partId: 'part-1',
+          needDate: DateTime(2026, 12),
+          released: DateTime(2026, 11),
+          delivered: DateTime(2026, 12, 20),
+        ),
+        SimOrderOutcome(
+          studyId: 'study-1',
+          orderId: 'o2',
+          sequence: 1,
+          partId: 'part-1',
+          needDate: DateTime(2027),
+          released: DateTime(2026, 12),
+          delivered: DateTime(2027, 1, 15),
+        ),
+      ],
+      emptySlots: const [],
+      busyByWorkcenter: const {},
+      openByWorkcenter: const {},
+      scheduleHorizon: horizon,
+    );
+
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      dispatch: DispatchRule.fifo,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final stored = await runs.loadRun(runId);
+    expect(stored!.result.scheduleHorizon, horizon);
+
+    // The count is derived from the stored orders rather than stored beside
+    // the date, so the two cannot come to describe different sets.
+    expect(stored.result.ordersPastHorizon.map((o) => o.orderId), ['o2']);
+  });
+
+  test('a run with no horizon warns about nothing', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+
+    // Every run made before v16, and every plant with no periods at all. The
+    // absence has to read as "no warning" rather than as "everything is past
+    // it", which is what an epoch default would have done.
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      dispatch: DispatchRule.fifo,
+      result: SimRunResult(
+        start: DateTime(2026, 8),
+        end: DateTime(2026, 9),
+        guard: DateTime(2026, 10),
+        steps: const [],
+        orders: [
+          SimOrderOutcome(
+            studyId: 'study-1',
+            orderId: 'o1',
+            sequence: 0,
+            partId: 'part-1',
+            needDate: DateTime(2026, 9),
+            released: DateTime(2026, 8),
+            delivered: DateTime(2026, 9),
+          ),
+        ],
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+      ),
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final stored = await runs.loadRun(runId);
+    expect(stored!.result.scheduleHorizon, isNull);
+    expect(stored.result.ordersPastHorizon, isEmpty);
+  });
 }

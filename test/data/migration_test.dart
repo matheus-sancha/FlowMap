@@ -1410,6 +1410,13 @@ void main() {
     // The two new tables arrive empty, so the counter really did reach the end.
     expect(await db.select(db.simulationRunLanes).get(), isEmpty);
     expect(await db.select(db.simulationRunLaneVisits).get(), isEmpty);
+
+    // v16 rides on the same fixture: one nullable column, and a run stored
+    // before §11.1 had anywhere to put its horizon says it has none — which is
+    // true of it, and is what makes the warning absent rather than wrong on
+    // every run made before this version.
+    final header = await db.select(db.simulationRuns).getSingle();
+    expect(header.scheduleHorizon, isNull);
   });
 
   test('an upgrade that died part-way can still be opened', () async {

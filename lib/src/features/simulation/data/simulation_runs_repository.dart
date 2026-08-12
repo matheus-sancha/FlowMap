@@ -92,6 +92,7 @@ class SimulationRunsRepository {
               runEnd: result.end,
               guard: result.guard,
               abortReason: Value(result.abort?.name),
+              scheduleHorizon: Value(result.scheduleHorizon),
               createdAt: DateTime.now(),
             ),
           );
@@ -378,6 +379,7 @@ class SimulationRunsRepository {
               enteredAt: row.enteredAt,
             ),
       ],
+      scheduleHorizon: header.scheduleHorizon,
       abort: header.abortReason == null
           ? null
           : _parse(

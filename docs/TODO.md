@@ -3,8 +3,8 @@
 Working state as of 2026-08-11. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **664 tests passing** (one of them
-`live`-tagged and skipped without a database). Schema is at **v15**. M4 is code-complete.
+Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **669 tests passing** (one of them
+`live`-tagged and skipped without a database). Schema is at **v16**. M4 is code-complete.
 
 **§3 is code-complete except §3.8, which is deferred by decision until the rest of the plan is
 done.** Rounds one, two and three have all landed; §3.5 was dropped on the field's verdict rather
@@ -1491,9 +1491,21 @@ only.
 - [ ] **§18.5 is still open**: empty slots as a reported metric. They are counted, dated, stored and
       shown on the Simulation tab; what is missing is a decision about whether anything more should
       happen — a list of *which* slots, and whether an empty slot should ever be a warning.
-- [ ] **§11.1's tail warning is not shown.** A run that completes past the last defined schedule
-      period carries the last one forward, and the user is not told. The engine does the right
-      thing; nothing reports it.
+- [x] ~~**§11.1's tail warning is not shown.**~~ Done 2026-08-11, schema **v16** — one nullable
+      column, `simulation_runs.schedule_horizon`, written up as §16.17 and §11.1. Specified in M2
+      and never built because there was nowhere to put the one fact it needs: the count is derivable
+      from the stored orders, the horizon is not derivable from anything, and §7.10 forbids reading
+      it back off a plant whose periods may have been extended since.
+
+      **It is not currently firing on célula 11B**, which was checked before it was built rather
+      than assumed: every takt and workcenter period runs to 2026-12-31 and the newest run ends
+      2026-11-02, two months inside it. So this is a guard against a case the field has not hit yet,
+      not a fix for one it has. The recommendation that led here overstated the urgency.
+
+      **The horizon is the earliest of each schedule's last date, not the latest** — past the first
+      one to run out, something is being carried forward, and a figure is only as defined as the
+      least-defined thing behind it. Three tests cover the computation, two the round trip, and the
+      v15 fixture now also asserts v16's column arrives null.
 - [ ] **The decorative layer (§5.2)** and **`DiagnosticsLog.compose`** are still built-but-unreachable,
       both wanted by M5. Listed in §17.5. §1.7's node notes deliberately do **not** use the
       decorative layer: a free-placed sticker near a box is not a note belonging to it.

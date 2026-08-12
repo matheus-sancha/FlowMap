@@ -58,12 +58,14 @@ class SimRunInput {
     required this.studies,
     required this.workcenters,
     required this.readiness,
+    this.scheduleHorizon,
   });
 
   const SimRunInput.empty()
     : studies = const [],
       workcenters = const {},
-      readiness = const [];
+      readiness = const [],
+      scheduleHorizon = null;
 
   /// The studies that assembled. A study with problems is absent here and
   /// present in [readiness] — the engine is never handed a half-built one.
@@ -73,6 +75,15 @@ class SimRunInput {
 
   /// Every flagged study, ready or not, in the order the sidebar shows them.
   final List<StudyReadiness> readiness;
+
+  /// The last date **every** schedule this run uses is actually defined for
+  /// (§11.1), or null when nothing has periods at all.
+  ///
+  /// The minimum of each schedule's own last end date, not the maximum: past
+  /// the earliest of them, at least one schedule is being carried forward, and
+  /// that is the point from which the run stops describing a plant anyone has
+  /// defined.
+  final DateTime? scheduleHorizon;
 
   /// Whether Simulate may be pressed (§11).
   ///

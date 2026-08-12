@@ -1574,6 +1574,23 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se pagó un cambio de referencia para empezarla';
 
   @override
+  String simScheduleTail(int count, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count pedidos terminaron después del $date usando el último calendario definido',
+      one:
+          '1 pedido terminó después del $date usando el último calendario definido',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simScheduleTailHelp =>
+      'Los periodos de takt y de calendario de los centros de trabajo terminan en esa fecha, así que la simulación prolongó el último más allá de ella. No es un error —una simulación corre hasta que termina el último pedido— pero las cifras posteriores a esa fecha describen una capacidad que nadie ha definido. Amplíe los periodos y vuelva a simular para confirmarlas.';
+
+  @override
   String get settingsDisplay => 'Presentación';
 
   @override

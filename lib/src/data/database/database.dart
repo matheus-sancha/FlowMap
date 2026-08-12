@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -485,6 +485,15 @@ class AppDatabase extends _$AppDatabase {
         // about the queue that actually held the orders.
         await customStatement('DROP TABLE IF EXISTS workcenter_dispatch');
         await customStatement('DROP TABLE IF EXISTS simulation_run_dispatch');
+      }
+
+      if (from < 16) {
+        // §11.1's tail warning had nowhere to live. A run whose orders finish
+        // past the last defined schedule period carries that period forward,
+        // which is right — refusing would make an overloaded plant
+        // unsimulatable exactly when the simulation is most informative — but
+        // nothing said so. One nullable column, and no table is rebuilt.
+        await _ensureColumn(m, simulationRuns, simulationRuns.scheduleHorizon);
       }
 
       // Reference-data seeding runs outside every version guard, on every

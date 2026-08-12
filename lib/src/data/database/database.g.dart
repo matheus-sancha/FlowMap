@@ -11372,6 +11372,18 @@ class $SimulationRunsTable extends SimulationRuns
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _scheduleHorizonMeta = const VerificationMeta(
+    'scheduleHorizon',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduleHorizon =
+      GeneratedColumn<DateTime>(
+        'schedule_horizon',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -11392,6 +11404,7 @@ class $SimulationRunsTable extends SimulationRuns
     runEnd,
     guard,
     abortReason,
+    scheduleHorizon,
     createdAt,
   ];
   @override
@@ -11460,6 +11473,15 @@ class $SimulationRunsTable extends SimulationRuns
         ),
       );
     }
+    if (data.containsKey('schedule_horizon')) {
+      context.handle(
+        _scheduleHorizonMeta,
+        scheduleHorizon.isAcceptableOrUnknown(
+          data['schedule_horizon']!,
+          _scheduleHorizonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -11505,6 +11527,10 @@ class $SimulationRunsTable extends SimulationRuns
         DriftSqlType.string,
         data['${effectivePrefix}abort_reason'],
       ),
+      scheduleHorizon: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}schedule_horizon'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -11544,6 +11570,21 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
 
   /// Why it stopped early, by name. Null means it completed.
   final String? abortReason;
+
+  /// The last date every schedule this run used was actually defined for
+  /// (§11.1), or null when the run never went past one.
+  ///
+  /// **Stored, because the warning has to survive being reopened.** How far the
+  /// takt and workcenter periods reach is a fact about the plant, and §7.10
+  /// forbids joining back to it — so a run that could not say this would drop
+  /// its own caveat the moment the reader came back to it, which is exactly
+  /// when they are most likely to quote the figures.
+  ///
+  /// **The date and not the count.** How many orders finished past it is
+  /// derivable from `simulation_run_orders`, and storing both would let the two
+  /// disagree — §1.5's lesson, from the direction of duplication rather than of
+  /// omission.
+  final DateTime? scheduleHorizon;
   final DateTime createdAt;
   const SimulationRun({
     required this.id,
@@ -11553,6 +11594,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     required this.runEnd,
     required this.guard,
     this.abortReason,
+    this.scheduleHorizon,
     required this.createdAt,
   });
   @override
@@ -11566,6 +11608,9 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     map['guard'] = Variable<DateTime>(guard);
     if (!nullToAbsent || abortReason != null) {
       map['abort_reason'] = Variable<String>(abortReason);
+    }
+    if (!nullToAbsent || scheduleHorizon != null) {
+      map['schedule_horizon'] = Variable<DateTime>(scheduleHorizon);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -11582,6 +11627,9 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       abortReason: abortReason == null && nullToAbsent
           ? const Value.absent()
           : Value(abortReason),
+      scheduleHorizon: scheduleHorizon == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduleHorizon),
       createdAt: Value(createdAt),
     );
   }
@@ -11599,6 +11647,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       runEnd: serializer.fromJson<DateTime>(json['runEnd']),
       guard: serializer.fromJson<DateTime>(json['guard']),
       abortReason: serializer.fromJson<String?>(json['abortReason']),
+      scheduleHorizon: serializer.fromJson<DateTime?>(json['scheduleHorizon']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -11613,6 +11662,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       'runEnd': serializer.toJson<DateTime>(runEnd),
       'guard': serializer.toJson<DateTime>(guard),
       'abortReason': serializer.toJson<String?>(abortReason),
+      'scheduleHorizon': serializer.toJson<DateTime?>(scheduleHorizon),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -11625,6 +11675,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     DateTime? runEnd,
     DateTime? guard,
     Value<String?> abortReason = const Value.absent(),
+    Value<DateTime?> scheduleHorizon = const Value.absent(),
     DateTime? createdAt,
   }) => SimulationRun(
     id: id ?? this.id,
@@ -11634,6 +11685,9 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     runEnd: runEnd ?? this.runEnd,
     guard: guard ?? this.guard,
     abortReason: abortReason.present ? abortReason.value : this.abortReason,
+    scheduleHorizon: scheduleHorizon.present
+        ? scheduleHorizon.value
+        : this.scheduleHorizon,
     createdAt: createdAt ?? this.createdAt,
   );
   SimulationRun copyWithCompanion(SimulationRunsCompanion data) {
@@ -11647,6 +11701,9 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       abortReason: data.abortReason.present
           ? data.abortReason.value
           : this.abortReason,
+      scheduleHorizon: data.scheduleHorizon.present
+          ? data.scheduleHorizon.value
+          : this.scheduleHorizon,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -11661,6 +11718,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
           ..write('runEnd: $runEnd, ')
           ..write('guard: $guard, ')
           ..write('abortReason: $abortReason, ')
+          ..write('scheduleHorizon: $scheduleHorizon, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -11675,6 +11733,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     runEnd,
     guard,
     abortReason,
+    scheduleHorizon,
     createdAt,
   );
   @override
@@ -11688,6 +11747,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
           other.runEnd == this.runEnd &&
           other.guard == this.guard &&
           other.abortReason == this.abortReason &&
+          other.scheduleHorizon == this.scheduleHorizon &&
           other.createdAt == this.createdAt);
 }
 
@@ -11699,6 +11759,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   final Value<DateTime> runEnd;
   final Value<DateTime> guard;
   final Value<String?> abortReason;
+  final Value<DateTime?> scheduleHorizon;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const SimulationRunsCompanion({
@@ -11709,6 +11770,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     this.runEnd = const Value.absent(),
     this.guard = const Value.absent(),
     this.abortReason = const Value.absent(),
+    this.scheduleHorizon = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -11720,6 +11782,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     required DateTime runEnd,
     required DateTime guard,
     this.abortReason = const Value.absent(),
+    this.scheduleHorizon = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -11737,6 +11800,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     Expression<DateTime>? runEnd,
     Expression<DateTime>? guard,
     Expression<String>? abortReason,
+    Expression<DateTime>? scheduleHorizon,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -11748,6 +11812,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
       if (runEnd != null) 'run_end': runEnd,
       if (guard != null) 'guard': guard,
       if (abortReason != null) 'abort_reason': abortReason,
+      if (scheduleHorizon != null) 'schedule_horizon': scheduleHorizon,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -11761,6 +11826,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     Value<DateTime>? runEnd,
     Value<DateTime>? guard,
     Value<String?>? abortReason,
+    Value<DateTime?>? scheduleHorizon,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -11772,6 +11838,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
       runEnd: runEnd ?? this.runEnd,
       guard: guard ?? this.guard,
       abortReason: abortReason ?? this.abortReason,
+      scheduleHorizon: scheduleHorizon ?? this.scheduleHorizon,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -11801,6 +11868,9 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     if (abortReason.present) {
       map['abort_reason'] = Variable<String>(abortReason.value);
     }
+    if (scheduleHorizon.present) {
+      map['schedule_horizon'] = Variable<DateTime>(scheduleHorizon.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -11820,6 +11890,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
           ..write('runEnd: $runEnd, ')
           ..write('guard: $guard, ')
           ..write('abortReason: $abortReason, ')
+          ..write('scheduleHorizon: $scheduleHorizon, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -27513,6 +27584,7 @@ typedef $$SimulationRunsTableCreateCompanionBuilder =
       required DateTime runEnd,
       required DateTime guard,
       Value<String?> abortReason,
+      Value<DateTime?> scheduleHorizon,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -27525,6 +27597,7 @@ typedef $$SimulationRunsTableUpdateCompanionBuilder =
       Value<DateTime> runEnd,
       Value<DateTime> guard,
       Value<String?> abortReason,
+      Value<DateTime?> scheduleHorizon,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -27757,6 +27830,11 @@ class $$SimulationRunsTableFilterComposer
 
   ColumnFilters<String> get abortReason => $composableBuilder(
     column: $table.abortReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduleHorizon => $composableBuilder(
+    column: $table.scheduleHorizon,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28007,6 +28085,11 @@ class $$SimulationRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get scheduleHorizon => $composableBuilder(
+    column: $table.scheduleHorizon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -28062,6 +28145,11 @@ class $$SimulationRunsTableAnnotationComposer
 
   GeneratedColumn<String> get abortReason => $composableBuilder(
     column: $table.abortReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get scheduleHorizon => $composableBuilder(
+    column: $table.scheduleHorizon,
     builder: (column) => column,
   );
 
@@ -28323,6 +28411,7 @@ class $$SimulationRunsTableTableManager
                 Value<DateTime> runEnd = const Value.absent(),
                 Value<DateTime> guard = const Value.absent(),
                 Value<String?> abortReason = const Value.absent(),
+                Value<DateTime?> scheduleHorizon = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunsCompanion(
@@ -28333,6 +28422,7 @@ class $$SimulationRunsTableTableManager
                 runEnd: runEnd,
                 guard: guard,
                 abortReason: abortReason,
+                scheduleHorizon: scheduleHorizon,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -28345,6 +28435,7 @@ class $$SimulationRunsTableTableManager
                 required DateTime runEnd,
                 required DateTime guard,
                 Value<String?> abortReason = const Value.absent(),
+                Value<DateTime?> scheduleHorizon = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunsCompanion.insert(
@@ -28355,6 +28446,7 @@ class $$SimulationRunsTableTableManager
                 runEnd: runEnd,
                 guard: guard,
                 abortReason: abortReason,
+                scheduleHorizon: scheduleHorizon,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

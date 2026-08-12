@@ -1311,11 +1311,28 @@ app cannot afford.
 
 A gap *inside* the demand horizon (first to last need date) is a blocking error — a real data hole.
 Time *after* the last defined takt or workcenter schedule period carries the last period forward
-indefinitely, flagged as a run warning: *"12 orders completed after 31/12/2026 using the last
-defined schedule."*
+indefinitely, flagged as a run warning: *"12 orders finished after 31/12/2026 using the last defined
+schedule."*
 
 Without this, an overloaded plant becomes unsimulatable exactly when the simulation is most
 informative — and the user cannot know how far to extend their periods until they have run it.
+
+**The horizon is the earliest of each schedule's own last date, not the latest.** Past the first one
+to run out, at least one schedule is being carried forward, and a figure is only as defined as the
+least-defined thing that produced it. Taking the maximum would report a run as covered to whichever
+station happened to have the longest schedule.
+
+**It is stored on the run** (`simulation_runs.schedule_horizon`, §16.17), because how far the
+periods reach is a fact about the plant and §7.10 forbids a stored run joining back to one — so a
+run that could not say this would drop its own caveat the moment the reader reopened it, which is
+exactly when they are most likely to quote the figures. **The date and not the count**: how many
+orders finished past it is derivable from the stored orders, and keeping both would let the two
+describe different sets.
+
+**The engine carries it without reading it.** Past the horizon a schedule is simply carried forward,
+which is what `PeriodSchedule` already does; the run's job is to say that happened, not to behave
+differently. Null on any run made before v16 and on a plant with no periods, which reads as no
+warning rather than as everything being past it.
 
 ---
 
@@ -2192,6 +2209,22 @@ note at the top of `onUpgrade` requires. Skipping is safe rather than quiet: wha
 table later builds it from the current definition, which already carries the column.
 
 ---
+
+### 16.17 Schema v16, the tail warning
+
+One nullable column, `simulation_runs.schedule_horizon`: the last date every schedule a run used was
+actually defined for (§11.1). Purely additive — `addColumn` on a live table, no `TableMigration`,
+and nothing rebuilt — so it cannot leave a database half-copied, which matters on one that has
+already survived a half-finished upgrade (§16.11).
+
+**Why it needed storing at all.** §11.1's warning was specified in M2 and never built, because there
+was nowhere to put the one fact it needs. The count of orders past the horizon is derivable from
+`simulation_run_orders`; the horizon itself is not derivable from anything the run holds, and §7.10
+forbids reading it back off the plant — the periods may have been extended since, which would make
+an old run quietly stop warning.
+
+Null on every run made before this version, which reads as *no warning* rather than as *everything
+is past it*. The v14 → v15 fixture asserts exactly that, since it is the same shape of run.
 
 ## 17. Done between M2 and M3
 

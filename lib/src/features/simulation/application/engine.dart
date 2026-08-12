@@ -32,6 +32,11 @@ SimRunResult runSimulation({
   DispatchRule dispatch = DispatchRule.fifo,
   DateTime? start,
   DateTime? guard,
+  /// Carried through untouched, for §11.1's warning. The engine never reads
+  /// it: past the horizon a schedule is simply carried forward, which is what
+  /// `PeriodSchedule` already does, and the run's job is to say that happened
+  /// rather than to behave differently.
+  DateTime? scheduleHorizon,
 }) {
   final plan = planRun(studies: studies, workcenters: workcenters);
   final from = start ?? plan.start;
@@ -55,6 +60,7 @@ SimRunResult runSimulation({
     dispatch: dispatch,
     start: from,
     guard: guard ?? plan.guardFrom(from),
+    scheduleHorizon: scheduleHorizon,
   ).run();
 }
 
@@ -328,6 +334,7 @@ class _Engine {
     required this.dispatch,
     required this.start,
     required this.guard,
+    required this.scheduleHorizon,
   });
 
   final List<SimStudy> studies;
@@ -335,6 +342,9 @@ class _Engine {
   final DispatchRule dispatch;
   final DateTime start;
   final DateTime guard;
+
+  /// Carried, never read: §11.1's horizon is reported rather than obeyed.
+  final DateTime? scheduleHorizon;
 
   final _EventQueue _queue = _EventQueue();
   final Map<String, _Server> _servers = {};
@@ -965,6 +975,7 @@ class _Engine {
       start: start,
       end: _now,
       guard: guard,
+      scheduleHorizon: scheduleHorizon,
       steps: _rows,
       orders: outcomes,
       emptySlots: _empties,

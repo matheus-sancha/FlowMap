@@ -46,6 +46,21 @@ class SimulationRuns extends Table {
   /// Why it stopped early, by name. Null means it completed.
   TextColumn get abortReason => text().nullable()();
 
+  /// The last date every schedule this run used was actually defined for
+  /// (§11.1), or null when the run never went past one.
+  ///
+  /// **Stored, because the warning has to survive being reopened.** How far the
+  /// takt and workcenter periods reach is a fact about the plant, and §7.10
+  /// forbids joining back to it — so a run that could not say this would drop
+  /// its own caveat the moment the reader came back to it, which is exactly
+  /// when they are most likely to quote the figures.
+  ///
+  /// **The date and not the count.** How many orders finished past it is
+  /// derivable from `simulation_run_orders`, and storing both would let the two
+  /// disagree — §1.5's lesson, from the direction of duplication rather than of
+  /// omission.
+  DateTimeColumn get scheduleHorizon => dateTime().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
 
   @override

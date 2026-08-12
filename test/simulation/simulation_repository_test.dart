@@ -184,6 +184,10 @@ void main() {
       studies: input.studies,
       workcenters: input.workcenters,
       dispatch: DispatchRule.earliestDueDate,
+      // A `DateTime` has to cross the isolate too, and null is not a test of
+      // that — the horizon is what §11.1's warning is built on, so a value
+      // that could not be sent would surface as Simulate throwing.
+      scheduleHorizon: input.scheduleHorizon,
     ));
 
     expect(result.orders, hasLength(2));
@@ -429,5 +433,54 @@ void main() {
     final input = await simulation.assembleRun(projectId);
 
     expect(input.studies.single.releaseInterval, const Duration(hours: 3));
+  });
+
+  group('the schedule horizon (§11.1)', () {
+    test('is the last date every schedule is defined for', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+
+      // Everything seeded runs to the end of 2026.
+      final input = await simulation.assembleRun(projectId);
+      expect(input.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+
+    test('takes the earliest of them, not the latest', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+
+      // One station defined only to mid-August. Past that date the run is
+      // carrying its schedule forward, whatever the others say — so a figure
+      // is only as defined as the least-defined thing that produced it.
+      // Taking the maximum here would report the run covered to December.
+      await schedules.createWorkcenterSchedulePeriod(
+        projectId: projectId,
+        workcenterId: cladId,
+        startDate: DateTime(2027),
+        endDate: DateTime(2027, 8, 15),
+        operatorsPerShift: const [1, 1, 1],
+        availability: 1,
+        rework: 0,
+      );
+
+      final input = await simulation.assembleRun(projectId);
+      expect(input.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+
+    test('reaches the stored run, so the warning survives a reload', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      final input = await simulation.assembleRun(projectId);
+
+      final result = runSimulation(
+        studies: input.studies,
+        workcenters: input.workcenters,
+        scheduleHorizon: input.scheduleHorizon,
+      );
+
+      // The engine carries it without reading it: past the horizon a schedule
+      // is simply carried forward, and the run's job is to say so.
+      expect(result.scheduleHorizon, DateTime(2026, 12, 31));
+    });
   });
 }
