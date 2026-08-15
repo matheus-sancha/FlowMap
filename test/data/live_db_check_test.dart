@@ -7,14 +7,27 @@ import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Drives the v14 → v15 migration against a **copy of the real database**.
+/// Drives the pending migration against a **copy of the real database**.
 ///
 /// Not part of the suite — it needs a file that only exists on the developer's
 /// machine, and is run by hand with `--tags live` when a migration is about to
-/// meet real data. The fixtures in `migration_test.dart` prove the step against
-/// shapes we constructed; this proves it against the one shape we did not.
+/// meet real data. The fixtures in `migration_test.dart` prove each step
+/// against shapes we constructed; this proves them against the one shape we
+/// did not.
+///
+/// **It asserts `db.schemaVersion`, not a literal.** This file was
+/// `live_v15_check_test.dart` and demanded `user_version == 15`, which went
+/// stale the moment v16 landed: opening the file *runs* the migration, so
+/// against a v15 copy the test upgraded it to 16 and then failed its own first
+/// assertion. A per-version literal has to be edited by whoever bumps the
+/// schema, and nothing makes them — so the check that exists to catch a
+/// migration problem was itself broken by a migration.
+///
+/// Each version's specific claims accumulate below rather than being replaced:
+/// they stay true, they are cheap, and they are the only place they are
+/// asserted against real data rather than a fixture.
 void main() {
-  test('the live database upgrades to v15 and keeps its rules', () async {
+  test('the live database upgrades and keeps what it had', () async {
     final path = Platform.environment['FLOWMAP_LIVE_DB'];
     if (path == null || !File(path).existsSync()) {
       markTestSkipped('set FLOWMAP_LIVE_DB to a copy of flowmap.sqlite');
@@ -25,15 +38,15 @@ void main() {
     addTearDown(db.close);
 
     // Opening it at all is the first assertion.
-    final version = await db
-        .customSelect('PRAGMA user_version')
-        .getSingle();
-    expect(version.read<int>('user_version'), 15);
+    final version = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(version.read<int>('user_version'), db.schemaVersion);
 
     final integrity = await db
         .customSelect('PRAGMA integrity_check')
         .getSingle();
     expect(integrity.read<String>('integrity_check'), 'ok');
+
+    // --- v15: the dispatch rule moved onto the lane -------------------------
 
     // The carry-over: every rule that had a lane in front of its target should
     // now be on that lane, and the two superseded tables should be gone.
@@ -87,12 +100,42 @@ void main() {
       );
     }
 
-    // The demand and the stored runs are untouched: this step rebuilds nothing.
-    // Asserted rather than only printed, because "the migration destroyed the
-    // demand" is the one failure that would be silent — an empty table reads
-    // like a fresh install.
-    final orders = await db.select(db.demandOrders).get();
+    // --- v16: the schedule horizon ------------------------------------------
+
+    // §16.17 adds one nullable column and rebuilds no table, so the risk here
+    // is not the data — it is that `_ensureColumn` silently did nothing and the
+    // app then writes a horizon nowhere. Asked of the file rather than of the
+    // Dart definition, which would answer yes either way.
+    final columns = await db
+        .customSelect("PRAGMA table_info('simulation_runs')")
+        .get();
+    final columnNames = columns.map((r) => r.read<String>('name')).toSet();
+    expect(
+      columnNames,
+      contains('schedule_horizon'),
+      reason: 'v16 added the column to the real table, not only to the schema',
+    );
+
+    // Every run in the file predates v16, so every horizon is null — the same
+    // thing a blank has meant on a stored run since v12 (§16.13), and true
+    // rather than backfilled. The first non-null one arrives with the first run
+    // made in a v16 build, which is a §4 step and not this test's to make.
     final runs = await db.select(db.simulationRuns).get();
+    final withHorizon = runs.where((r) => r.scheduleHorizon != null).toList();
+    // ignore: avoid_print
+    print('runs carrying a horizon: ${withHorizon.length} of ${runs.length}');
+    for (final r in withHorizon) {
+      // ignore: avoid_print
+      print('  ${r.id}: ${r.scheduleHorizon}');
+    }
+
+    // --- what no migration may cost -----------------------------------------
+
+    // The demand and the stored runs are untouched: these steps rebuild
+    // nothing. Asserted rather than only printed, because "the migration
+    // destroyed the demand" is the one failure that would be silent — an empty
+    // table reads like a fresh install.
+    final orders = await db.select(db.demandOrders).get();
     final steps = await db.select(db.simulationRunSteps).get();
     expect(orders, isNotEmpty, reason: 'the demand survived the migration');
     expect(runs, isNotEmpty, reason: 'the stored runs survived it too');
