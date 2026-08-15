@@ -1,5 +1,6 @@
 import 'package:flowmap/src/features/simulation/application/gantt_layout.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
+import 'package:flowmap/src/features/simulation/application/sim_model.dart' show StationPool;
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -1228,6 +1229,194 @@ void main() {
             .orderId,
         'o2',
       );
+    });
+  });
+
+  group('pools (§3.1) — the CAL pool bug, 2026-08-15', () {
+    /// A run over a pool, optionally with a lane per study in front of it.
+    ///
+    /// `pools` maps each station to the pool the run recorded for it, which is
+    /// what `stationPools` resolves at write time and what the metrics carry
+    /// back out — so a test can state the case without assembling a plant.
+    GanttChart poolChart({
+      required Map<String, StationPool> pools,
+      Map<String, String> workcenterNames = const {
+        'CLAD07': 'CLAD07',
+        'CLAD08': 'CLAD08',
+      },
+      List<({String order, String station, String? lane, int at})> visits =
+          const [],
+      List<({String node, String name})> lanes = const [],
+    }) {
+      final steps = [
+        for (final visit in visits)
+          stepOf(
+            orderId: visit.order,
+            workcenterId: visit.station,
+            queueStart: at(visit.at),
+            processStart: at(visit.at + 1),
+            processEnd: at(visit.at + 2),
+            laneNodeId: visit.lane,
+          ),
+      ];
+      final orders = [
+        for (final (index, visit) in visits.indexed)
+          orderOf(orderId: visit.order, sequence: index, partId: 'p1'),
+      ];
+
+      final result = SimRunResult(
+        start: jan1,
+        end: at(48),
+        guard: at(240),
+        steps: steps,
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+        lanes: [
+          for (final lane in lanes)
+            SimLane(
+              studyId: 'study-1',
+              nodeId: lane.node,
+              position: 1,
+              name: lane.name,
+            ),
+        ],
+      );
+
+      return buildGanttChart(
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: workcenterNames,
+          theoreticalByOrder: const {},
+          pools: pools,
+        ),
+      );
+    }
+
+    const cal = StationPool(id: 'pool-1', name: 'CAL Pool');
+
+    test('a pool\'s machines sit under one heading', () {
+      // The complaint itself: three cladding machines reading as three loose
+      // stations, with nothing on screen carrying the name that was typed on
+      // the map. §3.1 keeps them as separate rows on purpose — that is what
+      // says which machine ran an order — so what was missing was only the
+      // word above them.
+      final chart = poolChart(
+        pools: const {'CLAD07': cal, 'CLAD08': cal},
+        visits: [
+          (order: 'o1', station: 'CLAD07', lane: null, at: 0),
+          (order: 'o2', station: 'CLAD08', lane: null, at: 0),
+        ],
+      );
+
+      expect(chart.rows.map((b) => b.name), [
+        'CAL Pool',
+        'CLAD07',
+        'CLAD08',
+      ]);
+      // The heading is not a band of the run: it carries nothing to hover and
+      // it is not a station.
+      expect(chart.rows.first, isA<GanttPoolGroup>());
+      expect(chart.stations.map((r) => r.workcenterId), ['CLAD07', 'CLAD08']);
+    });
+
+    test('two studies\' lanes over one pool both draw', () {
+      // **The defect.** `_laneRows` was a map keyed by workcenter, so the
+      // second lane feeding a station overwrote the first and one FIFO band
+      // left the chart with nothing saying it had. Two studies stepping on one
+      // pool is exactly how that arises (§7.7).
+      final chart = poolChart(
+        pools: const {'CLAD07': cal, 'CLAD08': cal},
+        lanes: [
+          (node: 'lane-a', name: 'FIFO A'),
+          (node: 'lane-b', name: 'FIFO B'),
+        ],
+        visits: [
+          (order: 'o1', station: 'CLAD07', lane: 'lane-a', at: 0),
+          (order: 'o2', station: 'CLAD08', lane: 'lane-b', at: 0),
+        ],
+      );
+
+      expect(chart.lanes, hasLength(2));
+      // Both above the heading's machines rather than one above each — a lane
+      // feeds the pool, not the member that happened to pull the first order.
+      expect(chart.rows.map((b) => b.name), [
+        'CAL Pool',
+        'FIFO A',
+        'FIFO B',
+        'CLAD07',
+        'CLAD08',
+      ]);
+    });
+
+    test('a pool\'s lane is not pinned to whichever member ran first', () {
+      // The second half of the same bug: `feeds` took the first *step* out of
+      // the lane, so the band landed on whichever machine happened to pull an
+      // order first — which is the member that looked detached from its
+      // siblings. Here CLAD08 runs first and the band still belongs to the
+      // pool — and the members keep the Queue table's order underneath the
+      // heading, which for two stations that queued equally is by name.
+      final chart = poolChart(
+        pools: const {'CLAD07': cal, 'CLAD08': cal},
+        lanes: [(node: 'lane-a', name: 'FIFO CAL')],
+        visits: [
+          (order: 'o1', station: 'CLAD08', lane: 'lane-a', at: 0),
+          (order: 'o2', station: 'CLAD07', lane: 'lane-a', at: 4),
+        ],
+      );
+
+      expect(chart.rows.map((b) => b.name), [
+        'CAL Pool',
+        'FIFO CAL',
+        'CLAD07',
+        'CLAD08',
+      ]);
+    });
+
+    test('a station in two pools stands on its own, naming both', () {
+      // `stationPools` resolves this to a null id and a joined name, and the
+      // chart honours it: no heading, because there is no one pool this
+      // machine's work belonged to — and the name is still on the row's own
+      // record so a reader can see why it is loose.
+      final chart = poolChart(
+        pools: const {
+          'CLAD07': StationPool(id: null, name: 'All Lathes · CAL Pool'),
+          'CLAD08': cal,
+        },
+        visits: [
+          (order: 'o1', station: 'CLAD07', lane: null, at: 0),
+          (order: 'o2', station: 'CLAD08', lane: null, at: 0),
+        ],
+      );
+
+      expect(chart.rows.whereType<GanttPoolGroup>().map((g) => g.name), [
+        'CAL Pool',
+      ]);
+      final loose = chart.stations.firstWhere(
+        (r) => r.workcenterId == 'CLAD07',
+      );
+      expect(loose.poolId, isNull);
+      expect(loose.poolName, 'All Lathes · CAL Pool');
+    });
+
+    test('a run with no pools draws exactly as it did before', () {
+      // The regression guard. Every chart in this file predates v18 and none
+      // of them may move: with no pool recorded, there is no heading and the
+      // rows are the stations and their lanes, in the order they always were.
+      final chart = poolChart(
+        pools: const {},
+        lanes: [(node: 'lane-a', name: 'FIFO W')],
+        visits: [
+          (order: 'o1', station: 'CLAD07', lane: 'lane-a', at: 0),
+          (order: 'o2', station: 'CLAD08', lane: null, at: 0),
+        ],
+      );
+
+      expect(chart.rows.whereType<GanttPoolGroup>(), isEmpty);
+      expect(chart.rows.map((b) => b.name), ['FIFO W', 'CLAD07', 'CLAD08']);
     });
   });
 }

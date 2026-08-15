@@ -38,6 +38,13 @@ abstract final class GanttMetrics {
   /// The bar inside it, centred.
   static const barHeight = 18.0;
 
+  /// A pool's heading band (§3.1).
+  ///
+  /// Shorter than [rowHeight] because it carries a word rather than a run: a
+  /// header as tall as the machines under it would read as a fourth machine,
+  /// which is exactly the confusion the header exists to end.
+  static const poolHeaderHeight = 18.0;
+
   /// One waiting order's slot down a lane band (§8.6).
   ///
   /// A lane's band is as deep as the lane is, so a full lane is visibly full
@@ -270,6 +277,28 @@ sealed class GanttBand {
   double get height;
 }
 
+/// A pool's heading, above the machines that ran under it (DESIGN.md §3.1).
+///
+/// **Not a row of the run** — it carries no bars and nothing can be hovered on
+/// it. §3.1 keeps a pool's members as individual stations on purpose, because
+/// that is what lets a run say which machine ran an order and keeps the
+/// per-machine yardstick intact; what was missing was only the word the reader
+/// typed. This is that word, and nothing more.
+///
+/// Shallower than a station's band, so a pool of three does not read as four
+/// machines.
+class GanttPoolGroup extends GanttBand {
+  const GanttPoolGroup({required this.poolId, required this.name});
+
+  final String poolId;
+
+  @override
+  final String name;
+
+  @override
+  double get height => GanttMetrics.poolHeaderHeight;
+}
+
 /// One station's row.
 class GanttRow extends GanttBand {
   const GanttRow({
@@ -277,9 +306,21 @@ class GanttRow extends GanttBand {
     required this.name,
     required this.bars,
     this.depth = 1,
+    this.poolId,
+    this.poolName,
   });
 
   final String workcenterId;
+
+  /// The pool the run says this station was dispatched through (§3.1), or null
+  /// where it ran on its own name — or was reached through more than one pool,
+  /// or the run predates v18. A non-null [poolId] is what puts a
+  /// [GanttPoolGroup] header above it and its siblings.
+  ///
+  /// [poolName] can outlive [poolId]: a station reached two ways names them
+  /// both and groups under neither.
+  final String? poolId;
+  final String? poolName;
 
   /// The name the station had when the run was made (§7.10).
   @override
@@ -454,21 +495,60 @@ GanttChart buildGanttChart({
     if (step.processEnd.isAfter(end)) end = step.processEnd;
   }
 
+  // **What a lane feeds, and what a header labels, is the group** — the pool
+  // where the station ran in one (§3.1), the station itself otherwise. Read off
+  // the metrics, which read it off the run, so a plant re-pooled since cannot
+  // move a band (§7.10).
+  final groupOf = {
+    for (final station in metrics.workcenters)
+      station.workcenterId: station.poolId ?? station.workcenterId,
+  };
+
   // Down the page in the order the work happens, with the Queue table's
   // ranking left to break ties.
   final flow = routingRanks(result);
+
+  // **A group sorts where its busiest member would have sorted.** Each takes
+  // the earliest routing rank and the best Queue rank any of its members has —
+  // so a pool cannot be split by one machine also appearing later in the flow,
+  // and an ungrouped station is its own group and lands exactly where it always
+  // did. Ranking a group by its name instead would have been simpler and would
+  // have thrown away the Queue table's order for every station that is not in
+  // a pool.
+  final groupFlow = <String, int>{};
+  final groupQueue = <String, int>{};
+  for (var i = 0; i < metrics.workcenters.length; i++) {
+    final station = metrics.workcenters[i];
+    final group = groupOf[station.workcenterId]!;
+    final rank = flow[station.workcenterId] ?? _unrouted;
+    if (rank < (groupFlow[group] ?? _unrouted)) groupFlow[group] = rank;
+    groupQueue[group] = groupQueue[group] ?? i;
+  }
+
   final ordered =
       [
         for (var i = 0; i < metrics.workcenters.length; i++)
           (station: metrics.workcenters[i], queueRank: i),
       ]..sort((a, b) {
-        final byFlow = (flow[a.station.workcenterId] ?? _unrouted).compareTo(
-          flow[b.station.workcenterId] ?? _unrouted,
+        final groupA = groupOf[a.station.workcenterId]!;
+        final groupB = groupOf[b.station.workcenterId]!;
+        final byFlow = (groupFlow[groupA] ?? _unrouted).compareTo(
+          groupFlow[groupB] ?? _unrouted,
+        );
+        if (byFlow != 0) return byFlow;
+        // Two groups can share a routing rank — a step on a pool and a step on
+        // a lone station at one position — and their members must not
+        // interleave, or a header would sit above a machine belonging to the
+        // other. Ordered by the Queue ranking rather than by name, which is
+        // what keeps this identical to the old two-clause sort wherever no
+        // pool is involved.
+        final byGroup = (groupQueue[groupA] ?? 0).compareTo(
+          groupQueue[groupB] ?? 0,
         );
         // The Queue table's own order underneath, which is what keeps a pool's
         // three machines — all at one position in the routing — in the same
         // order twice running, and puts the busiest of them first.
-        return byFlow != 0 ? byFlow : a.queueRank.compareTo(b.queueRank);
+        return byGroup != 0 ? byGroup : a.queueRank.compareTo(b.queueRank);
       });
 
   final stations = <GanttRow>[];
@@ -505,6 +585,8 @@ GanttChart buildGanttChart({
         name: entry.station.name,
         bars: placed,
         depth: freeAt.isEmpty ? 1 : freeAt.length,
+        poolId: entry.station.poolId,
+        poolName: entry.station.poolName,
       ),
     );
   }
@@ -515,23 +597,44 @@ GanttChart buildGanttChart({
   // chart — `barAt`, the hover card and the floored-bar count all follow from
   // the rows and need to know nothing about it.
   final lanes = includeLanes
-      ? _laneRows(result: result, partsById: partsById, ordersById: ordersById)
-      : const <String, GanttRow>{};
+      ? _laneRows(
+          result: result,
+          partsById: partsById,
+          ordersById: ordersById,
+          groupOf: groupOf,
+        )
+      : const <String, List<GanttLaneRow>>{};
 
-  return GanttChart(
-    rows: [
-      for (final station in stations) ...[
-        // The lane in front of it first: an order stands in the lane and is
-        // then taken by the station, so upstream is up the page.
-        ?lanes[station.workcenterId],
-        station,
-      ],
-    ],
-    parts: parts,
-    start: start,
-    end: end,
-  );
+  // **Emitted a group at a time.** A pool's members sit under one header, the
+  // lanes that feed the pool are drawn once above them rather than once per
+  // machine, and a station standing on its own draws exactly as it always did.
+  final rows = <GanttBand>[];
+  var group = _noGroup;
+  for (final station in stations) {
+    final key = groupOf[station.workcenterId]!;
+    if (key == group) {
+      rows.add(station);
+      continue;
+    }
+    group = key;
+
+    // The header first, so everything beneath it reads as belonging to it —
+    // including the lane, which feeds the pool rather than any one machine.
+    if (station.poolId != null) {
+      rows.add(GanttPoolGroup(poolId: station.poolId!, name: station.poolName!));
+    }
+    // Then the lanes in front of it: an order stands in the lane and is then
+    // taken by the station, so upstream is up the page.
+    rows.addAll(lanes[key] ?? const []);
+    rows.add(station);
+  }
+
+  return GanttChart(rows: rows, parts: parts, start: start, end: end);
 }
+
+/// No group has been opened yet. A sentinel rather than null, so the first
+/// station always opens one and the loop has no special first case.
+const _noGroup = '';
 
 /// Each lane's band, keyed by the workcenter whose row it is drawn above.
 ///
@@ -549,12 +652,22 @@ GanttChart buildGanttChart({
 /// may never have joined, which is worse than a chart that shows only the
 /// buffers the run can actually place.
 ///
-/// A lane feeding a pool is placed above the **first** of that pool's machines,
-/// which is where the ordering above has already put the busiest of them.
-Map<String, GanttLaneRow> _laneRows({
+/// **Keyed by the group a lane feeds, and a group can have several.** A lane
+/// feeds a *step*, and a step may target a pool — so the band belongs above the
+/// pool's header rather than above whichever member happened to pull the first
+/// order out of it, which is what made one machine look detached from its
+/// siblings.
+///
+/// And the value is a list, because two studies can both step on one pool with
+/// a lane of their own in front (§7.7). This was a `Map<String, GanttLaneRow>`
+/// keyed by workcenter, so the second lane silently overwrote the first and one
+/// FIFO band vanished from the chart with nothing on screen saying so — the
+/// defect the field reported as *"CLAD07 out of the CAL pool with two FIFOs"*.
+Map<String, List<GanttLaneRow>> _laneRows({
   required SimRunResult result,
   required Map<String, GanttPart> partsById,
   required Map<String, SimOrderOutcome> ordersById,
+  required Map<String, String> groupOf,
 }) {
   if (result.lanes.isEmpty) return const {};
 
@@ -568,7 +681,15 @@ Map<String, GanttLaneRow> _laneRows({
   for (final step in result.steps) {
     final laneId = step.laneNodeId;
     if (laneId == null || !laneById.containsKey(laneId)) continue;
-    feeds.putIfAbsent(laneId, () => step.workcenterId);
+    // The group rather than the machine. Every step out of one lane feeds one
+    // step of one study, so its candidates are one pool or one station — the
+    // group is the same whichever member happened to take this order, which is
+    // what makes `putIfAbsent` safe here where taking the first workcenter was
+    // not.
+    feeds.putIfAbsent(
+      laneId,
+      () => groupOf[step.workcenterId] ?? step.workcenterId,
+    );
     stays
         .putIfAbsent(laneId, () => [])
         .add((
@@ -593,8 +714,16 @@ Map<String, GanttLaneRow> _laneRows({
         ));
   }
 
-  final rows = <String, GanttLaneRow>{};
-  for (final entry in feeds.entries) {
+  final rows = <String, List<GanttLaneRow>>{};
+  // In lane-node order, so two studies' bands above one pool are stacked the
+  // same way twice running rather than following whatever order the steps
+  // happened to arrive in.
+  final byGroup = feeds.entries.toList()
+    ..sort((a, b) {
+      final byTarget = a.value.compareTo(b.value);
+      return byTarget != 0 ? byTarget : a.key.compareTo(b.key);
+    });
+  for (final entry in byGroup) {
     final lane = laneById[entry.key]!;
     final held = stays[entry.key] ?? const [];
 
@@ -613,12 +742,15 @@ Map<String, GanttLaneRow> _laneRows({
     final wanted = lane.capacity ?? deepest;
     final depth = wanted.clamp(1, GanttMetrics.maxLaneDepth);
 
-    rows[entry.value] = GanttLaneRow(
-      laneNodeId: lane.nodeId,
-      name: lane.name ?? _unnamedLane,
-      capacity: lane.capacity,
-      depth: depth,
-      visits: visits,
+    // Appended rather than assigned: a group fed by two lanes keeps both.
+    rows.putIfAbsent(entry.value, () => []).add(
+      GanttLaneRow(
+        laneNodeId: lane.nodeId,
+        name: lane.name ?? _unnamedLane,
+        capacity: lane.capacity,
+        depth: depth,
+        visits: visits,
+      ),
     );
   }
   return rows;
@@ -918,6 +1050,12 @@ GanttLayout layoutGantt({
           );
         }
         rows.add(GanttRowLayout(band: band, top: top, visits: placed));
+
+      case GanttPoolGroup():
+        // A heading takes its height and places nothing. It carries no bars and
+        // no visits by construction, so there is nothing here for `barAt` to
+        // find and nothing for the floored count to count.
+        rows.add(GanttRowLayout(band: band, top: top));
     }
 
     top += band.height;
@@ -989,6 +1127,12 @@ GanttHit? barAt(GanttLayout layout, Offset position) {
             return placed;
           }
         }
+
+      case GanttPoolGroup():
+        // Nothing to ask about: the heading is a word, not a run. Falls through
+        // to the null below, so hovering it clears the card rather than leaving
+        // the last station's showing.
+        break;
     }
     return null;
   }

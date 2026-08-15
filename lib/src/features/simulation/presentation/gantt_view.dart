@@ -515,6 +515,15 @@ class _Labels extends StatelessWidget {
                           fontStyle: FontStyle.italic,
                         ),
                         GanttRow() => theme.textTheme.bodySmall,
+                        // The one label that names a group rather than a band
+                        // of the run, so it is the one label that is not
+                        // whispering: the machines beneath it are indented
+                        // under this word.
+                        GanttPoolGroup() => theme.textTheme.labelSmall
+                            ?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                       },
                     ),
                   ),
@@ -985,6 +994,13 @@ class _GanttPainter extends CustomPainter {
               rulePaint,
             );
           }
+
+        case GanttPoolGroup():
+          // Left unpainted, and deliberately outside the station count above:
+          // it is a heading rather than a band of the run, so striping it would
+          // break the alternation a reader follows one machine across — which
+          // is the same argument that already excludes the lanes.
+          break;
       }
     }
 
