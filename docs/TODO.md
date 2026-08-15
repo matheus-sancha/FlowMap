@@ -742,15 +742,16 @@ slice is), **§7.10** (the cell and line the run carries), **§10.1**, **§17.5*
 
 ---
 
-## 5. The pool and the lane — round five, **written and awaiting a drive**
+## 5. The pool and the lane — round five, **the complaint answered, the drive part-done**
 
 Settled by interview on 2026-08-15, after driving `0.1.0-2026-08-15b` with **two studies in one
 run** — the first time the build has been asked the question §7.7 exists to answer. Two things came
 back from it, and reading the code for them found a third nobody had reported.
 
-**The code is written**: `flutter analyze` clean, **729 tests passing**, schema at **v18**. What is
-outstanding is §5.3 — nothing here has been seen in a running build, and the run that raised it is
-the one that has to answer it.
+**The code is written and the field's own case is confirmed**: `flutter analyze` clean, **729 tests
+passing**, schema at **v18**, and on 2026-08-15 a run with two studies over the CAL pool drew the
+pool heading with both FIFO bands above it. What is outstanding is the rest of §5.3 — the tables, an
+old run, and the hover — none of which is the complaint, and one of which fails silently.
 
 **Split from §6 deliberately.** The interview settled these two bugs and the workspace restructure as
 one round driven at the end; they are separated again because this half is *finished and checkable*
@@ -844,28 +845,37 @@ per-lane decisions, so the bands are not interchangeable.
 
 ### 5.3 Drive it
 
-**Nothing here has been looked at in a running build.** Both fixes are covered by tests — five in
-`gantt_layout_test.dart` reproducing exactly what the field reported, three in `sim_assembly_test.dart`
-for the resolution rule, one migration test for v18 — and **nothing in the suite renders a pixel**
-(§2.7), so the heading, the band order and the label column are only covered by pressing it.
+Both fixes are covered by tests — five in `gantt_layout_test.dart` reproducing exactly what the field
+reported, three in `sim_assembly_test.dart` for the resolution rule, one migration test for v18 — and
+**nothing in the suite renders a pixel** (§2.7), so the heading, the band order and the label column
+are only covered by pressing it.
 
-- **The run that raised it.** Two studies, both stepping on the CAL pool. CLAD07, CLAD08 and CLAD09
-  under one `CAL Pool` heading; **both** FIFO bands drawn above that heading; neither missing. That
-  is the whole complaint, and it is one screen.
-- **The heading reads as a heading**, not as a fourth machine — 18 px against the stations' 30, the
-  primary colour in the frozen label column, no band fill, and nothing hovers on it.
-- **The Queue and Share tables keep their ranking** and carry `CLAD07  CAL Pool` in the first
-  column. The top row must still be the station that queued most (§8.1).
-- **A pre-v18 run opened from the history picker** shows its stations ungrouped and its lanes where
-  they always were, rather than grouped by whatever the pools happen to be today. There are 35 of
-  them stored and every one is a fixture for this.
-- **A station reachable through two pools in one run** sits ungrouped and names both. Célula 11B may
-  not have one; contrive it by putting CLAD07 in a second pool and pointing a second study's step at
-  it.
-- **The v18 migration against the real database**, with a v17 backup taken first per §0. The session
-  header should read `db.open schema 18 from 17`.
-- **§0's four remaining debt items**, which this round does not close and which are cheaper to check
-  in the same sitting.
+- [x] ~~**The run that raised it.**~~ **Confirmed 2026-08-15.** Two studies stepping on the CAL pool:
+      the pool heading sits over its members and **both** FIFO bands draw above it, neither missing.
+      That is the whole of what the field reported, answered on one screen. The migration ran to get
+      there, so v18 has now opened the real database as well as a fixture.
+
+      _Not recorded, and it should have been:_ the build label. §0's rule is that the session
+      header's label is the only claim a stale link cannot produce, and this entry cannot cite one.
+      The next drive states it.
+- [ ] **The heading reads as a heading**, not as a fourth machine — 18 px against the stations' 30,
+      the primary colour in the frozen label column, no band fill, and nothing hovers on it. Partly
+      covered by the above, since the heading was recognised as one; what is unchecked is the hover,
+      which is the half a screenshot cannot show.
+- [ ] **The Queue and Share tables keep their ranking** and carry `CLAD07  CAL Pool` in the first
+      column. The top row must still be the station that queued most (§8.1). **The column went from
+      160 px to 210** to fit the pool, which is the change most likely to look wrong rather than be
+      wrong — a long station name beside a long pool name is where it ellipsises.
+- [ ] **A pre-v18 run opened from the history picker** shows its stations ungrouped and its lanes
+      where they always were, rather than grouped by whatever the pools happen to be today. There are
+      35 of them stored and every one is a fixture for this. **The one check whose failure would be
+      silent**: a wrongly grouped old run looks exactly like a rightly grouped new one.
+- [ ] **A station reachable through two pools in one run** sits ungrouped and names both. Célula 11B
+      may not have one; contrive it by putting CLAD07 in a second pool and pointing a second study's
+      step at it. The lowest-value check here — it is covered by a unit test and the case is rare —
+      and the one most worth skipping if the rest reads clean.
+- [ ] **§0's four remaining debt items**, which this round does not close and which are cheaper to
+      check in the same sitting.
 
 **DESIGN.md this round — written, 2026-08-15**, ahead of the drive rather than after it, because
 §8.6 was carrying a claim about lane placement that the code had just made false and a design file
