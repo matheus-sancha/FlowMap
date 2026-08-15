@@ -453,6 +453,7 @@ class FlowView {
     this.selectedPartNumber,
     this.endDate,
     this.runningDays,
+    this.workingDays,
   });
 
   /// When one order that started on [asOf] would finish, walked through the
@@ -463,11 +464,19 @@ class FlowView {
   final DateTime? endDate;
 
   /// Calendar days that walk spans, weekends and shutdowns included.
-  ///
-  /// The companion to [leadTime], which counts working time only. The two
-  /// answer different questions and the gap between them **is** the closed
-  /// time — which is the thing worth seeing.
   final int? runningDays;
+
+  /// The subset of those on which at least one workcenter the flow uses was
+  /// open (§17.2).
+  ///
+  /// **Three figures answer "how long", and they are not interchangeable.**
+  /// [leadTime] is working *time*, summed in each station's own productive day,
+  /// and is what [processCycleEfficiency] divides. These two are counts of
+  /// calendar days. `running ÷ working` lands near 1.4 on a five-day week
+  /// because that is 7 ÷ 5, and the ratio is derived rather than imposed
+  /// precisely so it reads 1.0 on a seven-day plant and higher across a
+  /// shutdown.
+  final int? workingDays;
 
   final Study study;
   final List<FlowNodeView> nodes;
@@ -663,12 +672,9 @@ FlowView buildFlowView({
     nodes: views,
     asOf: start,
     periodEnd: end,
-    endDate: walk,
-    runningDays: walk == null
-        ? null
-        // Inclusive of both ends: a flow that starts and finishes on the same
-        // day spans one running day, not zero.
-        : dateOnly(walk).difference(dateOnly(start)).inDays + 1,
+    endDate: walk?.end,
+    runningDays: walk?.runningDays,
+    workingDays: walk?.workingDays,
     granularity: granularity,
     dataSource: dataSource,
     takt: takt,
@@ -1014,7 +1020,24 @@ FlowInventoryView _buildInventory({
 ///
 /// Returns null rather than throwing if any step cannot be costed or its
 /// calendar can never open: the map still draws, and the footer shows a dash.
-DateTime? _walkCalendar({
+/// Walks the flow on the calendar, and reports both ways of counting the span.
+///
+/// **Running days is every day it touches; working days is only the days the
+/// plant was open**, and the two come out of the same walk on purpose. The gap
+/// between them is the closed time, which is what §17.2 already said no ratio
+/// could produce — a five-day week gives about 1.4, a seven-day plant gives 1.0,
+/// and a shutdown widens it, all of which a fixed factor gets wrong.
+///
+/// **A day is a working day when at least one workcenter the flow uses is open
+/// on it.** The union rather than a nominated station: it reads as *a day the
+/// line could make progress*, it needs no representative to be chosen, and it is
+/// stable when a step is re-bound. A Saturday one station works counts; a Sunday
+/// nobody works does not.
+///
+/// A flow containing one round-the-clock station therefore reports running and
+/// working as the same number. That is true, and it is the first thing that will
+/// look like a defect.
+({DateTime end, int runningDays, int workingDays})? _walkCalendar({
   required List<FlowNodeView> views,
   required List<FlowNode> nodes,
   required Map<String, WorkcenterContext> contexts,
@@ -1056,7 +1079,39 @@ DateTime? _walkCalendar({
     // A calendar that can never supply the time — every shift unstaffed.
     return null;
   }
-  return cursor;
+
+  // The calendars this flow actually uses, deduplicated by target so a station
+  // visited twice is asked once.
+  final calendars = <String, WorkingCalendar>{};
+  for (final node in nodes) {
+    if (node.kind != FlowNodeKind.step) continue;
+    final target = _targetOf(node, poolMembers);
+    final calendar = contexts[target]?.calendar;
+    if (target != null && calendar != null) calendars[target] = calendar;
+  }
+
+  // Both counts are inclusive of both ends: a flow that starts and finishes on
+  // one day spans one running day, not zero. The start day may itself be closed,
+  // in which case it is a running day and not a working one.
+  final last = dateOnly(cursor);
+  var running = 0;
+  var working = 0;
+  for (
+    var day = dateOnly(from);
+    !day.isAfter(last);
+    day = DateTime(day.year, day.month, day.day + 1)
+  ) {
+    running++;
+    // Short-circuits on the first open station, which on an ordinary weekday is
+    // the first one asked. Built by day rather than by asking each calendar for
+    // its whole span, because §16.9 makes local `DateTime` arithmetic the
+    // expensive thing here and this way each day costs one construction.
+    if (calendars.values.any((c) => c.openTimeOnDate(day) > Duration.zero)) {
+      working++;
+    }
+  }
+
+  return (end: cursor, runningDays: running, workingDays: working);
 }
 
 FlowNode? _previousStep(List<FlowNode> nodes, int beforePosition) {

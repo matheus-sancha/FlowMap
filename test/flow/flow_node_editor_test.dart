@@ -299,14 +299,22 @@ void main() {
   });
 
   group('the step editor', () {
-    testWidgets('mounts without throwing', (tester) async {
-      final step = FlowStepView(
+    FlowStepView stepView({
+      double? setupValue,
+      double? teardownValue,
+      double? samePartPercent,
+    }) => FlowStepView(
         FlowNode(
           id: 'node-1',
           studyId: 'study-1',
           position: 0,
           kind: FlowNodeKind.step,
-          changeoverSeconds: 1800,
+          changeoverSeconds: 0,
+          setupValue: setupValue,
+          setupUnit: setupValue == null ? null : TaktUnit.minutes,
+          teardownValue: teardownValue,
+          teardownUnit: teardownValue == null ? null : TaktUnit.minutes,
+          samePartPercent: samePartPercent,
           inventoryUsesWorkingTime: false,
           createdAt: now,
           updatedAt: now,
@@ -329,7 +337,7 @@ void main() {
         problems: const [],
       );
 
-      await pumpHost(
+    Future<void> open(WidgetTester tester, FlowStepView step) => pumpHost(
         tester,
         (context, ref) => showStepEditor(
           context,
@@ -356,10 +364,53 @@ void main() {
         ],
       );
 
+    testWidgets('mounts without throwing', (tester) async {
+      await open(tester, stepView(setupValue: 30));
+
       expect(tester.takeException(), isNull);
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
       expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    });
+
+    testWidgets('a stored setup and teardown read back into their fields', (
+      tester,
+    ) async {
+      await open(tester, stepView(setupValue: 30, teardownValue: 10));
+
+      expect(find.widgetWithText(TextField, '30'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '10'), findsOneWidget);
+    });
+
+    testWidgets('the same-part percentage appears only with a changeover', (
+      tester,
+    ) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      // A step with neither half shows the five fields it always showed. That
+      // is what "optional for the user" has to mean on a dialog that already
+      // scrolls at the app's minimum window height.
+      await open(tester, stepView());
+      expect(find.text(l10n.stepSamePart), findsNothing);
+
+      // Typing a setup reveals it, because now there is something for it to
+      // modify.
+      await tester.enterText(
+        find.widgetWithText(TextField, l10n.stepSetup),
+        '45',
+      );
+      await tester.pump();
+      expect(find.text(l10n.stepSamePart), findsOneWidget);
+    });
+
+    testWidgets('a stored percentage comes back with its changeover', (
+      tester,
+    ) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await open(tester, stepView(setupValue: 30, samePartPercent: 25));
+
+      expect(find.text(l10n.stepSamePart), findsOneWidget);
+      expect(find.widgetWithText(TextField, '25'), findsOneWidget);
     });
   });
 }

@@ -1082,6 +1082,13 @@ class _FooterMetrics extends StatelessWidget {
               ),
               help: l10n.footerProcessTimeHelp,
             ),
+            // Three figures answer "how long", and they are not the same
+            // question. This one is working *time*, summed in each station's own
+            // productive day, and it is the one PCE divides — so it keeps the
+            // plain name and stays on the bar even though the list that asked
+            // for the other two did not mention it. Without it on screen, a
+            // reader dividing the two day-counts gets a different number from
+            // the PCE printed beside them.
             _Metric(
               label: l10n.footerLeadTime,
               value: formatAdaptiveDuration(
@@ -1091,17 +1098,30 @@ class _FooterMetrics extends StatelessWidget {
               ),
               help: l10n.footerLeadTimeHelp,
             ),
+            // The other two are counts of calendar days out of one walk, named
+            // by their unit alone so three adjacent chips do not all begin
+            // `Lead time` on a bar that scrolls (§17.2).
             _Metric(
-              label: l10n.footerEndDate,
+              label: l10n.footerWorkingDays,
+              value: view!.workingDays == null
+                  ? '—'
+                  : l10n.footerDaysOnly('${view!.workingDays}'),
+              help: l10n.footerWorkingDaysHelp,
+            ),
+            _Metric(
+              label: l10n.footerRunningDaysLabel,
+              // The end date rides here rather than taking a chip of its own:
+              // it is how this figure has always been drawn, and it is not a
+              // lead time, so it would sit oddly among them.
               value: view!.runningDays == null
                   ? '—'
-                  : l10n.footerRunningDays(
+                  : l10n.footerDaysWithDate(
                       '${view!.runningDays}',
                       DateFormat.yMMMd(
                         Localizations.localeOf(context).toString(),
                       ).format(view!.endDate!),
                     ),
-              help: l10n.footerEndDateHelp,
+              help: l10n.footerRunningDaysHelp,
             ),
             if (view!.flowEquivalence != null)
               _Metric(

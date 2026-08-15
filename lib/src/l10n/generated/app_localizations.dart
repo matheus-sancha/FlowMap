@@ -1935,7 +1935,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowDataSource.
   ///
   /// In en, this message translates to:
-  /// **'Timeline'**
+  /// **'Part'**
   String get flowDataSource;
 
   /// No description provided for @flowSourceEquivalent.
@@ -2100,17 +2100,41 @@ abstract class AppLocalizations {
   /// **'Process time'**
   String get stepProcessTime;
 
+  /// No description provided for @stepSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup'**
+  String get stepSetup;
+
+  /// No description provided for @stepTeardown.
+  ///
+  /// In en, this message translates to:
+  /// **'Teardown'**
+  String get stepTeardown;
+
+  /// No description provided for @stepTeardownHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stripping the station after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.'**
+  String get stepTeardownHelp;
+
+  /// No description provided for @stepSamePart.
+  ///
+  /// In en, this message translates to:
+  /// **'Same part'**
+  String get stepSamePart;
+
+  /// No description provided for @stepSamePartHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How much of the setup and teardown is still charged when the previous order was the same part. 0% makes a repeat free; 100% means batching buys nothing.'**
+  String get stepSamePartHelp;
+
   /// No description provided for @stepChangeover.
   ///
   /// In en, this message translates to:
   /// **'Changeover'**
   String get stepChangeover;
-
-  /// No description provided for @stepChangeoverHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Charged only when the previous order on this workcenter was a different part.'**
-  String get stepChangeoverHelp;
 
   /// No description provided for @laneRule.
   ///
@@ -2321,6 +2345,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lead time'**
   String get footerLeadTime;
+
+  /// No description provided for @footerWorkingDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Working days'**
+  String get footerWorkingDays;
+
+  /// No description provided for @footerRunningDaysLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Running days'**
+  String get footerRunningDaysLabel;
+
+  /// No description provided for @footerWorkingDaysHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Days in that span on which at least one workcenter this flow uses was open. The difference against running days is the weekends and shutdowns.'**
+  String get footerWorkingDaysHelp;
+
+  /// No description provided for @footerRunningDaysHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Every calendar day the walk spans, weekends and shutdowns included, and the date it ends on. Divided by working days this lands near 1.4 on a five-day week — because that is seven over five, not because it is assumed.'**
+  String get footerRunningDaysHelp;
+
+  /// No description provided for @footerDaysWithDate.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d · {date}'**
+  String footerDaysWithDate(String days, String date);
+
+  /// No description provided for @footerDaysOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d'**
+  String footerDaysOnly(String days);
 
   /// No description provided for @footerPce.
   ///

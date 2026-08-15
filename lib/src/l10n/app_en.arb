@@ -408,7 +408,7 @@
   "footerProcessTimeHelp": "Every step's process time added up. Value-adding time only; waiting is not counted.",
   "footerLeadTimeHelp": "Process time plus every wait between steps — how long one order takes to cross the whole flow.",
   "footerPceHelp": "Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.",
-  "flowDataSource": "Timeline",
+  "flowDataSource": "Part",
   "flowSourceEquivalent": "Flow equivalent",
   "flowSourceSinglePart": "One part (needs demand)",
   "flowSourceWeighted": "All variants, weighted (needs demand)",
@@ -436,8 +436,12 @@
   "flowMoveRight": "Move later",
   "flowDeleteNodeTitle": "Remove this node from the flow?",
   "stepProcessTime": "Process time",
+  "stepSetup": "Setup",
+  "stepTeardown": "Teardown",
+  "stepTeardownHelp": "Stripping the station after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.",
+  "stepSamePart": "Same part",
+  "stepSamePartHelp": "How much of the setup and teardown is still charged when the previous order was the same part. 0% makes a repeat free; 100% means batching buys nothing.",
   "stepChangeover": "Changeover",
-  "stepChangeoverHelp": "Charged only when the previous order on this workcenter was a different part.",
   "laneRule": "Queue order",
   "laneRuleHelp": "How the station ahead picks the next order out of this lane. On a real lane you cannot take from the back, so this is a decision about the queue rather than about the machine — and it belongs here, where the queue is drawn.",
   "laneRuleFollowsRun": "Follow the run's rule",
@@ -476,6 +480,18 @@
 
   "footerProcessTime": "Process time",
   "footerLeadTime": "Lead time",
+  "footerWorkingDays": "Working days",
+  "footerRunningDaysLabel": "Running days",
+  "footerWorkingDaysHelp": "Days in that span on which at least one workcenter this flow uses was open. The difference against running days is the weekends and shutdowns.",
+  "footerRunningDaysHelp": "Every calendar day the walk spans, weekends and shutdowns included, and the date it ends on. Divided by working days this lands near 1.4 on a five-day week — because that is seven over five, not because it is assumed.",
+  "footerDaysWithDate": "{days} d · {date}",
+  "footerDaysOnly": "{days} d",
+  "@footerDaysWithDate": {
+    "placeholders": { "days": { "type": "String" }, "date": { "type": "String" } }
+  },
+  "@footerDaysOnly": {
+    "placeholders": { "days": { "type": "String" } }
+  },
   "footerPce": "PCE",
   "footerEndDate": "End date",
   "footerRunningDays": "{days} running days · {date}",

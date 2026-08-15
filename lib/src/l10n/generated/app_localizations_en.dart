@@ -1050,7 +1050,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.';
 
   @override
-  String get flowDataSource => 'Timeline';
+  String get flowDataSource => 'Part';
 
   @override
   String get flowSourceEquivalent => 'Flow equivalent';
@@ -1136,11 +1136,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepProcessTime => 'Process time';
 
   @override
-  String get stepChangeover => 'Changeover';
+  String get stepSetup => 'Setup';
 
   @override
-  String get stepChangeoverHelp =>
-      'Charged only when the previous order on this workcenter was a different part.';
+  String get stepTeardown => 'Teardown';
+
+  @override
+  String get stepTeardownHelp =>
+      'Stripping the station after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.';
+
+  @override
+  String get stepSamePart => 'Same part';
+
+  @override
+  String get stepSamePartHelp =>
+      'How much of the setup and teardown is still charged when the previous order was the same part. 0% makes a repeat free; 100% means batching buys nothing.';
+
+  @override
+  String get stepChangeover => 'Changeover';
 
   @override
   String get laneRule => 'Queue order';
@@ -1259,6 +1272,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get footerLeadTime => 'Lead time';
+
+  @override
+  String get footerWorkingDays => 'Working days';
+
+  @override
+  String get footerRunningDaysLabel => 'Running days';
+
+  @override
+  String get footerWorkingDaysHelp =>
+      'Days in that span on which at least one workcenter this flow uses was open. The difference against running days is the weekends and shutdowns.';
+
+  @override
+  String get footerRunningDaysHelp =>
+      'Every calendar day the walk spans, weekends and shutdowns included, and the date it ends on. Divided by working days this lands near 1.4 on a five-day week — because that is seven over five, not because it is assumed.';
+
+  @override
+  String footerDaysWithDate(String days, String date) {
+    return '$days d · $date';
+  }
+
+  @override
+  String footerDaysOnly(String days) {
+    return '$days d';
+  }
 
   @override
   String get footerPce => 'PCE';

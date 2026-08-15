@@ -61,7 +61,11 @@ Future<void> showInsertNodeMenu(
       atPosition: position,
       workcenterId: draft.workcenterId,
       poolId: draft.poolId,
-      changeover: draft.changeover,
+      setupValue: draft.setupValue,
+      setupUnit: draft.setupUnit,
+      teardownValue: draft.teardownValue,
+      teardownUnit: draft.teardownUnit,
+      samePartPercent: draft.samePartPercent,
       equivalentValue: draft.equivalentValue,
       equivalentUnit: draft.equivalentUnit,
       label: draft.label,
@@ -118,7 +122,11 @@ Future<void> showStepEditor(
         step.node.id,
         workcenterId: draft.workcenterId,
         poolId: draft.poolId,
-        changeover: draft.changeover,
+        setupValue: draft.setupValue,
+        setupUnit: draft.setupUnit,
+        teardownValue: draft.teardownValue,
+        teardownUnit: draft.teardownUnit,
+        samePartPercent: draft.samePartPercent,
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
         label: draft.label,
@@ -214,7 +222,11 @@ class _StepDraft implements _StepResult {
   const _StepDraft({
     this.workcenterId,
     this.poolId,
-    required this.changeover,
+    this.setupValue,
+    this.setupUnit,
+    this.teardownValue,
+    this.teardownUnit,
+    this.samePartPercent,
     this.equivalentValue,
     this.equivalentUnit,
     this.label,
@@ -223,7 +235,16 @@ class _StepDraft implements _StepResult {
 
   final String? workcenterId;
   final String? poolId;
-  final Duration changeover;
+
+  /// The two halves of a changeover, each a value and a [TaktUnit] (§7.6).
+  /// Null is none, which is what every step had before v17.
+  final double? setupValue;
+  final TaktUnit? setupUnit;
+  final double? teardownValue;
+  final TaktUnit? teardownUnit;
+
+  /// How much of the pair a repeat of the same part still pays. Null is 0 %.
+  final double? samePartPercent;
 
   /// Null follows the line's takt — the usual case.
   final double? equivalentValue;
@@ -300,8 +321,24 @@ class _StepDialogState extends State<_StepDialog> {
   /// targets exactly one of them and two dropdowns would let a user pick both.
   late String? _target = _initialTarget();
 
-  late final TextEditingController _changeover = TextEditingController(
-    text: '${(widget.existing?.changeover ?? Duration.zero).inMinutes}',
+  late final TextEditingController _setup = TextEditingController(
+    text: widget.existing?.node.setupValue == null
+        ? ''
+        : _formatNumber(widget.existing!.node.setupValue!),
+  );
+  late TaktUnit _setupUnit =
+      widget.existing?.node.setupUnit ?? TaktUnit.minutes;
+  late final TextEditingController _teardown = TextEditingController(
+    text: widget.existing?.node.teardownValue == null
+        ? ''
+        : _formatNumber(widget.existing!.node.teardownValue!),
+  );
+  late TaktUnit _teardownUnit =
+      widget.existing?.node.teardownUnit ?? TaktUnit.minutes;
+  late final TextEditingController _samePart = TextEditingController(
+    text: widget.existing?.node.samePartPercent == null
+        ? ''
+        : _formatNumber(widget.existing!.node.samePartPercent!),
   );
   late final TextEditingController _equivalent = TextEditingController(
     text: widget.existing?.node.equivalentValue == null
@@ -332,6 +369,40 @@ class _StepDialogState extends State<_StepDialog> {
   bool get _equivalentInvalid =>
       _equivalent.text.trim().isNotEmpty && _equivalentValue == null;
 
+  /// Blank means none, so an empty field is valid rather than an error — the
+  /// same rule the Process Specific Takt above already follows.
+  double? _positiveOrNull(TextEditingController controller) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return null;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value != null && value > 0 ? value : null;
+  }
+
+  bool _invalid(TextEditingController controller) =>
+      controller.text.trim().isNotEmpty && _positiveOrNull(controller) == null;
+
+  double? get _setupValue => _positiveOrNull(_setup);
+  double? get _teardownValue => _positiveOrNull(_teardown);
+
+  /// A percentage, so zero is a meaningful answer and the > 0 rule above does
+  /// not apply: `0 %` and blank both mean a repeat is free, and a user who
+  /// types the zero deliberately should see it stay.
+  double? get _samePartValue {
+    final text = _samePart.text.trim();
+    if (text.isEmpty) return null;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value != null && value >= 0 && value <= 100 ? value : null;
+  }
+
+  bool get _samePartInvalid =>
+      _samePart.text.trim().isNotEmpty && _samePartValue == null;
+
+  /// Whether a changeover exists at all, which is what reveals the percentage.
+  /// A step with neither half shows five fields, exactly as it did before —
+  /// which is what "optional for the user" has to mean on a dialog that already
+  /// scrolls at the app's 700 px minimum height.
+  bool get _hasChangeover => _setupValue != null || _teardownValue != null;
+
   String? _initialTarget() {
     final node = widget.existing?.node;
     if (node == null) return null;
@@ -342,7 +413,9 @@ class _StepDialogState extends State<_StepDialog> {
 
   @override
   void dispose() {
-    _changeover.dispose();
+    _setup.dispose();
+    _teardown.dispose();
+    _samePart.dispose();
     _equivalent.dispose();
     _label.dispose();
     _notes.dispose();
@@ -352,8 +425,6 @@ class _StepDialogState extends State<_StepDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final minutes = int.tryParse(_changeover.text.trim());
-
     return AlertDialog(
       title: Text(
         widget.existing == null ? l10n.flowInsertStep : l10n.flowStep,
@@ -390,81 +461,70 @@ class _StepDialogState extends State<_StepDialog> {
                 onChanged: (value) => setState(() => _target = value),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _changeover,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: l10n.stepChangeover,
-                  suffixText: l10n.unitMinutesShort,
-                  helperText: l10n.stepChangeoverHelp,
-                  helperMaxLines: 3,
-                  errorText: minutes == null || minutes < 0
-                      ? l10n.validationRequired
-                      : null,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _equivalent,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: l10n.stepEquivalentTime,
-                        hintText: l10n.stepEquivalentFollowsTakt,
-                        errorText: _equivalentInvalid
-                            ? l10n.validationRequired
-                            : null,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<TaktUnit>(
-                      initialValue: _equivalentUnit,
-                      decoration: InputDecoration(labelText: l10n.taktUnit),
-                      items: [
-                        for (final unit in TaktUnit.values)
-                          DropdownMenuItem(
-                            value: unit,
-                            child: Text(taktUnitLabel(l10n, unit)),
-                          ),
-                      ],
-                      onChanged: (unit) {
-                        if (unit != null) {
-                          setState(() => _equivalentUnit = unit);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  // Days here are this station's productive days, exactly as
-                  // for takt — so `1 day` equals one takt-day.
-                  l10n.stepEquivalentHelp,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              const SizedBox(height: 12),
+              // Label second: what this step *is*, then what it is called, then
+              // what it costs. The order the field asked for, and the order they
+              // are read in.
               TextField(
                 controller: _label,
-                decoration: InputDecoration(
-                  labelText: l10n.flowNodeLabel,
-                  helperText: l10n.flowNodeLabelHelp,
-                  helperMaxLines: 2,
-                ),
+                decoration: InputDecoration(labelText: l10n.flowNodeLabel),
               ),
               const SizedBox(height: 12),
+              _ValueAndUnit(
+                controller: _equivalent,
+                unit: _equivalentUnit,
+                label: l10n.stepEquivalentTime,
+                hint: l10n.stepEquivalentFollowsTakt,
+                // `days` here is this station's productive day, exactly as for
+                // takt — so `1 day` equals one takt-day, and the same is true of
+                // the two fields below (§6.1.1, §17.4). A definition a wrong
+                // answer depends on, so it keeps an affordance rather than being
+                // deleted with the rest of the helper text.
+                help: l10n.stepEquivalentHelp,
+                invalid: _equivalentInvalid,
+                onChanged: () => setState(() {}),
+                onUnitChanged: (unit) => setState(() => _equivalentUnit = unit),
+              ),
+              const SizedBox(height: 16),
+              _FieldGroup(label: l10n.stepChangeover),
+              const SizedBox(height: 8),
+              _ValueAndUnit(
+                controller: _setup,
+                unit: _setupUnit,
+                label: l10n.stepSetup,
+                invalid: _invalid(_setup),
+                onChanged: () => setState(() {}),
+                onUnitChanged: (unit) => setState(() => _setupUnit = unit),
+              ),
+              const SizedBox(height: 12),
+              _ValueAndUnit(
+                controller: _teardown,
+                unit: _teardownUnit,
+                label: l10n.stepTeardown,
+                help: l10n.stepTeardownHelp,
+                invalid: _invalid(_teardown),
+                onChanged: () => setState(() {}),
+                onUnitChanged: (unit) => setState(() => _teardownUnit = unit),
+              ),
+              // Revealed rather than always shown: it modifies a changeover, and
+              // a step with neither half has nothing for it to modify.
+              if (_hasChangeover) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _samePart,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: l10n.stepSamePart,
+                    suffixText: '%',
+                    helperText: l10n.stepSamePartHelp,
+                    helperMaxLines: 3,
+                    errorText: _samePartInvalid ? l10n.validationRequired : null,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ],
+              const SizedBox(height: 16),
               TextField(
                 controller: _notes,
                 minLines: 2,
@@ -490,7 +550,11 @@ class _StepDialogState extends State<_StepDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: minutes == null || minutes < 0 || _equivalentInvalid
+          onPressed:
+              _equivalentInvalid ||
+                  _invalid(_setup) ||
+                  _invalid(_teardown) ||
+                  _samePartInvalid
               ? null
               : () {
                   final label = _label.text.trim();
@@ -504,7 +568,18 @@ class _StepDialogState extends State<_StepDialog> {
                       poolId: _target?.startsWith('pool:') ?? false
                           ? _target!.substring(5)
                           : null,
-                      changeover: Duration(minutes: minutes),
+                      setupValue: _setupValue,
+                      // The unit is meaningless without a value, and storing one
+                      // beside a null would leave a figure nobody typed.
+                      setupUnit: _setupValue == null ? null : _setupUnit,
+                      teardownValue: _teardownValue,
+                      teardownUnit: _teardownValue == null
+                          ? null
+                          : _teardownUnit,
+                      // Discarded with the changeover it modified, so a step
+                      // cleared of both halves does not keep a percentage that
+                      // now applies to nothing.
+                      samePartPercent: _hasChangeover ? _samePartValue : null,
                       equivalentValue: equivalent,
                       // The unit is meaningless without a value, so it is only
                       // stored alongside one.
@@ -533,6 +608,120 @@ class _StepDialogState extends State<_StepDialog> {
 /// — throws `_OverflowBarParentData is not a subtype of FlexParentData` on
 /// mount and leaves a blank grey dialog. Content is a Column; a Row inside it
 /// can space things however it likes.
+/// A heading over a run of related fields, with a rule to the right of it.
+///
+/// Setup and teardown are two halves of one operation and read wrong as two
+/// unrelated numbers between a takt and a label.
+class _FieldGroup extends StatelessWidget {
+  const _FieldGroup({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Divider(height: 1, color: theme.colorScheme.outlineVariant)),
+      ],
+    );
+  }
+}
+
+/// A number and the [TaktUnit] it is written in, which is how all three of this
+/// dialog's durations are stored (§6.1, §7.6).
+///
+/// **The help is an icon, not a line of text under the field.** Field feedback
+/// was that the dialogs explain too much; the rule that came out of it is that
+/// help restating a label is deleted and help carrying a *definition* keeps an
+/// affordance. `days` is the definition that matters here — it means this
+/// station's productive day in all three fields, and §17.4 is the scar that
+/// makes saying so non-optional.
+class _ValueAndUnit extends StatelessWidget {
+  const _ValueAndUnit({
+    required this.controller,
+    required this.unit,
+    required this.label,
+    required this.invalid,
+    required this.onChanged,
+    required this.onUnitChanged,
+    this.hint,
+    this.help,
+  });
+
+  final TextEditingController controller;
+  final TaktUnit unit;
+  final String label;
+  final bool invalid;
+  final VoidCallback onChanged;
+  final ValueChanged<TaktUnit> onUnitChanged;
+  final String? hint;
+  final String? help;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: hint,
+              errorText: invalid ? l10n.validationRequired : null,
+            ),
+            onChanged: (_) => onChanged(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: DropdownButtonFormField<TaktUnit>(
+            initialValue: unit,
+            decoration: InputDecoration(labelText: l10n.taktUnit),
+            items: [
+              for (final value in TaktUnit.values)
+                DropdownMenuItem(
+                  value: value,
+                  child: Text(taktUnitLabel(l10n, value)),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) onUnitChanged(value);
+            },
+          ),
+        ),
+        if (help != null) ...[
+          const SizedBox(width: 4),
+          Padding(
+            // Aligns with the field rather than with the row, which is taller
+            // by the height of an error line that is usually absent.
+            padding: const EdgeInsets.only(top: 12),
+            child: Tooltip(
+              message: help!,
+              triggerMode: TooltipTriggerMode.tap,
+              child: Icon(
+                Icons.info_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _NodeActionsRow extends StatelessWidget {
   const _NodeActionsRow();
 

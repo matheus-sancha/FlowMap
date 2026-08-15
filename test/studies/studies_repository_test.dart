@@ -231,7 +231,6 @@ void main() {
       await studies.updateStep(
         node.id,
         workcenterId: workcenterA,
-        changeover: Duration.zero,
       );
 
       final after = (await studies.loadNodes(studyId)).single;
@@ -329,7 +328,11 @@ void main() {
         studyId: source,
         atPosition: 0,
         workcenterId: workcenterA,
-        changeover: const Duration(minutes: 30),
+        setupValue: 30,
+        setupUnit: TaktUnit.minutes,
+        teardownValue: 10,
+        teardownUnit: TaktUnit.minutes,
+        samePartPercent: 25,
         equivalentValue: 4,
         equivalentUnit: TaktUnit.hours,
       );
@@ -359,7 +362,15 @@ void main() {
         workcenterA,
         reason: 'a duplicate targets the same capacity — that is the point',
       );
-      expect(copiedNodes.first.changeoverSeconds, 30 * 60);
+      // Every field a step carries, asked after one at a time. §2.6b found this
+      // method silently dropping `batch_number` and it had been doing so since
+      // the column arrived — found only because a new test happened to ask
+      // about the field beside it.
+      expect(copiedNodes.first.setupValue, 30);
+      expect(copiedNodes.first.setupUnit, TaktUnit.minutes);
+      expect(copiedNodes.first.teardownValue, 10);
+      expect(copiedNodes.first.teardownUnit, TaktUnit.minutes);
+      expect(copiedNodes.first.samePartPercent, 25);
       expect(copiedNodes.first.equivalentValue, 4);
       expect(copiedNodes.first.equivalentUnit, TaktUnit.hours);
       expect(copiedNodes.last.inventoryQuantity, 4);

@@ -1060,7 +1060,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Eficiencia del ciclo de proceso: tiempo de proceso ÷ lead time. La parte del tiempo transcurrido que añade valor.';
 
   @override
-  String get flowDataSource => 'Línea de tiempo';
+  String get flowDataSource => 'Pieza';
 
   @override
   String get flowSourceEquivalent => 'Equivalente del flujo';
@@ -1150,11 +1150,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stepProcessTime => 'Tiempo de proceso';
 
   @override
-  String get stepChangeover => 'Cambio de formato';
+  String get stepSetup => 'Preparación';
 
   @override
-  String get stepChangeoverHelp =>
-      'Se cobra solo cuando la orden anterior en este centro de trabajo era de otra pieza.';
+  String get stepTeardown => 'Desmontaje';
+
+  @override
+  String get stepTeardownHelp =>
+      'Desmontar la estación después de una orden. Se cobra junto con la preparación de la orden siguiente, porque si hace falta depende de lo que venga después.';
+
+  @override
+  String get stepSamePart => 'Misma pieza';
+
+  @override
+  String get stepSamePartHelp =>
+      'Qué parte de la preparación y el desmontaje se sigue cobrando cuando la orden anterior era de la misma pieza. 0% hace gratis una repetición; 100% significa que agrupar no ahorra nada.';
+
+  @override
+  String get stepChangeover => 'Cambio de formato';
 
   @override
   String get laneRule => 'Orden de la cola';
@@ -1275,6 +1288,30 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get footerLeadTime => 'Lead time';
+
+  @override
+  String get footerWorkingDays => 'Días hábiles';
+
+  @override
+  String get footerRunningDaysLabel => 'Días corridos';
+
+  @override
+  String get footerWorkingDaysHelp =>
+      'Días del recorrido en los que al menos un centro de trabajo de este flujo estuvo abierto. La diferencia con los días corridos son los fines de semana y los paros.';
+
+  @override
+  String get footerRunningDaysHelp =>
+      'Todos los días naturales que abarca el recorrido, fines de semana y paros incluidos, y la fecha en que termina. Dividido entre los días hábiles ronda 1,4 en una semana de cinco días — porque es siete entre cinco, no porque se suponga.';
+
+  @override
+  String footerDaysWithDate(String days, String date) {
+    return '$days d · $date';
+  }
+
+  @override
+  String footerDaysOnly(String days) {
+    return '$days d';
+  }
 
   @override
   String get footerPce => 'PCE';

@@ -903,6 +903,96 @@ void main() {
       );
     });
 
+    test('working days are the open subset of running days (§17.2)', () {
+      // 1 August 2026 is a Saturday and ABC works Monday to Friday. Three
+      // takt-days finish on Thursday the 6th, so the walk spans six calendar
+      // days of which the first two are the weekend.
+      final view = withNodes([
+        for (var i = 0; i < 3; i++) step(i, workcenterId: 'WC'),
+      ]);
+
+      expect(view.runningDays, 6);
+      expect(view.workingDays, 4);
+    });
+
+    test('the ratio falls out of the week rather than being imposed', () {
+      // The field asked for `running = 1.4 × working`, and 1.4 is 7 ÷ 5. Taking
+      // both figures off one walk gets that for free on a five-day week — and
+      // gets the right answer instead of 1.4 on a plant that is not, which a
+      // literal factor could not (§17.2).
+      final long = withNodes([
+        for (var i = 0; i < 20; i++) step(i, workcenterId: 'WC'),
+      ]);
+
+      final ratio = long.runningDays! / long.workingDays!;
+      expect(ratio, closeTo(1.4, 0.12));
+    });
+
+    test('a day any station is open is a working day', () {
+      // The union, not a nominated station. `WC` keeps ABC's five-day week;
+      // `ALL` runs every day — so every day of the span becomes a working one
+      // and the two figures converge. That reads like the feature is broken and
+      // is in fact the rule working: the line could make progress on a Sunday.
+      final continuous = ShiftPatternSpec(
+        name: 'Continuous',
+        cycleType: ShiftCycleType.rotating,
+        workingWeekdays: ShiftPatternSpec.weekdayMask([1, 2, 3, 4, 5, 6, 7]),
+        shifts: const [
+          ShiftWindow(
+            label: 'All day',
+            position: 0,
+            startMinute: 0,
+            endMinute: 24 * 60,
+            breakSeconds: 0,
+          ),
+        ],
+      );
+      final schedule = WorkcenterScheduleSpec([
+        WorkcenterSchedulePeriodSpec(
+          startDate: DateTime(2026, 1, 1),
+          endDate: DateTime(2026, 12, 31),
+          operatorsPerShift: const [1],
+          availability: 1,
+          rework: 0,
+        ),
+      ]);
+
+      final view = buildFlowView(
+        study: study(),
+        nodes: [
+          step(0, workcenterId: 'WC'),
+          step(1, workcenterId: 'ALL'),
+        ],
+        contexts: {
+          'WC': context('WC'),
+          'ALL': WorkcenterContext(
+            workcenter: workcenter('ALL'),
+            calendar: WorkingCalendar.scheduled(
+              pattern: continuous,
+              staffing: schedule,
+            ),
+            schedule: schedule,
+          ),
+        },
+        pools: const {},
+        poolMembers: const {},
+        taktSchedule: taktOf(1, TaktUnit.days),
+        asOf: DateTime(2026, 8),
+      );
+
+      expect(view.workingDays, view.runningDays);
+    });
+
+    test('working days never exceed running days', () {
+      for (final count in [1, 3, 8, 15]) {
+        final view = withNodes([
+          for (var i = 0; i < count; i++) step(i, workcenterId: 'WC'),
+        ]);
+        expect(view.workingDays, lessThanOrEqualTo(view.runningDays!));
+        expect(view.workingDays, greaterThan(0));
+      }
+    });
+
     test('a longer flow ends later', () {
       final short = withNodes([step(0, workcenterId: 'WC')]);
       final long = withNodes([

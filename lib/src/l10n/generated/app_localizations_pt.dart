@@ -1061,7 +1061,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Eficiência do ciclo de processo: tempo de processo ÷ lead time. A parcela do tempo decorrido que agrega valor.';
 
   @override
-  String get flowDataSource => 'Linha do tempo';
+  String get flowDataSource => 'Peça';
 
   @override
   String get flowSourceEquivalent => 'Equivalente do fluxo';
@@ -1149,11 +1149,24 @@ class AppLocalizationsPt extends AppLocalizations {
   String get stepProcessTime => 'Tempo de processo';
 
   @override
-  String get stepChangeover => 'Setup';
+  String get stepSetup => 'Preparação';
 
   @override
-  String get stepChangeoverHelp =>
-      'Cobrado apenas quando a ordem anterior neste centro de trabalho era de outro item.';
+  String get stepTeardown => 'Desmontagem';
+
+  @override
+  String get stepTeardownHelp =>
+      'Desmontar a estação depois de uma ordem. Cobrada junto com a preparação da ordem seguinte, porque se é necessária depende do que vem a seguir.';
+
+  @override
+  String get stepSamePart => 'Mesma peça';
+
+  @override
+  String get stepSamePartHelp =>
+      'Quanto da preparação e da desmontagem ainda é cobrado quando a ordem anterior era da mesma peça. 0% torna uma repetição gratuita; 100% significa que agrupar não economiza nada.';
+
+  @override
+  String get stepChangeover => 'Troca';
 
   @override
   String get laneRule => 'Ordem da fila';
@@ -1274,6 +1287,30 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get footerLeadTime => 'Lead time';
+
+  @override
+  String get footerWorkingDays => 'Dias úteis';
+
+  @override
+  String get footerRunningDaysLabel => 'Dias corridos';
+
+  @override
+  String get footerWorkingDaysHelp =>
+      'Dias do percurso em que ao menos um centro de trabalho deste fluxo esteve aberto. A diferença para os dias corridos são os fins de semana e as paradas.';
+
+  @override
+  String get footerRunningDaysHelp =>
+      'Todos os dias de calendário que o percurso abrange, fins de semana e paradas incluídos, e a data em que termina. Dividido pelos dias úteis fica perto de 1,4 numa semana de cinco dias — porque é sete sobre cinco, não porque se suponha.';
+
+  @override
+  String footerDaysWithDate(String days, String date) {
+    return '$days d · $date';
+  }
+
+  @override
+  String footerDaysOnly(String days) {
+    return '$days d';
+  }
 
   @override
   String get footerPce => 'PCE';
