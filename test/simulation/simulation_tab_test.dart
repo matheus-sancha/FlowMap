@@ -6,17 +6,25 @@ import 'package:flowmap/src/features/simulation/application/sim_model.dart';
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/application/simulation_providers.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
-import 'package:flowmap/src/features/simulation/presentation/simulation_tab.dart';
+import 'package:flowmap/src/features/projects/presentation/project_workspace_screen.dart';
+import 'package:flowmap/src/features/resources/application/resources_providers.dart';
+import 'package:flowmap/src/features/simulation/presentation/simulation_workspace.dart';
+import 'package:flowmap/src/features/studies/application/studies_providers.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Mounting tests for the Simulation tab (DESIGN.md §12.1, §11, §8).
+/// Mounting tests for where a run is read (DESIGN.md §12.1, §11, §8).
 ///
-/// What these are for is the gate: Simulate must be dead while a study cannot
-/// run, and the panel must name which study and why. A run that starts against
-/// a half-built plant is the failure §11 exists to prevent.
+/// **This mounted the study's Simulation tab until that tab was deleted.** A run
+/// spans studies and is read in one place now, so the assertions moved to the
+/// workspace that replaced it — the figures are unchanged, because both were
+/// always one `StoredRun` through one `RunFilter`.
+///
+/// The readiness assertions moved further, to [Readiness] itself: it is under
+/// the Simulate button on the app bar now, and mounting the whole workspace
+/// screen to read a list needs a database.
 void main() {
   final now = DateTime(2026, 8, 1);
 
@@ -187,11 +195,18 @@ void main() {
           projectRunsProvider(
             project.id,
           ).overrideWith((ref) => Stream.value(const [])),
+          // The filter bar offers studies, cells and lines from the plant
+          // rather than from the run (§12.1), so it asks for both even on a
+          // project that has never run.
+          studiesProvider(project.id).overrideWith((ref) => Stream.value(const [])),
+          plantLinesProvider(
+            project.plantId,
+          ).overrideWith((ref) => Stream.value(const [])),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: SimulationTab(project: project)),
+          home: Scaffold(body: SimulationWorkspace(project: project)),
         ),
       ),
     );
@@ -212,22 +227,35 @@ void main() {
     expect(find.text('No study is selected for a run'), findsOne);
   });
 
-  testWidgets('an unready study names itself and disables Simulate', (
+  testWidgets('an unready study names itself and says what is wrong', (
     tester,
   ) async {
-    await pump(
-      tester,
-      assembled: input(
-        ready: false,
-        readiness: const [
-          StudyReadiness(
-            studyId: 'study-1',
-            name: 'Current state',
-            problems: [SimAssemblyProblem.unboundStep],
+    // **Mounted directly**, because this panel is now under the Simulate button
+    // on the project's app bar (§12.1) rather than on a tab — and the whole
+    // screen needs a database to reach. What is asserted is unchanged: a study
+    // that cannot run is named, and the reason is a sentence rather than a
+    // state.
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Readiness(
+            input: input(
+              ready: false,
+              readiness: const [
+                StudyReadiness(
+                  studyId: 'study-1',
+                  name: 'Current state',
+                  problems: [SimAssemblyProblem.unboundStep],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Not ready to run'), findsOne);
     expect(find.text('Current state'), findsOne);
@@ -235,6 +263,41 @@ void main() {
       find.text('• A step targets no workcenter, or its pool is empty.'),
       findsOne,
     );
+  });
+
+  testWidgets('a ready study is not listed as a problem', (tester) async {
+    // The other half, and the one that would fail silently: a panel that lists
+    // every study rather than every unready one turns "one line is broken" into
+    // a wall the reader has to scan.
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Readiness(
+            input: input(
+              ready: false,
+              readiness: const [
+                StudyReadiness(
+                  studyId: 'study-1',
+                  name: 'Broken one',
+                  problems: [SimAssemblyProblem.noTakt],
+                ),
+                StudyReadiness(
+                  studyId: 'study-2',
+                  name: 'Fine one',
+                  problems: [],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Broken one'), findsOne);
+    expect(find.text('Fine one'), findsNothing);
   });
 
   testWidgets('a ready project with no run yet says so', (tester) async {
@@ -252,7 +315,6 @@ void main() {
     );
 
     expect(find.text('No run yet'), findsOne);
-    expect(find.text('Not ready to run'), findsNothing);
   });
 
   testWidgets('a finished run reports §8 and names the bottleneck', (

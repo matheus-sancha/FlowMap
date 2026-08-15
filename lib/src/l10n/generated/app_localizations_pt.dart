@@ -1380,6 +1380,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simulationRunning => 'Executando…';
 
   @override
+  String get simulationRunSettings => 'Configurações da execução';
+
+  @override
   String get simulationDispatch => 'Despacho';
 
   @override

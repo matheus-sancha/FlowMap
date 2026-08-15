@@ -46,13 +46,24 @@ GoRouter router(Ref ref) {
                           studyId: state.pathParameters['studyId'],
                         ),
                       ),
-                      // The combined run is a place rather than an overlay, so
-                      // it is linkable and the window reopens on it (§12.1).
+                      // The **only** place a run is read (§12.1), and a place
+                      // rather than an overlay, so it is linkable and the
+                      // window reopens on it.
+                      //
+                      // `?study=` is how a study reaches its own slice now that
+                      // its Simulation tab is gone: one optional param, so
+                      // arriving from a study pre-selects that study's filter
+                      // and the one-click path survives. Only the study is in
+                      // the location — the other three filters stay view state,
+                      // which is a smaller thing than moving a date range into
+                      // a URL and is the one filter you navigate *from*.
                       GoRoute(
                         path: 'simulation',
                         builder: (context, state) => ProjectWorkspaceScreen(
                           projectId: state.pathParameters['projectId']!,
                           showSimulation: true,
+                          simulationStudyId:
+                              state.uri.queryParameters['study'],
                         ),
                       ),
                     ],

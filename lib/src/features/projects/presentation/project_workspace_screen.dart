@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
+import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
+import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/presentation/demand_tab.dart';
 import '../../flow/presentation/flow_tab.dart';
@@ -21,25 +23,37 @@ import '../../studies/presentation/study_settings_tab.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
 
-/// The project workspace: a studies sidebar, the five tabs of whichever study
-/// is open, and the project's Simulation tab (DESIGN.md §12.1).
+/// The project workspace: a studies sidebar and the tabs of whichever study is
+/// open — or, at `/simulation`, the one place the project's run is read
+/// (DESIGN.md §12.1).
 ///
-/// Simulation sits in the same strip but is a project-level tab rather than a
-/// study one, because a run spans studies (§7.7).
+/// **Simulation is not a tab.** A run spans studies (§7.7), so it was never one
+/// study's; it was a project-level tab wedged into a study's strip, and a
+/// workspace destination beside it, and a Run button on each. Opening the
+/// destination showed two Simulate buttons a few hundred pixels apart. There is
+/// one trigger now, on this app bar, and one place the result is read.
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   const ProjectWorkspaceScreen({
     super.key,
     required this.projectId,
     this.studyId,
     this.showSimulation = false,
+    this.simulationStudyId,
   });
 
   final String projectId;
   final String? studyId;
 
-  /// Whether the body is the project's combined run rather than a study's tabs
-  /// (§12.1). A destination in the sidebar, so it is part of the location.
+  /// Whether the body is the project's run rather than a study's tabs (§12.1).
+  /// A destination in the sidebar, so it is part of the location.
   final bool showSimulation;
+
+  /// The study to pre-select in the run's filter, from `?study=`.
+  ///
+  /// This is how a study reaches its own numbers now that its Simulation tab is
+  /// gone (§12.1). Null means the whole run, which is what the sidebar's own
+  /// entry links to.
+  final String? simulationStudyId;
 
   @override
   ConsumerState<ProjectWorkspaceScreen> createState() =>
@@ -54,9 +68,6 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   /// of the project, and it should not follow the user to another machine.
   bool _sidebarCollapsed = false;
 
-  /// The Simulation tab, after the five study ones.
-  static const _simulation = 6;
-
   /// What the last run said, until the reader dismisses it (§12.1).
   ///
   /// **A banner rather than a snackbar.** A snackbar anchors to the bottom of
@@ -68,11 +79,15 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   /// is for.
   ({String message, bool failed})? _outcome;
 
-  /// Owned here rather than by [_StudyTabs], because Simulate now lives in the
-  /// app bar (§12.1) and the banner it raises has to be able to bring the
-  /// reader to the results. A controller one level below the button that needs
-  /// it cannot be reached without passing a callback down and an index back up.
-  late final TabController _tabs = TabController(length: 7, vsync: this);
+  /// Owned here rather than by [_StudyTabs], because the app bar's Simulate
+  /// button has to be able to reset it and because §12.1's period control will
+  /// sit on the strip beside it.
+  ///
+  /// Six, not seven: the study's Simulation tab is gone. A run spans studies
+  /// and is now read in one place, and `View results` navigates there rather
+  /// than moving an index — which is the whole reason the banner needed a
+  /// controller in the first place.
+  late final TabController _tabs = TabController(length: 6, vsync: this);
 
   @override
   void dispose() {
@@ -146,7 +161,6 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               // of six tabs.
               _SimulateButton(
                 project: project,
-                onViewResults: () => _tabs.index = _simulation,
                 onFinished: (outcome) => setState(() => _outcome = outcome),
               ),
               const SizedBox(width: 8),
@@ -159,9 +173,17 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               if (_outcome case final outcome?)
                 RunBanner(
                   outcome: outcome,
+                  // A route rather than a tab index (§12.1). There is one place
+                  // a run is read now, and it is not one of these tabs — so
+                  // the action goes there, filtered to the study being read if
+                  // there is one, which is the same slice the deleted tab used
+                  // to show.
                   onViewResults: () {
-                    _tabs.index = _simulation;
                     setState(() => _outcome = null);
+                    context.go(
+                      '/projects/${project.id}/simulation'
+                      '${selected == null ? '' : '?study=${selected.id}'}',
+                    );
                   },
                   onDismiss: () => setState(() => _outcome = null),
                 ),
@@ -187,7 +209,12 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               const VerticalDivider(width: 1),
               Expanded(
                 child: widget.showSimulation
-                    ? SimulationWorkspace(project: project)
+                    ? SimulationWorkspace(
+                        project: project,
+                        // From `?study=`, so a study's own slice is one click
+                        // and one link away (§12.1).
+                        initialStudyId: widget.simulationStudyId,
+                      )
                     : selected == null
                     ? _NoStudyYet(project: project)
                     : _StudyTabs(
@@ -273,14 +300,9 @@ class RunBanner extends StatelessWidget {
 /// spinner stays on the button and a banner reports the headline with one way
 /// to the rest.
 class _SimulateButton extends ConsumerWidget {
-  const _SimulateButton({
-    required this.project,
-    required this.onViewResults,
-    required this.onFinished,
-  });
+  const _SimulateButton({required this.project, required this.onFinished});
 
   final Project project;
-  final VoidCallback onViewResults;
 
   /// What to say once the run is over. Raised here and rendered by the
   /// workspace, because the banner belongs above the tabs rather than beside
@@ -294,23 +316,33 @@ class _SimulateButton extends ConsumerWidget {
     final busy = ref.watch(simulationRunnerProvider(project.id)).isLoading;
     final ready = input?.canRun ?? false;
 
-    return Tooltip(
-      // The readiness panel lives on a tab the reader may not be looking at,
-      // so the reason travels with the button (§11).
-      message: busy || ready ? '' : _blockedBecause(l10n, input),
-      child: FilledButton.icon(
-        onPressed: busy || !ready
-            ? null
-            : () => _run(context, ref, l10n),
-        icon: busy
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.play_arrow),
-        label: Text(busy ? l10n.simulationRunning : l10n.simulationRun),
-      ),
+    return Row(
+      children: [
+        Tooltip(
+          // The first thing in the way still travels with the button (§11): a
+          // tooltip is a sentence and the panel beside it is the list.
+          message: busy || ready ? '' : _blockedBecause(l10n, input),
+          child: FilledButton.icon(
+            onPressed: busy || !ready ? null : () => _run(context, ref, l10n),
+            icon: busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.play_arrow),
+            label: Text(busy ? l10n.simulationRunning : l10n.simulationRun),
+          ),
+        ),
+        // **Everything about the *next* run, under the button that starts it**
+        // (§12.1). The dispatch rule and §11's readiness were on the deleted
+        // Simulation tab; they are about what the run will be rather than about
+        // what it said, so they follow the trigger rather than the results.
+        // Stacking them into the workspace's filter bar instead would have made
+        // a strip that already scrolls sideways at 1100 px carry three more
+        // controls.
+        _RunSettingsButton(project: project, input: input, busy: busy),
+      ],
     );
   }
 
@@ -345,6 +377,181 @@ class _SimulateButton extends ConsumerWidget {
       return '${study.name}: ${simProblemLabel(l10n, study.problems.first)}';
     }
     return '';
+  }
+}
+
+/// The rule the next run is made with, and why it cannot be started
+/// (DESIGN.md §12.1).
+///
+/// **Under the Simulate button rather than beside the results.** Both of these
+/// describe the run that has not happened yet: the dispatch rule decides what it
+/// will do, and §11's readiness decides whether it may begin. They lived on the
+/// Simulation tab because that is where the button used to be; the button moved
+/// to the app bar in an earlier round and they did not follow it, which is how
+/// the reason a button is disabled came to be on a tab the reader was not
+/// looking at.
+///
+/// The badge is the count of studies that are not ready, so the panel says there
+/// is something to open before it is opened.
+class _RunSettingsButton extends ConsumerWidget {
+  const _RunSettingsButton({
+    required this.project,
+    required this.input,
+    required this.busy,
+  });
+
+  final Project project;
+  final SimRunInput? input;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final blocked =
+        input?.readiness.where((study) => !study.isReady).length ?? 0;
+
+    return MenuAnchor(
+      menuChildren: [
+        // A panel rather than a list of menu items: it holds a dropdown and a
+        // block of prose, neither of which is a thing to be selected.
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            width: 340,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.simulationStudiesIn(input?.readiness.length ?? 0),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: Text(l10n.simulationDispatch)),
+                    _DispatchPicker(projectId: project.id, busy: busy),
+                  ],
+                ),
+                Text(
+                  l10n.simulationDispatchHelp,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+                if (input case final input? when !input.canRun) ...[
+                  const Divider(height: 24),
+                  Readiness(input: input),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+      builder: (context, controller, _) => IconButton(
+        tooltip: l10n.simulationRunSettings,
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        icon: Badge(
+          // Absent rather than zero when everything is ready: a badge reading
+          // `0` is a warning that nothing is wrong.
+          isLabelVisible: blocked > 0,
+          label: Text('$blocked'),
+          child: const Icon(Icons.tune),
+        ),
+      ),
+    );
+  }
+}
+
+class _DispatchPicker extends ConsumerWidget {
+  const _DispatchPicker({required this.projectId, required this.busy});
+
+  final String projectId;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final rule = ref.watch(dispatchRuleSelectionProvider(projectId));
+
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<DispatchRule>(
+        value: rule,
+        onChanged: busy
+            ? null
+            : (value) {
+                if (value != null) {
+                  ref
+                      .read(dispatchRuleSelectionProvider(projectId).notifier)
+                      .select(value);
+                }
+              },
+        items: [
+          for (final option in DispatchRule.values)
+            DropdownMenuItem(
+              value: option,
+              child: Text(dispatchRuleLabel(l10n, option)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// §11's readiness, per study — the list the button's tooltip is one sentence
+/// of.
+///
+/// Visible for testing for [RunBanner]'s reason: mounting the workspace needs a
+/// project, a study list and a database, and none of that is what the rule here
+/// is about. The rule is that a study which cannot run says so **by name** —
+/// "something is wrong" is not a thing anyone can act on.
+@visibleForTesting
+class Readiness extends StatelessWidget {
+  const Readiness({super.key, required this.input});
+
+  final SimRunInput input;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.warning_amber, color: theme.colorScheme.error, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              // Nothing flagged is not a fault, so it does not read as one.
+              input.isEmpty ? l10n.simulationNoStudies : l10n.simulationNotReady,
+              style: theme.textTheme.titleSmall,
+            ),
+          ],
+        ),
+        for (final study in input.readiness)
+          if (!study.isReady)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(study.name, style: theme.textTheme.labelLarge),
+                  for (final problem in study.problems)
+                    Text(
+                      '• ${simProblemLabel(l10n, problem)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+      ],
+    );
   }
 }
 
@@ -543,8 +750,12 @@ class _StudyTile extends ConsumerWidget {
   }
 }
 
-/// The five study tabs, plus the project-level Simulation tab (DESIGN.md
-/// §12.1) — a run spans studies, so it cannot belong to one of them (§7.7).
+/// The study's tabs (DESIGN.md §12.1).
+///
+/// **Simulation is not among them.** A run spans studies (§7.7) and is read in
+/// one place; a study reaches its own slice through `?study=` on that place's
+/// route, which is the same `RunFilter` the deleted tab applied and therefore
+/// cannot report a different number for the same study.
 class _StudyTabs extends StatefulWidget {
   const _StudyTabs({
     required this.project,
@@ -564,18 +775,16 @@ class _StudyTabs extends StatefulWidget {
 }
 
 class _StudyTabsState extends State<_StudyTabs> {
-  /// The Simulation tab, which the five before it are study tabs.
-  static const _simulation = 6;
-
   @override
   void didUpdateWidget(_StudyTabs old) {
     super.didUpdateWidget(old);
     if (old.study.id == widget.study.id) return;
-    // Switching studies resets to Flow rather than landing on whichever tab
-    // the previous study was showing — unless the reader is on Simulation,
-    // which is not about the study they just switched away from and would be
-    // an odd thing to be thrown out of.
-    if (widget.tabs.index != _simulation) widget.tabs.index = 0;
+    // Switching studies resets to Flow rather than landing on whichever tab the
+    // previous study was showing. The exception this used to carry — do not do
+    // it when the reader is on Simulation, which was not about the study they
+    // switched away from — went with that tab: every tab here is now about the
+    // study, so every one of them should follow it.
+    widget.tabs.index = 0;
   }
 
   @override
@@ -585,16 +794,29 @@ class _StudyTabsState extends State<_StudyTabs> {
 
     return Column(
       children: [
-        TabBar(
-          controller: widget.tabs,
-          tabs: [
-            Tab(text: l10n.studyTabFlow),
-            Tab(text: l10n.studyTabSettings),
-            Tab(text: l10n.studyTabTakt),
-            Tab(text: l10n.workcenters),
-            Tab(text: l10n.studyTabDemand),
-            Tab(text: l10n.studyTabSummary),
-            Tab(text: l10n.projectTabSimulation),
+        Row(
+          children: [
+            Expanded(child: _tabBar(l10n)),
+            // **The one-click path from a study to its own numbers**, which is
+            // what the deleted Simulation tab was (§12.1). A link rather than a
+            // screen: it carries `?study=` to the one place a run is read, so
+            // the slice is the same `RunFilter` the tab applied and the two
+            // cannot disagree.
+            //
+            // On the strip rather than in the study's menu, because it is not a
+            // property of the study — and §12.1's period control lands beside
+            // it, which is what this row exists to make room for.
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 12),
+              child: TextButton.icon(
+                onPressed: () => context.go(
+                  '/projects/${widget.project.id}/simulation'
+                  '?study=${study.id}',
+                ),
+                icon: const Icon(Icons.insights_outlined, size: 18),
+                label: Text(l10n.simViewResults),
+              ),
+            ),
           ],
         ),
         Expanded(
@@ -607,15 +829,29 @@ class _StudyTabsState extends State<_StudyTabs> {
               WorkcentersTab(project: widget.project, study: study),
               DemandTab(study: study),
               SummaryTab(study: study),
-              // This study's slice of the project's run, never a run of the
-              // study alone (§7.7, §12.1).
-              SimulationTab(project: widget.project, study: study),
             ],
           ),
         ),
       ],
     );
   }
+
+  /// Scrollable, so the strip can lose width to what sits beside it without
+  /// the last tab falling off the end — the run's link now, §12.1's period
+  /// control next.
+  Widget _tabBar(AppLocalizations l10n) => TabBar(
+    controller: widget.tabs,
+    isScrollable: true,
+    tabAlignment: TabAlignment.start,
+    tabs: [
+      Tab(text: l10n.studyTabFlow),
+      Tab(text: l10n.studyTabSettings),
+      Tab(text: l10n.studyTabTakt),
+      Tab(text: l10n.workcenters),
+      Tab(text: l10n.studyTabDemand),
+      Tab(text: l10n.studyTabSummary),
+    ],
+  );
 }
 
 class _NoStudyYet extends ConsumerWidget {

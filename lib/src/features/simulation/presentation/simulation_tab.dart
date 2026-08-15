@@ -18,149 +18,13 @@ import '../data/simulation_runs_repository.dart';
 import 'gantt_view.dart';
 import 'plan_excel.dart';
 
-/// The Simulation tab (DESIGN.md §12.1).
-///
-/// **Project-level, not per study**, because a run spans studies: every flagged
-/// study releases into one model of the plant, so line A's orders genuinely
-/// delay line B's (§7.7). Which studies are in is set on the studies
-/// themselves, so what is here is the rule to dispatch by, the readiness that
-/// gates the button, and what §8 makes of the result.
-class SimulationTab extends ConsumerWidget {
-  const SimulationTab({super.key, required this.project, this.study});
-
-  final Project project;
-
-  /// The study whose slice this is showing, or null for the whole run.
-  ///
-  /// **A slice of the project's run, never a run of the study alone** (§7.7).
-  /// One resource model of the plant is what makes line A's orders delay line
-  /// B's, so a solo run would answer a different and always-optimistic question
-  /// — and the two would then disagree with nothing on screen saying which was
-  /// which.
-  final Study? study;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final input = ref.watch(simRunInputProvider(project.id));
-    final runner = ref.watch(simulationRunnerProvider(project.id));
-
-    return Column(
-      children: [
-        _RunBar(project: project, input: input.value, busy: runner.isLoading),
-        const Divider(height: 1),
-        Expanded(
-          child: switch (input) {
-            AsyncError(:final error) => _Message(
-              icon: Icons.error_outline,
-              title: '$error',
-            ),
-            AsyncValue(value: null) => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            AsyncValue(value: final assembled!) => _Body(
-              project: project,
-              study: study,
-              input: assembled,
-              runner: runner,
-            ),
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _RunBar extends ConsumerWidget {
-  const _RunBar({
-    required this.project,
-    required this.input,
-    required this.busy,
-  });
-
-  final Project project;
-  final SimRunInput? input;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final rule = ref.watch(dispatchRuleSelectionProvider(project.id));
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          // The settings scroll and the button does not: Simulate is the one
-          // control that must be reachable at any window width.
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Text(
-                    l10n.simulationStudiesIn(input?.readiness.length ?? 0),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Tooltip(
-                    message: l10n.simulationDispatchHelp,
-                    child: Row(
-                      children: [
-                        Text(l10n.simulationDispatch),
-                        const SizedBox(width: 8),
-                        DropdownButtonHideUnderline(
-                          child: DropdownButton<DispatchRule>(
-                            value: rule,
-                            onChanged: busy
-                                ? null
-                                : (value) {
-                                    if (value != null) {
-                                      ref
-                                          .read(
-                                            dispatchRuleSelectionProvider(
-                                              project.id,
-                                            ).notifier,
-                                          )
-                                          .select(value);
-                                    }
-                                  },
-                            items: [
-                              for (final option in DispatchRule.values)
-                                DropdownMenuItem(
-                                  value: option,
-                                  child: Text(dispatchRuleLabel(l10n, option)),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Simulate itself is in the project's app bar (§12.1), so it can be
-          // pressed from any tab. What stays here is the setting the run is
-          // made with and the runs already made.
-          _RunsMenu(projectId: project.id),
-        ],
-      ),
-    );
-  }
-}
-
 /// The project's stored runs: open an earlier one, or delete one (§7.10).
 ///
 /// A run is ~4k rows for 500 orders, and nothing else in the app will ever
 /// remove one — so the list that makes them reachable is also the only place
 /// that can let them go.
-class _RunsMenu extends ConsumerWidget {
-  const _RunsMenu({required this.projectId});
+class RunsMenu extends ConsumerWidget {
+  const RunsMenu({super.key, required this.projectId});
 
   final String projectId;
 
@@ -224,120 +88,6 @@ class _RunsMenu extends ConsumerWidget {
       DispatchRule.fifo;
 }
 
-class _Body extends StatelessWidget {
-  const _Body({
-    required this.project,
-    required this.study,
-    required this.input,
-    required this.runner,
-  });
-
-  final Study? study;
-
-  final Project project;
-  final SimRunInput input;
-  final AsyncValue<StoredRun?> runner;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-
-    if (input.isEmpty) {
-      return _Message(
-        icon: Icons.playlist_add_check_outlined,
-        title: l10n.simulationNoStudies,
-        detail: l10n.simulationNoStudiesHelp,
-      );
-    }
-
-    // A Column rather than the single scrolling page this was, because the
-    // Gantt takes the body's full height (§8.6) and a child of a `ListView`
-    // cannot. The readiness panel stays above whatever the body turns out to
-    // be: it is about the *next* run, not about the one being read.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!input.canRun)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: _ReadinessPanel(input: input),
-          ),
-        Expanded(
-          child: switch (runner) {
-            AsyncError(:final error) => SingleChildScrollView(
-              child: _Message(icon: Icons.error_outline, title: '$error'),
-            ),
-            AsyncLoading() => const Center(child: CircularProgressIndicator()),
-            AsyncValue(value: null) => SingleChildScrollView(
-              child: _Message(
-                icon: Icons.timeline_outlined,
-                title: l10n.simulationNeverRun,
-                detail: l10n.simulationNeverRunHelp,
-              ),
-            ),
-            AsyncValue(value: final run!) => RunResults(
-              slice: filterRun(
-                run,
-                study == null ? const RunFilter() : RunFilter.study(study!.id),
-              ),
-              projectName: project.name,
-            ),
-          },
-        ),
-      ],
-    );
-  }
-}
-
-/// §11's readiness, per study. Simulate is disabled while any of it stands.
-class _ReadinessPanel extends StatelessWidget {
-  const _ReadinessPanel({required this.input});
-
-  final SimRunInput input;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-
-    return Card(
-      color: theme.colorScheme.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.warning_amber, color: theme.colorScheme.error),
-                const SizedBox(width: 8),
-                Text(
-                  l10n.simulationNotReady,
-                  style: theme.textTheme.titleSmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            for (final study in input.readiness)
-              if (!study.isReady)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(study.name, style: theme.textTheme.labelLarge),
-                      for (final problem in study.problems)
-                        Text('• ${simProblemLabel(l10n, problem)}'),
-                    ],
-                  ),
-                ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Which of the two views of a run is showing.
 enum _RunView { results, gantt }
 
@@ -353,12 +103,14 @@ enum _RunView { results, gantt }
 ///
 /// Held in an `IndexedStack`, so switching to the results and back returns the
 /// zoom the reader left rather than refitting the chart under them.
-/// A run's header, headline and its two views of itself (§12.1).
 ///
-/// **Public because two screens show it**: a study's Simulation tab and the
-/// project's simulation workspace. They differ only in which slice they hand it
-/// — which is the whole point of `run_filter.dart`, and is what stops the two
-/// reporting different numbers for the same study.
+/// **One screen shows it now.** It was public because two did — a study's
+/// Simulation tab and the project's workspace — and the whole argument for
+/// `run_filter.dart` was that two screens reading one `StoredRun` through one
+/// filter could not report different numbers for the same study. The tab is
+/// gone and the filter is what replaced it: a study reaches its slice through
+/// `?study=` on the workspace's route, so the guarantee is now structural
+/// rather than maintained (§12.1).
 class RunResults extends StatefulWidget {
   const RunResults({super.key, required this.slice, required this.projectName});
 
@@ -1172,40 +924,6 @@ class _PartSwatch extends StatelessWidget {
         const SizedBox(width: 8),
         Text(partNumber),
       ],
-    );
-  }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.icon, required this.title, this.detail});
-
-  final IconData icon;
-  final String title;
-  final String? detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: theme.colorScheme.outline),
-          const SizedBox(height: 12),
-          Text(title, style: theme.textTheme.bodyLarge),
-          if (detail != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              detail!,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

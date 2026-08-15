@@ -23,9 +23,21 @@ import 'simulation_tab.dart';
 /// rule is that starting a run must not require navigating somewhere first,
 /// which is the complaint that moved the button there in the first place.
 class SimulationWorkspace extends ConsumerStatefulWidget {
-  const SimulationWorkspace({super.key, required this.project});
+  const SimulationWorkspace({
+    super.key,
+    required this.project,
+    this.initialStudyId,
+  });
 
   final Project project;
+
+  /// The study to narrow to on arrival, from the route's `?study=`.
+  ///
+  /// **This is what replaced the study's Simulation tab.** That tab was this
+  /// widget with one filter pre-applied, so the tab became a link rather than a
+  /// screen — and because both read one `StoredRun` through one `RunFilter`,
+  /// the slice a study shows is the same slice it always showed.
+  final String? initialStudyId;
 
   @override
   ConsumerState<SimulationWorkspace> createState() =>
@@ -33,7 +45,7 @@ class SimulationWorkspace extends ConsumerStatefulWidget {
 }
 
 class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
-  final _studies = <String>{};
+  late final Set<String> _studies = {?widget.initialStudyId};
   final _cells = <String>{};
   final _lines = <String>{};
   DateTimeRange? _period;
@@ -61,12 +73,7 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
           cells: _cells,
           lines: _lines,
           period: _period,
-          busy: runner.isLoading,
-          canRun: input?.canRun ?? false,
           onChanged: () => setState(() {}),
-          onRun: () => ref
-              .read(simulationRunnerProvider(widget.project.id).notifier)
-              .run(),
           onClear: () => setState(() {
             _studies.clear();
             _cells.clear();
@@ -78,17 +85,24 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
         const Divider(height: 1),
         Expanded(
           child: switch (runner) {
-            AsyncError(:final error) => Center(child: Text('$error')),
+            AsyncError(:final error) => _Message(
+              icon: Icons.error_outline,
+              title: '$error',
+            ),
             AsyncLoading() => const Center(child: CircularProgressIndicator()),
-            AsyncValue(value: null) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  l10n.simulationNeverRun,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            // **Nothing to run and nothing run yet are different problems**, and
+            // this screen used to draw both as one blank pane — the deleted
+            // Simulation tab was the only thing that told them apart, so the
+            // distinction moved here with its body rather than dying with it.
+            AsyncValue(value: null) when input?.isEmpty ?? false => _Message(
+              icon: Icons.playlist_add_check_outlined,
+              title: l10n.simulationNoStudies,
+              detail: l10n.simulationNoStudiesHelp,
+            ),
+            AsyncValue(value: null) => _Message(
+              icon: Icons.timeline_outlined,
+              title: l10n.simulationNeverRun,
+              detail: l10n.simulationNeverRunHelp,
             ),
             AsyncValue(value: final run!) => RunResults(
               // Rebuilt when the filter changes, because the results widget
@@ -112,10 +126,7 @@ class _FilterBar extends ConsumerWidget {
     required this.cells,
     required this.lines,
     required this.period,
-    required this.busy,
-    required this.canRun,
     required this.onChanged,
-    required this.onRun,
     required this.onClear,
     required this.onPeriod,
   });
@@ -125,10 +136,7 @@ class _FilterBar extends ConsumerWidget {
   final Set<String> cells;
   final Set<String> lines;
   final DateTimeRange? period;
-  final bool busy;
-  final bool canRun;
   final VoidCallback onChanged;
-  final VoidCallback onRun;
   final VoidCallback onClear;
   final ValueChanged<DateTimeRange?> onPeriod;
 
@@ -203,17 +211,12 @@ class _FilterBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 12),
-          FilledButton.icon(
-            onPressed: busy || !canRun ? null : onRun,
-            icon: busy
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.play_arrow),
-            label: Text(busy ? l10n.simulationRunning : l10n.simulationRun),
-          ),
+          // **Which run is being read**, beside the filters that narrow it.
+          //
+          // Simulate itself is not here: the app bar's button is the one
+          // trigger now, and two buttons for one action about 200 px apart is
+          // what the field reported on opening this screen (§12.1).
+          RunsMenu(projectId: project.id),
         ],
       ),
     );
@@ -310,6 +313,47 @@ class _PeriodPicker extends StatelessWidget {
         // never completed still appears in its period rather than vanishing.
         helpIcon(context, l10n.simFilterPeriodHelp) ?? const SizedBox.shrink(),
       ],
+    );
+  }
+}
+
+/// An empty state: an icon, a sentence and an optional explanation.
+///
+/// Moved here with the Simulation tab's body (§12.1). It is the deleted tab
+/// that knew "nothing is flagged for a run" was worth saying rather than
+/// leaving as an empty screen, and dropping it with the tab would have lost
+/// that distinction — nothing to run and nothing run yet read identically as a
+/// blank pane and are different problems.
+class _Message extends StatelessWidget {
+  const _Message({required this.icon, required this.title, this.detail});
+
+  final IconData icon;
+  final String title;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 48, color: theme.colorScheme.outline),
+          const SizedBox(height: 12),
+          Text(title, style: theme.textTheme.bodyLarge),
+          if (detail != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              detail!,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

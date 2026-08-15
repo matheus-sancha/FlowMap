@@ -1365,6 +1365,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simulationRunning => 'Running…';
 
   @override
+  String get simulationRunSettings => 'Run settings';
+
+  @override
   String get simulationDispatch => 'Dispatch';
 
   @override

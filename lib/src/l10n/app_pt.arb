@@ -468,6 +468,7 @@
   "simStationsWholeRun": "Descrevem a corrida inteira, não a fatia filtrada — a corrida não guarda o que seria preciso para limitar o tempo aberto.",
   "simulationRun": "Simular",
   "simulationRunning": "Executando…",
+  "simulationRunSettings": "Configurações da execução",
   "simulationDispatch": "Despacho",
   "simulationDispatchHelp": "Como um centro de trabalho escolhe a próxima ordem em espera. Todas as regras desempatam por chegada, depois prioridade do estudo e depois sequência, então as mesmas entradas sempre produzem a mesma execução.",
   "dispatchFifo": "FIFO — por chegada",

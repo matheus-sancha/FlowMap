@@ -515,6 +515,7 @@
   "simStationsWholeRun": "These describe the whole run, not the filtered slice — the run does not store what a narrowed open time would need.",
   "simulationRun": "Simulate",
   "simulationRunning": "Running…",
+  "simulationRunSettings": "Run settings",
   "simulationDispatch": "Dispatch",
   "simulationDispatchHelp": "How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.",
   "dispatchFifo": "FIFO — by arrival",

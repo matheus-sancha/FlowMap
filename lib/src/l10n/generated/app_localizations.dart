@@ -2514,6 +2514,12 @@ abstract class AppLocalizations {
   /// **'Running…'**
   String get simulationRunning;
 
+  /// No description provided for @simulationRunSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Run settings'**
+  String get simulationRunSettings;
+
   /// No description provided for @simulationDispatch.
   ///
   /// In en, this message translates to:
