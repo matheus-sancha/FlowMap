@@ -377,10 +377,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get valueNone => 'Ninguno';
 
   @override
-  String get workcenterNameHelp =>
-      'Como lo llama la planta, y la etiqueta de la caja de proceso — por ejemplo CLAD04.';
-
-  @override
   String get workcenterAddExisting => 'Añadir existente';
 
   @override
@@ -455,10 +451,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get projectPlantHelp =>
       'No se puede cambiar después: cada estudio, programación y paso de flujo del proyecto apunta a los centros de trabajo de esta planta.';
-
-  @override
-  String get projectPatternHelp =>
-      'La división de turnos con la que se dota a cada centro de trabajo de este proyecto.';
 
   @override
   String get projectDeleteBody =>
@@ -1124,15 +1116,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get flowNodeLabel => 'Etiqueta';
 
   @override
-  String get flowNodeLabelHelp =>
-      'Se muestra en lugar del código del centro de trabajo.';
-
-  @override
   String get flowNodeNotes => 'Notas';
-
-  @override
-  String get flowNodeNotesHelp =>
-      'Problemas y oportunidades detectados aquí al recorrer el estado actual. Texto libre, en este nodo, sin afectar a ningún número: aparece en el mapa y en el PDF exportado.';
 
   @override
   String get flowNodeHasNotes => 'Tiene notas';

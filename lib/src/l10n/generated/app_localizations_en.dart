@@ -375,10 +375,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get valueNone => 'None';
 
   @override
-  String get workcenterNameHelp =>
-      'What the shop floor calls it, and the label on the process box — e.g. CLAD04.';
-
-  @override
   String get workcenterAddExisting => 'Add existing';
 
   @override
@@ -452,10 +448,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get projectPlantHelp =>
       'Cannot be changed later: every study, schedule and flow step in the project points at this plant\'s workcenters.';
-
-  @override
-  String get projectPatternHelp =>
-      'The shift split every workcenter in this project is staffed against.';
 
   @override
   String get projectDeleteBody =>
@@ -1111,14 +1103,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowNodeLabel => 'Label';
 
   @override
-  String get flowNodeLabelHelp => 'Shown instead of the workcenter code.';
-
-  @override
   String get flowNodeNotes => 'Notes';
-
-  @override
-  String get flowNodeNotesHelp =>
-      'Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.';
 
   @override
   String get flowNodeHasNotes => 'Has notes';

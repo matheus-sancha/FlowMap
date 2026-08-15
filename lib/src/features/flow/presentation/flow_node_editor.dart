@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
@@ -442,8 +443,7 @@ class _StepDialogState extends State<_StepDialog> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: l10n.flowStepTarget,
-                  helperText: l10n.flowStepTargetHelp,
-                  helperMaxLines: 3,
+                  suffixIcon: helpIcon(context, l10n.flowStepTargetHelp),
                 ),
                 items: [
                   DropdownMenuItem(value: null, child: Text(l10n.valueNone)),
@@ -517,8 +517,7 @@ class _StepDialogState extends State<_StepDialog> {
                   decoration: InputDecoration(
                     labelText: l10n.stepSamePart,
                     suffixText: '%',
-                    helperText: l10n.stepSamePartHelp,
-                    helperMaxLines: 3,
+                    suffixIcon: helpIcon(context, l10n.stepSamePartHelp),
                     errorText: _samePartInvalid ? l10n.validationRequired : null,
                   ),
                   onChanged: (_) => setState(() {}),
@@ -531,8 +530,6 @@ class _StepDialogState extends State<_StepDialog> {
                 maxLines: 4,
                 decoration: InputDecoration(
                   labelText: l10n.flowNodeNotes,
-                  helperText: l10n.flowNodeNotesHelp,
-                  helperMaxLines: 3,
                   alignLabelWithHint: true,
                 ),
               ),
@@ -706,15 +703,7 @@ class _ValueAndUnit extends StatelessWidget {
             // Aligns with the field rather than with the row, which is taller
             // by the height of an error line that is usually absent.
             padding: const EdgeInsets.only(top: 12),
-            child: Tooltip(
-              message: help!,
-              triggerMode: TooltipTriggerMode.tap,
-              child: Icon(
-                Icons.info_outline,
-                size: 18,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+            child: helpIcon(context, help),
           ),
         ],
       ],
@@ -894,8 +883,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                   decoration: InputDecoration(
                     labelText: l10n.inventoryPieces,
                     // pieces × takt is the classic "days of stock" reading.
-                    helperText: l10n.inventoryPiecesHelp,
-                    helperMaxLines: 3,
+                    suffixIcon: helpIcon(context, l10n.inventoryPiecesHelp),
                   ),
                   onChanged: (_) => setState(() {}),
                 )
@@ -970,8 +958,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: l10n.laneRule,
-                  helperText: l10n.laneRuleHelp,
-                  helperMaxLines: 4,
+                  suffixIcon: helpIcon(context, l10n.laneRuleHelp),
                 ),
                 items: [
                   DropdownMenuItem(
@@ -992,8 +979,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: l10n.laneCapacity,
-                  helperText: l10n.laneCapacityHelp,
-                  helperMaxLines: 4,
+                  suffixIcon: helpIcon(context, l10n.laneCapacityHelp),
                   errorText: _capacityIsValid ? null : l10n.validationRequired,
                 ),
                 onChanged: (_) => setState(() {}),
@@ -1010,8 +996,6 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                 maxLines: 4,
                 decoration: InputDecoration(
                   labelText: l10n.flowNodeNotes,
-                  helperText: l10n.flowNodeNotesHelp,
-                  helperMaxLines: 3,
                   alignLabelWithHint: true,
                 ),
               ),

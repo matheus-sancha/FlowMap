@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
@@ -417,8 +418,7 @@ class _ExceptionDialogState extends ConsumerState<_ExceptionDialog> {
                 initialValue: _scope,
                 decoration: InputDecoration(
                   labelText: l10n.exceptionScope,
-                  helperText: l10n.exceptionScopeHelp,
-                  helperMaxLines: 3,
+                  suffixIcon: helpIcon(context, l10n.exceptionScopeHelp),
                 ),
                 items: [
                   DropdownMenuItem(

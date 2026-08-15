@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../common/help_icon.dart';
 
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -111,8 +112,7 @@ class _StudyRunSettingsDialogState extends State<_StudyRunSettingsDialog> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: l10n.studyStartBuffer,
-                  helperText: l10n.studyStartBufferHelp,
-                  helperMaxLines: 4,
+                  suffixIcon: helpIcon(context, l10n.studyStartBufferHelp),
                   errorText: _bufferValue == null
                       ? l10n.validationRequired
                       : null,
@@ -125,8 +125,7 @@ class _StudyRunSettingsDialogState extends State<_StudyRunSettingsDialog> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: l10n.studyPaceSetter,
-                  helperText: l10n.studyPaceSetterHelp,
-                  helperMaxLines: 4,
+                  suffixIcon: helpIcon(context, l10n.studyPaceSetterHelp),
                 ),
                 items: [
                   DropdownMenuItem(

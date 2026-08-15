@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -727,8 +728,7 @@ class _StudyDialogState extends State<_StudyDialog> {
               initialValue: _line.line.id,
               decoration: InputDecoration(
                 labelText: l10n.productionLine,
-                helperText: l10n.studyLineHelp,
-                helperMaxLines: 3,
+                suffixIcon: helpIcon(context, l10n.studyLineHelp),
               ),
               items: [
                 for (final line in widget.lines)

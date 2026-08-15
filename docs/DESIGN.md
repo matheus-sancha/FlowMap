@@ -1682,6 +1682,44 @@ to. The row header goes with it.
 - **The sequence grid does not freeze anything.** Six columns fit, and a second scroll position that
   cannot disagree beats one that merely does not.
 
+### 12.7 How a field explains itself
+
+Field feedback: *"dial back with the explaining text for each feature. It's too much, when needed
+add a mouse hover tooltip instead."* The app had **two** conventions and this unifies them — the
+flow footer's metrics were already help-on-hover with no affordance at all, while every form field
+carried a permanent `helperText` two or three lines deep, so a dialog of six fields was mostly prose.
+
+**The rule is about what the text does, not about where it goes.**
+
+- **Help that restates its own label is deleted, not moved.** Moving it to a tooltip only hides the
+  fact that it was never earning the space. `Shown instead of the workcenter code` under a field
+  labelled *Label*, and `Free text, on this node` under one labelled *Notes*, are the shape of it.
+- **Help that carries a definition a wrong answer depends on keeps an affordance** — a tappable `ⓘ`
+  in the field's `suffixIcon`, from `common/help_icon.dart`. What `days` means on a step (§6.1.1),
+  that a project's plant cannot be changed later, that availability is applied once and to process
+  time only (§4.4), that a pool exception is saved per member.
+
+Fourteen fields kept one, four lost theirs, and **no `helperText` remains in the tree** — the point
+is a consistent amount of noise, so it was swept in one commit rather than a dialog at a time. A
+half-swept app is louder than either end state.
+
+`TooltipTriggerMode.tap` as well as hover: it costs nothing on a desktop mouse and is the difference
+between discoverable and not for anyone driving this on a touchscreen at the line side, which is
+where a current-state walk actually happens.
+
+_Rejected: every `helperText` to a bare `Tooltip` on the field, matching the footer's metrics._ One
+convention everywhere and maximum quiet — but with no affordance nobody hovers, so the definitions
+would be gone rather than moved, and the `days` ambiguity §17.4 exists to prevent would be
+discoverable only by accident.
+_Rejected: deleting all of it._ It forces every label to stand alone, which is a real discipline.
+But no label can make `days` unambiguous.
+
+**Settings picks the same side of it.** The date format was four `RadioListTile`s and an explanatory
+paragraph — most of a screen for one setting with four values. It is a dropdown with the sample
+carried **inside each item** (`Day/month/year · 15/08/2026`), so the preview that made the list worth
+reading survives the collapse and still describes the current choice when closed; the paragraph is an
+`ⓘ` beside the heading, because it defines what `Locale` means and the label does not.
+
 ---
 
 ## 13. Exports

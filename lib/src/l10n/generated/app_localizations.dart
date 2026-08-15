@@ -796,12 +796,6 @@ abstract class AppLocalizations {
   /// **'None'**
   String get valueNone;
 
-  /// No description provided for @workcenterNameHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'What the shop floor calls it, and the label on the process box — e.g. CLAD04.'**
-  String get workcenterNameHelp;
-
   /// No description provided for @workcenterAddExisting.
   ///
   /// In en, this message translates to:
@@ -927,12 +921,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot be changed later: every study, schedule and flow step in the project points at this plant\'s workcenters.'**
   String get projectPlantHelp;
-
-  /// No description provided for @projectPatternHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'The shift split every workcenter in this project is staffed against.'**
-  String get projectPatternHelp;
 
   /// No description provided for @projectDeleteBody.
   ///
@@ -2052,23 +2040,11 @@ abstract class AppLocalizations {
   /// **'Label'**
   String get flowNodeLabel;
 
-  /// No description provided for @flowNodeLabelHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Shown instead of the workcenter code.'**
-  String get flowNodeLabelHelp;
-
   /// No description provided for @flowNodeNotes.
   ///
   /// In en, this message translates to:
   /// **'Notes'**
   String get flowNodeNotes;
-
-  /// No description provided for @flowNodeNotesHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.'**
-  String get flowNodeNotesHelp;
 
   /// No description provided for @flowNodeHasNotes.
   ///

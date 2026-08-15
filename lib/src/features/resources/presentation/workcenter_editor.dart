@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../common/help_icon.dart';
 
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -146,7 +147,6 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
                   labelText: l10n.fieldName,
                   // The name is what the process box is labelled with, so it is
                   // the shop-floor code, not a description.
-                  helperText: l10n.workcenterNameHelp,
                   // `helperMaxLines` defaults to 1 however long the string is,
                   // so without this the sentence is clipped mid-word — which is
                   // exactly what was reported from the field.
@@ -175,8 +175,7 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: l10n.workcenterParallelCapacity,
-                  helperText: l10n.workcenterParallelCapacityHelp,
-                  helperMaxLines: 4,
+                  suffixIcon: helpIcon(context, l10n.workcenterParallelCapacityHelp),
                   errorText: _unitsValue == null
                       ? l10n.validationRequired
                       : null,

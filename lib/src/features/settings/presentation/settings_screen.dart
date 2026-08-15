@@ -53,37 +53,52 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.settingsDateFormat,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.settingsDateFormatHelp,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        l10n.settingsDateFormat,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(width: 6),
+                      // The paragraph that stood here is a tooltip now. It
+                      // defines what `Locale` means, which the label does not —
+                      // so it keeps an affordance rather than being deleted
+                      // with the help that only restated its field.
+                      Tooltip(
+                        message: l10n.settingsDateFormatHelp,
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  RadioGroup<DateFormatSetting>(
-                    groupValue: setting,
+                  // One control rather than four rows for four values. **The
+                  // sample rides inside each item** — `Day/month/year ·
+                  // 15/08/2026` — so the preview that made the radio list worth
+                  // reading survives the collapse, including in the closed
+                  // state, where it describes the current choice.
+                  DropdownButtonFormField<DateFormatSetting>(
+                    initialValue: setting,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final value in DateFormatSetting.values)
+                        DropdownMenuItem(
+                          value: value,
+                          child: Text('${label(value)} · ${sample(value)}'),
+                        ),
+                    ],
                     onChanged: (chosen) {
                       if (chosen == null) return;
                       ref
                           .read(settingsRepositoryProvider)
                           .setDateFormat(chosen);
                     },
-                    child: Column(
-                      children: [
-                        for (final value in DateFormatSetting.values)
-                          RadioListTile<DateFormatSetting>(
-                            value: value,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(label(value)),
-                            subtitle: Text(sample(value)),
-                          ),
-                      ],
-                    ),
                   ),
                 ],
               ),

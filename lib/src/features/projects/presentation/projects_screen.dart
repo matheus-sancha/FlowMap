@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/resource_row_menu.dart';
 import '../../../data/database/database.dart';
@@ -301,8 +302,7 @@ class _ProjectDialogState extends State<_ProjectDialog> {
                 labelText: l10n.plant,
                 // The plant cannot be changed later: every study, schedule and
                 // flow node in the project points at its workcenters.
-                helperText: l10n.projectPlantHelp,
-                helperMaxLines: 3,
+                suffixIcon: helpIcon(context, l10n.projectPlantHelp),
               ),
               items: [
                 for (final plant in widget.plants)
@@ -315,8 +315,6 @@ class _ProjectDialogState extends State<_ProjectDialog> {
               initialValue: _patternId,
               decoration: InputDecoration(
                 labelText: l10n.shiftPattern,
-                helperText: l10n.projectPatternHelp,
-                helperMaxLines: 3,
               ),
               items: [
                 for (final pattern in widget.patterns)

@@ -140,7 +140,6 @@
 
   "valueNone": "Ninguno",
 
-  "workcenterNameHelp": "Como lo llama la planta, y la etiqueta de la caja de proceso — por ejemplo CLAD04.",
   "workcenterAddExisting": "Añadir existente",
   "workcenterAddExistingHelp": "Un centro de trabajo pertenece a la planta, así que esto solo cambia dónde aparece en el árbol. Cualquier estudio de cualquier línea puede usarlo igualmente.",
   "workcenterNoneToAdd": "Todos los centros de trabajo de esta planta ya están en esta línea.",
@@ -165,7 +164,6 @@
   "projectMissing": "Ese proyecto ya no existe.",
   "projectNeedsPlant": "Crea una planta en Recursos antes de iniciar un proyecto.",
   "projectPlantHelp": "No se puede cambiar después: cada estudio, programación y paso de flujo del proyecto apunta a los centros de trabajo de esta planta.",
-  "projectPatternHelp": "La división de turnos con la que se dota a cada centro de trabajo de este proyecto.",
   "projectDeleteBody": "Sus estudios, programaciones y flujos se van con él. Esto no se puede deshacer.",
 
   "study": "Estudio",
@@ -388,9 +386,7 @@
   "flowStepTarget": "Centro de trabajo o pool",
   "flowStepTargetHelp": "Un paso se ejecuta exactamente en uno. Un pool envía cada orden al miembro que se libere primero.",
   "flowNodeLabel": "Etiqueta",
-  "flowNodeLabelHelp": "Se muestra en lugar del código del centro de trabajo.",
   "flowNodeNotes": "Notas",
-  "flowNodeNotesHelp": "Problemas y oportunidades detectados aquí al recorrer el estado actual. Texto libre, en este nodo, sin afectar a ningún número: aparece en el mapa y en el PDF exportado.",
   "flowNodeHasNotes": "Tiene notas",
   "flowMoveLeft": "Mover antes",
   "flowMoveRight": "Mover después",

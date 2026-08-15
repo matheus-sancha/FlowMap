@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/result_table.dart';
 import '../../../data/database/database.dart';
@@ -403,8 +404,7 @@ class _SchedulePeriodDialogState extends State<_SchedulePeriodDialog> {
                       decoration: InputDecoration(
                         labelText: l10n.availability,
                         suffixText: '%',
-                        helperText: l10n.availabilityHelp,
-                        helperMaxLines: 3,
+                        suffixIcon: helpIcon(context, l10n.availabilityHelp),
                         errorText: availability == null || availability <= 0
                             ? l10n.availabilityInvalid
                             : null,
@@ -422,8 +422,7 @@ class _SchedulePeriodDialogState extends State<_SchedulePeriodDialog> {
                       decoration: InputDecoration(
                         labelText: l10n.rework,
                         suffixText: '%',
-                        helperText: l10n.reworkHelp,
-                        helperMaxLines: 3,
+                        suffixIcon: helpIcon(context, l10n.reworkHelp),
                         errorText: rework == null ? l10n.reworkInvalid : null,
                       ),
                       onChanged: (_) => setState(() {}),

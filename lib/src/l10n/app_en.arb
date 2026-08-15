@@ -153,7 +153,6 @@
 
   "valueNone": "None",
 
-  "workcenterNameHelp": "What the shop floor calls it, and the label on the process box — e.g. CLAD04.",
   "workcenterAddExisting": "Add existing",
   "workcenterAddExistingHelp": "A workcenter belongs to the plant, so this only changes where it appears in the tree. Any study of any line can use it either way.",
   "workcenterNoneToAdd": "Every workcenter in this plant is already on this line.",
@@ -184,7 +183,6 @@
   "projectMissing": "That project no longer exists.",
   "projectNeedsPlant": "Create a plant in Resources before starting a project.",
   "projectPlantHelp": "Cannot be changed later: every study, schedule and flow step in the project points at this plant's workcenters.",
-  "projectPatternHelp": "The shift split every workcenter in this project is staffed against.",
   "projectDeleteBody": "Its studies, schedules and flows go with it. This cannot be undone.",
 
   "study": "Study",
@@ -428,9 +426,7 @@
   "flowStepTarget": "Workcenter or pool",
   "flowStepTargetHelp": "A step runs on exactly one. A pool sends each order to whichever member frees first.",
   "flowNodeLabel": "Label",
-  "flowNodeLabelHelp": "Shown instead of the workcenter code.",
   "flowNodeNotes": "Notes",
-  "flowNodeNotesHelp": "Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.",
   "flowNodeHasNotes": "Has notes",
   "flowMoveLeft": "Move earlier",
   "flowMoveRight": "Move later",
