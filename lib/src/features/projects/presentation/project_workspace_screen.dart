@@ -584,7 +584,9 @@ class _StudyTabsState extends State<_StudyTabs> {
               WorkcentersTab(project: widget.project, study: study),
               DemandTab(study: study),
               SummaryTab(study: study),
-              SimulationTab(project: widget.project),
+              // This study's slice of the project's run, never a run of the
+              // study alone (§7.7, §12.1).
+              SimulationTab(project: widget.project, study: study),
             ],
           ),
         ),

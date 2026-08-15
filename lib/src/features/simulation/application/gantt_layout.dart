@@ -410,6 +410,7 @@ class GanttChart {
 GanttChart buildGanttChart({
   required SimRunResult result,
   required RunMetrics metrics,
+  bool includeLanes = true,
 }) {
   final parts = <GanttPart>[
     for (var i = 0; i < metrics.parts.length; i++)
@@ -508,11 +509,14 @@ GanttChart buildGanttChart({
     );
   }
 
-  final lanes = _laneRows(
-    result: result,
-    partsById: partsById,
-    ordersById: ordersById,
-  );
+  // The lane bands are what makes the chart read as a queue; without them it
+  // reads as a flow, which is the other thing a reader comes to it for. The
+  // toggle is a view control, so it is a parameter here rather than a second
+  // chart — `barAt`, the hover card and the floored-bar count all follow from
+  // the rows and need to know nothing about it.
+  final lanes = includeLanes
+      ? _laneRows(result: result, partsById: partsById, ordersById: ordersById)
+      : const <String, GanttRow>{};
 
   return GanttChart(
     rows: [

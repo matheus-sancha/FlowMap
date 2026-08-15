@@ -33,7 +33,7 @@ import '../../../common/part_palette.dart';
 import '../../../common/unit_labels.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/gantt_layout.dart';
-import '../data/simulation_runs_repository.dart';
+import '../application/run_filter.dart';
 
 /// The frozen left column carrying the station names.
 ///
@@ -69,9 +69,11 @@ const _numberedBarWidth = 92.0;
 const ganttCanvasKey = ValueKey('gantt-canvas');
 
 class GanttView extends StatefulWidget {
-  const GanttView({super.key, required this.run});
+  const GanttView({super.key, required this.slice});
 
-  final StoredRun run;
+  /// The run as this view of it reads (§12.1). A study's own tab passes its
+  /// slice; the combined workspace passes whatever its filters resolved to.
+  final FilteredRun slice;
 
   @override
   State<GanttView> createState() => _GanttViewState();
@@ -109,7 +111,7 @@ class _GanttViewState extends State<GanttView> {
   @override
   void didUpdateWidget(GanttView old) {
     super.didUpdateWidget(old);
-    if (old.run.id == widget.run.id) return;
+    if (old.slice.signature == widget.slice.signature) return;
     // A different run is a different chart, a different fit, and nothing under
     // the pointer.
     _chart = _buildChart();
@@ -127,8 +129,19 @@ class _GanttViewState extends State<GanttView> {
     super.dispose();
   }
 
-  GanttChart _buildChart() =>
-      buildGanttChart(result: widget.run.result, metrics: widget.run.metrics);
+  /// Whether the queue bands between stations are drawn (§8.6).
+  ///
+  /// **View state, not a stored preference.** It survives switching to the
+  /// results and back, the way the zoom does, and resets on restart — a setting
+  /// that silently hid rows would be a chart lying to whoever opened the app
+  /// next.
+  bool _showLanes = true;
+
+  GanttChart _buildChart() => buildGanttChart(
+    result: widget.slice.result,
+    metrics: widget.slice.metrics,
+    includeLanes: _showLanes,
+  );
 
   /// The layout at [scale], remembered so that scrolling does not re-measure
   /// every bar in the run on every frame. A cache of a pure function of state
@@ -206,7 +219,7 @@ class _GanttViewState extends State<GanttView> {
   /// renamed since still reads as the one that ran — the map `_PartsTable` and
   /// `_ProductionPlan` build for the same reason.
   Map<String, String> get _studyNames => {
-    for (final study in widget.run.studies) study.studyId: study.name,
+    for (final study in widget.slice.run.studies) study.studyId: study.name,
   };
 
   @override
@@ -273,6 +286,15 @@ class _GanttViewState extends State<GanttView> {
               canZoomIn: scale < bounds.max,
               onZoomOut: () => _zoom(1 / GanttMetrics.zoomStep, pane),
               onZoomIn: () => _zoom(GanttMetrics.zoomStep, pane),
+              showLanes: _showLanes,
+              onShowLanes: (value) => setState(() {
+                _showLanes = value;
+                _chart = _buildChart();
+                // The rows moved, so nothing is under the pointer any more and
+                // the cached layout describes a chart that no longer exists.
+                _cached = null;
+                _hovered = null;
+              }),
             ),
           ],
         );
@@ -515,6 +537,8 @@ class _Footer extends StatelessWidget {
     required this.canZoomIn,
     required this.onZoomOut,
     required this.onZoomIn,
+    required this.showLanes,
+    required this.onShowLanes,
   });
 
   final GanttChart chart;
@@ -524,6 +548,8 @@ class _Footer extends StatelessWidget {
   final bool canZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onZoomIn;
+  final bool showLanes;
+  final ValueChanged<bool> onShowLanes;
 
   @override
   Widget build(BuildContext context) {
@@ -581,6 +607,20 @@ class _Footer extends StatelessWidget {
                 ),
               ),
             ),
+          // Beside the zoom, because both are view controls over the same
+          // chart. **One toggle rather than two labelled segments**: the labels
+          // are 216 px the footer does not have, and taking them squeezed the
+          // legend to nothing and overflowed the row. The tooltip carries what
+          // the labels would have said, including which state it is in.
+          IconButton(
+            isSelected: showLanes,
+            icon: const Icon(Icons.view_stream_outlined),
+            selectedIcon: const Icon(Icons.table_rows_outlined),
+            tooltip:
+                '${showLanes ? l10n.simGanttRowsWithLanes : l10n.simGanttRowsStations}'
+                ' — ${l10n.simGanttRowsHelp}',
+            onPressed: () => onShowLanes(!showLanes),
+          ),
           IconButton(
             icon: const Icon(Icons.zoom_out),
             tooltip: l10n.simGanttZoomOut,

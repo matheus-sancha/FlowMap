@@ -8,6 +8,7 @@ import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../application/run_filter.dart';
 import '../application/run_metrics.dart';
 import '../application/sim_assembly.dart';
 import '../application/sim_model.dart';
@@ -25,9 +26,18 @@ import 'plan_excel.dart';
 /// themselves, so what is here is the rule to dispatch by, the readiness that
 /// gates the button, and what §8 makes of the result.
 class SimulationTab extends ConsumerWidget {
-  const SimulationTab({super.key, required this.project});
+  const SimulationTab({super.key, required this.project, this.study});
 
   final Project project;
+
+  /// The study whose slice this is showing, or null for the whole run.
+  ///
+  /// **A slice of the project's run, never a run of the study alone** (§7.7).
+  /// One resource model of the plant is what makes line A's orders delay line
+  /// B's, so a solo run would answer a different and always-optimistic question
+  /// — and the two would then disagree with nothing on screen saying which was
+  /// which.
+  final Study? study;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,6 +59,7 @@ class SimulationTab extends ConsumerWidget {
             ),
             AsyncValue(value: final assembled!) => _Body(
               project: project,
+              study: study,
               input: assembled,
               runner: runner,
             ),
@@ -216,9 +227,12 @@ class _RunsMenu extends ConsumerWidget {
 class _Body extends StatelessWidget {
   const _Body({
     required this.project,
+    required this.study,
     required this.input,
     required this.runner,
   });
+
+  final Study? study;
 
   final Project project;
   final SimRunInput input;
@@ -262,7 +276,10 @@ class _Body extends StatelessWidget {
               ),
             ),
             AsyncValue(value: final run!) => _Results(
-              run: run,
+              slice: filterRun(
+                run,
+                study == null ? const RunFilter() : RunFilter.study(study!.id),
+              ),
               projectName: project.name,
             ),
           },
@@ -337,9 +354,10 @@ enum _RunView { results, gantt }
 /// Held in an `IndexedStack`, so switching to the results and back returns the
 /// zoom the reader left rather than refitting the chart under them.
 class _Results extends StatefulWidget {
-  const _Results({required this.run, required this.projectName});
+  const _Results({required this.slice, required this.projectName});
 
-  final StoredRun run;
+  /// The run as this view of it reads (§12.1).
+  final FilteredRun slice;
 
   /// Stamped into the workbook the plan exports to (§13).
   final String projectName;
@@ -354,7 +372,10 @@ class _ResultsState extends State<_Results> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final run = widget.run;
+    final slice = widget.slice;
+    // The header, the abort banner and the horizon warning describe *the run*
+    // rather than a view of it, so they read the unfiltered one.
+    final run = slice.run;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -376,7 +397,7 @@ class _ResultsState extends State<_Results> {
                 _ScheduleTailBanner(result: run.result),
                 const SizedBox(height: 12),
               ],
-              _Headline(metrics: run.metrics),
+              _Headline(metrics: slice.metrics),
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
@@ -410,9 +431,12 @@ class _ResultsState extends State<_Results> {
             children: [
               SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _ResultTables(run: run, projectName: widget.projectName),
+                child: _ResultTables(
+                  slice: slice,
+                  projectName: widget.projectName,
+                ),
               ),
-              GanttView(run: run),
+              GanttView(slice: slice),
             ],
           ),
         ),
@@ -473,16 +497,18 @@ class _RunHeader extends StatelessWidget {
 
 /// The metrics card and the four tables — what the Results view is.
 class _ResultTables extends StatelessWidget {
-  const _ResultTables({required this.run, required this.projectName});
+  const _ResultTables({required this.slice, required this.projectName});
 
-  final StoredRun run;
+  final FilteredRun slice;
   final String projectName;
+
+  StoredRun get run => slice.run;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final metrics = run.metrics;
+    final metrics = slice.metrics;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

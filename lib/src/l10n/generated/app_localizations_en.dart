@@ -1649,6 +1649,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simGanttStillWaiting => 'Still standing here when the run ended';
 
   @override
+  String get simGanttRowsStations => 'Stations';
+
+  @override
+  String get simGanttRowsWithLanes => 'Stations + lanes';
+
+  @override
+  String get simGanttRowsHelp =>
+      'Whether the queue bands between stations are drawn. Without them the chart reads as a flow; with them it reads as a queue.';
+
+  @override
   String get simGanttZoomIn => 'Zoom in';
 
   @override

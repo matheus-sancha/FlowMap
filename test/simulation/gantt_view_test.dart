@@ -10,6 +10,7 @@ import 'package:flowmap/src/l10n/generated/app_localizations.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flowmap/src/features/simulation/application/run_filter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The zoom cluster. `find.byTooltip` reaches the `Tooltip` an `IconButton`
@@ -166,7 +167,9 @@ void main() {
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: GanttView(run: run)),
+        // The whole run, unfiltered — this file is about the chart, and
+        // filtering is `run_filter_test.dart`'s subject.
+        home: Scaffold(body: GanttView(slice: filterRun(run, const RunFilter()))),
       ),
     );
     await tester.pumpAndSettle();

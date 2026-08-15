@@ -1510,6 +1510,36 @@ to the project (§7.7), so it should not require being on one of six tabs to sta
 - **The Simulation tab keeps the rest** — the rule to dispatch by, the runs already made, the
   readiness panel and the results. Only the trigger moved.
 
+**A study's Simulation tab is its slice of the project's run, never a run of the study alone.**
+§7.7 builds one resource model of the plant so that line A's orders genuinely delay line B's; a solo
+run would answer a different and always-optimistic question, and the two would then disagree with
+nothing on screen saying which was which. `run_filter.dart` reads one `StoredRun` through a
+`RunFilter`, so the study tab and the combined view cannot report different numbers for the same
+study.
+
+**Order-level figures follow the filter; station-level figures do not, and the view says so.**
+Counts, on-time, lead times, float, the plan and the Gantt all recompute over the slice, because
+every order carries its own dates. Utilisation cannot: its denominator is `openSeconds`, stored as a
+run total, and rebuilding open time for a subset needs each station's calendar — which §7.10
+deliberately does not store and which is the exact cost that got §3.5 dropped. So the stations keep
+describing the whole run and are labelled as doing so.
+
+Two rules that only writing it settled, both of which had already gone wrong once:
+
+- **Naming no study means every study, not no study.** Resolving the set from `run.studies` and then
+  requiring membership emptied an unfiltered view of a run whose study rows were absent. A null set
+  means *do not narrow*, kept distinct from an empty one, which means *narrowed to nothing*.
+- **A run made before v17 matches no cell rather than every cell.** Its `production_cell_id` is null
+  (§16.18), and treating a blank as a wildcard would make a filtered view silently describe studies
+  nobody asked for.
+
+**The Gantt's rows can be narrowed to the stations alone.** The lane bands are what make the chart
+read as a queue; without them it reads as a flow, which is the other thing a reader comes to it for.
+A parameter to `buildGanttChart`, so `barAt`, the hover card and the floored-bar count all follow —
+nothing in the view decides a position, which is the third time §8.6's pure-geometry split has paid
+off. It is view state like the zoom, not a stored preference: a setting that silently hid rows would
+be a chart lying to whoever opened the app next.
+
 **A run has two views of it, switched by a segmented control**: Results and Gantt (§8.6). What sits
 *above* the control is what describes the run rather than a view of it — the timestamp and dispatch
 line, the abort banner and the headline — so those stay put across the switch and only the body

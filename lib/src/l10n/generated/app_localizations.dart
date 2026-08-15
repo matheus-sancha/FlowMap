@@ -2946,6 +2946,24 @@ abstract class AppLocalizations {
   /// **'Still standing here when the run ended'**
   String get simGanttStillWaiting;
 
+  /// No description provided for @simGanttRowsStations.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations'**
+  String get simGanttRowsStations;
+
+  /// No description provided for @simGanttRowsWithLanes.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations + lanes'**
+  String get simGanttRowsWithLanes;
+
+  /// No description provided for @simGanttRowsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Whether the queue bands between stations are drawn. Without them the chart reads as a flow; with them it reads as a queue.'**
+  String get simGanttRowsHelp;
+
   /// No description provided for @simGanttZoomIn.
   ///
   /// In en, this message translates to:

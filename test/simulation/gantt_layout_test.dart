@@ -988,6 +988,7 @@ void main() {
       String? laneName = 'FIFO W2',
       List<SimOpenLaneVisit> open = const [],
       bool laneOnResult = true,
+      bool includeLanes = true,
     }) {
       final steps = [
         for (final stay in stays)
@@ -1038,8 +1039,33 @@ void main() {
           workcenterNames: const {'W2': 'W2'},
           theoreticalByOrder: const {},
         ),
+        includeLanes: includeLanes,
       );
     }
+
+    test('the lane bands can be left out, and only they go', () {
+      // Field feedback: a reader following an order down the page wants the
+      // stations, and the queue bands between them are what is in the way. It is
+      // a view control, so it removes rows and changes nothing else — the
+      // stations keep their bars, their order and their names.
+      final withLanes = laneChart(stays: [(order: 'o1', from: 0, to: 2)]);
+      final without = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        includeLanes: false,
+      );
+
+      expect(withLanes.rows.map((b) => b.name), ['FIFO W2', 'W2']);
+      expect(without.rows.map((b) => b.name), ['W2']);
+      expect(without.lanes, isEmpty);
+      expect(
+        without.stations.single.bars.length,
+        withLanes.stations.single.bars.length,
+      );
+      // The axis still covers the run rather than shrinking to what is drawn:
+      // the span is a fact about the run, not about the rows on screen.
+      expect(without.start, withLanes.start);
+      expect(without.end, withLanes.end);
+    });
 
     test('a lane is drawn immediately above the station it feeds', () {
       final chart = laneChart(

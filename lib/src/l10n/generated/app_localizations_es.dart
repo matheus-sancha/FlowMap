@@ -1668,6 +1668,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simGanttStillWaiting => 'Seguía aquí al terminar la simulación';
 
   @override
+  String get simGanttRowsStations => 'Centros';
+
+  @override
+  String get simGanttRowsWithLanes => 'Centros + carriles';
+
+  @override
+  String get simGanttRowsHelp =>
+      'Si se dibujan las bandas de cola entre centros. Sin ellas el gráfico se lee como un flujo; con ellas, como una cola.';
+
+  @override
   String get simGanttZoomIn => 'Acercar';
 
   @override

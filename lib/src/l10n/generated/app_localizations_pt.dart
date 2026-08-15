@@ -1668,6 +1668,16 @@ class AppLocalizationsPt extends AppLocalizations {
       'Ainda estava aqui ao terminar a simulação';
 
   @override
+  String get simGanttRowsStations => 'Centros';
+
+  @override
+  String get simGanttRowsWithLanes => 'Centros + carris';
+
+  @override
+  String get simGanttRowsHelp =>
+      'Se as faixas de fila entre centros são desenhadas. Sem elas o gráfico lê-se como um fluxo; com elas, como uma fila.';
+
+  @override
   String get simGanttZoomIn => 'Aproximar';
 
   @override
