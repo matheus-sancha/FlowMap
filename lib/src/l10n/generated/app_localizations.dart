@@ -994,17 +994,89 @@ abstract class AppLocalizations {
   /// **'Show the studies list'**
   String get studiesExpand;
 
+  /// No description provided for @studyTabSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Study Settings'**
+  String get studyTabSettings;
+
+  /// No description provided for @studyTabTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Flow Takt'**
+  String get studyTabTakt;
+
+  /// No description provided for @studySettingsIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get studySettingsIdentity;
+
+  /// No description provided for @studySettingsInRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'In simulation'**
+  String get studySettingsInRuns;
+
+  /// No description provided for @studyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get studyName;
+
+  /// No description provided for @studyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Production line'**
+  String get studyLine;
+
+  /// No description provided for @studyIncludeInRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Include in runs'**
+  String get studyIncludeInRuns;
+
+  /// No description provided for @studyIncludeInRunsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A run takes every included study at once, contending for the same plant.'**
+  String get studyIncludeInRunsHelp;
+
+  /// No description provided for @studyWipCap.
+  ///
+  /// In en, this message translates to:
+  /// **'WIP cap'**
+  String get studyWipCap;
+
+  /// No description provided for @studyWipCapUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited'**
+  String get studyWipCapUnlimited;
+
+  /// No description provided for @studyWipCapHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The most orders this study may have in the flow at once. A release waits for a completion, which is what makes the flow pulled rather than pushed. Blank is unlimited.'**
+  String get studyWipCapHelp;
+
+  /// No description provided for @studyPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get studyPriority;
+
+  /// No description provided for @studyPriorityHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Which study wins when two of them want the same station at the same instant. Lower goes first. Only a tie-break — it never reorders a queue on its own.'**
+  String get studyPriorityHelp;
+
   /// No description provided for @studyTabFlow.
   ///
   /// In en, this message translates to:
   /// **'Flow'**
   String get studyTabFlow;
-
-  /// No description provided for @studyTabTakt.
-  ///
-  /// In en, this message translates to:
-  /// **'Takt'**
-  String get studyTabTakt;
 
   /// No description provided for @studyTabDemand.
   ///

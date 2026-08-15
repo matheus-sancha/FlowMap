@@ -1446,9 +1446,28 @@ warning rather than as everything being past it.
 
 A persistent left rail: Projects · Study Templates · Resources · Settings (· About/diagnostics).
 Opening a project gives a workspace with a studies sidebar and, per study, tabs
-**Flow / Takt / Workcenters / Demand / Summary**, plus a project-level **Simulation** tab since a
-run spans studies. Resources uses a hierarchical tree (Plant → Cells → Lines → Workcenters, plus
+**Flow / Study Settings / Flow Takt / Workcenters / Demand / Summary / Simulation**. Resources uses a hierarchical tree (Plant → Cells → Lines → Workcenters, plus
 Pools and Shift Patterns). All routes deep-linkable via go_router.
+
+**Study Settings gathers what is not on the map.** Its name, the line it sits on, whether it takes
+part in a run, its pacemaker, its start buffer, its WIP cap and its priority. Three of those were on
+the study's sidebar menu, two were a `Run settings` dialog, and **two were reachable from nothing at
+all** — `wipCap` and `priority` have been stored and read by the engine since M3 and listed in §17.5
+ever since, and §3.3b said outright that they belonged with the others and were waiting for the round
+that needed them. That round is this one, and gathering them closes two §17.5 entries.
+
+The dialog is removed rather than kept beside the tab, for §12.6's reason: two ways to set one field
+is how the two come to disagree. **Every field writes when it is left**, so there is no draft to lose
+and nothing to cancel out of — and an unreadable value puts back what was stored rather than writing
+a guess, which is the rule the schedule grids already follow. The line is shown and not edited: a
+study's line decides which takt schedule it reads (§6.1), so moving one would silently repoint every
+figure on the map.
+
+It is also where §3.8's map-only flag goes when that is picked up, which is half of why the tab is
+worth its place now rather than later.
+
+**`Takt` is `Flow Takt`**, because the tab beside it is now `Study Settings` and one-word `Takt` read
+as a setting rather than as the schedule it is.
 
 **A workcenter type carries an icon** from a fixed library, and workcenters are drawn with their
 type's glyph in the tree and the pickers — a lathe and a furnace told apart at a glance in a list of

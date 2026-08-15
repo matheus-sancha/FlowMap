@@ -16,7 +16,7 @@ import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
 import '../../simulation/presentation/simulation_tab.dart';
 import '../../studies/application/studies_providers.dart';
-import '../../studies/presentation/study_run_settings.dart';
+import '../../studies/presentation/study_settings_tab.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
 
@@ -49,7 +49,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   bool _sidebarCollapsed = false;
 
   /// The Simulation tab, after the five study ones.
-  static const _simulation = 5;
+  static const _simulation = 6;
 
   /// What the last run said, until the reader dismisses it (§12.1).
   ///
@@ -66,7 +66,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   /// app bar (§12.1) and the banner it raises has to be able to bring the
   /// reader to the results. A controller one level below the button that needs
   /// it cannot be reached without passing a callback down and an index back up.
-  late final TabController _tabs = TabController(length: 6, vsync: this);
+  late final TabController _tabs = TabController(length: 7, vsync: this);
 
   @override
   void dispose() {
@@ -444,8 +444,6 @@ class _StudyTile extends ConsumerWidget {
                 study.id,
                 !study.includeInSimulation,
               );
-            case 'runSettings':
-              await showStudyRunSettings(context, ref, study: study);
             case 'rename':
               final name = await promptForName(
                 context,
@@ -514,10 +512,6 @@ class _StudyTile extends ConsumerWidget {
             ),
           ),
           PopupMenuItem(value: 'rename', child: Text(l10n.actionRename)),
-          PopupMenuItem(
-            value: 'runSettings',
-            child: Text(l10n.studyRunSettings),
-          ),
           PopupMenuItem(value: 'duplicate', child: Text(l10n.actionDuplicate)),
           PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
         ],
@@ -548,7 +542,7 @@ class _StudyTabs extends StatefulWidget {
 
 class _StudyTabsState extends State<_StudyTabs> {
   /// The Simulation tab, which the five before it are study tabs.
-  static const _simulation = 5;
+  static const _simulation = 6;
 
   @override
   void didUpdateWidget(_StudyTabs old) {
@@ -572,6 +566,7 @@ class _StudyTabsState extends State<_StudyTabs> {
           controller: widget.tabs,
           tabs: [
             Tab(text: l10n.studyTabFlow),
+            Tab(text: l10n.studyTabSettings),
             Tab(text: l10n.studyTabTakt),
             Tab(text: l10n.workcenters),
             Tab(text: l10n.studyTabDemand),
@@ -584,6 +579,7 @@ class _StudyTabsState extends State<_StudyTabs> {
             controller: widget.tabs,
             children: [
               FlowTab(study: study),
+              StudySettingsTab(project: widget.project, study: study),
               TaktTab(project: widget.project, study: study),
               WorkcentersTab(project: widget.project, study: study),
               DemandTab(study: study),

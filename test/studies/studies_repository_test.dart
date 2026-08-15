@@ -285,6 +285,86 @@ void main() {
     });
   });
 
+  group('the settings a run reads (§7.2, §7.3, §7.8)', () {
+    late String studyId;
+    setUp(() async => studyId = await newStudy());
+
+    Future<Study> read() =>
+        (db.select(db.studies)..where((s) => s.id.equals(studyId))).getSingle();
+
+    /// Everything but the one field under test, so a write cannot pass by
+    /// leaving the others alone.
+    Future<void> write({
+      int? wipCap,
+      int? priority,
+      int? startBufferDays,
+      String? paceSetterTargetId,
+      bool paceSetterGiven = false,
+    }) async {
+      final study = await read();
+      await studies.updateStudy(
+        studyId,
+        name: study.name,
+        wipCap: wipCap,
+        priority: priority ?? study.priority,
+        startBufferDays: startBufferDays ?? study.startBufferDays,
+        paceSetterTargetId: paceSetterTargetId,
+        paceSetterGiven: paceSetterGiven,
+      );
+    }
+
+    test('a WIP cap round-trips, and null is unlimited rather than none',
+        () async {
+      // Stored since M3, read by the engine since M4, and reachable from
+      // nothing until the Study Settings tab (§17.5). So this is the first test
+      // of any kind that a user can set it.
+      expect((await read()).wipCap, isNull, reason: 'unlimited by default');
+
+      await write(wipCap: 4);
+      expect((await read()).wipCap, 4);
+
+      // **Clearing it must give back unlimited, not zero.** A cap of zero would
+      // stop the study releasing anything at all, so the difference between
+      // "no cap" and "a cap of none" is the whole of §7.3 working or not.
+      await write(wipCap: null);
+      expect((await read()).wipCap, isNull);
+    });
+
+    test('priority round-trips', () async {
+      expect((await read()).priority, 100, reason: 'the shipped default');
+      await write(priority: 7);
+      expect((await read()).priority, 7);
+      // And is left alone by a write that does not mention it, which is what
+      // lets each field on the settings tab commit on its own.
+      await write(wipCap: 2);
+      expect((await read()).priority, 7);
+    });
+
+    test('a start buffer round-trips in calendar days (§7.8)', () async {
+      expect((await read()).startBufferDays, 0);
+      await write(startBufferDays: 30);
+      expect((await read()).startBufferDays, 30);
+    });
+
+    test('the pacemaker distinguishes "derive it" from "not given"', () async {
+      // Null is a real answer here — derive it from work content — so absence
+      // has to be said separately, or every write that is not about the
+      // pacemaker would silently clear a chosen one.
+      await write(paceSetterTargetId: workcenterA, paceSetterGiven: true);
+      expect((await read()).paceSetterTargetId, workcenterA);
+
+      await write(wipCap: 3);
+      expect(
+        (await read()).paceSetterTargetId,
+        workcenterA,
+        reason: 'a write that did not mention it left it alone',
+      );
+
+      await write(paceSetterTargetId: null, paceSetterGiven: true);
+      expect((await read()).paceSetterTargetId, isNull);
+    });
+  });
+
   group('include in simulation', () {
     test('flagging one study clears its siblings on the same line', () async {
       final first = await newStudy('Current state');

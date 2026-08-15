@@ -492,10 +492,49 @@ class AppLocalizationsEs extends AppLocalizations {
   String get studiesExpand => 'Mostrar la lista de estudios';
 
   @override
-  String get studyTabFlow => 'Flujo';
+  String get studyTabSettings => 'Ajustes del estudio';
 
   @override
-  String get studyTabTakt => 'Takt';
+  String get studyTabTakt => 'Takt del flujo';
+
+  @override
+  String get studySettingsIdentity => 'Identidad';
+
+  @override
+  String get studySettingsInRuns => 'En la simulación';
+
+  @override
+  String get studyName => 'Nombre';
+
+  @override
+  String get studyLine => 'Línea de producción';
+
+  @override
+  String get studyIncludeInRuns => 'Incluir en las corridas';
+
+  @override
+  String get studyIncludeInRunsHelp =>
+      'Una corrida toma todos los estudios incluidos a la vez, compitiendo por la misma planta.';
+
+  @override
+  String get studyWipCap => 'Límite de WIP';
+
+  @override
+  String get studyWipCapUnlimited => 'Sin límite';
+
+  @override
+  String get studyWipCapHelp =>
+      'El máximo de pedidos que este estudio puede tener en el flujo a la vez. Una liberación espera a que algo termine, que es lo que hace que el flujo se jale en vez de empujarse. En blanco es sin límite.';
+
+  @override
+  String get studyPriority => 'Prioridad';
+
+  @override
+  String get studyPriorityHelp =>
+      'Qué estudio gana cuando dos quieren el mismo centro de trabajo en el mismo instante. El menor va primero. Solo desempata — nunca reordena una cola por sí solo.';
+
+  @override
+  String get studyTabFlow => 'Flujo';
 
   @override
   String get studyTabDemand => 'Demanda';

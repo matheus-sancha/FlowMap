@@ -493,10 +493,49 @@ class AppLocalizationsPt extends AppLocalizations {
   String get studiesExpand => 'Mostrar a lista de estudos';
 
   @override
-  String get studyTabFlow => 'Fluxo';
+  String get studyTabSettings => 'Definições do estudo';
 
   @override
-  String get studyTabTakt => 'Takt';
+  String get studyTabTakt => 'Takt do fluxo';
+
+  @override
+  String get studySettingsIdentity => 'Identidade';
+
+  @override
+  String get studySettingsInRuns => 'Na simulação';
+
+  @override
+  String get studyName => 'Nome';
+
+  @override
+  String get studyLine => 'Linha de produção';
+
+  @override
+  String get studyIncludeInRuns => 'Incluir nas corridas';
+
+  @override
+  String get studyIncludeInRunsHelp =>
+      'Uma corrida toma todos os estudos incluídos ao mesmo tempo, disputando a mesma fábrica.';
+
+  @override
+  String get studyWipCap => 'Limite de WIP';
+
+  @override
+  String get studyWipCapUnlimited => 'Sem limite';
+
+  @override
+  String get studyWipCapHelp =>
+      'O máximo de ordens que este estudo pode ter no fluxo ao mesmo tempo. Uma liberação espera por uma conclusão, que é o que torna o fluxo puxado em vez de empurrado. Em branco é sem limite.';
+
+  @override
+  String get studyPriority => 'Prioridade';
+
+  @override
+  String get studyPriorityHelp =>
+      'Qual estudo ganha quando dois querem o mesmo centro de trabalho no mesmo instante. O menor vai primeiro. Apenas desempata — nunca reordena uma fila por si só.';
+
+  @override
+  String get studyTabFlow => 'Fluxo';
 
   @override
   String get studyTabDemand => 'Demanda';
