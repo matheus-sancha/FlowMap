@@ -5,19 +5,29 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **669 tests passing** (one of them
-`live`-tagged and skipped without a database). Schema is at **v16**. M4 is code-complete, and the
-initial plan has no code left in it — §3.8 is deferred by decision and everything else in it has
-landed.
+Branch `m1-m2-foundation`, `flutter analyze` clean, **729 tests passing** (one of them `live`-tagged
+and skipped without a database). Schema is at **v18**. M4 is code-complete, and the initial plan has
+no code left in it — §3.8 is deferred by decision and everything else in it has landed.
 
-**This round came out of driving the build and is about the map, not the engine.** The pull is
+**§5 is written and not yet driven**, which is the one thing this file's working state does not
+usually describe. The tree is not clean: v18 and the Gantt's lane bands are in it, covered by tests
+and unseen by a human. §5.3 is what closes that, and §6 does not start until it has.
+
+**§1–§4 have landed and are kept here rather than deleted**, against this file's own rule, because
+`HISTORY.md` stops at the 2026-08-11 feedback round and has not absorbed them yet. They are the only
+record of rounds one to four; moving them across is owed and is listed in §0.
+
+**§1–§4 came out of driving the build and were about the map, not the engine.** The pull is
 towards using FlowMap as a thing you draw a value stream in and read numbers off — so the work is
 the process box's fields, the figures under the map, how fast the input tables can be typed into,
 and where the simulation lives now that it is no longer the point of every screen. Settled by
 interview on 2026-08-15 before any of it was written.
 
-**It is four rounds with a hand-driven pass between them**, and a pass before the first one. That
-is §2.0's rule; `HISTORY.md`'s §16.11 is the record of what ignoring it costs.
+**They were four rounds with a hand-driven pass between them**, and a pass before the first one.
+That is §2.0's rule; `HISTORY.md`'s §16.11 is the record of what ignoring it costs, and **§5 and §6
+keep it**: the interview settled them as one round driven at the end, and they were split again once
+§5 was written, so the bug fix can be checked against the screens that reported it before §6 moves
+those screens.
 
 **Round one invalidates every stored run.** Availability comes off setup and cold start starts
 paying one, so no figure recorded in `HISTORY.md` is comparable with anything measured after it.
@@ -31,9 +41,11 @@ are only worth making while the engine still agrees with the numbers that raised
 | **§2** | The flow surface | the step dialog, three lead times, `Part`, less text |
 | **§3** | The input tables | takt and workcenter schedules become grids |
 | **§4** | The tabs, and where simulation lives | seven tabs, a simulation workspace |
-| **§5** | Known gaps, deliberately left | |
-| **§6** | Deferred by decision | §3.8, the map that never runs |
-| **§7** | M5 | |
+| **§5** | The pool and the lane | two bugs from the field — **written, awaiting a drive** |
+| **§6** | The workspace | five tabs, one simulation, less chrome |
+| **§7** | Known gaps, deliberately left | |
+| **§8** | Deferred by decision | §3.8, the map that never runs |
+| **§9** | M5 | |
 
 ---
 
@@ -105,8 +117,10 @@ claim a stale link cannot produce.
 - [ ] **The results banner.** That it pushes the tabs down rather than covering the Gantt's last
       row, that `View results` both navigates and dismisses, and that a failed run offers no
       `View results` but can still be closed. **The workspace screen has no test coverage at all**,
-      so the wiring from Simulate to banner to tab switch is only covered by pressing it — and §4
-      rebuilds that screen, so this is the last look at the version being replaced.
+      so the wiring from Simulate to banner to tab switch is only covered by pressing it. §4 rebuilt
+      that screen and §6 rebuilds it again — and §6.1 changes what `View results` *means*, since
+      there is no longer a tab to switch to. Check it against whatever §6 leaves standing, not
+      against this description.
 - [x] ~~**The schedule horizon gets written.**~~ Done 2026-08-15, and it fell out of the confounder
       run rather than needing one of its own. All 35 earlier runs carry a null horizon because every
       one predates v16; `ab587589` and `32fdd07a` both carry **2026-12-31**, which is exactly the
@@ -140,8 +154,12 @@ claim a stale link cannot produce.
       equivalent, that is a defect to reproduce, and §2 is where it would be fixed.
 - [ ] **Write down what grated.** Layout polish was noted at the GUI on 2026-08-11 and explicitly
       deferred, and **the specifics were not captured**. This is a placeholder rather than an item,
-      and it stays one until somebody writes the sentences. §2 and §4 both move layout, so anything
-      not written down now will be guessed at or lost.
+      and it stays one until somebody writes the sentences. §2, §4 and now §6 all move layout, so
+      anything not written down now will be guessed at or lost.
+- [ ] **Rounds one to four go to `HISTORY.md`.** That file's last entry is the 2026-08-11 feedback
+      round; §1–§4 landed on 2026-08-15 and are recorded nowhere else, which is why they are still
+      in this file in defiance of its own contract. Until they move, `TODO.md` is carrying two jobs
+      and neither file can be trusted to answer *what already happened*.
 
 _Parked, not owed: **the pool fix against célula 11B.** The CLAD Pool of three reads 63 %
 occupation and a flow equivalent of 0.99, which is the right shape; comparing it against what it
@@ -616,7 +634,7 @@ same dialog and were left for the round that needs them."* This is that round, a
 §17.5 entries. §7.3's CONWIP behaviour meets a user for the first time here, so it wants driving
 rather than assuming.
 
-It is also the obvious home for §6's map-only flag when that lands.
+It is also the obvious home for §8's map-only flag when that lands.
 
 ### 4.3 The Simulation tab becomes the study's slice
 
@@ -724,7 +742,346 @@ slice is), **§7.10** (the cell and line the run carries), **§10.1**, **§17.5*
 
 ---
 
-## 5. Known gaps, deliberately left
+## 5. The pool and the lane — round five, **written and awaiting a drive**
+
+Settled by interview on 2026-08-15, after driving `0.1.0-2026-08-15b` with **two studies in one
+run** — the first time the build has been asked the question §7.7 exists to answer. Two things came
+back from it, and reading the code for them found a third nobody had reported.
+
+**The code is written**: `flutter analyze` clean, **729 tests passing**, schema at **v18**. What is
+outstanding is §5.3 — nothing here has been seen in a running build, and the run that raised it is
+the one that has to answer it.
+
+**Split from §6 deliberately.** The interview settled these two bugs and the workspace restructure as
+one round driven at the end; they are separated again because this half is *finished and checkable*
+against célula 11B, and §6 rebuilds the screens that display it. Driving a bug fix before the
+surfaces around it move is §2.0's rule arriving by the front door rather than being waived — and
+§16.11 is what waiving it cost last time.
+
+**No stored run is invalidated.** §5.1's columns are additive and nullable and no figure moves, so
+`HISTORY.md`'s numbers stay comparable across it — which is not true of §1 and is worth stating
+because it is the exception.
+
+| | |
+|---|---|
+| **§5.1** | Schema v18 — the pool a station ran in |
+| **§5.2** | The Gantt's lane bands, which were losing one |
+| **§5.3** | Drive it |
+
+### 5.1 Schema v18 — the pool a station ran in
+
+*Field, 2026-08-15: "CLAD07 appearing out of the CAL pool with two FIFOs."*
+
+**A run's stations are machines, and nothing says which pool they came from.** §3.1 is emphatic that
+a pool is real workcenters with their own schedules — `sim_assembly.dart` expands a pool step into
+one candidate per member, so `CAL` is never a row and never was. That is right. What is wrong is
+that the three members then sit wherever the Queue table's ranking puts them, unlabelled, with
+nothing on screen saying they are one pool. A reader who typed `CAL Pool` into the map is owed the
+word back.
+
+`SimulationRunWorkcenters` gains **`pool_id` and `pool_name`, both nullable**, exactly the shape
+§1.5 used for the studies' cell and line. Additive, so no stored run is invalidated and no figure
+moves.
+
+**Resolved at write time, not at read time.** Joining `poolMembershipProvider` when a run is opened
+would regroup every historical run the day a machine moves between pools — the drift §7.10 snapshots
+names to avoid, and which §12.1 already wrote an explicit rule against for the pre-v17 cell.
+
+**A workcenter can be in several pools**, since `WorkcenterPoolMembers`' primary key is
+`{poolId, workcenterId}` — and with two studies in one run, line A can reach CLAD07 through `CAL`
+while line B reaches it through some `All Lathes`. So the write resolves the pools the station was
+actually dispatched through in *this* run: **exactly one → store it; zero or more than one → store
+null**, and the station sits ungrouped, labelled with the pool names it served. The rare case
+degrades where a reader can see it rather than picking a pool arbitrarily.
+
+**A pre-v18 run groups nothing**, which is §12.1's rule that a blank is not a wildcard, arriving for
+the third time.
+
+_Rejected: the pool on `SimulationRunSteps`._ Unambiguous per step, and it would answer "which pool
+sent this order here" — but it is a column on the largest table in a run (~4k rows for 500 orders)
+to serve a grouping that the station row can carry. Worth revisiting if the per-order question is
+ever asked.
+
+_Rejected: one aggregate row per pool._ Closest to how a planner speaks, and it loses the per-machine
+yardstick §3.1 spends four paragraphs protecting.
+
+**The Gantt groups; the Queue and Share tables label.** Settled while writing it, and it is a real
+departure from what the interview said. §8.1's two tables *are* rankings — the first row is the
+station that queued most, and that is the whole question they answer — so clustering a pool's members
+would mean the top row was no longer the answer. The Gantt has no such ordering to lose: it runs down
+the page in flow order, where a pool's machines already sit together, so a heading there costs
+nothing. The tables get the pool name beside the station instead, on one line because a `DataTable`
+row is a fixed height.
+
+### 5.2 The Gantt's lane bands, which were losing one
+
+**`_laneRows` returns a map keyed by `workcenterId`, so a second lane feeding one station silently
+overwrote the first.** Two studies both stepping on the CAL pool is exactly how that arises, and it
+is why the field saw two FIFOs where the chart could only ever have drawn one of them. A band that
+disappears is worse than a band in the wrong place: nothing on screen says a lane is missing.
+
+**And the placement was never what the doc claimed.** `gantt_layout.dart`'s comment says a lane
+feeding a pool is drawn above the first of that pool's machines, *"which is where the ordering above
+has already put the busiest of them"* — but `feeds` is built by walking `result.steps` and taking
+`putIfAbsent`, so the lane lands on whichever member happened to pull an order out of it first. That
+is the member that looked detached from its siblings.
+
+Both are one fix:
+
+- **A lane band attaches to the step's target, not to a machine.** A lane feeds a pool step, so it
+  draws above the whole pool's group header — which §5.1 has just made available, since station →
+  pool is already resolved for the grouping.
+- **A target carries a list of bands rather than one.** Two studies' FIFOs both draw, in a stable
+  order, and neither is lost.
+
+`buildGanttChart` keeps its pure-geometry split (§2.7), so `barAt`, the hover card and the
+floored-bar count follow for free. That is the fourth time that split has paid off and the first time
+it has paid for a bug rather than a feature.
+
+_Rejected: merging lanes that feed one station into a single band._ No overwrite and no extra rows,
+and a reader can no longer tell which lane an order stood in — §5.5 makes a lane's rule and capacity
+per-lane decisions, so the bands are not interchangeable.
+
+### 5.3 Drive it
+
+**Nothing here has been looked at in a running build.** Both fixes are covered by tests — five in
+`gantt_layout_test.dart` reproducing exactly what the field reported, three in `sim_assembly_test.dart`
+for the resolution rule, one migration test for v18 — and **nothing in the suite renders a pixel**
+(§2.7), so the heading, the band order and the label column are only covered by pressing it.
+
+- **The run that raised it.** Two studies, both stepping on the CAL pool. CLAD07, CLAD08 and CLAD09
+  under one `CAL Pool` heading; **both** FIFO bands drawn above that heading; neither missing. That
+  is the whole complaint, and it is one screen.
+- **The heading reads as a heading**, not as a fourth machine — 18 px against the stations' 30, the
+  primary colour in the frozen label column, no band fill, and nothing hovers on it.
+- **The Queue and Share tables keep their ranking** and carry `CLAD07  CAL Pool` in the first
+  column. The top row must still be the station that queued most (§8.1).
+- **A pre-v18 run opened from the history picker** shows its stations ungrouped and its lanes where
+  they always were, rather than grouped by whatever the pools happen to be today. There are 35 of
+  them stored and every one is a fixture for this.
+- **A station reachable through two pools in one run** sits ungrouped and names both. Célula 11B may
+  not have one; contrive it by putting CLAD07 in a second pool and pointing a second study's step at
+  it.
+- **The v18 migration against the real database**, with a v17 backup taken first per §0. The session
+  header should read `db.open schema 18 from 17`.
+- **§0's four remaining debt items**, which this round does not close and which are cheaper to check
+  in the same sitting.
+
+**DESIGN.md this round:** **§3.1** (a run records the pool it dispatched through), **§7.10** (the two
+new columns, and why they are not backfilled), **§8.6** (lane bands attach to the step's target and
+stack; the pool heading band), **§16.19** (schema v18).
+
+---
+
+## 6. The workspace — round six
+
+**The UI restructure, settled in the same 2026-08-15 interview as §5** and separated from it so the
+bug fix can be driven against the screens that reported it before those screens move (§5's head).
+Nothing here is written.
+
+**The scope is the project workspace.** The left rail, Projects, Resources and Settings are not in
+this round.
+
+**The complaint is that it is cluttered**, and the count of things on screen is only half of it. The
+other half is that the tab strip mixes scopes: Flow Takt is scoped to the *production line* and
+Workcenters to the *project*, so two of the six tabs inside a study are editing things that are not
+the study's — and nothing says so.
+
+| | |
+|---|---|
+| **§6.1** | One home for the run |
+| **§6.2** | Five tabs |
+| **§6.3** | The Schedules tab |
+| **§6.4** | The Flow toolbar, and where the period lives |
+| **§6.5** | The study tile's menu |
+| **§6.6** | What is deliberately not touched |
+| **§6.7** | Drive it |
+
+### 6.1 One home for the run
+
+**The run had three homes and one of them was a duplicate of another.** The project app bar carries
+Simulate; the simulation workspace carries a second Run button in its filter bar; the study's
+Simulation tab and the workspace both render `RunResults`, each wrapped in its own chrome. Opening
+the workspace from the sidebar showed **two Simulate buttons about 200 px apart** — §12.1's *"Simulate
+is in both places"*, which read as a principle on paper and as a bug on screen.
+
+**The sidebar workspace becomes the only place a run is read.** The study's Simulation tab goes.
+
+- **`/projects/:id/simulation?study=:studyId`.** One optional query param, so arriving from a study
+  pre-selects that study's filter and the one-click path from a study to its own numbers survives.
+  Linkable, per §12.1 — a filtered view is worth sending someone. Only the study goes in the
+  location; the other three filters stay view state, which is a smaller change than moving a date
+  range into a URL and is the one filter you navigate *from*.
+- **The workspace's Run button goes. The app bar's stays.** §12.1's rule that starting a run must not
+  require navigating somewhere first is the reason the button went to the app bar in the first place,
+  and the app bar is the position that does not move.
+
+**The chrome the study tab was carrying splits by role**, rather than being stacked into a filter bar
+that already scrolls sideways at 1100 px:
+
+| what it is about | where it goes |
+|---|---|
+| dispatch rule, readiness | a popover on the Simulate button — it already names the first blocker in its tooltip |
+| which run you are reading | the run header's timestamp becomes a picker; it already states the run |
+| which slice you are looking at | the workspace's filter bar, unchanged |
+
+**The readiness panel and the tooltip stop being two statements of one thing.** §11's panel is the
+list and the tooltip is the sentence; putting the list under the button that the list disables makes
+the button the single answer to *why can I not press this*.
+
+**`View results` on the run banner now navigates to a route rather than switching a tab index.** The
+workspace's `_tabs.index = _simulation` has nothing to point at once the tab is gone, and
+`_StudyTabs`' rule about not resetting to Flow when the reader is on Simulation goes with it.
+
+### 6.2 Five tabs
+
+`Flow · Study Settings · Schedules · Demand · Summary`
+
+Seven becomes five: Simulation leaves for §6.1, and Flow Takt and Workcenters merge into
+**Schedules** (§6.3).
+
+**The strip was mixing scopes, which is more of what "cluttered" meant than the count was.** Flow
+Takt reads `taktPeriodsProvider` keyed on `productionLineId` — two studies of one line share it, so
+editing it inside a study changes another study's numbers. Workcenters is project-scoped data
+filtered to this study's flow, and it already carries the project-wide Calendar Exceptions. Only
+Flow, Demand, Summary and Study Settings are the study's own. The merge does not fix that, but §6.3
+puts the two shared tables where a heading can say so.
+
+_Rejected: one `Inputs` tab holding Demand, Takt and Workcenters._ Four tabs, and it draws the honest
+line between what is typed in and what is read off — but `demand_tab.dart` is already two grids that
+each want the full height, so `Inputs` would need sub-navigation, and nested tabs are their own
+clutter.
+
+_Rejected: moving Takt and Workcenters out to a project-level destination._ It fixes the scope
+mixing outright, and the Workcenters view then shows all fifty of the plant's stations instead of
+this study's ten — which §4.2 rejected as noise in the round that built it.
+
+### 6.3 The Schedules tab
+
+Three tables of very different sizes, so they are not stacked in one scroll: the big one would get a
+capped height inside a page scroll, which is the shape §8.6 moved the Gantt out of.
+
+```
+┌─ Flow Takt ────────────────┐ ┌─ Calendar exceptions ──────┐
+│  shared by every study on  │ │  the whole project          │
+│  Line B                    │ │                             │
+└────────────────────────────┘ └─────────────────────────────┘
+┌─ Stations ──────────────────────────────────────────────────┐
+│ Workcenter │ Start │ End │ Shifts │ Operators │ Avail │ Rew │
+│ CLAD07     │ …     │     │        │           │       │     │
+│ CLAD08     │ …     │     │        │           │       │     │
+└─────────────────────────────────────────── takes the height ┘
+```
+
+**Takt and Exceptions share a fixed band across the top.** Both are small, both describe the line's
+calendar rather than one station's, and both are the shared-scope tables §6.2 wants labelled — so
+they sit together under headings that say whose they are.
+
+**The station grid becomes one grid with Workcenter as a column.** Today `workcenters_tab.dart`
+renders a `Card` per station, each with its own issues banner and its own 320 px-capped grid: célula
+11B's seven stations are seven nested scroll regions. One grid is one scroll region, it compares
+staffing across stations by reading down a column, and **a year of periods for the whole line pastes
+out of Excel in one block** — which §12.6 says is how they actually arrive.
+
+Costs a combined provider, since `workcenterScheduleProvider` is keyed per station, and a workcenter
+picker on the blank append row that §9.1's "type into the row past the end" rule needs.
+
+_Rejected: master/detail with a station list._ One scroll at a time and it scales to §14's forty
+stations — a third level of navigation inside a tab inside a workspace.
+
+_Rejected: cards collapsed by default._ Compact at rest, and it hides what the reader came to
+compare.
+
+### 6.4 The Flow toolbar, and where the period lives
+
+**The period stepper is copy-pasted between two tabs.** `flow_tab.dart` and `summary_tab.dart` hold
+the same four widgets over the same `viewedPeriodProvider(study.id)`. The state is shared so they
+cannot disagree — but the viewed period is a property of the study workspace rather than of either
+tab, and a control that moves position when the reader switches tabs is a control they have to find
+twice.
+
+**It hoists to the trailing edge of the tab strip.** One stepper, above whichever tab is open, with
+the granularity dropdown folded onto the period label — a control that is permanently visible for
+something set once. Where the period does not govern the tab it **greys rather than vanishing**, so
+nothing jumps.
+
+**The Flow toolbar then folds from eight controls to two.** `Data source` and `Part` are one choice
+split across two dropdowns — `Part` only exists under `FlowDataSource.singlePart` — so they become
+one `showing` dropdown:
+
+```
+showing ▾   Flow equivalent
+            Weighted mix
+            ──────────────
+            ABC-1043
+            ABC-1044
+```
+
+plus a PDF icon. The two text labels go with them; a dropdown reading `Weighted mix` does not need
+the word `Data source` in front of it.
+
+_Rejected: a lens popover holding period, granularity, source and part._ Two controls on the
+toolbar, and it hides what the map is showing behind a click when every figure on the map depends on
+it.
+
+_Rejected: floating the lens over the canvas like the zoom cluster._ §12.2's argument for floating
+zoom is that it acts on what is under it; the lens changes the numbers rather than the view.
+
+### 6.5 The study tile's menu
+
+**Round four left two fields with two write paths each.** §4.2 removed the `Run settings` dialog on
+the principle that *"two ways to set one field is how the two come to disagree"* — and then the new
+tab re-created two ways for `includeInSimulation` and for the study's name, which are still on the
+sidebar tile's popup menu. They call the same repository method, so unlike the dialog they cannot
+actually disagree; the rule is worth following anyway, because the next pair might not.
+
+**The menu keeps Duplicate and Delete.** Both act on the study as an object rather than setting one
+of its values, and neither belongs on a page that would disappear underneath the reader. `Include`
+and `Rename` come off; Study Settings owns them. The tile's play icon stays as the read-only badge it
+already is — §12.1 gave it the leading slot because the flag is the study's most consequential
+property, and that argument is about showing it, not about setting it.
+
+### 6.6 What is deliberately not touched
+
+- **The Flow footer's six figures.** §17.2 records the field rejecting a compressed lead time *"on
+  sight"*, and asking for `running = 1.4 × working` beside the working figure. The band stays exactly
+  as it is, including the horizontal scroll.
+- **The Summary tab's contents.** Only its period bar moves, per §6.4.
+- **The process box's fields.** §2 rebuilt them a round ago and nothing has come back about them.
+- **The left rail, Projects, Resources, Settings.** Out of scope by decision, not by omission.
+
+### 6.7 Drive it
+
+The workspace screen still has **no test coverage at all** (§3.7), and this round rebuilds it for the
+second time in two rounds — so everything below is only covered by pressing it. §5's own drive is
+separate and comes first; if any of it is still outstanding when this round starts, it does not get
+folded in here, because a bug fix checked through a rebuilt screen cannot say which of the two moved
+the figure.
+
+- **Simulate from the app bar while on each of the five tabs**, and the banner's `View results`
+  landing on the workspace with the right study filtered. This is the wiring §0 has an open item
+  against and which §6.1 changes the meaning of.
+- **A study's slice equals the combined view's** for that study — the check §4.6 asked for and
+  which the single surface makes cheaper rather than removing the need for.
+- **The Schedules grid pasted into from Excel**, across two stations in one block, and the append row
+  with no workcenter chosen. Then the same paste in es and pt, since §0's date-format item is
+  unresolved and this grid triples the number of places a wrong parser shows up.
+- **The period stepper greyed** on Study Settings and Schedules, and live on Flow, Demand and
+  Summary — and the same period surviving a tab switch, which is what the shared provider already
+  guaranteed and what the move must not break.
+- **The readiness popover against a real gap.** §0 has never seen the panel anything but clean;
+  §6.1 moves it under the button, so the check moves with it. Unbind a step and confirm the button's
+  popover names the study.
+- **Both themes, and both narrow and wide.** §6.4 cuts eight controls to two on the strength of a
+  1100 px window; §6.3's combined grid is the widest table in the app after the plan.
+
+**DESIGN.md this round:** **§12.1** (rewritten again — five tabs, one home for the run, the chrome
+split by role, the period on the strip), **§12.6** (one grid for every station's schedule),
+**§10.1**, **§17.5**.
+
+---
+
+## 7. Known gaps, deliberately left
 
 - [ ] **§14's performance target is not met.** A 2000-order, 10-step run takes ~2.8 s against "well
       under a second". §16.9 has the measurements: the cost is local `DateTime` arithmetic on
@@ -753,7 +1110,7 @@ slice is), **§7.10** (the cell and line the run carries), **§10.1**, **§17.5*
 
 ---
 
-## 6. Deferred by decision — the map that never runs
+## 8. Deferred by decision — the map that never runs
 
 **§3.8, deferred 2026-08-11 and confirmed still deferred 2026-08-15.** Not dropped and not disagreed
 with — sequenced. The argument below stands as written and nothing about it needs revisiting when it
@@ -784,7 +1141,7 @@ own round. §5.2 keeps it decorative until then.
 
 ---
 
-## 7. M5
+## 9. M5
 
 Reports (§13), run comparison, templates and binding (§10.2), the About screen, and the drop.
 
