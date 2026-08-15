@@ -867,9 +867,16 @@ for the resolution rule, one migration test for v18 — and **nothing in the sui
 - **§0's four remaining debt items**, which this round does not close and which are cheaper to check
   in the same sitting.
 
-**DESIGN.md this round:** **§3.1** (a run records the pool it dispatched through), **§7.10** (the two
-new columns, and why they are not backfilled), **§8.6** (lane bands attach to the step's target and
-stack; the pool heading band), **§16.19** (schema v18).
+**DESIGN.md this round — written, 2026-08-15**, ahead of the drive rather than after it, because
+§8.6 was carrying a claim about lane placement that the code had just made false and a design file
+that disagrees with the tree is worse than one that is behind it. **§3.1** (a run records the pool it
+dispatched through; the Gantt groups and the tables label), **§7.10** (the two new columns, why a
+station can have no single pool, and why nothing is backfilled), **§8.1.1** (why the rankings do not
+group), **§8.6** (rewritten — lane bands attach to the step's target and stack; how a group sorts;
+the heading band), **§16.19** (schema v18).
+
+_If the drive changes any of it, the section changes with it_ — that is the usual order restored, not
+an exception to it.
 
 ---
 

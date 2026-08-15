@@ -84,6 +84,21 @@ Pools are how two production lines genuinely compete for the same capacity.
 _Rejected: pool as an N-slot capacity bucket._ Loses per-machine availability/operators and cannot
 say which machine ran an order.
 
+**A run keeps the members and gains the name.** Field feedback, 2026-08-15, from the first run driven
+with two studies in it: `CLAD07` read as a loose machine, because a run's stations are workcenters
+and nothing recorded what the reader had actually typed on the map. The members stay individual —
+that is what says which machine ran an order, and it is the per-machine yardstick this section
+protects — and the pool is stored beside them (§7.10) so the surfaces can put the word back.
+
+**The Gantt groups; the Queue and Share tables label.** The chart runs down the page in flow order,
+where a pool's machines already sit together, so a heading over them costs nothing and its lane has
+somewhere to attach (§8.6). §8.1's two tables are *rankings*: their first row is the station that
+queued most, and clustering their rows by pool would mean the first row stopped answering that. They
+name the pool beside the station instead.
+
+_Rejected: one aggregate row per pool._ Closest to how a planner speaks about it, and it needs a
+summed denominator that discards exactly the per-machine reading the paragraphs above are defending.
+
 **A workcenter may itself hold more than one order at a time** — `parallel_capacity`, one by
 default. The engine gives it that many servers, and they are independent in every way that matters:
 each has its own clock, its own busy total and its own memory of the last part it ran, so two units
@@ -781,6 +796,18 @@ something could not be answered without them:
   recomputed because the walk needs the plant as it was.
 - **Per station**: name, busy and open time. Open time is a property of the calendar rather than of
   anything an order did, and it is what makes utilization different from occupation (§8.3).
+- **Per station, since v18: the pool it was dispatched through** (§3.1), id and name both. Nothing
+  said which of a run's machines belonged together, so a pool of three read as three loose stations
+  and its lane had nowhere to attach but one of them (§8.6). **Resolved when the run is written, by
+  `stationPools`** — reading the plant's membership at open time would regroup every historical run
+  the day a machine moves pools, which is the drift this whole section exists to prevent.
+
+  **A workcenter may sit in several pools**, so there is not always one answer: `{poolId,
+  workcenterId}` is the membership key, and with two studies in one run line A can reach CLAD07
+  through `CAL Pool` while line B reaches it through `All Lathes`. **Exactly one pool is a grouping;
+  none or several is a label** — the id is null in both the other cases and the name survives
+  carrying what it served, so a station standing on its own says why rather than merely standing
+  there. Null is *ungrouped*, never *every pool*, which is the rule below applied a third time.
 - **Per override**: the stations that dispatched by something other than the run's rule (§7.4).
   Without them the header would report one rule for a run in which three stations used another.
 - **Per step, since v17: what the changeover cost** in seconds, not merely that one happened. The
@@ -820,6 +847,12 @@ sequencing problem, not a capacity one.
 `RunMetrics` ranks stations by **queue time** and, separately, by **share of the flow's total
 time**. They are computed apart and both kept, because §8.1's whole point is that their disagreement
 is the diagnostic — the second ranking would be redundant if it were derived from the first.
+
+**Both tables name a station's pool beside it and neither groups by it** (§3.1). A ranking's first
+row is its answer, and clustering a pool's members together would mean the top row was no longer the
+station that queued most — so the pool is a suffix on the Workcenter cell, on one line because a
+`DataTable` row is a fixed height. The Gantt does group, because flow order has already put a pool's
+machines together and it has no ranking to lose (§8.6).
 
 - **OTD counts over every order, not the delivered ones.** An order that never came out is not on
   time, whatever its need date says. Averaging float over the delivered ones alone, on the other
@@ -1046,9 +1079,24 @@ order, which is the one thing §7.7 exists to model.
   place on one study's spine, and the chart merges every study into one set of station rows (§7.7),
   so a spine position cannot become a row index without the join to the flow §7.10 forbids. What the
   run does keep is which lane each step waited in, and `queueStart → processStart` is the stay
-  itself. A lane fed by a pool sits above the first of that pool's machines. **A lane no step ever
+  itself. **A lane no step ever
   names is not drawn**: no order passed that point, so the run holds nothing that says where it sat,
   and an invented position would put a band between two stations it may never have joined.
+
+  **What it is placed above is the step's *target*, not a machine** — the pool where the step named
+  one, the station otherwise. This sentence used to read "a lane fed by a pool sits above the first
+  of that pool's machines, which is where the ordering has already put the busiest of them", and it
+  was wrong twice over: the code took whichever member happened to pull an order out of the lane
+  first, and even the intent was wrong, because a lane feeds a pool rather than a member of one. The
+  band landed on an arbitrary machine, which is what made that machine look detached from its
+  siblings. It now sits above the pool's own heading (§3.1).
+
+  **A target carries a list of bands, not one.** This was a map keyed by workcenter, so a second lane
+  feeding one station silently overwrote the first — and two studies both stepping on one pool, each
+  with a lane in front of it, is exactly how that arises (§7.7). One FIFO left the chart with nothing
+  on screen saying it had, which is worse than drawing it in the wrong place: a band drawn wrongly is
+  a misread, a band not drawn is a run the reader cannot ask about. Both defects came back from the
+  same field report on 2026-08-15 and are one fix.
 
   **A capped lane is drawn at its capacity; an uncapped one at how full it actually got.** The empty
   slots of a capped lane are its headroom, and hiding them would make every capped lane look full. An
@@ -1075,6 +1123,23 @@ order, which is the one thing §7.7 exists to model.
   **`RunMetrics.workcenters` breaks the ties**, so stations at one position in the routing — a
   pool's three machines (§3.1) — still come out busiest-queue first and in the same order twice
   running.
+
+  **A pool sorts as a group, and the group sorts where its busiest member would have.** Its members
+  have to stay adjacent or the heading above them would label some of them and not the rest — and a
+  machine can hold two routing positions, which is what would otherwise split one. So a group takes
+  the earliest routing rank and the best Queue rank any member holds, and the members keep the Queue
+  order underneath it.
+
+  _The first attempt ordered groups by name_, which was simpler and threw away the Queue ranking for
+  every station **not** in a pool: an ungrouped station is its own group, so ranking groups
+  alphabetically ranked those stations alphabetically. Ranking by the best member's Queue position
+  instead makes the sort identical to the old two-clause one wherever no pool is involved, which is
+  the property worth having — a run with no pools in it must draw exactly as it did before.
+
+  **The heading is not a row of the run.** `GanttPoolGroup` carries no bars, answers no hover, takes
+  no band fill and is outside the station striping — the same exclusion the lanes already had, and
+  for the same reason: the alternation is what a reader follows one machine across. It is drawn
+  shallower than a station, so a pool of three does not read as four machines.
 
   _This reversed the first decision, which was that rows follow the Queue ranking outright so the
   bottleneck is the first row read._ It survived until the chart was driven against a real plant,
@@ -2490,6 +2555,31 @@ was free when the run simply was not asked.
 The v16 → v17 fixture carries a **populated** changeover for §16.14's reason: a fixture full of
 nulls passes whether or not the carry ran. Removing the `UPDATE` fails it on `5400` against `null`,
 which is the check that the test is about the migration rather than about the schema.
+
+### 16.19 Schema v18, the pool a station ran in
+
+Two nullable columns on `simulation_run_workcenters` — `pool_id` and `pool_name` — for §3.1's
+complaint that a pool's members read as loose machines. The shape §16.18 used for the studies' cell
+and line, and **no table is rebuilt for the fourth migration running**: every column is nullable and
+lands on a table that already exists, so no step can leave one half-copied on a database that has
+already survived an interrupted upgrade (§16.11).
+
+**Nothing is backfilled, and that is the whole point of the step.** Membership lives in the plant and
+`workcenter_pool_members` may say something different today from what the run dispatched through; a
+backfill would make every stored run claim a grouping it never observed. So the 35 runs already on
+the real database group nothing, which is §7.10's blank-is-not-a-wildcard rule rather than a gap.
+The v17 → v18 fixture puts the station **in** a pool in the plant and asserts the run's columns are
+still null, which is what makes the test about the decision rather than about the DDL.
+
+**No stored run is invalidated**, and after §16.18 that is worth stating. No figure moves, no charge
+changes and the arithmetic is untouched — `HISTORY.md`'s numbers stay comparable across v18, which
+was not true of v15, v17 or §5.5's buffers.
+
+The v17 fixture is **built from the v16 one** rather than copied from it: eighty lines of DDL
+duplicated to add five columns is how two fixtures come to disagree about the version they both claim
+to be. The v16 → v17 test's version assertion now reads `db.schemaVersion` rather than a literal —
+what it was ever asserting is that the upgrade ran to completion, and pinning the number made the
+arrival of a later version read as that step failing.
 
 ## 17. Done between M2 and M3
 
