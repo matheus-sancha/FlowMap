@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../common/formatters.dart';
 import '../../../common/unit_labels.dart';
@@ -1082,13 +1081,15 @@ class _FooterMetrics extends StatelessWidget {
               ),
               help: l10n.footerProcessTimeHelp,
             ),
-            // Three figures answer "how long", and they are not the same
-            // question. This one is working *time*, summed in each station's own
-            // productive day, and it is the one PCE divides — so it keeps the
-            // plain name and stays on the bar even though the list that asked
-            // for the other two did not mention it. Without it on screen, a
-            // reader dividing the two day-counts gets a different number from
-            // the PCE printed beside them.
+            // Two lead times, and the second is the first restated. The map
+            // states the seven-over-five planning convention rather than
+            // measuring the calendar — a walk was built first and rejected in
+            // use, and `FlowView.runningDayFactor` records why.
+            //
+            // Both render against the same working-day divisor, so the running
+            // figure reads as exactly 1.4× the working one and a reader can
+            // check it. PCE divides the working figure, which is also on
+            // screen, so that stays checkable too.
             _Metric(
               label: l10n.footerLeadTime,
               value: formatAdaptiveDuration(
@@ -1098,30 +1099,14 @@ class _FooterMetrics extends StatelessWidget {
               ),
               help: l10n.footerLeadTimeHelp,
             ),
-            // The other two are counts of calendar days out of one walk, named
-            // by their unit alone so three adjacent chips do not all begin
-            // `Lead time` on a bar that scrolls (§17.2).
             _Metric(
-              label: l10n.footerWorkingDays,
-              value: view!.workingDays == null
-                  ? '—'
-                  : l10n.footerDaysOnly('${view!.workingDays}'),
-              help: l10n.footerWorkingDaysHelp,
-            ),
-            _Metric(
-              label: l10n.footerRunningDaysLabel,
-              // The end date rides here rather than taking a chip of its own:
-              // it is how this figure has always been drawn, and it is not a
-              // lead time, so it would sit oddly among them.
-              value: view!.runningDays == null
-                  ? '—'
-                  : l10n.footerDaysWithDate(
-                      '${view!.runningDays}',
-                      DateFormat.yMMMd(
-                        Localizations.localeOf(context).toString(),
-                      ).format(view!.endDate!),
-                    ),
-              help: l10n.footerRunningDaysHelp,
+              label: l10n.footerLeadTimeRunning,
+              value: formatAdaptiveDuration(
+                l10n,
+                view!.leadTimeInRunningDays,
+                workingDay: view!.leadTimeWorkingDay,
+              ),
+              help: l10n.footerLeadTimeRunningHelp,
             ),
             if (view!.flowEquivalence != null)
               _Metric(

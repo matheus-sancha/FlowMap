@@ -1256,46 +1256,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get footerProcessTime => 'Process time';
 
   @override
-  String get footerLeadTime => 'Lead time';
+  String get footerLeadTime => 'Lead time (working days)';
 
   @override
-  String get footerWorkingDays => 'Working days';
+  String get footerLeadTimeRunning => 'Lead time (running days)';
 
   @override
-  String get footerRunningDaysLabel => 'Running days';
+  String get footerLeadTimeRunningHelp =>
+      'The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each station’s real calendar instead, so the two can differ and the run is what happened.';
 
   @override
-  String get footerWorkingDaysHelp =>
-      'Days in that span on which at least one workcenter this flow uses was open. The difference against running days is the weekends and shutdowns.';
-
-  @override
-  String get footerRunningDaysHelp =>
-      'Every calendar day the walk spans, weekends and shutdowns included, and the date it ends on. Divided by working days this lands near 1.4 on a five-day week — because that is seven over five, not because it is assumed.';
-
-  @override
-  String footerDaysWithDate(String days, String date) {
-    return '$days d · $date';
-  }
-
-  @override
-  String footerDaysOnly(String days) {
-    return '$days d';
-  }
-
-  @override
-  String get footerPce => 'PCE';
-
-  @override
-  String get footerEndDate => 'End date';
-
-  @override
-  String footerRunningDays(String days, String date) {
-    return '$days running days · $date';
-  }
-
-  @override
-  String get footerEndDateHelp =>
-      'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.';
+  String get footerPce => 'Process efficiency';
 
   @override
   String exportGenerated(String build, String timestamp) {

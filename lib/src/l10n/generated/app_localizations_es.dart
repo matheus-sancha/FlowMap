@@ -1271,46 +1271,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get footerProcessTime => 'Tiempo de proceso';
 
   @override
-  String get footerLeadTime => 'Lead time';
+  String get footerLeadTime => 'Lead time (días hábiles)';
 
   @override
-  String get footerWorkingDays => 'Días hábiles';
+  String get footerLeadTimeRunning => 'Lead time (días corridos)';
 
   @override
-  String get footerRunningDaysLabel => 'Días corridos';
+  String get footerLeadTimeRunningHelp =>
+      'El lead time en días hábiles × 1,4, la convención habitual de siete sobre cinco. Es una cifra de planificación, no una medición: una simulación recorre el calendario real de cada centro de trabajo, así que ambas pueden diferir y la corrida es lo que ocurrió.';
 
   @override
-  String get footerWorkingDaysHelp =>
-      'Días del recorrido en los que al menos un centro de trabajo de este flujo estuvo abierto. La diferencia con los días corridos son los fines de semana y los paros.';
-
-  @override
-  String get footerRunningDaysHelp =>
-      'Todos los días naturales que abarca el recorrido, fines de semana y paros incluidos, y la fecha en que termina. Dividido entre los días hábiles ronda 1,4 en una semana de cinco días — porque es siete entre cinco, no porque se suponga.';
-
-  @override
-  String footerDaysWithDate(String days, String date) {
-    return '$days d · $date';
-  }
-
-  @override
-  String footerDaysOnly(String days) {
-    return '$days d';
-  }
-
-  @override
-  String get footerPce => 'PCE';
-
-  @override
-  String get footerEndDate => 'Fecha de fin';
-
-  @override
-  String footerRunningDays(String days, String date) {
-    return '$days días corridos · $date';
-  }
-
-  @override
-  String get footerEndDateHelp =>
-      'Cuándo terminaría una orden iniciada el primer día de este periodo, recorriendo los calendarios reales. La diferencia con el lead time son los fines de semana y los paros.';
+  String get footerPce => 'Eficiencia de proceso';
 
   @override
   String exportGenerated(String build, String timestamp) {

@@ -2319,68 +2319,26 @@ abstract class AppLocalizations {
   /// No description provided for @footerLeadTime.
   ///
   /// In en, this message translates to:
-  /// **'Lead time'**
+  /// **'Lead time (working days)'**
   String get footerLeadTime;
 
-  /// No description provided for @footerWorkingDays.
+  /// No description provided for @footerLeadTimeRunning.
   ///
   /// In en, this message translates to:
-  /// **'Working days'**
-  String get footerWorkingDays;
+  /// **'Lead time (running days)'**
+  String get footerLeadTimeRunning;
 
-  /// No description provided for @footerRunningDaysLabel.
+  /// No description provided for @footerLeadTimeRunningHelp.
   ///
   /// In en, this message translates to:
-  /// **'Running days'**
-  String get footerRunningDaysLabel;
-
-  /// No description provided for @footerWorkingDaysHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Days in that span on which at least one workcenter this flow uses was open. The difference against running days is the weekends and shutdowns.'**
-  String get footerWorkingDaysHelp;
-
-  /// No description provided for @footerRunningDaysHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Every calendar day the walk spans, weekends and shutdowns included, and the date it ends on. Divided by working days this lands near 1.4 on a five-day week — because that is seven over five, not because it is assumed.'**
-  String get footerRunningDaysHelp;
-
-  /// No description provided for @footerDaysWithDate.
-  ///
-  /// In en, this message translates to:
-  /// **'{days} d · {date}'**
-  String footerDaysWithDate(String days, String date);
-
-  /// No description provided for @footerDaysOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'{days} d'**
-  String footerDaysOnly(String days);
+  /// **'The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each station’s real calendar instead, so the two can differ and the run is what happened.'**
+  String get footerLeadTimeRunningHelp;
 
   /// No description provided for @footerPce.
   ///
   /// In en, this message translates to:
-  /// **'PCE'**
+  /// **'Process efficiency'**
   String get footerPce;
-
-  /// No description provided for @footerEndDate.
-  ///
-  /// In en, this message translates to:
-  /// **'End date'**
-  String get footerEndDate;
-
-  /// No description provided for @footerRunningDays.
-  ///
-  /// In en, this message translates to:
-  /// **'{days} running days · {date}'**
-  String footerRunningDays(String days, String date);
-
-  /// No description provided for @footerEndDateHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.'**
-  String get footerEndDateHelp;
 
   /// No description provided for @exportGenerated.
   ///

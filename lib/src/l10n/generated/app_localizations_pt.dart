@@ -1270,46 +1270,17 @@ class AppLocalizationsPt extends AppLocalizations {
   String get footerProcessTime => 'Tempo de processo';
 
   @override
-  String get footerLeadTime => 'Lead time';
+  String get footerLeadTime => 'Lead time (dias úteis)';
 
   @override
-  String get footerWorkingDays => 'Dias úteis';
+  String get footerLeadTimeRunning => 'Lead time (dias corridos)';
 
   @override
-  String get footerRunningDaysLabel => 'Dias corridos';
+  String get footerLeadTimeRunningHelp =>
+      'O lead time em dias úteis × 1,4, a convenção usual de sete sobre cinco. É um número de planeamento, não uma medição: uma simulação percorre o calendário real de cada centro de trabalho, portanto os dois podem divergir e a corrida é o que aconteceu.';
 
   @override
-  String get footerWorkingDaysHelp =>
-      'Dias do percurso em que ao menos um centro de trabalho deste fluxo esteve aberto. A diferença para os dias corridos são os fins de semana e as paradas.';
-
-  @override
-  String get footerRunningDaysHelp =>
-      'Todos os dias de calendário que o percurso abrange, fins de semana e paradas incluídos, e a data em que termina. Dividido pelos dias úteis fica perto de 1,4 numa semana de cinco dias — porque é sete sobre cinco, não porque se suponha.';
-
-  @override
-  String footerDaysWithDate(String days, String date) {
-    return '$days d · $date';
-  }
-
-  @override
-  String footerDaysOnly(String days) {
-    return '$days d';
-  }
-
-  @override
-  String get footerPce => 'PCE';
-
-  @override
-  String get footerEndDate => 'Data de término';
-
-  @override
-  String footerRunningDays(String days, String date) {
-    return '$days dias corridos · $date';
-  }
-
-  @override
-  String get footerEndDateHelp =>
-      'Quando uma ordem iniciada no primeiro dia deste período terminaria, percorrendo os calendários reais. A diferença para o lead time são os fins de semana e as paradas.';
+  String get footerPce => 'Eficiência de processo';
 
   @override
   String exportGenerated(String build, String timestamp) {

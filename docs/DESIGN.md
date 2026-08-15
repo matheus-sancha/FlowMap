@@ -2412,21 +2412,51 @@ Reported against the built map, and it had two independent causes:
 A one-piece quantity buffer and the step it feeds are asserted equal, since both
 are one takt of the same station.
 
-### 17.2 Running days in the footer
+### 17.2 Running days in the footer — a conversion, after all
 
-Beside the working-time lead time, the footer states the calendar span:
-`11 running days · Aug 13, 2026`.
+The footer states the lead time twice: **`Lead time (working days)`**, which is
+the ladder's own figure summed in each station's productive day, and
+**`Lead time (running days)`**, which is that **× 1.4**.
 
-It is a **walk, not a conversion** (`_walkCalendar`). Process time is spent in
-its own station's open hours, a working-time buffer in the hours of the station
-it feeds — or, at the end of a flow, the one it just left — and a calendar
-buffer on the wall clock, weekends included. The gap between the two figures is
-the closed time, which no ratio could produce.
+**This reverses what this section used to say, and the reversal is the point.**
+The original text read: *"It is a walk, not a conversion (`_walkCalendar`) … the
+gap between the two figures is the closed time, which no ratio could produce."*
+That argument is still correct and it lost anyway.
 
-The walk starts at the **first day of the viewed period**, since no demand
-exists yet to supply a real start date; M3 replaces that with the first order's.
-It returns nothing rather than a guess when a step cannot be costed or its
-calendar can never open, and the footer shows a dash.
+What happened is worth recording, because the reasoning was sound at every step
+and still produced the wrong feature. The field reported both figures as wrong
+and asked for `running = 1.4 × working`. An interview established that 1.4 is
+7 ÷ 5, that the real defect was that `Lead time` summed *productive* days while
+running days walked the calendar — two different questions under one label — and
+that taking both figures from one walk would make the ratio **fall out** rather
+than be imposed: 1.0 on a seven-day plant, wider across a shutdown. That was
+built, driven, and rejected on sight, with the two walk figures called out by
+name as making no sense on the bar.
+
+**So the map states the convention and the run states the measurement**, and the
+split is cleaner than the compromise was:
+
+- **The map is a planning document.** A planner reading `12 working days` expects
+  `17 running days` beside it, and expects that to be the same arithmetic on
+  every map they have ever read. It is a restatement, the two cannot disagree,
+  and that is what makes it legible.
+- **The simulation is the measurement.** §7.2 walks each station's real calendar
+  and charges the weekends and shutdowns this plant actually has. When the two
+  differ, the run is what happened.
+
+`_walkCalendar` is still in the tree and is no longer reached from the UI. It
+returns the end date, the true running-day count and the true count of days any
+station was open, all from one walk; it is fully tested. Kept rather than deleted
+because §13's simulation *report* wants a calendar-true span and because the
+argument above may be wanted again — but it is listed in §17.5 as
+built-but-unreachable, which is the honest place for it rather than pretending it
+is load-bearing.
+
+_The lesson, and it is not about calendars:_ an interview can settle what a
+figure *should* mean and still be answering a question the field was not asking.
+Both figures were correct; neither was wanted. The cost of finding out was one
+round trip to a running build, which is exactly what §2.0's rule buys and the
+reason it is worth its context switches.
 
 ### 17.3 A day is worth a day
 
@@ -2521,6 +2551,7 @@ next milestone plans them rather than rediscovering them:
 | ~~`flow_nodes.notes`~~ | **reached 2026-08-05** — a field in both node editors, a marker on the box, the words in the tooltip and a findings list on the PDF (§5.4) | — |
 | The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty. §5.4's node notes deliberately do **not** use it |
 | `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
+| `_walkCalendar` and `FlowView.endDate` / `runningDays` / `workingDays` | complete and fully tested; nothing on screen reads them | §13's simulation report, which wants a calendar-true span. **Unreached by decision rather than omission** (§17.2): it was built, driven and rejected in favour of the 1.4 convention. Kept because the walk is the only thing in the app that can state a real end date for a flow, and because deleting a tested answer to a question that will be asked again is the expensive kind of tidiness |
 | ~~`wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn`~~ | **reached in M4** — the engine walks dates rather than periods, which is what the two `…On(date)` accessors were written for | — |
 
 ---

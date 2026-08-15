@@ -524,6 +524,23 @@ class FlowView {
   Duration get leadTime =>
       nodes.fold(Duration.zero, (total, node) => total + node.ladderTime);
 
+  /// What the map multiplies working days by to state running days.
+  ///
+  /// **7 ÷ 5 — a planning convention, not a measurement.** The field asked for
+  /// it after seeing the alternative on screen: a calendar walk was built first
+  /// and rejected in use. So the running-days figure here is a restatement of
+  /// the working-days one and the two cannot disagree, which is the point — it
+  /// is the number a planner expects to see beside a working-day lead time.
+  ///
+  /// **It will not match the simulation**, and that is not a defect in either.
+  /// A run walks each station's real calendar (§7.2), so it charges the
+  /// weekends and shutdowns this plant actually has; the map states the
+  /// convention. When they differ, the run is what happened.
+  static const double runningDayFactor = 1.4;
+
+  /// [leadTime] restated in running days (§17.2).
+  Duration get leadTimeInRunningDays => leadTime * runningDayFactor;
+
   /// Process ÷ lead time: the fraction of elapsed time that is value-adding.
   double get processCycleEfficiency {
     final lead = leadTime.inSeconds;

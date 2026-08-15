@@ -475,26 +475,10 @@
   "inventoryWorkingTimeHelp": "Off for cooling or transport, which do not stop for the weekend. On for a queue that only moves while the plant runs.",
 
   "footerProcessTime": "Process time",
-  "footerLeadTime": "Lead time",
-  "footerWorkingDays": "Working days",
-  "footerRunningDaysLabel": "Running days",
-  "footerWorkingDaysHelp": "Days in that span on which at least one workcenter this flow uses was open. The difference against running days is the weekends and shutdowns.",
-  "footerRunningDaysHelp": "Every calendar day the walk spans, weekends and shutdowns included, and the date it ends on. Divided by working days this lands near 1.4 on a five-day week — because that is seven over five, not because it is assumed.",
-  "footerDaysWithDate": "{days} d · {date}",
-  "footerDaysOnly": "{days} d",
-  "@footerDaysWithDate": {
-    "placeholders": { "days": { "type": "String" }, "date": { "type": "String" } }
-  },
-  "@footerDaysOnly": {
-    "placeholders": { "days": { "type": "String" } }
-  },
-  "footerPce": "PCE",
-  "footerEndDate": "End date",
-  "footerRunningDays": "{days} running days · {date}",
-  "@footerRunningDays": {
-    "placeholders": { "days": { "type": "String" }, "date": { "type": "String" } }
-  },
-  "footerEndDateHelp": "When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.",
+  "footerLeadTime": "Lead time (working days)",
+  "footerLeadTimeRunning": "Lead time (running days)",
+  "footerLeadTimeRunningHelp": "The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each station’s real calendar instead, so the two can differ and the run is what happened.",
+  "footerPce": "Process efficiency",
   "exportGenerated": "FlowMap {build} · generated {timestamp}",
   "@exportGenerated": {
     "placeholders": { "build": { "type": "String" }, "timestamp": { "type": "String" } }

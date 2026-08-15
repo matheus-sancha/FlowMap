@@ -903,6 +903,23 @@ void main() {
       );
     });
 
+    test('running days are the working-day lead time × 1.4', () {
+      final view = withNodes([
+        for (var i = 0; i < 3; i++) step(i, workcenterId: 'WC'),
+      ]);
+
+      // A restatement rather than a measurement, and deliberately so: the field
+      // asked for the seven-over-five convention after seeing a calendar walk
+      // on screen and rejecting it. The two figures therefore cannot disagree,
+      // which is what a planner reading a working-day lead time expects beside
+      // it (§17.2).
+      expect(
+        view.leadTimeInRunningDays.inSeconds,
+        (view.leadTime.inSeconds * 1.4).round(),
+      );
+      expect(FlowView.runningDayFactor, 1.4);
+    });
+
     test('working days are the open subset of running days (§17.2)', () {
       // 1 August 2026 is a Saturday and ABC works Monday to Friday. Three
       // takt-days finish on Thursday the 6th, so the walk spans six calendar
