@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Drives the pending migration against a **copy of the real database**.
@@ -128,6 +129,59 @@ void main() {
       // ignore: avoid_print
       print('  ${r.id}: ${r.scheduleHorizon}');
     }
+
+    // --- v17: a changeover in two halves (§16.18) ---------------------------
+
+    // The same question as above, on the table the carry writes to. A
+    // `_ensureColumn` that silently did nothing would leave the editor unable to
+    // store a setup, and nothing else would say so.
+    final nodeColumns = (await db
+            .customSelect("PRAGMA table_info('flow_nodes')")
+            .get())
+        .map((r) => r.read<String>('name'))
+        .toSet();
+    expect(
+      nodeColumns,
+      containsAll(['setup_value', 'setup_unit', 'teardown_value', 'same_part_percent']),
+      reason: 'v17 reached the real table, not only the schema',
+    );
+
+    // **Every non-zero changeover became a setup of the same length.** Asserted
+    // as an implication rather than as a count, because the answer depends on
+    // what this particular file happens to hold — and on the developer's own
+    // database the answer is *none*: no node has ever had a changeover typed
+    // into it. So this passes vacuously here and would still catch a carry that
+    // dropped or rescaled a value on a database that has one.
+    final nodes = await db.select(db.flowNodes).get();
+    final carried = nodes.where((n) => n.changeoverSeconds > 0);
+    for (final node in carried) {
+      expect(
+        node.setupValue,
+        node.changeoverSeconds.toDouble(),
+        reason: 'the setup kept the changeover it was carried from',
+      );
+      expect(node.setupUnit, TaktUnit.seconds);
+    }
+    // ignore: avoid_print
+    print(
+      'nodes: ${nodes.length}, '
+      'with a stored changeover: ${carried.length}, '
+      'with a setup: ${nodes.where((n) => n.setupValue != null).length}',
+    );
+
+    // A zero carries as null rather than as `0 s`, so an untouched node reads as
+    // untouched in the editor.
+    expect(
+      nodes.where((n) => n.changeoverSeconds == 0).map((n) => n.setupValue),
+      everyElement(isNull),
+    );
+
+    // Teardown and the percentage arrive empty everywhere: nothing could have
+    // supplied them, and a null percentage is 0%, which is the free-repeat rule
+    // this database has always run under. That is what makes v17
+    // behaviour-preserving until something is typed.
+    expect(nodes.map((n) => n.teardownValue), everyElement(isNull));
+    expect(nodes.map((n) => n.samePartPercent), everyElement(isNull));
 
     // --- what no migration may cost -----------------------------------------
 

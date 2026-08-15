@@ -302,7 +302,51 @@ Schema **v17**, one migration, written up as §16.18:
   than a literal, so it survives its own migration; add v17's specific claims to it rather than
   replacing v16's.
 
-### 1.7 Drive it
+### 1.7 Drive it — **done 2026-08-15**
+
+Landed in two commits, driven in Release `0.1.0-2026-08-15c`. 676 tests, `flutter analyze` clean.
+
+**The v16 → v17 migration has met the real database** — `db.open schema 17 from 16` at 11:53:44
+under that label. Driven against a **copy first**: the copy was upgraded by
+`test/data/live_db_check_test.dart` with `--tags live` before Release was allowed near the file, and
+a backup was taken beside the live one as `flowmap.sqlite.backup-v16-20260815-115254`.
+`user_version` 17, `integrity_check` ok, 60 orders and 37 runs intact. The live check now carries
+v17's claims alongside v16's rather than replacing them, which is what that file is for.
+
+**No node on this database has ever had a changeover typed into it** — all 17 are zero — and that
+turned the re-run into a sharp test rather than a formality. With nothing to charge, both of v17's
+behaviour changes multiply zero: the derate removal turns `0 ÷ 0.74` into `0`, and cold start pays a
+setup in full, in full being nothing. So the re-run should have been **bit-identical** to the last
+v16 run, and it was:
+
+| | `a17b77ed` v17 | `ab587589` v16 |
+|---|---|---|
+| avg lead time | 34.1 d | 34.1 d |
+| delivered / on time | 60 / 60 | 60 / 60 |
+| blocked | 0.0 d | 0.0 d |
+| empty slots | 13 | 13 |
+
+Compared row by row rather than on the headline: **all 420 steps and all 60 orders are identical**,
+including every timestamp. That is §1.1's "default 0 % reproduces today's behaviour exactly"
+observed on real data instead of asserted in a fixture.
+
+**So the claim that v17 invalidates every stored run needs qualifying, and this is where it is
+qualified.** It is true of the arithmetic and the design notes are right to say so — a 90-minute
+setup at 74 % moved from 121.6 minutes to 90. It is **not** true of *this* database, where the
+arithmetic that changed only ever multiplied zero. Célula 11B's figures stay comparable across v17,
+and the first run that will not be comparable is the first run made after a setup is typed — which
+is §2.1's work.
+
+**`changeover_seconds` is written, and null still means what it means.** The v17 run states `0` on
+every step; the 35 runs before it read null. That distinction is the whole reason §1.4 stored a
+number rather than deriving one, and it is now visible in the file rather than only in a test.
+
+_Still owed from this round:_ the Summary read against the run. It could not be checked here for the
+same reason the re-run was identical — with no changeover anywhere, §8.4's changeover term is zero
+on both sides, so the two agree trivially. **It becomes a real check the moment a setup is typed**,
+which is §2.7's drive step.
+
+### 1.7b Drive it — the original list
 
 - Re-run célula 11B and record the run id here. Every figure in `HISTORY.md` is now stale.
 - Give one step a setup and a teardown, run, and read `changeover_seconds` back through the hover
