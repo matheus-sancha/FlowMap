@@ -188,6 +188,9 @@
 
   "validationNotADuration": "No es un tiempo",
   "validationNotADate": "No es una fecha",
+  "validationPositiveNumber": "Un número mayor que cero",
+  "validationUnknownUnit": "No es una unidad — prueba días, horas, min o s",
+  "validationNotAPercentage": "Un porcentaje entre 0 y 100",
   "validationPositiveWhole": "Un número entero mayor que cero",
   "validationUnknownPart": "No hay ninguna pieza con ese número en este estudio",
 

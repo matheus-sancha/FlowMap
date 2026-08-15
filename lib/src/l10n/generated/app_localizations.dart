@@ -1042,6 +1042,24 @@ abstract class AppLocalizations {
   /// **'Not a date'**
   String get validationNotADate;
 
+  /// No description provided for @validationPositiveNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'A number above zero'**
+  String get validationPositiveNumber;
+
+  /// No description provided for @validationUnknownUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a unit — try days, hours, min or s'**
+  String get validationUnknownUnit;
+
+  /// No description provided for @validationNotAPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'A percentage between 0 and 100'**
+  String get validationNotAPercentage;
+
   /// No description provided for @validationPositiveWhole.
   ///
   /// In en, this message translates to:

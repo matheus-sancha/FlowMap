@@ -1,25 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
-import '../../../common/centred_table.dart';
+import '../../../common/cell_parsers.dart';
+import '../../../common/data_grid.dart';
+import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
-import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/schedule_periods.dart';
+import '../application/schedule_paste.dart';
 import '../application/schedule_problems.dart';
 import '../application/schedules_providers.dart';
 import '../application/takt_schedule.dart';
-import 'date_range_field.dart';
 import 'schedule_issues_banner.dart';
+
+const _startColumn = 0;
+const _endColumn = 1;
+const _taktColumn = 2;
 
 /// The takt schedule of the study's production line (DESIGN.md §6.1).
 ///
 /// Scoped to the line rather than the study: two studies of the same line are
 /// scenarios of one reality, and a takt that differed between them would make
 /// them incomparable.
+///
+/// **Typed in the table, not behind a dialog** (§12.6). Field feedback was that
+/// re-tuning a takt cost a round trip through an editor; `DataGrid` already had
+/// what that needs — keyboard navigation, per-keystroke validation and a
+/// multi-cell paste out of Excel, which is how a year of periods actually
+/// arrives. The dialog is gone rather than kept beside it: two write paths into
+/// one table is how the two come to disagree.
 class TaktTab extends ConsumerWidget {
   const TaktTab({super.key, required this.project, required this.study});
 
@@ -28,7 +40,6 @@ class TaktTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
     final scope = (
       projectId: project.id,
       productionLineId: study.productionLineId,
@@ -48,27 +59,21 @@ class TaktTab extends ConsumerWidget {
               unit: period.taktUnit,
             ),
         ]);
-        final issues = findSchedulePeriodIssues(schedule);
 
         return Column(
           children: [
-            ScheduleIssuesBanner(issues: issues),
+            // Overlaps and gaps are reported, never refused. The banner was
+            // already here and the dialog was duplicating the guard; §11's
+            // readiness is what actually blocks a run on a real gap.
+            ScheduleIssuesBanner(issues: findSchedulePeriodIssues(schedule)),
             Expanded(
-              child: ListView(
+              child: Padding(
                 padding: const EdgeInsets.all(16),
-                children: [
-                  _TaktTable(periods: periods, project: project, study: study),
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          _editPeriod(context, ref, periods: periods),
-                      icon: const Icon(Icons.add),
-                      label: Text(l10n.taktPeriodNew),
-                    ),
-                  ),
-                ],
+                child: _TaktGrid(
+                  periods: periods,
+                  project: project,
+                  study: study,
+                ),
               ),
             ),
           ],
@@ -76,54 +81,10 @@ class TaktTab extends ConsumerWidget {
       },
     );
   }
-
-  Future<void> _editPeriod(
-    BuildContext context,
-    WidgetRef ref, {
-    required List<TaktPeriod> periods,
-    TaktPeriod? existing,
-  }) async {
-    final draft = await showDialog<_TaktDraft>(
-      context: context,
-      builder: (context) => _TaktDialog(
-        existing: existing,
-        // A new period starts the day after the last one ends, which is what
-        // the user means nine times in ten.
-        suggestedStart: periods.isEmpty
-            ? DateTime(DateTime.now().year, 1, 1)
-            : DateTime(
-                periods.last.endDate.year,
-                periods.last.endDate.month,
-                periods.last.endDate.day + 1,
-              ),
-      ),
-    );
-    if (draft == null) return;
-
-    final repository = ref.read(schedulesRepositoryProvider);
-    if (existing == null) {
-      await repository.createTaktPeriod(
-        projectId: project.id,
-        productionLineId: study.productionLineId,
-        startDate: draft.start,
-        endDate: draft.end,
-        takt: draft.value,
-        unit: draft.unit,
-      );
-    } else {
-      await repository.updateTaktPeriod(
-        existing.id,
-        startDate: draft.start,
-        endDate: draft.end,
-        takt: draft.value,
-        unit: draft.unit,
-      );
-    }
-  }
 }
 
-class _TaktTable extends ConsumerWidget {
-  const _TaktTable({
+class _TaktGrid extends ConsumerWidget {
+  const _TaktGrid({
     required this.periods,
     required this.project,
     required this.study,
@@ -136,210 +97,131 @@ class _TaktTable extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final dates = DateFormat.yMd(Localizations.localeOf(context).toString());
+    final dates = DateStyleScope.of(context);
 
-    if (periods.isEmpty) {
-      return Text(l10n.taktEmpty, style: Theme.of(context).textTheme.bodyLarge);
-    }
-
-    return Card(
-      child: DataTable(
-        columns: [
-          centredColumn(l10n.fieldStart),
-          centredColumn(l10n.fieldEnd),
-          centredColumn(l10n.takt),
-          // The actions column stays as it is: edit and delete are not data
-          // read down a column, and this table stretches to fill its card, so
-          // centring would strand them mid-cell away from the row they act on.
-          const DataColumn(label: SizedBox.shrink()),
-        ],
-        rows: [
-          for (final period in periods)
-            DataRow(
-              cells: [
-                centredText(dates.format(period.startDate)),
-                centredText(dates.format(period.endDate)),
-                centredText(
-                  '${_formatValue(period.taktValue)} '
-                  '${taktUnitLabel(l10n, period.taktUnit)}',
-                ),
-                DataCell(
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: l10n.actionEdit,
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () =>
-                            TaktTab(project: project, study: study)._editPeriod(
-                              context,
-                              ref,
-                              periods: periods,
-                              existing: period,
-                            ),
-                      ),
-                      IconButton(
-                        tooltip: l10n.actionDelete,
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          final confirmed = await confirmAction(
-                            context,
-                            title: l10n.taktPeriodDeleteTitle,
-                            message: l10n.confirmDeleteBody,
-                            confirmLabel: l10n.actionDelete,
-                            destructive: true,
-                          );
-                          if (confirmed) {
-                            await ref
-                                .read(schedulesRepositoryProvider)
-                                .deleteTaktPeriod(period.id);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-String _formatValue(double value) =>
-    value == value.roundToDouble() ? '${value.round()}' : '$value';
-
-class _TaktDraft {
-  const _TaktDraft({
-    required this.start,
-    required this.end,
-    required this.value,
-    required this.unit,
-  });
-
-  final DateTime start;
-  final DateTime end;
-  final double value;
-  final TaktUnit unit;
-}
-
-class _TaktDialog extends StatefulWidget {
-  const _TaktDialog({this.existing, required this.suggestedStart});
-
-  final TaktPeriod? existing;
-  final DateTime suggestedStart;
-
-  @override
-  State<_TaktDialog> createState() => _TaktDialogState();
-}
-
-class _TaktDialogState extends State<_TaktDialog> {
-  late DateTime _start = widget.existing?.startDate ?? widget.suggestedStart;
-  late DateTime _end =
-      widget.existing?.endDate ?? DateTime(widget.suggestedStart.year, 12, 31);
-  late final TextEditingController _value = TextEditingController(
-    text: widget.existing == null
-        ? ''
-        : _formatValue(widget.existing!.taktValue),
-  );
-  late TaktUnit _unit = widget.existing?.taktUnit ?? TaktUnit.days;
-
-  @override
-  void dispose() {
-    _value.dispose();
-    super.dispose();
-  }
-
-  double? get _parsed {
-    final value = double.tryParse(_value.text.trim().replaceAll(',', '.'));
-    return value != null && value > 0 ? value : null;
-  }
-
-  void _submit() {
-    if (_parsed == null || _end.isBefore(_start)) return;
-    Navigator.of(context).pop(
-      _TaktDraft(start: _start, end: _end, value: _parsed!, unit: _unit),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final valid = _parsed != null && !_end.isBefore(_start);
-
-    return AlertDialog(
-      title: Text(l10n.taktPeriodNew),
-      content: SizedBox(
-        width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DateRangeField(
-              start: _start,
-              end: _end,
-              onChanged: (start, end) => setState(() {
-                _start = start;
-                _end = end;
-              }),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _value,
-                    autofocus: true,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(labelText: l10n.takt),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _submit(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<TaktUnit>(
-                    initialValue: _unit,
-                    decoration: InputDecoration(labelText: l10n.taktUnit),
-                    items: [
-                      for (final unit in TaktUnit.values)
-                        DropdownMenuItem(
-                          value: unit,
-                          child: Text(taktUnitLabel(l10n, unit)),
-                        ),
-                    ],
-                    onChanged: (unit) => setState(() => _unit = unit!),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                // Days are workcenter-relative; the others are not. Saying so
-                // here saves the question the first time a 3-day takt reads as
-                // 68 hours at one station and 26:24 at another.
-                _unit == TaktUnit.days
-                    ? l10n.taktDaysHelp
-                    : l10n.taktLiteralHelp,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
+    return DataGrid(
+      // One row past the end, always blank: a period is added by typing into
+      // it, the way the sequence grid appends an order (§9.1).
+      rowCount: periods.length + 1,
+      rowHeaderWidth: 44,
+      rowActionsWidth: 48,
+      rowHeader: (row) => Center(
+        child: Text(
+          row < periods.length ? '${row + 1}' : '+',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.outline,
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.actionCancel),
-        ),
-        FilledButton(
-          onPressed: valid ? _submit : null,
-          child: Text(l10n.actionSave),
-        ),
+      rowActions: (row) => row >= periods.length
+          ? const SizedBox.shrink()
+          : IconButton(
+              tooltip: l10n.actionDelete,
+              icon: const Icon(Icons.delete_outline, size: 18),
+              onPressed: () async {
+                final confirmed = await confirmAction(
+                  context,
+                  title: l10n.taktPeriodDeleteTitle,
+                  message: l10n.confirmDeleteBody,
+                  confirmLabel: l10n.actionDelete,
+                  destructive: true,
+                );
+                if (confirmed) {
+                  await ref
+                      .read(schedulesRepositoryProvider)
+                      .deleteTaktPeriod(periods[row].id);
+                }
+              },
+            ),
+      columns: [
+        DataGridColumn(title: l10n.fieldStart, width: 140, numeric: true),
+        DataGridColumn(title: l10n.fieldEnd, width: 140, numeric: true),
+        DataGridColumn(title: l10n.takt, width: 100, numeric: true),
+        DataGridColumn(title: l10n.taktUnit, width: 120),
       ],
+      valueAt: (row, column) => _valueAt(l10n, dates, row, column),
+      errorAt: (row, column, raw) => _errorAt(l10n, dates, row, column, raw),
+      onCommit: (row, column, block) =>
+          _commit(ref, dates, row, column, block),
     );
+  }
+
+  String _valueAt(
+    AppLocalizations l10n,
+    DateStyle dates,
+    int row,
+    int column,
+  ) {
+    if (row >= periods.length) return '';
+    final period = periods[row];
+    return switch (column) {
+      _startColumn => dates.format(period.startDate),
+      _endColumn => dates.format(period.endDate),
+      _taktColumn => formatNumber(period.taktValue),
+      // Canonical out: whatever spelling was typed, the column reads back in
+      // the user's own language (§9.2).
+      _ => taktUnitLabel(l10n, period.taktUnit),
+    };
+  }
+
+  String? _errorAt(
+    AppLocalizations l10n,
+    DateStyle dates,
+    int row,
+    int column,
+    String raw,
+  ) {
+    final text = raw.trim();
+    // The blank row is blank until something is typed into it, so an empty cell
+    // there is not yet an error.
+    if (text.isEmpty) return row >= periods.length ? null : l10n.validationRequired;
+
+    return switch (column) {
+      _startColumn || _endColumn =>
+        dates.parse(text) == null ? l10n.validationNotADate : null,
+      _taktColumn => parsePositive(text) == null ? l10n.validationPositiveNumber : null,
+      _ => parseTaktUnit(text) == null ? l10n.validationUnknownUnit : null,
+    };
+  }
+
+  /// Applies a typed cell or a pasted block.
+  ///
+  /// What the block *means* is decided by [planTaktWrite], which is pure and
+  /// unit-tested; this only writes what it read (§9.1's split).
+  Future<void> _commit(
+    WidgetRef ref,
+    DateStyle dates,
+    int row,
+    int column,
+    List<List<String>> block,
+  ) async {
+    final writes = planTaktWrite(
+      periods: periods,
+      row: row,
+      column: column,
+      block: block,
+      dates: dates,
+    );
+    final repository = ref.read(schedulesRepositoryProvider);
+    for (final write in writes) {
+      if (write.id == null) {
+        await repository.createTaktPeriod(
+          projectId: project.id,
+          productionLineId: study.productionLineId,
+          startDate: write.startDate,
+          endDate: write.endDate,
+          takt: write.takt,
+          unit: write.unit,
+        );
+      } else {
+        await repository.updateTaktPeriod(
+          write.id!,
+          startDate: write.startDate,
+          endDate: write.endDate,
+          takt: write.takt,
+          unit: write.unit,
+        );
+      }
+    }
   }
 }

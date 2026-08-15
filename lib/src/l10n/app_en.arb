@@ -207,6 +207,9 @@
 
   "validationNotADuration": "Not a time",
   "validationNotADate": "Not a date",
+  "validationPositiveNumber": "A number above zero",
+  "validationUnknownUnit": "Not a unit — try days, hours, min or s",
+  "validationNotAPercentage": "A percentage between 0 and 100",
   "validationPositiveWhole": "A whole number above zero",
   "validationUnknownPart": "No part with that number in this study",
 

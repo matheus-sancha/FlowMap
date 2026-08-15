@@ -513,6 +513,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get validationNotADate => 'Not a date';
 
   @override
+  String get validationPositiveNumber => 'A number above zero';
+
+  @override
+  String get validationUnknownUnit => 'Not a unit — try days, hours, min or s';
+
+  @override
+  String get validationNotAPercentage => 'A percentage between 0 and 100';
+
+  @override
   String get validationPositiveWhole => 'A whole number above zero';
 
   @override

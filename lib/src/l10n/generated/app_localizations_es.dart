@@ -516,6 +516,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get validationNotADate => 'No es una fecha';
 
   @override
+  String get validationPositiveNumber => 'Un número mayor que cero';
+
+  @override
+  String get validationUnknownUnit =>
+      'No es una unidad — prueba días, horas, min o s';
+
+  @override
+  String get validationNotAPercentage => 'Un porcentaje entre 0 y 100';
+
+  @override
   String get validationPositiveWhole => 'Un número entero mayor que cero';
 
   @override

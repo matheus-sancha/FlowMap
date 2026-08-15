@@ -1257,6 +1257,33 @@ column and removing one hides the values without destroying them.
   number in hours; `parseDateInput` accepts ISO in every locale and the locale's own form second.
 - **A typed cell and a paste are the same operation** — a 1×1 block and a rectangle. There is one
   commit path, so a rule proved for one holds for the other.
+- **The grid is no longer only the demand tables.** The takt schedule and each workcenter's schedule
+  are entered the same way since field feedback that re-tuning a takt cost a round trip through a
+  dialog. `DataGrid` already had everything that needs — keyboard navigation, per-keystroke
+  validation, frozen columns and the Excel paste — so the cost was a parser per column, and the
+  paste is worth more than the inline editing was.
+- **What a block means lives in a pure function, not in the widget.** `demand_paste.dart` for the
+  demand tables and `schedule_paste.dart` for the two schedules: each returns a list of writes, so
+  which rows append, what an unreadable cell means and how a block merges over what is already there
+  are unit tests rather than widget ones. §1.6's precedent — what an edit *is* should be assertable
+  without pumping a frame — and it earned its place immediately, since neither schedule tab had a
+  widget test at all.
+- **An unreadable cell changes nothing around it.** The grid is already showing the user why it is
+  refused, and rewriting the rest of the row around it would write a value nobody typed — §11's one
+  intolerable failure, arriving from the editing side rather than the import side.
+- **A new row is complete from the moment it is touched.** Typing into the blank row at the bottom
+  creates a real period carrying the suggestions the dialog used to offer: the day after the last
+  one ends, running to the end of that year, and — for a workcenter — one operator per shift, fully
+  available, with no rework. The alternative was a half-built period held in widget state until it
+  had every value, which puts a row on screen that does not exist and cannot be deleted. Appending
+  several rows staggers them rather than stacking every one on the same suggested start.
+- **Forgiving in, canonical out** (`cell_parsers.dart`). A unit cell takes `days`, `d`, `días`,
+  `dias`, `horas`, `min` or `s` and redisplays in the UI's own language; availability takes `74%`,
+  `74` or `0.74` and redisplays as `74 %`; a comma is a decimal point, because two of the three
+  languages shipped write it that way. **The unit parser is deliberately language-independent**: a
+  planner pasting an English spreadsheet into a Portuguese UI is the case paste exists for.
+  Forgiving is still not guessing (§9.2) — `weeks` is refused rather than assumed, because this app
+  has no such concept and inventing one silently is how a figure ends up wrong by a factor of seven.
 - **The reading of a block is a pure function** (`planPartsWrite`, `planSequenceWrite`) that returns
   what the block *asks for*; the repository resolves part numbers to ids and writes it in one
   transaction. Which rows append, which renames are refused, what an emptied cell means: all unit
@@ -1575,9 +1602,15 @@ Localised en / es / pt, mirroring Chronus.
 
 ### 12.5 The read-only tables are centred
 
-Header and cells sit in the middle of their column in all seven result tables — the production
-plan, the queue and share-of-flow rankings, the per-part table, the occupation table, and the takt
-and workcenter schedules. `numeric: true` is gone from them.
+Header and cells sit in the middle of their column in the result tables — the production plan, the
+queue and share-of-flow rankings, the per-part table and the occupation table. `numeric: true` is
+gone from them.
+
+**Two of the original seven are no longer result tables at all.** The takt and workcenter schedules
+became editable grids (§12.6), which put them back under `DataGridColumn.numeric`'s rule rather than
+this one: a column you *type* into wants its ragged left edge, because scanning for the value that
+is wrong is what that edge is for. The takt table was also the one deliberately left stretching to
+fill its card, and that exception goes with it.
 
 - **The editable grid keeps its right-aligned numerics.** `DataGridColumn.numeric` exists because
   you *type* into those cells and scan a column of process times for the one that is wrong, and a

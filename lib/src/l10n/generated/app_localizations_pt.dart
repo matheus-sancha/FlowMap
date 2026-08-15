@@ -517,6 +517,16 @@ class AppLocalizationsPt extends AppLocalizations {
   String get validationNotADate => 'Não é uma data';
 
   @override
+  String get validationPositiveNumber => 'Um número maior que zero';
+
+  @override
+  String get validationUnknownUnit =>
+      'Não é uma unidade — tente dias, horas, min ou s';
+
+  @override
+  String get validationNotAPercentage => 'Uma percentagem entre 0 e 100';
+
+  @override
   String get validationPositiveWhole => 'Um número inteiro maior que zero';
 
   @override
