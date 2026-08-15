@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -561,6 +561,32 @@ class AppDatabase extends _$AppDatabase {
            WHERE changeover_seconds IS NOT NULL
              AND changeover_seconds > 0
         ''');
+      }
+
+      if (from < 18) {
+        // Field feedback, 2026-08-15: a pool's members read as three loose
+        // machines. §3.1 is right that a run's stations are real workcenters —
+        // that is what lets a run say which one ran an order — but nothing
+        // recorded which pool they came from, so nothing could group them.
+        //
+        // Two nullable columns on a table that already exists, so no table is
+        // rebuilt for the fourth migration running (§16.11).
+        //
+        // **Backfilled from nothing.** Pool membership lives in the plant and
+        // may have changed since; reading it here would make every stored run
+        // claim a grouping it never observed, which is the drift §7.10's
+        // copy-in rule exists to prevent. Pre-v18 runs group nothing, which is
+        // §12.1's rule that a blank is not a wildcard.
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.poolId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.poolName,
+        );
       }
 
       // Reference-data seeding runs outside every version guard, on every

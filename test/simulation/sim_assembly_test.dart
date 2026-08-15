@@ -444,4 +444,79 @@ void main() {
     expect(built.orders, hasLength(2));
   });
 
+  group('stationPools — which pool a run says a station ran in (§3.1)', () {
+    SimStudy built({
+      required List<FlowNode> nodes,
+      Map<String, List<String>> pools = const {},
+    }) => assembleSimStudy(
+      study: study,
+      nodes: nodes,
+      parts: [part('p1', 'PN1')],
+      processTimes: {
+        'p1': {
+          'W': const Duration(hours: 1),
+          'pool-1': const Duration(hours: 1),
+          'pool-2': const Duration(hours: 1),
+        },
+      },
+      orders: [order(0, 'p1')],
+      taktSchedule: taktOf(1, TaktUnit.hours),
+      resources: resources(pools: pools),
+      asOf: now,
+    )!;
+
+    test('a pool names every one of its members', () {
+      final map = stationPools([
+        built(
+          nodes: [step(0, poolId: 'pool-1')],
+          pools: {
+            'pool-1': ['L1', 'L2'],
+          },
+        ),
+      ]);
+
+      // Both members, under the name the reader typed — which is the whole
+      // complaint: three loose machines where a pool was drawn.
+      expect(map['L1']!.id, 'pool-1');
+      expect(map['L1']!.name, 'CNC Lathes');
+      expect(map['L2']!.id, 'pool-1');
+    });
+
+    test('a station named directly is absent, not grouped under nothing', () {
+      final map = stationPools([
+        built(nodes: [step(0, workcenterId: 'W')]),
+      ]);
+
+      // Absent rather than present-with-a-null-id: a station that no step
+      // reached through a pool has nothing to say, and a row saying "no pool"
+      // would be a row the views have to skip.
+      expect(map.containsKey('W'), isFalse);
+    });
+
+    test('two pools over one station leave it ungrouped, naming both', () {
+      // The case §7.7 makes reachable and `WorkcenterPoolMembers` allows: two
+      // studies in one run, each reaching L1 through a different pool. There is
+      // no correct single answer, so there is no grouping — and the names still
+      // say why it is standing on its own.
+      final map = stationPools([
+        built(
+          nodes: [step(0, poolId: 'pool-1')],
+          pools: {
+            'pool-1': ['L1'],
+          },
+        ),
+        built(
+          nodes: [step(0, poolId: 'pool-2')],
+          pools: {
+            'pool-2': ['L1'],
+          },
+        ),
+      ]);
+
+      expect(map['L1']!.id, isNull);
+      // Sorted, so the label cannot depend on the order the project happens to
+      // list its studies in.
+      expect(map['L1']!.name, 'CNC Lathes · pool-2');
+    });
+  });
 }

@@ -317,6 +317,30 @@ class SimulationRunWorkcenters extends Table {
   /// utilization meant.
   IntColumn get units => integer().withDefault(const Constant(1))();
 
+  /// The pool this station was dispatched through in this run (§3.1), copied in
+  /// like [name] and for the same reason: moving CLAD07 to another pool
+  /// afterwards must not regroup a finished run's stations.
+  ///
+  /// **Null means ungrouped, never "every pool".** A workcenter may belong to
+  /// several pools — `WorkcenterPoolMembers`' key is `{poolId, workcenterId}` —
+  /// so with two studies in one run, line A can reach CLAD07 through `CAL`
+  /// while line B reaches it through `All Lathes`. Resolved at write time by
+  /// `stationPools`: **exactly one pool is stored, none or several store null**
+  /// and the station reads ungrouped. Treating a blank as a wildcard is the
+  /// mistake §12.1 already wrote a rule against for the pre-v17 cell.
+  ///
+  /// Null on every run made before v18, which therefore group nothing.
+  TextColumn get poolId => text().nullable()();
+
+  /// `CAL Pool` — the pool's name at run time, for the same copy-in reason as
+  /// [name].
+  ///
+  /// **Set even when [poolId] is null and several pools were involved**, as
+  /// `CAL Pool · All Lathes`: the station is not grouped, and a reader still
+  /// deserves to see why it is standing on its own. Null only when no step
+  /// reached it through a pool at all.
+  TextColumn get poolName => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {runId, workcenterId};
 }

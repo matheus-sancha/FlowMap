@@ -945,6 +945,48 @@ class _MetricRow extends StatelessWidget {
 }
 
 /// §8.1's first post-run ranking: where orders wait.
+/// A station, and the pool it ran in where the run recorded one (DESIGN.md
+/// §3.1).
+///
+/// **Beside the name rather than as a grouping**, which is where this differs
+/// from the Gantt. §8.1's two tables *are* rankings — the first row is the
+/// station that queued most — and clustering a pool's members together would
+/// mean the top row was no longer the answer to the question the table asks.
+/// The Gantt has no such ordering to lose: it goes down the page in flow order,
+/// where a pool's machines already sit together.
+///
+/// A station reached through more than one pool carries both names and belongs
+/// to neither, which is exactly what the run stored (§7.10).
+class _StationName extends StatelessWidget {
+  const _StationName({required this.station});
+
+  final WorkcenterRunMetrics station;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pool = station.poolName;
+    if (pool == null) return Text(station.name);
+
+    // One line, because a `DataTable` row is a fixed height and a second line
+    // would be clipped rather than shown.
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: station.name),
+          TextSpan(
+            text: '  $pool',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
 class _QueueTable extends StatelessWidget {
   const _QueueTable({required this.metrics});
 
@@ -960,7 +1002,8 @@ class _QueueTable extends StatelessWidget {
     return Card(
       child: resultTable(
         columns: [
-          ResultColumn(label: l10n.workcenter, width: 160),
+          // Wider than it was, for the pool a station ran in (§3.1).
+          ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.utilization, width: 120),
           ResultColumn(label: l10n.simQueue, width: 130),
           ResultColumn(label: l10n.simQueueAverage, width: 130),
@@ -975,7 +1018,7 @@ class _QueueTable extends StatelessWidget {
         cellAt: (index, column) {
           final station = metrics.workcenters[index];
           return switch (column) {
-            0 => Text(station.name),
+            0 => _StationName(station: station),
             1 => Tooltip(
               message: l10n.simUtilizationHelp,
               child: Text(_percent(station.utilization)),
@@ -1010,7 +1053,7 @@ class _ShareTable extends StatelessWidget {
     return Card(
       child: resultTable(
         columns: [
-          ResultColumn(label: l10n.workcenter, width: 160),
+          ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.simContributed, width: 160),
           ResultColumn(label: l10n.simShareOfFlow, width: 140),
         ],
@@ -1018,7 +1061,7 @@ class _ShareTable extends StatelessWidget {
         cellAt: (index, column) {
           final station = metrics.byContribution[index];
           return switch (column) {
-            0 => Text(station.name),
+            0 => _StationName(station: station),
             1 => Text(_duration(l10n, station.contributedTime)),
             _ => Text(_percent(metrics.shareOfFlow(station))),
           };

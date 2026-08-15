@@ -75,6 +75,8 @@ class SimStep extends SimNode {
     required this.title,
     required this.candidates,
     required this.demandKey,
+    this.poolId,
+    this.poolName,
     this.setupValue,
     this.setupUnit,
     this.teardownValue,
@@ -92,6 +94,16 @@ class SimStep extends SimNode {
   /// The id this step's process times are keyed by — the pool where it targets
   /// one, never a member standing in for it (§9).
   final String demandKey;
+
+  /// The pool this step targets, or null where it names a single workcenter
+  /// (§3.1). Carried so a finished run can record which pool each of its
+  /// stations was dispatched through (§7.10) — [candidates] says *which*
+  /// machines, and says nothing about what they were collectively called.
+  ///
+  /// Not derived from `candidates.length`: a pool with one member is still a
+  /// pool, and a reader who typed its name is owed it back.
+  final String? poolId;
+  final String? poolName;
 
   /// The two halves of a changeover: [setupValue] rigs the station for an order
   /// and [teardownValue] strips it afterwards (§7.6).
@@ -356,4 +368,22 @@ class SimStudy {
   final int? wipCap;
 
   Iterable<SimStep> get steps => nodes.whereType<SimStep>();
+}
+
+/// The pool a run's station belonged to, as far as the run can tell
+/// (DESIGN.md §3.1, §7.10).
+///
+/// [id] null means **ungrouped**, never "every pool" — the same rule §12.1
+/// wrote for a pre-v17 run's cell. [name] is still worth having when [id] is
+/// null: it says which pools the station served, which is the reason it is
+/// standing on its own.
+///
+/// Resolved by `stationPools` in `sim_assembly.dart`, stored on the run, and
+/// read back beside the station it describes so the grouping cannot drift when
+/// the plant is re-pooled.
+class StationPool {
+  const StationPool({required this.id, required this.name});
+
+  final String? id;
+  final String name;
 }

@@ -15114,6 +15114,26 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
+  static const VerificationMeta _poolIdMeta = const VerificationMeta('poolId');
+  @override
+  late final GeneratedColumn<String> poolId = GeneratedColumn<String>(
+    'pool_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _poolNameMeta = const VerificationMeta(
+    'poolName',
+  );
+  @override
+  late final GeneratedColumn<String> poolName = GeneratedColumn<String>(
+    'pool_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -15123,6 +15143,8 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     openSeconds,
     blockedSeconds,
     units,
+    poolId,
+    poolName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -15200,6 +15222,18 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
         units.isAcceptableOrUnknown(data['units']!, _unitsMeta),
       );
     }
+    if (data.containsKey('pool_id')) {
+      context.handle(
+        _poolIdMeta,
+        poolId.isAcceptableOrUnknown(data['pool_id']!, _poolIdMeta),
+      );
+    }
+    if (data.containsKey('pool_name')) {
+      context.handle(
+        _poolNameMeta,
+        poolName.isAcceptableOrUnknown(data['pool_name']!, _poolNameMeta),
+      );
+    }
     return context;
   }
 
@@ -15240,6 +15274,14 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
         DriftSqlType.int,
         data['${effectivePrefix}units'],
       )!,
+      poolId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pool_id'],
+      ),
+      poolName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pool_name'],
+      ),
     );
   }
 
@@ -15283,6 +15325,30 @@ class SimulationRunWorkcenter extends DataClass
   /// unit to two afterwards must not silently rewrite what a finished run's
   /// utilization meant.
   final int units;
+
+  /// The pool this station was dispatched through in this run (§3.1), copied in
+  /// like [name] and for the same reason: moving CLAD07 to another pool
+  /// afterwards must not regroup a finished run's stations.
+  ///
+  /// **Null means ungrouped, never "every pool".** A workcenter may belong to
+  /// several pools — `WorkcenterPoolMembers`' key is `{poolId, workcenterId}` —
+  /// so with two studies in one run, line A can reach CLAD07 through `CAL`
+  /// while line B reaches it through `All Lathes`. Resolved at write time by
+  /// `stationPools`: **exactly one pool is stored, none or several store null**
+  /// and the station reads ungrouped. Treating a blank as a wildcard is the
+  /// mistake §12.1 already wrote a rule against for the pre-v17 cell.
+  ///
+  /// Null on every run made before v18, which therefore group nothing.
+  final String? poolId;
+
+  /// `CAL Pool` — the pool's name at run time, for the same copy-in reason as
+  /// [name].
+  ///
+  /// **Set even when [poolId] is null and several pools were involved**, as
+  /// `CAL Pool · All Lathes`: the station is not grouped, and a reader still
+  /// deserves to see why it is standing on its own. Null only when no step
+  /// reached it through a pool at all.
+  final String? poolName;
   const SimulationRunWorkcenter({
     required this.runId,
     required this.workcenterId,
@@ -15291,6 +15357,8 @@ class SimulationRunWorkcenter extends DataClass
     required this.openSeconds,
     required this.blockedSeconds,
     required this.units,
+    this.poolId,
+    this.poolName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -15302,6 +15370,12 @@ class SimulationRunWorkcenter extends DataClass
     map['open_seconds'] = Variable<int>(openSeconds);
     map['blocked_seconds'] = Variable<int>(blockedSeconds);
     map['units'] = Variable<int>(units);
+    if (!nullToAbsent || poolId != null) {
+      map['pool_id'] = Variable<String>(poolId);
+    }
+    if (!nullToAbsent || poolName != null) {
+      map['pool_name'] = Variable<String>(poolName);
+    }
     return map;
   }
 
@@ -15314,6 +15388,12 @@ class SimulationRunWorkcenter extends DataClass
       openSeconds: Value(openSeconds),
       blockedSeconds: Value(blockedSeconds),
       units: Value(units),
+      poolId: poolId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poolId),
+      poolName: poolName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poolName),
     );
   }
 
@@ -15330,6 +15410,8 @@ class SimulationRunWorkcenter extends DataClass
       openSeconds: serializer.fromJson<int>(json['openSeconds']),
       blockedSeconds: serializer.fromJson<int>(json['blockedSeconds']),
       units: serializer.fromJson<int>(json['units']),
+      poolId: serializer.fromJson<String?>(json['poolId']),
+      poolName: serializer.fromJson<String?>(json['poolName']),
     );
   }
   @override
@@ -15343,6 +15425,8 @@ class SimulationRunWorkcenter extends DataClass
       'openSeconds': serializer.toJson<int>(openSeconds),
       'blockedSeconds': serializer.toJson<int>(blockedSeconds),
       'units': serializer.toJson<int>(units),
+      'poolId': serializer.toJson<String?>(poolId),
+      'poolName': serializer.toJson<String?>(poolName),
     };
   }
 
@@ -15354,6 +15438,8 @@ class SimulationRunWorkcenter extends DataClass
     int? openSeconds,
     int? blockedSeconds,
     int? units,
+    Value<String?> poolId = const Value.absent(),
+    Value<String?> poolName = const Value.absent(),
   }) => SimulationRunWorkcenter(
     runId: runId ?? this.runId,
     workcenterId: workcenterId ?? this.workcenterId,
@@ -15362,6 +15448,8 @@ class SimulationRunWorkcenter extends DataClass
     openSeconds: openSeconds ?? this.openSeconds,
     blockedSeconds: blockedSeconds ?? this.blockedSeconds,
     units: units ?? this.units,
+    poolId: poolId.present ? poolId.value : this.poolId,
+    poolName: poolName.present ? poolName.value : this.poolName,
   );
   SimulationRunWorkcenter copyWithCompanion(
     SimulationRunWorkcentersCompanion data,
@@ -15382,6 +15470,8 @@ class SimulationRunWorkcenter extends DataClass
           ? data.blockedSeconds.value
           : this.blockedSeconds,
       units: data.units.present ? data.units.value : this.units,
+      poolId: data.poolId.present ? data.poolId.value : this.poolId,
+      poolName: data.poolName.present ? data.poolName.value : this.poolName,
     );
   }
 
@@ -15394,7 +15484,9 @@ class SimulationRunWorkcenter extends DataClass
           ..write('busySeconds: $busySeconds, ')
           ..write('openSeconds: $openSeconds, ')
           ..write('blockedSeconds: $blockedSeconds, ')
-          ..write('units: $units')
+          ..write('units: $units, ')
+          ..write('poolId: $poolId, ')
+          ..write('poolName: $poolName')
           ..write(')'))
         .toString();
   }
@@ -15408,6 +15500,8 @@ class SimulationRunWorkcenter extends DataClass
     openSeconds,
     blockedSeconds,
     units,
+    poolId,
+    poolName,
   );
   @override
   bool operator ==(Object other) =>
@@ -15419,7 +15513,9 @@ class SimulationRunWorkcenter extends DataClass
           other.busySeconds == this.busySeconds &&
           other.openSeconds == this.openSeconds &&
           other.blockedSeconds == this.blockedSeconds &&
-          other.units == this.units);
+          other.units == this.units &&
+          other.poolId == this.poolId &&
+          other.poolName == this.poolName);
 }
 
 class SimulationRunWorkcentersCompanion
@@ -15431,6 +15527,8 @@ class SimulationRunWorkcentersCompanion
   final Value<int> openSeconds;
   final Value<int> blockedSeconds;
   final Value<int> units;
+  final Value<String?> poolId;
+  final Value<String?> poolName;
   final Value<int> rowid;
   const SimulationRunWorkcentersCompanion({
     this.runId = const Value.absent(),
@@ -15440,6 +15538,8 @@ class SimulationRunWorkcentersCompanion
     this.openSeconds = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.units = const Value.absent(),
+    this.poolId = const Value.absent(),
+    this.poolName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunWorkcentersCompanion.insert({
@@ -15450,6 +15550,8 @@ class SimulationRunWorkcentersCompanion
     required int openSeconds,
     this.blockedSeconds = const Value.absent(),
     this.units = const Value.absent(),
+    this.poolId = const Value.absent(),
+    this.poolName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        workcenterId = Value(workcenterId),
@@ -15464,6 +15566,8 @@ class SimulationRunWorkcentersCompanion
     Expression<int>? openSeconds,
     Expression<int>? blockedSeconds,
     Expression<int>? units,
+    Expression<String>? poolId,
+    Expression<String>? poolName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -15474,6 +15578,8 @@ class SimulationRunWorkcentersCompanion
       if (openSeconds != null) 'open_seconds': openSeconds,
       if (blockedSeconds != null) 'blocked_seconds': blockedSeconds,
       if (units != null) 'units': units,
+      if (poolId != null) 'pool_id': poolId,
+      if (poolName != null) 'pool_name': poolName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -15486,6 +15592,8 @@ class SimulationRunWorkcentersCompanion
     Value<int>? openSeconds,
     Value<int>? blockedSeconds,
     Value<int>? units,
+    Value<String?>? poolId,
+    Value<String?>? poolName,
     Value<int>? rowid,
   }) {
     return SimulationRunWorkcentersCompanion(
@@ -15496,6 +15604,8 @@ class SimulationRunWorkcentersCompanion
       openSeconds: openSeconds ?? this.openSeconds,
       blockedSeconds: blockedSeconds ?? this.blockedSeconds,
       units: units ?? this.units,
+      poolId: poolId ?? this.poolId,
+      poolName: poolName ?? this.poolName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -15524,6 +15634,12 @@ class SimulationRunWorkcentersCompanion
     if (units.present) {
       map['units'] = Variable<int>(units.value);
     }
+    if (poolId.present) {
+      map['pool_id'] = Variable<String>(poolId.value);
+    }
+    if (poolName.present) {
+      map['pool_name'] = Variable<String>(poolName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -15540,6 +15656,8 @@ class SimulationRunWorkcentersCompanion
           ..write('openSeconds: $openSeconds, ')
           ..write('blockedSeconds: $blockedSeconds, ')
           ..write('units: $units, ')
+          ..write('poolId: $poolId, ')
+          ..write('poolName: $poolName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -31259,6 +31377,8 @@ typedef $$SimulationRunWorkcentersTableCreateCompanionBuilder =
       required int openSeconds,
       Value<int> blockedSeconds,
       Value<int> units,
+      Value<String?> poolId,
+      Value<String?> poolName,
       Value<int> rowid,
     });
 typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
@@ -31270,6 +31390,8 @@ typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
       Value<int> openSeconds,
       Value<int> blockedSeconds,
       Value<int> units,
+      Value<String?> poolId,
+      Value<String?> poolName,
       Value<int> rowid,
     });
 
@@ -31343,6 +31465,16 @@ class $$SimulationRunWorkcentersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get poolId => $composableBuilder(
+    column: $table.poolId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get poolName => $composableBuilder(
+    column: $table.poolName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SimulationRunsTableFilterComposer get runId {
     final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -31406,6 +31538,16 @@ class $$SimulationRunWorkcentersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get poolId => $composableBuilder(
+    column: $table.poolId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get poolName => $composableBuilder(
+    column: $table.poolName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SimulationRunsTableOrderingComposer get runId {
     final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -31464,6 +31606,12 @@ class $$SimulationRunWorkcentersTableAnnotationComposer
 
   GeneratedColumn<int> get units =>
       $composableBuilder(column: $table.units, builder: (column) => column);
+
+  GeneratedColumn<String> get poolId =>
+      $composableBuilder(column: $table.poolId, builder: (column) => column);
+
+  GeneratedColumn<String> get poolName =>
+      $composableBuilder(column: $table.poolName, builder: (column) => column);
 
   $$SimulationRunsTableAnnotationComposer get runId {
     final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
@@ -31535,6 +31683,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 Value<int> openSeconds = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> units = const Value.absent(),
+                Value<String?> poolId = const Value.absent(),
+                Value<String?> poolName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion(
                 runId: runId,
@@ -31544,6 +31694,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 openSeconds: openSeconds,
                 blockedSeconds: blockedSeconds,
                 units: units,
+                poolId: poolId,
+                poolName: poolName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -31555,6 +31707,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 required int openSeconds,
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> units = const Value.absent(),
+                Value<String?> poolId = const Value.absent(),
+                Value<String?> poolName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion.insert(
                 runId: runId,
@@ -31564,6 +31718,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 openSeconds: openSeconds,
                 blockedSeconds: blockedSeconds,
                 units: units,
+                poolId: poolId,
+                poolName: poolName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

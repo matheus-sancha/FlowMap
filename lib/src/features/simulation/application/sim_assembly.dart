@@ -180,6 +180,12 @@ SimStudy? assembleSimStudy({
             ),
             candidates: candidates,
             demandKey: demandTargetOf(node)!,
+            // What the machines below are collectively called, where they are
+            // a pool at all. `candidates` cannot say it, and §7.10's copy-in
+            // rule needs it before the plant can be re-grouped underneath a
+            // finished run.
+            poolId: node.poolId,
+            poolName: resources.poolNames[node.poolId],
             // Carried unresolved: `days` is a productive day of whichever
             // server ends up running the order, and a pool's members do not
             // share one (§7.6).
@@ -367,3 +373,57 @@ FlowNode? _paceSetter({
 
 String? _firstCandidate(FlowNode node, SimResourceContext resources) =>
     _candidatesFor(node, resources).firstOrNull;
+
+/// Which pool each station was dispatched through in this run (DESIGN.md §3.1,
+/// §7.10), for [SimulationRunWorkcenters] to copy in.
+///
+/// **A station can be reached through more than one pool.**
+/// `WorkcenterPoolMembers` is keyed `{poolId, workcenterId}`, so with two
+/// studies in one run line A can step on CLAD07 through `CAL` while line B
+/// reaches it through `All Lathes`. There is no single right answer for that
+/// station, and picking one arbitrarily would group three machines under a
+/// heading that describes only some of their work.
+///
+/// So: **exactly one pool is a grouping; none or several is a label.**
+/// [StationPool.id] is what the views group by and is null in both the other
+/// cases; [StationPool.name] carries the pools it served so a reader can still
+/// see why it is loose. A station named directly by every step that used it is
+/// absent from the map entirely.
+///
+/// Pure, and over the model the run was built from rather than over the plant —
+/// the plant can be re-grouped tomorrow and this run must keep saying what it
+/// observed.
+Map<String, StationPool> stationPools(List<SimStudy> studies) {
+  // Ordered, so a station reached through two pools names them the same way
+  // twice running and two runs of one project cannot disagree about a label.
+  final byStation = <String, Map<String, String>>{};
+
+  for (final study in studies) {
+    for (final node in study.nodes) {
+      if (node is! SimStep) continue;
+      final id = node.poolId;
+      if (id == null) continue;
+      for (final workcenterId in node.candidates) {
+        byStation.putIfAbsent(workcenterId, () => <String, String>{})[id] =
+            node.poolName ?? id;
+      }
+    }
+  }
+
+  return {
+    for (final entry in byStation.entries)
+      if (entry.value.length == 1)
+        entry.key: StationPool(
+          id: entry.value.keys.first,
+          name: entry.value.values.first,
+        )
+      else
+        entry.key: StationPool(
+          id: null,
+          // Sorted rather than in encounter order: the studies arrive in
+          // whatever order the project lists them, and a label that depends on
+          // that would change under a rename.
+          name: (entry.value.values.toList()..sort()).join(' · '),
+        ),
+  };
+}

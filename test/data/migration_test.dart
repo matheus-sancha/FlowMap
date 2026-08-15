@@ -1430,81 +1430,85 @@ void main() {
     expect(runStudy.productionLineName, isNull);
   });
 
+  // v16's shape, built the way the real chain reached it: v14's tables, then
+  // the columns v15 and v16 added. Written out rather than migrated up from
+  // v14, because a fixture that ran the earlier steps would be testing them
+  // again and would stop being the one shape v17 has to survive.
+  //
+  // Hoisted out of the v16 test when v18 arrived: the v17 fixture is this plus
+  // v17's own columns, and copying eighty lines of DDL to add two is how two
+  // fixtures come to disagree about the version they both claim to be.
+  const v16Workcenters = """
+    CREATE TABLE workcenters (
+      id TEXT NOT NULL,
+      plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+      type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+      name TEXT NOT NULL, notes TEXT NULL,
+      parallel_capacity INTEGER NOT NULL DEFAULT 1,
+      archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+  """;
+
+  const v16RunTables = """
+    CREATE TABLE simulation_runs (
+      id TEXT NOT NULL,
+      project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+      dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+      run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+      abort_reason TEXT NULL, schedule_horizon INTEGER NULL,
+      created_at INTEGER NOT NULL, PRIMARY KEY (id));
+    CREATE TABLE simulation_run_studies (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, name TEXT NOT NULL,
+      release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+      priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+      start_buffer_days INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (run_id, study_id));
+    CREATE TABLE simulation_run_orders (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+      sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+      part_number TEXT NOT NULL, customer_project TEXT NULL,
+      batch_number TEXT NULL, batch_size INTEGER NULL,
+      material_date INTEGER NULL, part_description TEXT NULL,
+      need_date INTEGER NOT NULL, released INTEGER NULL,
+      delivered INTEGER NULL, theoretical_seconds INTEGER NULL,
+      PRIMARY KEY (run_id, order_id));
+    CREATE TABLE simulation_run_steps (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+      workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+      process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+      changeover_incurred INTEGER NOT NULL DEFAULT 0
+        CHECK (changeover_incurred IN (0, 1)),
+      lane_node_id TEXT NULL,
+      blocked_seconds INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (run_id, order_id, node_id));
+    CREATE TABLE simulation_run_empty_slots (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+      PRIMARY KEY (run_id, study_id, slot_at));
+    CREATE TABLE simulation_run_workcenters (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+      busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+      blocked_seconds INTEGER NOT NULL DEFAULT 0,
+      units INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (run_id, workcenter_id));
+    CREATE TABLE simulation_run_lanes (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, node_id TEXT NOT NULL, name TEXT NULL,
+      position INTEGER NOT NULL, rule TEXT NULL, capacity INTEGER NULL,
+      PRIMARY KEY (run_id, node_id));
+    CREATE TABLE simulation_run_lane_visits (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      node_id TEXT NOT NULL, order_id TEXT NOT NULL,
+      entered INTEGER NOT NULL, left INTEGER NULL,
+      PRIMARY KEY (run_id, node_id, order_id));
+  """;
+
   test('v16 to v17: a changeover becomes a setup and keeps its length', () async {
     final file = File(p.join(dir.path, 'flowmap.sqlite'));
-
-    // v16's shape, built the way the real chain reached it: v14's tables, then
-    // the columns v15 and v16 added. Written out rather than migrated up from
-    // v14, because a fixture that ran the earlier steps would be testing them
-    // again and would stop being the one shape v17 has to survive.
-    const v16Workcenters = """
-      CREATE TABLE workcenters (
-        id TEXT NOT NULL,
-        plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
-        type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
-        name TEXT NOT NULL, notes TEXT NULL,
-        parallel_capacity INTEGER NOT NULL DEFAULT 1,
-        archived_at INTEGER NULL, created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
-    """;
-
-    const v16RunTables = """
-      CREATE TABLE simulation_runs (
-        id TEXT NOT NULL,
-        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
-        dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
-        run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
-        abort_reason TEXT NULL, schedule_horizon INTEGER NULL,
-        created_at INTEGER NOT NULL, PRIMARY KEY (id));
-      CREATE TABLE simulation_run_studies (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        study_id TEXT NOT NULL, name TEXT NOT NULL,
-        release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
-        priority INTEGER NOT NULL, wip_cap INTEGER NULL,
-        start_buffer_days INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (run_id, study_id));
-      CREATE TABLE simulation_run_orders (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        study_id TEXT NOT NULL, order_id TEXT NOT NULL,
-        sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
-        part_number TEXT NOT NULL, customer_project TEXT NULL,
-        batch_number TEXT NULL, batch_size INTEGER NULL,
-        material_date INTEGER NULL, part_description TEXT NULL,
-        need_date INTEGER NOT NULL, released INTEGER NULL,
-        delivered INTEGER NULL, theoretical_seconds INTEGER NULL,
-        PRIMARY KEY (run_id, order_id));
-      CREATE TABLE simulation_run_steps (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
-        workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
-        process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
-        changeover_incurred INTEGER NOT NULL DEFAULT 0
-          CHECK (changeover_incurred IN (0, 1)),
-        lane_node_id TEXT NULL,
-        blocked_seconds INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (run_id, order_id, node_id));
-      CREATE TABLE simulation_run_empty_slots (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
-        PRIMARY KEY (run_id, study_id, slot_at));
-      CREATE TABLE simulation_run_workcenters (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
-        busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
-        blocked_seconds INTEGER NOT NULL DEFAULT 0,
-        units INTEGER NOT NULL DEFAULT 1,
-        PRIMARY KEY (run_id, workcenter_id));
-      CREATE TABLE simulation_run_lanes (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        study_id TEXT NOT NULL, node_id TEXT NOT NULL, name TEXT NULL,
-        position INTEGER NOT NULL, rule TEXT NULL, capacity INTEGER NULL,
-        PRIMARY KEY (run_id, node_id));
-      CREATE TABLE simulation_run_lane_visits (
-        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
-        node_id TEXT NOT NULL, order_id TEXT NOT NULL,
-        entered INTEGER NOT NULL, left INTEGER NULL,
-        PRIMARY KEY (run_id, node_id, order_id));
-    """;
 
     final v16 =
         sqlite3.open(file.path)
@@ -1659,11 +1663,143 @@ void main() {
     expect(runStudy.productionLineName, isNull);
 
     // The counter reached the end rather than stopping inside the step.
+    //
+    // Against `schemaVersion` rather than a literal: what this asserts is that
+    // the upgrade ran to completion, and pinning the number made a later
+    // version's arrival read as this step failing.
     expect(
       await db.customSelect('PRAGMA user_version').getSingle().then(
         (row) => row.data.values.first,
       ),
-      17,
+      db.schemaVersion,
+    );
+  });
+
+  test('v17 to v18: a run\'s stations arrive without a pool', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // v17's shape: v16's tables plus the five columns v17 added. Built from the
+    // hoisted fixture rather than copied, so the two versions cannot drift
+    // apart in the one thing they are both supposed to be — the same schema,
+    // one step apart.
+    final v17 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute(
+            'CREATE TABLE workcenter_lines ('
+            'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+            'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+            'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+          )
+          // v17's own five.
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN same_part_percent REAL NULL')
+          ..execute('ALTER TABLE simulation_run_steps ADD COLUMN changeover_seconds INTEGER NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_name TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_name TEXT NULL')
+          ..execute('PRAGMA user_version = 17');
+
+    v17
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD07', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_pools (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('pool-1', 'plant-1', 'CAL Pool', $now, $now)",
+      )
+      // **The membership exists in the plant and must not reach the run.** This
+      // is the whole point of the step: a v17 run observed no pool, and reading
+      // today's grouping into it would make it claim something it never saw
+      // (§7.10).
+      ..execute(
+        'INSERT INTO workcenter_pool_members (pool_id, workcenter_id, created_at) '
+        "VALUES ('pool-1', 'wc-1', $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+        'run_end, guard, created_at) '
+        "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_workcenters (run_id, workcenter_id, name, '
+        'busy_seconds, open_seconds) '
+        "VALUES ('run-1', 'wc-1', 'CLAD07', 3600, 7200)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final station = await db.select(db.simulationRunWorkcenters).getSingle();
+
+    // **Both null, and the pool in the plant is why that matters.** `wc-1` is a
+    // member of `CAL Pool` today; this run predates the columns that would have
+    // said so, and a backfill from current membership would have it group under
+    // a heading it never dispatched through. Null means ungrouped, never
+    // "every pool" (§12.1).
+    expect(station.poolId, isNull);
+    expect(station.poolName, isNull);
+
+    // What the run did record is untouched — the step is additive and rebuilds
+    // no table, which is the fourth migration running that can say so (§16.11).
+    expect(station.name, 'CLAD07');
+    expect(station.busySeconds, 3600);
+    expect(station.openSeconds, 7200);
+
+    expect(
+      await db.customSelect('PRAGMA user_version').getSingle().then(
+        (row) => row.data.values.first,
+      ),
+      db.schemaVersion,
     );
   });
 

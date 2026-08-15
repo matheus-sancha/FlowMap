@@ -19,6 +19,7 @@ library;
 
 import '../data/simulation_runs_repository.dart';
 import 'run_metrics.dart';
+import 'sim_model.dart' show StationPool;
 import 'sim_result.dart';
 
 /// Which slice is being read. Every field null or empty is the whole run.
@@ -189,6 +190,17 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     workcenterNames: {
       for (final station in run.metrics.workcenters)
         station.workcenterId: station.name,
+    },
+    // Carried through the slice for the same reason as the names: a filtered
+    // view must group its stations exactly as the unfiltered one does, or the
+    // two would describe two different plants (§12.1).
+    pools: {
+      for (final station in run.metrics.workcenters)
+        if (station.poolName != null)
+          station.workcenterId: StationPool(
+            id: station.poolId,
+            name: station.poolName!,
+          ),
     },
     // The theoretical walk is stored per order on the plan row rather than on
     // the outcome, so it is read from there (§8.5).

@@ -11,6 +11,7 @@
 /// capacity one.
 library;
 
+import 'sim_assembly.dart' show stationPools;
 import 'sim_model.dart';
 import 'sim_result.dart';
 import 'theoretical_lead_time.dart';
@@ -64,10 +65,23 @@ class WorkcenterRunMetrics {
     required this.changeovers,
     required this.contributedTime,
     this.blocked = Duration.zero,
+    this.poolId,
+    this.poolName,
   });
 
   final String workcenterId;
   final String name;
+
+  /// The pool this station was dispatched through, as the run recorded it
+  /// (§3.1, §7.10). Null means **ungrouped**, never "every pool": the station
+  /// was named directly by every step that used it, was reached through more
+  /// than one pool, or the run predates v18.
+  ///
+  /// [poolName] outlives [poolId] on purpose — a station reached two ways
+  /// carries the names it served with no id to group under, so a reader can see
+  /// why it is standing on its own.
+  final String? poolId;
+  final String? poolName;
 
   /// Open time spent running (§8.3's utilization numerator).
   final Duration busy;
@@ -217,6 +231,10 @@ RunMetrics computeRunMetrics({
   workcenterNames: {
     for (final entry in workcenters.entries) entry.key: entry.value.name,
   },
+  // Resolved from the studies rather than looked up: this is the same map the
+  // repository copies into the run, so a fresh run and the same run read back
+  // group their stations identically (§7.10).
+  pools: stationPools(studies),
   theoreticalByOrder: theoreticalLeadTimes(
     result: result,
     studies: studies,
@@ -278,6 +296,7 @@ RunMetrics summariseRun({
   required Map<String, String> partNumbers,
   required Map<String, String> workcenterNames,
   required Map<String, Duration> theoreticalByOrder,
+  Map<String, StationPool> pools = const {},
 }) {
   var floatTotal = Duration.zero;
   var leadTotal = Duration.zero;
@@ -348,6 +367,8 @@ RunMetrics summariseRun({
             changeovers: entry.value.changeovers,
             contributedTime: entry.value.contributed,
             blocked: result.blockedByWorkcenter[entry.key] ?? Duration.zero,
+            poolId: pools[entry.key]?.id,
+            poolName: pools[entry.key]?.name,
           ),
       ]..sort((a, b) {
         final queue = b.queueTime.compareTo(a.queueTime);

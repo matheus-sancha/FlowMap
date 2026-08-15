@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../application/run_metrics.dart';
+import '../application/sim_assembly.dart' show stationPools;
 import '../application/sim_model.dart';
 import '../application/sim_result.dart';
 
@@ -77,6 +78,10 @@ class SimulationRunsRepository {
       studies: studies,
       workcenters: workcenters,
     );
+    // Which pool each station was dispatched through, resolved now rather than
+    // joined later: the plant can be re-grouped tomorrow and this run has to
+    // keep saying what it observed (§7.10).
+    final pools = stationPools(studies);
 
     // One transaction: a run half-written is worse than one not written at
     // all, because the second is visibly missing and the first reads as real.
@@ -202,6 +207,11 @@ class SimulationRunsRepository {
               // re-rated from one unit to two afterwards would otherwise
               // silently change what this run's utilization meant (§3.1).
               units: Value(workcenters[entry.key]?.units ?? 1),
+              // Null id where the station was named directly, or reached
+              // through more than one pool — ungrouped either way, and the
+              // name still says which pools it served (§3.1).
+              poolId: Value(pools[entry.key]?.id),
+              poolName: Value(pools[entry.key]?.name),
             ),
         ]);
 
@@ -436,6 +446,18 @@ class SimulationRunsRepository {
         result: result,
         partNumbers: {for (final row in orders) row.partId: row.partNumber},
         workcenterNames: {for (final row in stations) row.workcenterId: row.name},
+        // Read back rather than re-derived: the pools the plant has today are
+        // not necessarily the ones this run dispatched through (§7.10). A row
+        // written before v18 has neither column and is simply absent, which is
+        // a station that groups under nothing.
+        pools: {
+          for (final row in stations)
+            if (row.poolName != null)
+              row.workcenterId: StationPool(
+                id: row.poolId,
+                name: row.poolName!,
+              ),
+        },
         theoreticalByOrder: {
           for (final row in orders)
             if (row.theoreticalSeconds != null)
