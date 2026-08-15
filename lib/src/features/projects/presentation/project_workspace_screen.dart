@@ -16,6 +16,7 @@ import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
 import '../../simulation/presentation/simulation_tab.dart';
 import '../../studies/application/studies_providers.dart';
+import '../../simulation/presentation/simulation_workspace.dart';
 import '../../studies/presentation/study_settings_tab.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
@@ -30,10 +31,15 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
     super.key,
     required this.projectId,
     this.studyId,
+    this.showSimulation = false,
   });
 
   final String projectId;
   final String? studyId;
+
+  /// Whether the body is the project's combined run rather than a study's tabs
+  /// (§12.1). A destination in the sidebar, so it is part of the location.
+  final bool showSimulation;
 
   @override
   ConsumerState<ProjectWorkspaceScreen> createState() =>
@@ -180,7 +186,9 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               ),
               const VerticalDivider(width: 1),
               Expanded(
-                child: selected == null
+                child: widget.showSimulation
+                    ? SimulationWorkspace(project: project)
+                    : selected == null
                     ? _NoStudyYet(project: project)
                     : _StudyTabs(
                         project: project,
@@ -381,7 +389,7 @@ class _StudiesSidebar extends ConsumerWidget {
         ),
         const Divider(height: 1),
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
           child: SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -390,6 +398,21 @@ class _StudiesSidebar extends ConsumerWidget {
                   : () => _createStudy(context, ref, project, lines, studies),
               icon: const Icon(Icons.add),
               label: Text(l10n.studyNew),
+            ),
+          ),
+        ),
+        // Under New study, and a destination rather than a button: a run spans
+        // studies (§7.7), so it sits beside them rather than inside one, and
+        // selecting it replaces the tabs entirely (§12.1).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () =>
+                  context.go('/projects/${project.id}/simulation'),
+              icon: const Icon(Icons.insights_outlined),
+              label: Text(l10n.simWorkspace),
             ),
           ),
         ),

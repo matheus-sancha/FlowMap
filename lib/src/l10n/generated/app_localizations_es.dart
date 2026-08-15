@@ -1346,6 +1346,35 @@ class AppLocalizationsEs extends AppLocalizations {
   String get projectTabSimulation => 'Simulación';
 
   @override
+  String get simFilterStudies => 'Estudios';
+
+  @override
+  String get simFilterCells => 'Células';
+
+  @override
+  String get simFilterLines => 'Líneas';
+
+  @override
+  String get simFilterPeriod => 'Periodo';
+
+  @override
+  String get simFilterPeriodHelp =>
+      'Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.';
+
+  @override
+  String get simFilterAll => 'todos';
+
+  @override
+  String get simFilterClear => 'Quitar filtros';
+
+  @override
+  String get simWorkspace => 'Simulación';
+
+  @override
+  String get simStationsWholeRun =>
+      'Describen la corrida completa, no la porción filtrada — la corrida no guarda lo que haría falta para acotar el tiempo abierto.';
+
+  @override
   String get simulationRun => 'Simular';
 
   @override

@@ -275,7 +275,7 @@ class _Body extends StatelessWidget {
                 detail: l10n.simulationNeverRunHelp,
               ),
             ),
-            AsyncValue(value: final run!) => _Results(
+            AsyncValue(value: final run!) => RunResults(
               slice: filterRun(
                 run,
                 study == null ? const RunFilter() : RunFilter.study(study!.id),
@@ -353,8 +353,14 @@ enum _RunView { results, gantt }
 ///
 /// Held in an `IndexedStack`, so switching to the results and back returns the
 /// zoom the reader left rather than refitting the chart under them.
-class _Results extends StatefulWidget {
-  const _Results({required this.slice, required this.projectName});
+/// A run's header, headline and its two views of itself (§12.1).
+///
+/// **Public because two screens show it**: a study's Simulation tab and the
+/// project's simulation workspace. They differ only in which slice they hand it
+/// — which is the whole point of `run_filter.dart`, and is what stops the two
+/// reporting different numbers for the same study.
+class RunResults extends StatefulWidget {
+  const RunResults({super.key, required this.slice, required this.projectName});
 
   /// The run as this view of it reads (§12.1).
   final FilteredRun slice;
@@ -363,10 +369,10 @@ class _Results extends StatefulWidget {
   final String projectName;
 
   @override
-  State<_Results> createState() => _ResultsState();
+  State<RunResults> createState() => _ResultsState();
 }
 
-class _ResultsState extends State<_Results> {
+class _ResultsState extends State<RunResults> {
   var _view = _RunView.results;
 
   @override
@@ -515,7 +521,34 @@ class _ResultTables extends StatelessWidget {
       children: [
         _MetricsCard(metrics: metrics),
         const SizedBox(height: 24),
-        Text(l10n.simByQueue, style: theme.textTheme.titleSmall),
+        Row(
+          children: [
+            Text(l10n.simByQueue, style: theme.textTheme.titleSmall),
+            // **Said, not left to be inferred.** Order-level figures above
+            // follow the filter and these do not, because utilisation's
+            // denominator is a run total and the run does not carry what a
+            // windowed one would need (§12.1). A reader comparing a filtered
+            // count against an unfiltered utilisation would otherwise be
+            // comparing two different plants.
+            if (slice.stationsAreWholeRun) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  l10n.simStationsWholeRun,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         const SizedBox(height: 4),
         Text(
           l10n.simRankingsHelp,

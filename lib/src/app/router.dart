@@ -46,6 +46,15 @@ GoRouter router(Ref ref) {
                           studyId: state.pathParameters['studyId'],
                         ),
                       ),
+                      // The combined run is a place rather than an overlay, so
+                      // it is linkable and the window reopens on it (§12.1).
+                      GoRoute(
+                        path: 'simulation',
+                        builder: (context, state) => ProjectWorkspaceScreen(
+                          projectId: state.pathParameters['projectId']!,
+                          showSimulation: true,
+                        ),
+                      ),
                     ],
                   ),
                 ],

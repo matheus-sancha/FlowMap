@@ -2448,6 +2448,60 @@ abstract class AppLocalizations {
   /// **'Simulation'**
   String get projectTabSimulation;
 
+  /// No description provided for @simFilterStudies.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies'**
+  String get simFilterStudies;
+
+  /// No description provided for @simFilterCells.
+  ///
+  /// In en, this message translates to:
+  /// **'Cells'**
+  String get simFilterCells;
+
+  /// No description provided for @simFilterLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines'**
+  String get simFilterLines;
+
+  /// No description provided for @simFilterPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get simFilterPeriod;
+
+  /// No description provided for @simFilterPeriodHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.'**
+  String get simFilterPeriodHelp;
+
+  /// No description provided for @simFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'all'**
+  String get simFilterAll;
+
+  /// No description provided for @simFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get simFilterClear;
+
+  /// No description provided for @simWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation'**
+  String get simWorkspace;
+
+  /// No description provided for @simStationsWholeRun.
+  ///
+  /// In en, this message translates to:
+  /// **'These describe the whole run, not the filtered slice — the run does not store what a narrowed open time would need.'**
+  String get simStationsWholeRun;
+
   /// No description provided for @simulationRun.
   ///
   /// In en, this message translates to:

@@ -1330,6 +1330,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get projectTabSimulation => 'Simulation';
 
   @override
+  String get simFilterStudies => 'Studies';
+
+  @override
+  String get simFilterCells => 'Cells';
+
+  @override
+  String get simFilterLines => 'Lines';
+
+  @override
+  String get simFilterPeriod => 'Period';
+
+  @override
+  String get simFilterPeriodHelp =>
+      'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.';
+
+  @override
+  String get simFilterAll => 'all';
+
+  @override
+  String get simFilterClear => 'Clear filters';
+
+  @override
+  String get simWorkspace => 'Simulation';
+
+  @override
+  String get simStationsWholeRun =>
+      'These describe the whole run, not the filtered slice — the run does not store what a narrowed open time would need.';
+
+  @override
   String get simulationRun => 'Simulate';
 
   @override

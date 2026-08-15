@@ -1510,6 +1510,23 @@ to the project (§7.7), so it should not require being on one of six tabs to sta
 - **The Simulation tab keeps the rest** — the rule to dispatch by, the runs already made, the
   readiness panel and the results. Only the trigger moved.
 
+**The project's whole run is a destination in the studies sidebar**, under New study, and selecting
+it replaces the tabs. A run spans studies (§7.7), so it sits beside them rather than inside one; a
+route rather than an overlay, because a filtered view and a run's history are both things worth
+sending someone a link to, and because the window should reopen where it was left.
+
+Four filters — studies, cells, lines and a period. **Cells and lines are study filters one level up**:
+workcenters belong to a plant rather than to a cell (§7.10), so they narrow which studies are in view
+and the stations follow. The period selects orders by **need date**, the only one of an order's dates
+that is never blank — so an order the run never completed still appears in its period, and §7.8's
+abort case is exactly what a planner filters to find. Filtering by delivery would drop those and make
+every filtered view optimistic.
+
+**Simulate is in both places.** The workspace carries a Run button, and the project app bar keeps
+its own: §12.1's rule is that starting a run must not require navigating somewhere first, which is
+the complaint that put the button on the app bar to begin with. Two entry points, one action, one
+disabled reason.
+
 **A study's Simulation tab is its slice of the project's run, never a run of the study alone.**
 §7.7 builds one resource model of the plant so that line A's orders genuinely delay line B's; a solo
 run would answer a different and always-optimistic question, and the two would then disagree with
