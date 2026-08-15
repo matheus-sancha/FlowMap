@@ -1,6 +1,6 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-11. `docs/DESIGN.md` remains the source of truth for *why*; this file
+Working state as of 2026-08-15. `docs/DESIGN.md` remains the source of truth for *why*; this file
 is only a plan, and each item should be deleted from it as it lands.
 
 Branch `m1-m2-foundation`, clean, `flutter analyze` clean, **669 tests passing** (one of them
@@ -43,6 +43,32 @@ v15 baseline with nothing set.
 that the chart already reads correctly — so no schema bump this round and the Gantt is done being
 changed. Rounds three and four are untouched.
 
+**The v15 → v16 migration has run against the real database** — on 2026-08-15, in Release
+`0.1.0-2026-08-15`, and the log line that says so is `db.open schema 16 from 15` at 10:04:58. It was
+driven against a **copy first** and only then against the file: the copy is
+`flowmap.sqlite.backup-v15-20260815-100223`, taken beside the live one, and
+`test/data/live_db_check_test.dart` upgraded a scratch duplicate of it before Release was allowed
+near the real thing. `schedule_horizon` is present on the real table, `integrity_check` ok, and
+**0 of 35 runs carry a horizon**, which is right — every stored run predates v16, and a blank has
+meant *made before this column existed* on this table since v12.
+
+**That live check no longer names a version, and it is worth saying why.** It was
+`live_v15_check_test.dart` and asserted `user_version == 15`; opening the file *runs* the migration,
+so once v16 landed the test upgraded its own copy to 16 and then failed on its own first line. The
+check that exists to catch a migration problem was broken by a migration, and nothing would have
+made whoever bumped the schema edit the literal. It is `live_db_check_test.dart` now and asserts
+`db.schemaVersion`, with each version's specific claims accumulating in it rather than replacing the
+last. **This is the standing check to run before any future schema bump meets real data**, by hand,
+with `--tags live` and `FLOWMAP_LIVE_DB` pointing at a **copy**.
+
+**Three runs happened after this file was last written and none of them were recorded here** —
+2026-08-11 20:19 and 20:47, and 2026-08-12 06:22, all 60 orders and 420 steps, under build labels
+`0.1.0-2026-08-11b` and `d` that no item below mentions. The run count went 32 → 35. What they were
+for is not known, so nothing is claimed about them; they are noted because an unrecorded run is
+exactly what §2.0 and the rebuild paragraph below exist to stop. **The stored configuration is still
+`2f4c8db4`'s** — `FIFO CEU27` capped at 2, TTAT at two units, Célula 11B on a 30-day buffer with a
+named pacemaker — so whatever those runs were, the confounder run §4 still owes has not been done.
+
 **The v14 → v15 migration has run against the real database** — in the Debug build on 2026-08-10,
 between the `flowmap.sqlite.backup-v14-20260810-222300` beside it and the first v15 run at 22:25:49.
 Verified on a copy on 2026-08-11 by `test/data/live_v15_check_test.dart`, which is run by hand with
@@ -62,11 +88,21 @@ All four stored rules were `fifo`, so no behaviour changed either way.
 database already migrated and did not touch it. Round one's five field checks were then driven in
 that build. A v15 backup was taken first, as `flowmap.sqlite.backup-v15-20260811-201650`.
 
+**The Release bundle was rebuilt again 2026-08-15 under label `0.1.0-2026-08-15`**, and launched:
+the session header at 10:04:58 reads that label and `db.open schema 16 from 15`, which is the
+migration evidence above. A v15 backup was taken first, as
+`flowmap.sqlite.backup-v15-20260815-100223`.
+
 This paragraph exists because the 2026-08-05 rebuild went unrecorded and was nearly done a third
-time; keep it truthful after every drop. **`flowmap.exe`'s own Aug 3 timestamp still means
-nothing** — it is the C++ host shell from `windows/runner/`, which has not changed, so CMake rightly
-declines to relink it and only `Release/data/app.so` moves. That held again on 2026-08-11: `app.so`
-is stamped 20:17 and the exe beside it still reads Aug 3.
+time; keep it truthful after every drop. **The Aug 3 exe rule broke on 2026-08-15, and the new
+timestamp is the thing that means nothing.** The rule was: `flowmap.exe` is the C++ host shell from
+`windows/runner/`, which does not change, so CMake declines to relink it and only
+`Release/data/app.so` moves — which held on 2026-08-05, on 2026-08-11 (`app.so` at 20:17, exe still
+Aug 3), and stopped holding on 2026-08-15, when the exe relinked at 10:03:12 beside an `app.so` at
+10:03:08. Nothing in `windows/runner/` was touched, so this is the toolchain's decision rather than
+ours and was not chased further. **What survives of the rule is its useful half: `app.so`'s
+timestamp is what says the Dart code was rebuilt, and the exe's says nothing either way.** Read the
+session header's build label, which is the only claim that cannot be produced by a stale link.
 
 ---
 
@@ -1454,7 +1490,11 @@ only.
 - [ ] **Layout polish, from the 2026-08-11 session.** Noted at the GUI as wanting improvement and
       explicitly deferred; **the specifics were not captured**, so this is a placeholder rather than
       an item. Write down what grated before it is worked on, or it will be guessed at.
-- [ ] **Round three, against célula 11B.** Landed 2026-08-11 and not yet driven:
+- [x] ~~**Drive the v15 → v16 migration against the real database.**~~ Done 2026-08-15 under label
+      `0.1.0-2026-08-15`, against a copy first and then the file itself; the header has the
+      evidence and `test/data/live_db_check_test.dart` is the check, now version-independent.
+- [ ] **Round three, against célula 11B.** Landed 2026-08-11, schema v16 on 2026-08-15, not yet
+      driven:
       - **The date format**, set on Settings. Check the demand grid re-parses what it renders after
         the format changes — that is the pair §3.6 exists to keep together — and that the Gantt's
         axis still reads `Jan 14` rather than a numeric date.
@@ -1464,6 +1504,14 @@ only.
         row, that `View results` both navigates and dismisses, and that a failed run offers no
         `View results` but can still be closed. **The workspace screen has no test coverage at
         all**, so the wiring from Simulate to banner to tab switch is only covered by pressing it.
+      - **The schedule horizon gets written.** Every one of the 35 stored runs carries a null
+        horizon because all of them predate v16, so the **first run made in this build is the first
+        row that can carry one** — and a column nothing writes is the failure mode this repo has
+        already had twice (§1.5, §2.3). Make a run and check the horizon lands. §11.1's warning
+        should still stay silent on célula 11B: every schedule runs to 2026-12-31 and the run ends
+        two months inside it, so seeing the warning here would mean the horizon is computed wrong,
+        not that the plant is short. Shortening a takt period to before the run's end is the way to
+        see it fire on purpose.
 - [ ] **The readiness panel against a real gap.** It has only been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. §2.0 says what is
       already covered underneath it, so this is a two-minute check of the wiring, not of the logic.
@@ -1506,6 +1554,10 @@ only.
       one to run out, something is being carried forward, and a figure is only as defined as the
       least-defined thing behind it. Three tests cover the computation, two the round trip, and the
       v15 fixture now also asserts v16's column arrives null.
+
+      **The migration met the real database on 2026-08-15** and the column is there, on all 35
+      stored runs, all null. What has still never happened is a run *writing* one — §4's round-three
+      list now asks for it.
 - [ ] **The decorative layer (§5.2)** and **`DiagnosticsLog.compose`** are still built-but-unreachable,
       both wanted by M5. Listed in §17.5. §1.7's node notes deliberately do **not** use the
       decorative layer: a free-placed sticker near a box is not a note belonging to it.
