@@ -5,9 +5,6 @@ import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../flow/application/flow_providers.dart';
-import '../../flow/application/flow_view.dart';
-import '../../flow/presentation/period_label.dart';
 import '../application/summary_providers.dart';
 import '../application/summary_view.dart';
 
@@ -31,12 +28,21 @@ class SummaryTab extends ConsumerWidget {
 
     return Column(
       children: [
-        _PeriodBar(study: study, summary: summary),
-        const Divider(height: 1),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // The count the period bar used to carry on its right-hand end.
+              // The bar is gone — the period is one control on the tab strip
+              // now (§12.1) — and this is a figure about the period rather
+              // than a control for it, so it stays on the page it describes.
+              Text(
+                l10n.summaryOrdersDue('${summary.ordersInPeriod}'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+              const SizedBox(height: 12),
               _Headline(summary: summary),
               const SizedBox(height: 16),
               Text(
@@ -60,73 +66,6 @@ class SummaryTab extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PeriodBar extends ConsumerWidget {
-  const _PeriodBar({required this.study, required this.summary});
-
-  final Study study;
-  final SummaryView summary;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final period = ref.watch(viewedPeriodProvider(study.id));
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: l10n.periodPrevious,
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () =>
-                ref.read(viewedPeriodProvider(study.id).notifier).previous(),
-          ),
-          SizedBox(
-            width: 96,
-            child: Text(
-              periodLabel(context, period.anchor, period.granularity),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          IconButton(
-            tooltip: l10n.periodNext,
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () =>
-                ref.read(viewedPeriodProvider(study.id).notifier).next(),
-          ),
-          const SizedBox(width: 8),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<PeriodGranularity>(
-              value: period.granularity,
-              onChanged: (value) {
-                if (value != null) {
-                  ref
-                      .read(viewedPeriodProvider(study.id).notifier)
-                      .setGranularity(value);
-                }
-              },
-              items: [
-                for (final granularity in PeriodGranularity.values)
-                  DropdownMenuItem(
-                    value: granularity,
-                    child: Text(granularityLabel(l10n, granularity)),
-                  ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Text(
-            l10n.summaryOrdersDue('${summary.ordersInPeriod}'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
     );
   }
 }

@@ -178,8 +178,6 @@
   "studyNeedsLine": "Esta planta aún no tiene líneas de producción.",
   "studyLineHelp": "Un estudio pertenece a una línea. Varios estudios de la misma línea son escenarios; solo uno puede seleccionarse para la simulación.",
   "studyDeleteBody": "Su flujo y sus anotaciones se van con él. Esto no se puede deshacer.",
-  "studyIncludeInSimulation": "Incluir en la simulación",
-  "studyExcludeFromSimulation": "Excluir de la simulación",
   "studiesCollapse": "Ocultar la lista de estudios",
   "studiesExpand": "Mostrar la lista de estudios",
 
@@ -213,7 +211,6 @@
 
   "stepProblemNoProcessTime": "Esta pieza no tiene tiempo de proceso aquí.",
   "stepEquivalence": "Equivalente",
-  "flowPart": "Pieza",
   "flowNoParts": "Aún no hay piezas",
   "footerEquivalence": "Equivalente",
   "footerEquivalenceHelp": "El tiempo de proceso de esta pieza en todo el flujo dividido por el del equivalente de flujo. 1,13 significa que consume 1,13 takts de la capacidad de la línea.",
@@ -366,7 +363,6 @@
   "reworkInvalid": "Debe ser 0% o más",
   "occupation": "Ocupación",
   "workcentersTabEmpty": "Añade pasos al flujo para programar aquí sus centros de trabajo.",
-  "workcentersTabPattern": "Patrón de turnos: {shifts}",
 
   "scheduleIssueEmpty": "No hay periodos definidos. Nada aquí puede calcularse hasta que haya al menos uno.",
   "scheduleIssueOverlap": "Dos periodos cubren {from} hasta {to}.",
@@ -386,11 +382,11 @@
   "footerProcessTimeHelp": "La suma del tiempo de proceso de todos los pasos. Solo tiempo que añade valor; la espera no cuenta.",
   "footerLeadTimeHelp": "Tiempo de proceso más todas las esperas entre pasos — lo que tarda una orden en cruzar el flujo.",
   "footerPceHelp": "Eficiencia del ciclo de proceso: tiempo de proceso ÷ lead time. La parte del tiempo transcurrido que añade valor.",
-  "flowDataSource": "Pieza",
   "flowSourceEquivalent": "Equivalente del flujo",
   "flowSourceSinglePart": "Una pieza (requiere demanda)",
   "flowSourceWeighted": "Todas las variantes, ponderadas (requiere demanda)",
   "exportPdf": "Exportar PDF",
+  "flowShowing": "Mostrando",
   "flowSupplier": "Proveedor",
   "flowCustomer": "Cliente",
   "flowFitToScreen": "Ajustar a la pantalla",
@@ -461,7 +457,6 @@
   "exportGenerated": "FlowMap {build} · generado {timestamp}",
   "exportSaved": "Guardado en {path}",
 
-  "projectTabSimulation": "Simulación",
   "simFilterStudies": "Estudios",
   "simFilterCells": "Células",
   "simFilterLines": "Líneas",

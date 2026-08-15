@@ -197,8 +197,6 @@
   "studyNeedsLine": "This plant has no production lines yet.",
   "studyLineHelp": "A study belongs to one line. Several studies of the same line are scenarios; only one can be selected for a simulation.",
   "studyDeleteBody": "Its flow and annotations go with it. This cannot be undone.",
-  "studyIncludeInSimulation": "Include in simulation",
-  "studyExcludeFromSimulation": "Exclude from simulation",
   "studiesCollapse": "Hide the studies list",
   "studiesExpand": "Show the studies list",
 
@@ -232,7 +230,6 @@
 
   "stepProblemNoProcessTime": "This part has no process time here.",
   "stepEquivalence": "Equivalent",
-  "flowPart": "Part",
   "flowNoParts": "No parts yet",
   "footerEquivalence": "Equivalent",
   "footerEquivalenceHelp": "This part's process time across the flow divided by the flow equivalent's. 1.13 means it consumes 1.13 takts of the line's capacity.",
@@ -388,10 +385,6 @@
   "reworkInvalid": "Must be 0% or more",
   "occupation": "Occupation",
   "workcentersTabEmpty": "Add steps to the flow to schedule their workcenters here.",
-  "workcentersTabPattern": "Shift pattern: {shifts}",
-  "@workcentersTabPattern": {
-    "placeholders": { "shifts": { "type": "String" } }
-  },
 
   "scheduleIssueEmpty": "No periods defined. Nothing here can be costed until there is at least one.",
   "scheduleIssueOverlap": "Two periods both cover {from} to {to}.",
@@ -426,11 +419,11 @@
   "footerProcessTimeHelp": "Every step's process time added up. Value-adding time only; waiting is not counted.",
   "footerLeadTimeHelp": "Process time plus every wait between steps — how long one order takes to cross the whole flow.",
   "footerPceHelp": "Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.",
-  "flowDataSource": "Part",
   "flowSourceEquivalent": "Flow equivalent",
   "flowSourceSinglePart": "One part (needs demand)",
   "flowSourceWeighted": "All variants, weighted (needs demand)",
   "exportPdf": "Export PDF",
+  "flowShowing": "Showing",
   "flowSupplier": "Supplier",
   "flowCustomer": "Customer",
   "flowFitToScreen": "Fit to screen",
@@ -508,7 +501,6 @@
     "placeholders": { "path": { "type": "String" } }
   },
 
-  "projectTabSimulation": "Simulation",
   "simFilterStudies": "Studies",
   "simFilterCells": "Cells",
   "simFilterLines": "Lines",

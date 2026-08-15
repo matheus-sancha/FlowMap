@@ -492,12 +492,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Its flow and annotations go with it. This cannot be undone.';
 
   @override
-  String get studyIncludeInSimulation => 'Include in simulation';
-
-  @override
-  String get studyExcludeFromSimulation => 'Exclude from simulation';
-
-  @override
   String get studiesCollapse => 'Hide the studies list';
 
   @override
@@ -586,9 +580,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepEquivalence => 'Equivalent';
-
-  @override
-  String get flowPart => 'Part';
 
   @override
   String get flowNoParts => 'No parts yet';
@@ -1033,11 +1024,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add steps to the flow to schedule their workcenters here.';
 
   @override
-  String workcentersTabPattern(String shifts) {
-    return 'Shift pattern: $shifts';
-  }
-
-  @override
   String get scheduleIssueEmpty =>
       'No periods defined. Nothing here can be costed until there is at least one.';
 
@@ -1105,9 +1091,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.';
 
   @override
-  String get flowDataSource => 'Part';
-
-  @override
   String get flowSourceEquivalent => 'Flow equivalent';
 
   @override
@@ -1118,6 +1101,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportPdf => 'Export PDF';
+
+  @override
+  String get flowShowing => 'Showing';
 
   @override
   String get flowSupplier => 'Supplier';
@@ -1340,9 +1326,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String exportSaved(String path) {
     return 'Saved to $path';
   }
-
-  @override
-  String get projectTabSimulation => 'Simulation';
 
   @override
   String get simFilterStudies => 'Studies';

@@ -178,8 +178,6 @@
   "studyNeedsLine": "Esta planta ainda não tem linhas de produção.",
   "studyLineHelp": "Um estudo pertence a uma linha. Vários estudos da mesma linha são cenários; só um pode ser selecionado para a simulação.",
   "studyDeleteBody": "O fluxo e as anotações vão junto. Isso não pode ser desfeito.",
-  "studyIncludeInSimulation": "Incluir na simulação",
-  "studyExcludeFromSimulation": "Excluir da simulação",
   "studiesCollapse": "Ocultar a lista de estudos",
   "studiesExpand": "Mostrar a lista de estudos",
 
@@ -213,7 +211,6 @@
 
   "stepProblemNoProcessTime": "Esta peça não tem tempo de processo aqui.",
   "stepEquivalence": "Equivalente",
-  "flowPart": "Peça",
   "flowNoParts": "Ainda não há peças",
   "footerEquivalence": "Equivalente",
   "footerEquivalenceHelp": "O tempo de processo desta peça em todo o fluxo dividido pelo do equivalente de fluxo. 1,13 significa que consome 1,13 takts da capacidade da linha.",
@@ -366,7 +363,6 @@
   "reworkInvalid": "Deve ser 0% ou mais",
   "occupation": "Ocupação",
   "workcentersTabEmpty": "Adicione etapas ao fluxo para programar seus centros de trabalho aqui.",
-  "workcentersTabPattern": "Padrão de turnos: {shifts}",
 
   "scheduleIssueEmpty": "Nenhum período definido. Nada aqui pode ser calculado até existir pelo menos um.",
   "scheduleIssueOverlap": "Dois períodos cobrem {from} até {to}.",
@@ -386,11 +382,11 @@
   "footerProcessTimeHelp": "A soma do tempo de processo de todas as etapas. Somente tempo que agrega valor; a espera não entra.",
   "footerLeadTimeHelp": "Tempo de processo mais todas as esperas entre etapas — quanto uma ordem leva para atravessar o fluxo.",
   "footerPceHelp": "Eficiência do ciclo de processo: tempo de processo ÷ lead time. A parcela do tempo decorrido que agrega valor.",
-  "flowDataSource": "Peça",
   "flowSourceEquivalent": "Equivalente do fluxo",
   "flowSourceSinglePart": "Um item (requer demanda)",
   "flowSourceWeighted": "Todas as variantes, ponderadas (requer demanda)",
   "exportPdf": "Exportar PDF",
+  "flowShowing": "Mostrando",
   "flowSupplier": "Fornecedor",
   "flowCustomer": "Cliente",
   "flowFitToScreen": "Ajustar à tela",
@@ -461,7 +457,6 @@
   "exportGenerated": "FlowMap {build} · gerado em {timestamp}",
   "exportSaved": "Salvo em {path}",
 
-  "projectTabSimulation": "Simulação",
   "simFilterStudies": "Estudos",
   "simFilterCells": "Células",
   "simFilterLines": "Linhas",

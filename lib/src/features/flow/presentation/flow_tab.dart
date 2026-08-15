@@ -53,6 +53,15 @@ class FlowTab extends ConsumerWidget {
   }
 }
 
+/// What the map is showing, and one way to get it out (DESIGN.md §12.1).
+///
+/// **Two controls, from eight.** The period stepper and its granularity moved
+/// to the tab strip, where one control serves the whole workspace instead of a
+/// copy per tab. What is left were never two choices: `Part` only exists under
+/// `FlowDataSource.singlePart`, so a source dropdown and a part dropdown were
+/// one decision split across two controls with a label in front of each. They
+/// are one list now — the yardstick, the mix, then the parts — and a dropdown
+/// reading `Weighted mix` does not need the words `Data source` beside it.
 class _Toolbar extends ConsumerWidget {
   const _Toolbar({required this.study});
 
@@ -61,7 +70,6 @@ class _Toolbar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final period = ref.watch(viewedPeriodProvider(study.id));
     final source = ref.watch(flowDataSourceSelectionProvider(study.id));
     final view = ref.watch(flowViewProvider(study.id)).value;
     final parts =
@@ -77,135 +85,129 @@ class _Toolbar extends ConsumerWidget {
             ?.id ??
         parts.firstOrNull?.id;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            IconButton(
-              tooltip: l10n.periodPrevious,
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () =>
-                  ref.read(viewedPeriodProvider(study.id).notifier).previous(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Text(
+            l10n.flowShowing,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
             ),
-            // Every number on the map is period-dependent, so the period is
-            // part of the map's identity, not a filter.
-            SizedBox(
-              width: 96,
-              child: Text(
-                periodLabel(context, period.anchor, period.granularity),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ),
-            IconButton(
-              tooltip: l10n.periodNext,
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () =>
-                  ref.read(viewedPeriodProvider(study.id).notifier).next(),
-            ),
+          ),
+          const SizedBox(width: 8),
+          _ShowingPicker(
+            study: study,
+            source: source,
+            parts: parts,
+            selectedPart: selectedPart,
+          ),
+          // The schedule varies inside the period the map is drawn for, so the
+          // figures are one moment of several (§4.2). Beside what is being
+          // shown, because that is what it qualifies.
+          if (view?.scheduleVariesInPeriod ?? false) ...[
             const SizedBox(width: 8),
-            DropdownButtonHideUnderline(
-              child: DropdownButton<PeriodGranularity>(
-                value: period.granularity,
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(viewedPeriodProvider(study.id).notifier)
-                        .setGranularity(value);
-                  }
-                },
-                items: [
-                  for (final granularity in PeriodGranularity.values)
-                    DropdownMenuItem(
-                      value: granularity,
-                      child: Text(granularityLabel(l10n, granularity)),
-                    ),
-                ],
+            Tooltip(
+              message: l10n.periodVariesHelp,
+              child: Icon(
+                Icons.info_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.tertiary,
               ),
-            ),
-            if (view?.scheduleVariesInPeriod ?? false)
-              Tooltip(
-                message: l10n.periodVariesHelp,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.tertiary,
-                  ),
-                ),
-              ),
-            const SizedBox(width: 16),
-            Text(
-              l10n.flowDataSource,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(width: 8),
-            DropdownButtonHideUnderline(
-              child: DropdownButton<FlowDataSource>(
-                value: source,
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(
-                          flowDataSourceSelectionProvider(study.id).notifier,
-                        )
-                        .select(value);
-                  }
-                },
-                items: [
-                  for (final source in FlowDataSource.values)
-                    DropdownMenuItem(
-                      value: source,
-                      // The two demand sources need a part to read. Offered but
-                      // not selectable until there is one, so the shape of the
-                      // choice stays visible and the reason it is unavailable
-                      // is in the tooltip rather than in a support call.
-                      enabled: !source.isDemandPart || parts.isNotEmpty,
-                      child: Tooltip(
-                        message: !source.isDemandPart || parts.isNotEmpty
-                            ? ''
-                            : l10n.flowSourceNeedsDemand,
-                        child: Text(flowDataSourceLabel(l10n, source)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Which part, when the map is showing one. The weighted source
-            // reads every part, so it needs no picker.
-            if (source == FlowDataSource.singlePart && parts.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              Text(l10n.flowPart, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(width: 8),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedPart,
-                  onChanged: (value) => ref
-                      .read(selectedDemandPartProvider(study.id).notifier)
-                      .select(value),
-                  items: [
-                    for (final part in parts)
-                      DropdownMenuItem(
-                        value: part.id,
-                        child: Text(part.partNumber),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(width: 16),
-            TextButton.icon(
-              onPressed: view == null
-                  ? null
-                  : () => exportFlowPdf(context, ref, view: view),
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: Text(l10n.exportPdf),
             ),
           ],
-        ),
+          const Spacer(),
+          IconButton(
+            tooltip: l10n.exportPdf,
+            onPressed: view == null
+                ? null
+                : () => exportFlowPdf(context, ref, view: view),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The source and the part, as the single choice they always were.
+///
+/// A part number is only meaningful under [FlowDataSource.singlePart], so
+/// choosing one *is* choosing that source — which is why the two dropdowns
+/// could be merged without inventing a state either of them could not express.
+class _ShowingPicker extends ConsumerWidget {
+  const _ShowingPicker({
+    required this.study,
+    required this.source,
+    required this.parts,
+    required this.selectedPart,
+  });
+
+  final Study study;
+  final FlowDataSource source;
+  final List<DemandPart> parts;
+  final String? selectedPart;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    // A part is identified by `part:<id>`, so one dropdown can hold two kinds
+    // of choice without a sentinel that could collide with a real id.
+    final value = source == FlowDataSource.singlePart && selectedPart != null
+        ? 'part:$selectedPart'
+        : source.name;
+
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: value,
+        onChanged: (choice) {
+          if (choice == null) return;
+          if (choice.startsWith('part:')) {
+            ref
+                .read(selectedDemandPartProvider(study.id).notifier)
+                .select(choice.substring(5));
+            ref
+                .read(flowDataSourceSelectionProvider(study.id).notifier)
+                .select(FlowDataSource.singlePart);
+            return;
+          }
+          ref
+              .read(flowDataSourceSelectionProvider(study.id).notifier)
+              .select(FlowDataSource.values.byName(choice));
+        },
+        items: [
+          DropdownMenuItem(
+            value: FlowDataSource.flowEquivalent.name,
+            child: Text(
+              flowDataSourceLabel(l10n, FlowDataSource.flowEquivalent),
+            ),
+          ),
+          DropdownMenuItem(
+            value: FlowDataSource.weightedVariants.name,
+            // Offered but dead until there is demand to weight, so the shape of
+            // the choice stays visible and the reason is in the tooltip rather
+            // than in a support call.
+            enabled: parts.isNotEmpty,
+            child: Tooltip(
+              message: parts.isEmpty ? l10n.flowSourceNeedsDemand : '',
+              child: Text(
+                flowDataSourceLabel(l10n, FlowDataSource.weightedVariants),
+              ),
+            ),
+          ),
+          // The parts themselves, under a rule: they are the same kind of
+          // choice as the two above and a different kind of thing.
+          if (parts.isNotEmpty)
+            const DropdownMenuItem(
+              enabled: false,
+              child: Divider(height: 1),
+            ),
+          for (final part in parts)
+            DropdownMenuItem(
+              value: 'part:${part.id}',
+              child: Text(part.partNumber),
+            ),
+        ],
       ),
     );
   }

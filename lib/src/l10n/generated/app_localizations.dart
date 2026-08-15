@@ -1000,18 +1000,6 @@ abstract class AppLocalizations {
   /// **'Its flow and annotations go with it. This cannot be undone.'**
   String get studyDeleteBody;
 
-  /// No description provided for @studyIncludeInSimulation.
-  ///
-  /// In en, this message translates to:
-  /// **'Include in simulation'**
-  String get studyIncludeInSimulation;
-
-  /// No description provided for @studyExcludeFromSimulation.
-  ///
-  /// In en, this message translates to:
-  /// **'Exclude from simulation'**
-  String get studyExcludeFromSimulation;
-
   /// No description provided for @studiesCollapse.
   ///
   /// In en, this message translates to:
@@ -1185,12 +1173,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Equivalent'**
   String get stepEquivalence;
-
-  /// No description provided for @flowPart.
-  ///
-  /// In en, this message translates to:
-  /// **'Part'**
-  String get flowPart;
 
   /// No description provided for @flowNoParts.
   ///
@@ -1932,12 +1914,6 @@ abstract class AppLocalizations {
   /// **'Add steps to the flow to schedule their workcenters here.'**
   String get workcentersTabEmpty;
 
-  /// No description provided for @workcentersTabPattern.
-  ///
-  /// In en, this message translates to:
-  /// **'Shift pattern: {shifts}'**
-  String workcentersTabPattern(String shifts);
-
   /// No description provided for @scheduleIssueEmpty.
   ///
   /// In en, this message translates to:
@@ -2040,12 +2016,6 @@ abstract class AppLocalizations {
   /// **'Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.'**
   String get footerPceHelp;
 
-  /// No description provided for @flowDataSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Part'**
-  String get flowDataSource;
-
   /// No description provided for @flowSourceEquivalent.
   ///
   /// In en, this message translates to:
@@ -2069,6 +2039,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export PDF'**
   String get exportPdf;
+
+  /// No description provided for @flowShowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing'**
+  String get flowShowing;
 
   /// No description provided for @flowSupplier.
   ///
@@ -2471,12 +2447,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved to {path}'**
   String exportSaved(String path);
-
-  /// No description provided for @projectTabSimulation.
-  ///
-  /// In en, this message translates to:
-  /// **'Simulation'**
-  String get projectTabSimulation;
 
   /// No description provided for @simFilterStudies.
   ///

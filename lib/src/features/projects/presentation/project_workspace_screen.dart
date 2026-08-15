@@ -10,6 +10,7 @@ import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/presentation/demand_tab.dart';
 import '../../flow/presentation/flow_tab.dart';
+import '../../flow/presentation/period_control.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
 import '../../schedules/presentation/schedules_tab.dart';
@@ -658,6 +659,11 @@ class _StudyTile extends ConsumerWidget {
         // The flag is the study's most consequential property — only one per
         // line may carry it — so it earns the leading slot rather than a
         // checkbox buried in a menu.
+        //
+        // **Shown here, set on Study Settings.** That was always the argument
+        // for the leading slot: it is about seeing at a glance which studies a
+        // run will cover, across the whole list, which is a different question
+        // from setting one of them (§12.1).
         color: study.includeInSimulation
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.outline,
@@ -669,35 +675,6 @@ class _StudyTile extends ConsumerWidget {
       trailing: PopupMenuButton<String>(
         onSelected: (action) async {
           switch (action) {
-            case 'include':
-              await repository.setIncludedInSimulation(
-                study.id,
-                !study.includeInSimulation,
-              );
-            case 'rename':
-              final name = await promptForName(
-                context,
-                title: l10n.actionRename,
-                label: l10n.fieldName,
-                initialValue: study.name,
-                // Study names are unique per project. Without this the write
-                // hits the constraint and throws inside an async callback,
-                // where the user sees the dialog close and nothing happen.
-                validate: (value) => taken.contains(value.toLowerCase())
-                    ? l10n.validationNameTaken
-                    : null,
-              );
-              if (name != null) {
-                await repository.updateStudy(
-                  study.id,
-                  name: name,
-                  supplierName: study.supplierName,
-                  customerName: study.customerName,
-                  wipCap: study.wipCap,
-                  priority: study.priority,
-                  notes: study.notes,
-                );
-              }
             case 'duplicate':
               final name = await promptForName(
                 context,
@@ -732,16 +709,14 @@ class _StudyTile extends ConsumerWidget {
               if (confirmed) await repository.deleteStudy(study.id);
           }
         },
+        // **Only what acts on the study as an object.** Include and Rename
+        // are fields, and Study Settings owns the study's fields (§12.1) —
+        // round four removed the `Run settings` dialog on the rule that two
+        // ways to set one thing is how the two come to disagree, and then left
+        // two of them here. Duplicate and Delete stay: neither sets a value,
+        // and neither belongs on a page that would vanish underneath the
+        // reader as it ran.
         itemBuilder: (context) => [
-          PopupMenuItem(
-            value: 'include',
-            child: Text(
-              study.includeInSimulation
-                  ? l10n.studyExcludeFromSimulation
-                  : l10n.studyIncludeInSimulation,
-            ),
-          ),
-          PopupMenuItem(value: 'rename', child: Text(l10n.actionRename)),
           PopupMenuItem(value: 'duplicate', child: Text(l10n.actionDuplicate)),
           PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
         ],
@@ -775,6 +750,30 @@ class _StudyTabs extends StatefulWidget {
 }
 
 class _StudyTabsState extends State<_StudyTabs> {
+  /// Which tabs the viewed period is about: Flow and Summary, the two that
+  /// carried a stepper of their own. Study Settings, Schedules and Demand are
+  /// about the study whatever month it is.
+  static bool _periodGoverns(int index) => index == 0 || index == 4;
+
+  @override
+  void initState() {
+    super.initState();
+    // The strip's own control greys by tab, so it has to be rebuilt when the
+    // tab changes — the `TabBarView` swapping its child does not rebuild the
+    // row above it.
+    widget.tabs.addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.tabs.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void didUpdateWidget(_StudyTabs old) {
     super.didUpdateWidget(old);
@@ -797,6 +796,14 @@ class _StudyTabsState extends State<_StudyTabs> {
         Row(
           children: [
             Expanded(child: _tabBar(l10n)),
+            // **One period control for the workspace**, not one per tab
+            // (§12.1). It governs Flow and Summary and is greyed on the three
+            // it does not — dimmed rather than hidden, so the strip does not
+            // jump as the reader moves along it.
+            PeriodControl(
+              studyId: study.id,
+              enabled: _periodGoverns(widget.tabs.index),
+            ),
             // **The one-click path from a study to its own numbers**, which is
             // what the deleted Simulation tab was (§12.1). A link rather than a
             // screen: it carries `?study=` to the one place a run is read, so

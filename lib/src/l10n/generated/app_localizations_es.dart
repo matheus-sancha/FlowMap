@@ -496,12 +496,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Su flujo y sus anotaciones se van con él. Esto no se puede deshacer.';
 
   @override
-  String get studyIncludeInSimulation => 'Incluir en la simulación';
-
-  @override
-  String get studyExcludeFromSimulation => 'Excluir de la simulación';
-
-  @override
   String get studiesCollapse => 'Ocultar la lista de estudios';
 
   @override
@@ -593,9 +587,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepEquivalence => 'Equivalente';
-
-  @override
-  String get flowPart => 'Pieza';
 
   @override
   String get flowNoParts => 'Aún no hay piezas';
@@ -1045,11 +1036,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Añade pasos al flujo para programar aquí sus centros de trabajo.';
 
   @override
-  String workcentersTabPattern(String shifts) {
-    return 'Patrón de turnos: $shifts';
-  }
-
-  @override
   String get scheduleIssueEmpty =>
       'No hay periodos definidos. Nada aquí puede calcularse hasta que haya al menos uno.';
 
@@ -1117,9 +1103,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Eficiencia del ciclo de proceso: tiempo de proceso ÷ lead time. La parte del tiempo transcurrido que añade valor.';
 
   @override
-  String get flowDataSource => 'Pieza';
-
-  @override
   String get flowSourceEquivalent => 'Equivalente del flujo';
 
   @override
@@ -1131,6 +1114,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get exportPdf => 'Exportar PDF';
+
+  @override
+  String get flowShowing => 'Mostrando';
 
   @override
   String get flowSupplier => 'Proveedor';
@@ -1357,9 +1343,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String exportSaved(String path) {
     return 'Guardado en $path';
   }
-
-  @override
-  String get projectTabSimulation => 'Simulación';
 
   @override
   String get simFilterStudies => 'Estudios';
