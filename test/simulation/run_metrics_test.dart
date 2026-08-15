@@ -48,7 +48,8 @@ void main() {
     title: target,
     candidates: [target],
     demandKey: target,
-    changeover: changeover ?? Duration.zero,
+    setupValue: changeover?.inSeconds.toDouble(),
+    setupUnit: TaktUnit.seconds,
   );
 
   final aug1 = DateTime(2026, 8, 1);
@@ -408,8 +409,10 @@ void main() {
 
       final w = metrics.workcenters.single;
       expect(w.visits, 4);
-      // Alternating parts: every order after the first pays a setup.
-      expect(w.changeovers, 3);
+      // Alternating parts: every order pays a setup, including the first —
+      // cold start is a change, because an empty station is set up for nothing
+      // (§7.6).
+      expect(w.changeovers, 4);
       expect(w.utilization, isNotNull);
     });
 

@@ -220,6 +220,7 @@ class FlowStepView extends FlowNodeView {
     required this.processTime,
     required this.equivalentProcessTime,
     required this.changeover,
+    this.samePartFraction = 0,
     required this.openPerWorkingDay,
     required this.productivePerWorkingDay,
     required this.openInPeriod,
@@ -313,7 +314,17 @@ class FlowStepView extends FlowNodeView {
   /// steps needs to know one of them is not measured in takts.
   final bool usesLocalEquivalent;
 
+  /// What one full changeover costs here — teardown then setup, as a part
+  /// change pays it (§7.6).
   final Duration changeover;
+
+  /// How much of that a repeat of the same part still pays, as a fraction.
+  ///
+  /// On the view rather than left in the database because §8.4's occupation has
+  /// to charge repeats the same way the engine does, or the Summary and the run
+  /// disagree about the same plant — which is the failure §1.2 and §2.2 both
+  /// exist to prevent.
+  final double samePartFraction;
 
   /// What the calendar says the station is open, before any loss.
   final Duration openPerWorkingDay;
@@ -687,7 +698,6 @@ FlowStepView _buildStep({
   required FlowDemandInput demand,
 }) {
   final problems = <StepProblem>[];
-  final changeover = Duration(seconds: node.changeoverSeconds);
 
   // A pool step reads the capacity of its members. Members are interchangeable
   // by definition (DESIGN.md §3.1), so the first one stands for the pool; a
@@ -806,6 +816,28 @@ FlowStepView _buildStep({
   // Null rather than zero when anything is missing — a dash is honest, a zero
   // is a number someone will add up.
   final productivePerDay = openPerDay * (availability ?? 1);
+
+  // The full changeover — teardown then setup — as a part change would pay it
+  // (§7.6). Resolved here rather than at the top of this function because
+  // `days` means this station's productive day, which is not known until the
+  // schedule has been read.
+  //
+  // **The repeat percentage is deliberately not applied.** The box states what
+  // a changeover costs, and how often one is paid is a property of the
+  // *sequence* rather than of the step — §8.4's occupation is where that is
+  // counted, over the orders actually due.
+  final changeover =
+      taktUnitDuration(
+        node.setupValue ?? 0,
+        node.setupUnit ?? TaktUnit.seconds,
+        productivePerDay,
+      ) +
+      taktUnitDuration(
+        node.teardownValue ?? 0,
+        node.teardownUnit ?? TaktUnit.seconds,
+        productivePerDay,
+      );
+
   final localEquivalent = node.equivalentValue == null
       ? null
       : TaktPeriodSpec(
@@ -857,6 +889,7 @@ FlowStepView _buildStep({
     equivalentProcessTime: equivalentProcessTime,
     usesLocalEquivalent: localEquivalent != null,
     changeover: changeover,
+    samePartFraction: (node.samePartPercent ?? 0) / 100,
     openPerWorkingDay: openPerDay,
     productivePerWorkingDay: productivePerDay,
     openInPeriod: openInPeriod,

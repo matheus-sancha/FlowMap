@@ -8175,6 +8175,57 @@ class $FlowNodesTable extends FlowNodes
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _setupValueMeta = const VerificationMeta(
+    'setupValue',
+  );
+  @override
+  late final GeneratedColumn<double> setupValue = GeneratedColumn<double>(
+    'setup_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<TaktUnit?, String> setupUnit =
+      GeneratedColumn<String>(
+        'setup_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<TaktUnit?>($FlowNodesTable.$convertersetupUnitn);
+  static const VerificationMeta _teardownValueMeta = const VerificationMeta(
+    'teardownValue',
+  );
+  @override
+  late final GeneratedColumn<double> teardownValue = GeneratedColumn<double>(
+    'teardown_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<TaktUnit?, String> teardownUnit =
+      GeneratedColumn<String>(
+        'teardown_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<TaktUnit?>($FlowNodesTable.$converterteardownUnitn);
+  static const VerificationMeta _samePartPercentMeta = const VerificationMeta(
+    'samePartPercent',
+  );
+  @override
+  late final GeneratedColumn<double> samePartPercent = GeneratedColumn<double>(
+    'same_part_percent',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _equivalentValueMeta = const VerificationMeta(
     'equivalentValue',
   );
@@ -8319,6 +8370,11 @@ class $FlowNodesTable extends FlowNodes
     workcenterId,
     poolId,
     changeoverSeconds,
+    setupValue,
+    setupUnit,
+    teardownValue,
+    teardownUnit,
+    samePartPercent,
     equivalentValue,
     equivalentUnit,
     inventoryMode,
@@ -8387,6 +8443,30 @@ class $FlowNodesTable extends FlowNodes
         changeoverSeconds.isAcceptableOrUnknown(
           data['changeover_seconds']!,
           _changeoverSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('setup_value')) {
+      context.handle(
+        _setupValueMeta,
+        setupValue.isAcceptableOrUnknown(data['setup_value']!, _setupValueMeta),
+      );
+    }
+    if (data.containsKey('teardown_value')) {
+      context.handle(
+        _teardownValueMeta,
+        teardownValue.isAcceptableOrUnknown(
+          data['teardown_value']!,
+          _teardownValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('same_part_percent')) {
+      context.handle(
+        _samePartPercentMeta,
+        samePartPercent.isAcceptableOrUnknown(
+          data['same_part_percent']!,
+          _samePartPercentMeta,
         ),
       );
     }
@@ -8506,6 +8586,30 @@ class $FlowNodesTable extends FlowNodes
         DriftSqlType.int,
         data['${effectivePrefix}changeover_seconds'],
       )!,
+      setupValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}setup_value'],
+      ),
+      setupUnit: $FlowNodesTable.$convertersetupUnitn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}setup_unit'],
+        ),
+      ),
+      teardownValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}teardown_value'],
+      ),
+      teardownUnit: $FlowNodesTable.$converterteardownUnitn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}teardown_unit'],
+        ),
+      ),
+      samePartPercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}same_part_percent'],
+      ),
       equivalentValue: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}equivalent_value'],
@@ -8576,6 +8680,16 @@ class $FlowNodesTable extends FlowNodes
 
   static JsonTypeConverter2<FlowNodeKind, String, String> $converterkind =
       const EnumNameConverter<FlowNodeKind>(FlowNodeKind.values);
+  static JsonTypeConverter2<TaktUnit, String, String> $convertersetupUnit =
+      const EnumNameConverter<TaktUnit>(TaktUnit.values);
+  static JsonTypeConverter2<TaktUnit?, String?, String?> $convertersetupUnitn =
+      JsonTypeConverter2.asNullable($convertersetupUnit);
+  static JsonTypeConverter2<TaktUnit, String, String> $converterteardownUnit =
+      const EnumNameConverter<TaktUnit>(TaktUnit.values);
+  static JsonTypeConverter2<TaktUnit?, String?, String?>
+  $converterteardownUnitn = JsonTypeConverter2.asNullable(
+    $converterteardownUnit,
+  );
   static JsonTypeConverter2<TaktUnit, String, String> $converterequivalentUnit =
       const EnumNameConverter<TaktUnit>(TaktUnit.values);
   static JsonTypeConverter2<TaktUnit?, String?, String?>
@@ -8620,9 +8734,48 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   final String? workcenterId;
   final String? poolId;
 
-  /// Setup charged when the previous order on this workcenter was a different
-  /// part number (DESIGN.md §7.6).
+  /// Superseded by [setupValue] in v17, and kept rather than dropped.
+  ///
+  /// Its values were carried onto the setup columns by the migration and
+  /// nothing reads it now. Dropping a column means a [TableMigration], which
+  /// rebuilds from the *current* Dart definition — the trap this file has hit
+  /// three times (§16.13, §16.15, §16.16) and the one thing §16.11's
+  /// half-finished upgrade says not to risk for tidiness. It is also the only
+  /// place a pre-v17 setup can be recovered by hand.
   final int changeoverSeconds;
+
+  /// A changeover, in two halves: [setupValue] rigs the station for the order
+  /// and [teardownValue] strips it afterwards (DESIGN.md §7.6).
+  ///
+  /// **Stored as a value plus a [TaktUnit], never as canonical seconds**, for
+  /// the same reason takt and [equivalentValue] are: `days` here means
+  /// productive days of *this* station, and cannot be reduced to a duration
+  /// without saying whose day is meant (§6.1). One kind of day per dialog is
+  /// §17.4's rule, and the field two below this one already uses that one.
+  ///
+  /// Null is no setup, which is what every node had before v17.
+  final double? setupValue;
+  final TaktUnit? setupUnit;
+
+  /// The teardown, charged **with the next order's setup rather than at the end
+  /// of this one** — the station remembers what it owes, because whether a
+  /// strip-down is needed depends on what comes next and the engine has not
+  /// picked it yet (DESIGN.md §7.6).
+  ///
+  /// Named teardown and not breakdown: in a plant "breakdown" means the machine
+  /// failed, and §4.4's Availability — the actual breakdown figure — is drawn on
+  /// the same process box.
+  final double? teardownValue;
+  final TaktUnit? teardownUnit;
+
+  /// How much of `setup + teardown` is still charged when the previous order at
+  /// this station was the **same part**, as a percentage.
+  ///
+  /// Null is 0 %, which is exactly what this app did before v17: like-with-like
+  /// was free. 100 % makes batching buy nothing. It governs the pair rather than
+  /// the setup alone, because the two are one changeover split in half and a
+  /// second percentage would only ever move with the first.
+  final double? samePartPercent;
 
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).
@@ -8695,6 +8848,11 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     this.workcenterId,
     this.poolId,
     required this.changeoverSeconds,
+    this.setupValue,
+    this.setupUnit,
+    this.teardownValue,
+    this.teardownUnit,
+    this.samePartPercent,
     this.equivalentValue,
     this.equivalentUnit,
     this.inventoryMode,
@@ -8727,6 +8885,25 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       map['pool_id'] = Variable<String>(poolId);
     }
     map['changeover_seconds'] = Variable<int>(changeoverSeconds);
+    if (!nullToAbsent || setupValue != null) {
+      map['setup_value'] = Variable<double>(setupValue);
+    }
+    if (!nullToAbsent || setupUnit != null) {
+      map['setup_unit'] = Variable<String>(
+        $FlowNodesTable.$convertersetupUnitn.toSql(setupUnit),
+      );
+    }
+    if (!nullToAbsent || teardownValue != null) {
+      map['teardown_value'] = Variable<double>(teardownValue);
+    }
+    if (!nullToAbsent || teardownUnit != null) {
+      map['teardown_unit'] = Variable<String>(
+        $FlowNodesTable.$converterteardownUnitn.toSql(teardownUnit),
+      );
+    }
+    if (!nullToAbsent || samePartPercent != null) {
+      map['same_part_percent'] = Variable<double>(samePartPercent);
+    }
     if (!nullToAbsent || equivalentValue != null) {
       map['equivalent_value'] = Variable<double>(equivalentValue);
     }
@@ -8786,6 +8963,21 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ? const Value.absent()
           : Value(poolId),
       changeoverSeconds: Value(changeoverSeconds),
+      setupValue: setupValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(setupValue),
+      setupUnit: setupUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(setupUnit),
+      teardownValue: teardownValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(teardownValue),
+      teardownUnit: teardownUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(teardownUnit),
+      samePartPercent: samePartPercent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(samePartPercent),
       equivalentValue: equivalentValue == null && nullToAbsent
           ? const Value.absent()
           : Value(equivalentValue),
@@ -8837,6 +9029,15 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       workcenterId: serializer.fromJson<String?>(json['workcenterId']),
       poolId: serializer.fromJson<String?>(json['poolId']),
       changeoverSeconds: serializer.fromJson<int>(json['changeoverSeconds']),
+      setupValue: serializer.fromJson<double?>(json['setupValue']),
+      setupUnit: $FlowNodesTable.$convertersetupUnitn.fromJson(
+        serializer.fromJson<String?>(json['setupUnit']),
+      ),
+      teardownValue: serializer.fromJson<double?>(json['teardownValue']),
+      teardownUnit: $FlowNodesTable.$converterteardownUnitn.fromJson(
+        serializer.fromJson<String?>(json['teardownUnit']),
+      ),
+      samePartPercent: serializer.fromJson<double?>(json['samePartPercent']),
       equivalentValue: serializer.fromJson<double?>(json['equivalentValue']),
       equivalentUnit: $FlowNodesTable.$converterequivalentUnitn.fromJson(
         serializer.fromJson<String?>(json['equivalentUnit']),
@@ -8875,6 +9076,15 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       'workcenterId': serializer.toJson<String?>(workcenterId),
       'poolId': serializer.toJson<String?>(poolId),
       'changeoverSeconds': serializer.toJson<int>(changeoverSeconds),
+      'setupValue': serializer.toJson<double?>(setupValue),
+      'setupUnit': serializer.toJson<String?>(
+        $FlowNodesTable.$convertersetupUnitn.toJson(setupUnit),
+      ),
+      'teardownValue': serializer.toJson<double?>(teardownValue),
+      'teardownUnit': serializer.toJson<String?>(
+        $FlowNodesTable.$converterteardownUnitn.toJson(teardownUnit),
+      ),
+      'samePartPercent': serializer.toJson<double?>(samePartPercent),
       'equivalentValue': serializer.toJson<double?>(equivalentValue),
       'equivalentUnit': serializer.toJson<String?>(
         $FlowNodesTable.$converterequivalentUnitn.toJson(equivalentUnit),
@@ -8909,6 +9119,11 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     Value<String?> workcenterId = const Value.absent(),
     Value<String?> poolId = const Value.absent(),
     int? changeoverSeconds,
+    Value<double?> setupValue = const Value.absent(),
+    Value<TaktUnit?> setupUnit = const Value.absent(),
+    Value<double?> teardownValue = const Value.absent(),
+    Value<TaktUnit?> teardownUnit = const Value.absent(),
+    Value<double?> samePartPercent = const Value.absent(),
     Value<double?> equivalentValue = const Value.absent(),
     Value<TaktUnit?> equivalentUnit = const Value.absent(),
     Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -8930,6 +9145,15 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     workcenterId: workcenterId.present ? workcenterId.value : this.workcenterId,
     poolId: poolId.present ? poolId.value : this.poolId,
     changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
+    setupValue: setupValue.present ? setupValue.value : this.setupValue,
+    setupUnit: setupUnit.present ? setupUnit.value : this.setupUnit,
+    teardownValue: teardownValue.present
+        ? teardownValue.value
+        : this.teardownValue,
+    teardownUnit: teardownUnit.present ? teardownUnit.value : this.teardownUnit,
+    samePartPercent: samePartPercent.present
+        ? samePartPercent.value
+        : this.samePartPercent,
     equivalentValue: equivalentValue.present
         ? equivalentValue.value
         : this.equivalentValue,
@@ -8970,6 +9194,19 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       changeoverSeconds: data.changeoverSeconds.present
           ? data.changeoverSeconds.value
           : this.changeoverSeconds,
+      setupValue: data.setupValue.present
+          ? data.setupValue.value
+          : this.setupValue,
+      setupUnit: data.setupUnit.present ? data.setupUnit.value : this.setupUnit,
+      teardownValue: data.teardownValue.present
+          ? data.teardownValue.value
+          : this.teardownValue,
+      teardownUnit: data.teardownUnit.present
+          ? data.teardownUnit.value
+          : this.teardownUnit,
+      samePartPercent: data.samePartPercent.present
+          ? data.samePartPercent.value
+          : this.samePartPercent,
       equivalentValue: data.equivalentValue.present
           ? data.equivalentValue.value
           : this.equivalentValue,
@@ -9012,6 +9249,11 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ..write('workcenterId: $workcenterId, ')
           ..write('poolId: $poolId, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('setupValue: $setupValue, ')
+          ..write('setupUnit: $setupUnit, ')
+          ..write('teardownValue: $teardownValue, ')
+          ..write('teardownUnit: $teardownUnit, ')
+          ..write('samePartPercent: $samePartPercent, ')
           ..write('equivalentValue: $equivalentValue, ')
           ..write('equivalentUnit: $equivalentUnit, ')
           ..write('inventoryMode: $inventoryMode, ')
@@ -9030,7 +9272,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     studyId,
     position,
@@ -9038,6 +9280,11 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     workcenterId,
     poolId,
     changeoverSeconds,
+    setupValue,
+    setupUnit,
+    teardownValue,
+    teardownUnit,
+    samePartPercent,
     equivalentValue,
     equivalentUnit,
     inventoryMode,
@@ -9051,7 +9298,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     notes,
     createdAt,
     updatedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -9063,6 +9310,11 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           other.workcenterId == this.workcenterId &&
           other.poolId == this.poolId &&
           other.changeoverSeconds == this.changeoverSeconds &&
+          other.setupValue == this.setupValue &&
+          other.setupUnit == this.setupUnit &&
+          other.teardownValue == this.teardownValue &&
+          other.teardownUnit == this.teardownUnit &&
+          other.samePartPercent == this.samePartPercent &&
           other.equivalentValue == this.equivalentValue &&
           other.equivalentUnit == this.equivalentUnit &&
           other.inventoryMode == this.inventoryMode &&
@@ -9086,6 +9338,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
   final Value<String?> workcenterId;
   final Value<String?> poolId;
   final Value<int> changeoverSeconds;
+  final Value<double?> setupValue;
+  final Value<TaktUnit?> setupUnit;
+  final Value<double?> teardownValue;
+  final Value<TaktUnit?> teardownUnit;
+  final Value<double?> samePartPercent;
   final Value<double?> equivalentValue;
   final Value<TaktUnit?> equivalentUnit;
   final Value<InventoryMode?> inventoryMode;
@@ -9108,6 +9365,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.workcenterId = const Value.absent(),
     this.poolId = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
+    this.setupValue = const Value.absent(),
+    this.setupUnit = const Value.absent(),
+    this.teardownValue = const Value.absent(),
+    this.teardownUnit = const Value.absent(),
+    this.samePartPercent = const Value.absent(),
     this.equivalentValue = const Value.absent(),
     this.equivalentUnit = const Value.absent(),
     this.inventoryMode = const Value.absent(),
@@ -9131,6 +9393,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.workcenterId = const Value.absent(),
     this.poolId = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
+    this.setupValue = const Value.absent(),
+    this.setupUnit = const Value.absent(),
+    this.teardownValue = const Value.absent(),
+    this.teardownUnit = const Value.absent(),
+    this.samePartPercent = const Value.absent(),
     this.equivalentValue = const Value.absent(),
     this.equivalentUnit = const Value.absent(),
     this.inventoryMode = const Value.absent(),
@@ -9159,6 +9426,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Expression<String>? workcenterId,
     Expression<String>? poolId,
     Expression<int>? changeoverSeconds,
+    Expression<double>? setupValue,
+    Expression<String>? setupUnit,
+    Expression<double>? teardownValue,
+    Expression<String>? teardownUnit,
+    Expression<double>? samePartPercent,
     Expression<double>? equivalentValue,
     Expression<String>? equivalentUnit,
     Expression<String>? inventoryMode,
@@ -9182,6 +9454,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       if (workcenterId != null) 'workcenter_id': workcenterId,
       if (poolId != null) 'pool_id': poolId,
       if (changeoverSeconds != null) 'changeover_seconds': changeoverSeconds,
+      if (setupValue != null) 'setup_value': setupValue,
+      if (setupUnit != null) 'setup_unit': setupUnit,
+      if (teardownValue != null) 'teardown_value': teardownValue,
+      if (teardownUnit != null) 'teardown_unit': teardownUnit,
+      if (samePartPercent != null) 'same_part_percent': samePartPercent,
       if (equivalentValue != null) 'equivalent_value': equivalentValue,
       if (equivalentUnit != null) 'equivalent_unit': equivalentUnit,
       if (inventoryMode != null) 'inventory_mode': inventoryMode,
@@ -9208,6 +9485,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Value<String?>? workcenterId,
     Value<String?>? poolId,
     Value<int>? changeoverSeconds,
+    Value<double?>? setupValue,
+    Value<TaktUnit?>? setupUnit,
+    Value<double?>? teardownValue,
+    Value<TaktUnit?>? teardownUnit,
+    Value<double?>? samePartPercent,
     Value<double?>? equivalentValue,
     Value<TaktUnit?>? equivalentUnit,
     Value<InventoryMode?>? inventoryMode,
@@ -9231,6 +9513,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       workcenterId: workcenterId ?? this.workcenterId,
       poolId: poolId ?? this.poolId,
       changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
+      setupValue: setupValue ?? this.setupValue,
+      setupUnit: setupUnit ?? this.setupUnit,
+      teardownValue: teardownValue ?? this.teardownValue,
+      teardownUnit: teardownUnit ?? this.teardownUnit,
+      samePartPercent: samePartPercent ?? this.samePartPercent,
       equivalentValue: equivalentValue ?? this.equivalentValue,
       equivalentUnit: equivalentUnit ?? this.equivalentUnit,
       inventoryMode: inventoryMode ?? this.inventoryMode,
@@ -9274,6 +9561,25 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     }
     if (changeoverSeconds.present) {
       map['changeover_seconds'] = Variable<int>(changeoverSeconds.value);
+    }
+    if (setupValue.present) {
+      map['setup_value'] = Variable<double>(setupValue.value);
+    }
+    if (setupUnit.present) {
+      map['setup_unit'] = Variable<String>(
+        $FlowNodesTable.$convertersetupUnitn.toSql(setupUnit.value),
+      );
+    }
+    if (teardownValue.present) {
+      map['teardown_value'] = Variable<double>(teardownValue.value);
+    }
+    if (teardownUnit.present) {
+      map['teardown_unit'] = Variable<String>(
+        $FlowNodesTable.$converterteardownUnitn.toSql(teardownUnit.value),
+      );
+    }
+    if (samePartPercent.present) {
+      map['same_part_percent'] = Variable<double>(samePartPercent.value);
     }
     if (equivalentValue.present) {
       map['equivalent_value'] = Variable<double>(equivalentValue.value);
@@ -9340,6 +9646,11 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
           ..write('workcenterId: $workcenterId, ')
           ..write('poolId: $poolId, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('setupValue: $setupValue, ')
+          ..write('setupUnit: $setupUnit, ')
+          ..write('teardownValue: $teardownValue, ')
+          ..write('teardownUnit: $teardownUnit, ')
+          ..write('samePartPercent: $samePartPercent, ')
           ..write('equivalentValue: $equivalentValue, ')
           ..write('equivalentUnit: $equivalentUnit, ')
           ..write('inventoryMode: $inventoryMode, ')
@@ -11991,6 +12302,50 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _productionCellIdMeta = const VerificationMeta(
+    'productionCellId',
+  );
+  @override
+  late final GeneratedColumn<String> productionCellId = GeneratedColumn<String>(
+    'production_cell_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productionCellNameMeta =
+      const VerificationMeta('productionCellName');
+  @override
+  late final GeneratedColumn<String> productionCellName =
+      GeneratedColumn<String>(
+        'production_cell_name',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _productionLineIdMeta = const VerificationMeta(
+    'productionLineId',
+  );
+  @override
+  late final GeneratedColumn<String> productionLineId = GeneratedColumn<String>(
+    'production_line_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productionLineNameMeta =
+      const VerificationMeta('productionLineName');
+  @override
+  late final GeneratedColumn<String> productionLineName =
+      GeneratedColumn<String>(
+        'production_line_name',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -12001,6 +12356,10 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     priority,
     wipCap,
     startBufferDays,
+    productionCellId,
+    productionCellName,
+    productionLineId,
+    productionLineName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -12081,6 +12440,42 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         ),
       );
     }
+    if (data.containsKey('production_cell_id')) {
+      context.handle(
+        _productionCellIdMeta,
+        productionCellId.isAcceptableOrUnknown(
+          data['production_cell_id']!,
+          _productionCellIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_cell_name')) {
+      context.handle(
+        _productionCellNameMeta,
+        productionCellName.isAcceptableOrUnknown(
+          data['production_cell_name']!,
+          _productionCellNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_line_id')) {
+      context.handle(
+        _productionLineIdMeta,
+        productionLineId.isAcceptableOrUnknown(
+          data['production_line_id']!,
+          _productionLineIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_line_name')) {
+      context.handle(
+        _productionLineNameMeta,
+        productionLineName.isAcceptableOrUnknown(
+          data['production_line_name']!,
+          _productionLineNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -12122,6 +12517,22 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         DriftSqlType.int,
         data['${effectivePrefix}start_buffer_days'],
       )!,
+      productionCellId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_cell_id'],
+      ),
+      productionCellName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_cell_name'],
+      ),
+      productionLineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_line_id'],
+      ),
+      productionLineName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_line_name'],
+      ),
     );
   }
 
@@ -12151,6 +12562,24 @@ class SimulationRunStudy extends DataClass
   /// calendar days. Copied in so a run can say why it began where it did after
   /// the study's buffer is changed.
   final int startBufferDays;
+
+  /// Where this study sat in the plant, copied in so a stored run can be
+  /// filtered by cell and by production line (§7.10).
+  ///
+  /// **The id and the name both**, for the reason every other copied-in label
+  /// carries both: the id survives a rename and the name survives a deletion,
+  /// and a filter has to keep working after either. §7.10 forbids joining back
+  /// to `studies`, which is the only other place this could be read.
+  ///
+  /// **A cell or line filter is a study filter one level up.** Workcenters
+  /// belong to a plant rather than to a cell, so stations are never filtered
+  /// this way — the studies narrow, and their stations follow.
+  ///
+  /// Null on every run made before v17.
+  final String? productionCellId;
+  final String? productionCellName;
+  final String? productionLineId;
+  final String? productionLineName;
   const SimulationRunStudy({
     required this.runId,
     required this.studyId,
@@ -12160,6 +12589,10 @@ class SimulationRunStudy extends DataClass
     required this.priority,
     this.wipCap,
     required this.startBufferDays,
+    this.productionCellId,
+    this.productionCellName,
+    this.productionLineId,
+    this.productionLineName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12176,6 +12609,18 @@ class SimulationRunStudy extends DataClass
       map['wip_cap'] = Variable<int>(wipCap);
     }
     map['start_buffer_days'] = Variable<int>(startBufferDays);
+    if (!nullToAbsent || productionCellId != null) {
+      map['production_cell_id'] = Variable<String>(productionCellId);
+    }
+    if (!nullToAbsent || productionCellName != null) {
+      map['production_cell_name'] = Variable<String>(productionCellName);
+    }
+    if (!nullToAbsent || productionLineId != null) {
+      map['production_line_id'] = Variable<String>(productionLineId);
+    }
+    if (!nullToAbsent || productionLineName != null) {
+      map['production_line_name'] = Variable<String>(productionLineName);
+    }
     return map;
   }
 
@@ -12193,6 +12638,18 @@ class SimulationRunStudy extends DataClass
           ? const Value.absent()
           : Value(wipCap),
       startBufferDays: Value(startBufferDays),
+      productionCellId: productionCellId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionCellId),
+      productionCellName: productionCellName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionCellName),
+      productionLineId: productionLineId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionLineId),
+      productionLineName: productionLineName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionLineName),
     );
   }
 
@@ -12212,6 +12669,14 @@ class SimulationRunStudy extends DataClass
       priority: serializer.fromJson<int>(json['priority']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
       startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
+      productionCellId: serializer.fromJson<String?>(json['productionCellId']),
+      productionCellName: serializer.fromJson<String?>(
+        json['productionCellName'],
+      ),
+      productionLineId: serializer.fromJson<String?>(json['productionLineId']),
+      productionLineName: serializer.fromJson<String?>(
+        json['productionLineName'],
+      ),
     );
   }
   @override
@@ -12226,6 +12691,10 @@ class SimulationRunStudy extends DataClass
       'priority': serializer.toJson<int>(priority),
       'wipCap': serializer.toJson<int?>(wipCap),
       'startBufferDays': serializer.toJson<int>(startBufferDays),
+      'productionCellId': serializer.toJson<String?>(productionCellId),
+      'productionCellName': serializer.toJson<String?>(productionCellName),
+      'productionLineId': serializer.toJson<String?>(productionLineId),
+      'productionLineName': serializer.toJson<String?>(productionLineName),
     };
   }
 
@@ -12238,6 +12707,10 @@ class SimulationRunStudy extends DataClass
     int? priority,
     Value<int?> wipCap = const Value.absent(),
     int? startBufferDays,
+    Value<String?> productionCellId = const Value.absent(),
+    Value<String?> productionCellName = const Value.absent(),
+    Value<String?> productionLineId = const Value.absent(),
+    Value<String?> productionLineName = const Value.absent(),
   }) => SimulationRunStudy(
     runId: runId ?? this.runId,
     studyId: studyId ?? this.studyId,
@@ -12249,6 +12722,18 @@ class SimulationRunStudy extends DataClass
     priority: priority ?? this.priority,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
     startBufferDays: startBufferDays ?? this.startBufferDays,
+    productionCellId: productionCellId.present
+        ? productionCellId.value
+        : this.productionCellId,
+    productionCellName: productionCellName.present
+        ? productionCellName.value
+        : this.productionCellName,
+    productionLineId: productionLineId.present
+        ? productionLineId.value
+        : this.productionLineId,
+    productionLineName: productionLineName.present
+        ? productionLineName.value
+        : this.productionLineName,
   );
   SimulationRunStudy copyWithCompanion(SimulationRunStudiesCompanion data) {
     return SimulationRunStudy(
@@ -12266,6 +12751,18 @@ class SimulationRunStudy extends DataClass
       startBufferDays: data.startBufferDays.present
           ? data.startBufferDays.value
           : this.startBufferDays,
+      productionCellId: data.productionCellId.present
+          ? data.productionCellId.value
+          : this.productionCellId,
+      productionCellName: data.productionCellName.present
+          ? data.productionCellName.value
+          : this.productionCellName,
+      productionLineId: data.productionLineId.present
+          ? data.productionLineId.value
+          : this.productionLineId,
+      productionLineName: data.productionLineName.present
+          ? data.productionLineName.value
+          : this.productionLineName,
     );
   }
 
@@ -12279,7 +12776,11 @@ class SimulationRunStudy extends DataClass
           ..write('releaseCalendarId: $releaseCalendarId, ')
           ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
-          ..write('startBufferDays: $startBufferDays')
+          ..write('startBufferDays: $startBufferDays, ')
+          ..write('productionCellId: $productionCellId, ')
+          ..write('productionCellName: $productionCellName, ')
+          ..write('productionLineId: $productionLineId, ')
+          ..write('productionLineName: $productionLineName')
           ..write(')'))
         .toString();
   }
@@ -12294,6 +12795,10 @@ class SimulationRunStudy extends DataClass
     priority,
     wipCap,
     startBufferDays,
+    productionCellId,
+    productionCellName,
+    productionLineId,
+    productionLineName,
   );
   @override
   bool operator ==(Object other) =>
@@ -12306,7 +12811,11 @@ class SimulationRunStudy extends DataClass
           other.releaseCalendarId == this.releaseCalendarId &&
           other.priority == this.priority &&
           other.wipCap == this.wipCap &&
-          other.startBufferDays == this.startBufferDays);
+          other.startBufferDays == this.startBufferDays &&
+          other.productionCellId == this.productionCellId &&
+          other.productionCellName == this.productionCellName &&
+          other.productionLineId == this.productionLineId &&
+          other.productionLineName == this.productionLineName);
 }
 
 class SimulationRunStudiesCompanion
@@ -12319,6 +12828,10 @@ class SimulationRunStudiesCompanion
   final Value<int> priority;
   final Value<int?> wipCap;
   final Value<int> startBufferDays;
+  final Value<String?> productionCellId;
+  final Value<String?> productionCellName;
+  final Value<String?> productionLineId;
+  final Value<String?> productionLineName;
   final Value<int> rowid;
   const SimulationRunStudiesCompanion({
     this.runId = const Value.absent(),
@@ -12329,6 +12842,10 @@ class SimulationRunStudiesCompanion
     this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
+    this.productionCellId = const Value.absent(),
+    this.productionCellName = const Value.absent(),
+    this.productionLineId = const Value.absent(),
+    this.productionLineName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunStudiesCompanion.insert({
@@ -12340,6 +12857,10 @@ class SimulationRunStudiesCompanion
     required int priority,
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
+    this.productionCellId = const Value.absent(),
+    this.productionCellName = const Value.absent(),
+    this.productionLineId = const Value.absent(),
+    this.productionLineName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        studyId = Value(studyId),
@@ -12355,6 +12876,10 @@ class SimulationRunStudiesCompanion
     Expression<int>? priority,
     Expression<int>? wipCap,
     Expression<int>? startBufferDays,
+    Expression<String>? productionCellId,
+    Expression<String>? productionCellName,
+    Expression<String>? productionLineId,
+    Expression<String>? productionLineName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -12366,6 +12891,12 @@ class SimulationRunStudiesCompanion
       if (priority != null) 'priority': priority,
       if (wipCap != null) 'wip_cap': wipCap,
       if (startBufferDays != null) 'start_buffer_days': startBufferDays,
+      if (productionCellId != null) 'production_cell_id': productionCellId,
+      if (productionCellName != null)
+        'production_cell_name': productionCellName,
+      if (productionLineId != null) 'production_line_id': productionLineId,
+      if (productionLineName != null)
+        'production_line_name': productionLineName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -12379,6 +12910,10 @@ class SimulationRunStudiesCompanion
     Value<int>? priority,
     Value<int?>? wipCap,
     Value<int>? startBufferDays,
+    Value<String?>? productionCellId,
+    Value<String?>? productionCellName,
+    Value<String?>? productionLineId,
+    Value<String?>? productionLineName,
     Value<int>? rowid,
   }) {
     return SimulationRunStudiesCompanion(
@@ -12390,6 +12925,10 @@ class SimulationRunStudiesCompanion
       priority: priority ?? this.priority,
       wipCap: wipCap ?? this.wipCap,
       startBufferDays: startBufferDays ?? this.startBufferDays,
+      productionCellId: productionCellId ?? this.productionCellId,
+      productionCellName: productionCellName ?? this.productionCellName,
+      productionLineId: productionLineId ?? this.productionLineId,
+      productionLineName: productionLineName ?? this.productionLineName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -12421,6 +12960,18 @@ class SimulationRunStudiesCompanion
     if (startBufferDays.present) {
       map['start_buffer_days'] = Variable<int>(startBufferDays.value);
     }
+    if (productionCellId.present) {
+      map['production_cell_id'] = Variable<String>(productionCellId.value);
+    }
+    if (productionCellName.present) {
+      map['production_cell_name'] = Variable<String>(productionCellName.value);
+    }
+    if (productionLineId.present) {
+      map['production_line_id'] = Variable<String>(productionLineId.value);
+    }
+    if (productionLineName.present) {
+      map['production_line_name'] = Variable<String>(productionLineName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -12438,6 +12989,10 @@ class SimulationRunStudiesCompanion
           ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
+          ..write('productionCellId: $productionCellId, ')
+          ..write('productionCellName: $productionCellName, ')
+          ..write('productionLineId: $productionLineId, ')
+          ..write('productionLineName: $productionLineName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -13477,6 +14032,17 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _changeoverSecondsMeta = const VerificationMeta(
+    'changeoverSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> changeoverSeconds = GeneratedColumn<int>(
+    'changeover_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _laneNodeIdMeta = const VerificationMeta(
     'laneNodeId',
   );
@@ -13511,6 +14077,7 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     processStart,
     processEnd,
     changeoverIncurred,
+    changeoverSeconds,
     laneNodeId,
     blockedSeconds,
   ];
@@ -13605,6 +14172,15 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         ),
       );
     }
+    if (data.containsKey('changeover_seconds')) {
+      context.handle(
+        _changeoverSecondsMeta,
+        changeoverSeconds.isAcceptableOrUnknown(
+          data['changeover_seconds']!,
+          _changeoverSecondsMeta,
+        ),
+      );
+    }
     if (data.containsKey('lane_node_id')) {
       context.handle(
         _laneNodeIdMeta,
@@ -13668,6 +14244,10 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         DriftSqlType.bool,
         data['${effectivePrefix}changeover_incurred'],
       )!,
+      changeoverSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}changeover_seconds'],
+      ),
       laneNodeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}lane_node_id'],
@@ -13703,7 +14283,23 @@ class SimulationRunStep extends DataClass
 
   /// Whether the order before this one on that workcenter was a different part
   /// (§7.6).
+  ///
+  /// **Derived from [changeoverSeconds] since v17**, and kept because every run
+  /// made before that column existed can still answer this and nothing else.
   final bool changeoverIncurred;
+
+  /// What the changeover actually cost this step, in seconds of the station's
+  /// open time (§7.6).
+  ///
+  /// A bool could say *whether* a changeover was paid and that was enough while
+  /// the answer was all-or-nothing. Since v17 a repeat may be charged at a
+  /// percentage, so "incurred" stopped being a yes/no about a figure the reader
+  /// cannot see — and §8.6's hover card was the only place the new setup rule
+  /// could be checked against what it actually did.
+  ///
+  /// Null means made before this column existed, which is what a blank has meant
+  /// on these tables since v12 — not "no changeover", which is zero.
+  final int? changeoverSeconds;
 
   /// The lane the order waited in before this step, or null when the step had
   /// none and it queued at the station itself (§5.5).
@@ -13737,6 +14333,7 @@ class SimulationRunStep extends DataClass
     required this.processStart,
     required this.processEnd,
     required this.changeoverIncurred,
+    this.changeoverSeconds,
     this.laneNodeId,
     required this.blockedSeconds,
   });
@@ -13752,6 +14349,9 @@ class SimulationRunStep extends DataClass
     map['process_start'] = Variable<DateTime>(processStart);
     map['process_end'] = Variable<DateTime>(processEnd);
     map['changeover_incurred'] = Variable<bool>(changeoverIncurred);
+    if (!nullToAbsent || changeoverSeconds != null) {
+      map['changeover_seconds'] = Variable<int>(changeoverSeconds);
+    }
     if (!nullToAbsent || laneNodeId != null) {
       map['lane_node_id'] = Variable<String>(laneNodeId);
     }
@@ -13770,6 +14370,9 @@ class SimulationRunStep extends DataClass
       processStart: Value(processStart),
       processEnd: Value(processEnd),
       changeoverIncurred: Value(changeoverIncurred),
+      changeoverSeconds: changeoverSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(changeoverSeconds),
       laneNodeId: laneNodeId == null && nullToAbsent
           ? const Value.absent()
           : Value(laneNodeId),
@@ -13792,6 +14395,7 @@ class SimulationRunStep extends DataClass
       processStart: serializer.fromJson<DateTime>(json['processStart']),
       processEnd: serializer.fromJson<DateTime>(json['processEnd']),
       changeoverIncurred: serializer.fromJson<bool>(json['changeoverIncurred']),
+      changeoverSeconds: serializer.fromJson<int?>(json['changeoverSeconds']),
       laneNodeId: serializer.fromJson<String?>(json['laneNodeId']),
       blockedSeconds: serializer.fromJson<int>(json['blockedSeconds']),
     );
@@ -13809,6 +14413,7 @@ class SimulationRunStep extends DataClass
       'processStart': serializer.toJson<DateTime>(processStart),
       'processEnd': serializer.toJson<DateTime>(processEnd),
       'changeoverIncurred': serializer.toJson<bool>(changeoverIncurred),
+      'changeoverSeconds': serializer.toJson<int?>(changeoverSeconds),
       'laneNodeId': serializer.toJson<String?>(laneNodeId),
       'blockedSeconds': serializer.toJson<int>(blockedSeconds),
     };
@@ -13824,6 +14429,7 @@ class SimulationRunStep extends DataClass
     DateTime? processStart,
     DateTime? processEnd,
     bool? changeoverIncurred,
+    Value<int?> changeoverSeconds = const Value.absent(),
     Value<String?> laneNodeId = const Value.absent(),
     int? blockedSeconds,
   }) => SimulationRunStep(
@@ -13836,6 +14442,9 @@ class SimulationRunStep extends DataClass
     processStart: processStart ?? this.processStart,
     processEnd: processEnd ?? this.processEnd,
     changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
+    changeoverSeconds: changeoverSeconds.present
+        ? changeoverSeconds.value
+        : this.changeoverSeconds,
     laneNodeId: laneNodeId.present ? laneNodeId.value : this.laneNodeId,
     blockedSeconds: blockedSeconds ?? this.blockedSeconds,
   );
@@ -13860,6 +14469,9 @@ class SimulationRunStep extends DataClass
       changeoverIncurred: data.changeoverIncurred.present
           ? data.changeoverIncurred.value
           : this.changeoverIncurred,
+      changeoverSeconds: data.changeoverSeconds.present
+          ? data.changeoverSeconds.value
+          : this.changeoverSeconds,
       laneNodeId: data.laneNodeId.present
           ? data.laneNodeId.value
           : this.laneNodeId,
@@ -13881,6 +14493,7 @@ class SimulationRunStep extends DataClass
           ..write('processStart: $processStart, ')
           ..write('processEnd: $processEnd, ')
           ..write('changeoverIncurred: $changeoverIncurred, ')
+          ..write('changeoverSeconds: $changeoverSeconds, ')
           ..write('laneNodeId: $laneNodeId, ')
           ..write('blockedSeconds: $blockedSeconds')
           ..write(')'))
@@ -13898,6 +14511,7 @@ class SimulationRunStep extends DataClass
     processStart,
     processEnd,
     changeoverIncurred,
+    changeoverSeconds,
     laneNodeId,
     blockedSeconds,
   );
@@ -13914,6 +14528,7 @@ class SimulationRunStep extends DataClass
           other.processStart == this.processStart &&
           other.processEnd == this.processEnd &&
           other.changeoverIncurred == this.changeoverIncurred &&
+          other.changeoverSeconds == this.changeoverSeconds &&
           other.laneNodeId == this.laneNodeId &&
           other.blockedSeconds == this.blockedSeconds);
 }
@@ -13928,6 +14543,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
   final Value<DateTime> processStart;
   final Value<DateTime> processEnd;
   final Value<bool> changeoverIncurred;
+  final Value<int?> changeoverSeconds;
   final Value<String?> laneNodeId;
   final Value<int> blockedSeconds;
   final Value<int> rowid;
@@ -13941,6 +14557,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     this.processStart = const Value.absent(),
     this.processEnd = const Value.absent(),
     this.changeoverIncurred = const Value.absent(),
+    this.changeoverSeconds = const Value.absent(),
     this.laneNodeId = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -13955,6 +14572,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     required DateTime processStart,
     required DateTime processEnd,
     this.changeoverIncurred = const Value.absent(),
+    this.changeoverSeconds = const Value.absent(),
     this.laneNodeId = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -13976,6 +14594,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Expression<DateTime>? processStart,
     Expression<DateTime>? processEnd,
     Expression<bool>? changeoverIncurred,
+    Expression<int>? changeoverSeconds,
     Expression<String>? laneNodeId,
     Expression<int>? blockedSeconds,
     Expression<int>? rowid,
@@ -13990,6 +14609,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       if (processStart != null) 'process_start': processStart,
       if (processEnd != null) 'process_end': processEnd,
       if (changeoverIncurred != null) 'changeover_incurred': changeoverIncurred,
+      if (changeoverSeconds != null) 'changeover_seconds': changeoverSeconds,
       if (laneNodeId != null) 'lane_node_id': laneNodeId,
       if (blockedSeconds != null) 'blocked_seconds': blockedSeconds,
       if (rowid != null) 'rowid': rowid,
@@ -14006,6 +14626,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Value<DateTime>? processStart,
     Value<DateTime>? processEnd,
     Value<bool>? changeoverIncurred,
+    Value<int?>? changeoverSeconds,
     Value<String?>? laneNodeId,
     Value<int>? blockedSeconds,
     Value<int>? rowid,
@@ -14020,6 +14641,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       processStart: processStart ?? this.processStart,
       processEnd: processEnd ?? this.processEnd,
       changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
+      changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
       laneNodeId: laneNodeId ?? this.laneNodeId,
       blockedSeconds: blockedSeconds ?? this.blockedSeconds,
       rowid: rowid ?? this.rowid,
@@ -14056,6 +14678,9 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     if (changeoverIncurred.present) {
       map['changeover_incurred'] = Variable<bool>(changeoverIncurred.value);
     }
+    if (changeoverSeconds.present) {
+      map['changeover_seconds'] = Variable<int>(changeoverSeconds.value);
+    }
     if (laneNodeId.present) {
       map['lane_node_id'] = Variable<String>(laneNodeId.value);
     }
@@ -14080,6 +14705,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
           ..write('processStart: $processStart, ')
           ..write('processEnd: $processEnd, ')
           ..write('changeoverIncurred: $changeoverIncurred, ')
+          ..write('changeoverSeconds: $changeoverSeconds, ')
           ..write('laneNodeId: $laneNodeId, ')
           ..write('blockedSeconds: $blockedSeconds, ')
           ..write('rowid: $rowid')
@@ -25048,6 +25674,11 @@ typedef $$FlowNodesTableCreateCompanionBuilder =
       Value<String?> workcenterId,
       Value<String?> poolId,
       Value<int> changeoverSeconds,
+      Value<double?> setupValue,
+      Value<TaktUnit?> setupUnit,
+      Value<double?> teardownValue,
+      Value<TaktUnit?> teardownUnit,
+      Value<double?> samePartPercent,
       Value<double?> equivalentValue,
       Value<TaktUnit?> equivalentUnit,
       Value<InventoryMode?> inventoryMode,
@@ -25072,6 +25703,11 @@ typedef $$FlowNodesTableUpdateCompanionBuilder =
       Value<String?> workcenterId,
       Value<String?> poolId,
       Value<int> changeoverSeconds,
+      Value<double?> setupValue,
+      Value<TaktUnit?> setupUnit,
+      Value<double?> teardownValue,
+      Value<TaktUnit?> teardownUnit,
+      Value<double?> samePartPercent,
       Value<double?> equivalentValue,
       Value<TaktUnit?> equivalentUnit,
       Value<InventoryMode?> inventoryMode,
@@ -25172,6 +25808,33 @@ class $$FlowNodesTableFilterComposer
 
   ColumnFilters<int> get changeoverSeconds => $composableBuilder(
     column: $table.changeoverSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get setupValue => $composableBuilder(
+    column: $table.setupValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<TaktUnit?, TaktUnit, String> get setupUnit =>
+      $composableBuilder(
+        column: $table.setupUnit,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<double> get teardownValue => $composableBuilder(
+    column: $table.teardownValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<TaktUnit?, TaktUnit, String>
+  get teardownUnit => $composableBuilder(
+    column: $table.teardownUnit,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<double> get samePartPercent => $composableBuilder(
+    column: $table.samePartPercent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -25343,6 +26006,31 @@ class $$FlowNodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get setupValue => $composableBuilder(
+    column: $table.setupValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get setupUnit => $composableBuilder(
+    column: $table.setupUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get teardownValue => $composableBuilder(
+    column: $table.teardownValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get teardownUnit => $composableBuilder(
+    column: $table.teardownUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get samePartPercent => $composableBuilder(
+    column: $table.samePartPercent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get equivalentValue => $composableBuilder(
     column: $table.equivalentValue,
     builder: (column) => ColumnOrderings(column),
@@ -25498,6 +26186,30 @@ class $$FlowNodesTableAnnotationComposer
 
   GeneratedColumn<int> get changeoverSeconds => $composableBuilder(
     column: $table.changeoverSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get setupValue => $composableBuilder(
+    column: $table.setupValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<TaktUnit?, String> get setupUnit =>
+      $composableBuilder(column: $table.setupUnit, builder: (column) => column);
+
+  GeneratedColumn<double> get teardownValue => $composableBuilder(
+    column: $table.teardownValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<TaktUnit?, String> get teardownUnit =>
+      $composableBuilder(
+        column: $table.teardownUnit,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<double> get samePartPercent => $composableBuilder(
+    column: $table.samePartPercent,
     builder: (column) => column,
   );
 
@@ -25664,6 +26376,11 @@ class $$FlowNodesTableTableManager
                 Value<String?> workcenterId = const Value.absent(),
                 Value<String?> poolId = const Value.absent(),
                 Value<int> changeoverSeconds = const Value.absent(),
+                Value<double?> setupValue = const Value.absent(),
+                Value<TaktUnit?> setupUnit = const Value.absent(),
+                Value<double?> teardownValue = const Value.absent(),
+                Value<TaktUnit?> teardownUnit = const Value.absent(),
+                Value<double?> samePartPercent = const Value.absent(),
                 Value<double?> equivalentValue = const Value.absent(),
                 Value<TaktUnit?> equivalentUnit = const Value.absent(),
                 Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -25686,6 +26403,11 @@ class $$FlowNodesTableTableManager
                 workcenterId: workcenterId,
                 poolId: poolId,
                 changeoverSeconds: changeoverSeconds,
+                setupValue: setupValue,
+                setupUnit: setupUnit,
+                teardownValue: teardownValue,
+                teardownUnit: teardownUnit,
+                samePartPercent: samePartPercent,
                 equivalentValue: equivalentValue,
                 equivalentUnit: equivalentUnit,
                 inventoryMode: inventoryMode,
@@ -25710,6 +26432,11 @@ class $$FlowNodesTableTableManager
                 Value<String?> workcenterId = const Value.absent(),
                 Value<String?> poolId = const Value.absent(),
                 Value<int> changeoverSeconds = const Value.absent(),
+                Value<double?> setupValue = const Value.absent(),
+                Value<TaktUnit?> setupUnit = const Value.absent(),
+                Value<double?> teardownValue = const Value.absent(),
+                Value<TaktUnit?> teardownUnit = const Value.absent(),
+                Value<double?> samePartPercent = const Value.absent(),
                 Value<double?> equivalentValue = const Value.absent(),
                 Value<TaktUnit?> equivalentUnit = const Value.absent(),
                 Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -25732,6 +26459,11 @@ class $$FlowNodesTableTableManager
                 workcenterId: workcenterId,
                 poolId: poolId,
                 changeoverSeconds: changeoverSeconds,
+                setupValue: setupValue,
+                setupUnit: setupUnit,
+                teardownValue: teardownValue,
+                teardownUnit: teardownUnit,
+                samePartPercent: samePartPercent,
                 equivalentValue: equivalentValue,
                 equivalentUnit: equivalentUnit,
                 inventoryMode: inventoryMode,
@@ -28705,6 +29437,10 @@ typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
       required int priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
+      Value<String?> productionCellId,
+      Value<String?> productionCellName,
+      Value<String?> productionLineId,
+      Value<String?> productionLineName,
       Value<int> rowid,
     });
 typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
@@ -28717,6 +29453,10 @@ typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
       Value<int> priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
+      Value<String?> productionCellId,
+      Value<String?> productionCellName,
+      Value<String?> productionLineId,
+      Value<String?> productionLineName,
       Value<int> rowid,
     });
 
@@ -28795,6 +29535,26 @@ class $$SimulationRunStudiesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get productionCellId => $composableBuilder(
+    column: $table.productionCellId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionCellName => $composableBuilder(
+    column: $table.productionCellName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionLineId => $composableBuilder(
+    column: $table.productionLineId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionLineName => $composableBuilder(
+    column: $table.productionLineName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SimulationRunsTableFilterComposer get runId {
     final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -28863,6 +29623,26 @@ class $$SimulationRunStudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get productionCellId => $composableBuilder(
+    column: $table.productionCellId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionCellName => $composableBuilder(
+    column: $table.productionCellName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionLineId => $composableBuilder(
+    column: $table.productionLineId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionLineName => $composableBuilder(
+    column: $table.productionLineName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SimulationRunsTableOrderingComposer get runId {
     final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -28920,6 +29700,26 @@ class $$SimulationRunStudiesTableAnnotationComposer
 
   GeneratedColumn<int> get startBufferDays => $composableBuilder(
     column: $table.startBufferDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionCellId => $composableBuilder(
+    column: $table.productionCellId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionCellName => $composableBuilder(
+    column: $table.productionCellName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionLineId => $composableBuilder(
+    column: $table.productionLineId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionLineName => $composableBuilder(
+    column: $table.productionLineName,
     builder: (column) => column,
   );
 
@@ -28991,6 +29791,10 @@ class $$SimulationRunStudiesTableTableManager
                 Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
+                Value<String?> productionCellId = const Value.absent(),
+                Value<String?> productionCellName = const Value.absent(),
+                Value<String?> productionLineId = const Value.absent(),
+                Value<String?> productionLineName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunStudiesCompanion(
                 runId: runId,
@@ -29001,6 +29805,10 @@ class $$SimulationRunStudiesTableTableManager
                 priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
+                productionCellId: productionCellId,
+                productionCellName: productionCellName,
+                productionLineId: productionLineId,
+                productionLineName: productionLineName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -29013,6 +29821,10 @@ class $$SimulationRunStudiesTableTableManager
                 required int priority,
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
+                Value<String?> productionCellId = const Value.absent(),
+                Value<String?> productionCellName = const Value.absent(),
+                Value<String?> productionLineId = const Value.absent(),
+                Value<String?> productionLineName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunStudiesCompanion.insert(
                 runId: runId,
@@ -29023,6 +29835,10 @@ class $$SimulationRunStudiesTableTableManager
                 priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
+                productionCellId: productionCellId,
+                productionCellName: productionCellName,
+                productionLineId: productionLineId,
+                productionLineName: productionLineName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -29643,6 +30459,7 @@ typedef $$SimulationRunStepsTableCreateCompanionBuilder =
       required DateTime processStart,
       required DateTime processEnd,
       Value<bool> changeoverIncurred,
+      Value<int?> changeoverSeconds,
       Value<String?> laneNodeId,
       Value<int> blockedSeconds,
       Value<int> rowid,
@@ -29658,6 +30475,7 @@ typedef $$SimulationRunStepsTableUpdateCompanionBuilder =
       Value<DateTime> processStart,
       Value<DateTime> processEnd,
       Value<bool> changeoverIncurred,
+      Value<int?> changeoverSeconds,
       Value<String?> laneNodeId,
       Value<int> blockedSeconds,
       Value<int> rowid,
@@ -29740,6 +30558,11 @@ class $$SimulationRunStepsTableFilterComposer
 
   ColumnFilters<bool> get changeoverIncurred => $composableBuilder(
     column: $table.changeoverIncurred,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get changeoverSeconds => $composableBuilder(
+    column: $table.changeoverSeconds,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29826,6 +30649,11 @@ class $$SimulationRunStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get changeoverSeconds => $composableBuilder(
+    column: $table.changeoverSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get laneNodeId => $composableBuilder(
     column: $table.laneNodeId,
     builder: (column) => ColumnOrderings(column),
@@ -29900,6 +30728,11 @@ class $$SimulationRunStepsTableAnnotationComposer
 
   GeneratedColumn<bool> get changeoverIncurred => $composableBuilder(
     column: $table.changeoverIncurred,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get changeoverSeconds => $composableBuilder(
+    column: $table.changeoverSeconds,
     builder: (column) => column,
   );
 
@@ -29979,6 +30812,7 @@ class $$SimulationRunStepsTableTableManager
                 Value<DateTime> processStart = const Value.absent(),
                 Value<DateTime> processEnd = const Value.absent(),
                 Value<bool> changeoverIncurred = const Value.absent(),
+                Value<int?> changeoverSeconds = const Value.absent(),
                 Value<String?> laneNodeId = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -29992,6 +30826,7 @@ class $$SimulationRunStepsTableTableManager
                 processStart: processStart,
                 processEnd: processEnd,
                 changeoverIncurred: changeoverIncurred,
+                changeoverSeconds: changeoverSeconds,
                 laneNodeId: laneNodeId,
                 blockedSeconds: blockedSeconds,
                 rowid: rowid,
@@ -30007,6 +30842,7 @@ class $$SimulationRunStepsTableTableManager
                 required DateTime processStart,
                 required DateTime processEnd,
                 Value<bool> changeoverIncurred = const Value.absent(),
+                Value<int?> changeoverSeconds = const Value.absent(),
                 Value<String?> laneNodeId = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -30020,6 +30856,7 @@ class $$SimulationRunStepsTableTableManager
                 processStart: processStart,
                 processEnd: processEnd,
                 changeoverIncurred: changeoverIncurred,
+                changeoverSeconds: changeoverSeconds,
                 laneNodeId: laneNodeId,
                 blockedSeconds: blockedSeconds,
                 rowid: rowid,

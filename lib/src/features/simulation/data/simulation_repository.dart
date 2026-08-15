@@ -93,6 +93,22 @@ class SimulationRepository {
       _db.workcenterPools,
     )..where((p) => p.plantId.equals(project.plantId))).get();
 
+    // Where each study sits, read once and copied into the run so §12.1's cell
+    // and line filters never join back to a plant that may have been
+    // rearranged since (§7.10). Whole-plant rather than per-study: there are a
+    // handful of each, and two queries beat one per flagged study.
+    final cellNames = {
+      for (final cell
+          in await (_db.select(
+            _db.productionCells,
+          )..where((c) => c.plantId.equals(project.plantId))).get())
+        cell.id: cell.name,
+    };
+    final lineNames = {
+      for (final line in await _db.select(_db.productionLines).get())
+        line.id: line.name,
+    };
+
     // A takt in days means productive days of a station (§6.1), so resolving
     // one into a duration needs each station's own open time. Read at the
     // run's start, once: §18.3 leaves mid-flight takt changes open, and a run
@@ -143,6 +159,8 @@ class SimulationRepository {
             poolNames: {for (final pool in pools) pool.id: pool.name},
             poolMembers: poolMembers,
             productivePerWorkingDay: productiveOn(asOf),
+            cellNames: cellNames,
+            lineNames: lineNames,
           ),
           asOf: asOf,
           problems: problems,

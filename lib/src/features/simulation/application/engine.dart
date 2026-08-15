@@ -241,9 +241,26 @@ class _Server {
   /// Null when idle.
   DateTime? busyUntil;
 
-  /// The part it last ran, for the changeover rule (§7.6). Null at cold start,
-  /// which is why the first order of a run never pays a setup.
+  /// The part it last ran, for the changeover rule (§7.6).
+  ///
+  /// Null at cold start, and since v17 that is **not** a free pass: an empty
+  /// station is set up for nothing, so no previous order counts as not the same
+  /// part and the first order pays in full. That removes the one special case
+  /// the rule used to carry.
   String? lastPartId;
+
+  /// The teardown this server still owes for the order it last ran (§7.6).
+  ///
+  /// **Teardown is charged with the next setup rather than at the end of the
+  /// order that incurred it.** Setup looks backwards and `lastPartId` already
+  /// answers it; teardown looks forwards — a station is only stripped because
+  /// something different is coming — and at the moment an order finishes the
+  /// engine has not picked the next one. So the debt is remembered and settled
+  /// when the answer exists, which is what a changeover physically is.
+  ///
+  /// The last order at a station never pays it, and that is correct rather than
+  /// an omission: nothing waits on it, so it moves no figure anyone reads.
+  SimStep? teardownOwed;
 
   Duration busy = Duration.zero;
 
@@ -790,18 +807,33 @@ class _Engine {
     final schedule = server.workcenter.schedule;
     final availability = schedule.availabilityOn(_now);
 
-    // Changeover only when the previous order on *this* workcenter was a
-    // different part (§7.6). At cold start there is no previous order, so the
-    // first job of a run never pays a setup.
-    final changeover =
-        server.lastPartId != null &&
-            server.lastPartId != waiting.order.partId
-        ? waiting.step.changeover
-        : Duration.zero;
+    // A changeover is the teardown this server still owes plus the setup the
+    // arriving order needs, charged together and discounted together when the
+    // part has not changed (§7.6).
+    //
+    // **`days` resolves against this server's productive day**, which is why the
+    // step carries a value and a unit rather than a duration: a pool's three
+    // machines do not share a working day, and there is no representative one to
+    // pick. Same day as the Process Specific Takt sitting beside it in the
+    // editor, so the dialog has one kind of day (§17.4).
+    final productiveDay =
+        server.workcenter.calendar.openTimePerWorkingDay(_now) * availability;
 
-    // Availability derates the whole occupancy, setup included, which is what
-    // makes this the same arithmetic as the Summary's occupation seen from the
-    // other end (§8.4). Rework attaches to the part's work only (§6.1).
+    // No previous order counts as *not the same part*: an empty station at cold
+    // start is set up for nothing.
+    final repeated = server.lastPartId == waiting.order.partId;
+
+    final changeover =
+        (server.teardownOwed?.teardownAt(productiveDay, repeated: repeated) ??
+            Duration.zero) +
+        waiting.step.setupAt(productiveDay, repeated: repeated);
+
+    // **Availability no longer derates the changeover.** It is applied exactly
+    // once (§6.1), and since v17 it is applied inside `days` — a setup typed in
+    // productive days has already had the loss taken out of the day it is
+    // measured in, so derating the result as well would count it twice, which is
+    // the trap §6.1 warns about from the capacity side. Rework attaches to the
+    // part's work only.
     final occupancy =
         effectiveProcessTime(
           processTimePerPiece: waiting.perPiece,
@@ -809,7 +841,7 @@ class _Engine {
           availability: availability,
           rework: schedule.reworkOn(_now),
         ) +
-        (changeover * (1 / availability));
+        changeover;
 
     final DateTime end;
     try {
@@ -823,6 +855,10 @@ class _Engine {
     server
       ..busyUntil = end
       ..lastPartId = waiting.order.partId
+      // The debt this order leaves behind, settled by whoever arrives next. It
+      // replaces rather than accumulates: a station holds one job's tooling, so
+      // there is only ever one strip-down outstanding.
+      ..teardownOwed = waiting.step
       ..busy += occupancy;
     _running[server.id] = waiting;
 
@@ -837,6 +873,11 @@ class _Engine {
         processStart: _now,
         processEnd: end,
         changeoverIncurred: changeover > Duration.zero,
+        // What it actually cost, not merely that it happened (§7.10). A bool
+        // was enough while the answer was all-or-nothing; a repeat charged at a
+        // percentage is neither incurred nor not, and this is the only place the
+        // new rule can be checked against what it did.
+        changeoverSeconds: changeover.inSeconds,
         // The lane it was pulled out of, so the run can say where it stood
         // without joining back to a flow that may have been edited (§7.10).
         laneNodeId: waiting.lane?.id,

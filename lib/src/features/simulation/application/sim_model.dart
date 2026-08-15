@@ -12,6 +12,7 @@ library;
 
 import '../../../data/database/enums.dart';
 import '../../calendar/application/working_calendar.dart';
+import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
 
 /// [DispatchRule] moved to the schema's enums when a station gained the right
@@ -74,7 +75,11 @@ class SimStep extends SimNode {
     required this.title,
     required this.candidates,
     required this.demandKey,
-    this.changeover = Duration.zero,
+    this.setupValue,
+    this.setupUnit,
+    this.teardownValue,
+    this.teardownUnit,
+    this.samePartFraction = 0,
   });
 
   /// What the process box is labelled.
@@ -88,11 +93,68 @@ class SimStep extends SimNode {
   /// one, never a member standing in for it (§9).
   final String demandKey;
 
-  /// Charged only when the previous order on that workcenter was a different
-  /// part (§7.6).
-  final Duration changeover;
+  /// The two halves of a changeover: [setupValue] rigs the station for an order
+  /// and [teardownValue] strips it afterwards (§7.6).
+  ///
+  /// **Unresolved on purpose.** A step may target a pool, and a pool's members
+  /// do not share a working day — so `1 day` of setup is a different duration at
+  /// each of three cladding machines. Resolving here would need one of them
+  /// nominated to stand for the rest, which is exactly the invention §3.2
+  /// rejected when it refused to model a two-unit station as two machines. The
+  /// engine resolves against the server it is about to occupy, where the answer
+  /// is not a guess.
+  final double? setupValue;
+  final TaktUnit? setupUnit;
+  final double? teardownValue;
+  final TaktUnit? teardownUnit;
+
+  /// How much of `setup + teardown` a repeat of the same part still pays, as a
+  /// fraction. Zero is what this app did before v17: like-with-like was free.
+  final double samePartFraction;
 
   bool get isPool => candidates.length > 1;
+
+  bool get hasChangeover => setupValue != null || teardownValue != null;
+
+  /// Rigging this station for an order, at a station whose productive day is
+  /// [productiveDay] and given whether the part [repeated] from the order
+  /// before it.
+  Duration setupAt(Duration productiveDay, {required bool repeated}) =>
+      _resolve(setupValue, setupUnit, productiveDay, repeated);
+
+  /// Stripping this station after an order.
+  ///
+  /// **Charged by whoever comes next, not by the order that incurred it** — the
+  /// engine holds it on the server until there is an answer to *is a strip-down
+  /// even needed*, which depends on the next order and is not knowable when this
+  /// one finishes.
+  Duration teardownAt(Duration productiveDay, {required bool repeated}) =>
+      _resolve(teardownValue, teardownUnit, productiveDay, repeated);
+
+  /// **Each half carries its own step's discount.** Usually the teardown owed
+  /// and the setup arriving belong to the same step and this is the same thing
+  /// as discounting the pair; they differ only when one station is the target of
+  /// two steps, and then each half is governed by the step that specified it
+  /// rather than by whichever happened to arrive second.
+  Duration _resolve(
+    double? value,
+    TaktUnit? unit,
+    Duration productiveDay,
+    bool repeated,
+  ) {
+    if (value == null) return Duration.zero;
+    final full = taktUnitDuration(
+      value,
+      // A unit is meaningless without a value and is only ever stored beside
+      // one, so this fallback is unreachable rather than a default worth
+      // reasoning about.
+      unit ?? TaktUnit.seconds,
+      productiveDay,
+    );
+    return repeated
+        ? Duration(seconds: (full.inSeconds * samePartFraction).round())
+        : full;
+  }
 }
 
 /// An inventory lane (§5.5).
@@ -221,7 +283,24 @@ class SimStudy {
     this.startBuffer = Duration.zero,
     this.priority = 100,
     this.wipCap,
+    this.productionCellId,
+    this.productionCellName,
+    this.productionLineId,
+    this.productionLineName,
   });
+
+  /// Where this study sits in the plant, carried through the run so a stored
+  /// result can be filtered by cell and by line without joining back to a study
+  /// that may since have moved or been deleted (§7.10).
+  ///
+  /// **The engine never reads any of them** — passengers, exactly as
+  /// `SimPart.partNumber` and `SimOrder.batchNumber` are, so what a run reports
+  /// is what was *assembled* rather than a second look at the database at save
+  /// time (§8.5).
+  final String? productionCellId;
+  final String? productionCellName;
+  final String? productionLineId;
+  final String? productionLineName;
 
   /// The step whose lane gates the releases — the pacemaker (§7.2).
   ///

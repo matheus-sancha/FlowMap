@@ -111,6 +111,14 @@ class SimulationRunsRepository {
               startBufferDays: Value(study.startBuffer.inDays),
               priority: study.priority,
               wipCap: Value(study.wipCap),
+              // Where it sat in the plant, so §12.1's cell and line filters can
+              // read a stored run rather than joining to a study that may have
+              // moved since (§7.10). Id and name both: the id survives a rename
+              // and the name survives a deletion.
+              productionCellId: Value(study.productionCellId),
+              productionCellName: Value(study.productionCellName),
+              productionLineId: Value(study.productionLineId),
+              productionLineName: Value(study.productionLineName),
             ),
         ]);
 
@@ -151,6 +159,7 @@ class SimulationRunsRepository {
               processStart: step.processStart,
               processEnd: step.processEnd,
               changeoverIncurred: Value(step.changeoverIncurred),
+              changeoverSeconds: Value(step.changeoverSeconds),
               // The lane it was pulled out of, and how long the station then
               // stood holding it (§5.5). Both are read back below, and a column
               // written by nobody is the failure §1.5 found once already.
@@ -313,6 +322,7 @@ class SimulationRunsRepository {
             processStart: row.processStart,
             processEnd: row.processEnd,
             changeoverIncurred: row.changeoverIncurred,
+            changeoverSeconds: row.changeoverSeconds,
             laneNodeId: row.laneNodeId,
             blocked: Duration(seconds: row.blockedSeconds),
           ),

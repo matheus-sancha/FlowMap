@@ -35,7 +35,9 @@ void main() {
     kind: FlowNodeKind.step,
     workcenterId: workcenterId,
     poolId: poolId,
-    changeoverSeconds: changeover,
+    changeoverSeconds: 0,
+    setupValue: changeover == 0 ? null : changeover.toDouble(),
+    setupUnit: TaktUnit.seconds,
     inventoryUsesWorkingTime: false,
     createdAt: now,
     updatedAt: now,
@@ -113,6 +115,8 @@ void main() {
     poolNames: const {'pool-1': 'CNC Lathes'},
     poolMembers: pools,
     productivePerWorkingDay: productive,
+    cellNames: const {'cell-1': 'Cell A'},
+    lineNames: const {'line-1': 'Line 1'},
   );
 
   test('a plain flow assembles into steps, parts and a sequence', () {
@@ -134,12 +138,24 @@ void main() {
 
     expect(built, isNotNull);
     expect(built!.steps.map((s) => s.title), ['CLAD04', 'TTAT']);
-    expect(built.steps.first.changeover, const Duration(minutes: 30));
+    // The setup travels as a value and a unit rather than a duration, because
+    // `days` would mean a different thing at each member of a pool (§7.6).
+    expect(built.steps.first.setupValue, 1800);
+    expect(built.steps.first.setupUnit, TaktUnit.seconds);
     expect(built.orders.map((o) => o.batchSize), [1, 4]);
     expect(built.parts['p1']!.timeAt('W'), const Duration(hours: 2));
     // The study's own dispatch keys travel with it (§7.4, §7.3).
     expect(built.priority, 7);
     expect(built.wipCap, 3);
+
+    // And where it sat in the plant, ids and names both, so §12.1's filters can
+    // read a stored run without joining back to a study that may have moved
+    // (§7.10). Assembled rather than looked up at save time, which is what
+    // makes the run a record of the moment it ran (§8.5).
+    expect(built.productionCellId, 'cell-1');
+    expect(built.productionCellName, 'Cell A');
+    expect(built.productionLineId, 'line-1');
+    expect(built.productionLineName, 'Line 1');
   });
 
   group('release cadence (§7.2)', () {

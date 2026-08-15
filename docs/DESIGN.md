@@ -171,6 +171,11 @@ effective_process_time = process_time × (1 + rework) ÷ availability
 
 A 10 h job on a 74 % / 3.7 % workcenter occupies it for 14.0 h of open working time.
 
+**It derates the part's work only, not the changeover** (§7.6). Setup and teardown are typed in a
+station's productive day, which already has availability taken out of it, so derating the result as
+well would apply the loss twice — the trap this section's own rule exists to prevent, seen from the
+capacity side in §6.1.
+
 **The simulation is deterministic**: same inputs always produce the same output, so two scenarios
 differ only by what was changed, and a run is one pass rather than N replications.
 
@@ -634,7 +639,8 @@ own assignment policy; nothing in the spec asks for it.
 ### 7.6 Batching and changeover
 
 ```
-occupancy = changeover_if_part_changed + (part_pt × batch_size)   … then derated per §4.4
+changeover = teardown_owed + setup            … × same_part% when the part repeated
+occupancy  = changeover + (part_pt × batch_size × (1 + rework) ÷ availability)
 ```
 
 **Process times in the demand table are per piece.** An order of batch 10 occupies the workcenter
@@ -642,16 +648,72 @@ for ten times the tabulated time, so Batch Size is a real lever for testing lot 
 
 _Rejected: process time per order with batch size as metadata._ Correct only for one-piece-flow
 heavy fabrication, and it makes the Batch Size column inert in every calculation.
-_Rejected: a separate batch-independent setup component alongside changeover._ More faithful to a
-real routing, but it adds a second time field per step and a rule for how setup and changeover
-interact.
-
-Changeover is incurred **only when the previous order on that workcenter had a different part
-number** — so running like-with-like is genuinely cheaper and the sequence has a real cost, which
-is what makes §6.3 worth optimising. The whole batch moves to the next step together.
-
 _Rejected: overlapping/piece transfer._ Multiplies event count by batch size and stops an order
 being a single object moving through the flow.
+
+**A changeover has two halves.** Setup rigs the station for the order that is arriving and teardown
+strips it after the order that left. Both are optional and both are per flow step.
+
+This reverses a standing rejection — *"a separate batch-independent setup component alongside
+changeover: more faithful to a real routing, but it adds a second time field per step **and a rule
+for how setup and changeover interact**"* — and it reverses it by removing the reason. There is no
+interaction rule: the two halves are one operation, charged together, discounted together. What was
+rejected was bolting a second concept beside the first; what this does is say the first was always
+two things.
+
+**Teardown is charged with the next order's setup, not at the end of the order that incurred it.**
+Setup looks backwards — *was the previous order the same part* — and the engine already knows the
+answer. Teardown looks **forwards**: a station is only stripped because something different is
+coming, and when an order finishes the engine has not yet picked what follows. So the station
+**remembers the teardown it owes** and settles it when the next order arrives. No lookahead, no
+clairvoyance, and the result is what a changeover physically is: strip the last job, rig the next.
+
+**The last order at a station never pays its teardown.** Correct rather than omitted — nothing waits
+on it, so charging it would push the run past its final delivery for something no figure reads.
+
+**A repeat pays a percentage rather than nothing.** `same_part%` is per step, defaults to 0, and
+governs `setup + teardown` as a pair. Zero is exactly what this app did before v17, so an upgraded
+study behaves identically until a number is typed into it; 100 % is the other end, where batching
+buys nothing at all. Each half carries its own step's percentage, which matters only when one
+station is the target of two steps — then each is governed by the step that specified it rather than
+by whichever happened to arrive second.
+
+_Rejected: teardown charged after every order regardless of what follows._ Right if the time were
+really a clean-out that happens whatever comes next, and it needs no debt on the server. But then
+teardown is not the opposite of setup — setup would be free on a repeat while teardown was not, and
+ten identical orders would pay ten teardowns.
+_Rejected: a second percentage for teardown._ A strip-down and a rig-up need not survive a repeat by
+the same fraction, so it is more faithful. But they are always charged together under one rule, so
+the second number would only ever move with the first, and nobody has a figure for it.
+
+**No previous order counts as *not the same part*.** An empty station at cold start is set up for
+nothing, so the first order of a run pays in full. This reverses the old behaviour, and what it buys
+is that the rule has no special case left: setup is charged unless the part repeated, in one
+sentence.
+
+**Setup and teardown are a value plus a [TaktUnit], resolved at the server.** `days` means that
+station's **productive** day, exactly as it does for takt (§6.1) and for the Process Specific Takt
+sitting beside them in the same editor (§6.1.1) — one kind of day per dialog (§17.4). They are not
+reduced to seconds at assembly, because a step may target a **pool** and a pool's members do not
+share a working day: `1 day` of setup is ten hours at one machine and twenty-four at another, and
+picking a representative member would be inventing a station.
+
+**Availability does not derate the changeover**, and this changed with the units. §6.1 requires the
+loss be applied exactly once, and a setup typed in productive days has already had it taken out of
+the day it is measured in — so the old `changeover ÷ availability` would have counted it twice. A
+literal setup is now literal: an hour is an hour however bad the station's uptime. The part's own
+work is still derated, which is the half §4.4 owns.
+
+**Every stored run made before this is invalidated by it** — a 90-minute setup at a 74 % station
+occupied 121.6 minutes and now occupies 90. The third such break, after §5.5's buffers and §7.4's
+lanes.
+
+Running like-with-like is therefore genuinely cheaper and the sequence has a real cost, which is
+what makes §6.3 worth optimising. The whole batch moves to the next step together.
+
+**§8.4's occupation charges repeats the same way**, over the orders due in the period, or the
+Summary and the run would describe the same plant differently — the failure §8.5 and §2.2 both exist
+to prevent.
 
 ### 7.7 Run unit and contention
 
@@ -721,6 +783,16 @@ something could not be answered without them:
   anything an order did, and it is what makes utilization different from occupation (§8.3).
 - **Per override**: the stations that dispatched by something other than the run's rule (§7.4).
   Without them the header would report one rule for a run in which three stations used another.
+- **Per step, since v17: what the changeover cost** in seconds, not merely that one happened. The
+  bool was enough while the answer was all-or-nothing; a repeat charged at a percentage (§7.6) is
+  neither incurred nor not, and the run is the only place the setup rule can be checked against what
+  it actually did. `changeover_incurred` survives beside it, because a run made before v17 can
+  answer that and can never answer the seconds.
+- **Per study, since v17: the cell and the production line** it sat in, ids and names both. §12.1's
+  combined view filters by them, and this is the rule's own consequence — the study may since have
+  moved or been deleted, so the filter cannot go and ask. **A cell or line filter is a study filter
+  one level up**: workcenters belong to a *plant*, not to a cell, so stations are never filtered this
+  way — the studies narrow and their stations follow.
 
 _Rejected: backfilling a run stored before a column existed._ It would make one run a hybrid of two
 moments, which is the one thing the copy-in rule exists to prevent. A blank says "this run did not
@@ -815,8 +887,10 @@ in an in-app glossary and translated consistently across en/es/pt.
 ### 8.4 The Summary, as built
 
 ```
-required  = Σ (part_pt × batch × (1 + rework)) + changeovers × changeover
-available = open time across the span × availability
+required   = Σ (part_pt × batch × (1 + rework))
+           + changeovers × changeover
+           + repeats × changeover × same_part%
+available  = open time across the span × availability
 occupation = required ÷ available
 ```
 
@@ -825,10 +899,13 @@ occupation = required ÷ available
 - **Ranked by target, not by step.** Two steps of a flow may visit the same station, and the
   station has one calendar and one set of hours: its load is the sum of both visits, and both
   process boxes report that same figure. A `×2` on the row says why.
-- **Changeover is charged, because the sequence is known.** An order pays for a changeover when the
-  order before it *at that station* was a different part (§7.6) — walked over the whole sequence,
-  so the first order of the month is compared with the one that really preceded it rather than
-  starting the month clean.
+- **Changeover is charged, because the sequence is known.** An order pays in full when the order
+  before it *at that station* was a different part, and the step's `same_part%` of it when it was
+  the same (§7.6) — walked over the whole sequence, so the first order of the month is compared with
+  the one that really preceded it rather than starting the month clean. Only the very first order of
+  a sequence has nothing before it, and that counts as a change, which is the engine's own rule.
+  **Repeats are summed separately from changes** because each step carries its own percentage and
+  two steps at one station need not agree.
 - **A pool is measured against the whole pool.** Four lathes are four lathes' worth of hours,
   because an order goes to whichever frees first (§3.1). The first version read every pool figure
   off its first member, so a full pool of four reported four times the occupation it had —
@@ -1462,7 +1539,10 @@ dialogs, the right trade for infrequent deliberate operations.
 
 ### 12.4 Units, dates, locales
 
-All durations stored as **integer seconds**. Process time, changeover and takt carry a display unit
+All durations stored as **integer seconds**, except the three that cannot be: takt, a step's Process
+Specific Takt and its setup and teardown are a **value plus a unit**, because `days` means a
+station's productive day and there is no station to ask until one is named (§6.1, §7.6). Process
+time, changeover and takt carry a display unit
 (d/h/min/s) — a 3-day takt reads `3 d`, a 30-hour process time reads `30:00:00`. Inputs accept
 `1.5h`, `90m`, `30:00`, `2d` and normalise on commit. Dates are stored as local dates — a shift
 calendar is inherently local.
@@ -1947,11 +2027,15 @@ pass that starts whatever can start.
 - **Every ordering falls through to keys that cannot tie**: arrival, then study priority, then
   sequence number, then order id. Determinism is not a nice-to-have here (§4.4) — the output is a
   headcount decision.
-- **The first order of a run never pays a changeover.** Cold start means no previous order on the
-  station, and §7.6 charges only for a *different* part number.
+- **The first order of a run never pays a changeover** — _true when this was written, reversed in
+  v17._ Cold start meant no previous order and §7.6 charged only for a *different* part number. It
+  now charges unless the part **repeated**, so an empty station pays in full: it is set up for
+  nothing. Kept here rather than deleted because the reversal is the point — the old rule was a
+  special case, and removing it is what let §7.6 become one sentence.
 - **The engine's occupancy and the Summary's occupation are the same arithmetic.** Inflating a
   step's time by `(1 + rework) ÷ availability` and spending open time equals `required ÷ (open ×
-  availability)`. Availability derates the setup too; rework does not, matching §8.4 and §6.1.
+  availability)`. Neither availability nor rework touches the setup since v17, matching §8.4 and
+  §6.1 — a setup typed in productive days has the loss in it already.
 
 **Performance.** The first working version took **6.2 s** for §14's target of 2000 orders through 10
 steps — against a stated "well under a second". Measured rather than guessed at, and the cause was
@@ -2225,6 +2309,50 @@ an old run quietly stop warning.
 
 Null on every run made before this version, which reads as *no warning* rather than as *everything
 is past it*. The v14 → v15 fixture asserts exactly that, since it is the same shape of run.
+
+### 16.18 Schema v17, a changeover in two halves
+
+Nine nullable columns across three tables, and **nothing rebuilt** — the third migration running
+where every step is an `addColumn` on a live table, which is the only shape that cannot leave a
+database half-copied (§16.11).
+
+| Table | Columns | For |
+|---|---|---|
+| `flow_nodes` | `setup_value` + `setup_unit`, `teardown_value` + `teardown_unit`, `same_part_percent` | §7.6's changeover, in two halves with a repeat percentage |
+| `simulation_run_steps` | `changeover_seconds` | what the changeover actually cost (§7.10) |
+| `simulation_run_studies` | `production_cell_id` + `_name`, `production_line_id` + `_name` | filtering a stored run by cell and line (§12.1) |
+
+**Setup is a value plus a unit, not canonical seconds**, and that is the whole reason it could not
+reuse the column it replaces. `flow_nodes.changeover_seconds` was seconds, which is exact and says
+nothing; a setup of `1 day` cannot be reduced to a duration without saying whose working day is
+meant, and the answer differs per station — the same argument §6.1 makes for takt and §6.1.1 makes
+for the Process Specific Takt sitting two fields above it in the same dialog. `days` means that
+station's **productive** day in all three, so the dialog has one kind of day (§17.4).
+
+**The carry is selective, and the source column stays.** Every non-zero `changeover_seconds` was
+copied to `setup_value` with unit `seconds` — literal, and identical at every station, so the typed
+figure survives exactly. A zero carries as **null**, because zero and nothing charged were always the
+same thing and null is what an untouched node reads as. `changeover_seconds` itself is **kept and no
+longer read**: dropping a column means a `TableMigration` rebuilding from the current Dart
+definition, which is the trap this file has hit three times (§16.13, §16.15, §16.16), and it is also
+the only place a pre-v17 setup can be recovered by hand.
+
+**What the migration preserves is the figure, not the charge.** §7.6 stops derating setup by
+availability in the same round, so a 90-minute setup at a 74 % station occupies 90 minutes rather
+than 121.6. That is the point of the change rather than a side effect of it, and it is why every
+stored run is invalidated by v17 — the third time, after §5.5's buffers and §7.4's lanes.
+
+**A null percentage is 0 %**, which is exactly the rule v16 followed: a repeat of the same part paid
+nothing. So an upgraded database behaves identically until a number is typed into it.
+
+`simulation_run_steps.changeover_incurred` survives beside its replacement rather than being derived
+away, because a run made before v17 can still answer the bool and can never answer the seconds. Null
+there means *made before this column existed* — deliberately not zero, which would claim a changeover
+was free when the run simply was not asked.
+
+The v16 → v17 fixture carries a **populated** changeover for §16.14's reason: a fixture full of
+nulls passes whether or not the carry ran. Removing the `UPDATE` fails it on `5400` against `null`,
+which is the check that the test is about the migration rather than about the schema.
 
 ## 17. Done between M2 and M3
 

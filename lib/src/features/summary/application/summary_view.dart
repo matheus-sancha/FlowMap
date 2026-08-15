@@ -216,24 +216,36 @@ SummaryView buildSummary({
           (order.batchSize * steps.length);
     }
 
-    // A changeover per visit, charged when the part differs from the order
-    // before it at this station. Walked over the whole sequence so the first
-    // order of the period is compared with the one that really preceded it.
+    // A changeover per visit, charged in full when the part differs from the
+    // order before it at this station and at the step's own percentage when it
+    // does not (§7.6). Walked over the whole sequence so the first order of the
+    // period is compared with the one that really preceded it.
+    //
+    // **No previous order counts as a change**, which is the engine's rule since
+    // v17: an empty station is set up for nothing. Only the very first order of
+    // a sequence takes that branch.
     var changeovers = 0;
+    var repeats = 0;
     String? previousPart;
     for (final order in orders) {
       if (demand.times[order.partId]?[targetId] == null) continue;
-      if (previousPart != null &&
-          previousPart != order.partId &&
-          dueInPeriod(order)) {
-        changeovers++;
+      if (dueInPeriod(order)) {
+        if (previousPart == order.partId) {
+          repeats++;
+        } else {
+          changeovers++;
+        }
       }
       previousPart = order.partId;
     }
 
+    // Repeats are charged separately rather than folded into one count, because
+    // each step carries its own percentage and they need not agree.
     var changeoverTime = Duration.zero;
     for (final step in steps) {
-      changeoverTime += step.changeover * changeovers;
+      changeoverTime +=
+          step.changeover * changeovers +
+          step.changeover * (repeats * step.samePartFraction);
     }
 
     targets.add(

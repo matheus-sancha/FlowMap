@@ -61,7 +61,10 @@ void main() {
     title: target,
     candidates: [target],
     demandKey: target,
-    changeover: changeover,
+    setupValue: changeover == Duration.zero
+        ? null
+        : changeover.inSeconds.toDouble(),
+    setupUnit: TaktUnit.seconds,
   );
 
   SimBuffer buffer(int position) =>

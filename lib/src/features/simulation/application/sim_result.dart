@@ -17,6 +17,7 @@ class SimOrderStep {
     required this.processStart,
     required this.processEnd,
     required this.changeoverIncurred,
+    this.changeoverSeconds,
     this.laneNodeId,
     this.blocked = Duration.zero,
   });
@@ -38,6 +39,13 @@ class SimOrderStep {
   /// Whether the order before this one on that workcenter was a different part
   /// (§7.6).
   final bool changeoverIncurred;
+
+  /// What that changeover cost, in seconds of the station's open time.
+  ///
+  /// Null only on a run read back from before v17 — a fresh run always states
+  /// it, including as zero. That is the distinction the column exists to keep:
+  /// zero means nothing was charged, null means nobody recorded it.
+  final int? changeoverSeconds;
 
   /// The lane the order waited in before this step, or null when the step has
   /// none and the order queued at the station itself (§5.5).

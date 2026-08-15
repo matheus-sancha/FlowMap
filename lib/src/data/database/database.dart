@@ -73,7 +73,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -494,6 +494,73 @@ class AppDatabase extends _$AppDatabase {
         // unsimulatable exactly when the simulation is most informative — but
         // nothing said so. One nullable column, and no table is rebuilt.
         await _ensureColumn(m, simulationRuns, simulationRuns.scheduleHorizon);
+      }
+
+      if (from < 17) {
+        // Field feedback: a changeover is two halves, not one. Setup rigs the
+        // station and teardown strips it, both are optional, and a repeat of the
+        // same part pays a percentage of the pair rather than nothing (§7.6).
+        // The run records what it charged, because a percentage cannot be read
+        // back off a bool. And a stored run learns which cell and line each of
+        // its studies belonged to, so §7.10's copy-in rule can answer a filter
+        // that would otherwise need a join (§12.1).
+        //
+        // **No table is rebuilt**, for the third migration running: every column
+        // here is nullable and lands on a table that already exists, so no step
+        // can leave one half-copied on a database that has already survived an
+        // interrupted upgrade (§16.11).
+        await _ensureColumn(m, flowNodes, flowNodes.setupValue);
+        await _ensureColumn(m, flowNodes, flowNodes.setupUnit);
+        await _ensureColumn(m, flowNodes, flowNodes.teardownValue);
+        await _ensureColumn(m, flowNodes, flowNodes.teardownUnit);
+        await _ensureColumn(m, flowNodes, flowNodes.samePartPercent);
+
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.changeoverSeconds,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionCellId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionCellName,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionLineId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionLineName,
+        );
+
+        // Carry every stored changeover onto the setup it became.
+        //
+        // `changeover_seconds` was canonical seconds and `seconds` is a literal
+        // TaktUnit that resolves identically at every station (§6.1), so this
+        // preserves the typed figure exactly. What it does not preserve is the
+        // charge: §7.6 stops derating setup by availability in the same round,
+        // so a 90-minute setup on a 74 % station occupies 90 minutes rather than
+        // 121.6. That is the point of the change and it is why every stored run
+        // is invalidated by it.
+        //
+        // **A zero carries as null, not as zero.** They mean the same thing —
+        // nothing charged — and null is what an untouched node reads as, so the
+        // editor shows an empty field rather than a `0 s` nobody typed.
+        await customStatement('''
+          UPDATE flow_nodes
+             SET setup_value = changeover_seconds,
+                 setup_unit  = 'seconds'
+           WHERE changeover_seconds IS NOT NULL
+             AND changeover_seconds > 0
+        ''');
       }
 
       // Reference-data seeding runs outside every version guard, on every

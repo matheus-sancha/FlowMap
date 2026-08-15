@@ -70,10 +70,16 @@ void main() {
     );
   }
 
+  /// [changeover] is the **setup**, in seconds, which is what these tests meant
+  /// by a changeover before it had two halves. Teardown and the repeat
+  /// percentage get their own fixtures rather than being threaded through every
+  /// caller here.
   SimStep step(
     int position,
     List<String> candidates, {
     Duration changeover = Duration.zero,
+    Duration teardown = Duration.zero,
+    double samePartFraction = 0,
     String? demandKey,
   }) => SimStep(
     id: 'node-$position',
@@ -81,7 +87,15 @@ void main() {
     title: candidates.first,
     candidates: candidates,
     demandKey: demandKey ?? candidates.first,
-    changeover: changeover,
+    setupValue: changeover == Duration.zero
+        ? null
+        : changeover.inSeconds.toDouble(),
+    setupUnit: TaktUnit.seconds,
+    teardownValue: teardown == Duration.zero
+        ? null
+        : teardown.inSeconds.toDouble(),
+    teardownUnit: TaktUnit.seconds,
+    samePartFraction: samePartFraction,
   );
 
   SimOrder order(
@@ -540,11 +554,14 @@ void main() {
         start: aug1,
       );
 
-      // One unit alternating p1/p2/p1/p2 changes over three times. Two units
-      // settle one part each, so nobody changes over at all — which is only
-      // true because `lastPartId` lives on the unit rather than on the station.
-      expect(one.steps.where((s) => s.changeoverIncurred), hasLength(3));
-      expect(two.steps.where((s) => s.changeoverIncurred), isEmpty);
+      // One unit alternating p1/p2/p1/p2 changes over on all four: three part
+      // changes, plus the cold start, which pays in full because an empty
+      // station is set up for nothing (§7.6). Two units settle one part each,
+      // so each pays only its own cold start and never changes over again —
+      // which is only true because `lastPartId` lives on the unit rather than
+      // on the station.
+      expect(one.steps.where((s) => s.changeoverIncurred), hasLength(4));
+      expect(two.steps.where((s) => s.changeoverIncurred), hasLength(2));
     });
 
     test('open time counts every unit, so utilization stays a fraction', () {
@@ -605,24 +622,184 @@ void main() {
       start: aug1,
     );
 
-    test('the first order of a run never pays a setup', () {
-      // Cold start: there is no previous order, so no *different* part number.
+    test('the first order of a run pays a setup in full', () {
+      // Cold start. This reverses what the engine did before v17, and the
+      // reason is physical rather than tidy: a station that has run nothing is
+      // set up for nothing, so there is no sense in which the first order
+      // arrives to a machine already rigged for it.
+      //
+      // It also removes the rule's only special case. `no previous order` now
+      // reads as `not the same part`, so setup is charged unless the part
+      // repeated — one sentence, no exception (§7.6).
       final result = runSequence(['p1']);
-      expect(result.steps.single.changeoverIncurred, isFalse);
-      expect(result.steps.single.occupied, const Duration(hours: 1));
+      expect(result.steps.single.changeoverIncurred, isTrue);
+      expect(result.steps.single.changeoverSeconds, 3600);
+      expect(result.steps.single.occupied, const Duration(hours: 2));
     });
 
     test('like with like is genuinely cheaper', () {
       final same = runSequence(['p1', 'p1', 'p1']);
       final mixed = runSequence(['p1', 'p2', 'p1']);
 
-      expect(same.steps.where((s) => s.changeoverIncurred), isEmpty);
-      expect(mixed.steps.where((s) => s.changeoverIncurred), hasLength(2));
+      // Both pay the cold start; only the mixed sequence pays for its changes.
+      expect(same.steps.where((s) => s.changeoverIncurred), hasLength(1));
+      expect(mixed.steps.where((s) => s.changeoverIncurred), hasLength(3));
       // Which is what makes a smooth sequence worth chasing (§6.3).
       expect(
         mixed.busyByWorkcenter['W']! - same.busyByWorkcenter['W']!,
         const Duration(hours: 2),
       );
+    });
+
+    test('a repeat pays the percentage, not nothing', () {
+      SimRunResult atPercent(double fraction) => runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(
+                0,
+                ['W'],
+                changeover: const Duration(hours: 1),
+                samePartFraction: fraction,
+              ),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            release: const Duration(hours: 5),
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // The second order repeats the part. At 0 % it is free, which is what
+      // this app did before v17; at 50 % it pays half a setup; at 100 % it pays
+      // as much as a change would, and batching buys nothing.
+      final seconds = [0.0, 0.5, 1.0]
+          .map((f) => atPercent(f).steps.last.changeoverSeconds)
+          .toList();
+      expect(seconds, [0, 1800, 3600]);
+
+      // The first order is unaffected by the percentage: it repeated nothing.
+      expect(atPercent(1).steps.first.changeoverSeconds, 3600);
+    });
+
+    test('the teardown is paid by whoever comes next', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(
+                0,
+                ['W'],
+                changeover: const Duration(hours: 1),
+                teardown: const Duration(minutes: 30),
+              ),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+              'p2': part('p2', {'W': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p2'), order(2, 'p1')],
+            release: const Duration(hours: 5),
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      final charged = result.steps
+          .map((s) => s.changeoverSeconds)
+          .toList();
+
+      // **The first order pays a setup and no teardown.** There is nothing on
+      // the station to strip: a teardown is a debt left by a previous order and
+      // at cold start there is no previous order.
+      //
+      // Every order after it pays the teardown the one before left plus its own
+      // setup — 30 min + 60 min — which is what a changeover is.
+      expect(charged, [3600, 5400, 5400]);
+
+      // **And the last order's teardown is never paid at all.** Nothing waits
+      // on it, so charging it would extend the run past its final delivery for
+      // something no figure reads. Three orders, three charges, and the fourth
+      // teardown simply does not happen.
+      expect(charged, hasLength(3));
+    });
+
+    test('availability no longer derates the setup (§6.1)', () {
+      SimRunResult at(double availability) => runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['W'], changeover: const Duration(hours: 1)),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1')],
+          ),
+        ],
+        workcenters: {'W': workcenter('W', availability: availability)},
+        start: aug1,
+      );
+
+      // A setup typed in literal time is exactly that long however bad the
+      // station's uptime. Before v17 this was `changeover ÷ availability`, so
+      // the same hour occupied 2 h at 50 % — the loss counted twice once `days`
+      // started meaning a productive day, which has availability already taken
+      // out of it.
+      expect(at(1).steps.single.changeoverSeconds, 3600);
+      expect(at(0.5).steps.single.changeoverSeconds, 3600);
+
+      // The part's own work is still derated, which is the half §4.4 owns: one
+      // hour of work at 50 % occupies two, and the setup adds its literal hour.
+      expect(at(0.5).steps.single.occupied, const Duration(hours: 3));
+    });
+
+    test('a setup in days is that server’s productive day', () {
+      // Two stations of very different capacity running the same step, so the
+      // resolution cannot be done once at assembly: `1 day` is ten hours at the
+      // weekday station and twenty-four at the round-the-clock one. This is why
+      // the step carries a value and a unit rather than a duration (§7.6).
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              SimStep(
+                id: 'node-0',
+                position: 0,
+                title: 'pool',
+                candidates: const ['DAY', 'ALL'],
+                demandKey: 'pool',
+                setupValue: 1,
+                setupUnit: TaktUnit.days,
+              ),
+            ],
+            parts: {
+              'p1': part('p1', {'pool': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {
+          'DAY': workcenter('DAY', pattern: weekdayTen),
+          'ALL': workcenter('ALL'),
+        },
+        // A Monday morning with both stations open. `aug1` is a Saturday, and
+        // starting there sent both orders to the round-the-clock station —
+        // which is correct pool behaviour and useless for this assertion.
+        start: DateTime(2026, 8, 3, 8),
+      );
+
+      final byStation = {
+        for (final s in result.steps) s.workcenterId: s.changeoverSeconds,
+      };
+      expect(byStation['DAY'], const Duration(hours: 10).inSeconds);
+      expect(byStation['ALL'], const Duration(hours: 24).inSeconds);
     });
   });
 

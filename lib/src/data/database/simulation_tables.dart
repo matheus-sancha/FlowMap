@@ -97,6 +97,24 @@ class SimulationRunStudies extends Table {
   IntColumn get startBufferDays =>
       integer().withDefault(const Constant(0))();
 
+  /// Where this study sat in the plant, copied in so a stored run can be
+  /// filtered by cell and by production line (§7.10).
+  ///
+  /// **The id and the name both**, for the reason every other copied-in label
+  /// carries both: the id survives a rename and the name survives a deletion,
+  /// and a filter has to keep working after either. §7.10 forbids joining back
+  /// to `studies`, which is the only other place this could be read.
+  ///
+  /// **A cell or line filter is a study filter one level up.** Workcenters
+  /// belong to a plant rather than to a cell, so stations are never filtered
+  /// this way — the studies narrow, and their stations follow.
+  ///
+  /// Null on every run made before v17.
+  TextColumn get productionCellId => text().nullable()();
+  TextColumn get productionCellName => text().nullable()();
+  TextColumn get productionLineId => text().nullable()();
+  TextColumn get productionLineName => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {runId, studyId};
 }
@@ -185,8 +203,24 @@ class SimulationRunSteps extends Table {
 
   /// Whether the order before this one on that workcenter was a different part
   /// (§7.6).
+  ///
+  /// **Derived from [changeoverSeconds] since v17**, and kept because every run
+  /// made before that column existed can still answer this and nothing else.
   BoolColumn get changeoverIncurred =>
       boolean().withDefault(const Constant(false))();
+
+  /// What the changeover actually cost this step, in seconds of the station's
+  /// open time (§7.6).
+  ///
+  /// A bool could say *whether* a changeover was paid and that was enough while
+  /// the answer was all-or-nothing. Since v17 a repeat may be charged at a
+  /// percentage, so "incurred" stopped being a yes/no about a figure the reader
+  /// cannot see — and §8.6's hover card was the only place the new setup rule
+  /// could be checked against what it actually did.
+  ///
+  /// Null means made before this column existed, which is what a blank has meant
+  /// on these tables since v12 — not "no changeover", which is zero.
+  IntColumn get changeoverSeconds => integer().nullable()();
 
   /// The lane the order waited in before this step, or null when the step had
   /// none and it queued at the station itself (§5.5).

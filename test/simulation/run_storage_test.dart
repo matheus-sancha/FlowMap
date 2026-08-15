@@ -107,7 +107,8 @@ void main() {
           title: 'Cladding',
           candidates: const ['wc-1'],
           demandKey: 'wc-1',
-          changeover: const Duration(hours: 1),
+          setupValue: 3600,
+          setupUnit: TaktUnit.seconds,
         ),
         SimStep(
           id: 'node-1',
@@ -315,6 +316,28 @@ void main() {
     expect(stored.result.orders, hasLength(result.orders.length));
     expect(stored.result.busyByWorkcenter, result.busyByWorkcenter);
     expect(stored.result.openByWorkcenter, result.openByWorkcenter);
+
+    // **What each changeover cost, per step, round-tripped.** A column written
+    // by nobody is the failure this repo has had twice (§1.5, §2.3) and this
+    // one is the only place the new setup rule can be checked against what it
+    // actually did — so it is asserted against the fresh run rather than merely
+    // for being non-null.
+    expect(
+      stored.result.steps.map((s) => (s.orderId, s.nodeId, s.changeoverSeconds)).toSet(),
+      result.steps.map((s) => (s.orderId, s.nodeId, s.changeoverSeconds)).toSet(),
+    );
+    // And it is stated rather than left blank: a fresh run always says, even
+    // when the answer is zero. Null would mean nobody recorded it, which is
+    // only ever true of a run made before v17.
+    expect(
+      stored.result.steps.map((s) => s.changeoverSeconds),
+      everyElement(isNotNull),
+    );
+    // The fixture has a setup and two parts, so at least one step paid.
+    expect(
+      stored.result.steps.where((s) => (s.changeoverSeconds ?? 0) > 0),
+      isNotEmpty,
+    );
 
     // And every figure §8 asks of it.
     expect(stored.metrics.orders, fresh.orders);

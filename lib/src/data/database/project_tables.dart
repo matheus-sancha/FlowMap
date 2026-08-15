@@ -280,9 +280,48 @@ class FlowNodes extends Table {
     onDelete: KeyAction.setNull,
   )();
 
-  /// Setup charged when the previous order on this workcenter was a different
-  /// part number (DESIGN.md §7.6).
+  /// Superseded by [setupValue] in v17, and kept rather than dropped.
+  ///
+  /// Its values were carried onto the setup columns by the migration and
+  /// nothing reads it now. Dropping a column means a [TableMigration], which
+  /// rebuilds from the *current* Dart definition — the trap this file has hit
+  /// three times (§16.13, §16.15, §16.16) and the one thing §16.11's
+  /// half-finished upgrade says not to risk for tidiness. It is also the only
+  /// place a pre-v17 setup can be recovered by hand.
   IntColumn get changeoverSeconds => integer().withDefault(const Constant(0))();
+
+  /// A changeover, in two halves: [setupValue] rigs the station for the order
+  /// and [teardownValue] strips it afterwards (DESIGN.md §7.6).
+  ///
+  /// **Stored as a value plus a [TaktUnit], never as canonical seconds**, for
+  /// the same reason takt and [equivalentValue] are: `days` here means
+  /// productive days of *this* station, and cannot be reduced to a duration
+  /// without saying whose day is meant (§6.1). One kind of day per dialog is
+  /// §17.4's rule, and the field two below this one already uses that one.
+  ///
+  /// Null is no setup, which is what every node had before v17.
+  RealColumn get setupValue => real().nullable()();
+  TextColumn get setupUnit => textEnum<TaktUnit>().nullable()();
+
+  /// The teardown, charged **with the next order's setup rather than at the end
+  /// of this one** — the station remembers what it owes, because whether a
+  /// strip-down is needed depends on what comes next and the engine has not
+  /// picked it yet (DESIGN.md §7.6).
+  ///
+  /// Named teardown and not breakdown: in a plant "breakdown" means the machine
+  /// failed, and §4.4's Availability — the actual breakdown figure — is drawn on
+  /// the same process box.
+  RealColumn get teardownValue => real().nullable()();
+  TextColumn get teardownUnit => textEnum<TaktUnit>().nullable()();
+
+  /// How much of `setup + teardown` is still charged when the previous order at
+  /// this station was the **same part**, as a percentage.
+  ///
+  /// Null is 0 %, which is exactly what this app did before v17: like-with-like
+  /// was free. 100 % makes batching buy nothing. It governs the pair rather than
+  /// the setup alone, because the two are one changeover split in half and a
+  /// second percentage would only ever move with the first.
+  RealColumn get samePartPercent => real().nullable()();
 
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).

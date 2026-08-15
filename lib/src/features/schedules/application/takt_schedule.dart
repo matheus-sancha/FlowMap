@@ -1,6 +1,33 @@
 import '../../../data/database/enums.dart';
 import 'schedule_periods.dart';
 
+/// What a [TaktUnit] value is worth at a station whose ordinary working day is
+/// [workingDay] (DESIGN.md §6.1).
+///
+/// **`days` is the only unit that has to ask.** A 3-day takt at a station open
+/// 22:40 a day is 68 hours and at a single-shift station 26:24, and both are
+/// "three days of that station's own capacity". Hours, minutes and seconds are
+/// literal and resolve identically everywhere.
+///
+/// One definition, because three separate things are now expressed this way and
+/// they sit in the same dialog: the line's takt, a step's Process Specific Takt
+/// (§6.1.1), and a step's setup and teardown (§7.6). Two of them meaning
+/// slightly different days is §17.4's scar, and the surest way to prevent it is
+/// for there to be nowhere else to write the arithmetic.
+///
+/// Callers pass the **productive** day — open hours already derated by
+/// availability — because §6.1 applies that loss exactly once and this is where
+/// it has already been applied.
+Duration taktUnitDuration(double value, TaktUnit unit, Duration workingDay) =>
+    switch (unit) {
+      TaktUnit.days => Duration(
+        seconds: (value * workingDay.inSeconds).round(),
+      ),
+      TaktUnit.hours => Duration(seconds: (value * 3600).round()),
+      TaktUnit.minutes => Duration(seconds: (value * 60).round()),
+      TaktUnit.seconds => Duration(seconds: value.round()),
+    };
+
 /// A production line's takt over one date range (DESIGN.md §6.1).
 ///
 /// The takt is a **value plus a unit**, not a duration. "3 days" only becomes a
@@ -31,14 +58,8 @@ class TaktPeriodSpec implements DatedPeriod {
   /// at a single-shift workcenter open 8:48 a day is 26:24. Both are "one takt
   /// of that station's own capacity", which is the comparison the equivalency
   /// method exists to make.
-  Duration equivalentAt(Duration openPerWorkingDay) => switch (unit) {
-    TaktUnit.days => Duration(
-      seconds: (value * openPerWorkingDay.inSeconds).round(),
-    ),
-    TaktUnit.hours => Duration(seconds: (value * 3600).round()),
-    TaktUnit.minutes => Duration(seconds: (value * 60).round()),
-    TaktUnit.seconds => Duration(seconds: value.round()),
-  };
+  Duration equivalentAt(Duration openPerWorkingDay) =>
+      taktUnitDuration(value, unit, openPerWorkingDay);
 
   /// Whether this takt resolves to the same duration everywhere. Days do not;
   /// the rest do.

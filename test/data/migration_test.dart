@@ -1417,6 +1417,254 @@ void main() {
     // every run made before this version.
     final header = await db.select(db.simulationRuns).getSingle();
     expect(header.scheduleHorizon, isNull);
+
+    // v17 rides on the same fixture for the columns that only have to *arrive*.
+    // The carry-over that has something to lose gets its own test below, with a
+    // changeover populated — this fixture's nodes have none, so it could not
+    // tell a working carry from a missing one.
+    expect(nodes.map((n) => n.setupValue), everyElement(isNull));
+    expect(nodes.map((n) => n.teardownValue), everyElement(isNull));
+    expect(nodes.map((n) => n.samePartPercent), everyElement(isNull));
+    expect(step.changeoverSeconds, isNull);
+    expect(runStudy.productionCellId, isNull);
+    expect(runStudy.productionLineName, isNull);
+  });
+
+  test('v16 to v17: a changeover becomes a setup and keeps its length', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // v16's shape, built the way the real chain reached it: v14's tables, then
+    // the columns v15 and v16 added. Written out rather than migrated up from
+    // v14, because a fixture that ran the earlier steps would be testing them
+    // again and would stop being the one shape v17 has to survive.
+    const v16Workcenters = """
+      CREATE TABLE workcenters (
+        id TEXT NOT NULL,
+        plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+        type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+        name TEXT NOT NULL, notes TEXT NULL,
+        parallel_capacity INTEGER NOT NULL DEFAULT 1,
+        archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+    """;
+
+    const v16RunTables = """
+      CREATE TABLE simulation_runs (
+        id TEXT NOT NULL,
+        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+        run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+        abort_reason TEXT NULL, schedule_horizon INTEGER NULL,
+        created_at INTEGER NOT NULL, PRIMARY KEY (id));
+      CREATE TABLE simulation_run_studies (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, name TEXT NOT NULL,
+        release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+        priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+        start_buffer_days INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (run_id, study_id));
+      CREATE TABLE simulation_run_orders (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+        part_number TEXT NOT NULL, customer_project TEXT NULL,
+        batch_number TEXT NULL, batch_size INTEGER NULL,
+        material_date INTEGER NULL, part_description TEXT NULL,
+        need_date INTEGER NOT NULL, released INTEGER NULL,
+        delivered INTEGER NULL, theoretical_seconds INTEGER NULL,
+        PRIMARY KEY (run_id, order_id));
+      CREATE TABLE simulation_run_steps (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+        workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+        process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+        changeover_incurred INTEGER NOT NULL DEFAULT 0
+          CHECK (changeover_incurred IN (0, 1)),
+        lane_node_id TEXT NULL,
+        blocked_seconds INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (run_id, order_id, node_id));
+      CREATE TABLE simulation_run_empty_slots (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+        PRIMARY KEY (run_id, study_id, slot_at));
+      CREATE TABLE simulation_run_workcenters (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+        busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+        blocked_seconds INTEGER NOT NULL DEFAULT 0,
+        units INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (run_id, workcenter_id));
+      CREATE TABLE simulation_run_lanes (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, node_id TEXT NOT NULL, name TEXT NULL,
+        position INTEGER NOT NULL, rule TEXT NULL, capacity INTEGER NULL,
+        PRIMARY KEY (run_id, node_id));
+      CREATE TABLE simulation_run_lane_visits (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        node_id TEXT NOT NULL, order_id TEXT NOT NULL,
+        entered INTEGER NOT NULL, left INTEGER NULL,
+        PRIMARY KEY (run_id, node_id, order_id));
+    """;
+
+    final v16 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute(
+            'CREATE TABLE workcenter_lines ('
+            'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+            'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+            'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+          )
+          ..execute('PRAGMA user_version = 16');
+
+    v16
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      );
+
+    // Three nodes, so the carry is shown to be selective rather than blanket: a
+    // step with a real changeover, a step explicitly at zero, and an inventory
+    // node which never had one.
+    for (final (id, position, kind, changeover) in [
+      ('node-0', 0, 'step', 5400),
+      ('node-1', 1, 'inventory', 0),
+      ('node-2', 2, 'step', 0),
+    ]) {
+      final workcenter = kind == 'step' ? "'wc-1'" : 'NULL';
+      v16.execute(
+        'INSERT INTO flow_nodes (id, study_id, position, kind, workcenter_id, '
+        'changeover_seconds, label, created_at, updated_at) '
+        "VALUES ('$id', 'study-1', $position, '$kind', $workcenter, "
+        "$changeover, 'node $position', $now, $now)",
+      );
+    }
+
+    v16
+      ..execute(
+        'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+        'run_end, guard, created_at) '
+        "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_studies (run_id, study_id, name, '
+        'release_seconds, priority) '
+        "VALUES ('run-1', 'study-1', 'Current', 3600, 100)",
+      )
+      // A step that paid a changeover under the old rule. It is the row that
+      // shows `changeover_incurred` survives while `changeover_seconds` arrives
+      // null — the two say different things about the same run and only one of
+      // them could have been recorded at the time.
+      ..execute(
+        'INSERT INTO simulation_run_steps (run_id, study_id, order_id, node_id, '
+        'workcenter_id, queue_start, process_start, process_end, '
+        'changeover_incurred) '
+        "VALUES ('run-1', 'study-1', 'order-1', 'node-0', 'wc-1', "
+        '$now, $now, $now, 1)',
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final nodes = await db.select(db.flowNodes).get()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    // **The changeover carried onto the setup, and its length is unchanged.**
+    // 5400 seconds stored as `5400 seconds` rather than `90 minutes`: the unit
+    // is literal and resolves identically at every station (§6.1), so this is
+    // the same duration written in the one unit that cannot mean two things.
+    // Reducing it to `1.5 hours` would have been prettier and would have been
+    // the first place a productive day could sneak in.
+    expect(nodes[0].setupValue, 5400);
+    expect(nodes[0].setupUnit, TaktUnit.seconds);
+
+    // A zero carries as null, on both kinds of node. They meant the same thing
+    // — nothing charged — and null is what an untouched node reads as, so the
+    // editor shows an empty field rather than a `0 s` nobody typed.
+    expect(nodes[1].setupValue, isNull);
+    expect(nodes[2].setupValue, isNull);
+    expect(nodes[2].setupUnit, isNull);
+
+    // Teardown and the percentage arrive empty on every node, which is what
+    // makes the upgrade behaviour-preserving: no node had a teardown to carry
+    // and a null percentage is 0 %, exactly the free-repeat rule v16 followed.
+    expect(nodes.map((n) => n.teardownValue), everyElement(isNull));
+    expect(nodes.map((n) => n.teardownUnit), everyElement(isNull));
+    expect(nodes.map((n) => n.samePartPercent), everyElement(isNull));
+
+    // **`changeover_seconds` is not the old column read back.** The source
+    // column is still there and still holds what it held, which is what makes a
+    // pre-v17 setup recoverable by hand if this carry ever turns out to be
+    // wrong for someone.
+    expect(nodes[0].changeoverSeconds, 5400);
+
+    // A run stored before v17 says a changeover happened and cannot say what it
+    // cost. Null is *made before this column existed*, and it is deliberately
+    // not zero — zero would claim the changeover was free, which this run did
+    // not observe and cannot now be asked.
+    final step = await db.select(db.simulationRunSteps).getSingle();
+    expect(step.changeoverIncurred, isTrue);
+    expect(step.changeoverSeconds, isNull);
+
+    // The same distinction on the study: it belonged to a cell and a line, and
+    // this run predates the columns that would have said which.
+    final runStudy = await db.select(db.simulationRunStudies).getSingle();
+    expect(runStudy.productionCellId, isNull);
+    expect(runStudy.productionCellName, isNull);
+    expect(runStudy.productionLineId, isNull);
+    expect(runStudy.productionLineName, isNull);
+
+    // The counter reached the end rather than stopping inside the step.
+    expect(
+      await db.customSelect('PRAGMA user_version').getSingle().then(
+        (row) => row.data.values.first,
+      ),
+      17,
+    );
   });
 
   test('an upgrade that died part-way can still be opened', () async {

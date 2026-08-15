@@ -43,14 +43,22 @@ void main() {
     updatedAt: now,
   );
 
-  FlowNode step(int position, String workcenterId, {int changeover = 0}) =>
+  FlowNode step(
+    int position,
+    String workcenterId, {
+    int changeover = 0,
+    double? samePartPercent,
+  }) =>
       FlowNode(
         id: 'node-$position',
         studyId: 'study-1',
         position: position,
         kind: FlowNodeKind.step,
         workcenterId: workcenterId,
-        changeoverSeconds: changeover,
+        changeoverSeconds: 0,
+        setupValue: changeover == 0 ? null : changeover.toDouble(),
+        setupUnit: TaktUnit.seconds,
+        samePartPercent: samePartPercent,
         inventoryUsesWorkingTime: false,
         createdAt: now,
         updatedAt: now,
@@ -381,10 +389,21 @@ void main() {
   });
 
   group('changeover', () {
-    Duration requiredWith(List<String> sequence, {int changeover = 3600}) {
+    Duration requiredWith(
+      List<String> sequence, {
+      int changeover = 3600,
+      double? samePartPercent,
+    }) {
       final summary = buildSummary(
         flow: flowOf(
-          nodes: [step(0, 'CLAD04', changeover: changeover)],
+          nodes: [
+            step(
+              0,
+              'CLAD04',
+              changeover: changeover,
+              samePartPercent: samePartPercent,
+            ),
+          ],
           contexts: {'CLAD04': context('CLAD04')},
         ),
         demand: DemandTable(
@@ -405,9 +424,28 @@ void main() {
 
     test('is charged only when the part changes', () {
       // Like with like is genuinely cheaper, which is what makes the sequence
-      // worth optimising (§7.6, §6.3).
-      expect(requiredWith(['p1', 'p1', 'p1']), Duration.zero);
-      expect(requiredWith(['p1', 'p2', 'p1']), const Duration(hours: 2));
+      // worth optimising (§7.6, §6.3). Both sequences pay one setup for the
+      // cold start — an empty station is set up for nothing — so what the
+      // sequence buys is the two changes it avoids, not all three setups.
+      expect(requiredWith(['p1', 'p1', 'p1']), const Duration(hours: 1));
+      expect(requiredWith(['p1', 'p2', 'p1']), const Duration(hours: 3));
+    });
+
+    test('a repeat pays a percentage of it rather than nothing (§7.6)', () {
+      // The lever the field asked for: like-with-like need not be *free*, and
+      // saying it is free is only right for a station that keeps its tooling.
+      // At 50 % the two repeats cost half a setup each, which is what makes
+      // this the Summary agreeing with the engine rather than a second opinion.
+      expect(
+        requiredWith(['p1', 'p1', 'p1'], samePartPercent: 50),
+        const Duration(hours: 2),
+      );
+      // 100 % is the pathological end: batching buys nothing at all, and the
+      // smooth sequence costs exactly what the mixed one does.
+      expect(
+        requiredWith(['p1', 'p1', 'p1'], samePartPercent: 100),
+        const Duration(hours: 3),
+      );
     });
 
     test('the first order of the period is compared with the one before it', () {

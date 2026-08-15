@@ -74,7 +74,8 @@ void main() {
           title: 'W$i',
           candidates: ['W$i'],
           demandKey: 'W$i',
-          changeover: const Duration(minutes: 20),
+          setupValue: 1200,
+          setupUnit: TaktUnit.seconds,
         ),
     ];
 

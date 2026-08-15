@@ -105,10 +105,20 @@ class SimResourceContext {
     required this.poolNames,
     required this.poolMembers,
     required this.productivePerWorkingDay,
+    this.cellNames = const {},
+    this.lineNames = const {},
   });
 
   final Map<String, String> workcenterNames;
   final Map<String, String> poolNames;
+
+  /// Cell and line id → name, so a study can copy where it sat into the run
+  /// (§7.10) rather than leaving a filter to join back to the plant.
+  ///
+  /// Defaulted to empty because nothing the engine does depends on them: a run
+  /// with no names still runs, and the filter simply falls back to the ids.
+  final Map<String, String> cellNames;
+  final Map<String, String> lineNames;
 
   /// Pool id → member workcenter ids, in a stable order.
   final Map<String, List<String>> poolMembers;
@@ -170,7 +180,18 @@ SimStudy? assembleSimStudy({
             ),
             candidates: candidates,
             demandKey: demandTargetOf(node)!,
-            changeover: Duration(seconds: node.changeoverSeconds),
+            // Carried unresolved: `days` is a productive day of whichever
+            // server ends up running the order, and a pool's members do not
+            // share one (§7.6).
+            setupValue: node.setupValue,
+            setupUnit: node.setupUnit,
+            teardownValue: node.teardownValue,
+            teardownUnit: node.teardownUnit,
+            // Stored as a percentage because that is how it is typed; the
+            // engine wants a fraction, and converting here means the engine
+            // never has to remember which of the two it is holding. Null is
+            // 0 %, which is the free-repeat rule every study had before v17.
+            samePartFraction: (node.samePartPercent ?? 0) / 100,
           ),
         );
 
@@ -212,6 +233,12 @@ SimStudy? assembleSimStudy({
   return SimStudy(
     id: study.id,
     name: study.name,
+    // Copied in at assembly, so the run reports where the study sat *when it
+    // ran* rather than where it sits when someone opens the result (§7.10).
+    productionCellId: study.productionCellId,
+    productionCellName: resources.cellNames[study.productionCellId],
+    productionLineId: study.productionLineId,
+    productionLineName: resources.lineNames[study.productionLineId],
     nodes: simNodes,
     parts: {
       for (final part in parts)
