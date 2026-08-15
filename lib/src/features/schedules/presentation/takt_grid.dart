@@ -20,65 +20,56 @@ const _startColumn = 0;
 const _endColumn = 1;
 const _taktColumn = 2;
 
-/// The takt schedule of the study's production line (DESIGN.md §6.1).
+/// The line's takt periods, typed in place (DESIGN.md §6.1, §12.6).
 ///
-/// Scoped to the line rather than the study: two studies of the same line are
-/// scenarios of one reality, and a takt that differed between them would make
-/// them incomparable.
-///
-/// **Typed in the table, not behind a dialog** (§12.6). Field feedback was that
-/// re-tuning a takt cost a round trip through an editor; `DataGrid` already had
-/// what that needs — keyboard navigation, per-keystroke validation and a
-/// multi-cell paste out of Excel, which is how a year of periods actually
-/// arrives. The dialog is gone rather than kept beside it: two write paths into
-/// one table is how the two come to disagree.
-class TaktTab extends ConsumerWidget {
-  const TaktTab({super.key, required this.project, required this.study});
+/// Public because §12.6's Schedules tab shows it beside the exceptions and the
+/// stations. It reads its own periods rather than being handed them: the tab
+/// composing it has three tables to place and no business knowing what any of
+/// them is made of.
+class TaktGrid extends ConsumerWidget {
+  const TaktGrid({super.key, required this.project, required this.study});
 
   final Project project;
   final Study study;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scope = (
-      projectId: project.id,
-      productionLineId: study.productionLineId,
+    final periods = ref.watch(
+      taktPeriodsProvider((
+        projectId: project.id,
+        productionLineId: study.productionLineId,
+      )),
     );
-    final periods = ref.watch(taktPeriodsProvider(scope));
 
     return periods.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text('$error')),
-      data: (periods) {
-        final schedule = PeriodSchedule<DatedPeriod>([
-          for (final period in periods)
-            TaktPeriodSpec(
-              startDate: period.startDate,
-              endDate: period.endDate,
-              value: period.taktValue,
-              unit: period.taktUnit,
+      data: (periods) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Overlaps and gaps are reported, never refused (§11).
+          ScheduleIssuesBanner(
+            issues: findSchedulePeriodIssues(
+              PeriodSchedule<DatedPeriod>([
+                for (final period in periods)
+                  TaktPeriodSpec(
+                    startDate: period.startDate,
+                    endDate: period.endDate,
+                    value: period.taktValue,
+                    unit: period.taktUnit,
+                  ),
+              ]),
             ),
-        ]);
-
-        return Column(
-          children: [
-            // Overlaps and gaps are reported, never refused. The banner was
-            // already here and the dialog was duplicating the guard; §11's
-            // readiness is what actually blocks a run on a real gap.
-            ScheduleIssuesBanner(issues: findSchedulePeriodIssues(schedule)),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _TaktGrid(
-                  periods: periods,
-                  project: project,
-                  study: study,
-                ),
-              ),
+          ),
+          Expanded(
+            child: _TaktGrid(
+              periods: periods,
+              project: project,
+              study: study,
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }

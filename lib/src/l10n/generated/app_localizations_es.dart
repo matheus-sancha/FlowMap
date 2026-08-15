@@ -125,6 +125,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get workcenter => 'Centro de trabajo';
 
   @override
+  String get studyTabSchedules => 'Calendarios';
+
+  @override
+  String get calendarExceptions => 'Excepciones';
+
+  @override
+  String get schedulesTaktScope =>
+      'compartido por todos los estudios de esta línea';
+
+  @override
+  String get schedulesExceptionsScope => 'todo el proyecto';
+
+  @override
+  String get schedulesStationsScope => 'el flujo de este estudio';
+
+  @override
   String get workcenters => 'Centros de trabajo';
 
   @override

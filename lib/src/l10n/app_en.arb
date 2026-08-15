@@ -49,6 +49,11 @@
   "productionLineNew": "New production line",
 
   "workcenter": "Workcenter",
+  "studyTabSchedules": "Schedules",
+  "calendarExceptions": "Exceptions",
+  "schedulesTaktScope": "shared by every study on this line",
+  "schedulesExceptionsScope": "the whole project",
+  "schedulesStationsScope": "this study's flow",
   "workcenters": "Workcenters",
   "workcenterNew": "New workcenter",
   "workcenterType": "Workcenter type",

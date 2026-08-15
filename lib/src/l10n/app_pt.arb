@@ -48,6 +48,11 @@
   "productionLineNew": "Nova linha de produção",
 
   "workcenter": "Centro de trabalho",
+  "studyTabSchedules": "Calendários",
+  "calendarExceptions": "Exceções",
+  "schedulesTaktScope": "compartilhado por todos os estudos desta linha",
+  "schedulesExceptionsScope": "o projeto inteiro",
+  "schedulesStationsScope": "o fluxo deste estudo",
   "workcenters": "Centros de trabalho",
   "workcenterNew": "Novo centro de trabalho",
   "workcenterType": "Tipo de centro de trabalho",

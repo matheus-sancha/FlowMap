@@ -328,6 +328,36 @@ abstract class AppLocalizations {
   /// **'Workcenter'**
   String get workcenter;
 
+  /// No description provided for @studyTabSchedules.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedules'**
+  String get studyTabSchedules;
+
+  /// No description provided for @calendarExceptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Exceptions'**
+  String get calendarExceptions;
+
+  /// No description provided for @schedulesTaktScope.
+  ///
+  /// In en, this message translates to:
+  /// **'shared by every study on this line'**
+  String get schedulesTaktScope;
+
+  /// No description provided for @schedulesExceptionsScope.
+  ///
+  /// In en, this message translates to:
+  /// **'the whole project'**
+  String get schedulesExceptionsScope;
+
+  /// No description provided for @schedulesStationsScope.
+  ///
+  /// In en, this message translates to:
+  /// **'this study\'s flow'**
+  String get schedulesStationsScope;
+
   /// No description provided for @workcenters.
   ///
   /// In en, this message translates to:

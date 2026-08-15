@@ -12,8 +12,7 @@ import '../../demand/presentation/demand_tab.dart';
 import '../../flow/presentation/flow_tab.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
-import '../../schedules/presentation/takt_tab.dart';
-import '../../schedules/presentation/workcenters_tab.dart';
+import '../../schedules/presentation/schedules_tab.dart';
 import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
 import '../../simulation/presentation/simulation_tab.dart';
@@ -83,11 +82,12 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   /// button has to be able to reset it and because §12.1's period control will
   /// sit on the strip beside it.
   ///
-  /// Six, not seven: the study's Simulation tab is gone. A run spans studies
-  /// and is now read in one place, and `View results` navigates there rather
-  /// than moving an index — which is the whole reason the banner needed a
-  /// controller in the first place.
-  late final TabController _tabs = TabController(length: 6, vsync: this);
+  /// Five, from seven. The study's Simulation tab is gone — a run spans studies
+  /// and is read in one place now, and `View results` navigates there rather
+  /// than moving an index, which is the whole reason the banner needed a
+  /// controller at all. `Flow Takt` and `Workcenters` merged into `Schedules`
+  /// (§12.6), which is one question and was two tabs.
+  late final TabController _tabs = TabController(length: 5, vsync: this);
 
   @override
   void dispose() {
@@ -825,8 +825,7 @@ class _StudyTabsState extends State<_StudyTabs> {
             children: [
               FlowTab(study: study),
               StudySettingsTab(project: widget.project, study: study),
-              TaktTab(project: widget.project, study: study),
-              WorkcentersTab(project: widget.project, study: study),
+              SchedulesTab(project: widget.project, study: study),
               DemandTab(study: study),
               SummaryTab(study: study),
             ],
@@ -846,8 +845,7 @@ class _StudyTabsState extends State<_StudyTabs> {
     tabs: [
       Tab(text: l10n.studyTabFlow),
       Tab(text: l10n.studyTabSettings),
-      Tab(text: l10n.studyTabTakt),
-      Tab(text: l10n.workcenters),
+      Tab(text: l10n.studyTabSchedules),
       Tab(text: l10n.studyTabDemand),
       Tab(text: l10n.studyTabSummary),
     ],

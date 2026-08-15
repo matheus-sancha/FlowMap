@@ -125,6 +125,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenter => 'Centro de trabalho';
 
   @override
+  String get studyTabSchedules => 'Calendários';
+
+  @override
+  String get calendarExceptions => 'Exceções';
+
+  @override
+  String get schedulesTaktScope =>
+      'compartilhado por todos os estudos desta linha';
+
+  @override
+  String get schedulesExceptionsScope => 'o projeto inteiro';
+
+  @override
+  String get schedulesStationsScope => 'o fluxo deste estudo';
+
+  @override
   String get workcenters => 'Centros de trabalho';
 
   @override
