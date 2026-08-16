@@ -1398,6 +1398,89 @@ the "measured beside chosen" pair this section rejected.
 _Left open:_ what the process-time grid shows for a station in a group — the derived figure, the
 measured total, or both.
 
+### 7.5 Following one order through the plant
+
+**From a later drive than the rest of §7** — `0.1.0-2026-08-16c`, the build that put the pool on the
+rows — so it is filed here rather than opened as a round of its own, and its provenance is stated
+because §0's whole lesson is that a check is only as good as the build it can cite.
+
+*Field: three more filters — Project, Part Number and Order Number — and "when the user selects a bar
+in the graph, it highlights the other bars of that order", and the bar tooltip should carry the
+project and the part description.*
+
+**Nothing here needs a schema change**, which is the first thing that was checked and the reason this
+is smaller than it sounds. `simulation_run_orders` has carried `customer_project` since **v12** and
+`part_description` since **v13**, copied in rather than joined for §7.10's reason. Against the live
+database: 5330 order rows, 18 distinct customer projects, 22 part numbers, descriptions on 97 % of
+orders. What is missing is not the data but a path from it to the chart.
+
+**"Project" is the customer project on the order, not the app's `Projects` row.** A run belongs to
+exactly one of the latter, so filtering a run by it is either everything or nothing. The former is
+§16.15's own distinction, arrived at from the field the first time: *a part is a part, and the
+project is what a given batch of it is for* — which is why it moved off `demand_parts` and onto
+`DemandOrders.customerProject`. 11 % of orders have none, and null is a value the filter has to be
+able to name rather than a row it may quietly drop.
+
+**The three filters go on `RunFilter`, beside `studyIds`, `cellIds` and `lineIds`** — so they narrow
+the whole slice and every table, metric and plan row moves together. §12.1's rule is that one
+`StoredRun` is read through one filter and no two surfaces may disagree about a number, and a chart
+filtered to a part beside a Queue table that is not would be exactly that disagreement. Station-level
+figures keep describing the whole run, which `stationsAreWholeRun` already says and already explains.
+
+_Rejected: a view control on the Gantt, like the lane toggle._ Cheaper and isolated, and it would put
+the chart and the tables beside it on two different sets of orders.
+
+**An order number matches in every study, and the filter says so.** `orderNumber` is `sequence + 1`
+and the sequence is dense *per study*, so on a two-study run "Order 5" is two different orders —
+confirmed against the database, where every 190-order run has each sequence twice. Combining with the
+study filter is what narrows it to one, and the chip has to read `Order 5 (2 studies)` rather than
+implying it found one thing.
+
+_Rejected: disabling the field until one study is selected._ It can never be ambiguous, and it leaves
+a dead control whose deadness is explained by the state of a different control.
+
+**And that is a defect the hover card has today**, independent of any of this: it reads
+`Order 1 · PN1` for two different orders on every multi-study run stored. The card gains the study
+on a run that has more than one — the rule §8.1.2 already applies to the Parts table's Study column,
+and the legend's, for the same reason.
+
+**Selecting a bar dims every bar that is not that order's, and outlines the ones that are.** Keyed on
+`orderId` rather than on the order number, which is what makes it correct on the runs the paragraph
+above is about. The painter already picks a colour per bar and already outlines the hovered one, so
+this is an alpha decision inside a loop that exists — no new geometry, and the visible-range culling
+is untouched.
+
+_Rejected: outlining without dimming._ On a 231-step run an outline is findable; §14's target is 2000
+orders, and there an outline is a needle. _Rejected: a thread joining the bars in time order._ It
+draws the path most literally and it is the only one of the three that needs new geometry in
+`gantt_layout.dart`, routing around bands and surviving four orders of magnitude of zoom. The day the
+dimmed version is not enough is the day to price it.
+
+_Left open:_ what clears a selection. Clicking the bar again, clicking empty canvas and `Esc` are all
+defensible; changing the filter or the run must clear it, because the selected order may not be in
+the slice any more.
+
+#### What it costs, and the one thing that is not free
+
+**The filter bar's new controls cannot be built from the project.** `_FilterBar` takes a `Project`
+and derives its studies, cells and lines from the plant structure — but customer project, part number
+and order number are values *inside the stored run*, so the bar needs the run as a second input and
+the three controls have nothing to offer until a run exists. That is the only structural change in
+the round; everything else is a field on a class that already exists.
+
+_And it is the right dependency rather than an awkward one:_ offering a part number the run never
+made would be a filter that returns nothing and looks broken, which is the same argument §7.10 makes
+for a run joining to nothing.
+
+**Three commits, in this order**, because each is separately drivable:
+
+1. **The project and the description reach the Gantt**, and the card qualifies an order by its study
+   on a multi-study run. Closes the defect above, and is the only one of the three that a reader can
+   check without a filter or a click.
+2. **Select a bar, follow the order.**
+3. **The three filters**, which is the one that touches `RunFilter`, `filterRun`, `signature`, the
+   filter bar and three `.arb` files.
+
 ---
 
 ## 8. Known gaps, deliberately left
