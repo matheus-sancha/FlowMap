@@ -855,6 +855,12 @@ are only covered by pressing it.
       members and **both** FIFO bands above it, neither missing. That is the whole of what the field
       reported, and it is one screen.
 
+      _The build exists and the schema is live now:_ v18 migrated at **21:55 on 2026-08-15 under
+      `0.1.0-2026-08-15g`** (`db.open schema 18 from 17`), against the backup
+      `flowmap.sqlite.backup-v17-20260815-211047` taken minutes before. Sessions have run under `g`,
+      `h`, `i` and `j` since. So this check now has a database to be made against — what is missing
+      is somebody looking at the chart.
+
       **This was ticked on 2026-08-15 and is unticked, because the tick was wrong.** It was recorded
       as confirmed on a verbal report and written up as *"the migration ran to get there, so v18 has
       now opened the real database as well as a fixture"*. None of that happened. The evidence,
@@ -1136,7 +1142,26 @@ distrust the next one that does.
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
 
-### 7.1 The filter filters
+### 7.1 The filter filters — **done, and driven**
+
+**Confirmed working on `0.1.0-2026-08-15j`**, session 07:09 on 2026-08-16. It took three defects
+rather than one, and the first two fixes each shipped believing they were the whole thing:
+
+1. **The plan and the parts table read the whole run.** `FilteredRun.plan` had been computed
+   correctly and never read.
+2. **The picker never wrote to the filter at all.** Each checkbox was wrapped in a `StatefulBuilder`;
+   `CheckboxMenuButton` closes the menu when activated, disposing it, and `State.setState` asserts it
+   is mounted *before* running the callback — so the line adding the study to the set never ran, and
+   the `onChanged()` after it never ran either. The filter had never fired in any build.
+3. **The Queue table was spliced back from the unfiltered run**, on an argument true of utilisation
+   and applied to five other columns.
+
+_The lesson, and it is about testing rather than about filters:_ the test written for (1) set the
+filter from the route and passed while the app stayed broken, because the route is not the control
+the user touches. A test that reaches the state a different way from the user is not a test of what
+the user does.
+
+### 7.1 The filter filters — as designed
 
 *Field: "The simulation results filter does not filter anything. It should filter the results and
 Gantt graphs."*
