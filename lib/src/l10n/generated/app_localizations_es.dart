@@ -1412,13 +1412,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simulationRunSettings => 'Ajustes de la ejecución';
 
   @override
-  String get simulationDispatch => 'Despacho';
-
-  @override
-  String get simulationDispatchHelp =>
-      'Cómo elige un centro de trabajo la siguiente orden en espera. Todas las reglas desempatan por llegada, luego prioridad del estudio y luego secuencia, así que las mismas entradas siempre producen la misma ejecución.';
-
-  @override
   String get dispatchFifo => 'FIFO — por llegada';
 
   @override
@@ -1629,18 +1622,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simPlanActualLeadTime => 'LT real';
 
   @override
-  String simDispatchOverrides(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count estaciones con regla propia',
-      one: '1 estación con regla propia',
-    );
-    return '$_temp0';
-  }
+  String get simRunQueuesMixed => 'mixto';
 
   @override
-  String simDispatchOverrideRow(String name, String rule) {
+  String simRunQueueRow(String name, String rule) {
     return '$name: $rule';
   }
 

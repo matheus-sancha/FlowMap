@@ -40,24 +40,12 @@ final flaggedStudiesProvider = StreamProvider.family<List<Study>, String>(
       ref.watch(studiesRepositoryProvider).watchFlaggedStudies(projectId),
 );
 
-/// The project's stored runs, newest first (§7.10).
-final projectRunsProvider = StreamProvider.family<List<SimulationRun>, String>(
+/// The project's stored runs, newest first, each with what it dispatched by
+/// (§7.10, §7.3).
+final projectRunsProvider = StreamProvider.family<List<RunListing>, String>(
   (ref, projectId) =>
       ref.watch(simulationRunsRepositoryProvider).watchRuns(projectId),
 );
-
-/// Which rule the workcenters dispatch by (§7.4).
-///
-/// Per project and held in memory, not stored: it is the knob the experiment
-/// turns, and a run records the rule it was made with, so the answer to "what
-/// did EDD do here" lives on the run rather than on the project.
-@riverpod
-class DispatchRuleSelection extends _$DispatchRuleSelection {
-  @override
-  DispatchRule build(String projectId) => DispatchRule.fifo;
-
-  void select(DispatchRule rule) => state = rule;
-}
 
 /// The assembled run, rebuilt whenever anything it reads changes (§11).
 ///
@@ -104,7 +92,9 @@ class SimulationRunner extends _$SimulationRunner {
   Future<StoredRun?> build(String projectId) async {
     final runs = ref.watch(projectRunsProvider(projectId)).value;
     if (runs == null || runs.isEmpty) return null;
-    return ref.read(simulationRunsRepositoryProvider).loadRun(runs.first.id);
+    return ref
+        .read(simulationRunsRepositoryProvider)
+        .loadRun(runs.first.run.id);
   }
 
   /// Assembles, runs and stores. Does nothing if the run is not ready (§11) —
@@ -114,7 +104,6 @@ class SimulationRunner extends _$SimulationRunner {
     final assembled = await ref.read(simRunInputProvider(projectId).future);
     if (!assembled.canRun) return;
 
-    final dispatch = ref.read(dispatchRuleSelectionProvider(projectId));
     final runs = ref.read(simulationRunsRepositoryProvider);
 
     state = const AsyncValue.loading();
@@ -123,15 +112,11 @@ class SimulationRunner extends _$SimulationRunner {
       // Off the UI isolate (§7.1). `SimStudy` and `SimWorkcenter` carry no
       // database handle precisely so they can cross — an isolate can only be
       // passed things that hold no open connection.
-      final result = await compute(
-        runSimulationOffThread,
-        (
-          studies: assembled.studies,
-          workcenters: assembled.workcenters,
-          dispatch: dispatch,
-          scheduleHorizon: assembled.scheduleHorizon,
-        ),
-      );
+      final result = await compute(runSimulationOffThread, (
+        studies: assembled.studies,
+        workcenters: assembled.workcenters,
+        scheduleHorizon: assembled.scheduleHorizon,
+      ));
       // The measurement §14 is still short of, recorded where a field report
       // will carry it (§16.9).
       Diag.event(
@@ -144,7 +129,6 @@ class SimulationRunner extends _$SimulationRunner {
 
       final id = await runs.saveRun(
         projectId: projectId,
-        dispatch: dispatch,
         result: result,
         studies: assembled.studies,
         workcenters: assembled.workcenters,
@@ -169,7 +153,6 @@ class SimulationRunner extends _$SimulationRunner {
 typedef SimRunRequest = ({
   List<SimStudy> studies,
   Map<String, SimWorkcenter> workcenters,
-  DispatchRule dispatch,
   DateTime? scheduleHorizon,
 });
 
@@ -183,6 +166,5 @@ typedef SimRunRequest = ({
 SimRunResult runSimulationOffThread(SimRunRequest request) => runSimulation(
   studies: request.studies,
   workcenters: request.workcenters,
-  dispatch: request.dispatch,
   scheduleHorizon: request.scheduleHorizon,
 );

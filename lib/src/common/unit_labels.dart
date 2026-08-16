@@ -1,4 +1,6 @@
 import '../data/database/enums.dart';
+import '../features/simulation/data/simulation_runs_repository.dart'
+    show RunQueues;
 import '../l10n/generated/app_localizations.dart';
 
 /// Localized names for the takt units.
@@ -29,6 +31,21 @@ String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
       DispatchRule.earliestDueDate => l10n.dispatchEarliestDueDate,
       DispatchRule.shortestProcessing => l10n.dispatchShortestProcessing,
     };
+
+/// What a whole run dispatched by, in one line (§7.3): the type every station
+/// shared, or `mixed` when they differed.
+///
+/// Null when the run recorded nothing to name — and every caller drops the
+/// clause rather than inventing FIFO for a run that never claimed one.
+///
+/// Beside [dispatchRuleLabel] for its reason, one level up: three places label a
+/// run — the history menu, the run header and the Excel stamp — and they sit in
+/// two files that must not import each other, so a run could otherwise read
+/// `FIFO` in the menu and `mixed` in the header it opens.
+String? runQueueLabel(AppLocalizations l10n, RunQueues queues) => queues.label(
+  name: (rule) => dispatchRuleLabel(l10n, rule),
+  mixed: l10n.simRunQueuesMixed,
+);
 
 /// The abbreviation the footer band and the process boxes use.
 String taktUnitShort(AppLocalizations l10n, TaktUnit unit) => switch (unit) {

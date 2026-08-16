@@ -601,34 +601,55 @@ diagnostics.
 
 ### 7.4 Dispatching
 
-Default **FIFO** by arrival at the step; ties break by (arrival, study priority, sequence #) so
-shared-workcenter contention is reproducible. A per-simulation setting offers **EDD** (earliest
-need date) and **SPT** (shortest processing time) — "what if we dispatched by due date" is exactly
-the experiment this app exists to run.
+Ties break by (arrival, study priority, sequence #) so shared-workcenter contention is reproducible.
+Four rules: **FIFO** by arrival, **LIFO**, **EDD** (earliest need date) and **SPT** (shortest
+processing time) — "what if we dispatched by due date" is exactly the experiment this app exists to
+run.
 
-**The lane in front of a step keeps the rule**, which the run's default only fills in for. Stored on
-`flow_nodes.lane_rule` and set on the inventory node, which is where the queue is drawn.
+**The queue in front of a station keeps the rule, and there is no run-level rule left** (§7.3, v19).
+`project_queues.rule` is it, keyed `{projectId, targetId}`; unset reads as FIFO, which is what a shop
+floor does. One place a dispatch decision is made, and the map draws every one of them.
 
-This reverses the first build of this section, which put the rule on the station. The argument for
-moving it: on a physical FIFO lane you cannot take from the back, so a discipline is not a property
-of the channel — it is **how the next station chooses from what is standing in front of it**, and
-that is something the map can show. Stored on the station it governed a queue the reader could not
-see it on.
+This is the third position this section has held, and the two moves were not the same mistake. The
+first build put the rule on the *station*, which governed a queue the reader could not see it on. The
+second moved it onto the **lane** — the inventory node in front of the step — which was right about
+where a discipline belongs and wrong about what a queue is: a node on one study's spine, so two
+studies through CLAD07 had one each. §7.3's re-model keeps the argument and fixes the key.
 
-- **§5.1's spine is what keeps the ordering total.** A step has at most one lane in front of it, so
-  a queue has exactly one comparator — including at a machine that is a candidate for its own step
-  and for a pool's, which is the ambiguity a station-level rule could not resolve. A run of several
-  buffers collapses to the last, the one the station actually pulls from; the earlier ones stay
-  free to pass through. Two lanes in a row is a modelling oddity rather than a case with an agreed
-  meaning, and inventing one would make a typed capacity mean something nobody asked for.
-- **A step with no lane before it follows the run's rule**, queueing at the station as before.
-- **A missing rule means "follow the run", and is not the same as FIFO.** Storing the default would
-  pin every queue the first time one was edited, and would freeze the run's own setting out. It is
-  also what keeps §5.2 honest: under the default every queue is FIFO, so drawing a lane wherever
-  one *is* FIFO would put a lane on every link and say nothing.
-- **The run records the lanes** in `simulation_run_lanes` — name, position, rule and capacity copied
-  in. Without it `simulation_runs.dispatch` would report FIFO for a run in which three queues
-  dispatched by due date, and M5's comparison could not say the dispatch is what differed.
+- **A queue has exactly one comparator**, because there is exactly one queue per target and every
+  step feeding that target reads it. The ambiguity a station-level rule could not resolve — a machine
+  that is a candidate for its own step and for a pool's — does not arise: the pool is a target in its
+  own right and carries its own queue.
+- **The run records what each station dispatched by**, in `simulation_run_workcenters.queue_type`
+  and `queue_capacity`, copied in for §7.10's reason. A run read back next month still says what each
+  station did after the queues have been retuned, and M5's comparison can say *which* queues differed
+  rather than only that something did.
+
+**What a run is labelled with follows from that.** The runs-history row, the run header and the Excel
+stamp read the date plus the queue type **when every station shared one**, and `mixed` otherwise —
+and when it is mixed the header and the stamp list each station under it, because `mixed` alone says
+the run is not one thing without saying what it is. A full breakdown does not fit a menu row, so the
+menu stops at the one word.
+
+- **One fold, read three times.** `RunQueues` derives both the one-line label and the breakdown from
+  the same list of stations, so a menu row reading `FIFO` over a header reading `mixed` is not a
+  state the code can reach — and the history query joins the stations in with the run list rather
+  than asking per row.
+- **`simulation_runs.dispatch` stays on the schema and stops being written.** The 35 runs made before
+  v19 really did dispatch the whole plant by one rule, and reading it as the fill-in for a station
+  that recorded no type is the only thing it is still for. A v19 run writes it empty, which parses to
+  no rule at all rather than to FIFO: a station with nothing recorded is left out of the run's
+  account of itself, because a run's job is to say what it observed. Widening the column to nullable
+  would rebuild the table, and §16.11 is the record of what that costs.
+- **A queue type the build has never heard of drops that station and opens the run.** The same
+  fallback rule the rest of §7.10's enums have, one level gentler: a list of runs that cannot be
+  opened at all is a worse answer than one run that names one station fewer.
+- **The dispatch dropdown in the Simulate popover has gone**, with the run-level rule it set. So has
+  the `dispatchOverrides` line on the run header, which counted overrides of a rule that no longer
+  exists.
+
+_The cost, and it is real._ §0's confounder run compared a whole plant under one rule against
+another by turning one knob; that becomes an edit per station.
 
 _Rejected: FEFO as a fifth rule._ It was asked for by name, and for this line the expiry that
 matters *is* the need date — so it is EDD under the name the floor uses, and no expiry column is

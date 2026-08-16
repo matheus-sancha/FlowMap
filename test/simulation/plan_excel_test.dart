@@ -23,8 +23,8 @@ void main() {
     runSheet: 'Run',
     unnamedStudy: 'Study',
     generated: 'FlowMap 0.1.0-test · generated 8/8/2026 10:12',
-    runLabel: '8/8/2026 · FIFO',
-    dispatchOverrides: ['CLAD04: Earliest due date'],
+    runLabel: '8/8/2026 · mixed',
+    queueTypes: ['CLAD04: Earliest need date', 'MILL02: FIFO'],
     headers: [
       'Order',
       'Part number',
@@ -103,8 +103,7 @@ void main() {
       id: 'run-1',
       projectId: 'project-1',
       createdAt: aug1,
-      dispatch: DispatchRule.fifo,
-      dispatchOverrides: const [],
+      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
       studies: studies,
       result: result,
       plan: plan,
@@ -214,10 +213,15 @@ void main() {
 
       expect(row(book, 'Run', 0).first.toString(), contains('0.1.0-test'));
       expect(row(book, 'Run', 1).first.toString(), 'H2 2026');
-      expect(row(book, 'Run', 2).first.toString(), '8/8/2026 · FIFO');
-      // Which stations dispatched by something else (§7.4): without it the
-      // file would report a rule that did not happen everywhere.
-      expect(row(book, 'Run', 3).first.toString(), 'CLAD04: Earliest due date');
+      expect(row(book, 'Run', 2).first.toString(), '8/8/2026 · mixed');
+      // What each station dispatched by, and only when they differed (§7.3):
+      // without it the file says the run was not one thing without saying what
+      // it was.
+      expect(
+        row(book, 'Run', 3).first.toString(),
+        'CLAD04: Earliest need date',
+      );
+      expect(row(book, 'Run', 4).first.toString(), 'MILL02: FIFO');
     });
 
     test('maps each study to the sheet it went to', () {
@@ -232,7 +236,7 @@ void main() {
         ),
       );
 
-      final mapping = row(book, 'Run', 4).map((c) => c.toString()).toList();
+      final mapping = row(book, 'Run', 5).map((c) => c.toString()).toList();
       expect(mapping.first, 'Line 3 / Cell 11B: current state, as measured');
       expect(mapping[1], book.tables.keys.last);
     });
@@ -375,8 +379,7 @@ void main() {
   });
 
   group('the date columns carry a number format (§12.4)', () {
-    xl.CellStyle? styleAt(xl.Excel book, int column) => book
-        .sheets['Line']!
+    xl.CellStyle? styleAt(xl.Excel book, int column) => book.sheets['Line']!
         .cell(xl.CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 1))
         .cellStyle;
 
@@ -385,7 +388,10 @@ void main() {
       // dates. What was missing is the format, without which Excel renders
       // them by the *viewer's* default and a date column reads `45 872`.
       final book = decoded(
-        runOf(studies: [study('study-1', 'Line')], plan: [planRow(sequence: 0)]),
+        runOf(
+          studies: [study('study-1', 'Line')],
+          plan: [planRow(sequence: 0)],
+        ),
       );
 
       expect(styleAt(book, 6)?.numberFormat.formatCode, 'dd/mm/yyyy');
@@ -396,7 +402,10 @@ void main() {
       // The file says more than the screen does, deliberately — and the time
       // is 24-hour whatever the date format, which is §12.4's split.
       final book = decoded(
-        runOf(studies: [study('study-1', 'Line')], plan: [planRow(sequence: 0)]),
+        runOf(
+          studies: [study('study-1', 'Line')],
+          plan: [planRow(sequence: 0)],
+        ),
       );
 
       expect(styleAt(book, 8)?.numberFormat.formatCode, 'dd/mm/yyyy hh:mm');

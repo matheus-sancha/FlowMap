@@ -103,8 +103,9 @@ void main() {
       id: 'run-1',
       projectId: 'proj-1',
       createdAt: start,
-      dispatch: DispatchRule.fifo,
-      dispatchOverrides: const [],
+      queues: const RunQueues([
+        (name: 'CLAD04', rule: DispatchRule.fifo),
+      ]),
       studies: [
         study('a', cell: 'cell-1', line: 'line-1'),
         study('b', cell: 'cell-2', line: 'line-2'),
@@ -187,8 +188,7 @@ void main() {
       id: before.id,
       projectId: before.projectId,
       createdAt: before.createdAt,
-      dispatch: before.dispatch,
-      dispatchOverrides: before.dispatchOverrides,
+      queues: before.queues,
       studies: [study('a'), study('b')],
       result: before.result,
       metrics: before.metrics,
@@ -307,8 +307,9 @@ void main() {
         id: 'run-shared',
         projectId: 'proj-1',
         createdAt: start,
-        dispatch: DispatchRule.fifo,
-        dispatchOverrides: const [],
+        queues: const RunQueues([
+          (name: 'CLAD04', rule: DispatchRule.fifo),
+        ]),
         studies: [
           study('a', cell: 'cell-1', line: 'line-1'),
           study('b', cell: 'cell-2', line: 'line-2'),
@@ -358,8 +359,7 @@ void main() {
         id: base.id,
         projectId: base.projectId,
         createdAt: base.createdAt,
-        dispatch: base.dispatch,
-        dispatchOverrides: base.dispatchOverrides,
+        queues: base.queues,
         studies: base.studies,
         metrics: base.metrics,
         plan: base.plan,
@@ -432,8 +432,9 @@ void main() {
         id: 'run-two-lines',
         projectId: 'proj-1',
         createdAt: start,
-        dispatch: DispatchRule.fifo,
-        dispatchOverrides: const [],
+        queues: const RunQueues([
+          (name: 'CLAD04', rule: DispatchRule.fifo),
+        ]),
         studies: [
           study('a', cell: 'cell-1', line: 'line-1'),
           study('b', cell: 'cell-2', line: 'line-2'),
@@ -552,8 +553,7 @@ void main() {
         id: before.id,
         projectId: before.projectId,
         createdAt: before.createdAt,
-        dispatch: before.dispatch,
-        dispatchOverrides: before.dispatchOverrides,
+        queues: before.queues,
         studies: [study('a'), study('b')],
         result: before.result,
         metrics: before.metrics,
@@ -631,8 +631,9 @@ void main() {
         id: 'run-booked',
         projectId: 'proj-1',
         createdAt: start,
-        dispatch: DispatchRule.fifo,
-        dispatchOverrides: const [],
+        queues: const RunQueues([
+          (name: 'CLAD04', rule: DispatchRule.fifo),
+        ]),
         studies: [
           study('a', cell: 'cell-1', line: 'line-1'),
           study('b', cell: 'cell-2', line: 'line-2'),

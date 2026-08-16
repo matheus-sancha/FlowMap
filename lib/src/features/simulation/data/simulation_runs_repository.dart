@@ -22,24 +22,61 @@ class SimulationRunsRepository {
 
   final AppDatabase _db;
 
-  /// The project's runs, newest first.
+  /// The project's runs, newest first, each with what its stations dispatched
+  /// by (§7.3).
   ///
   /// Ties break by id. Dates are stored to the second, the convention the rest
   /// of the schema uses, so two runs made inside one second would otherwise
   /// come back in whatever order the database felt like — and a list that
   /// reorders itself between rebuilds is the kind of thing a user reports as a
   /// bug in the run itself.
-  Stream<List<SimulationRun>> watchRuns(String projectId) =>
-      (_db.select(_db.simulationRuns)
-            ..where((r) => r.projectId.equals(projectId))
-            ..orderBy([
-              (r) => OrderingTerm(
-                expression: r.createdAt,
-                mode: OrderingMode.desc,
-              ),
-              (r) => OrderingTerm(expression: r.id),
-            ]))
-          .watch();
+  ///
+  /// **The stations come with the list rather than on demand.** The history
+  /// menu labels every row with its queue type, so a per-run query would be one
+  /// query per menu item; this is one row per station per run, which on the real
+  /// database is 35 runs of about ten. Reading them here is also what lets the
+  /// menu row and the run header be folded by the same code — a menu saying
+  /// `FIFO` over a header saying `mixed` is exactly the disagreement §12.6 is
+  /// about.
+  Stream<List<RunListing>> watchRuns(String projectId) {
+    final stations = _db.simulationRunWorkcenters;
+    final query =
+        _db.select(_db.simulationRuns).join([
+            leftOuterJoin(
+              stations,
+              stations.runId.equalsExp(_db.simulationRuns.id),
+            ),
+          ])
+          ..where(_db.simulationRuns.projectId.equals(projectId))
+          ..orderBy([
+            OrderingTerm(
+              expression: _db.simulationRuns.createdAt,
+              mode: OrderingMode.desc,
+            ),
+            OrderingTerm(expression: _db.simulationRuns.id),
+            OrderingTerm(expression: stations.name),
+          ]);
+
+    return query.watch().map((rows) {
+      // Grouped in the order the join produced, so the newest-first ordering
+      // above is the ordering that comes out.
+      final headers = <String, SimulationRun>{};
+      final byRun = <String, List<({String name, DispatchRule rule})>>{};
+      for (final row in rows) {
+        final header = row.readTable(_db.simulationRuns);
+        headers[header.id] = header;
+        final queues = byRun.putIfAbsent(header.id, () => []);
+        final station = row.readTableOrNull(stations);
+        if (station == null) continue;
+        final rule = _stationRule(station.queueType, header.dispatch);
+        if (rule != null) queues.add((name: station.name, rule: rule));
+      }
+      return [
+        for (final entry in headers.entries)
+          (run: entry.value, queues: RunQueues(byRun[entry.key] ?? const [])),
+      ];
+    });
+  }
 
   Future<void> deleteRun(String runId) =>
       (_db.delete(_db.simulationRuns)..where((r) => r.id.equals(runId))).go();
@@ -51,7 +88,6 @@ class SimulationRunsRepository {
   /// (§7.9) before the plant they describe can change.
   Future<String> saveRun({
     required String projectId,
-    required DispatchRule dispatch,
     required SimRunResult result,
     required List<SimStudy> studies,
     required Map<String, SimWorkcenter> workcenters,
@@ -102,7 +138,14 @@ class SimulationRunsRepository {
             SimulationRunsCompanion.insert(
               id: runId,
               projectId: projectId,
-              dispatch: dispatch.name,
+              // **Written empty, because a run no longer has one rule** (§7.3).
+              // The column is `NOT NULL` and stays on the schema so the runs
+              // made before v19 keep the rule they really were made with; empty
+              // parses to no rule, so it contributes nothing to the fold in
+              // [_stationRule] and every station of a v19 run speaks for itself.
+              // Widening it to nullable would rebuild the table, which §16.11
+              // is the record of the cost of.
+              dispatch: '',
               runStart: result.start,
               runEnd: result.end,
               guard: result.guard,
@@ -156,9 +199,7 @@ class SimulationRunsRepository {
               needDate: order.needDate,
               released: Value(order.released),
               delivered: Value(order.delivered),
-              theoreticalSeconds: Value(
-                theoretical[order.orderId]?.inSeconds,
-              ),
+              theoreticalSeconds: Value(theoretical[order.orderId]?.inSeconds),
             ),
         ]);
 
@@ -202,9 +243,8 @@ class SimulationRunsRepository {
               runId: runId,
               workcenterId: entry.key,
               name: workcenters[entry.key]?.name ?? entry.key,
-              busySeconds:
-                  (result.busyByWorkcenter[entry.key] ?? Duration.zero)
-                      .inSeconds,
+              busySeconds: (result.busyByWorkcenter[entry.key] ?? Duration.zero)
+                  .inSeconds,
               openSeconds: entry.value.inSeconds,
               // Kept out of `busySeconds` on purpose (§8.3): a station holding
               // a finished order it cannot put down is occupied and producing
@@ -324,18 +364,15 @@ class SimulationRunsRepository {
       _db.simulationRunLaneVisits,
     )..where((v) => v.runId.equals(runId))).get();
 
-    // The lanes that did **not** follow the run's rule (§7.4). The rule lives
-    // on the lane now, so the row that explains why an order ran when it did
-    // names the queue it was standing in rather than the machine that took it.
-    final overrides = lanes.where((l) => l.rule != null).toList()
-      // By name, so the list reads as a list of lanes rather than of uuids. An
-      // unlabelled lane sorts last under its position, which is the only thing
-      // there is to call it.
-      ..sort((a, b) {
-        final byName = (a.name ?? '~${a.position}')
-            .compareTo(b.name ?? '~${b.position}');
-        return byName;
-      });
+    // What each station dispatched by (§7.3), by name so the breakdown reads
+    // as a list of stations rather than of uuids.
+    final queues = RunQueues(
+      [
+        for (final row in stations)
+          if (_stationRule(row.queueType, header.dispatch) case final rule?)
+            (name: row.name, rule: rule),
+      ]..sort((a, b) => a.name.compareTo(b.name)),
+    );
 
     final result = SimRunResult(
       start: header.runStart,
@@ -382,19 +419,16 @@ class SimulationRunsRepository {
           ),
       ],
       busyByWorkcenter: {
-        for (final row in stations) row.workcenterId: Duration(
-          seconds: row.busySeconds,
-        ),
+        for (final row in stations)
+          row.workcenterId: Duration(seconds: row.busySeconds),
       },
       openByWorkcenter: {
-        for (final row in stations) row.workcenterId: Duration(
-          seconds: row.openSeconds,
-        ),
+        for (final row in stations)
+          row.workcenterId: Duration(seconds: row.openSeconds),
       },
       blockedByWorkcenter: {
-        for (final row in stations) row.workcenterId: Duration(
-          seconds: row.blockedSeconds,
-        ),
+        for (final row in stations)
+          row.workcenterId: Duration(seconds: row.blockedSeconds),
       },
       lanes: [
         for (final row in lanes)
@@ -433,15 +467,7 @@ class SimulationRunsRepository {
       id: header.id,
       projectId: header.projectId,
       createdAt: header.createdAt,
-      dispatch: _parse(DispatchRule.values, header.dispatch, DispatchRule.fifo),
-      dispatchOverrides: [
-        for (final row in overrides)
-          (
-            // An unlabelled lane has nothing to be called but where it sits.
-            name: row.name ?? '#${row.position}',
-            rule: _parse(DispatchRule.values, row.rule!, DispatchRule.fifo),
-          ),
-      ],
+      queues: queues,
       studies: studies,
       result: result,
       // Built from the same `orders` rows the result above was, so the plan's
@@ -465,7 +491,9 @@ class SimulationRunsRepository {
       metrics: summariseRun(
         result: result,
         partNumbers: {for (final row in orders) row.partId: row.partNumber},
-        workcenterNames: {for (final row in stations) row.workcenterId: row.name},
+        workcenterNames: {
+          for (final row in stations) row.workcenterId: row.name,
+        },
         // Read back rather than re-derived: the pools the plant has today are
         // not necessarily the ones this run dispatched through (§7.10). A row
         // written before v18 has neither column and is simply absent, which is
@@ -493,7 +521,74 @@ class SimulationRunsRepository {
   /// heard of, and a list of runs that cannot be opened at all is a worse
   /// answer than one run that reads as the default (see `SimulationRuns`).
   static T _parse<T extends Enum>(List<T> values, String name, T fallback) =>
-      values.where((v) => v.name == name).firstOrNull ?? fallback;
+      _parseOrNull(values, name) ?? fallback;
+
+  static T? _parseOrNull<T extends Enum>(List<T> values, String name) =>
+      values.where((v) => v.name == name).firstOrNull;
+
+  /// What one station of a run dispatched by (§7.3).
+  ///
+  /// **The run-level rule fills in, and is the only thing it is still read
+  /// for.** A run made before v19 recorded no queue type per station and really
+  /// did dispatch the whole plant by one rule, so reading it here is what keeps
+  /// the 35 stored runs saying what they did. A v19 run writes the column empty
+  /// (see `saveRun`), which parses to null — so a station that also has no queue
+  /// type recorded has nothing to say and is left out rather than reported as
+  /// FIFO.
+  static DispatchRule? _stationRule(String? queueType, String runRule) =>
+      _parseOrNull(DispatchRule.values, queueType ?? runRule);
+}
+
+/// One line of the runs history: a run's header row and what it dispatched by.
+typedef RunListing = ({SimulationRun run, RunQueues queues});
+
+/// What each station of a run dispatched by, as the run recorded it (§7.3).
+///
+/// **This replaced `simulation_runs.dispatch` as the thing a run is labelled
+/// with.** The queue type belongs to a station since v19, so a header claiming
+/// the run had one rule was describing a decision the engine had stopped making
+/// — and the count of stations that "overrode" it described an override of
+/// nothing.
+///
+/// [uniform] and [isMixed] are both derived from [stations], so the one-line
+/// label and the breakdown beneath it cannot disagree about the same run.
+class RunQueues {
+  const RunQueues(this.stations);
+
+  /// Every station that recorded a queue type, by name.
+  final List<({String name, DispatchRule rule})> stations;
+
+  /// The one type every station shared, or null when they differed.
+  ///
+  /// Also null when the run recorded no station at all, which [isMixed]
+  /// separates: one is `mixed`, the other is a run with nothing to say.
+  DispatchRule? get uniform {
+    final types = _types;
+    return types.length == 1 ? types.single : null;
+  }
+
+  bool get isMixed => _types.length > 1;
+
+  Set<DispatchRule> get _types => {
+    for (final station in stations) station.rule,
+  };
+
+  /// How this reads in one line: the shared type's name, or `mixed`.
+  ///
+  /// Null when there is nothing to name, and the caller drops the clause rather
+  /// than inventing FIFO for a run that never said so.
+  ///
+  /// Takes its words rather than an `AppLocalizations`, so the fold stays in the
+  /// data layer where the run is read and no layer below the widgets has to know
+  /// what a locale is.
+  String? label({
+    required String Function(DispatchRule) name,
+    required String mixed,
+  }) {
+    if (isMixed) return mixed;
+    final rule = uniform;
+    return rule == null ? null : name(rule);
+  }
 }
 
 /// A run as it comes back out of storage.
@@ -502,8 +597,7 @@ class StoredRun {
     required this.id,
     required this.projectId,
     required this.createdAt,
-    required this.dispatch,
-    required this.dispatchOverrides,
+    required this.queues,
     required this.studies,
     required this.result,
     required this.metrics,
@@ -514,9 +608,8 @@ class StoredRun {
   final String projectId;
   final DateTime createdAt;
 
-  /// The rule the run was made with — what every station used unless it is
-  /// named in [dispatchOverrides].
-  final DispatchRule dispatch;
+  /// What each station dispatched by, as the run recorded it (§7.3).
+  final RunQueues queues;
 
   /// The production plan (§8.5), in sequence order, all studies together.
   ///
@@ -525,14 +618,6 @@ class StoredRun {
   /// reorders it, so "over time" and "in sequence" are the same list and cannot
   /// disagree with the Order column.
   final List<ProductionPlanRow> plan;
-
-  /// The stations that dispatched by something else (§7.4), by name.
-  ///
-  /// Without this a run would report its default and nothing else, so
-  /// reopening it a month later would describe a dispatch that never happened
-  /// — and a comparison of two runs could not say the dispatch is what
-  /// differed between them.
-  final List<({String name, DispatchRule rule})> dispatchOverrides;
 
   /// The studies that took part, as they stood at the time.
   final List<SimulationRunStudy> studies;

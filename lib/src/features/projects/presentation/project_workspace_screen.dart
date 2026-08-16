@@ -4,9 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
-import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
-import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/presentation/demand_tab.dart';
 import '../../flow/presentation/flow_tab.dart';
@@ -347,13 +345,12 @@ class _SimulateButton extends ConsumerWidget {
           ),
         ),
         // **Everything about the *next* run, under the button that starts it**
-        // (§12.1). The dispatch rule and §11's readiness were on the deleted
-        // Simulation tab; they are about what the run will be rather than about
-        // what it said, so they follow the trigger rather than the results.
-        // Stacking them into the workspace's filter bar instead would have made
-        // a strip that already scrolls sideways at 1100 px carry three more
-        // controls.
-        _RunSettingsButton(project: project, input: input, busy: busy),
+        // (§12.1). §11's readiness was on the deleted Simulation tab; it is
+        // about what the run will be rather than about what it said, so it
+        // follows the trigger rather than the results. Stacking it into the
+        // workspace's filter bar instead would have made a strip that already
+        // scrolls sideways at 1100 px carry another control.
+        _RunSettingsButton(input: input),
       ],
     );
   }
@@ -392,29 +389,26 @@ class _SimulateButton extends ConsumerWidget {
   }
 }
 
-/// The rule the next run is made with, and why it cannot be started
+/// What the next run would cover, and why it cannot be started
 /// (DESIGN.md §12.1).
 ///
-/// **Under the Simulate button rather than beside the results.** Both of these
-/// describe the run that has not happened yet: the dispatch rule decides what it
-/// will do, and §11's readiness decides whether it may begin. They lived on the
-/// Simulation tab because that is where the button used to be; the button moved
-/// to the app bar in an earlier round and they did not follow it, which is how
-/// the reason a button is disabled came to be on a tab the reader was not
-/// looking at.
+/// **Under the Simulate button rather than beside the results**, because it
+/// describes the run that has not happened yet: §11's readiness decides whether
+/// it may begin. It lived on the Simulation tab because that is where the button
+/// used to be; the button moved to the app bar in an earlier round and it did
+/// not follow, which is how the reason a button is disabled came to be on a tab
+/// the reader was not looking at.
+///
+/// **The dispatch dropdown has gone** (§7.3). A run has no rule of its own since
+/// v19 — the queue in front of each station carries one, set on the map where it
+/// is drawn — so a knob here would have set something no engine reads.
 ///
 /// The badge is the count of studies that are not ready, so the panel says there
 /// is something to open before it is opened.
 class _RunSettingsButton extends ConsumerWidget {
-  const _RunSettingsButton({
-    required this.project,
-    required this.input,
-    required this.busy,
-  });
+  const _RunSettingsButton({required this.input});
 
-  final Project project;
   final SimRunInput? input;
-  final bool busy;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -441,19 +435,6 @@ class _RunSettingsButton extends ConsumerWidget {
                     color: theme.colorScheme.outline,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: Text(l10n.simulationDispatch)),
-                    _DispatchPicker(projectId: project.id, busy: busy),
-                  ],
-                ),
-                Text(
-                  l10n.simulationDispatchHelp,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
                 if (input case final input? when !input.canRun) ...[
                   const Divider(height: 24),
                   Readiness(input: input),
@@ -474,41 +455,6 @@ class _RunSettingsButton extends ConsumerWidget {
           label: Text('$blocked'),
           child: const Icon(Icons.tune),
         ),
-      ),
-    );
-  }
-}
-
-class _DispatchPicker extends ConsumerWidget {
-  const _DispatchPicker({required this.projectId, required this.busy});
-
-  final String projectId;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final rule = ref.watch(dispatchRuleSelectionProvider(projectId));
-
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<DispatchRule>(
-        value: rule,
-        onChanged: busy
-            ? null
-            : (value) {
-                if (value != null) {
-                  ref
-                      .read(dispatchRuleSelectionProvider(projectId).notifier)
-                      .select(value);
-                }
-              },
-        items: [
-          for (final option in DispatchRule.values)
-            DropdownMenuItem(
-              value: option,
-              child: Text(dispatchRuleLabel(l10n, option)),
-            ),
-        ],
       ),
     );
   }

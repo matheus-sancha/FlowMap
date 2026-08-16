@@ -2568,18 +2568,6 @@ abstract class AppLocalizations {
   /// **'Run settings'**
   String get simulationRunSettings;
 
-  /// No description provided for @simulationDispatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Dispatch'**
-  String get simulationDispatch;
-
-  /// No description provided for @simulationDispatchHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.'**
-  String get simulationDispatchHelp;
-
   /// No description provided for @dispatchFifo.
   ///
   /// In en, this message translates to:
@@ -2928,17 +2916,17 @@ abstract class AppLocalizations {
   /// **'Actual LT'**
   String get simPlanActualLeadTime;
 
-  /// No description provided for @simDispatchOverrides.
+  /// No description provided for @simRunQueuesMixed.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 station overridden} other{{count} stations overridden}}'**
-  String simDispatchOverrides(int count);
+  /// **'mixed'**
+  String get simRunQueuesMixed;
 
-  /// No description provided for @simDispatchOverrideRow.
+  /// No description provided for @simRunQueueRow.
   ///
   /// In en, this message translates to:
   /// **'{name}: {rule}'**
-  String simDispatchOverrideRow(String name, String rule);
+  String simRunQueueRow(String name, String rule);
 
   /// No description provided for @simRunDeleteBody.
   ///

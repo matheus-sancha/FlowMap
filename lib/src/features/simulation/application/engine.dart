@@ -29,7 +29,6 @@ import 'theoretical_lead_time.dart';
 SimRunResult runSimulation({
   required List<SimStudy> studies,
   required Map<String, SimWorkcenter> workcenters,
-  DispatchRule dispatch = DispatchRule.fifo,
   DateTime? start,
   DateTime? guard,
   /// Carried through untouched, for §11.1's warning. The engine never reads
@@ -57,7 +56,6 @@ SimRunResult runSimulation({
   return _Engine(
     studies: studies,
     workcenters: workcenters,
-    dispatch: dispatch,
     start: from,
     guard: guard ?? plan.guardFrom(from),
     scheduleHorizon: scheduleHorizon,
@@ -327,7 +325,6 @@ class _Engine {
   _Engine({
     required this.studies,
     required this.workcenters,
-    required this.dispatch,
     required this.start,
     required this.guard,
     required this.scheduleHorizon,
@@ -335,7 +332,6 @@ class _Engine {
 
   final List<SimStudy> studies;
   final Map<String, SimWorkcenter> workcenters;
-  final DispatchRule dispatch;
   final DateTime start;
   final DateTime guard;
 

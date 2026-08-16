@@ -6,12 +6,10 @@ import '../../../common/dialogs.dart';
 import '../../../common/part_palette.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
-import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/run_filter.dart';
 import '../application/run_metrics.dart';
 import '../application/sim_assembly.dart';
-import '../application/sim_model.dart';
 import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
@@ -33,14 +31,17 @@ class RunsMenu extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final dateStyle = DateStyleScope.of(context);
     final runs =
-        ref.watch(projectRunsProvider(projectId)).value ??
-        const <SimulationRun>[];
+        ref.watch(projectRunsProvider(projectId)).value ?? const <RunListing>[];
     if (runs.isEmpty) return const SizedBox.shrink();
 
-    String label(SimulationRun run) => l10n.simRunLabel(
-      dateStyle.format(run.createdAt),
-      dispatchRuleLabel(l10n, _ruleOf(run.dispatch)),
-    );
+    // The date, and what the run dispatched by when every station agreed —
+    // `mixed` when they did not (§7.3). A full breakdown does not fit a menu
+    // row, and the per-station list is on the run header the row opens.
+    String label(RunListing listing) {
+      final date = dateStyle.format(listing.run.createdAt);
+      final queues = runQueueLabel(l10n, listing.queues);
+      return queues == null ? date : l10n.simRunLabel(date, queues);
+    }
 
     return PopupMenuButton<({String runId, bool delete})>(
       tooltip: l10n.simEarlierRuns,
@@ -49,7 +50,7 @@ class RunsMenu extends ConsumerWidget {
         final runner = ref.read(simulationRunnerProvider(projectId).notifier);
         if (!action.delete) return runner.show(action.runId);
 
-        final run = runs.firstWhere((r) => r.id == action.runId);
+        final run = runs.firstWhere((r) => r.run.id == action.runId);
         final confirmed = await confirmAction(
           context,
           title: l10n.confirmDeleteTitle(label(run)),
@@ -60,12 +61,12 @@ class RunsMenu extends ConsumerWidget {
         if (confirmed) await runner.delete(action.runId);
       },
       itemBuilder: (context) => [
-        for (final run in runs)
+        for (final listing in runs)
           PopupMenuItem(
-            value: (runId: run.id, delete: false),
+            value: (runId: listing.run.id, delete: false),
             child: Row(
               children: [
-                Expanded(child: Text(label(run))),
+                Expanded(child: Text(label(listing))),
                 const SizedBox(width: 12),
                 // In the row rather than a second menu: the run being deleted
                 // is the one being read, and a delete two levels away from it
@@ -73,8 +74,9 @@ class RunsMenu extends ConsumerWidget {
                 IconButton(
                   tooltip: l10n.actionDelete,
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  onPressed: () =>
-                      Navigator.of(context).pop((runId: run.id, delete: true)),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop((runId: listing.run.id, delete: true)),
                 ),
               ],
             ),
@@ -82,10 +84,6 @@ class RunsMenu extends ConsumerWidget {
       ],
     );
   }
-
-  static DispatchRule _ruleOf(String name) =>
-      DispatchRule.values.where((r) => r.name == name).firstOrNull ??
-      DispatchRule.fifo;
 }
 
 /// Which of the two views of a run is showing.
@@ -215,32 +213,34 @@ class _RunHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final dateStyle = DateStyleScope.of(context);
 
+    final date = dateStyle.format(run.createdAt);
+    final queues = runQueueLabel(l10n, run.queues);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '${l10n.simRunLabel(dateStyle.format(run.createdAt), dispatchRuleLabel(l10n, run.dispatch))}'
+          '${queues == null ? date : l10n.simRunLabel(date, queues)}'
           '  ·  '
-          '${l10n.simRunSpan(dateStyle.format(run.result.start), dateStyle.format(run.result.end))}'
-          // Named here rather than left to the reader to notice, because the
-          // rule beside the timestamp would otherwise describe a dispatch that
-          // did not happen at every station (§7.4).
-          '${run.dispatchOverrides.isEmpty ? '' : '  ·  ${l10n.simDispatchOverrides(run.dispatchOverrides.length)}'}',
+          '${l10n.simRunSpan(dateStyle.format(run.result.start), dateStyle.format(run.result.end))}',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
         ),
-        // Which stations, and to what. A count alone says the run is not what
-        // its header claims without saying what it actually was.
-        if (run.dispatchOverrides.isNotEmpty)
+        // Which station dispatched by what, and only when they disagree. A
+        // header saying `mixed` without saying what the mixture was tells the
+        // reader the run is not one thing without telling them what it is;
+        // repeating one shared rule per station would be the same word ten
+        // times (§7.3).
+        if (run.queues.isMixed)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               [
-                for (final override in run.dispatchOverrides)
-                  l10n.simDispatchOverrideRow(
-                    override.name,
-                    dispatchRuleLabel(l10n, override.rule),
+                for (final station in run.queues.stations)
+                  l10n.simRunQueueRow(
+                    station.name,
+                    dispatchRuleLabel(l10n, station.rule),
                   ),
               ].join('  ·  '),
               style: theme.textTheme.bodySmall?.copyWith(

@@ -40,7 +40,7 @@ class PlanExcelStrings {
     required this.headers,
     required this.generated,
     required this.runLabel,
-    required this.dispatchOverrides,
+    required this.queueTypes,
     required this.unnamedStudy,
   });
 
@@ -54,11 +54,12 @@ class PlanExcelStrings {
   /// `FlowMap 0.1.0-2026-08-08 · generated 8/8/2026 10:12`.
   final String generated;
 
-  /// `8/8/2026 · FIFO`.
+  /// `8/8/2026 · FIFO`, or the date alone when the run named no queue type.
   final String runLabel;
 
-  /// One line per station that dispatched by something else (§7.4).
-  final List<String> dispatchOverrides;
+  /// One line per station, and only when they did not all dispatch alike
+  /// (§7.3). Empty on a run whose queues agreed, which [runLabel] already names.
+  final List<String> queueTypes;
 
   /// What a study whose name is nothing a sheet can be called falls back to.
   final String unnamedStudy;
@@ -113,8 +114,8 @@ Uint8List buildPlanWorkbook({
   stamp.appendRow([xl.TextCellValue(strings.generated)]);
   stamp.appendRow([xl.TextCellValue(projectName)]);
   stamp.appendRow([xl.TextCellValue(strings.runLabel)]);
-  for (final override in strings.dispatchOverrides) {
-    stamp.appendRow([xl.TextCellValue(override)]);
+  for (final queue in strings.queueTypes) {
+    stamp.appendRow([xl.TextCellValue(queue)]);
   }
 
   for (final entry in byStudy.entries) {
@@ -295,16 +296,17 @@ Future<void> exportPlanExcel(
         kBuildLabel,
         timestamp.format(DateTime.now()),
       ),
-      runLabel: l10n.simRunLabel(
-        dates.format(run.createdAt),
-        dispatchRuleLabel(l10n, run.dispatch),
-      ),
-      dispatchOverrides: [
-        for (final override in run.dispatchOverrides)
-          l10n.simDispatchOverrideRow(
-            override.name,
-            dispatchRuleLabel(l10n, override.rule),
-          ),
+      runLabel: switch (runQueueLabel(l10n, run.queues)) {
+        final queues? => l10n.simRunLabel(dates.format(run.createdAt), queues),
+        null => dates.format(run.createdAt),
+      },
+      queueTypes: [
+        if (run.queues.isMixed)
+          for (final station in run.queues.stations)
+            l10n.simRunQueueRow(
+              station.name,
+              dispatchRuleLabel(l10n, station.rule),
+            ),
       ],
       // The three duration columns carry their unit, because a column has one
       // where the screen picks one per figure.

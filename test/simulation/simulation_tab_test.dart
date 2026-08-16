@@ -59,7 +59,14 @@ void main() {
     readiness: readiness,
   );
 
-  StoredRun storedRun({SimAbortReason? abort, int orders = 4, int onTime = 3}) {
+  StoredRun storedRun({
+    SimAbortReason? abort,
+    int orders = 4,
+    int onTime = 3,
+    RunQueues queues = const RunQueues([
+      (name: 'CLAD04', rule: DispatchRule.earliestDueDate),
+    ]),
+  }) {
     final result = SimRunResult(
       start: DateTime(2026, 8, 3),
       end: DateTime(2026, 8, 28),
@@ -90,8 +97,7 @@ void main() {
       id: 'run-1',
       projectId: project.id,
       createdAt: now,
-      dispatch: DispatchRule.earliestDueDate,
-      dispatchOverrides: const [],
+      queues: queues,
       studies: const [],
       result: result,
       plan: [
@@ -115,7 +121,6 @@ void main() {
       ),
     );
   }
-
 
   SimulationRunStudy study(String id, String name) => SimulationRunStudy(
     runId: 'run-1',
@@ -166,8 +171,7 @@ void main() {
       id: 'run-1',
       projectId: project.id,
       createdAt: now,
-      dispatch: DispatchRule.fifo,
-      dispatchOverrides: const [],
+      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
       studies: [study('study-1', 'Célula 11B'), study('study-2', 'Célula 12A')],
       result: result,
       plan: const [],
@@ -188,8 +192,7 @@ void main() {
       id: base.id,
       projectId: base.projectId,
       createdAt: base.createdAt,
-      dispatch: base.dispatch,
-      dispatchOverrides: base.dispatchOverrides,
+      queues: base.queues,
       studies: base.studies,
       result: base.result,
       metrics: base.metrics,
@@ -244,7 +247,9 @@ void main() {
           // The filter bar offers studies, cells and lines from the plant
           // rather than from the run (§12.1), so it asks for both even on a
           // project that has never run.
-          studiesProvider(project.id).overrideWith((ref) => Stream.value(const [])),
+          studiesProvider(
+            project.id,
+          ).overrideWith((ref) => Stream.value(const [])),
           plantLinesProvider(
             project.plantId,
           ).overrideWith((ref) => Stream.value(const [])),
@@ -390,6 +395,64 @@ void main() {
     expect(find.text('Per part number'), findsOne);
     // Once in the per-part table and once per plan row below it.
     expect(find.text('PN1'), findsWidgets);
+  });
+
+  testWidgets('the run header names the queue every station shared', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
+        ],
+      ),
+      run: storedRun(
+        queues: const RunQueues([
+          (name: 'CLAD04', rule: DispatchRule.fifo),
+          (name: 'MILL02', rule: DispatchRule.fifo),
+        ]),
+      ),
+    );
+
+    expect(find.textContaining('FIFO'), findsOne);
+    // And nothing beneath it. Repeating one shared rule per station is the
+    // same word twice, and the header used to carry a count of overrides of a
+    // rule the run no longer has (§7.3).
+    expect(find.textContaining('CLAD04:'), findsNothing);
+  });
+
+  testWidgets('a run whose stations differ says mixed, and says which', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(
+            studyId: 'study-1',
+            name: 'Current state',
+            problems: [],
+          ),
+        ],
+      ),
+      run: storedRun(
+        queues: const RunQueues([
+          (name: 'CLAD04', rule: DispatchRule.earliestDueDate),
+          (name: 'MILL02', rule: DispatchRule.fifo),
+        ]),
+      ),
+    );
+
+    // `mixed` alone would say the run is not one thing without saying what it
+    // is, which is the complaint the old override count answered badly.
+    expect(find.textContaining('mixed'), findsOne);
+    expect(find.textContaining('CLAD04: Earliest need date'), findsOne);
+    expect(find.textContaining('MILL02: FIFO'), findsOne);
   });
 
   testWidgets('one study means no Study column on the per-part table', (
@@ -539,8 +602,7 @@ void main() {
         id: run.id,
         projectId: run.projectId,
         createdAt: run.createdAt,
-        dispatch: run.dispatch,
-        dispatchOverrides: run.dispatchOverrides,
+        queues: run.queues,
         studies: run.studies,
         result: run.result,
         metrics: run.metrics,
@@ -628,9 +690,7 @@ void main() {
     expect(find.textContaining('Demand exceeds capacity'), findsOne);
   });
 
-  testWidgets('a study filter narrows every table on the page', (
-    tester,
-  ) async {
+  testWidgets('a study filter narrows every table on the page', (tester) async {
     // **The workspace's first end-to-end test** (§3.7). The field reported the
     // filter doing nothing; `run_filter.dart` is covered and correct, so what
     // this pins is the wiring between the filter and what is on screen.
@@ -852,8 +912,7 @@ void main() {
         id: base.id,
         projectId: base.projectId,
         createdAt: base.createdAt,
-        dispatch: base.dispatch,
-        dispatchOverrides: base.dispatchOverrides,
+        queues: base.queues,
         studies: base.studies,
         result: base.result,
         metrics: summariseRun(
@@ -913,8 +972,7 @@ void main() {
         id: base.id,
         projectId: base.projectId,
         createdAt: base.createdAt,
-        dispatch: base.dispatch,
-        dispatchOverrides: base.dispatchOverrides,
+        queues: base.queues,
         studies: base.studies,
         result: result,
         plan: base.plan,
@@ -1054,7 +1112,11 @@ void main() {
         tester,
         assembled: input(
           readiness: const [
-            StudyReadiness(studyId: 'study-1', name: 'Celula 11B', problems: []),
+            StudyReadiness(
+              studyId: 'study-1',
+              name: 'Celula 11B',
+              problems: [],
+            ),
           ],
         ),
         run: bookedSteppedRun(),
@@ -1063,15 +1125,14 @@ void main() {
       await tester.tap(find.text('Gantt'));
       await tester.pumpAndSettle();
 
-      Set<String> partsDrawn() => (tester
-                  .widget<CustomPaint>(find.byKey(ganttCanvasKey))
-                  .painter!
-              as GanttPainter)
-          .layout
-          .chart
-          .parts
-          .map((p) => p.partNumber)
-          .toSet();
+      Set<String> partsDrawn() =>
+          (tester.widget<CustomPaint>(find.byKey(ganttCanvasKey)).painter!
+                  as GanttPainter)
+              .layout
+              .chart
+              .parts
+              .map((p) => p.partNumber)
+              .toSet();
 
       expect(partsDrawn(), {'KEPT-1', 'DROPPED-2'});
 

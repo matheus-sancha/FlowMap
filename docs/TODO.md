@@ -1376,8 +1376,9 @@ paths into one row is how the two come to disagree (§12.6).
 
 #### What §7.3 still owes
 
-The model and the engine landed; two surfaces did not, and they are stated here as items rather than
-left in the prose above where they have already been missed once.
+The model and the engine landed; the map did not. The run-level dispatch rule was retired from the
+UI on 2026-08-16 — the popover's dropdown, the run header, the runs-history label and the Excel stamp
+all read the per-station queue type now, and say `mixed` where the stations differ.
 
 - [ ] **The map's connector symbols.** The queue type is stored per target and **nothing draws it**:
       `flow_view.dart` has no notion of a queue type, so every connector is still the push arrow.
@@ -1387,14 +1388,6 @@ left in the prose above where they have already been missed once.
       channel and set the type, the capacity and the stock. There is currently **no way to edit a
       queue at all** since the inventory node stopped being read, so a v19 database can only be
       retuned by the fold's own output.
-- [ ] **Retire `SimulationRuns.dispatch` from the UI.** The engine stopped consulting it in
-      `00399b4`, and it is still read in four places: the run header
-      (`simulation_tab.dart:222, 228, 235`) and the Excel export (`plan_excel.dart:300–303`). It
-      stays on the *schema* for pre-v19 runs, which is deliberate — what has to go is the pretence
-      that a current run has one rule. §7.3's replacement is the per-station queue type, already
-      stored on `simulation_run_workcenters`.
-- [ ] **The runs-history label** becomes the date plus the queue type when every station shares one,
-      and `mixed` otherwise. Reads `2026-08-15 · FIFO` off the retired run-level rule today.
 
 _Swept for others on 2026-08-16 and found none:_ `lane.studyId` is no longer read anywhere for
 behaviour. **But it is still written and never read**, along with `SimLane.position`, which §8.6 says

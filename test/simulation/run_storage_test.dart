@@ -201,11 +201,7 @@ void main() {
           title: 'CEU27',
           candidates: ['wc-2'],
           demandKey: 'wc-2',
-          queue: SimQueue(
-            targetId: 'wc-2',
-            name: 'FIFO CEU27',
-            capacity: 1,
-          ),
+          queue: SimQueue(targetId: 'wc-2', name: 'FIFO CEU27', capacity: 1),
         ),
       ],
       parts: {
@@ -234,7 +230,6 @@ void main() {
     final result = runSimulation(studies: [study], workcenters: plant);
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: result,
       studies: [study],
       workcenters: plant,
@@ -262,7 +257,10 @@ void main() {
 
     // A capped lane with a slow station behind it blocks, and that time is
     // stored beside the step rather than inside its occupancy.
-    expect(stored.result.blockedByWorkcenter['wc-1'], greaterThan(Duration.zero));
+    expect(
+      stored.result.blockedByWorkcenter['wc-1'],
+      greaterThan(Duration.zero),
+    );
 
     // **Per step as well as per station**, and the two have to agree. Both of
     // these columns were being read back and written by nobody until this test
@@ -279,21 +277,18 @@ void main() {
     // And the fresh result says the same as the stored one, which is the whole
     // claim of this file.
     expect(
-      stored.result.steps.map((s) => (s.orderId, s.laneNodeId, s.blocked)).toSet(),
+      stored.result.steps
+          .map((s) => (s.orderId, s.laneNodeId, s.blocked))
+          .toSet(),
       result.steps.map((s) => (s.orderId, s.laneNodeId, s.blocked)).toSet(),
     );
   });
 
-  test('a stored run reports exactly what it reported when it was made',
-      () async {
+  test('a stored run reports exactly what it reported when it was made', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
 
-    final result = runSimulation(
-      studies: studies,
-      workcenters: plant,
-      dispatch: DispatchRule.earliestDueDate,
-    );
+    final result = runSimulation(studies: studies, workcenters: plant);
     final fresh = computeRunMetrics(
       result: result,
       studies: studies,
@@ -302,7 +297,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.earliestDueDate,
       result: result,
       studies: studies,
       workcenters: plant,
@@ -310,7 +304,7 @@ void main() {
 
     final stored = await runs.loadRun(runId);
     expect(stored, isNotNull);
-    expect(stored!.dispatch, DispatchRule.earliestDueDate);
+    expect(stored!.queues.uniform, DispatchRule.fifo);
     expect(stored.projectId, projectId);
 
     // The result itself.
@@ -329,8 +323,12 @@ void main() {
     // actually did — so it is asserted against the fresh run rather than merely
     // for being non-null.
     expect(
-      stored.result.steps.map((s) => (s.orderId, s.nodeId, s.changeoverSeconds)).toSet(),
-      result.steps.map((s) => (s.orderId, s.nodeId, s.changeoverSeconds)).toSet(),
+      stored.result.steps
+          .map((s) => (s.orderId, s.nodeId, s.changeoverSeconds))
+          .toSet(),
+      result.steps
+          .map((s) => (s.orderId, s.nodeId, s.changeoverSeconds))
+          .toSet(),
     );
     // And it is stated rather than left blank: a fresh run always says, even
     // when the answer is zero. Null would mean nobody recorded it, which is
@@ -386,7 +384,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: runSimulation(studies: studies, workcenters: plant),
       studies: studies,
       workcenters: plant,
@@ -425,7 +422,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.shortestProcessing,
       result: aborted,
       studies: studies,
       workcenters: plant,
@@ -434,28 +430,119 @@ void main() {
     final stored = await runs.loadRun(runId);
     expect(stored!.result.abort, SimAbortReason.horizonExceeded);
     expect(stored.result.completed, isFalse);
-    expect(stored.dispatch, DispatchRule.shortestProcessing);
   });
 
-  test('a rule this build has never heard of reads as the default', () async {
+  test(
+    'a queue type this build has never heard of is not read as FIFO',
+    () async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: runSimulation(studies: studies, workcenters: plant),
+        studies: studies,
+        workcenters: plant,
+      );
+
+      // What a database written by a later build looks like to this one. Two
+      // things have to hold, and the second is the one §7.3 changed: the run
+      // still **opens**, because a list of runs that cannot be read at all is a
+      // worse answer than one run that reads oddly — and the station is not
+      // claimed to have dispatched FIFO, because it did not, and a run's whole
+      // job is to say what it observed.
+      await (db.update(db.simulationRunWorkcenters)
+            ..where((w) => w.runId.equals(runId))
+            ..where((w) => w.workcenterId.equals('wc-1')))
+          .write(
+            const SimulationRunWorkcentersCompanion(
+              queueType: Value('leastSlack'),
+            ),
+          );
+
+      final stored = await runs.loadRun(runId);
+      expect(stored, isNotNull);
+      expect(stored!.queues.stations.map((s) => s.name), ['MILL02']);
+    },
+  );
+
+  test('a run made before v19 reports its one rule at every station', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: runSimulation(studies: studies, workcenters: plant),
       studies: studies,
       workcenters: plant,
     );
 
-    // What a database written by a later build looks like to this one. A list
-    // of runs that cannot be opened at all is a worse answer than one run that
-    // reads as FIFO.
-    await (db.update(db.simulationRuns)..where((r) => r.id.equals(runId)))
-        .write(const SimulationRunsCompanion(dispatch: Value('leastSlack')));
+    // The 35 runs on the real database: no queue type per station, and one rule
+    // on the header. It really did dispatch the whole plant by that rule, and
+    // reading it here is the only thing `simulation_runs.dispatch` is still for
+    // (§7.3).
+    await (db.update(db.simulationRunWorkcenters)
+          ..where((w) => w.runId.equals(runId)))
+        .write(const SimulationRunWorkcentersCompanion(queueType: Value(null)));
+    await (db.update(
+      db.simulationRuns,
+    )..where((r) => r.id.equals(runId))).write(
+      const SimulationRunsCompanion(dispatch: Value('earliestDueDate')),
+    );
 
     final stored = await runs.loadRun(runId);
-    expect(stored!.dispatch, DispatchRule.fifo);
+    expect(stored!.queues.uniform, DispatchRule.earliestDueDate);
+    expect(stored.queues.isMixed, isFalse);
+    expect(stored.queues.stations.map((s) => (s.name, s.rule)), [
+      ('CLAD04', DispatchRule.earliestDueDate),
+      ('MILL02', DispatchRule.earliestDueDate),
+    ]);
+  });
+
+  test('a run whose stations differ is mixed, and says which', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: runSimulation(studies: studies, workcenters: plant),
+      studies: studies,
+      workcenters: plant,
+    );
+
+    await (db.update(db.simulationRunWorkcenters)
+          ..where((w) => w.runId.equals(runId))
+          ..where((w) => w.workcenterId.equals('wc-2')))
+        .write(
+          const SimulationRunWorkcentersCompanion(queueType: Value('lifo')),
+        );
+
+    final stored = await runs.loadRun(runId);
+    // No one rule to name, and the breakdown is what says so. Both are read off
+    // the same list, so the header and the line under it cannot disagree.
+    expect(stored!.queues.uniform, isNull);
+    expect(stored.queues.isMixed, isTrue);
+    expect(stored.queues.stations.map((s) => (s.name, s.rule)), [
+      ('CLAD04', DispatchRule.fifo),
+      ('MILL02', DispatchRule.lifo),
+    ]);
+  });
+
+  test('a v19 run writes no rule of its own', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: runSimulation(studies: studies, workcenters: plant),
+      studies: studies,
+      workcenters: plant,
+    );
+
+    // The column stays on the schema so the pre-v19 runs keep what they were
+    // made with, and stops being written (§7.3). Empty rather than `fifo`,
+    // which would be a claim: every station of this run speaks for itself, and
+    // a station missing its type has nothing to fall back on.
+    final header = await (db.select(
+      db.simulationRuns,
+    )..where((r) => r.id.equals(runId))).getSingle();
+    expect(header.dispatch, isEmpty);
   });
 
   test('deleting the project takes its runs with it', () async {
@@ -463,7 +550,6 @@ void main() {
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: runSimulation(studies: studies, workcenters: plant),
       studies: studies,
       workcenters: plant,
@@ -485,14 +571,12 @@ void main() {
 
     final older = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: result,
       studies: studies,
       workcenters: plant,
     );
     final newer = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.earliestDueDate,
       result: result,
       studies: studies,
       workcenters: plant,
@@ -505,38 +589,74 @@ void main() {
         .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
 
     final listed = await runs.watchRuns(projectId).first;
-    expect(listed.map((r) => r.id), [newer, older]);
+    expect(listed.map((r) => r.run.id), [newer, older]);
   });
 
-  test('two runs in the same second still come back in a fixed order',
-      () async {
+  test('the history carries what each run dispatched by', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final result = runSimulation(studies: studies, workcenters: plant);
 
-    final ids = [
-      for (var i = 0; i < 3; i++)
-        await runs.saveRun(
-          projectId: projectId,
-          dispatch: DispatchRule.fifo,
-          result: result,
-          studies: studies,
-          workcenters: plant,
-        ),
-    ]..sort();
+    final uniform = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+    final mixed = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+    await (db.update(db.simulationRunWorkcenters)
+          ..where((w) => w.runId.equals(mixed))
+          ..where((w) => w.workcenterId.equals('wc-2')))
+        .write(
+          const SimulationRunWorkcentersCompanion(queueType: Value('lifo')),
+        );
 
-    // Pinned to one instant rather than trusting three saves to land inside
-    // the same second: the tie is the thing under test, and a test that only
-    // creates one when the clock cooperates is a test that passes for the
-    // wrong reason.
-    await db
-        .update(db.simulationRuns)
-        .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
-
-    // Ties break by id, so the list cannot reorder itself between rebuilds
-    // (§4.4) — a run list that shuffles reads as a bug in the run.
-    expect((await runs.watchRuns(projectId).first).map((r) => r.id), ids);
+    // Read with the list rather than per run, and folded by the same code the
+    // run header uses — a menu row saying `FIFO` over a header saying `mixed`
+    // is the disagreement the join exists to make impossible.
+    final listed = await runs.watchRuns(projectId).first;
+    final byId = {for (final listing in listed) listing.run.id: listing.queues};
+    expect(byId[uniform]!.uniform, DispatchRule.fifo);
+    expect(byId[uniform]!.isMixed, isFalse);
+    expect(byId[mixed]!.uniform, isNull);
+    expect(byId[mixed]!.isMixed, isTrue);
   });
+
+  test(
+    'two runs in the same second still come back in a fixed order',
+    () async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+
+      final ids = [
+        for (var i = 0; i < 3; i++)
+          await runs.saveRun(
+            projectId: projectId,
+            result: result,
+            studies: studies,
+            workcenters: plant,
+          ),
+      ]..sort();
+
+      // Pinned to one instant rather than trusting three saves to land inside
+      // the same second: the tie is the thing under test, and a test that only
+      // creates one when the clock cooperates is a test that passes for the
+      // wrong reason.
+      await db
+          .update(db.simulationRuns)
+          .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
+
+      // Ties break by id, so the list cannot reorder itself between rebuilds
+      // (§4.4) — a run list that shuffles reads as a bug in the run.
+      expect((await runs.watchRuns(projectId).first).map((r) => r.run.id), ids);
+    },
+  );
 
   test('the production plan survives the demand it was built from', () async {
     final projectId = await seedProject();
@@ -545,7 +665,6 @@ void main() {
     final result = runSimulation(studies: studies, workcenters: plant);
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: result,
       studies: studies,
       workcenters: plant,
@@ -584,7 +703,8 @@ void main() {
     // the whole reason both columns sit side by side.
     expect(first.theoreticalLeadTime, isNotNull);
     expect(
-      first.theoreticalLeadTime!, lessThanOrEqualTo(first.actualLeadTime!),
+      first.theoreticalLeadTime!,
+      lessThanOrEqualTo(first.actualLeadTime!),
     );
 
     // An order with no batch number simply has none — a label, not identity.
@@ -640,7 +760,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: result,
       studies: studies,
       workcenters: plant,
@@ -663,7 +782,6 @@ void main() {
     // it", which is what an epoch default would have done.
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: SimRunResult(
         start: DateTime(2026, 8),
         end: DateTime(2026, 9),

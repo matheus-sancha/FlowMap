@@ -183,7 +183,6 @@ void main() {
     final result = await compute(runSimulationOffThread, (
       studies: input.studies,
       workcenters: input.workcenters,
-      dispatch: DispatchRule.earliestDueDate,
       // A `DateTime` has to cross the isolate too, and null is not a test of
       // that — the horizon is what §11.1's warning is built on, so a value
       // that could not be sent would surface as Simulate throwing.

@@ -105,138 +105,6 @@ final class SimulationRunsRepositoryProvider
 String _$simulationRunsRepositoryHash() =>
     r'4d62fb559e545c30d9e05e157bc2b471942c6c34';
 
-/// Which rule the workcenters dispatch by (§7.4).
-///
-/// Per project and held in memory, not stored: it is the knob the experiment
-/// turns, and a run records the rule it was made with, so the answer to "what
-/// did EDD do here" lives on the run rather than on the project.
-
-@ProviderFor(DispatchRuleSelection)
-final dispatchRuleSelectionProvider = DispatchRuleSelectionFamily._();
-
-/// Which rule the workcenters dispatch by (§7.4).
-///
-/// Per project and held in memory, not stored: it is the knob the experiment
-/// turns, and a run records the rule it was made with, so the answer to "what
-/// did EDD do here" lives on the run rather than on the project.
-final class DispatchRuleSelectionProvider
-    extends $NotifierProvider<DispatchRuleSelection, DispatchRule> {
-  /// Which rule the workcenters dispatch by (§7.4).
-  ///
-  /// Per project and held in memory, not stored: it is the knob the experiment
-  /// turns, and a run records the rule it was made with, so the answer to "what
-  /// did EDD do here" lives on the run rather than on the project.
-  DispatchRuleSelectionProvider._({
-    required DispatchRuleSelectionFamily super.from,
-    required String super.argument,
-  }) : super(
-         retry: null,
-         name: r'dispatchRuleSelectionProvider',
-         isAutoDispose: true,
-         dependencies: null,
-         $allTransitiveDependencies: null,
-       );
-
-  @override
-  String debugGetCreateSourceHash() => _$dispatchRuleSelectionHash();
-
-  @override
-  String toString() {
-    return r'dispatchRuleSelectionProvider'
-        ''
-        '($argument)';
-  }
-
-  @$internal
-  @override
-  DispatchRuleSelection create() => DispatchRuleSelection();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(DispatchRule value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<DispatchRule>(value),
-    );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return other is DispatchRuleSelectionProvider && other.argument == argument;
-  }
-
-  @override
-  int get hashCode {
-    return argument.hashCode;
-  }
-}
-
-String _$dispatchRuleSelectionHash() =>
-    r'747ed811674a2d7dabfe07acb317d09e34b62ae7';
-
-/// Which rule the workcenters dispatch by (§7.4).
-///
-/// Per project and held in memory, not stored: it is the knob the experiment
-/// turns, and a run records the rule it was made with, so the answer to "what
-/// did EDD do here" lives on the run rather than on the project.
-
-final class DispatchRuleSelectionFamily extends $Family
-    with
-        $ClassFamilyOverride<
-          DispatchRuleSelection,
-          DispatchRule,
-          DispatchRule,
-          DispatchRule,
-          String
-        > {
-  DispatchRuleSelectionFamily._()
-    : super(
-        retry: null,
-        name: r'dispatchRuleSelectionProvider',
-        dependencies: null,
-        $allTransitiveDependencies: null,
-        isAutoDispose: true,
-      );
-
-  /// Which rule the workcenters dispatch by (§7.4).
-  ///
-  /// Per project and held in memory, not stored: it is the knob the experiment
-  /// turns, and a run records the rule it was made with, so the answer to "what
-  /// did EDD do here" lives on the run rather than on the project.
-
-  DispatchRuleSelectionProvider call(String projectId) =>
-      DispatchRuleSelectionProvider._(argument: projectId, from: this);
-
-  @override
-  String toString() => r'dispatchRuleSelectionProvider';
-}
-
-/// Which rule the workcenters dispatch by (§7.4).
-///
-/// Per project and held in memory, not stored: it is the knob the experiment
-/// turns, and a run records the rule it was made with, so the answer to "what
-/// did EDD do here" lives on the run rather than on the project.
-
-abstract class _$DispatchRuleSelection extends $Notifier<DispatchRule> {
-  late final _$args = ref.$arg as String;
-  String get projectId => _$args;
-
-  DispatchRule build(String projectId);
-  @$mustCallSuper
-  @override
-  WhenComplete runBuild() {
-    final ref = this.ref as $Ref<DispatchRule, DispatchRule>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<DispatchRule, DispatchRule>,
-              DispatchRule,
-              Object?,
-              Object?
-            >;
-    return element.handleCreate(ref, () => build(_$args));
-  }
-}
-
 /// The run being looked at, and the button that makes a new one.
 ///
 /// Opening the tab shows the run that was last made rather than an empty
@@ -294,7 +162,7 @@ final class SimulationRunnerProvider
   }
 }
 
-String _$simulationRunnerHash() => r'f3ba67a66060d06c08e7229e0a016067c7c7694a';
+String _$simulationRunnerHash() => r'8a16297b1a12383de9c8a8d19183c357862fbfdc';
 
 /// The run being looked at, and the button that makes a new one.
 ///
