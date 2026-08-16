@@ -62,7 +62,7 @@ class TheoreticalLeadTime {
 /// Returns null when it cannot be walked; [problems] then says why. A null is
 /// honest where a plausible number would be quietly wrong.
 TheoreticalLeadTime? theoreticalLeadTime({
-  required List<SimNode> nodes,
+  required List<SimStep> nodes,
   required Map<String, SimWorkcenter> workcenters,
   required SimPart part,
   required int batchSize,
@@ -105,11 +105,6 @@ TheoreticalLeadTime? theoreticalLeadTime({
 
           cursor = workcenter.calendar.advance(cursor, occupancy);
           working += occupancy;
-
-        // Costs nothing: the engine no longer charges for one either, and this
-        // figure is only meaningful as a floor under what the engine observes.
-        case SimBuffer():
-          continue;
       }
     }
   } on StateError {
@@ -130,7 +125,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
 ///
 /// Returns null on the same grounds [theoreticalLeadTime] does.
 DateTime? coldStartDate({
-  required List<SimNode> nodes,
+  required List<SimStep> nodes,
   required Map<String, SimWorkcenter> workcenters,
   required SimPart part,
   required int batchSize,
@@ -167,11 +162,6 @@ DateTime? coldStartDate({
               rework: workcenter.schedule.reworkOn(cursor),
             ),
           );
-
-        // As above: the run will not spend it, so the cold start must not
-        // reserve it (§7.8).
-        case SimBuffer():
-          continue;
       }
     }
   } on StateError {

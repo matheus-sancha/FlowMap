@@ -233,12 +233,15 @@ void main() {
   });
 
   group('buffers (§5.5)', () {
-    /// A run carries a buffer as a node and nothing else.
+    /// A buffer node reaches the run as nothing at all.
     ///
-    /// Whatever was typed on it — a wait in hours, or a count of pieces — stays
-    /// on the node for the map's lead-time ladder and never reaches the engine.
-    /// The figure is an *observation* of a current state, and how long an order
-    /// really waits is the question the run exists to answer.
+    /// **This used to assert it arrived as a node carrying no time.** Since v19
+    /// a queue belongs to what a step targets rather than to a study's spine,
+    /// so an inventory node is not read at all — the rows are kept as the
+    /// recovery path for what the fold discarded, and the engine walks steps.
+    ///
+    /// What the figure meant is unchanged: an observation of a current state,
+    /// for the map's lead-time ladder, never a delay the run charges.
     void expectsNoTime(InventoryMode mode, {int? seconds, int? quantity}) {
       final built = assembleSimStudy(
         study: study,
@@ -259,9 +262,9 @@ void main() {
         asOf: now,
       );
 
-      // Still a node, so the engine's view of a flow stays a faithful image of
-      // the map's — same nodes, same positions.
-      expect(built!.nodes.whereType<SimBuffer>().single.position, 1);
+      // The two steps, and nothing between them: the buffer is not a node the
+      // engine walks any more.
+      expect(built!.nodes.map((n) => n.demandKey), ['W', 'X']);
     }
 
     test('a fixed wait reaches the run carrying no time', () {

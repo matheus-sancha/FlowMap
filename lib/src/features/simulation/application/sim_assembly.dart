@@ -105,6 +105,7 @@ class SimResourceContext {
     required this.poolNames,
     required this.poolMembers,
     required this.productivePerWorkingDay,
+    this.queues = const {},
     this.cellNames = const {},
     this.lineNames = const {},
   });
@@ -122,6 +123,14 @@ class SimResourceContext {
 
   /// Pool id → member workcenter ids, in a stable order.
   final Map<String, List<String>> poolMembers;
+
+  /// The queue in front of each dispatch target, by target id (§5.5).
+  ///
+  /// One row per `{project, target}`, so two studies stepping on CLAD07 are
+  /// handed the *same* queue — which is what stopped the engine contending over
+  /// two floor spaces the plant does not have. A target with no row yet gets an
+  /// uncapped FIFO, which is what every lane was before it could say otherwise.
+  final Map<String, SimQueue> queues;
 
   /// `open × availability` for each workcenter, read at the run's start.
   ///
@@ -160,7 +169,7 @@ SimStudy? assembleSimStudy({
     return null;
   }
 
-  final simNodes = <SimNode>[];
+  final simNodes = <SimStep>[];
   for (final node in nodes) {
     switch (node.kind) {
       case FlowNodeKind.step:
@@ -180,6 +189,13 @@ SimStudy? assembleSimStudy({
             ),
             candidates: candidates,
             demandKey: demandTargetOf(node)!,
+            // **The queue of what this step targets**, shared with every other
+            // step naming it. Absent means nobody has set one, which is an
+            // uncapped FIFO — what a shop floor does, and what every lane was
+            // before a rule could be typed (§7.4).
+            queue:
+                resources.queues[demandTargetOf(node)!] ??
+                SimQueue(targetId: demandTargetOf(node)!),
             // What the machines below are collectively called, where they are
             // a pool at all. `candidates` cannot say it, and §7.10's copy-in
             // rule needs it before the plant can be re-grouped underneath a
@@ -202,7 +218,12 @@ SimStudy? assembleSimStudy({
         );
 
       case FlowNodeKind.inventory:
-        simNodes.add(_buffer(node));
+        // **Read no more.** An inventory node was a queue belonging to one
+        // study's spine; the queue now belongs to the target the next step
+        // names (§5.5). The rows are kept rather than deleted — they are the
+        // recovery path for anything v19's fold discarded — and nothing here
+        // looks at them.
+        break;
     }
   }
 
@@ -289,25 +310,6 @@ List<String> _candidatesFor(FlowNode node, SimResourceContext resources) {
   final workcenterId = node.workcenterId;
   return workcenterId == null ? const [] : [workcenterId];
 }
-
-/// A lane, which a run governs by but does not time (§5.5).
-///
-/// Its stored figure — pieces of stock, or a wait in days — is an observation
-/// of a current state, and how long an order really waits is the question the
-/// run exists to answer. Neither `inventorySeconds` nor `inventoryQuantity` is
-/// read here; both stay on the node for the map's lead-time ladder.
-///
-/// What *is* read is the discipline and the capacity, which are rules rather
-/// than observations. `lane_capacity` is deliberately a different column from
-/// `inventory_quantity` for exactly that reason — they share a unit and mean
-/// opposite things (§16.16).
-SimBuffer _buffer(FlowNode node) => SimBuffer(
-  id: node.id,
-  position: node.position,
-  name: node.label,
-  rule: node.laneRule,
-  capacity: node.laneCapacity,
-);
 
 /// The step the study named as its pacemaker, or null when it named none — or
 /// named one that is no longer in the flow.
@@ -400,7 +402,6 @@ Map<String, StationPool> stationPools(List<SimStudy> studies) {
 
   for (final study in studies) {
     for (final node in study.nodes) {
-      if (node is! SimStep) continue;
       final id = node.poolId;
       if (id == null) continue;
       for (final workcenterId in node.candidates) {

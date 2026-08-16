@@ -107,6 +107,7 @@ void main() {
           title: 'Cladding',
           candidates: const ['wc-1'],
           demandKey: 'wc-1',
+          queue: SimQueue(targetId: 'wc-1'),
           setupValue: 3600,
           setupUnit: TaktUnit.seconds,
         ),
@@ -116,6 +117,7 @@ void main() {
           title: 'Milling',
           candidates: const ['wc-2'],
           demandKey: 'wc-2',
+          queue: SimQueue(targetId: 'wc-2'),
         ),
       ],
       parts: {
@@ -189,21 +191,21 @@ void main() {
           title: 'Cladding',
           candidates: ['wc-1'],
           demandKey: 'wc-1',
+          queue: SimQueue(targetId: 'wc-1'),
         ),
-        // A named, capped lane and an anonymous uncapped one, so both halves of
-        // §8.6's row-height rule have something to read.
-        SimBuffer(
-          id: 'lane-1',
-          position: 1,
-          name: 'FIFO CEU27',
-          capacity: 1,
-        ),
+        // The named, capped queue is a property of the step it feeds now, so
+        // both halves of §8.6's row-height rule still have something to read.
         SimStep(
           id: 'node-2',
           position: 2,
           title: 'CEU27',
           candidates: ['wc-2'],
           demandKey: 'wc-2',
+          queue: SimQueue(
+            targetId: 'wc-2',
+            name: 'FIFO CEU27',
+            capacity: 1,
+          ),
         ),
       ],
       parts: {
@@ -242,15 +244,19 @@ void main() {
     // The snapshot the chart places a row from. §7.10 joins to nothing, so
     // without the position there is no way to draw the lane between the two
     // stations it connects.
-    final lane = stored.result.lanes.single;
-    expect(lane.nodeId, 'lane-1');
+    //
+    // **One row per target now, and the target is the id.** A queue belongs to
+    // the station it stands in front of, so both steps have one — and a lane is
+    // identified by what it feeds rather than by a node of its own.
+    expect(stored.result.lanes.map((l) => l.nodeId), ['wc-1', 'wc-2']);
+    final lane = stored.result.lanes.firstWhere((l) => l.nodeId == 'wc-2');
     expect(lane.name, 'FIFO CEU27');
-    expect(lane.position, 1);
+    expect(lane.position, 2);
     expect(lane.capacity, 1);
 
     // And the stays themselves: every order that was pulled leaves a step
     // naming the lane it stood in, which is what the occupancy is read from.
-    final visits = stored.result.steps.where((s) => s.laneNodeId == 'lane-1');
+    final visits = stored.result.steps.where((s) => s.laneNodeId == 'wc-2');
     expect(visits, isNotEmpty);
     expect(visits.every((s) => !s.processStart.isBefore(s.queueStart)), isTrue);
 

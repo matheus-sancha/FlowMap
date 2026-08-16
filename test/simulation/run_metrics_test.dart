@@ -48,6 +48,7 @@ void main() {
     title: target,
     candidates: [target],
     demandKey: target,
+    queue: SimQueue(targetId: target),
     setupValue: changeover?.inSeconds.toDouble(),
     setupUnit: TaktUnit.seconds,
   );
@@ -55,7 +56,7 @@ void main() {
   final aug1 = DateTime(2026, 8, 1);
 
   ({List<SimStudy> studies, Map<String, SimWorkcenter> workcenters}) scenario({
-    required List<SimNode> nodes,
+    required List<SimStep> nodes,
     required Map<String, SimPart> parts,
     required List<SimOrder> orders,
     required Map<String, SimWorkcenter> workcenters,

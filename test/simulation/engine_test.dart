@@ -81,12 +81,22 @@ void main() {
     Duration teardown = Duration.zero,
     double samePartFraction = 0,
     String? demandKey,
+    DispatchRule rule = DispatchRule.fifo,
+    int? capacity,
   }) => SimStep(
     id: 'node-$position',
     position: position,
     title: candidates.first,
     candidates: candidates,
     demandKey: demandKey ?? candidates.first,
+    // The queue belongs to what the step targets, so two steps naming one
+    // target share it (§5.5) — which is what these tests can now express and
+    // could not when a lane was a node of its own.
+    queue: SimQueue(
+      targetId: demandKey ?? candidates.first,
+      rule: rule,
+      capacity: capacity,
+    ),
     setupValue: changeover == Duration.zero
         ? null
         : changeover.inSeconds.toDouble(),
@@ -114,7 +124,7 @@ void main() {
   );
 
   SimStudy study({
-    required List<SimNode> nodes,
+    required List<SimStep> nodes,
     required Map<String, SimPart> parts,
     required List<SimOrder> orders,
     Duration release = const Duration(hours: 10),
@@ -251,8 +261,7 @@ void main() {
         study(
           nodes: [
             step(0, ['FAST']),
-            SimBuffer(id: 'lane', position: 1, capacity: capacity),
-            step(2, ['SLOW']),
+            step(2, ['SLOW'], capacity: capacity),
           ],
           parts: {
             'p1': part('p1', {
@@ -320,8 +329,7 @@ void main() {
         studies: [
           study(
             nodes: [
-              const SimBuffer(id: 'inbound', position: 0, capacity: 1),
-              step(1, ['SLOW']),
+              step(1, ['SLOW'], capacity: 1),
             ],
             parts: {
               'p1': part('p1', {'SLOW': const Duration(hours: 8)}),
@@ -358,10 +366,8 @@ void main() {
           study(
             nodes: [
               step(0, ['A']),
-              const SimBuffer(id: 'l1', position: 1, capacity: 1),
-              step(2, ['B']),
-              const SimBuffer(id: 'l2', position: 3, capacity: 1),
-              step(4, ['C']),
+              step(2, ['B'], capacity: 1),
+              step(4, ['C'], capacity: 1),
             ],
             parts: {
               'p1': part('p1', {
@@ -396,8 +402,7 @@ void main() {
         study(
           nodes: [
             step(0, ['FAST']),
-            SimBuffer(id: 'lane', position: 1, capacity: laneCapacity),
-            step(2, ['SLOW']),
+            step(2, ['SLOW'], capacity: laneCapacity),
           ],
           parts: {
             'p1': part('p1', {
@@ -774,6 +779,7 @@ void main() {
                 title: 'pool',
                 candidates: const ['DAY', 'ALL'],
                 demandKey: 'pool',
+                queue: const SimQueue(targetId: 'pool'),
                 setupValue: 1,
                 setupUnit: TaktUnit.days,
               ),
@@ -894,12 +900,14 @@ void main() {
   group('dispatch (§7.4)', () {
     /// Two orders queued behind a long first one, so the rule decides which of
     /// the two runs second.
+    /// **The rule is on the station's queue, not on the run** (§7.4). It was a
+    /// run-level setting with a per-lane override until v19; the queue type
+    /// replaced it outright, so one place decides and the map draws it.
     SimRunResult contend(DispatchRule rule) => runSimulation(
-      dispatch: rule,
       studies: [
         study(
           nodes: [
-            step(0, ['W']),
+            step(0, ['W'], rule: rule),
           ],
           parts: {
             'slow': part('slow', {'W': const Duration(hours: 8)}),
@@ -937,96 +945,16 @@ void main() {
       expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
     });
 
-    /// The same contention, but the lane in front of the station carries its
-    /// own rule (§5.5).
-    SimRunResult contendWithLaneRule({
-      required DispatchRule run,
-      required DispatchRule lane,
-    }) => runSimulation(
-      dispatch: run,
-      studies: [
-        study(
-          nodes: [
-            SimBuffer(id: 'lane-0', position: 0, rule: lane),
-            step(1, ['W']),
-          ],
-          parts: {
-            'slow': part('slow', {'W': const Duration(hours: 8)}),
-            'quick': part('quick', {'W': const Duration(hours: 1)}),
-            'blocker': part('blocker', {'W': const Duration(hours: 10)}),
-          },
-          orders: [
-            order(0, 'blocker', needDay: 30),
-            order(1, 'slow', needDay: 20),
-            order(2, 'quick', needDay: 25),
-          ],
-          release: const Duration(hours: 1),
-        ),
-      ],
-      workcenters: {'W': workcenter('W')},
-      start: aug1,
-    );
-
-    test("a lane's own rule beats the run's", () {
-      // The run says FIFO, which would take o1; the lane says shortest first,
-      // which takes o2. The lane wins.
-      expect(
-        secondPart(
-          contendWithLaneRule(
-            run: DispatchRule.fifo,
-            lane: DispatchRule.shortestProcessing,
-          ),
-        ),
-        'o2',
-      );
-    });
-
-    test('a lane may also be pinned against a non-default run rule', () {
-      // The mirror: the run is SPT and would take o2, but this lane is held to
-      // arrival order. Proves the override is a real substitution rather than
-      // "any lane rule wins over FIFO only".
-      expect(
-        secondPart(
-          contendWithLaneRule(
-            run: DispatchRule.shortestProcessing,
-            lane: DispatchRule.fifo,
-          ),
-        ),
-        'o1',
-      );
-    });
-
-    test('a step with no lane in front of it still follows the run', () {
-      expect(
-        secondPart(
-          runSimulation(
-            dispatch: DispatchRule.shortestProcessing,
-            studies: [
-              study(
-                nodes: [
-                  step(0, ['W']),
-                ],
-                parts: {
-                  'slow': part('slow', {'W': const Duration(hours: 8)}),
-                  'quick': part('quick', {'W': const Duration(hours: 1)}),
-                  'blocker': part('blocker', {'W': const Duration(hours: 10)}),
-                },
-                orders: [
-                  order(0, 'blocker', needDay: 30),
-                  order(1, 'slow', needDay: 20),
-                  order(2, 'quick', needDay: 25),
-                ],
-                release: const Duration(hours: 1),
-              ),
-            ],
-            // No buffer before the step at all, so there is no lane to carry
-            // a rule and the run's is what governs.
-            workcenters: {'W': workcenter('W')},
-            start: aug1,
-          ),
-        ),
-        'o2',
-      );
+    test('the queue the station pulls from is what decides', () {
+      // **This replaced three tests about a lane override beating a run-level
+      // default, and about a step with no lane falling back to it.** There is no
+      // run-level default now and there is no step without a queue — the queue
+      // type replaced both. What is left to assert is that each rule genuinely
+      // reaches the station, in both directions: a queue held to arrival order
+      // and one held to shortest-first must disagree about the same three
+      // orders.
+      expect(secondPart(contend(DispatchRule.fifo)), 'o1');
+      expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
     });
   });
 
@@ -1088,6 +1016,58 @@ void main() {
   });
 
   group('contention between studies (§7.7)', () {
+    test('two studies share one queue, and its capacity', () {
+      // **The bug this round exists to fix, as arithmetic.** A queue used to be
+      // a node on one study's spine, so two lines feeding CLAD07 each got a
+      // floor space of their own — the Gantt drew two and the engine contended
+      // over two, when the plant has one.
+      //
+      // The numbers are chosen so one line alone is comfortable: an 8 h job
+      // released every 10 h never leaves two orders waiting, so a queue capped
+      // at two is never full. Put a second line through the same station and it
+      // is — which can only happen if the capacity is shared.
+      final shared = {'W': workcenter('W')};
+      final capped = [
+        step(0, ['W'], capacity: 2),
+      ];
+      final parts = {
+        'p1': part('p1', {'W': const Duration(hours: 8)}),
+      };
+      SimStudy line(String id) => study(
+        id: id,
+        nodes: capped,
+        parts: parts,
+        orders: [for (var i = 0; i < 4; i++) order(i, 'p1')],
+        release: const Duration(hours: 10),
+      );
+
+      Iterable<SimEmptySlot> blocked(SimRunResult r) =>
+          r.emptySlots.where((s) => s.reason == EmptySlotReason.laneFull);
+
+      final alone = runSimulation(
+        studies: [line('a')],
+        workcenters: shared,
+        start: aug1,
+      );
+      final together = runSimulation(
+        studies: [line('a'), line('b')],
+        workcenters: shared,
+        start: aug1,
+      );
+
+      expect(
+        blocked(alone),
+        isEmpty,
+        reason: 'one line alone never fills a queue of two',
+      );
+      expect(
+        blocked(together),
+        isNotEmpty,
+        reason: 'the second line fills slots the first can then not have — '
+            'which is only true if the queue is one, not one each',
+      );
+    });
+
     test('one workcenter, two studies, and the queue is shared', () {
       final shared = {'W': workcenter('W')};
       final nodes = [
@@ -1287,7 +1267,6 @@ void main() {
             id: 'A',
             nodes: [
               step(0, ['LAT01', 'LAT02'], demandKey: 'pool'),
-              const SimBuffer(id: 'buffer', position: 1),
               step(2, ['W'], changeover: const Duration(minutes: 30)),
             ],
             parts: {
@@ -1342,7 +1321,6 @@ void main() {
         study(
           nodes: [
             step(0, ['W']),
-            const SimBuffer(id: 'cool', position: 1),
             step(2, ['X']),
           ],
           parts: {
@@ -1378,7 +1356,6 @@ void main() {
         study(
           nodes: [
             step(0, ['W']),
-            const SimBuffer(id: 'lane', position: 1),
             step(2, ['X']),
           ],
           parts: {

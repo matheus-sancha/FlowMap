@@ -316,32 +316,11 @@ class _Waiting {
   /// Per-piece process time at this step, kept for the SPT rule.
   final Duration perPiece;
 
-  /// The lane it is standing in, or null when the step has none in front of it
-  /// and the order queues at the station (§5.5).
-  final SimBuffer? lane;
+  /// The queue it is standing in — the one belonging to the step's target, and
+  /// shared with every other step that names it (§5.5).
+  final SimQueue lane;
 
   Duration get work => perPiece * order.batchSize;
-}
-
-/// What governs the queue in front of one step (§5.5).
-///
-/// **The lane immediately before the step, and only that one.** §5.1's spine
-/// gives a step at most one, which is what keeps the ordering total: a machine
-/// that is a candidate for its own step and for a pool's still has exactly one
-/// comparator per queue, which a rule stored on the station could not promise.
-///
-/// A run of several buffers is collapsed to the last of them — the one the
-/// station actually pulls from. The earlier ones stay what §2.12 made every
-/// buffer: free to pass through. Two lanes in a row is a modelling oddity
-/// rather than a case with an agreed meaning, and inventing one here would make
-/// the capacity a reader typed mean something they did not ask for.
-class _Gate {
-  const _Gate({required this.stepIndex, required this.lane});
-
-  final int stepIndex;
-  final SimBuffer? lane;
-
-  int? get capacity => lane?.capacity;
 }
 
 class _Engine {
@@ -388,13 +367,6 @@ class _Engine {
   /// The order a server is running, so a finish knows what it completed.
   final Map<String, _Waiting> _running = {};
 
-  /// Where each step's queue forms, per study, indexed by node position (§5.5).
-  ///
-  /// Resolved once at the start rather than walked backwards on every arrival:
-  /// the answer cannot change during a run, and an arrival happens sixteen
-  /// thousand times at the scale target (§14).
-  final Map<String, List<_Gate?>> _gates = {};
-
   /// Which `_rows` entry belongs to the order a server is holding, so the block
   /// it is serving can be written onto that row when it ends.
   final Map<String, int> _rowOfServer = {};
@@ -420,7 +392,6 @@ class _Engine {
       _studies[study.id] = study;
       _open[study.id] = 0;
       _head[study.id] = 0;
-      _gates[study.id] = _gatesOf(study);
       for (final order in study.orders) {
         _orders['${study.id}/${order.id}'] = order;
         _released[order.id] = null;
@@ -548,39 +519,27 @@ class _Engine {
 
   // --- Movement --------------------------------------------------------------
 
-  /// Where each step's queue forms, by node position.
+  /// How many orders are standing in the queue of [targetId].
   ///
-  /// A step's gate is the buffer immediately before it, or null when the node
-  /// before it is another step and the order queues at the station itself. A
-  /// run of buffers collapses to the last — see [_Gate].
-  List<_Gate?> _gatesOf(SimStudy study) {
-    final gates = List<_Gate?>.filled(study.nodes.length, null);
-    for (var i = 0; i < study.nodes.length; i++) {
-      if (study.nodes[i] is! SimStep) continue;
-      final before = i > 0 ? study.nodes[i - 1] : null;
-      gates[i] = _Gate(
-        stepIndex: i,
-        lane: before is SimBuffer ? before : null,
-      );
-    }
-    return gates;
-  }
-
-  /// How many orders are standing in the queue in front of [stepIndex].
+  /// **By target, across every study.** This counted `(study, stepIndex)` and so
+  /// gave two lines feeding CLAD07 a floor space each. Counting by target is
+  /// what makes a shared queue actually shared: an order from line B fills a
+  /// slot line A can then not have, which is the contention §7.7 exists to
+  /// model.
   ///
   /// Counted off `_waiting` rather than tracked separately, because that list
-  /// *is* the queue: an order is in it from the moment it enters the lane until
-  /// a server pulls it out. A second counter would be a second truth to keep in
-  /// step, and the run is small enough that scanning is not the cost — the
-  /// events are (§16.9).
-  int _queued(String studyId, int stepIndex) => _waiting
-      .where((w) => w.study.id == studyId && w.nodeIndex == stepIndex)
-      .length;
+  /// *is* the queue: an order is in it from the moment it enters until a server
+  /// pulls it out. A second counter would be a second truth to keep in step, and
+  /// the run is small enough that scanning is not the cost — the events are
+  /// (§16.9).
+  int _queued(String targetId) =>
+      _waiting.where((w) => w.lane.targetId == targetId).length;
 
   /// Whether the queue in front of [stepIndex] has room for one more.
   bool _hasRoom(SimStudy study, int stepIndex) {
-    final capacity = _gates[study.id]![stepIndex]?.capacity;
-    return capacity == null || _queued(study.id, stepIndex) < capacity;
+    final queue = study.nodes[stepIndex].queue;
+    final capacity = queue.capacity;
+    return capacity == null || _queued(queue.targetId) < capacity;
   }
 
   /// The first step of a study's flow, which is where a release lands.
@@ -611,7 +570,7 @@ class _Engine {
     final nodeId = study.paceSetterNodeId;
     if (nodeId == null) return null;
     final index = study.nodes.indexWhere((n) => n.id == nodeId);
-    return index < 0 || study.nodes[index] is! SimStep ? null : index;
+    return index < 0 ? null : index;
   }
 
   /// The next step an order at [from] must visit, or null when it has finished
@@ -620,13 +579,8 @@ class _Engine {
   /// Buffers still cost nothing to pass through (§2.12): what they cost is
   /// *room*, and that is charged by [_hasRoom] at the step they feed rather
   /// than as a delay here.
-  int? _nextStep(SimStudy study, int from) {
-    var index = from;
-    while (index < study.nodes.length && study.nodes[index] is SimBuffer) {
-      index++;
-    }
-    return index >= study.nodes.length ? null : index;
-  }
+  int? _nextStep(SimStudy study, int from) =>
+      from >= study.nodes.length ? null : from;
 
   void _onArrive(_Event event) {
     final study = _studyById(event.key!);
@@ -645,7 +599,7 @@ class _Engine {
   ///
   /// The caller has already established there is room; this is the write.
   void _admit(SimStudy study, SimOrder order, int index) {
-    final step = study.nodes[index] as SimStep;
+    final step = study.nodes[index];
     final perPiece = study.parts[order.partId]?.timeAt(step.demandKey);
     if (perPiece == null) {
       // A part with no time at a step it must visit is a blocking readiness
@@ -662,7 +616,7 @@ class _Engine {
         step: step,
         since: _now,
         perPiece: perPiece,
-        lane: _gates[study.id]![index]?.lane,
+        lane: step.queue,
       ),
     );
   }
@@ -768,7 +722,7 @@ class _Engine {
   }
 
   /// The lane's rule, or the run's where a step has no lane (§7.4).
-  DispatchRule _ruleFor(_Waiting waiting) => waiting.lane?.rule ?? dispatch;
+  DispatchRule _ruleFor(_Waiting waiting) => waiting.lane.rule;
 
   /// Whether [a] should run before [b] under [rule] (§7.4).
   ///
@@ -887,7 +841,7 @@ class _Engine {
         changeoverSeconds: changeover.inSeconds,
         // The lane it was pulled out of, so the run can say where it stood
         // without joining back to a flow that may have been edited (§7.10).
-        laneNodeId: waiting.lane?.id,
+        laneNodeId: waiting.lane.targetId,
       ),
     );
 
@@ -1033,29 +987,35 @@ class _Engine {
       // Every lane the run walked, so §8.6 can place a row for one that never
       // held anything — an empty lane between two busy stations is a fact
       // about the line, not a row to leave out.
+      // **One row per target, not per study.** A queue belongs to the station it
+      // stands in front of, so two studies feeding CLAD07 report the one queue
+      // they actually share — which is what stopped the Gantt drawing it twice.
+      // The first study to name a target reports it: arbitrary, stable, and what
+      // matters is that the second does not report it again.
       lanes: [
-        for (final study in studies)
-          for (final node in study.nodes)
-            if (node is SimBuffer)
-              SimLane(
-                studyId: study.id,
-                nodeId: node.id,
-                position: node.position,
-                name: node.name,
-                capacity: node.capacity,
-              ),
+        for (final entry in {
+          for (final study in studies)
+            for (final node in study.nodes)
+              node.queue.targetId: (study: study, node: node),
+        }.entries)
+          SimLane(
+            studyId: entry.value.study.id,
+            nodeId: entry.key,
+            position: entry.value.node.position,
+            name: entry.value.node.queue.name,
+            capacity: entry.value.node.queue.capacity,
+          ),
       ],
       // Whatever is still standing in a lane. `_waiting` is the queue itself,
       // so what is left in it at the end is exactly what never got pulled.
       openLaneVisits: [
         for (final waiting in _waiting)
-          if (waiting.lane case final lane?)
-            SimOpenLaneVisit(
-              studyId: waiting.study.id,
-              orderId: waiting.order.id,
-              laneNodeId: lane.id,
-              enteredAt: waiting.since,
-            ),
+          SimOpenLaneVisit(
+            studyId: waiting.study.id,
+            orderId: waiting.order.id,
+            laneNodeId: waiting.lane.targetId,
+            enteredAt: waiting.since,
+          ),
       ],
       abort: abort,
     );

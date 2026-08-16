@@ -66,7 +66,7 @@ void main() {
       for (var i = 0; i < stepCount; i++) 'W$i': workcenter('W$i'),
     };
 
-    final nodes = <SimNode>[
+    final nodes = <SimStep>[
       for (var i = 0; i < stepCount; i++)
         SimStep(
           id: 'node-$i',
@@ -74,6 +74,7 @@ void main() {
           title: 'W$i',
           candidates: ['W$i'],
           demandKey: 'W$i',
+          queue: SimQueue(targetId: 'W$i'),
           setupValue: 1200,
           setupUnit: TaktUnit.seconds,
         ),
@@ -151,6 +152,7 @@ void main() {
               title: 'W0',
               candidates: const ['W0'],
               demandKey: 'W0',
+              queue: SimQueue(targetId: 'W0'),
             ),
           ],
           parts: {

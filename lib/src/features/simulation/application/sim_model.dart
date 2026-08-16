@@ -59,19 +59,17 @@ class SimWorkcenter {
 
 }
 
-/// A node of a study's flow, as the engine walks it.
-sealed class SimNode {
-  const SimNode({required this.id, required this.position});
-
-  final String id;
-  final int position;
-}
-
-/// A process step (§5.1).
-class SimStep extends SimNode {
+/// A process step (§5.1) — and, since the queue re-model, the only kind of node
+/// the engine walks.
+///
+/// The spine used to alternate steps and buffers. A buffer is now the queue in
+/// front of a step ([SimQueue]), so what the engine gets is a list of steps,
+/// each carrying the queue orders wait in to reach it.
+class SimStep {
   const SimStep({
-    required super.id,
-    required super.position,
+    required this.id,
+    required this.position,
+    required this.queue,
     required this.title,
     required this.candidates,
     required this.demandKey,
@@ -83,6 +81,13 @@ class SimStep extends SimNode {
     this.teardownUnit,
     this.samePartFraction = 0,
   });
+
+  final String id;
+  final int position;
+
+  /// The queue orders wait in to reach this step, shared with every other step
+  /// that targets the same station or pool.
+  final SimQueue queue;
 
   /// What the process box is labelled.
   final String title;
@@ -169,50 +174,52 @@ class SimStep extends SimNode {
   }
 }
 
-/// An inventory lane (§5.5).
+/// The queue in front of one dispatch target (§5.5, §3.1).
 ///
-/// **It still carries no time**, and that half of §2.12 stands: a buffer's
-/// stored figure — N pieces of stock, or a wait in days — is an *observation* of
-/// a current state, and imposing it as a delay made the run a restatement of
-/// what was typed into it, charged twice over. What the lane carries instead is
-/// **governance**: who goes next, and how many fit.
+/// **It belongs to the target, not to a study's flow.** This was `SimBuffer` —
+/// a node on one study's spine — so two studies whose flows both reached CLAD07
+/// each had their own, and the engine contended over two floor spaces where the
+/// plant has one. The field reported it as the Gantt doubling its inventories;
+/// the chart was repeating what the model said.
 ///
-/// So an order does not serve a fixed wait here; it waits exactly as long as the
-/// station ahead makes it wait, in this lane, in the order this lane's [rule]
-/// says — and when the lane is full, the station behind it cannot unload and
-/// stops. That is what the names on a real map mean. `FIFO CEU27` is not a
-/// three-day delay, it is a channel with a discipline and a floor space.
-class SimBuffer extends SimNode {
-  const SimBuffer({
-    required super.id,
-    required super.position,
+/// So a step carries the queue of whatever it targets, and two steps naming one
+/// target carry the same one. The engine counts what is waiting **by target**,
+/// which is what makes a shared queue actually shared: an order from line B
+/// fills a slot that line A can then not have.
+///
+/// It still carries no time. An order passes straight through and waits, if it
+/// waits, in this queue where the engine measures it — §2.12's correction,
+/// unchanged by the re-model.
+class SimQueue {
+  const SimQueue({
+    required this.targetId,
     this.name,
-    this.rule,
+    this.rule = DispatchRule.fifo,
     this.capacity,
   });
 
-  /// `FIFO CEU27` — the node's label. A passenger the engine never reads, like
+  /// The workcenter or pool this queue stands in front of. Two steps sharing a
+  /// target share this id, and that identity is the whole point.
+  final String targetId;
+
+  /// `FIFO CEU27` — a passenger the engine never reads, like
   /// [SimPart.partNumber]: it rides along so the run can copy it in at save
-  /// time, which is the only moment it still describes the flow the run was
-  /// made from (§7.10).
+  /// time (§7.10).
   final String? name;
 
-  /// How the station ahead chooses from what is standing here, or null to
-  /// follow the run's rule (§7.4).
+  /// How the station chooses what to take next (§7.4).
   ///
-  /// **The rule lives on the lane, not on the station**, which reverses §7.4 as
-  /// first built. On a physical lane you cannot take from the back, so a
-  /// discipline is not a property of the channel — it is how the next station
-  /// chooses, and that is something the map can draw. §5.1's spine keeps the
-  /// ordering total: a step has at most one lane in front of it, so a queue has
-  /// exactly one comparator even when its station also belongs to a pool.
-  final DispatchRule? rule;
+  /// **Not nullable, and no longer deferring to a run-level rule.** The queue
+  /// type replaced that rule outright: one place a dispatch decision is made,
+  /// and the map draws every one of them. Unset in the project reads as
+  /// [DispatchRule.fifo], which is what a shop floor does.
+  final DispatchRule rule;
 
   /// How many orders fit, or null for unlimited.
   ///
   /// In orders, because the order is the unit of flow here; a piece-level limit
   /// would need a rule for a batch that half fits, which the spine cannot
-  /// express. Null is what every lane was before capacity existed.
+  /// express.
   final int? capacity;
 }
 
@@ -352,7 +359,7 @@ class SimStudy {
   final String name;
 
   /// The spine in order.
-  final List<SimNode> nodes;
+  final List<SimStep> nodes;
 
   /// Keyed by part id.
   final Map<String, SimPart> parts;
@@ -367,7 +374,7 @@ class SimStudy {
   /// CONWIP cap: orders open in the flow at once. Null is unlimited (§7.3).
   final int? wipCap;
 
-  Iterable<SimStep> get steps => nodes.whereType<SimStep>();
+  Iterable<SimStep> get steps => nodes;
 }
 
 /// The pool a run's station belonged to, as far as the run can tell

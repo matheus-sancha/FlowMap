@@ -61,14 +61,12 @@ void main() {
     title: target,
     candidates: [target],
     demandKey: target,
+    queue: SimQueue(targetId: target),
     setupValue: changeover == Duration.zero
         ? null
         : changeover.inSeconds.toDouble(),
     setupUnit: TaktUnit.seconds,
   );
-
-  SimBuffer buffer(int position) =>
-      SimBuffer(id: 'node-$position', position: position);
 
   SimPart part(Map<String, Duration> times) =>
       SimPart(id: 'p1', partNumber: 'PN1', processTimes: times);
@@ -142,10 +140,11 @@ void main() {
       // a run, so counting them here would put the floor above the ceiling —
       // on célula 11B, 35.1 theoretical days against 25.8 actual ones.
       //
-      // Friday 06:00, two hours of work, and a buffer either side of it: the
-      // answer is the same as if neither were there.
+      // Friday 06:00 and two hours of work. There is no buffer node to put
+      // either side of it any more — a queue belongs to the step now — and the
+      // point stands unchanged: what an order waits is not in this figure.
       final result = theoreticalLeadTime(
-        nodes: [buffer(0), step(1, 'CLAD04'), buffer(2)],
+        nodes: [step(1, 'CLAD04')],
         workcenters: {'CLAD04': workcenter('CLAD04')},
         part: part({'CLAD04': const Duration(hours: 2)}),
         batchSize: 1,
@@ -210,7 +209,7 @@ void main() {
 
   group('coldStartDate', () {
     test('is the walk run backwards, and lands where it started', () {
-      final nodes = [step(0, 'CLAD04'), buffer(1), step(2, 'TTAT')];
+      final nodes = [step(0, 'CLAD04'), step(2, 'TTAT')];
       final workcenters = {
         'CLAD04': workcenter('CLAD04'),
         'TTAT': workcenter('TTAT'),

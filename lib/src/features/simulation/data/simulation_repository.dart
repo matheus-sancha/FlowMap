@@ -93,6 +93,26 @@ class SimulationRepository {
       _db.workcenterPools,
     )..where((p) => p.plantId.equals(project.plantId))).get();
 
+    // The queue in front of each dispatch target (§5.5). Read whole-project and
+    // handed to every study, which is the point: two studies stepping on CLAD07
+    // are given the *same* queue, so the engine contends over one floor space
+    // rather than one each.
+    //
+    // A target with no row is an uncapped FIFO — what a shop floor does, and
+    // what every lane was before it could say otherwise. The assembler applies
+    // that default, so a plant nobody has configured behaves exactly as it did.
+    final queues = {
+      for (final row in await (_db.select(
+        _db.projectQueues,
+      )..where((q) => q.projectId.equals(project.id))).get())
+        row.targetId: SimQueue(
+          targetId: row.targetId,
+          name: row.name,
+          rule: row.rule ?? DispatchRule.fifo,
+          capacity: row.capacity,
+        ),
+    };
+
     // Where each study sits, read once and copied into the run so §12.1's cell
     // and line filters never join back to a plant that may have been
     // rearranged since (§7.10). Whole-plant rather than per-study: there are a
@@ -159,6 +179,7 @@ class SimulationRepository {
             poolNames: {for (final pool in pools) pool.id: pool.name},
             poolMembers: poolMembers,
             productivePerWorkingDay: productiveOn(asOf),
+            queues: queues,
             cellNames: cellNames,
             lineNames: lineNames,
           ),

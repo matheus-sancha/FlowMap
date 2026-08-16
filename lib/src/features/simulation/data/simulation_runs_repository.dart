@@ -82,6 +82,16 @@ class SimulationRunsRepository {
     // joined later: the plant can be re-grouped tomorrow and this run has to
     // keep saying what it observed (§7.10).
     final pools = stationPools(studies);
+    // The queue each station dispatched by, copied in for the same reason
+    // (§7.10): the queue lives on the project and can be retuned tomorrow, and
+    // a run that read it back would silently change what it claims to have
+    // done. Keyed by station rather than by target, because that is what the
+    // row is — a pool's members all carry the pool's queue.
+    final queues = <String, SimQueue>{
+      for (final study in studies)
+        for (final step in study.nodes)
+          for (final candidate in step.candidates) candidate: step.queue,
+    };
 
     // One transaction: a run half-written is worse than one not written at
     // all, because the second is visibly missing and the first reads as real.
@@ -212,6 +222,8 @@ class SimulationRunsRepository {
               // name still says which pools it served (§3.1).
               poolId: Value(pools[entry.key]?.id),
               poolName: Value(pools[entry.key]?.name),
+              queueType: Value(queues[entry.key]?.rule.name),
+              queueCapacity: Value(queues[entry.key]?.capacity),
             ),
         ]);
 
@@ -222,19 +234,27 @@ class SimulationRunsRepository {
         // the position §8.6 needs to draw a lane row between the two station
         // rows it connects. §7.10 joins to nothing, and the flow beneath a run
         // may be edited the moment after it is stored.
+        //
+        // **One row per target now, not per study.** A queue belongs to the
+        // station it stands in front of (§5.5), so two studies feeding CLAD07
+        // store the one queue they share — and `node_id` holds the *target* id,
+        // which is what a lane is identified by since v19. The first study to
+        // name a target writes it; the second finds it already there.
         b.insertAll(_db.simulationRunLanes, [
-          for (final study in studies)
-            for (final node in study.nodes)
-              if (node is SimBuffer)
-                SimulationRunLanesCompanion.insert(
-                  runId: runId,
-                  studyId: study.id,
-                  nodeId: node.id,
-                  name: Value(node.name),
-                  position: node.position,
-                  rule: Value(node.rule?.name),
-                  capacity: Value(node.capacity),
-                ),
+          for (final entry in {
+            for (final study in studies)
+              for (final node in study.nodes)
+                node.queue.targetId: (study: study, node: node),
+          }.entries)
+            SimulationRunLanesCompanion.insert(
+              runId: runId,
+              studyId: entry.value.study.id,
+              nodeId: entry.key,
+              name: Value(entry.value.node.queue.name),
+              position: entry.value.node.position,
+              rule: Value(entry.value.node.queue.rule.name),
+              capacity: Value(entry.value.node.queue.capacity),
+            ),
         ]);
 
         // One stay per order per lane, read off the steps: an order enters a
