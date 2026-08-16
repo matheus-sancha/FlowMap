@@ -1721,6 +1721,28 @@ guard caught leaves no step to be kept by.
 the card names the study on a multi-study run, and a shared queue's row would have labelled every
 order the other line put in it with the wrong one.
 
+**Every picker offers what could still narrow what is on screen** (§7.6). Two field complaints are
+one rule: the Cells and Lines menus listed every cell and line in the *plant*, most of which no study
+had ever used, so most entries selected nothing; and choosing a study left the Part numbers menu
+offering parts that study never makes. Both are a menu describing something other than the thing
+under it.
+
+- **Read off the run, not off the plant.** §7.10 records each study's cell and line on the run
+  precisely so a filter keeps working after the plant is re-organised, and the run's studies are by
+  definition the ones that have a simulation. The filter bar reads neither `studiesProvider` nor
+  `plantLinesProvider` any more, and is no longer a `ConsumerWidget`. It also means the study names in
+  the menu are the ones the run recorded rather than the ones the project has today.
+- **Before a run exists every menu is empty**, which is honest: the pane below says nothing has been
+  run, and a menu of things that cannot narrow it would be describing the plant.
+- **Each picker ignores its own selection and honours every other.** That is what keeps a
+  multi-select usable — ticking `MANIFOLD` must not make `Global 23` vanish from the menu it was
+  ticked in — while still letting a study narrow the parts beside it. The standard faceted-search
+  rule; narrowing by *all* filters instead leaves every menu holding exactly what is already ticked.
+- **One pass over the orders, not one `filterRun` per picker.** This runs on every keystroke of the
+  filter bar and `filterRun` re-summarises the whole run; §14's target is 2000 orders.
+- The order-number field's *"repeats in every study"* warning counts the studies the **other** filters
+  leave in view, so it says how many orders a number would actually match.
+
 **A slice fixes its signature when it is taken.** `FilteredRun.signature` was a getter reading back
 through its `RunFilter` — and the filter bar keeps one long-lived `Set` per control and mutates it in
 place, so a slice taken *before* an edit saw the edit through its own filter and recomputed to the

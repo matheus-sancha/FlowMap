@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../common/help_icon.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../resources/application/resources_providers.dart';
-import '../../studies/application/studies_providers.dart';
 import '../application/run_filter.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart' show StoredRun;
@@ -92,6 +90,7 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
           // The run itself, for the three filters whose options are values in
           // it rather than parts of the plant.
           run: runner.value,
+          filter: _filter,
           studies: _studies,
           cells: _cells,
           lines: _lines,
@@ -162,10 +161,11 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
   }
 }
 
-class _FilterBar extends ConsumerWidget {
+class _FilterBar extends StatelessWidget {
   const _FilterBar({
     required this.project,
     required this.run,
+    required this.filter,
     required this.studies,
     required this.cells,
     required this.lines,
@@ -188,6 +188,10 @@ class _FilterBar extends ConsumerWidget {
   /// read from the other end.
   final StoredRun? run;
 
+  /// What is already narrowed, so each picker can offer what would still
+  /// narrow further (§7.6).
+  final RunFilter filter;
+
   final Set<String> studies;
   final Set<String> cells;
   final Set<String> lines;
@@ -201,46 +205,29 @@ class _FilterBar extends ConsumerWidget {
   final ValueChanged<DateTimeRange?> onPeriod;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final allStudies =
-        ref.watch(studiesProvider(project.id)).value ?? const <Study>[];
-    final plantLines =
-        ref.watch(plantLinesProvider(project.plantId)).value ?? const [];
 
-    // Cells and lines are offered from the plant rather than from the run, so
-    // the filter reads the same before and after a run exists.
-    final cellsById = <String, String>{
-      for (final line in plantLines) line.cell.id: line.cell.name,
-    };
-    final linesById = <String, String>{
-      for (final line in plantLines) line.line.id: line.line.name,
-    };
-
-    // **From the run, not from the plant** — the values a planner can pick are
-    // the ones this run actually carries. Sorted, so the menus read the same way
-    // twice running.
+    // **Every picker offers what could still narrow what is on screen** (§7.6),
+    // computed from the run rather than from the plant. Two complaints from the
+    // field are one rule: the Cells and Lines menus used to list every cell and
+    // line in the *plant*, most of which no study had ever used, and choosing a
+    // study left the Part numbers menu offering parts that study never makes.
     //
-    // The project map is built from the plan and the part map from the metrics,
-    // which is the same split `filterRun` makes and for the same reason: only
-    // the plan carries a project, and the metrics always carry a part number.
-    final projectNames = <String>{
-      for (final row in run?.plan ?? const []) ?row.customerProject,
-    }.toList()..sort();
-    final partNames = <String>{
-      for (final part in run?.metrics.parts ?? const []) part.partNumber,
-    }.toList()..sort();
+    // `studiesProvider` and `plantLinesProvider` are no longer read here at all.
+    // §7.10 puts each study's cell and line on the run precisely so a filter
+    // survives the plant being re-organised, and the run's studies are by
+    // definition the ones that have a simulation.
+    final options = runFilterOptions(run, filter);
 
-    // `(no project)` is offered only when the run has an order without one, so
-    // a plant that books everything never sees an option that would select
-    // nothing (§7.5).
-    final anyUnbooked = (run?.plan ?? const []).any(
-      (row) => row.customerProject == null,
-    );
-
+    // The sentinel keeps its key and takes its label here, so it reads in the
+    // reader's language and sorts to the top rather than under whatever `(no
+    // project)` is called in Portuguese.
     final projectOptions = <String, String>{
-      if (anyUnbooked) RunFilter.noProject: l10n.simFilterNoProject,
-      for (final name in projectNames) name: name,
+      if (options.projects.containsKey(RunFilter.noProject))
+        RunFilter.noProject: l10n.simFilterNoProject,
+      for (final entry in options.projects.entries)
+        if (entry.key != RunFilter.noProject) entry.key: entry.value,
     };
 
     final anyFilter =
@@ -263,7 +250,7 @@ class _FilterBar extends ConsumerWidget {
                 children: [
                   _MultiPicker(
                     label: l10n.simFilterStudies,
-                    options: {for (final s in allStudies) s.id: s.name},
+                    options: options.studies,
                     selected: studies,
                     onChanged: onChanged,
                   ),
@@ -274,14 +261,14 @@ class _FilterBar extends ConsumerWidget {
                   // follow from them.
                   _MultiPicker(
                     label: l10n.simFilterCells,
-                    options: cellsById,
+                    options: options.cells,
                     selected: cells,
                     onChanged: onChanged,
                   ),
                   const SizedBox(width: 8),
                   _MultiPicker(
                     label: l10n.simFilterLines,
-                    options: linesById,
+                    options: options.lines,
                     selected: lines,
                     onChanged: onChanged,
                   ),
@@ -298,7 +285,7 @@ class _FilterBar extends ConsumerWidget {
                   const SizedBox(width: 8),
                   _MultiPicker(
                     label: l10n.simFilterParts,
-                    options: {for (final name in partNames) name: name},
+                    options: options.parts,
                     selected: parts,
                     onChanged: onChanged,
                   ),
@@ -310,9 +297,9 @@ class _FilterBar extends ConsumerWidget {
                   _OrderNumberField(
                     values: orders,
                     enabled: run != null,
-                    studiesInView: studies.isEmpty
-                        ? (run?.studies.length ?? 0)
-                        : studies.length,
+                    // How many studies the *other* filters leave in view, so
+                    // the warning counts what a number would actually match.
+                    studiesInView: options.studiesInView,
                     onChanged: onOrders,
                   ),
                   const SizedBox(width: 8),

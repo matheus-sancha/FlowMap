@@ -393,6 +393,204 @@ void main() {
     });
   });
 
+  /// What each picker offers, given what the others narrowed to (§7.6).
+  ///
+  /// Two field complaints, one rule: *"Cells and Lines are showing cells and
+  /// lines that don't have studies, only the resources"*, and *"if a user
+  /// selects a study only show the part numbers of that study"*.
+  group('the pickers offer what could still narrow (§7.6)', () {
+    /// Two studies in different cells and lines, each making its own part and
+    /// booked to its own project.
+    ///
+    /// | order | study | cell | line | part | project |
+    /// |---|---|---|---|---|---|
+    /// | `o1` | a | Cell 1 | Line 1 | PN1 | MANIFOLD |
+    /// | `o2` | b | Cell 2 | Line 2 | PN2 | Global 23 |
+    StoredRun twoLines() {
+      final orders = [
+        outcome('o1', studyId: 'a', need: DateTime(2026, 3, 1), sequence: 0),
+        outcome(
+          'o2',
+          studyId: 'b',
+          need: DateTime(2026, 4, 1),
+          sequence: 0,
+          partId: 'p2',
+        ),
+      ];
+      final result = SimRunResult(
+        start: start,
+        end: DateTime(2026, 12, 31),
+        guard: DateTime(2027, 1, 1),
+        steps: [step('o1', 'wc-1'), step('o2', 'wc-2')],
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {'wc-1': Duration(hours: 100)},
+        openByWorkcenter: const {'wc-1': Duration(hours: 200)},
+      );
+
+      return StoredRun(
+        id: 'run-two-lines',
+        projectId: 'proj-1',
+        createdAt: start,
+        dispatch: DispatchRule.fifo,
+        dispatchOverrides: const [],
+        studies: [
+          study('a', cell: 'cell-1', line: 'line-1'),
+          study('b', cell: 'cell-2', line: 'line-2'),
+        ],
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1', 'p2': 'PN2'},
+          workcenterNames: const {'wc-1': 'CLAD04', 'wc-2': 'TTAT'},
+          theoreticalByOrder: const {},
+        ),
+        plan: [
+          for (final o in orders)
+            ProductionPlanRow(
+              outcome: o,
+              partNumber: o.partId == 'p1' ? 'PN1' : 'PN2',
+              partDescription: null,
+              customerProject: o.orderId == 'o1' ? 'MANIFOLD' : 'Global 23',
+              batchNumber: null,
+              batchSize: 1,
+              materialDate: null,
+              theoreticalLeadTime: const Duration(hours: 1),
+            ),
+        ],
+      );
+    }
+
+    test('with nothing selected, everything the run has is offered', () {
+      final options = runFilterOptions(twoLines(), const RunFilter());
+
+      expect(options.studies.keys, {'a', 'b'});
+      expect(options.cells.keys, {'cell-1', 'cell-2'});
+      expect(options.lines.keys, {'line-1', 'line-2'});
+      expect(options.parts.keys, {'PN1', 'PN2'});
+      expect(options.projects.keys, {'MANIFOLD', 'Global 23'});
+      expect(options.studiesInView, 2);
+    });
+
+    test('choosing a study narrows the parts, projects, cells and lines', () {
+      // The second complaint, exactly: study `a` never makes PN2.
+      final options = runFilterOptions(
+        twoLines(),
+        const RunFilter(studyIds: {'a'}),
+      );
+
+      expect(options.parts.keys, {'PN1'});
+      expect(options.projects.keys, {'MANIFOLD'});
+      expect(options.cells.keys, {'cell-1'});
+      expect(options.lines.keys, {'line-1'});
+      expect(options.studiesInView, 1);
+    });
+
+    test('a picker does not narrow itself, or a multi-select could not be '
+        'extended', () {
+      // Ticking one study must leave the other in the menu it was ticked in —
+      // otherwise the second can never be reached. This is the whole reason
+      // each facet ignores its own selection.
+      final options = runFilterOptions(
+        twoLines(),
+        const RunFilter(studyIds: {'a'}),
+      );
+
+      expect(options.studies.keys, {'a', 'b'});
+    });
+
+    test('choosing a part narrows the studies', () {
+      final options = runFilterOptions(
+        twoLines(),
+        const RunFilter(partNumbers: {'PN2'}),
+      );
+
+      expect(options.studies.keys, {'b'});
+      expect(options.cells.keys, {'cell-2'});
+      // And not itself.
+      expect(options.parts.keys, {'PN1', 'PN2'});
+    });
+
+    test('a cell narrows exactly as its study would', () {
+      final options = runFilterOptions(
+        twoLines(),
+        const RunFilter(cellIds: {'cell-2'}),
+      );
+
+      expect(options.studies.keys, {'b'});
+      expect(options.parts.keys, {'PN2'});
+    });
+
+    test('the period narrows every picker', () {
+      // `o2` needs 2026-04-01, outside this window.
+      final options = runFilterOptions(
+        twoLines(),
+        RunFilter(from: DateTime(2026, 2, 1), to: DateTime(2026, 3, 15)),
+      );
+
+      expect(options.studies.keys, {'a'});
+      expect(options.parts.keys, {'PN1'});
+      expect(options.studiesInView, 1);
+    });
+
+    test('a cell no study uses is never offered', () {
+      // The first complaint. The plant may have twenty cells; the run knows
+      // about the two its studies sat in, and nothing else can be reached from
+      // here — so a menu built from this cannot list a cell that selects
+      // nothing.
+      final options = runFilterOptions(twoLines(), const RunFilter());
+
+      expect(options.cells.keys, hasLength(2));
+      expect(options.cells.keys, isNot(contains('cell-3')));
+    });
+
+    test('a run made before v17 offers no cells rather than a blank one', () {
+      // Its `production_cell_id` is null (§16.18) — the same reason the filter
+      // treats a blank as matching nothing rather than as a wildcard.
+      final before = run();
+      final withoutCells = StoredRun(
+        id: before.id,
+        projectId: before.projectId,
+        createdAt: before.createdAt,
+        dispatch: before.dispatch,
+        dispatchOverrides: before.dispatchOverrides,
+        studies: [study('a'), study('b')],
+        result: before.result,
+        metrics: before.metrics,
+        plan: before.plan,
+      );
+
+      final options = runFilterOptions(withoutCells, const RunFilter());
+
+      expect(options.cells, isEmpty);
+      expect(options.lines, isEmpty);
+      // The studies themselves are still offered — it is only the cell and the
+      // line the run cannot answer for.
+      expect(options.studies.keys, {'a', 'b'});
+    });
+
+    test('before a run exists there is nothing to offer', () {
+      // The pane below says nothing has been run. A menu of things that cannot
+      // narrow it would be describing the plant rather than the screen.
+      const options = RunFilterOptions();
+      expect(runFilterOptions(null, const RunFilter()).studies, options.studies);
+      expect(runFilterOptions(null, const RunFilter()).cells, isEmpty);
+    });
+
+    test('the unbooked orders are offered only when there are some', () {
+      expect(
+        runFilterOptions(twoLines(), const RunFilter()).projects.keys,
+        isNot(contains(RunFilter.noProject)),
+      );
+      // `run()`'s plan answers null for every order, which is also every
+      // pre-v12 run.
+      expect(
+        runFilterOptions(run(), const RunFilter()).projects.keys,
+        contains(RunFilter.noProject),
+      );
+    });
+  });
+
   /// §7.5's three, which narrow **within** a study where the period is the only
   /// thing that did before.
   group('the project, part and order filters (§7.5)', () {

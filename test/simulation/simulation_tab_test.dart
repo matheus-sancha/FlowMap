@@ -746,6 +746,12 @@ void main() {
     // **Through the control, not around it.** The test above sets the filter
     // from the route and proves the plumbing; the field says the picker still
     // does nothing, so this drives the picker.
+    //
+    // **The names come off the run, not off `studiesProvider`** (§7.6). The
+    // overrides below are what the screen around the bar needs; the picker
+    // itself reads `run.studies`, which is why this taps the accented `Célula
+    // 11B` the run recorded rather than the plain one the project has today.
+    // That is §7.10 working as intended: a run says what it was made of.
     final run = twoStudyPlanRun();
     await tester.pumpWidget(
       ProviderScope(
@@ -817,7 +823,7 @@ void main() {
     // Open the Studies picker and check the first study.
     await tester.tap(find.textContaining('Studies'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Celula 11B').last);
+    await tester.tap(find.widgetWithText(CheckboxMenuButton, 'Célula 11B'));
     await tester.pumpAndSettle();
 
     expect(find.text('KEPT-1'), findsWidgets);

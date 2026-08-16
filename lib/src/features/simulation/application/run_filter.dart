@@ -189,6 +189,142 @@ class FilteredRun {
       '|${(filter.orderNumbers.toList()..sort()).join(',')}';
 }
 
+/// What each of the filter bar's pickers should offer, given what the others
+/// have already narrowed to (§7.6).
+///
+/// Every map is `value → label`, sorted by label, ready to be a menu.
+class RunFilterOptions {
+  const RunFilterOptions({
+    this.studies = const {},
+    this.cells = const {},
+    this.lines = const {},
+    this.projects = const {},
+    this.parts = const {},
+    this.studiesInView = 0,
+  });
+
+  final Map<String, String> studies;
+  final Map<String, String> cells;
+  final Map<String, String> lines;
+
+  /// Keyed by the project name, or [RunFilter.noProject] for the orders that
+  /// have none — offered only when the slice actually contains such an order.
+  final Map<String, String> projects;
+
+  final Map<String, String> parts;
+
+  /// How many studies the other filters leave in view, which is how many orders
+  /// one order number names.
+  final int studiesInView;
+}
+
+/// The options every picker should show for [run] under [filter].
+///
+/// **A picker offers what could still narrow what you are looking at.** Two
+/// complaints from the field are one rule: the Cells and Lines menus listed
+/// every cell and line in the *plant*, including those no study has ever used,
+/// so most entries selected nothing; and choosing a study left the Part numbers
+/// menu offering parts that study never makes. Both are a menu describing
+/// something other than the thing on screen.
+///
+/// **Read off the run, not off the plant.** §7.10 records each study's cell and
+/// line on the run precisely so a filter keeps working after the plant is
+/// re-organised, and the run's studies are by definition the ones that have a
+/// simulation. Before a run exists every menu is empty, which is honest: the
+/// pane below says nothing has been run, and there is nothing to filter.
+///
+/// **Each picker ignores its own selection and honours every other.** That is
+/// what keeps a multi-select usable — ticking `MANIFOLD` must not make
+/// `Global 23` vanish from the menu it was ticked in — while still letting a
+/// study narrow the parts beside it. It is the standard faceted-search rule, and
+/// the alternative was tried in the head and discarded: options narrowed by
+/// *all* filters leave every menu holding exactly what is already ticked.
+///
+/// Computed in one pass over the orders rather than by calling [filterRun] once
+/// per picker: this runs on every keystroke of the filter bar, and [filterRun]
+/// re-summarises the whole run.
+RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
+  if (run == null) return const RunFilterOptions();
+
+  final studyOf = {for (final s in run.studies) s.studyId: s};
+  final partNumberOf = {
+    for (final part in run.metrics.parts) part.partId: part.partNumber,
+  };
+  final projectOf = {
+    for (final row in run.plan) row.outcome.orderId: row.customerProject,
+  };
+
+  final studies = <String, String>{};
+  final cells = <String, String>{};
+  final lines = <String, String>{};
+  final projects = <String, String>{};
+  final parts = <String, String>{};
+  final inView = <String>{};
+
+  for (final outcome in run.result.orders) {
+    final study = studyOf[outcome.studyId];
+    final project = projectOf[outcome.orderId] ?? RunFilter.noProject;
+    final part = partNumberOf[outcome.partId];
+
+    final byStudy =
+        filter.studyIds.isEmpty || filter.studyIds.contains(outcome.studyId);
+    final byCell =
+        filter.cellIds.isEmpty ||
+        filter.cellIds.contains(study?.productionCellId);
+    final byLine =
+        filter.lineIds.isEmpty ||
+        filter.lineIds.contains(study?.productionLineId);
+    final byDate = filter.includesDate(outcome.needDate);
+    final byProject =
+        filter.customerProjects.isEmpty ||
+        filter.customerProjects.contains(project);
+    final byPart =
+        filter.partNumbers.isEmpty || filter.partNumbers.contains(part);
+    final byOrder =
+        filter.orderNumbers.isEmpty ||
+        filter.orderNumbers.contains(outcome.sequence + 1);
+
+    // Everything except the facet being offered.
+    final others = byDate && byProject && byPart && byOrder;
+    final place = byStudy && byCell && byLine;
+
+    if (others && byCell && byLine && study != null) {
+      studies[outcome.studyId] = study.name;
+    }
+    if (others && byStudy && byLine) {
+      if (study?.productionCellId case final id?) {
+        cells[id] = study?.productionCellName ?? id;
+      }
+    }
+    if (others && byStudy && byCell) {
+      if (study?.productionLineId case final id?) {
+        lines[id] = study?.productionLineName ?? id;
+      }
+    }
+    if (place && byDate && byPart && byOrder) projects[project] = project;
+    if (place && byDate && byProject && byOrder && part != null) {
+      parts[part] = part;
+    }
+    if (place && others) inView.add(outcome.studyId);
+  }
+
+  Map<String, String> sorted(Map<String, String> by) =>
+      Map.fromEntries(
+        by.entries.toList()..sort((a, b) => a.value.compareTo(b.value)),
+      );
+
+  return RunFilterOptions(
+    studies: sorted(studies),
+    cells: sorted(cells),
+    lines: sorted(lines),
+    // `(no project)` keeps its sentinel key and takes its label from the view,
+    // so it sorts first rather than under whatever it is called in Portuguese.
+    projects: sorted(projects),
+    parts: sorted(parts),
+    studiesInView: inView.length,
+  );
+}
+
 /// Reads [run] through [filter].
 FilteredRun filterRun(StoredRun run, RunFilter filter) {
   // **Naming no study means every study, not no study.** Resolving the set from
