@@ -247,6 +247,22 @@ a sequence rather than a pile; an entry mark and an exit mark that differ, so it
 and none of that is available to an arrow. So the channel is its own figure, and the two that
 genuinely are variants of one shaft remain variants of one shaft.
 
+**A link that carries a queue is drawn as wide as a process box.** The lead-time ladder puts one rung
+over each link and one under each box, so equal slots make equal rungs — and a 64 px gap truncated
+`FIFO COATING` to `FIFO COA…` the first time this was driven. The one link that stays narrow is the
+last, into the customer: not a station, no queue, nothing to make room for. _Rejected: sizing the
+ladder independently of the map._ Rungs would be equal at any gap width, but a rung that does not sit
+under the box or link it measures reads as the wrong one's time.
+
+**The ladder alternates strictly, and a queue rung is drawn even when it is zero.** That is what makes
+the comb regular; a queue holding nothing has a real answer rather than no answer. A link whose queue
+is null contributes zero — an unbound step has no floor space, and the *second* link into a station a
+flow visits twice was already counted at the first — which is what keeps the rungs summing to the
+footer's lead time (§17.4). The first build overlapped a queue's rung with the process rungs either
+side by half a gap, and `LeadTimeLadderPainter` draws its riser at each rung's `left`: the path
+doubled back 32 px at every queue, which is what made the teeth stubby and misplaced on the field's
+first look at it.
+
 Its stroke is 1.2 px, the same weight as the factory, the inventory triangle and the pool badge,
 for the reason §1.7 gave the badge: a symbol drawn in a different weight reads as pasted onto the
 map rather than part of it. The channel is sized to the 64 px gap the layout leaves between nodes,

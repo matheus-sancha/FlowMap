@@ -1243,18 +1243,84 @@ void main() {
       );
       final layout = layoutFlow(view);
 
+      // One per link into a box, alternating with the boxes' own rungs.
       final waiting = layout.ladder.where((r) => r.isWaiting).toList();
-      expect(waiting, hasLength(1));
+      expect(waiting, hasLength(2));
       // The link into B — the second connection, since the first runs from the
       // supplier into A.
-      expect(waiting.single.rect.left, layout.connections[1].from.dx);
-      expect(waiting.single.rect.right, layout.connections[1].to.dx);
+      expect(waiting[1].rect.left, layout.connections[1].from.dx);
+      expect(waiting[1].rect.right, layout.connections[1].to.dx);
+      expect(waiting[1].duration, isNot(Duration.zero));
+      // And the link into A, whose queue holds nothing, still has its rung.
+      expect(waiting[0].duration, Duration.zero);
     });
 
-    test('a flow with nothing standing in it draws no waiting rungs', () {
-      // What keeps the sawtooth meaningful: a row of zero-height teeth says a
-      // flow has queues everywhere, and a flat low line says it has stock
-      // nowhere, which is the true one.
+    test('every rung is the same width, and tiles edge to edge', () {
+      // The defect this replaced: a queue rung spanned its 64 px gap while a
+      // process rung reached half a gap either side of its box, so the two
+      // overlapped by 32 px — and `LeadTimeLadderPainter` draws its riser at
+      // each rung's `left`, so the path doubled back at every queue and the
+      // teeth came out stubby and in the wrong place.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'A'),
+            step(1, workcenterId: 'B'),
+            step(2, workcenterId: 'C'),
+          ],
+          contexts: {'A': context('A'), 'B': context('B'), 'C': context('C')},
+          queues: [queue('B', quantity: 2)],
+        ),
+      );
+
+      // Strictly alternating: link, box, link, box, link, box.
+      expect(
+        layout.ladder.map((r) => r.isWaiting),
+        [true, false, true, false, true, false],
+      );
+      for (final rung in layout.ladder) {
+        expect(rung.rect.width, FlowMetrics.nodeWidth);
+      }
+      for (var i = 0; i < layout.ladder.length - 1; i++) {
+        expect(
+          layout.ladder[i + 1].rect.left,
+          closeTo(layout.ladder[i].rect.right, 0.01),
+          reason: 'a rung overlapping the next makes the painter double back',
+        );
+      }
+    });
+
+    test('a station visited twice is charged to the ladder once', () {
+      // §17.4's rule is that the footer totals are the sum of the rungs, and
+      // §7.3's is that one floor space is one queue — so the second link into a
+      // station reads zero rather than repeating the wait.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'WC'),
+            step(1, workcenterId: 'WC'),
+          ],
+          contexts: {'WC': context('WC')},
+          queues: [queue('WC', quantity: 1)],
+        ),
+      );
+
+      final waiting = layout.ladder.where((r) => r.isWaiting).toList();
+      expect(waiting[0].duration, const Duration(hours: 68));
+      expect(waiting[1].duration, Duration.zero);
+      expect(
+        layout.ladder.fold(
+          Duration.zero,
+          (total, rung) => total + rung.duration,
+        ),
+        const Duration(hours: 204),
+      );
+    });
+
+    test('a flow with nothing standing in it still alternates, at zero', () {
+      // Alternation is what makes the comb regular. A queue that holds nothing
+      // has a real answer — no time is spent there — rather than no answer, and
+      // a missing rung would leave a hole in the timeline.
       final layout = layoutFlow(
         build(
           nodes: [step(0, workcenterId: 'A'), step(1, workcenterId: 'B')],
@@ -1263,8 +1329,11 @@ void main() {
         ),
       );
 
-      expect(layout.ladder.where((r) => r.isWaiting), isEmpty);
-      expect(layout.ladder, hasLength(2));
+      expect(layout.ladder, hasLength(4));
+      expect(
+        layout.ladder.where((r) => r.isWaiting).map((r) => r.duration),
+        everyElement(Duration.zero),
+      );
     });
 
     test('the rungs stay edge to edge, so the sawtooth is continuous', () {
@@ -1327,14 +1396,13 @@ void main() {
         expect(layout.insertionPoints[i].center.y, connection.from.dy);
       }
 
-      // Every segment is exactly the gap now: nothing on the spine but process
-      // boxes, so nothing insets a link's end.
-      for (final connection in layout.connections) {
-        expect(
-          connection.to.dx - connection.from.dx,
-          closeTo(FlowMetrics.gap, 0.01),
-        );
-      }
+      // A link into a box is a queue's slot, as wide as the box, so the ladder
+      // rung over it matches the ones either side. The last link runs into the
+      // customer, which is not a station and has no queue to make room for.
+      expect(
+        layout.connections.map((c) => c.to.dx - c.from.dx),
+        [FlowMetrics.queueSlot, FlowMetrics.queueSlot, FlowMetrics.gap],
+      );
     });
 
     test('an empty flow still lays out its endpoints', () {

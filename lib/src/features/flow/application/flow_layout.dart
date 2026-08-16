@@ -65,8 +65,24 @@ abstract final class FlowMetrics {
   static const endpointWidth = 104.0;
   static const endpointHeight = 52.0;
 
-  /// Between nodes — wide enough for the connecting arrow and the insertion
-  /// affordance that sits on it.
+  /// A link that carries a queue — every link on the spine except the last.
+  ///
+  /// **The same width as a process box**, and that is the whole point: the
+  /// lead-time ladder puts one rung over each link and one under each box, so
+  /// equal slots make equal rungs. It also buys the queue room for its name and
+  /// its capacity, which `FIFO COATING · max 2` does not fit into 64 px — the
+  /// first build of §7.3 drew them into the gap below and they truncated to
+  /// `FIFO COA…`.
+  ///
+  /// _Rejected: sizing the ladder independently of the map._ Rungs could then be
+  /// equal at any gap width, but a rung that does not sit under the box or the
+  /// link it measures reads as the wrong one's time — which is the rule the
+  /// process rungs have been placed by since they were first drawn.
+  static const queueSlot = nodeWidth;
+
+  /// The one link that carries no queue: into the customer, which is not a
+  /// station. Narrow, because there is nothing to put there — the flow's
+  /// outbound stock is §7.3's own open item and is not a queue when it lands.
   static const gap = 64.0;
 
   static const marginLeft = 32.0;
@@ -189,7 +205,11 @@ FlowLayout layoutFlow(FlowView view) {
     FlowMetrics.endpointWidth,
     FlowMetrics.endpointHeight,
   );
-  x += FlowMetrics.endpointWidth + FlowMetrics.gap;
+  // Every link runs into a step and carries that step's queue — except the last
+  // one, which runs into the customer. An empty flow is only that last link.
+  x +=
+      FlowMetrics.endpointWidth +
+      (view.nodes.isEmpty ? FlowMetrics.gap : FlowMetrics.queueSlot);
 
   for (var i = 0; i < view.nodes.length; i++) {
     nodes.add(
@@ -203,7 +223,11 @@ FlowLayout layoutFlow(FlowView view) {
         ),
       ),
     );
-    x += FlowMetrics.nodeWidth + FlowMetrics.gap;
+    x +=
+        FlowMetrics.nodeWidth +
+        (i == view.nodes.length - 1
+            ? FlowMetrics.gap
+            : FlowMetrics.queueSlot);
   }
 
   final customer = Rect.fromLTWH(
@@ -245,44 +269,48 @@ FlowLayout layoutFlow(FlowView view) {
     ),
   );
 
-  // The ladder. A process rung sits **centred on its box** and reaches half a
-  // gap either side; a waiting rung sits over the link it belongs to.
+  // The ladder: **one rung per link and one per box, strictly alternating and
+  // all the same width**, because a link is a slot as wide as a box.
   //
-  // Half a gap, not a whole one: it keeps the process rungs edge to edge — so
-  // the sawtooth stays one continuous timeline — while putting each rung's
-  // midpoint exactly under its box's midpoint. Spanning the box plus the
-  // *following* gap, as this first did, shifts every rung half a gap right, and
-  // its label then sits between two steps and reads as the wrong one's time.
+  // Each rung is exactly the thing it measures — a queue rung spans its link, a
+  // process rung spans its box — so no label can sit under something it does
+  // not describe, and they tile edge to edge with nothing overlapping. The first
+  // build of this overlapped them by half a gap, and `LeadTimeLadderPainter`
+  // draws its riser at each rung's `left`: the path therefore doubled back 32 px
+  // at every queue, which is what made the teeth stubby and misplaced.
   //
-  // **A waiting rung is drawn only where something is standing**, which is what
-  // keeps the sawtooth meaningful: a flow with no stock anywhere reads as one
-  // flat low line rather than as a row of zero-height teeth. It overlays the
-  // process rungs either side of it rather than displacing them, because a
-  // queue takes no room on the spine.
+  // **A waiting rung is drawn even when it is zero.** Alternation is what makes
+  // the comb regular, and a queue that holds nothing has a real answer — no time
+  // is spent there — rather than no answer.
+  //
+  // A link whose queue is null contributes zero: an unbound step has no floor
+  // space in front of it, and the *second* link into a station a flow visits
+  // twice has already been counted at the first (`FlowConnection.queue` is null
+  // there). That is what keeps the rungs summing to the footer's lead time,
+  // which is §17.4's rule and the reason the totals are read off the rungs.
   final ladderTop = top + FlowMetrics.nodeHeight + FlowMetrics.ladderOffset;
   for (var i = 0; i < nodes.length; i++) {
     final placed = nodes[i];
-    if (connections[i].queue case final queue? when queue.hasStock) {
-      ladder.add(
-        LadderSegment(
-          rect: Rect.fromLTWH(
-            connections[i].from.dx,
-            ladderTop,
-            connections[i].to.dx - connections[i].from.dx,
-            FlowMetrics.ladderHeight,
-          ),
-          duration: queue.wait,
-          isWaiting: true,
-          referenceWorkingDay: queue.rungWorkingDay,
-        ),
-      );
-    }
+    final queue = connections[i].queue;
     ladder.add(
       LadderSegment(
         rect: Rect.fromLTWH(
-          placed.rect.left - FlowMetrics.gap / 2,
+          connections[i].from.dx,
+          ladderTop,
+          connections[i].to.dx - connections[i].from.dx,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: queue?.wait ?? Duration.zero,
+        isWaiting: true,
+        referenceWorkingDay: queue?.rungWorkingDay,
+      ),
+    );
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          placed.rect.left,
           ladderTop + FlowMetrics.ladderHeight,
-          FlowMetrics.nodeWidth + FlowMetrics.gap,
+          FlowMetrics.nodeWidth,
           FlowMetrics.ladderHeight,
         ),
         duration: placed.view.ladderTime,
