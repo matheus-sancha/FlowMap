@@ -723,6 +723,90 @@ void main() {
     expect(find.text('KEPT-1'), findsWidgets);
     expect(find.text('DROPPED-2'), findsNothing);
   });
+
+  testWidgets('checking a study in the picker narrows the page', (
+    tester,
+  ) async {
+    // **Through the control, not around it.** The test above sets the filter
+    // from the route and proves the plumbing; the field says the picker still
+    // does nothing, so this drives the picker.
+    final run = twoStudyPlanRun();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          simRunInputProvider(project.id).overrideWith(
+            (ref) async => input(
+              readiness: const [
+                StudyReadiness(
+                  studyId: 'study-1',
+                  name: 'Celula 11B',
+                  problems: [],
+                ),
+              ],
+            ),
+          ),
+          simulationRunnerProvider(
+            project.id,
+          ).overrideWith(() => _StubRunner(run)),
+          projectRunsProvider(
+            project.id,
+          ).overrideWith((ref) => Stream.value(const [])),
+          // The picker offers the project's live studies, so this is what
+          // decides whether the menu has anything in it at all.
+          studiesProvider(project.id).overrideWith(
+            (ref) => Stream.value([
+              Study(
+                id: 'study-1',
+                projectId: project.id,
+                productionCellId: 'cell-1',
+                productionLineId: 'line-1',
+                name: 'Celula 11B',
+                includeInSimulation: true,
+                startBufferDays: 0,
+                priority: 0,
+                createdAt: now,
+                updatedAt: now,
+              ),
+              Study(
+                id: 'study-2',
+                projectId: project.id,
+                productionCellId: 'cell-1',
+                productionLineId: 'line-2',
+                name: 'Celula 12A',
+                includeInSimulation: true,
+                startBufferDays: 0,
+                priority: 0,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            ]),
+          ),
+          plantLinesProvider(
+            project.plantId,
+          ).overrideWith((ref) => Stream.value(const [])),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SimulationWorkspace(project: project)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Unfiltered: both studies' parts are on the plan.
+    expect(find.text('KEPT-1'), findsWidgets);
+    expect(find.text('DROPPED-2'), findsWidgets);
+
+    // Open the Studies picker and check the first study.
+    await tester.tap(find.textContaining('Studies'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Celula 11B').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('KEPT-1'), findsWidgets);
+    expect(find.text('DROPPED-2'), findsNothing);
+  });
 }
 
 /// A runner that reports one stored run and never touches a database.

@@ -227,6 +227,19 @@ class _FilterBar extends ConsumerWidget {
 ///
 /// A `DropdownButton` cannot hold a multiple selection, and a row of chips per
 /// study would be wider than the bar on a plant with a dozen of them.
+///
+/// **No `StatefulBuilder` around the items, and that was the bug.** Each item
+/// was wrapped in one so the tick could repaint itself before the parent
+/// rebuilt. But `CheckboxMenuButton` closes the menu when it is activated,
+/// which disposes that builder — and `State.setState` asserts it is still
+/// mounted *before* it runs the callback it was given. So the line that added
+/// the study to the set never ran, and the `onChanged()` after it never ran
+/// either. The filter did nothing at all, in every build since it shipped,
+/// while the picker's own label counted the selection correctly enough to look
+/// like it was working.
+///
+/// The selection is the parent's state, so the parent's rebuild is what should
+/// repaint the tick. There was never a second piece of state to keep in step.
 class _MultiPicker extends StatelessWidget {
   const _MultiPicker({
     required this.label,
@@ -246,21 +259,22 @@ class _MultiPicker extends StatelessWidget {
     return MenuAnchor(
       menuChildren: [
         for (final entry in options.entries)
-          StatefulBuilder(
-            builder: (context, setLocal) => CheckboxMenuButton(
-              value: selected.contains(entry.key),
-              onChanged: (checked) {
-                setLocal(() {
-                  if (checked ?? false) {
-                    selected.add(entry.key);
-                  } else {
-                    selected.remove(entry.key);
-                  }
-                });
-                onChanged();
-              },
-              child: Text(entry.value),
-            ),
+          CheckboxMenuButton(
+            // **The menu stays open**, so several studies can be ticked in one
+            // visit rather than one reopening per choice. Not what fixed the
+            // bug above — removing the builder is — but it is why the builder
+            // looked necessary in the first place.
+            closeOnActivate: false,
+            value: selected.contains(entry.key),
+            onChanged: (checked) {
+              if (checked ?? false) {
+                selected.add(entry.key);
+              } else {
+                selected.remove(entry.key);
+              }
+              onChanged();
+            },
+            child: Text(entry.value),
           ),
       ],
       builder: (context, controller, _) => OutlinedButton.icon(
