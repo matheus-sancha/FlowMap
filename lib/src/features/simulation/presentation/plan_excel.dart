@@ -76,7 +76,14 @@ Uint8List buildPlanWorkbook({
   required String projectName,
   required PlanExcelStrings strings,
   required DateStyle dateStyle,
+  List<ProductionPlanRow>? plan,
 }) {
+  // **What is on screen, not what is stored.** The export button sits under the
+  // production plan, so it takes whatever slice that table is showing (§12.1);
+  // handing back a different table from the one above it is how a planner sends
+  // the wrong list. Null means the whole run, which is what an unfiltered view
+  // passes anyway.
+  final rows = plan ?? run.plan;
   final book = xl.Excel.createExcel();
   // Whatever `createExcel` opens with. Deleted once there is something else in
   // the file, because `delete` refuses to remove the last sheet.
@@ -99,7 +106,7 @@ Uint8List buildPlanWorkbook({
   // sequence order — and §7.2 releases strictly from the head, so that is also
   // release order (§8.5).
   final byStudy = <String, List<ProductionPlanRow>>{};
-  for (final row in run.plan) {
+  for (final row in rows) {
     byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
   }
 
@@ -269,6 +276,7 @@ Future<void> exportPlanExcel(
   BuildContext context, {
   required StoredRun run,
   required String projectName,
+  List<ProductionPlanRow>? plan,
 }) async {
   final l10n = AppLocalizations.of(context);
   final locale = Localizations.localeOf(context).toString();
@@ -277,6 +285,7 @@ Future<void> exportPlanExcel(
 
   final bytes = buildPlanWorkbook(
     run: run,
+    plan: plan,
     projectName: projectName,
     dateStyle: DateStyleScope.of(context),
     strings: PlanExcelStrings(
@@ -330,7 +339,8 @@ Future<void> exportPlanExcel(
     mimeType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ).saveTo(location.path);
-  Diag.event('plan.xlsx', 'orders ${run.plan.length}');
+  // The count that was written, which on a filtered view is not the run's.
+  Diag.event('plan.xlsx', 'orders ${(plan ?? run.plan).length}');
 
   if (context.mounted) {
     ScaffoldMessenger.of(

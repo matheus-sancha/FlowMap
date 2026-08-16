@@ -317,7 +317,7 @@ class _ResultTables extends StatelessWidget {
         const SizedBox(height: 24),
         Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
-        _PartsTable(run: run),
+        _PartsTable(slice: slice),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -330,13 +330,16 @@ class _ResultTables extends StatelessWidget {
             // Beside the thing it exports rather than on the tab's chrome: the
             // plan is one of several tables here, and a project-level export
             // button would not say which one it takes (§13).
-            if (run.plan.isNotEmpty)
+            if (slice.plan.isNotEmpty)
               TextButton.icon(
                 icon: const Icon(Icons.table_view_outlined, size: 18),
                 label: Text(l10n.exportExcel),
+                // The slice, not the run: the button is under this table and
+                // exports this table (§12.1).
                 onPressed: () => exportPlanExcel(
                   context,
                   run: run,
+                  plan: slice.plan,
                   projectName: projectName,
                 ),
               ),
@@ -350,7 +353,7 @@ class _ResultTables extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        _ProductionPlan(run: run),
+        _ProductionPlan(slice: slice),
       ],
     );
   }
@@ -365,21 +368,28 @@ class _ResultTables extends StatelessWidget {
 /// release order, so "orders over time" needs no sort that could disagree with
 /// the Order column.
 class _ProductionPlan extends StatelessWidget {
-  const _ProductionPlan({required this.run});
+  const _ProductionPlan({required this.slice});
 
-  final StoredRun run;
+  /// **The slice, not the run.** `FilteredRun` has computed the filtered plan
+  /// since the combined view was built and nothing ever read it — this table
+  /// took `run.plan` and listed every order in the project under whatever
+  /// filter was set (§12.1).
+  final FilteredRun slice;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (run.plan.isEmpty) return const SizedBox.shrink();
+    if (slice.plan.isEmpty) return const SizedBox.shrink();
 
     // Study id → the name it had when the run was made (§7.10), so a study
-    // renamed since still reads as the one that ran.
-    final names = {for (final study in run.studies) study.studyId: study.name};
+    // renamed since still reads as the one that ran. A lookup over the whole
+    // run; which of them get a section is decided by the rows below.
+    final names = {
+      for (final study in slice.run.studies) study.studyId: study.name,
+    };
 
     final byStudy = <String, List<ProductionPlanRow>>{};
-    for (final row in run.plan) {
+    for (final row in slice.plan) {
       byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
     }
 
@@ -832,21 +842,30 @@ class _ShareTable extends StatelessWidget {
 /// its study (§16.15), so two lines' `PN2` are two parts, and this is the only
 /// thing on the row that tells them apart.
 class _PartsTable extends StatelessWidget {
-  const _PartsTable({required this.run});
+  const _PartsTable({required this.slice});
 
-  final StoredRun run;
+  /// **The slice, not the run.** This table read `run.metrics` and so reported
+  /// every part in the project while the headline above it reported the
+  /// filtered ones — a page disagreeing with itself, which is worse than a
+  /// filter that does nothing at all (§12.1).
+  final FilteredRun slice;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final metrics = run.metrics;
+    final metrics = slice.metrics;
     if (metrics.parts.isEmpty) return const SizedBox.shrink();
 
     // The names the studies had when the run was made (§7.10), so a study
     // renamed since still reads as the one that ran — as `_ProductionPlan`
-    // does with the same map.
-    final names = {for (final study in run.studies) study.studyId: study.name};
-    final showStudy = run.studies.length > 1;
+    // does with the same map. Read from the whole run because it is a lookup:
+    // what narrows is which of them appear, which is the line below.
+    final names = {
+      for (final study in slice.run.studies) study.studyId: study.name,
+    };
+    // The slice's studies, so filtering to one line drops the column that would
+    // then hold the same answer on every row (§8.1.2).
+    final showStudy = slice.studyIds.length > 1;
 
     return Card(
       child: resultTable(

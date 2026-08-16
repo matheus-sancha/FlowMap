@@ -115,6 +115,7 @@ void main() {
     );
   }
 
+
   SimulationRunStudy study(String id, String name) => SimulationRunStudy(
     runId: 'run-1',
     studyId: id,
@@ -175,6 +176,35 @@ void main() {
         workcenterNames: const {'wc-1': 'CLAD04'},
         theoreticalByOrder: const {},
       ),
+    );
+  }
+
+  /// Two studies, and a plan row for each — `twoStudyRun`'s plan is empty, and
+  /// an empty plan cannot show a plan table ignoring a filter.
+  StoredRun twoStudyPlanRun() {
+    final base = twoStudyRun();
+    return StoredRun(
+      id: base.id,
+      projectId: base.projectId,
+      createdAt: base.createdAt,
+      dispatch: base.dispatch,
+      dispatchOverrides: base.dispatchOverrides,
+      studies: base.studies,
+      result: base.result,
+      metrics: base.metrics,
+      plan: [
+        for (final outcome in base.result.orders)
+          ProductionPlanRow(
+            outcome: outcome,
+            partNumber: outcome.studyId == 'study-1' ? 'KEPT-1' : 'DROPPED-2',
+            partDescription: null,
+            customerProject: null,
+            batchNumber: null,
+            batchSize: null,
+            materialDate: null,
+            theoreticalLeadTime: const Duration(hours: 6),
+          ),
+      ],
     );
   }
 
@@ -580,6 +610,118 @@ void main() {
     );
 
     expect(find.textContaining('Demand exceeds capacity'), findsOne);
+  });
+
+  testWidgets('a study filter narrows every table on the page', (
+    tester,
+  ) async {
+    // **The workspace's first end-to-end test** (§3.7). The field reported the
+    // filter doing nothing; `run_filter.dart` is covered and correct, so what
+    // this pins is the wiring between the filter and what is on screen.
+    final run = twoStudyRun();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          simRunInputProvider(project.id).overrideWith(
+            (ref) async => input(
+              readiness: const [
+                StudyReadiness(
+                  studyId: 'study-1',
+                  name: 'Celula 11B',
+                  problems: [],
+                ),
+              ],
+            ),
+          ),
+          simulationRunnerProvider(
+            project.id,
+          ).overrideWith(() => _StubRunner(run)),
+          projectRunsProvider(
+            project.id,
+          ).overrideWith((ref) => Stream.value(const [])),
+          studiesProvider(
+            project.id,
+          ).overrideWith((ref) => Stream.value(const [])),
+          plantLinesProvider(
+            project.plantId,
+          ).overrideWith((ref) => Stream.value(const [])),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SimulationWorkspace(
+              project: project,
+              // Arriving from a study drives the same filter the picker sets,
+              // and states the expectation without a menu interaction.
+              initialStudyId: 'study-1',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Two orders in the run, one in the study. Every figure on the page is
+    // supposed to be about the slice, so the other study's section heading must
+    // not be on it — and the headline must count one order, not two.
+    expect(find.text('Celula 12A'), findsNothing);
+    expect(find.textContaining('1 of 1'), findsWidgets);
+  });
+
+  testWidgets('the production plan lists the slice, not the whole run', (
+    tester,
+  ) async {
+    // **The bug the field reported.** `FilteredRun` has carried a correctly
+    // filtered plan since the combined view was built, and the table read
+    // `run.plan` instead — so the largest table on the page ignored the filter
+    // while the headline above it obeyed, and the page disagreed with itself.
+    final run = twoStudyPlanRun();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          simRunInputProvider(project.id).overrideWith(
+            (ref) async => input(
+              readiness: const [
+                StudyReadiness(
+                  studyId: 'study-1',
+                  name: 'Celula 11B',
+                  problems: [],
+                ),
+              ],
+            ),
+          ),
+          simulationRunnerProvider(
+            project.id,
+          ).overrideWith(() => _StubRunner(run)),
+          projectRunsProvider(
+            project.id,
+          ).overrideWith((ref) => Stream.value(const [])),
+          studiesProvider(
+            project.id,
+          ).overrideWith((ref) => Stream.value(const [])),
+          plantLinesProvider(
+            project.plantId,
+          ).overrideWith((ref) => Stream.value(const [])),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SimulationWorkspace(
+              project: project,
+              initialStudyId: 'study-1',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // One study's part number is on the plan and the other's is not. Both rows
+    // exist in `run.plan`; only one belongs to the slice.
+    expect(find.text('KEPT-1'), findsWidgets);
+    expect(find.text('DROPPED-2'), findsNothing);
   });
 }
 

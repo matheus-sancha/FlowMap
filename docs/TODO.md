@@ -41,11 +41,12 @@ are only worth making while the engine still agrees with the numbers that raised
 | **§2** | The flow surface | the step dialog, three lead times, `Part`, less text |
 | **§3** | The input tables | takt and workcenter schedules become grids |
 | **§4** | The tabs, and where simulation lives | seven tabs, a simulation workspace |
-| **§5** | The pool and the lane | two bugs from the field — **written, awaiting a drive** |
-| **§6** | The workspace | five tabs, one simulation, less chrome |
-| **§7** | Known gaps, deliberately left | |
-| **§8** | Deferred by decision | §3.8, the map that never runs |
-| **§9** | M5 | |
+| **§5** | The pool and the lane | two bugs from the field — **written, not driven** |
+| **§6** | The workspace | five tabs, one simulation, less chrome — **not driven** |
+| **§7** | The queue, the filter and the balance | from driving `0.1.0-2026-08-15g` |
+| **§8** | Known gaps, deliberately left | |
+| **§9** | Deferred by decision | §3.8, the map that never runs |
+| **§10** | M5 | |
 
 ---
 
@@ -634,7 +635,7 @@ same dialog and were left for the round that needs them."* This is that round, a
 §17.5 entries. §7.3's CONWIP behaviour meets a user for the first time here, so it wants driving
 rather than assuming.
 
-It is also the obvious home for §8's map-only flag when that lands.
+It is also the obvious home for §9's map-only flag when that lands.
 
 ### 4.3 The Simulation tab becomes the study's slice
 
@@ -1112,7 +1113,183 @@ split by role, the period on the strip), **§12.6** (one grid for every station'
 
 ---
 
-## 7. Known gaps, deliberately left
+## 7. The queue, the filter and the balance — round seven
+
+**From driving `0.1.0-2026-08-15g`**, the first build of §5 and §6 anyone has actually used. Four
+things came back. One is a plain bug, one is a revert, one says the flow model is wrong, and one is a
+feature the app has never had.
+
+**§7.3 supersedes work committed in §5.2.** That round made two lanes over one station both draw,
+having found one silently overwriting the other. The overwrite was real; the fix was aimed at the
+wrong model. There is only ever one queue in front of a station, so the doubling disappears by
+construction here and `GanttPoolGroup`'s list-of-bands becomes machinery with nothing to hold. It is
+recorded rather than quietly undone, because the *reason* that fix looked right is the reason to
+distrust the next one that does.
+
+| | | |
+|---|---|---|
+| **§7.1** | The filter filters | small, and it makes every later drive trustworthy |
+| **§7.2** | Capacity, not Schedules | rename, cards back, exceptions leave the study |
+| **§7.3** | A queue belongs to a station | the deep one — schema, engine, symbols |
+| **§7.4** | Takt rebalances a group | derived process times |
+
+**Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
+observation suspect, and there are two undriven rounds stacked behind it already.
+
+### 7.1 The filter filters
+
+*Field: "The simulation results filter does not filter anything. It should filter the results and
+Gantt graphs."*
+
+**`FilteredRun` already computes the right answer and the view throws it away.** `filterRun` has its
+own tests and is correct; `FilteredRun.plan` is the filtered plan and **nothing reads it**.
+`_ProductionPlan(run: run)` reads `run.plan` and `_PartsTable(run: run)` reads `run.metrics` — both
+the whole run — while the headline, the metrics card and the Queue and Share tables read
+`slice.metrics`, and the Gantt reads `slice.result`. So the two largest tables on the page ignored
+the filter and the rest did not, which is worse than either: the page disagreed with itself.
+
+- Every table reads the slice. `_ResultTables` stops reaching through `slice.run` for anything except
+  what genuinely describes the run — the header, the abort banner, the horizon warning.
+- **The Excel export takes the slice too.** The button sits under the filtered plan, and handing back
+  a different table from the one above it is how a planner sends the wrong list.
+- **Station utilisation stays whole and stays labelled.** Its denominator is `openSeconds`, a stored
+  run total, and rebuilding it for a window needs each station's calendar — which §7.10 deliberately
+  does not store, and which is the cost that got §3.5 dropped. Unchanged, label included.
+
+_Left open, and the day it is wanted is the day §3.5 comes back:_ snapshotting each station's shift
+pattern into the run would let utilisation follow the filter honestly.
+
+**This is also the first thing the workspace has ever been tested for** (§3.7). The test written
+while diagnosing it mounts `SimulationWorkspace` with a two-study run and a study filter — the first
+end-to-end coverage that screen has had.
+
+### 7.2 Capacity, not Schedules
+
+*Field: "Hated the Schedules section. First let's call it Capacity, then the workcenter input looks
+horrible, preferred the previous one. And the exceptions are for the whole project or the study. If
+they are for the project, why do we call it inside a study."*
+
+**`Schedules` becomes `Capacity`**, which is what the tab is for and what §8.3's glossary already
+calls the thing.
+
+**The combined station grid reverts to one card per workcenter.** §6.3 replaced seven cards with one
+grid to end seven nested scroll regions and to let a year of periods paste in one block. Both
+arguments still stand and both lost: the build was driven, the cards read better, and §2.0's rule is
+that driving beats reasoning. Cross-station paste goes with the grid — **nobody asked for it**; it
+was inferred from the shape of the change rather than from anything the field said.
+
+`station_grid.dart` and its tests are **deleted with the grid** rather than left as
+built-but-unreachable. §17.5 is long enough, and a row model for a grid that no longer exists is not
+something a later round would find and use.
+
+**Calendar exceptions leave the study.** They are stored per project and applied to a plant, line or
+workcenter scope; nothing about one is the study's, which is exactly what the field asked. They
+become **a project-level destination in the studies sidebar**, beside Simulation — the place §12.1
+already established for what spans studies.
+
+§4.3's argument for putting exceptions beside the schedules they override is answered rather than
+overruled: the two do answer one question, and the answer is a *station's* open time, which is read
+on Capacity and set in two places that are each honestly scoped.
+
+### 7.3 A queue belongs to a station, not to a flow
+
+*Field: "The Gantt is doubling the inventories. The inventories of a workcenter used in multiple
+flows must be the same, they are not. And I'm afraid the flow logic is incorrect. We need to re-think
+the architecture of inventories, because a node will always have some type of inventory. What changes
+is the queue logic of it."*
+
+**The model was wrong, not the drawing.** §5.5 makes an inventory a node on one study's spine, with
+its own name, discipline and capacity. Two studies through CLAD07 therefore have two floor spaces in
+front of one machine — and the engine simulated them as two, so the numbers were wrong in the same
+way the picture was.
+
+**A queue belongs to what a step targets** — a workcenter, or a pool as a whole. The pool, because
+§3.1 dispatches to whichever member frees first, and that only means anything if the orders wait in
+one line. So `CAL Pool` has one queue and its three machines pull from it, which is the shape the
+Gantt heading already draws.
+
+**The inventory node kind goes away.** Every step has a queue in front of it; what differs is the
+rule. The **connector carries the queue type and the symbol follows from it**:
+
+| type | symbol |
+|---|---|
+| push | striped arrow with the inventory triangle beneath |
+| FIFO | the FIFO channel |
+| LIFO | the LIFO channel |
+| SPT | the SPT channel |
+| EDD | the EDD channel |
+
+**Supermarket is named and not selectable.** It is the type the field asked for and the one the
+engine cannot honour: it decouples — downstream withdraws from stock rather than waiting for a
+specific order — and it needs stock levels, a replenishment trigger and stockout metrics (§9). A
+supermarket symbol over FIFO behaviour would be a map that lies about the plant, which is precisely
+the correction §5.5 already made once when fixed-wait buffers reported a delay the run never charged.
+It stays parked until its mechanism exists.
+
+**LIFO is new.** `DispatchRule` has `fifo`, `earliestDueDate` and `shortestProcessing`; LIFO is a
+fourth and is cheap.
+
+**The queue type replaces the run's dispatch rule outright.** One place a dispatch decision is made,
+and the map shows every one of them — which is what a value stream map is for. What it retires:
+`SimulationRuns.dispatch`, the dispatch dropdown §6.1 moved into the Simulate popover, §7.4's
+per-lane overrides, and the `dispatchOverrides` line on the run header.
+
+_The costs, and they are real._ §0's confounder run compared a whole plant under one rule against
+another; that becomes an edit per station. And §10's run comparison loses "the dispatch is what
+differed" as a one-line explanation — it gains "which queues differed", which says more and takes
+more saying.
+
+**Where the numbers live: one row per `{projectId, targetId}`** — the seam the workcenter schedule
+already uses. Discipline, capacity in orders, and the observed stock (§5.5's quantity or duration)
+sit together, project-scoped, so capping a lane stays the per-project experiment §0 actually ran on
+`FIFO CEU27`.
+
+_Still open, and each needs an answer before this is built:_
+
+- **What the runs-history label says** once there is no dispatch rule to name a run by. Today it
+  reads `2026-08-15 · FIFO`.
+- **Whether a raw-material queue before the first step, and a finished-goods stock after the last,
+  are expressible.** Every step has a queue in front of it; the flow's two ends have neither a step
+  before nor after.
+- **What LIFO, SPT and EDD channels look like.** Only FIFO and the push triangle are standard VSM
+  symbols; the other three have to be invented, and an invented symbol that reads as a standard one
+  is worse than a labelled box.
+
+### 7.4 Takt rebalances a group of like machines
+
+*Field: "If I change the takt time I need to rebalance the operations of the workcenters, otherwise
+it will be unbalanced. The app should identify workcenters of the same type, then rebalance the
+process time according to the takt time, topping the first workcenter at the takt time and leaving
+the rest, under or over, to the last workcenter of the same type in the sequence."*
+
+**Consecutive steps sharing a workcenter type are one balance group.** A run of adjacent cladding
+operations shares the work; cladding again after heat treat is a different operation and a new group.
+Adjacency is what makes it physical — work cannot move across an intervening furnace.
+
+**The type is the identity.** Types are user-defined and free to create, so a plant needing model
+precision makes `CNC Lathe — Mazak` and `CNC Lathe — Haas` two types, rather than the schema gaining
+a second identity axis whose blank default would balance everything together.
+
+**The split is derived, never written.** What is stored is the group's **measured total work content
+per part**; the split is computed against the takt in force — the viewed period's on the map, the
+run's in the engine — filling each station to takt and leaving the remainder on the last. Change the
+takt and the balance follows with no action, which is the whole ask.
+
+**And it never overwrites an observation with a rule**, which is §5.5's correction applied a third
+time. A written split would be stale the moment takt moved, and a later takt change would leave the
+old one in place silently — the unbalanced line this exists to prevent.
+
+_The cost, stated plainly:_ a station's process time inside a group stops being hand-editable. The
+formula owns it, and a planner who wants CLAD07 at forty minutes because that is what fits has
+nowhere to say so. The day that is wanted is the day a per-station override arrives, and it will need
+the "measured beside chosen" pair this section rejected.
+
+_Left open:_ what the process-time grid shows for a station in a group — the derived figure, the
+measured total, or both.
+
+---
+
+## 8. Known gaps, deliberately left
 
 - [ ] **§14's performance target is not met.** A 2000-order, 10-step run takes ~2.8 s against "well
       under a second". §16.9 has the measurements: the cost is local `DateTime` arithmetic on
@@ -1141,7 +1318,7 @@ split by role, the period on the strip), **§12.6** (one grid for every station'
 
 ---
 
-## 8. Deferred by decision — the map that never runs
+## 9. Deferred by decision — the map that never runs
 
 **§3.8, deferred 2026-08-11 and confirmed still deferred 2026-08-15.** Not dropped and not disagreed
 with — sequenced. The argument below stands as written and nothing about it needs revisiting when it
@@ -1172,7 +1349,7 @@ own round. §5.2 keeps it decorative until then.
 
 ---
 
-## 9. M5
+## 10. M5
 
 Reports (§13), run comparison, templates and binding (§10.2), the About screen, and the drop.
 
