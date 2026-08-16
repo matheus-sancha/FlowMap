@@ -91,8 +91,8 @@ that is what says which machine ran an order, and it is the per-machine yardstic
 protects — and the pool is stored beside them (§7.10) so the surfaces can put the word back.
 
 **The Gantt groups; the Queue and Share tables label.** The chart runs down the page in flow order,
-where a pool's machines already sit together, so a heading over them costs nothing and its lane has
-somewhere to attach (§8.6). §8.1's two tables are *rankings*: their first row is the station that
+where a pool's machines already sit together, so naming the pool on each of their rows costs nothing
+and its lane has somewhere to attach (§8.6). §8.1's two tables are *rankings*: their first row is the station that
 queued most, and clustering their rows by pool would mean the first row stopped answering that. They
 name the pool beside the station instead.
 
@@ -1089,7 +1089,7 @@ order, which is the one thing §7.7 exists to model.
   was wrong twice over: the code took whichever member happened to pull an order out of the lane
   first, and even the intent was wrong, because a lane feeds a pool rather than a member of one. The
   band landed on an arbitrary machine, which is what made that machine look detached from its
-  siblings. It now sits above the pool's own heading (§3.1).
+  siblings. It now sits above the pool's members as a group, carrying the pool's name (§3.1).
 
   **A target carries a list of bands, not one.** This was a map keyed by workcenter, so a second lane
   feeding one station silently overwrote the first — and two studies both stepping on one pool, each
@@ -1125,7 +1125,7 @@ order, which is the one thing §7.7 exists to model.
   running.
 
   **A pool sorts as a group, and the group sorts where its busiest member would have.** Its members
-  have to stay adjacent or the heading above them would label some of them and not the rest — and a
+  have to stay adjacent or the label they share would run down some of them and not the rest — and a
   machine can hold two routing positions, which is what would otherwise split one. So a group takes
   the earliest routing rank and the best Queue rank any member holds, and the members keep the Queue
   order underneath it.
@@ -1136,10 +1136,29 @@ order, which is the one thing §7.7 exists to model.
   instead makes the sort identical to the old two-clause one wherever no pool is involved, which is
   the property worth having — a run with no pools in it must draw exactly as it did before.
 
-  **The heading is not a row of the run.** `GanttPoolGroup` carries no bars, answers no hover, takes
-  no band fill and is outside the station striping — the same exclusion the lanes already had, and
-  for the same reason: the alternation is what a reader follows one machine across. It is drawn
-  shallower than a station, so a pool of three does not read as four machines.
+  **The pool travels on the rows it names, rather than on a heading above them.** A `GanttPoolGroup`
+  band carried no bars, answered no hover and took no band fill, and that is exactly how it read: an
+  empty lane between the axis and the first thing with bars. *"It looks like there is a pool lane,
+  then a fifo, then the clads."* A band that belongs to nothing looks like a band with nothing in it,
+  so it is gone and every member and every lane feeding the pool is labelled `CLAD Pool · CLAD07`
+  instead. The band union is a station or a lane, which is what this section said it was before the
+  heading was added.
+
+  **The label column is measured, not fixed**, and the pool is what gets cut when it must be. The two
+  halves are separate `Text`s in a `Row`: the name is inflexible and is laid out first at the size it
+  needs, the prefix flexes into what is left. A pool name is free text — the real plant's is
+  `CLAD Pool - Célula 11B/C` — and against a fixed 168 px with one trailing ellipsis it consumed the
+  column and dropped the machine name, so five rows of a pool read identically and the one word
+  telling them apart was the one that had been cut. `ganttLabelWidth` measures the widest label the
+  chart actually has and clamps it between 168 and 260 px: below that a short-named plant keeps the
+  column it always had, above it a pathological name cannot eat the chart. **Measured once per chart,
+  not per build** — `build` runs on every hover, and the width cannot change with the pointer.
+
+  _The prefix is dimmed and a size smaller, and keeps its row's own slant_ — italic over a lane,
+  upright over a station — because it repeats down every member of the pool while the machine is what
+  the reader is looking for, and because the row has to read as one label rather than two fragments
+  that happen to be adjacent. That is the same distinction the column already drew between a lane and
+  a station, applied one level in.
 
   _This reversed the first decision, which was that rows follow the Queue ranking outright so the
   bottleneck is the first row read._ It survived until the chart was driven against a real plant,

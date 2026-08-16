@@ -3,6 +3,8 @@ import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/simulation/application/gantt_layout.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
+import 'package:flowmap/src/features/simulation/application/sim_model.dart'
+    show StationPool;
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/simulation/presentation/gantt_view.dart';
@@ -524,5 +526,154 @@ void main() {
     // that is answered is named (§8.6).
     expect(find.textContaining('A gap is a station not running'), findsOne);
     expect(find.textContaining('Queue table'), findsOne);
+  });
+
+  /// The frozen label column, once the pool started travelling on the rows.
+  ///
+  /// The field's report was a picture of five rows all reading
+  /// `CLAD Pool - Célula 11B/…`: the pool name on the real plant is 24
+  /// characters, it filled a 168 px column by itself, and the trailing ellipsis
+  /// dropped the machine name — the one word that told the five rows apart.
+  group('the label column (§8.6)', () {
+    /// A run whose stations sit in a pool named [pool].
+    StoredRun pooledRun(String pool) {
+      final run = twoDayRun();
+      return StoredRun(
+        id: 'run-pooled',
+        projectId: run.projectId,
+        createdAt: run.createdAt,
+        dispatch: run.dispatch,
+        dispatchOverrides: run.dispatchOverrides,
+        studies: run.studies,
+        result: run.result,
+        plan: run.plan,
+        metrics: summariseRun(
+          result: run.result,
+          partNumbers: const {'p1': 'PN1', 'p2': 'PN2'},
+          workcenterNames: const {'W1': 'CLAD04', 'W2': 'CEU27'},
+          theoreticalByOrder: const {},
+          pools: {
+            'W1': StationPool(id: 'pool-1', name: pool),
+            'W2': StationPool(id: 'pool-1', name: pool),
+          },
+        ),
+      );
+    }
+
+    /// The same run with a lane in front of CEU27, so a chart under test has
+    /// one band of each kind in it.
+    StoredRun laned() => runOf(
+      id: 'run-laned',
+      orders: twoDayRun().result.orders,
+      steps: [
+        for (final step in twoDayRun().result.steps)
+          if (step.workcenterId == 'W2')
+            SimOrderStep(
+              studyId: step.studyId,
+              orderId: step.orderId,
+              nodeId: step.nodeId,
+              workcenterId: step.workcenterId,
+              queueStart: step.queueStart,
+              processStart: step.processStart,
+              processEnd: step.processEnd,
+              changeoverIncurred: step.changeoverIncurred,
+              laneNodeId: 'lane-1',
+            )
+          else
+            step,
+      ],
+      lanes: const [
+        SimLane(
+          studyId: 'study-1',
+          nodeId: 'lane-1',
+          position: 1,
+          name: 'FIFO CEU27',
+        ),
+      ],
+    );
+
+    /// The style the column drew [name] in. Each label is its own `Text` since
+    /// the pool and the name stopped being two spans of one, so this reads the
+    /// style that was actually applied rather than one merged at paint time.
+    /// `.first` because a pool prefix repeats down every row of its pool —
+    /// which is the reason it is drawn dimmer in the first place.
+    TextStyle styleOf(WidgetTester tester, String name) => tester
+        .widget<Text>(
+          find
+              .descendant(
+                of: find.byKey(ganttLabelsKey),
+                matching: find.text(name),
+              )
+              .first,
+        )
+        .style!;
+
+    /// The width the column settled on.
+    double columnWidth(WidgetTester tester) =>
+        tester.getSize(find.byKey(ganttLabelsKey)).width;
+
+    testWidgets('a long pool name widens the column rather than cutting the '
+        'name it qualifies', (tester) async {
+      await pump(tester, pooledRun('CLAD Pool - Célula 11B/C'));
+
+      // The defect, stated as its absence: the station name is a `Text` of its
+      // own, laid out at the size it needs before the prefix gets any of the
+      // column. An ellipsised `CLAD04` is a different string and would not be
+      // found at all.
+      expect(find.text('CLAD04'), findsOne);
+      expect(find.text('CEU27'), findsOne);
+      expect(find.text('CLAD Pool - Célula 11B/C · '), findsNWidgets(2));
+
+      // And the column grew past its minimum to hold them.
+      expect(columnWidth(tester), greaterThan(168.0));
+      expect(columnWidth(tester), lessThanOrEqualTo(260.0));
+    });
+
+    testWidgets('a pool name past any width cuts the pool, never the station', (
+      tester,
+    ) async {
+      await pump(tester, pooledRun('A' * 200));
+
+      // Clamped, or one long name would leave no chart beside it.
+      expect(columnWidth(tester), 260.0);
+      expect(find.text('CLAD04'), findsOne);
+      expect(find.text('CEU27'), findsOne);
+    });
+
+    testWidgets('a run with no pools leaves the column where it was', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+
+      expect(columnWidth(tester), 168.0);
+    });
+
+    testWidgets('a lane is italic and dimmed, a station is upright', (
+      tester,
+    ) async {
+      await pump(tester, laned());
+
+      final station = styleOf(tester, 'CEU27');
+      final lane = styleOf(tester, 'FIFO CEU27');
+
+      expect(station.fontStyle, FontStyle.normal);
+      expect(lane.fontStyle, FontStyle.italic);
+      expect(lane.color, isNot(station.color));
+      // Same size — a lane is a different kind of row, not a smaller one.
+      expect(lane.fontSize, station.fontSize);
+    });
+
+    testWidgets('the pool prefix is dimmer and a size smaller than the name, '
+        'and keeps its row own slant', (tester) async {
+      await pump(tester, pooledRun('CAL Pool'));
+
+      final name = styleOf(tester, 'CLAD04');
+      final prefix = styleOf(tester, 'CAL Pool · ');
+
+      expect(prefix.fontSize, lessThan(name.fontSize!));
+      expect(prefix.color, isNot(name.color));
+      // Upright over a station, so the row still reads as one label.
+      expect(prefix.fontStyle, name.fontStyle);
+    });
   });
 }

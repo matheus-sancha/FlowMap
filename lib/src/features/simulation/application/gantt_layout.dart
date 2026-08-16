@@ -285,8 +285,8 @@ class GanttRow extends GanttBand {
 
   /// The pool the run says this station was dispatched through (§3.1), or null
   /// where it ran on its own name — or was reached through more than one pool,
-  /// or the run predates v18. A non-null [poolId] is what puts a
-  /// [GanttPoolGroup] header above it and its siblings.
+  /// or the run predates v18. A non-null [poolId] is what keeps it adjacent to
+  /// its siblings and puts `CLAD Pool · ` in front of every one of their labels.
   ///
   /// [poolName] can outlive [poolId]: a station reached two ways names them
   /// both and groups under neither.

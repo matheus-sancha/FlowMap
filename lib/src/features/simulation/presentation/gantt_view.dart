@@ -40,7 +40,28 @@ import '../application/run_filter.dart';
 /// Outside the horizontal scroll view, so the row a bar belongs to is readable
 /// however far into the run the reader has scrolled — the answer `DataGrid`
 /// already gives its row header (§12.6).
-const _labelWidth = 168.0;
+///
+/// **It is measured, not fixed.** A row's label is `pool · name` since the
+/// heading band went away, and a pool name is free text: the real plant's is
+/// `CLAD Pool - Célula 11B/C`, which at 168 px filled the column by itself and
+/// ellipsised away the machine name on every row of the pool. Five rows then
+/// read identically and the one word distinguishing them was the one that had
+/// been cut. So the column takes the width its widest label actually needs,
+/// between these two bounds.
+const _labelMinWidth = 168.0;
+
+/// The widest the column may grow.
+///
+/// A pool name has no length limit, and a column that honoured one would be a
+/// chart with no room left for the run. Past this the label ellipsises — and
+/// [_LabelText] is careful about *what* it drops.
+const _labelMaxWidth = 260.0;
+
+/// The horizontal padding inside the column, which the measurement has to add
+/// back. Kept beside the two bounds so the three cannot drift apart.
+const _labelPaddingLeft = 12.0;
+const _labelPaddingRight = 10.0;
+const _labelPadding = _labelPaddingLeft + _labelPaddingRight;
 
 /// The hover card's size. The height is used only to keep the card inside the
 /// pane; being a few pixels out puts it somewhere slightly less convenient,
@@ -67,6 +88,9 @@ const _numberedBarWidth = 92.0;
 /// The key gives a test the canvas's origin; `layoutGantt` gives it the rect.
 @visibleForTesting
 const ganttCanvasKey = ValueKey('gantt-canvas');
+
+/// The frozen label column, so a test can measure the width it settled on.
+const ganttLabelsKey = ValueKey('gantt-labels');
 
 class GanttView extends StatefulWidget {
   const GanttView({super.key, required this.slice});
@@ -102,10 +126,27 @@ class _GanttViewState extends State<GanttView> {
 
   GanttLayout? _cached;
 
+  /// How wide the frozen label column is for *this* chart's labels.
+  ///
+  /// **Measured here rather than in `build`, because `build` runs on hover.**
+  /// Moving the pointer across the chart sets [_hovered], and re-laying out
+  /// thirty `TextPainter`s per mouse-move to reach a number that only changes
+  /// with the chart would be paid on every frame of a gesture that cannot
+  /// change it.
+  double _labelWidth = _labelMinWidth;
+
   @override
   void initState() {
     super.initState();
     _chart = _buildChart();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The theme is what the measurement is made in, so it is remade when the
+    // theme changes as well as when the chart does.
+    _measureLabels();
   }
 
   @override
@@ -115,12 +156,16 @@ class _GanttViewState extends State<GanttView> {
     // A different run is a different chart, a different fit, and nothing under
     // the pointer.
     _chart = _buildChart();
+    _measureLabels();
     _cached = null;
     _scale = null;
     _hovered = null;
     if (_across.hasClients) _across.jumpTo(0);
     if (_down.hasClients) _down.jumpTo(0);
   }
+
+  void _measureLabels() =>
+      _labelWidth = ganttLabelWidth(_chart, Theme.of(context));
 
   @override
   void dispose() {
@@ -271,6 +316,7 @@ class _GanttViewState extends State<GanttView> {
                 across: _across,
                 down: _down,
                 pane: pane,
+                labelWidth: _labelWidth,
                 hovered: _hovered,
                 onHover: (bar) => setState(() => _hovered = bar),
                 onCtrlScroll: (event) => _zoomAtPointer(event, pane),
@@ -310,6 +356,7 @@ class _Chart extends StatelessWidget {
     required this.across,
     required this.down,
     required this.pane,
+    required this.labelWidth,
     required this.hovered,
     required this.onHover,
     required this.onCtrlScroll,
@@ -320,6 +367,7 @@ class _Chart extends StatelessWidget {
   final ScrollController across;
   final ScrollController down;
   final double pane;
+  final double labelWidth;
   final GanttHit? hovered;
   final ValueChanged<GanttHit?> onHover;
   final ValueChanged<PointerScrollEvent> onCtrlScroll;
@@ -356,7 +404,7 @@ class _Chart extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Labels(layout: layout),
+                    _Labels(layout: layout, width: labelWidth),
                     Expanded(
                       child: HorizontalScroll(
                         controller: across,
@@ -411,6 +459,7 @@ class _Chart extends StatelessWidget {
                   down: scrolledDown,
                   pane: pane,
                   paneHeight: constraints.maxHeight,
+                  labelWidth: labelWidth,
                   studies: studies,
                   station: _stationOf(layout, bar),
                 ),
@@ -468,18 +517,85 @@ class _CtrlScroll extends StatelessWidget {
   );
 }
 
+/// The pool a band is qualified by, or null where it stands on its own name.
+String? _poolOf(GanttBand band) => switch (band) {
+  GanttRow(:final poolName) => poolName,
+  GanttLaneRow(:final poolName) => poolName,
+};
+
+/// How a band's own name is set.
+///
+/// **A lane is italic and dimmed; a station is upright and plain.** That is the
+/// one distinction the label column carries, so it is stated once here and read
+/// by both the measurement and the widget — two copies of it would be two rules
+/// that agree until one is edited.
+TextStyle _bandNameStyle(GanttBand band, ThemeData theme) {
+  final base = theme.textTheme.bodySmall ?? const TextStyle(fontSize: 12);
+  return switch (band) {
+    GanttLaneRow() => base.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontStyle: FontStyle.italic,
+    ),
+    GanttRow() => base.copyWith(fontStyle: FontStyle.normal),
+  };
+}
+
+/// How the `CLAD Pool · ` prefix in front of that name is set.
+///
+/// Dimmer and a size smaller than the name it qualifies, because it repeats
+/// down every member of the pool and the machine is what the reader is looking
+/// for. **It keeps the row's own slant** — italic over a lane, upright over a
+/// station — so the row still reads as one label rather than as two fragments
+/// that happen to be adjacent.
+TextStyle _poolStyle(GanttBand band, ThemeData theme) =>
+    _bandNameStyle(band, theme).copyWith(
+      color: theme.colorScheme.outline,
+      fontSize: 10,
+    );
+
+/// The width the frozen label column needs for [chart]'s labels, bounded.
+///
+/// Measured rather than assumed, for the reason [_labelMinWidth] gives: the
+/// pool prefix is free text and a long one used to consume the column on its
+/// own. Exported for a test, which is the only way to assert a width that
+/// depends on a font.
+double ganttLabelWidth(GanttChart chart, ThemeData theme) {
+  final painter = TextPainter(textDirection: TextDirection.ltr);
+  var widest = 0.0;
+
+  for (final band in chart.rows) {
+    painter.text = TextSpan(
+      children: [
+        if (_poolOf(band) case final pool?)
+          TextSpan(text: '$pool · ', style: _poolStyle(band, theme)),
+        TextSpan(text: band.name, style: _bandNameStyle(band, theme)),
+      ],
+    );
+    painter.layout();
+    if (painter.width > widest) widest = painter.width;
+  }
+  painter.dispose();
+
+  // Half a pixel of slack, so a label measured at exactly the width it was
+  // given does not ellipsise on a rounding difference between this pass and
+  // the one the framework makes.
+  return (widest + _labelPadding + 0.5).clamp(_labelMinWidth, _labelMaxWidth);
+}
+
 /// The station and lane names, one per band, aligned to the bands beside them.
 class _Labels extends StatelessWidget {
-  const _Labels({required this.layout});
+  const _Labels({required this.layout, required this.width});
 
   final GanttLayout layout;
 
+  /// From [ganttLabelWidth], measured once per chart.
+  final double width;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SizedBox(
-      width: _labelWidth,
+      key: ganttLabelsKey,
+      width: width,
       height: layout.size.height,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -491,7 +607,10 @@ class _Labels extends StatelessWidget {
             SizedBox(
               height: row.band.height,
               child: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 10),
+                padding: const EdgeInsets.only(
+                  left: _labelPaddingLeft,
+                  right: _labelPaddingRight,
+                ),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Tooltip(
@@ -500,48 +619,12 @@ class _Labels extends StatelessWidget {
                       // by the band's depth, so a lane drawn shallower than it
                       // is (§8.6's cap) still says how deep it really was.
                       final GanttLaneRow lane when lane.capacity != null =>
-                        '${lane.name} (${lane.capacity})',
-                      final band => band.name,
+                        '${_qualified(lane)} (${lane.capacity})',
+                      final band => _qualified(band),
                     },
-                    // **The pool travels on the row**, rather than on a
-                    // heading band above the rows it named. That band read as a
-                    // lane — an empty strip between the axis and the first
-                    // thing with bars — so it is gone, and every member and
-                    // every lane feeding the pool now says which pool it is:
-                    // `CLAD Pool · CLAD07`. What belongs together says so
-                    // without a band that belongs to nothing.
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          if (switch (row.band) {
-                            GanttRow(:final poolName) => poolName,
-                            GanttLaneRow(:final poolName) => poolName,
-                          }
-                              case final pool?) ...[
-                            TextSpan(
-                              text: '$pool · ',
-                              // Dimmer than the name it qualifies: it repeats
-                              // down every member of the pool, and the machine
-                              // is what the reader is looking for.
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.outline,
-                              ),
-                            ),
-                          ],
-                          TextSpan(text: row.band.name),
-                        ],
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: switch (row.band) {
-                        // A lane is not a station, and the label column is
-                        // where that reads most cheaply: same size, lighter.
-                        GanttLaneRow() => theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        GanttRow() => theme.textTheme.bodySmall,
-                      },
+                    child: _LabelText(
+                      band: row.band,
+                      available: width - _labelPadding,
                     ),
                   ),
                 ),
@@ -550,6 +633,73 @@ class _Labels extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// What the tooltip says: the whole label, pool included, since the tooltip
+  /// exists for exactly the case where the drawn one was cut.
+  static String _qualified(GanttBand band) {
+    final pool = _poolOf(band);
+    return pool == null ? band.name : '$pool · ${band.name}';
+  }
+}
+
+/// One band's label: `CLAD Pool · CLAD07`, or just `CLAD07`.
+///
+/// **The pool travels on the row**, rather than on a heading band above the
+/// rows it named. That band read as a lane — an empty strip between the axis
+/// and the first thing with bars — so it is gone, and every member and every
+/// lane feeding the pool now says which pool it is. What belongs together says
+/// so without a band that belongs to nothing.
+///
+/// **When it still does not fit, the pool is what gets cut, never the name.**
+/// This was one `Text.rich` with a trailing ellipsis, which drops from the end
+/// — so `CLAD Pool - Célula 11B/C · CLAD07` lost `CLAD07`, the only word on the
+/// row that was not on the four rows around it. The name is laid out first at
+/// the size it needs and the prefix flexes into what is left, which is the
+/// ordering `Row` already gives an inflexible child.
+class _LabelText extends StatelessWidget {
+  const _LabelText({required this.band, required this.available});
+
+  final GanttBand band;
+
+  /// The content width, padding already taken off.
+  final double available;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final name = ConstrainedBox(
+      // Bounded, so a name longer than the whole column ellipsises rather than
+      // overflowing the row it is in. It cannot be laid out unbounded here:
+      // an inflexible child of a `Row` is offered infinite width.
+      constraints: BoxConstraints(maxWidth: math.max(available, 0)),
+      child: Text(
+        band.name,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: _bandNameStyle(band, theme),
+      ),
+    );
+
+    if (_poolOf(band) case final pool?) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              '$pool · ',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: _poolStyle(band, theme),
+            ),
+          ),
+          name,
+        ],
+      );
+    }
+    return name;
   }
 }
 
@@ -716,6 +866,7 @@ class _HoverCard extends StatelessWidget {
     required this.down,
     required this.pane,
     required this.paneHeight,
+    required this.labelWidth,
     required this.studies,
     required this.station,
   });
@@ -736,6 +887,11 @@ class _HoverCard extends StatelessWidget {
   final double down;
   final double pane;
   final double paneHeight;
+
+  /// The frozen column the card is offset past, which is measured per chart
+  /// rather than fixed — so the card follows it instead of assuming a constant.
+  final double labelWidth;
+
   final Map<String, String> studies;
   final String station;
 
@@ -748,10 +904,10 @@ class _HoverCard extends StatelessWidget {
     // The band's own top, carried on the hit. It used to be divided back out
     // of the rect, which held only while every band was `rowHeight` tall.
     final rowTop = bandTop;
-    final left = (_labelWidth + hit.rect.left - across)
+    final left = (labelWidth + hit.rect.left - across)
         .clamp(
-          _labelWidth + 4,
-          math.max(_labelWidth + 4, _labelWidth + pane - _cardWidth - 4),
+          labelWidth + 4,
+          math.max(labelWidth + 4, labelWidth + pane - _cardWidth - 4),
         )
         .toDouble();
     // Below the band, whatever height the band is — a lane's is its depth.

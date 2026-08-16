@@ -881,8 +881,20 @@ are only covered by pressing it.
       **without one** — it noted the omission and ticked the box anyway. A drive with no label
       recorded is not a weaker record of a drive; it is not a record that a drive happened. The box
       does not get ticked again until an entry can cite a label and a `db.open` line.
-- [ ] **The heading reads as a heading**, not as a fourth machine — 18 px against the stations' 30,
-      the primary colour in the frozen label column, no band fill, and nothing hovers on it.
+- [ ] **The pool reads on the rows, and the machine name is not cut.** ~~The heading reads as a
+      heading, not as a fourth machine — 18 px against the stations' 30, the primary colour in the
+      frozen label column, no band fill, and nothing hovers on it.~~ **There is no heading.** Driven
+      on the first v19 chart, it read as a fourth machine anyway — *"it looks like there is a pool
+      lane, then a fifo, then the clads"* — because a band carrying nothing looks like a band with
+      nothing in it. The pool travels on the rows instead (§8.6).
+
+      What replaces the check: every row of the pool reads `CLAD Pool - Célula 11B/C · CLAD07` with
+      the **machine name whole**, the pool dimmer and a size smaller, italic over a `FIFO` row and
+      upright over a station. The first attempt at this cut the machine name off — a 24-character
+      pool name filled a fixed 168 px column by itself — so the column is measured now and clamps at
+      260 px. **The real plant is the case to look at**, because the test font is fixed-width and
+      cannot tell whether Roboto fits inside the clamp: if the pool prefix is ellipsised on screen
+      the clamp is too tight, and if the column looks wider than the chart deserves it is too loose.
 - [ ] **The Queue and Share tables keep their ranking** and carry `CLAD07  CAL Pool` in the first
       column. The top row must still be the station that queued most (§8.1). **The column went from
       160 px to 210** to fit the pool, which is the change most likely to look wrong rather than be
