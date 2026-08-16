@@ -306,39 +306,14 @@ class StudiesRepository {
     ),
   );
 
-  Future<String> insertInventory({
-    required String studyId,
-    required int atPosition,
-    required InventoryMode mode,
-    int? quantity,
-    Duration? wait,
-    DurationUnit? waitUnit,
-    bool usesWorkingTime = false,
-    DispatchRule? laneRule,
-    int? laneCapacity,
-    String? label,
-    String? notes,
-  }) => _insertNode(
-    studyId: studyId,
-    atPosition: atPosition,
-    build: (id, position, now) => FlowNodesCompanion.insert(
-      id: id,
-      studyId: studyId,
-      position: position,
-      kind: FlowNodeKind.inventory,
-      inventoryMode: Value(mode),
-      inventoryQuantity: Value(quantity),
-      inventorySeconds: Value(wait?.inSeconds),
-      inventoryUnit: Value(waitUnit),
-      inventoryUsesWorkingTime: Value(usesWorkingTime),
-      laneRule: Value(laneRule),
-      laneCapacity: Value(laneCapacity),
-      label: Value(label),
-      notes: Value(notes),
-      createdAt: now,
-      updatedAt: now,
-    ),
-  );
+  // **Nothing constructs an inventory node** (§7.3). It used to be the second
+  // kind on the spine, with its own name, discipline and capacity — and two
+  // studies through one machine therefore had two of them. The queue belongs to
+  // what a step targets now (`FlowQueuesRepository`), and the v19 fold folded
+  // every node onto its target. The rows stay as the recovery path for a name
+  // the fold discarded, so `FlowNodeKind.inventory` stays parseable; the writers
+  // went, because a repository that can still make one is how the old model
+  // comes back (§17.5).
 
   Future<String> _insertNode({
     required String studyId,
@@ -388,35 +363,6 @@ class StudiesRepository {
         samePartPercent: Value(samePartPercent),
         equivalentValue: Value(equivalentValue),
         equivalentUnit: Value(equivalentUnit),
-        label: Value(label),
-        notes: Value(notes),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await _touchStudyOfNode(nodeId);
-  }
-
-  Future<void> updateInventory(
-    String nodeId, {
-    required InventoryMode mode,
-    int? quantity,
-    Duration? wait,
-    DurationUnit? waitUnit,
-    required bool usesWorkingTime,
-    DispatchRule? laneRule,
-    int? laneCapacity,
-    String? label,
-    String? notes,
-  }) async {
-    await (_db.update(_db.flowNodes)..where((n) => n.id.equals(nodeId))).write(
-      FlowNodesCompanion(
-        inventoryMode: Value(mode),
-        inventoryQuantity: Value(quantity),
-        inventorySeconds: Value(wait?.inSeconds),
-        inventoryUnit: Value(waitUnit),
-        inventoryUsesWorkingTime: Value(usesWorkingTime),
-        laneRule: Value(laneRule),
-        laneCapacity: Value(laneCapacity),
         label: Value(label),
         notes: Value(notes),
         updatedAt: Value(DateTime.now()),

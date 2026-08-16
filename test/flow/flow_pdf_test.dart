@@ -64,7 +64,10 @@ void main() {
     ],
   );
 
-  FlowView viewWith(List<FlowNode> nodes) {
+  FlowView viewWith(
+    List<FlowNode> nodes, {
+    Map<String, ProjectQueue> queues = const {},
+  }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
         startDate: DateTime(2026, 1, 1),
@@ -106,6 +109,7 @@ void main() {
       },
       pools: const {},
       poolMembers: const {},
+      queues: queues,
       taktSchedule: TaktScheduleSpec([
         TaktPeriodSpec(
           startDate: DateTime(2026, 1, 1),
@@ -131,22 +135,21 @@ void main() {
     updatedAt: now,
   );
 
-  FlowNode buffer(int position) => FlowNode(
-    id: 'node-$position',
-    studyId: 'study-1',
-    position: position,
-    kind: FlowNodeKind.inventory,
-    changeoverSeconds: 0,
-    inventoryMode: InventoryMode.quantity,
-    inventoryQuantity: 3,
-    inventoryUsesWorkingTime: false,
-    createdAt: now,
-    updatedAt: now,
-  );
+  /// Three pieces standing in front of the one station this fixture has.
+  final stocked = {
+    'WC': ProjectQueue(
+      projectId: 'project-1',
+      targetId: 'WC',
+      stockMode: InventoryMode.quantity,
+      stockQuantity: 3,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  };
 
   test('produces a real PDF document', () async {
     final bytes = await buildFlowPdf(
-      view: viewWith([step(0), buffer(1), step(2)]),
+      view: viewWith([step(0), step(1)], queues: stocked),
       strings: strings,
       formatDuration: _Format().call,
     );
@@ -235,8 +238,8 @@ void main() {
       );
     });
 
-    test('a buffer is measured against the step it drains into', () async {
-      final view = viewWith([buffer(0), step(1)]);
+    test('a queue is measured against the step it drains into', () async {
+      final view = viewWith([step(0)], queues: stocked);
       final format = _Format();
       await buildFlowPdf(
         view: view,
@@ -244,16 +247,13 @@ void main() {
         formatDuration: format.call,
       );
 
-      final wait = view.buffers.single;
+      final wait = view.queues.single;
       // Asserted non-null first: a `contains` of two nulls would pass while
       // proving nothing.
-      expect(wait.referenceWorkingDay, isNotNull);
+      expect(wait.rungWorkingDay, isNotNull);
       expect(
         format.calls,
-        contains((
-          duration: wait.wait,
-          workingDay: wait.referenceWorkingDay,
-        )),
+        contains((duration: wait.wait, workingDay: wait.rungWorkingDay)),
       );
     });
 

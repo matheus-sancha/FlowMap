@@ -1150,19 +1150,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get flowInsertStep => 'Etapa de processo';
 
   @override
-  String get flowInsertStepHelp => 'Executa em um centro de trabalho ou pool.';
-
-  @override
-  String get flowInsertInventory => 'Estoque';
-
-  @override
-  String get flowInsertInventoryHelp => 'Onde as ordens esperam entre etapas.';
-
-  @override
   String get flowStep => 'Etapa de processo';
-
-  @override
-  String get flowInventory => 'Estoque';
 
   @override
   String get flowStepTarget => 'Centro de trabalho ou pool';
@@ -1211,16 +1199,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get stepChangeover => 'Troca';
-
-  @override
-  String get laneRule => 'Ordem da fila';
-
-  @override
-  String get laneRuleHelp =>
-      'Como a estação seguinte escolhe a próxima ordem desta pista. Numa pista real não dá para tirar por trás, então é uma decisão sobre a fila e não sobre a máquina — e pertence aqui, onde a fila é desenhada.';
-
-  @override
-  String get laneRuleFollowsRun => 'Seguir a regra da simulação';
 
   @override
   String get laneCapacity => 'Capacidade da pista (ordens)';
@@ -1318,13 +1296,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get inventoryWaitHelp =>
       'Aqui um dia são 24 horas. Se essas horas passam no relógio ou apenas enquanto a planta opera é o botão abaixo.';
-
-  @override
-  String get inventoryWorkingTime => 'Somente tempo útil';
-
-  @override
-  String get inventoryWorkingTimeHelp =>
-      'Desligado para resfriamento ou transporte, que não param no fim de semana. Ligado para uma fila que só anda enquanto a planta opera.';
 
   @override
   String get footerProcessTime => 'Tempo de processo';
@@ -1754,4 +1725,36 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get simExportRunSheet => 'Execução';
+
+  @override
+  String get flowQueueEdit => 'Definir a fila diante deste passo';
+
+  @override
+  String flowQueueTitle(String target) {
+    return 'Fila diante de $target';
+  }
+
+  @override
+  String flowQueueShared(String target) {
+    return 'Uma fila por estação: todos os passos que alimentam $target esperam nesta, neste estudo e nos outros.';
+  }
+
+  @override
+  String get flowQueueName => 'Nome';
+
+  @override
+  String get flowQueueType => 'Tipo de fila';
+
+  @override
+  String get flowQueueTypeHelp =>
+      'Como a estação seguinte escolhe a próxima ordem desta fila. Um empurre é uma pilha à qual ninguém deu uma ordem; as quatro regras são canais, e o mapa desenha cada uma diferente.';
+
+  @override
+  String get flowQueueStock => 'O que está aqui agora';
+
+  @override
+  String get queueTypePush => 'Empurre — uma pilha, sem regra';
+
+  @override
+  String get queueTypeSupermarket => 'Supermercado — ainda não';
 }

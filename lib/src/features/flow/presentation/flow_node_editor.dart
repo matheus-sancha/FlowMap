@@ -11,87 +11,46 @@ import '../../studies/application/studies_providers.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
 
-/// Offers the two things that can go between nodes.
+/// Adds a process step to the spine.
+///
+/// **There is one thing to insert now** (§7.3). This offered a choice of two —
+/// a step or an inventory — and an inventory is no longer a node: every step
+/// has a queue in front of it, drawn on the link into it and edited from there
+/// by [showQueueEditor]. A menu of one is a dialog with an extra click in it, so
+/// the step dialog opens directly.
 Future<void> showInsertNodeMenu(
   BuildContext context,
   WidgetRef ref, {
   required Study study,
   required int position,
 }) async {
-  final l10n = AppLocalizations.of(context);
-  final choice = await showDialog<FlowNodeKind>(
-    context: context,
-    builder: (context) => SimpleDialog(
-      title: Text(l10n.flowInsertHere),
-      children: [
-        SimpleDialogOption(
-          onPressed: () => Navigator.of(context).pop(FlowNodeKind.step),
-          child: ListTile(
-            leading: const Icon(Icons.crop_square_outlined),
-            title: Text(l10n.flowInsertStep),
-            subtitle: Text(l10n.flowInsertStepHelp),
-          ),
-        ),
-        SimpleDialogOption(
-          onPressed: () => Navigator.of(context).pop(FlowNodeKind.inventory),
-          child: ListTile(
-            leading: const Icon(Icons.change_history),
-            title: Text(l10n.flowInsertInventory),
-            subtitle: Text(l10n.flowInsertInventoryHelp),
-          ),
-        ),
-      ],
-    ),
-  );
-  if (choice == null || !context.mounted) return;
+  final targets = await ref.read(flowTargetsProvider(study.id).future);
+  if (!context.mounted) return;
 
-  final repository = ref.read(studiesRepositoryProvider);
-  if (choice == FlowNodeKind.step) {
-    final targets = await ref.read(flowTargetsProvider(study.id).future);
-    if (!context.mounted) return;
-    final draft = await showDialog<_StepDraft>(
-      context: context,
-      builder: (context) => _StepDialog(
-        workcenters: targets.workcenters,
-        pools: targets.pools,
-      ),
-    );
-    if (draft == null) return;
-    await repository.insertStep(
-      studyId: study.id,
-      atPosition: position,
-      workcenterId: draft.workcenterId,
-      poolId: draft.poolId,
-      setupValue: draft.setupValue,
-      setupUnit: draft.setupUnit,
-      teardownValue: draft.teardownValue,
-      teardownUnit: draft.teardownUnit,
-      samePartPercent: draft.samePartPercent,
-      equivalentValue: draft.equivalentValue,
-      equivalentUnit: draft.equivalentUnit,
-      label: draft.label,
-      notes: draft.notes,
-    );
-  } else {
-    final draft = await showDialog<_InventoryDraft>(
-      context: context,
-      builder: (context) => const _InventoryDialog(),
-    );
-    if (draft == null) return;
-    await repository.insertInventory(
-      studyId: study.id,
-      atPosition: position,
-      mode: draft.mode,
-      quantity: draft.quantity,
-      wait: draft.wait,
-      waitUnit: draft.waitUnit,
-      usesWorkingTime: draft.usesWorkingTime,
-      laneRule: draft.laneRule,
-      laneCapacity: draft.laneCapacity,
-      label: draft.label,
-      notes: draft.notes,
-    );
-  }
+  final draft = await showDialog<_StepDraft>(
+    context: context,
+    builder: (context) =>
+        _StepDialog(workcenters: targets.workcenters, pools: targets.pools),
+  );
+  if (draft == null) return;
+
+  await ref
+      .read(studiesRepositoryProvider)
+      .insertStep(
+        studyId: study.id,
+        atPosition: position,
+        workcenterId: draft.workcenterId,
+        poolId: draft.poolId,
+        setupValue: draft.setupValue,
+        setupUnit: draft.setupUnit,
+        teardownValue: draft.teardownValue,
+        teardownUnit: draft.teardownUnit,
+        samePartPercent: draft.samePartPercent,
+        equivalentValue: draft.equivalentValue,
+        equivalentUnit: draft.equivalentUnit,
+        label: draft.label,
+        notes: draft.notes,
+      );
 }
 
 /// Stores the step's target's queue discipline, if the user changed it (§7.4).
@@ -153,69 +112,60 @@ Future<void> showStepEditor(
   }
 }
 
-Future<void> showInventoryEditor(
+/// Sets the queue standing in front of one dispatch target (DESIGN.md §7.3).
+///
+/// **On the map, from the connector**, which is where the queue is drawn and
+/// where a planner is looking when they think of it. _Rejected: editing it on
+/// the Capacity tab beside the station schedules._ Same key, same scope, same
+/// tab — and reading a rule on one surface while setting it on another is the
+/// split §6.4 finished undoing on the Flow toolbar. _Rejected: both, with a bulk
+/// table on Capacity._ Better for retuning ten lanes at once, and two write
+/// paths into one row is how the two come to disagree (§12.6).
+///
+/// Writes the whole row, project-scoped: every study whose flow reaches this
+/// target now waits in what was just set, which is what the dialog says out
+/// loud rather than leaving the reader to discover.
+Future<void> showQueueEditor(
   BuildContext context,
   WidgetRef ref, {
-  required Study study,
-  required FlowInventoryView buffer,
+  required String projectId,
+  required FlowQueueView queue,
 }) async {
-  final result = await showDialog<_InventoryResult>(
+  final draft = await showDialog<_QueueDraft>(
     context: context,
-    builder: (context) => _InventoryDialog(existing: buffer),
+    builder: (context) => _QueueDialog(queue: queue),
   );
-  if (result == null) return;
+  if (draft == null) return;
 
-  final repository = ref.read(studiesRepositoryProvider);
-  switch (result) {
-    case _InventoryDraft draft:
-      await repository.updateInventory(
-        buffer.node.id,
-        mode: draft.mode,
-        quantity: draft.quantity,
-        wait: draft.wait,
-        waitUnit: draft.waitUnit,
-        usesWorkingTime: draft.usesWorkingTime,
-        laneRule: draft.laneRule,
-        laneCapacity: draft.laneCapacity,
-        label: draft.label,
-        notes: draft.notes,
+  await ref
+      .read(flowQueuesRepositoryProvider)
+      .saveQueue(
+        projectId: projectId,
+        targetId: queue.targetId,
+        name: draft.name,
+        rule: draft.rule,
+        capacity: draft.capacity,
+        stockMode: draft.stockMode,
+        stockQuantity: draft.stockQuantity,
+        stockSeconds: draft.stockSeconds,
+        stockUnit: draft.stockUnit,
       );
-    case _MoveNode move:
-      await repository.moveNode(
-        study.id,
-        buffer.position,
-        buffer.position + move.by,
-      );
-    case _DeleteNode():
-      if (!context.mounted) return;
-      final l10n = AppLocalizations.of(context);
-      final confirmed = await confirmAction(
-        context,
-        title: l10n.flowDeleteNodeTitle,
-        message: l10n.confirmDeleteBody,
-        confirmLabel: l10n.actionDelete,
-        destructive: true,
-      );
-      if (confirmed) await repository.deleteNode(study.id, buffer.node.id);
-  }
 }
 
 // --- Dialog results -------------------------------------------------------
 
 sealed class _StepResult {}
 
-sealed class _InventoryResult {}
-
 /// Reordering is expressed as a relative move rather than a target index: the
 /// gesture on the canvas is "one to the left", and a relative move needs no
 /// knowledge of the list's length.
-class _MoveNode implements _StepResult, _InventoryResult {
+class _MoveNode implements _StepResult {
   const _MoveNode(this.by);
 
   final int by;
 }
 
-class _DeleteNode implements _StepResult, _InventoryResult {
+class _DeleteNode implements _StepResult {
   const _DeleteNode();
 }
 
@@ -265,38 +215,40 @@ class _StepDraft implements _StepResult {
   String? get targetId => poolId ?? workcenterId;
 }
 
-class _InventoryDraft implements _InventoryResult {
-  const _InventoryDraft({
-    required this.mode,
-    this.quantity,
-    this.wait,
-    this.waitUnit,
-    required this.usesWorkingTime,
-    this.laneRule,
-    this.laneCapacity,
-    this.label,
-    this.notes,
+/// A whole queue row, as the dialog gives it back.
+///
+/// **Every field, every time.** The dialog is over the whole queue, so a null
+/// here means "unset" rather than "leave alone" — which is what keeps one write
+/// path into a row two studies read (§12.6).
+class _QueueDraft {
+  const _QueueDraft({
+    this.name,
+    this.rule,
+    this.capacity,
+    this.stockMode,
+    this.stockQuantity,
+    this.stockSeconds,
+    this.stockUnit,
   });
 
-  /// What a walk found at this buffer — why the stock is here, what it costs.
-  final String? notes;
+  /// `FIFO CEU27` — what the floor calls this space.
+  final String? name;
 
-  /// How the station ahead picks out of this lane, or null to follow the run's
-  /// rule (§5.5, §7.4).
-  final DispatchRule? laneRule;
+  /// How the station ahead picks out of it, or null for a push: material piles
+  /// up and nobody has decided in what order it comes off (§7.3).
+  final DispatchRule? rule;
 
   /// Orders that fit, or null for unlimited.
-  final int? laneCapacity;
+  final int? capacity;
 
-  final InventoryMode mode;
-  final int? quantity;
-  final Duration? wait;
+  /// What is standing here, as an observation of today (§5.5). Its own figure,
+  /// never read as a rule about the future.
+  final InventoryMode? stockMode;
+  final int? stockQuantity;
+  final int? stockSeconds;
 
-  /// The unit [wait] was typed in, kept so it reads back the same way.
-  final DurationUnit? waitUnit;
-
-  final bool usesWorkingTime;
-  final String? label;
+  /// The unit a fixed wait was typed in, kept so it reads back the same way.
+  final DurationUnit? stockUnit;
 }
 
 // --- Dialogs --------------------------------------------------------------
@@ -743,69 +695,102 @@ class _NodeActionsRow extends StatelessWidget {
   }
 }
 
-class _InventoryDialog extends StatefulWidget {
-  const _InventoryDialog({this.existing});
+/// What the queue-type picker offers (§7.3).
+///
+/// **Its own type rather than a nullable `DispatchRule`**, because two of the
+/// six entries are not rules: a push is the absence of one, and a supermarket is
+/// a rule the engine cannot honour yet. A dropdown asserts exactly one item
+/// matches its value, so two entries sharing `null` throws at mount — which is
+/// what the test that opens this dialog found.
+enum _QueueType {
+  push(null),
+  fifo(DispatchRule.fifo),
+  lifo(DispatchRule.lifo),
+  earliestDueDate(DispatchRule.earliestDueDate),
+  shortestProcessing(DispatchRule.shortestProcessing),
+  supermarket(null);
 
-  final FlowInventoryView? existing;
+  const _QueueType(this.rule);
 
-  @override
-  State<_InventoryDialog> createState() => _InventoryDialogState();
+  /// What is stored, or null for the two that store nothing.
+  final DispatchRule? rule;
+
+  /// Null is a push rather than a supermarket: an unset row is a pile nobody
+  /// has described, and the one entry that cannot be chosen can never be what
+  /// was stored.
+  static _QueueType of(DispatchRule? rule) => switch (rule) {
+    null => _QueueType.push,
+    DispatchRule.fifo => _QueueType.fifo,
+    DispatchRule.lifo => _QueueType.lifo,
+    DispatchRule.earliestDueDate => _QueueType.earliestDueDate,
+    DispatchRule.shortestProcessing => _QueueType.shortestProcessing,
+  };
 }
 
-class _InventoryDialogState extends State<_InventoryDialog> {
-  late InventoryMode _mode =
-      widget.existing?.node.inventoryMode ?? InventoryMode.quantity;
+/// The queue in front of one dispatch target (§7.3, §5.5).
+///
+/// Four things, in two groups the schema keeps apart for a reason: the
+/// **discipline and the capacity** are rules about the future, and the **stock**
+/// is an observation of today. They share a unit and mean opposite things
+/// (§16.16), and §5.5's correction was precisely that an observation must not be
+/// read as a rule — so a divider separates them here as a column separates them
+/// there.
+class _QueueDialog extends StatefulWidget {
+  const _QueueDialog({required this.queue});
+
+  final FlowQueueView queue;
+
+  @override
+  State<_QueueDialog> createState() => _QueueDialogState();
+}
+
+class _QueueDialogState extends State<_QueueDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.queue.name ?? '',
+  );
+
+  /// Null is a push: material moves downstream whether or not the next step
+  /// asked, and piles up where it lands. **A real choice rather than a blank** —
+  /// the engine takes such a pile in arrival order because something has to be
+  /// first, but nobody has decided that, and §5.2's rule is that the map draws
+  /// decisions rather than defaults.
+  late DispatchRule? _rule = widget.queue.rule;
+
+  /// Empty is unlimited, which is what every queue is before anyone caps one —
+  /// so a blank is the state to preserve rather than a zero.
+  late final TextEditingController _capacity = TextEditingController(
+    text: widget.queue.capacity?.toString() ?? '',
+  );
+
+  late InventoryMode _mode = widget.queue.quantity != null
+      ? InventoryMode.quantity
+      : InventoryMode.duration;
+
   late final TextEditingController _quantity = TextEditingController(
-    text: '${widget.existing?.node.inventoryQuantity ?? 0}',
+    text: '${widget.queue.quantity ?? 0}',
   );
 
   /// Rows written before the unit was stored read as hours, which is what the
   /// editor offered at the time.
-  late DurationUnit _waitUnit =
-      widget.existing?.node.inventoryUnit ?? DurationUnit.hours;
+  late DurationUnit _waitUnit = widget.queue.unit ?? DurationUnit.hours;
 
   late final TextEditingController _wait = TextEditingController(
-    text: _formatNumber(
-      durationIn(
-        Duration(seconds: widget.existing?.node.inventorySeconds ?? 0),
-        _waitUnit,
-      ),
-    ),
-  );
-  late bool _workingTime =
-      widget.existing?.node.inventoryUsesWorkingTime ?? false;
-
-  /// Null means "follow the run's rule", which is a real choice rather than a
-  /// blank: storing the default would pin every queue the first time one was
-  /// edited, and would freeze the run's own setting out (§7.4).
-  late DispatchRule? _laneRule = widget.existing?.node.laneRule;
-
-  /// Empty means unlimited, which is what every lane was before capacity
-  /// existed — so a blank is the state to preserve rather than a zero.
-  late final TextEditingController _capacity = TextEditingController(
-    text: widget.existing?.node.laneCapacity?.toString() ?? '',
-  );
-  late final TextEditingController _label = TextEditingController(
-    text: widget.existing?.node.label ?? '',
-  );
-  late final TextEditingController _notes = TextEditingController(
-    text: widget.existing?.node.notes ?? '',
+    text: _formatNumber(durationIn(widget.queue.wait, _waitUnit)),
   );
 
   @override
   void dispose() {
+    _name.dispose();
+    _capacity.dispose();
     _quantity.dispose();
     _wait.dispose();
-    _capacity.dispose();
-    _label.dispose();
-    _notes.dispose();
     super.dispose();
   }
 
   /// Blank is unlimited; anything else has to be a positive whole number of
-  /// orders. Zero is refused rather than treated as unlimited — a lane that
-  /// holds nothing would stop the line for good, and is far more likely to be
-  /// a typo than an intention.
+  /// orders. Zero is refused rather than treated as unlimited — a queue that
+  /// holds nothing would stop the line for good, and is far more likely to be a
+  /// typo than an intention.
   int? get _capacityValue {
     final text = _capacity.text.trim();
     if (text.isEmpty) return null;
@@ -841,6 +826,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final quantity = int.tryParse(_quantity.text.trim());
     final valid =
         (_mode == InventoryMode.quantity
@@ -849,11 +835,7 @@ class _InventoryDialogState extends State<_InventoryDialog> {
         _capacityIsValid;
 
     return AlertDialog(
-      title: Text(
-        widget.existing == null ? l10n.flowInsertInventory : l10n.flowInventory,
-      ),
-      // Scrolls for the same reason as the step dialog: it can outgrow a short
-      // window once the working-time switch and the actions row are in.
+      title: Text(l10n.flowQueueTitle(widget.queue.targetName)),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -861,6 +843,75 @@ class _InventoryDialogState extends State<_InventoryDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // **Said, not left to be discovered.** One queue per station is
+              // the whole correction §7.3 made, and a planner editing this from
+              // inside one study has to know the other study's orders stand in
+              // the same line.
+              Text(
+                l10n.flowQueueShared(widget.queue.targetName),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _name,
+                decoration: InputDecoration(labelText: l10n.flowQueueName),
+              ),
+
+              // --- the rules (§7.3) ---
+              const SizedBox(height: 12),
+              DropdownButtonFormField<_QueueType>(
+                initialValue: _QueueType.of(_rule),
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: l10n.flowQueueType,
+                  suffixIcon: helpIcon(context, l10n.flowQueueTypeHelp),
+                ),
+                items: [
+                  for (final type in _QueueType.values)
+                    DropdownMenuItem(
+                      value: type,
+                      // **Supermarket is named and not selectable** (§7.3). It
+                      // is the type the field asked for and the one the engine
+                      // cannot honour: it decouples — downstream withdraws from
+                      // stock rather than waiting for a specific order — and it
+                      // needs stock levels, a replenishment trigger and stockout
+                      // metrics (§9). A supermarket symbol over FIFO behaviour
+                      // would be a map that lies about the plant. Listed rather
+                      // than omitted so a reader looking for it finds out why it
+                      // is not there.
+                      enabled: type != _QueueType.supermarket,
+                      child: Text(
+                        switch (type) {
+                          _QueueType.push => l10n.queueTypePush,
+                          _QueueType.supermarket => l10n.queueTypeSupermarket,
+                          _ => dispatchRuleLabel(l10n, type.rule!),
+                        },
+                        style: type == _QueueType.supermarket
+                            ? TextStyle(color: theme.disabledColor)
+                            : null,
+                      ),
+                    ),
+                ],
+                onChanged: (type) => setState(() => _rule = type?.rule),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _capacity,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: l10n.laneCapacity,
+                  suffixIcon: helpIcon(context, l10n.laneCapacityHelp),
+                  errorText: _capacityIsValid ? null : l10n.validationRequired,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+
+              // --- what is standing there today (§5.5) ---
+              const Divider(height: 24),
+              Text(l10n.flowQueueStock, style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
               SegmentedButton<InventoryMode>(
                 segments: [
                   ButtonSegment(
@@ -929,79 +980,15 @@ class _InventoryDialogState extends State<_InventoryDialog> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    // A day here is 24 h; whether those hours are wall clock or
-                    // only-while-the-plant-runs is the switch below.
+                    // A day here is 24 h. The working-time switch the inventory
+                    // node carried has not come across: `project_queues` stores
+                    // no such flag, and §5.5 leaves a genuine process delay — a
+                    // cooling rack that really does take its time — open rather
+                    // than inventing the column inside a re-model.
                     l10n.inventoryWaitHelp,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall,
                   ),
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _workingTime,
-                  title: Text(l10n.inventoryWorkingTime),
-                  // A cooling rack does not stop for the weekend; a manual queue
-                  // does.
-                  subtitle: Text(l10n.inventoryWorkingTimeHelp),
-                  onChanged: (value) => setState(() => _workingTime = value),
-                ),
-              ],
-
-              // --- what the lane governs (§5.5) ---
-              //
-              // Below the figure and above the label, because the figure is an
-              // observation of today and these two are rules about the future.
-              // Keeping them apart on screen is the same distinction the schema
-              // makes by giving capacity its own column.
-              const Divider(height: 24),
-              DropdownButtonFormField<DispatchRule?>(
-                initialValue: _laneRule,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: l10n.laneRule,
-                  suffixIcon: helpIcon(context, l10n.laneRuleHelp),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text(l10n.laneRuleFollowsRun),
-                  ),
-                  for (final rule in DispatchRule.values)
-                    DropdownMenuItem(
-                      value: rule,
-                      child: Text(dispatchRuleLabel(l10n, rule)),
-                    ),
-                ],
-                onChanged: (rule) => setState(() => _laneRule = rule),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _capacity,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: l10n.laneCapacity,
-                  suffixIcon: helpIcon(context, l10n.laneCapacityHelp),
-                  errorText: _capacityIsValid ? null : l10n.validationRequired,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _label,
-                decoration: InputDecoration(labelText: l10n.flowNodeLabel),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _notes,
-                minLines: 2,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: l10n.flowNodeNotes,
-                  alignLabelWithHint: true,
-                ),
-              ),
-              if (widget.existing != null) ...[
-                const Divider(height: 24),
-                const _NodeActionsRow(),
               ],
             ],
           ),
@@ -1015,24 +1002,19 @@ class _InventoryDialogState extends State<_InventoryDialog> {
         FilledButton(
           onPressed: valid
               ? () {
-                  final label = _label.text.trim();
-                  final notes = _notes.text.trim();
+                  final name = _name.text.trim();
                   final isDuration = _mode == InventoryMode.duration;
                   Navigator.of(context).pop(
-                    _InventoryDraft(
-                      mode: _mode,
-                      quantity: _mode == InventoryMode.quantity
-                          ? quantity
+                    _QueueDraft(
+                      name: name.isEmpty ? null : name,
+                      rule: _rule,
+                      capacity: _capacityValue,
+                      stockMode: _mode,
+                      stockQuantity: isDuration ? null : quantity,
+                      stockSeconds: isDuration
+                          ? durationFrom(_waitValue!, _waitUnit).inSeconds
                           : null,
-                      wait: isDuration
-                          ? durationFrom(_waitValue!, _waitUnit)
-                          : null,
-                      waitUnit: isDuration ? _waitUnit : null,
-                      usesWorkingTime: _workingTime,
-                      laneRule: _laneRule,
-                      laneCapacity: _capacityValue,
-                      label: label.isEmpty ? null : label,
-                      notes: notes.isEmpty ? null : notes,
+                      stockUnit: isDuration ? _waitUnit : null,
                     ),
                   );
                 }
@@ -1043,3 +1025,4 @@ class _InventoryDialogState extends State<_InventoryDialog> {
     );
   }
 }
+

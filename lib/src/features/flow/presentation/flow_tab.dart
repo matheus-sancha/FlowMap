@@ -431,18 +431,31 @@ class _CanvasState extends ConsumerState<_Canvas> {
                 top: placed.rect.top,
                 width: placed.rect.width,
                 height: placed.rect.height,
-                child: switch (placed.view) {
-                  final FlowStepView step => _StepBox(
-                    step: step,
-                    study: study,
-                    layout: layout,
-                  ),
-                  final FlowInventoryView buffer => _InventoryNode(
-                    buffer: buffer,
-                    study: study,
-                  ),
-                },
+                child: _StepBox(
+                  step: placed.view,
+                  study: study,
+                  layout: layout,
+                ),
               ),
+            // The queue each link runs into (§7.3) — the stock standing there,
+            // and the click that sets it. **After the connections painter and
+            // before the insert buttons**: it draws under the shaft the painter
+            // put down, and the `+` keeps its own 36 px of the same segment.
+            for (final connection in layout.connections)
+              if (connection.queue case final queue?)
+                Positioned(
+                  left: connection.from.dx,
+                  // From just above the shaft, so the **channel itself** is the
+                  // click target §7.3 settled on — not only the triangle under
+                  // it, which a queue with nothing standing in it does not draw.
+                  top: layout.spineY - FlowMetrics.stockOffset,
+                  width: connection.to.dx - connection.from.dx,
+                  height: FlowMetrics.stockSymbol + 34 + FlowMetrics.stockOffset * 2,
+                  child: _QueueNode(
+                    queue: queue,
+                    projectId: study.projectId,
+                  ),
+                ),
             for (final insertion in layout.insertionPoints)
               Positioned(
                 left: insertion.center.x - 18,
@@ -835,83 +848,88 @@ class _DataRow extends StatelessWidget {
   }
 }
 
-class _InventoryNode extends ConsumerWidget {
-  const _InventoryNode({required this.buffer, required this.study});
+/// The queue standing in front of one step, under the link that runs into it
+/// (DESIGN.md §7.3, §5.5).
+///
+/// **Under the connector, not in a slot of its own.** An inventory used to be a
+/// node on the spine with a whole process box's width to itself; the queue
+/// belongs to what a step targets, so it is drawn where the material actually
+/// waits — between the box before it and the box it feeds.
+///
+/// The whole segment is the click target, because §7.3 settled that a queue is
+/// set from the connector: a planner deciding a FIFO capacity is looking at the
+/// map when they think of it. That includes a target nobody has configured yet,
+/// which draws nothing and still opens the editor — otherwise the first queue
+/// on a plant could never be created from here.
+class _QueueNode extends ConsumerWidget {
+  const _QueueNode({required this.queue, required this.projectId});
 
-  final FlowInventoryView buffer;
-  final Study study;
+  final FlowQueueView queue;
+  final String projectId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final notes = buffer.node.notes;
+
     return Tooltip(
-      message: (notes?.isNotEmpty ?? false) ? notes! : '',
+      message: l10n.flowQueueEdit,
       child: InkWell(
-      onTap: () =>
-          showInventoryEditor(context, ref, study: study, buffer: buffer),
-      // A Stack rather than a Column: the triangle has to sit *on* the spine,
-      // and a centred column of symbol-plus-two-labels puts its middle above
-      // the line the arrows run along.
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          const SizedBox(
-            width: FlowMetrics.bufferSymbol,
-            height: FlowMetrics.bufferSymbol,
-          ),
-          Center(
-            child: SizedBox(
-              width: FlowMetrics.bufferSymbol,
-              height: FlowMetrics.bufferSymbol,
-              child: CustomPaint(
-                painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+        onTap: () => showQueueEditor(
+          context,
+          ref,
+          projectId: projectId,
+          queue: queue,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Clear of the shaft the painter drew along the spine.
+            const SizedBox(height: FlowMetrics.stockOffset * 2),
+            // Only where something is standing. A triangle on every link would
+            // claim stock the plant does not have, which is the same lie §5.5
+            // corrected when fixed-wait buffers reported a delay no run charged.
+            SizedBox(
+              width: FlowMetrics.stockSymbol,
+              height: FlowMetrics.stockSymbol,
+              child: queue.hasStock
+                  ? CustomPaint(
+                      painter: _TrianglePainter(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    )
+                  : null,
+            ),
+            if (queue.hasStock)
+              Text(
+                queue.quantity != null
+                    ? '${queue.quantity}'
+                    // The same rendering as this queue's own rung on the ladder
+                    // below it. Showing the value as typed instead put two
+                    // different numbers for one wait on the screen at once.
+                    : formatAdaptiveDuration(
+                        l10n,
+                        queue.wait,
+                        workingDay: queue.rungWorkingDay,
+                      ),
+                style: theme.textTheme.bodySmall,
               ),
-            ),
-          ),
-          Positioned(
-            top: FlowMetrics.nodeHeight / 2 + FlowMetrics.bufferSymbol / 2 + 4,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Text(
-                  buffer.quantity == null ? '' : '${buffer.quantity}',
-                  style: theme.textTheme.titleSmall,
+            // `FIFO CEU27` — what the floor calls this space. Kept even on a
+            // queue with nothing in it, because a named floor space is a thing
+            // the reader is looking for and the name is the only permanent mark
+            // an empty queue has.
+            if (queue.name?.isNotEmpty ?? false)
+              Text(
+                queue.name!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
                 ),
-                Text(
-            // The same rendering as this node's own rung on the ladder
-            // directly below it. Showing the value as typed instead put two
-            // different numbers for one wait on the screen at once.
-            buffer.label.isNotEmpty
-                ? buffer.label
-                : formatAdaptiveDuration(
-                    l10n,
-                    buffer.wait,
-                    workingDay: buffer.referenceWorkingDay,
-                  ),
-                  style: theme.textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          // Same marker as a process box carries, in the triangle's own
-          // corner: a buffer is exactly where a walk finds something to say.
-          if (notes?.isNotEmpty ?? false)
-            Positioned(
-              top: FlowMetrics.nodeHeight / 2 - FlowMetrics.bufferSymbol / 2,
-              right: FlowMetrics.bufferInset - 14,
-              child: Icon(
-                Icons.sticky_note_2_outlined,
-                size: 14,
-                color: theme.colorScheme.tertiary,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

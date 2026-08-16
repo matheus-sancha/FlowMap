@@ -1149,21 +1149,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get flowInsertStep => 'Paso de proceso';
 
   @override
-  String get flowInsertStepHelp =>
-      'Se ejecuta en un centro de trabajo o un pool.';
-
-  @override
-  String get flowInsertInventory => 'Inventario';
-
-  @override
-  String get flowInsertInventoryHelp =>
-      'Donde las órdenes esperan entre pasos.';
-
-  @override
   String get flowStep => 'Paso de proceso';
-
-  @override
-  String get flowInventory => 'Inventario';
 
   @override
   String get flowStepTarget => 'Centro de trabajo o pool';
@@ -1212,16 +1198,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepChangeover => 'Cambio de formato';
-
-  @override
-  String get laneRule => 'Orden de la cola';
-
-  @override
-  String get laneRuleHelp =>
-      'Cómo elige la estación siguiente la próxima orden de este carril. En un carril real no se puede sacar por detrás, así que es una decisión sobre la cola y no sobre la máquina — y pertenece aquí, donde se dibuja la cola.';
-
-  @override
-  String get laneRuleFollowsRun => 'Seguir la regla de la simulación';
 
   @override
   String get laneCapacity => 'Capacidad del carril (órdenes)';
@@ -1319,13 +1295,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get inventoryWaitHelp =>
       'Aquí un día son 24 horas. Si esas horas pasan en el reloj o solo mientras la planta opera lo decide el interruptor de abajo.';
-
-  @override
-  String get inventoryWorkingTime => 'Solo tiempo laborable';
-
-  @override
-  String get inventoryWorkingTimeHelp =>
-      'Desactivado para enfriamiento o transporte, que no paran el fin de semana. Activado para una cola que solo avanza mientras la planta opera.';
 
   @override
   String get footerProcessTime => 'Tiempo de proceso';
@@ -1754,4 +1723,36 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simExportRunSheet => 'Ejecución';
+
+  @override
+  String get flowQueueEdit => 'Definir la cola delante de este paso';
+
+  @override
+  String flowQueueTitle(String target) {
+    return 'Cola delante de $target';
+  }
+
+  @override
+  String flowQueueShared(String target) {
+    return 'Una cola por estación: todos los pasos que alimentan $target esperan en esta, en este estudio y en los demás.';
+  }
+
+  @override
+  String get flowQueueName => 'Nombre';
+
+  @override
+  String get flowQueueType => 'Tipo de cola';
+
+  @override
+  String get flowQueueTypeHelp =>
+      'Cómo elige la estación siguiente la próxima orden de esta cola. Un empuje es un montón al que nadie ha dado un orden; las cuatro reglas son canales, y el mapa dibuja cada una distinta.';
+
+  @override
+  String get flowQueueStock => 'Lo que hay ahora';
+
+  @override
+  String get queueTypePush => 'Empuje — un montón, sin regla';
+
+  @override
+  String get queueTypeSupermarket => 'Supermercado — todavía no';
 }

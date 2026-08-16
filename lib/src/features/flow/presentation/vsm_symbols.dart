@@ -56,23 +56,32 @@ abstract final class VsmSymbols {
       ..close();
   }
 
-  /// A material-flow arrow, drawn as the [kind] it is (DESIGN.md §5.2).
+  /// A material-flow arrow, drawn as the [kind] it is (DESIGN.md §5.2, §7.3).
   ///
-  /// **Push and pull share one shaft; a FIFO lane is its own figure.** This
-  /// file long said all three shared a shaft and were told apart by what went
-  /// inside it, which was a principle invented to describe an implementation
-  /// rather than the notation. A reader of a real value stream map recognises a
-  /// FIFO lane as a channel, not as a decorated arrow, so it is drawn as one:
+  /// **Push and pull share one shaft; a queue with a discipline is its own
+  /// figure.** This file long said all three shared a shaft and were told apart
+  /// by what went inside it, which was a principle invented to describe an
+  /// implementation rather than the notation. A reader of a real value stream
+  /// map recognises a FIFO lane as a channel, not as a decorated arrow, so it is
+  /// drawn as one:
   ///
   /// * **push** — a broad barbed arrow spanning the gap, hatched. The stripes
-  ///   *are* the mark of a push; without a supermarket in the model (§5.5) this
-  ///   is what an uncapped flow honestly is.
+  ///   *are* the mark of a push; a queue nobody has given a discipline is a
+  ///   pile, and this is what one honestly is.
   /// * **pull** — the same shaft, bare. A CONWIP cap (§7.3) makes a release
   ///   wait for a completion, so nothing is being pushed anywhere.
-  /// * **fifoLane** — two rails with `FIFO` between them, a tick inside the
-  ///   entry and a solid triangle at the exit. Material enters one end in the
-  ///   order it arrived and leaves the other in that same order, which is what
+  /// * **the four channels** — two rails with the rule's word between them, a
+  ///   tick inside the entry and a solid triangle at the exit. Material enters
+  ///   one end and leaves the other in an order the word names, which is what
   ///   the channel draws and what an arrow cannot.
+  ///
+  /// **One channel shape for all four rules, labelled.** The FIFO symbol
+  /// already *is* a channel with `FIFO` written in it, so `LIFO`, `EDD` and
+  /// `SPT` in the same channel extend the convention rather than inventing three
+  /// glyphs — and nothing can be misread as a standard symbol meaning something
+  /// else. _Rejected: a colour per rule._ Cheap and legible on screen, and §13's
+  /// PDF on a shop-floor wall is often greyscale, where colour carrying meaning
+  /// alone does not survive.
   ///
   /// Horizontal only, which the spine always is (§5.1). Taking the general case
   /// would mean rotating the hatching for no drawing this app makes.
@@ -89,8 +98,8 @@ abstract final class VsmSymbols {
     if (span <= 1) return;
 
     // Not a variant of the shaft below, so it leaves before the shaft is built.
-    if (kind == FlowConnectionKind.fifoLane) {
-      _fifoLane(canvas, from, to, color: color);
+    if (kind.channelLabel case final label?) {
+      _queueChannel(canvas, from, to, label: label, color: color);
       return;
     }
 
@@ -121,51 +130,47 @@ abstract final class VsmSymbols {
 
     if (shaftRight <= from.dx) return;
 
-    switch (kind) {
-      case FlowConnectionKind.push:
-        // The stripes, clipped to the shaft so none escapes into the head.
-        canvas.save();
-        canvas.clipRect(
-          Rect.fromLTRB(from.dx, from.dy - half, shaftRight, from.dy + half),
+    if (kind == FlowConnectionKind.push) {
+      // The stripes, clipped to the shaft so none escapes into the head. A pull
+      // is the same shaft bare — nothing inside it is the whole point — and a
+      // channel never reaches here.
+      canvas.save();
+      canvas.clipRect(
+        Rect.fromLTRB(from.dx, from.dy - half, shaftRight, from.dy + half),
+      );
+      final stripe = Paint()
+        ..color = color.withValues(alpha: 0.45)
+        ..strokeWidth = 1;
+      for (var x = from.dx; x < shaftRight + thickness; x += 7) {
+        canvas.drawLine(
+          Offset(x, from.dy + half),
+          Offset(x - thickness, from.dy - half),
+          stripe,
         );
-        final stripe = Paint()
-          ..color = color.withValues(alpha: 0.45)
-          ..strokeWidth = 1;
-        for (var x = from.dx; x < shaftRight + thickness; x += 7) {
-          canvas.drawLine(
-            Offset(x, from.dy + half),
-            Offset(x - thickness, from.dy - half),
-            stripe,
-          );
-        }
-        canvas.restore();
-
-      case FlowConnectionKind.pull:
-        // Nothing inside it. A bare shaft is the whole point.
-        break;
-
-      case FlowConnectionKind.fifoLane:
-        // Handled above — it is not this shape at all.
-        break;
+      }
+      canvas.restore();
     }
   }
 
-  /// The FIFO lane: two rails, `FIFO` between them, a tick in and a point out.
+  /// A queue channel: two rails, the rule's word between them, a tick in and a
+  /// point out.
   ///
-  /// The channel is what carries the meaning. Everything a queue in arrival
-  /// order needs to say is in the picture — a fixed width, so it holds a
-  /// sequence rather than a pile; an entry and an exit that are different marks,
-  /// so it has a direction; and the word, because a lane that is not labelled
-  /// is just a line.
+  /// The channel is what carries the meaning. Everything a disciplined queue
+  /// needs to say is in the picture — a fixed width, so it holds a sequence
+  /// rather than a pile; an entry and an exit that are different marks, so it
+  /// has a direction; and the word, because a lane that is not labelled is just
+  /// a line, and four rules share this one shape.
   ///
   /// Sized to fit the 64 px gap `FlowMetrics` leaves between nodes: the tick and
-  /// the point take about 9 px each and `FIFO` at 8 pt takes about 22, so the
-  /// three sit inside the narrowest gap the layout ever produces. A lane too
-  /// short to hold them drops the label rather than overrunning its own rails.
-  static void _fifoLane(
+  /// the point take about 9 px each and a four-letter word at 8 pt takes about
+  /// 22, so the three sit inside the narrowest gap the layout ever produces. A
+  /// lane too short to hold them drops the label rather than overrunning its own
+  /// rails.
+  static void _queueChannel(
     Canvas canvas,
     Offset from,
     Offset to, {
+    required String label,
     required Color color,
     double height = 18,
   }) {
@@ -221,7 +226,7 @@ abstract final class VsmSymbols {
     if (inner >= 24) {
       _label(
         canvas,
-        'FIFO',
+        label,
         Offset((from.dx + mark + base) / 2, from.dy),
         color,
         centreVertically: true,

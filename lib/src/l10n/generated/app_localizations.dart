@@ -2100,35 +2100,11 @@ abstract class AppLocalizations {
   /// **'Process step'**
   String get flowInsertStep;
 
-  /// No description provided for @flowInsertStepHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Runs on a workcenter or a pool.'**
-  String get flowInsertStepHelp;
-
-  /// No description provided for @flowInsertInventory.
-  ///
-  /// In en, this message translates to:
-  /// **'Inventory'**
-  String get flowInsertInventory;
-
-  /// No description provided for @flowInsertInventoryHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Where orders wait between steps.'**
-  String get flowInsertInventoryHelp;
-
   /// No description provided for @flowStep.
   ///
   /// In en, this message translates to:
   /// **'Process step'**
   String get flowStep;
-
-  /// No description provided for @flowInventory.
-  ///
-  /// In en, this message translates to:
-  /// **'Inventory'**
-  String get flowInventory;
 
   /// No description provided for @flowStepTarget.
   ///
@@ -2219,24 +2195,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Changeover'**
   String get stepChangeover;
-
-  /// No description provided for @laneRule.
-  ///
-  /// In en, this message translates to:
-  /// **'Queue order'**
-  String get laneRule;
-
-  /// No description provided for @laneRuleHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'How the station ahead picks the next order out of this lane. On a real lane you cannot take from the back, so this is a decision about the queue rather than about the machine — and it belongs here, where the queue is drawn.'**
-  String get laneRuleHelp;
-
-  /// No description provided for @laneRuleFollowsRun.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow the run\'s rule'**
-  String get laneRuleFollowsRun;
 
   /// No description provided for @laneCapacity.
   ///
@@ -2405,18 +2363,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A day is 24 hours here. Whether those hours pass on the clock or only while the plant runs is the switch below.'**
   String get inventoryWaitHelp;
-
-  /// No description provided for @inventoryWorkingTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Working time only'**
-  String get inventoryWorkingTime;
-
-  /// No description provided for @inventoryWorkingTimeHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Off for cooling or transport, which do not stop for the weekend. On for a queue that only moves while the plant runs.'**
-  String get inventoryWorkingTimeHelp;
 
   /// No description provided for @footerProcessTime.
   ///
@@ -3107,6 +3053,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Run'**
   String get simExportRunSheet;
+
+  /// No description provided for @flowQueueEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the queue in front of this step'**
+  String get flowQueueEdit;
+
+  /// No description provided for @flowQueueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue in front of {target}'**
+  String flowQueueTitle(String target);
+
+  /// No description provided for @flowQueueShared.
+  ///
+  /// In en, this message translates to:
+  /// **'One queue per station: every step that feeds {target} waits in this one, in this study and in every other.'**
+  String flowQueueShared(String target);
+
+  /// No description provided for @flowQueueName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get flowQueueName;
+
+  /// No description provided for @flowQueueType.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue type'**
+  String get flowQueueType;
+
+  /// No description provided for @flowQueueTypeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How the station ahead picks the next order out of this queue. A push is a pile nobody has given an order to; the four rules are channels, and the map draws each one differently.'**
+  String get flowQueueTypeHelp;
+
+  /// No description provided for @flowQueueStock.
+  ///
+  /// In en, this message translates to:
+  /// **'What is standing here now'**
+  String get flowQueueStock;
+
+  /// No description provided for @queueTypePush.
+  ///
+  /// In en, this message translates to:
+  /// **'Push — a pile, no rule'**
+  String get queueTypePush;
+
+  /// No description provided for @queueTypeSupermarket.
+  ///
+  /// In en, this message translates to:
+  /// **'Supermarket — not yet'**
+  String get queueTypeSupermarket;
 }
 
 class _AppLocalizationsDelegate

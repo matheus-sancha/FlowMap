@@ -1376,24 +1376,38 @@ paths into one row is how the two come to disagree (§12.6).
 
 #### What §7.3 still owes
 
-The model and the engine landed; the map did not. The run-level dispatch rule was retired from the
-UI on 2026-08-16 — the popover's dropdown, the run header, the runs-history label and the Excel stamp
-all read the per-station queue type now, and say `mixed` where the stations differ.
+**All four items landed on 2026-08-16, and none of it has been driven.** The run-level dispatch rule
+is out of the UI — the popover's dropdown, the run header, the runs-history label and the Excel stamp
+all read the per-station queue type and say `mixed` where the stations differ. The map draws the
+queue on the connector, one channel shape per rule, and sets it from there.
 
-- [ ] **The map's connector symbols.** The queue type is stored per target and **nothing draws it**:
-      `flow_view.dart` has no notion of a queue type, so every connector is still the push arrow.
-      The table in §7.3 is the spec — one channel shape labelled with the rule, push keeping its
-      striped arrow and triangle, supermarket named and not selectable.
-- [ ] **Where a queue is edited.** §7.3 settled this as *on the map, from the connector* — click the
-      channel and set the type, the capacity and the stock. There is currently **no way to edit a
-      queue at all** since the inventory node stopped being read, so a v19 database can only be
-      retuned by the fold's own output.
+What is left of §7.3 is one thing it settled and nothing has built:
+
+- [ ] **The flow's two ends carry stock.** A study gains an inbound and an outbound figure, drawn as
+      triangles against the supplier and customer endpoints — they feed the lead-time ladder and the
+      days-of-stock a current-state VSM exists to state, and nothing dispatches out of them. Two
+      nullable columns on `studies`, so it is a schema step (v20) rather than a surface one.
+
+**Drive the map before anything else in §7.** Nothing in the suite renders a pixel and this round
+replaced the whole inventory surface: the triangle moved off the spine and under the link, the
+lead-time ladder grew a rung per queue instead of per buffer node, the insert menu lost a choice, and
+the inventory dialog became a queue dialog. The one defect found while writing it was a mount-time
+crash — two dropdown entries sharing `null` — which is exactly the class §16.4 and the node-editor
+tests exist for, and it was found by a test that opened the dialog rather than by reasoning.
+
+_Two things to look at first, because they are where a stored v19 database will disagree with a fresh
+one:_ every project whose queues came out of the fold now draws its old inventory names on the
+connectors, and any flow whose buffers were **not** in front of a step — a trailing buffer, two in a
+row — has silently lost that figure, because a queue belongs to a target and those had none.
 
 _Swept for others on 2026-08-16 and found none:_ `lane.studyId` is no longer read anywhere for
 behaviour. **But it is still written and never read**, along with `SimLane.position`, which §8.6 says
 outright it does not place lanes by. Both are exactly the trap that produced the three defects above
 — a field that looks authoritative and answers a question nobody should be asking it. Worth deleting
 or documenting as recovery-only, the call §16.18 made for `changeover_seconds`.
+
+_Owed, and not code:_ `project_tables.dart` points at **§16.20** for what the v19 fold discarded, and
+`DESIGN.md` stops at §16.19. The schema note for v19 was never written.
 
 ### 7.4 Takt rebalances a group of like machines
 

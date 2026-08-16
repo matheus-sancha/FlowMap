@@ -200,22 +200,15 @@ Future<Uint8List> buildFlowPdf({
                     node,
                     hasWipCap: view.study.wipCap != null,
                   ),
+                  queue: node.queue,
+                  formatDuration: formatDuration,
                 ),
-                switch (node) {
-                  final FlowStepView step => _stepBox(
-                    step,
-                    strings,
-                    formatDuration,
-                  ),
-                  final FlowInventoryView buffer => _inventory(
-                    buffer,
-                    formatDuration,
-                  ),
-                },
+                _stepBox(node, strings, formatDuration),
               ],
               // Into the customer, which is not a station and has no queue.
               _arrow(
                 connectionKindInto(null, hasWipCap: view.study.wipCap != null),
+                formatDuration: formatDuration,
               ),
               _endpoint(strings.customer),
             ],
@@ -254,26 +247,52 @@ pw.Widget _endpoint(String label) => pw.Container(
   ),
 );
 
-/// A link, and what kind of link it is (DESIGN.md §5.2).
+/// A link, the queue it runs into, and what kind of link that makes it
+/// (DESIGN.md §5.2, §7.3).
 ///
 /// **The printed map labels rather than redraws.** The canvas tells push from
 /// pull by hatching a shaft that this document does not draw at all — every
 /// symbol here is a bordered box or a glyph, which is why the arrow is a `>`.
-/// Rather than leave the distinction off the page entirely, the two links that
-/// are not the ordinary push say what they are underneath. A push says nothing,
-/// because that is the default and a caption on every arrow is noise.
-pw.Widget _arrow(FlowConnectionKind kind) => pw.Container(
-  width: 28,
+/// Rather than leave the distinction off the page entirely, every link that is
+/// not the ordinary push says what it is underneath: the four disciplines write
+/// their own word, which is the same word the canvas puts inside the channel, so
+/// the two drawings of one map read alike. A push says nothing, because that is
+/// the default and a caption on every arrow is noise.
+///
+/// The stock standing in the queue prints as the triangle and its figure, in the
+/// same column — which is where it is on the canvas, and it used to be a node of
+/// its own taking a whole slot.
+pw.Widget _arrow(
+  FlowConnectionKind kind, {
+  FlowQueueView? queue,
+  required FlowDurationFormat formatDuration,
+}) => pw.Container(
+  width: queue?.hasStock ?? false ? 64 : 28,
   height: 40,
   alignment: pw.Alignment.center,
   child: pw.Column(
     mainAxisAlignment: pw.MainAxisAlignment.center,
     children: [
       pw.Text('>', style: const pw.TextStyle(fontSize: 12)),
-      if (kind != FlowConnectionKind.push)
+      if (kind.channelLabel ?? (kind == FlowConnectionKind.pull ? 'PULL' : null)
+          case final label?)
         pw.Text(
-          kind == FlowConnectionKind.fifoLane ? 'FIFO' : 'PULL',
+          label,
           style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
+        ),
+      if (queue?.hasStock ?? false) ...[
+        pw.Text('▲', style: const pw.TextStyle(fontSize: 14)),
+        pw.Text(
+          queue!.quantity != null
+              ? '${queue.quantity}'
+              : formatDuration(queue.wait, workingDay: queue.rungWorkingDay),
+          style: const pw.TextStyle(fontSize: 7),
+        ),
+      ],
+      if (queue?.name?.isNotEmpty ?? false)
+        pw.Text(
+          queue!.name!,
+          style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
         ),
     ],
   ),
@@ -352,12 +371,7 @@ pw.Widget _notesList(FlowView view, FlowPdfStrings strings) {
     for (final node in view.nodes)
       if (node.node.notes?.trim().isNotEmpty ?? false)
         (
-          title: switch (node) {
-            final FlowStepView step => step.title,
-            final FlowInventoryView buffer => buffer.label.isEmpty
-                ? '▲'
-                : buffer.label,
-          },
+          title: node.title,
           text: node.node.notes!.trim(),
         ),
   ];
@@ -399,66 +413,55 @@ pw.Widget _notesList(FlowView view, FlowPdfStrings strings) {
   );
 }
 
-pw.Widget _inventory(
-  FlowInventoryView buffer,
-  FlowDurationFormat formatDuration,
-) => pw.Container(
-  width: 90,
-  alignment: pw.Alignment.center,
-  child: pw.Column(
-    children: [
-      pw.Text('▲', style: const pw.TextStyle(fontSize: 20)),
-      if (buffer.quantity != null)
-        pw.Text(
-          '${buffer.quantity}',
-          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-        ),
-      pw.Text(
-        buffer.label.isEmpty
-            ? formatDuration(
-                buffer.wait,
-                workingDay: buffer.referenceWorkingDay,
-              )
-            : buffer.label,
-        style: const pw.TextStyle(fontSize: 8),
-      ),
-    ],
-  ),
-);
+pw.Widget _ladder(FlowView view, FlowDurationFormat formatDuration) {
+  // A queue rung ahead of the box it feeds, and only where something is
+  // standing — the same rule the canvas draws by, and what keeps the sawtooth
+  // meaningful on a flow that holds no stock at all. Deduplicated by target for
+  // the reason `FlowView.queues` is: one floor space, counted once.
+  final drawn = <String>{};
+  final rungs = <({Duration time, Duration? day, bool waiting})>[];
+  for (final node in view.nodes) {
+    if (node.queue case final queue?
+        when queue.hasStock && drawn.add(queue.targetId)) {
+      rungs.add((time: queue.wait, day: queue.rungWorkingDay, waiting: true));
+    }
+    rungs.add((
+      time: node.ladderTime,
+      day: node.referenceWorkingDay,
+      waiting: false,
+    ));
+  }
 
-pw.Widget _ladder(FlowView view, FlowDurationFormat formatDuration) =>
-    pw.Row(
+  return pw.Row(
       children: [
-        for (final node in view.nodes)
+        for (final rung in rungs)
           pw.Container(
-            width: node is FlowStepView ? 168 : 118,
+            width: rung.waiting ? 64 : 168,
             padding: const pw.EdgeInsets.symmetric(vertical: 4),
             decoration: pw.BoxDecoration(
               border: pw.Border(
                 // Waiting rides high, processing low — the sawtooth shape a
                 // value-stream map is read by.
-                top: node is FlowInventoryView
+                top: rung.waiting
                     ? const pw.BorderSide(width: 0.8)
                     : pw.BorderSide.none,
-                bottom: node is FlowStepView
-                    ? const pw.BorderSide(width: 0.8)
-                    : pw.BorderSide.none,
+                bottom: rung.waiting
+                    ? pw.BorderSide.none
+                    : const pw.BorderSide(width: 0.8),
               ),
             ),
             child: pw.Text(
               // Against the node's own working day, as on the canvas: one takt
               // has to read `3.0 d` on paper too.
-              formatDuration(
-                node.ladderTime,
-                workingDay: node.referenceWorkingDay,
-              ),
+              formatDuration(rung.time, workingDay: rung.day),
               // Centred over its rung, as on the canvas.
               textAlign: pw.TextAlign.center,
               style: const pw.TextStyle(fontSize: 8),
             ),
           ),
       ],
-    );
+  );
+}
 
 pw.Widget _footer(
   FlowView view,

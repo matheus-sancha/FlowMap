@@ -1136,19 +1136,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowInsertStep => 'Process step';
 
   @override
-  String get flowInsertStepHelp => 'Runs on a workcenter or a pool.';
-
-  @override
-  String get flowInsertInventory => 'Inventory';
-
-  @override
-  String get flowInsertInventoryHelp => 'Where orders wait between steps.';
-
-  @override
   String get flowStep => 'Process step';
-
-  @override
-  String get flowInventory => 'Inventory';
 
   @override
   String get flowStepTarget => 'Workcenter or pool';
@@ -1197,16 +1185,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepChangeover => 'Changeover';
-
-  @override
-  String get laneRule => 'Queue order';
-
-  @override
-  String get laneRuleHelp =>
-      'How the station ahead picks the next order out of this lane. On a real lane you cannot take from the back, so this is a decision about the queue rather than about the machine — and it belongs here, where the queue is drawn.';
-
-  @override
-  String get laneRuleFollowsRun => 'Follow the run\'s rule';
 
   @override
   String get laneCapacity => 'Lane capacity (orders)';
@@ -1302,13 +1280,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get inventoryWaitHelp =>
       'A day is 24 hours here. Whether those hours pass on the clock or only while the plant runs is the switch below.';
-
-  @override
-  String get inventoryWorkingTime => 'Working time only';
-
-  @override
-  String get inventoryWorkingTimeHelp =>
-      'Off for cooling or transport, which do not stop for the weekend. On for a queue that only moves while the plant runs.';
 
   @override
   String get footerProcessTime => 'Process time';
@@ -1734,4 +1705,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simExportRunSheet => 'Run';
+
+  @override
+  String get flowQueueEdit => 'Set the queue in front of this step';
+
+  @override
+  String flowQueueTitle(String target) {
+    return 'Queue in front of $target';
+  }
+
+  @override
+  String flowQueueShared(String target) {
+    return 'One queue per station: every step that feeds $target waits in this one, in this study and in every other.';
+  }
+
+  @override
+  String get flowQueueName => 'Name';
+
+  @override
+  String get flowQueueType => 'Queue type';
+
+  @override
+  String get flowQueueTypeHelp =>
+      'How the station ahead picks the next order out of this queue. A push is a pile nobody has given an order to; the four rules are channels, and the map draws each one differently.';
+
+  @override
+  String get flowQueueStock => 'What is standing here now';
+
+  @override
+  String get queueTypePush => 'Push — a pile, no rule';
+
+  @override
+  String get queueTypeSupermarket => 'Supermarket — not yet';
 }

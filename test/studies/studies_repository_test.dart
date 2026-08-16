@@ -91,20 +91,15 @@ void main() {
       );
 
       // The "+ Insert here" affordance between the two.
-      await studies.insertInventory(
+      await studies.insertStep(
         studyId: studyId,
         atPosition: 1,
-        mode: InventoryMode.quantity,
-        quantity: 5,
+        label: 'Wedged in',
       );
 
       final nodes = await studies.loadNodes(studyId);
       expect(nodes.map((n) => n.position), [0, 1, 2]);
-      expect(nodes.map((n) => n.kind), [
-        FlowNodeKind.step,
-        FlowNodeKind.inventory,
-        FlowNodeKind.step,
-      ]);
+      expect(nodes.map((n) => n.label), [null, 'Wedged in', null]);
       expect(nodes.last.workcenterId, workcenterB);
     });
 
@@ -160,39 +155,6 @@ void main() {
       expect(after.map((n) => n.label), ['S0', 'S1', 'S2']);
     });
 
-    test('an inventory node keeps its mode and value', () async {
-      await studies.insertInventory(
-        studyId: studyId,
-        atPosition: 0,
-        mode: InventoryMode.duration,
-        wait: const Duration(hours: 24),
-        waitUnit: DurationUnit.hours,
-        usesWorkingTime: false,
-        label: 'Cooling',
-      );
-      final node = (await studies.loadNodes(studyId)).single;
-      expect(node.inventoryMode, InventoryMode.duration);
-      expect(node.inventorySeconds, 24 * 3600);
-      expect(node.inventoryUsesWorkingTime, isFalse);
-      expect(node.label, 'Cooling');
-    });
-
-    test('a fixed wait remembers the unit it was typed in', () async {
-      // Stored canonically in seconds, but `2 days` must read back as `2 days`
-      // rather than `48 h`.
-      await studies.insertInventory(
-        studyId: studyId,
-        atPosition: 0,
-        mode: InventoryMode.duration,
-        wait: const Duration(days: 2),
-        waitUnit: DurationUnit.days,
-        usesWorkingTime: false,
-      );
-      final node = (await studies.loadNodes(studyId)).single;
-      expect(node.inventorySeconds, 48 * 3600);
-      expect(node.inventoryUnit, DurationUnit.days);
-    });
-
     test('a step equivalent round-trips, value and unit together', () async {
       await studies.insertStep(
         studyId: studyId,
@@ -236,34 +198,6 @@ void main() {
       final after = (await studies.loadNodes(studyId)).single;
       expect(after.equivalentValue, isNull);
       expect(after.equivalentUnit, isNull);
-    });
-
-    test('a quantity buffer has no wait unit of its own', () async {
-      // Its wait comes from takt, which carries its own unit.
-      await studies.insertInventory(
-        studyId: studyId,
-        atPosition: 0,
-        mode: InventoryMode.quantity,
-        quantity: 3,
-      );
-      final node = (await studies.loadNodes(studyId)).single;
-      expect(node.inventoryUnit, isNull);
-      expect(node.inventoryQuantity, 3);
-    });
-
-    test('duplicating a study carries the wait unit across', () async {
-      await studies.insertInventory(
-        studyId: studyId,
-        atPosition: 0,
-        mode: InventoryMode.duration,
-        wait: const Duration(days: 2),
-        waitUnit: DurationUnit.days,
-        usesWorkingTime: true,
-      );
-      final copyId = await studies.duplicateStudy(studyId, newName: 'Copy');
-      final copied = (await studies.loadNodes(copyId)).single;
-      expect(copied.inventoryUnit, DurationUnit.days);
-      expect(copied.inventoryUsesWorkingTime, isTrue);
     });
 
     test('deleting a workcenter leaves the step in place, unbound', () async {
@@ -416,11 +350,10 @@ void main() {
         equivalentValue: 4,
         equivalentUnit: TaktUnit.hours,
       );
-      await studies.insertInventory(
+      await studies.insertStep(
         studyId: source,
         atPosition: 1,
-        mode: InventoryMode.quantity,
-        quantity: 4,
+        workcenterId: workcenterB,
       );
       await studies.addAnnotation(
         studyId: source,
@@ -453,7 +386,7 @@ void main() {
       expect(copiedNodes.first.samePartPercent, 25);
       expect(copiedNodes.first.equivalentValue, 4);
       expect(copiedNodes.first.equivalentUnit, TaktUnit.hours);
-      expect(copiedNodes.last.inventoryQuantity, 4);
+      expect(copiedNodes.last.workcenterId, workcenterB);
 
       final sourceNodes = await studies.loadNodes(source);
       expect(

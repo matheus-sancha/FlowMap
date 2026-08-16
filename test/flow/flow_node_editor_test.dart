@@ -22,28 +22,23 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final now = DateTime(2026, 8, 1);
 
-  FlowNode inventoryNode({
-    InventoryMode mode = InventoryMode.duration,
-    int? seconds = 48 * 3600,
+  FlowQueueView queueView({
+    String? name,
+    DispatchRule? rule,
+    int? capacity,
+    Duration wait = const Duration(hours: 48),
     DurationUnit? unit = DurationUnit.hours,
     int? quantity,
-    DispatchRule? laneRule,
-    int? laneCapacity,
-  }) => FlowNode(
-    id: 'node-1',
-    studyId: 'study-1',
-    position: 0,
-    kind: FlowNodeKind.inventory,
-    changeoverSeconds: 0,
-    inventoryMode: mode,
-    inventoryQuantity: quantity,
-    inventorySeconds: seconds,
-    inventoryUnit: unit,
-    inventoryUsesWorkingTime: false,
-    laneRule: laneRule,
-    laneCapacity: laneCapacity,
-    createdAt: now,
-    updatedAt: now,
+  }) => FlowQueueView(
+    targetId: 'CLAD04',
+    targetName: 'CLAD04',
+    name: name,
+    rule: rule,
+    capacity: capacity,
+    wait: wait,
+    quantity: quantity,
+    unit: unit,
+    isCalendarWait: quantity == null,
   );
 
   final study = Study(
@@ -88,85 +83,75 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('the inventory editor', () {
-    testWidgets('mounts without throwing, for an existing node', (
+  group('the queue editor (§7.3)', () {
+    testWidgets('mounts without throwing, and names its target', (
       tester,
     ) async {
       await pumpHost(
         tester,
-        (context, ref) => showInventoryEditor(
+        (context, ref) => showQueueEditor(
           context,
           ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(),
-            wait: const Duration(hours: 48),
-            label: '',
-            waitUnit: DurationUnit.hours,
-          ),
+          projectId: 'project-1',
+          queue: queueView(),
         ),
       );
 
       expect(tester.takeException(), isNull);
       expect(find.byType(AlertDialog), findsOneWidget);
-      // Move and delete live in the content, not in `actions`.
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
-    });
+      // Move and delete are a *node's* actions; a queue is not on the spine and
+      // cannot be reordered off it.
+      expect(find.byIcon(Icons.arrow_back), findsNothing);
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
 
-    testWidgets('mounts without throwing, for a new node', (tester) async {
-      await pumpHost(
-        tester,
-        (context, ref) => showInsertNodeMenu(
-          context,
-          ref,
-          study: study,
-          position: 0,
-        ),
-      );
-
-      expect(tester.takeException(), isNull);
-      // The insert menu offers the two node kinds.
-      expect(find.byType(SimpleDialog), findsOneWidget);
-    });
-
-    testWidgets('a stored note reads back into the field', (tester) async {
-      await pumpHost(
-        tester,
-        (context, ref) => showInventoryEditor(
-          context,
-          ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(),
-            quantity: null,
-            wait: const Duration(hours: 48),
-            label: '',
-          ),
-        ),
-      );
-
-      expect(tester.takeException(), isNull);
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      expect(find.text(l10n.flowNodeNotes), findsOneWidget);
+      expect(find.text(l10n.flowQueueTitle('CLAD04')), findsOneWidget);
+      // Said out loud, because a planner editing this from inside one study has
+      // to know the other study's orders stand in the same line.
+      expect(find.text(l10n.flowQueueShared('CLAD04')), findsOneWidget);
+    });
+
+    testWidgets('inserting a node offers a step, with no menu in the way', (
+      tester,
+    ) async {
+      await pumpHost(
+        tester,
+        (context, ref) =>
+            showInsertNodeMenu(context, ref, study: study, position: 0),
+        overrides: [
+          // It reaches straight for the targets now rather than asking which
+          // kind of node first, so the provider it reads has to be stubbed.
+          flowTargetsProvider('study-1').overrideWith(
+            (ref) async => (
+              workcenters: <Workcenter>[],
+              pools: <WorkcenterPool>[],
+            ),
+          ),
+        ],
+      );
+
+      expect(tester.takeException(), isNull);
+      // One thing goes on the spine now (§7.3), so the choice dialog went with
+      // the inventory node and the step dialog opens directly.
+      expect(find.byType(SimpleDialog), findsNothing);
+      expect(find.byType(AlertDialog), findsOneWidget);
     });
 
     testWidgets('offers all four wait units', (tester) async {
       await pumpHost(
         tester,
-        (context, ref) => showInventoryEditor(
+        (context, ref) => showQueueEditor(
           context,
           ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(),
-            wait: const Duration(hours: 48),
-            label: '',
-            waitUnit: DurationUnit.hours,
-          ),
+          projectId: 'project-1',
+          queue: queueView(),
         ),
       );
 
+      await tester.ensureVisible(
+        find.byType(DropdownButtonFormField<DurationUnit>),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButtonFormField<DurationUnit>));
       await tester.pumpAndSettle();
 
@@ -183,21 +168,20 @@ void main() {
     ) async {
       await pumpHost(
         tester,
-        (context, ref) => showInventoryEditor(
+        (context, ref) => showQueueEditor(
           context,
           ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(),
-            wait: const Duration(hours: 48),
-            label: '',
-            waitUnit: DurationUnit.hours,
-          ),
+          projectId: 'project-1',
+          queue: queueView(),
         ),
       );
 
       expect(find.widgetWithText(TextField, '48'), findsOneWidget);
 
+      await tester.ensureVisible(
+        find.byType(DropdownButtonFormField<DurationUnit>),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButtonFormField<DurationUnit>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('days').last);
@@ -208,23 +192,19 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('it carries the lane rule and capacity it was given', (
+    testWidgets('it carries the name, rule and capacity it was given', (
       tester,
     ) async {
       await pumpHost(
         tester,
-        (context, ref) => showInventoryEditor(
+        (context, ref) => showQueueEditor(
           context,
           ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(
-              laneRule: DispatchRule.earliestDueDate,
-              laneCapacity: 3,
-            ),
-            wait: const Duration(hours: 48),
-            label: '',
-            waitUnit: DurationUnit.hours,
+          projectId: 'project-1',
+          queue: queueView(
+            name: 'FIFO CEU27',
+            rule: DispatchRule.earliestDueDate,
+            capacity: 3,
           ),
         ),
       );
@@ -233,58 +213,72 @@ void main() {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
       // Selected rather than merely offered: a control that opened on the
-      // default would silently reset the lane on the next save (§7.4).
+      // default would silently reset the queue on the next save (§7.3).
       expect(
         find.text(dispatchRuleLabel(l10n, DispatchRule.earliestDueDate)),
         findsOneWidget,
       );
+      expect(find.widgetWithText(TextField, 'FIFO CEU27'), findsOneWidget);
       expect(find.widgetWithText(TextField, '3'), findsOneWidget);
     });
 
-    testWidgets('an untouched lane says it follows the run, not FIFO', (
+    testWidgets('an untouched queue says it is a push, not FIFO', (
       tester,
     ) async {
       await pumpHost(
         tester,
-        (context, ref) => showInventoryEditor(
+        (context, ref) => showQueueEditor(
           context,
           ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(),
-            wait: const Duration(hours: 48),
-            label: '',
-            waitUnit: DurationUnit.hours,
-          ),
+          projectId: 'project-1',
+          queue: queueView(),
         ),
       );
 
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       // The distinction §5.2 rests on: "nobody has decided" is not the same
-      // state as "someone chose FIFO", and only the second draws a lane.
-      expect(find.text(l10n.laneRuleFollowsRun), findsOneWidget);
+      // state as "someone chose FIFO", and only the second draws a channel.
+      expect(find.text(l10n.queueTypePush), findsOneWidget);
       expect(find.text(l10n.laneCapacity), findsOneWidget);
     });
 
-    testWidgets('a quantity buffer shows pieces rather than a wait', (
+    testWidgets('supermarket is named and cannot be chosen', (tester) async {
+      await pumpHost(
+        tester,
+        (context, ref) => showQueueEditor(
+          context,
+          ref,
+          projectId: 'project-1',
+          queue: queueView(),
+        ),
+      );
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      // Opened through the entry it is showing, because the picker's own type
+      // is private to the dialog.
+      await tester.tap(find.text(l10n.queueTypePush));
+      await tester.pumpAndSettle();
+
+      // Listed rather than omitted, so a reader looking for it finds out why it
+      // is not there: the engine cannot honour it, and a supermarket symbol
+      // over FIFO behaviour would be a map that lies about the plant (§7.3).
+      expect(find.text(l10n.queueTypeSupermarket), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a queue holding pieces shows a count rather than a wait', (
       tester,
     ) async {
       await pumpHost(
         tester,
-        (context, ref) => showInventoryEditor(
+        (context, ref) => showQueueEditor(
           context,
           ref,
-          study: study,
-          buffer: FlowInventoryView(
-            inventoryNode(
-              mode: InventoryMode.quantity,
-              seconds: null,
-              unit: null,
-              quantity: 5,
-            ),
-            wait: const Duration(hours: 12),
-            label: '',
+          projectId: 'project-1',
+          queue: queueView(
             quantity: 5,
+            unit: null,
+            wait: const Duration(hours: 12),
           ),
         ),
       );
@@ -293,7 +287,7 @@ void main() {
       expect(
         find.byType(DropdownButtonFormField<DurationUnit>),
         findsNothing,
-        reason: 'a quantity buffer has no unit of its own — takt supplies it',
+        reason: 'a quantity has no unit of its own — takt supplies it',
       );
     });
   });

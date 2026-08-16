@@ -139,80 +139,178 @@ String flowStepTitle(
   return (name == null || name.isEmpty) ? '—' : name;
 }
 
-sealed class FlowNodeView {
-  const FlowNodeView(this.node);
-
-  final FlowNode node;
-
-  String get id => node.id;
-  int get position => node.position;
-
-  /// How long an order spends here, for the lead-time ladder.
-  Duration get ladderTime;
-
-  /// The working day the ladder renders [ladderTime] against, so a rung can
-  /// read `3.8 d` the way a value-stream map draws it. Null — and the rung
-  /// falls back to hours — when no schedule gives this node a working day.
-  Duration? get referenceWorkingDay;
-
-  /// [ladderTime] in the days its own rung is drawn in: this station's
-  /// productive day, or a plain 24 hours where none applies (a calendar wait,
-  /// or a step with no schedule).
-  ///
-  /// The footer totals are summed from these rather than from the durations,
-  /// so `Lead time` is the sum of the rungs above it even when the steps
-  /// differ in how long their day is (DESIGN.md §17.4).
-  double get ladderDays {
-    final day = referenceWorkingDay ?? const Duration(hours: 24);
-    return day.inSeconds == 0 ? 0 : ladderTime.inSeconds / day.inSeconds;
-  }
-}
-
-/// How the material flow between two nodes is drawn (DESIGN.md §5.2).
+/// How the material flow between two boxes is drawn (DESIGN.md §5.2, §7.3).
 ///
-/// **Derived, never chosen.** Every arrow on the map is explained by something
-/// the user typed somewhere it could be validated — the study's WIP cap and a
-/// station's queue rule — which is §5.2's standing rule that drawing documents
-/// intent while the number that drives the engine lives where it can be
-/// checked. A per-link picker would be a second source of truth about the flow,
-/// free to disagree with the engine, which is exactly what §5.3 exists to
-/// prevent.
+/// **The queue type chooses it, and the queue type is typed where it can be
+/// validated.** Every link on the spine is explained by something stored — the
+/// study's WIP cap, and the discipline on the queue in front of the step the
+/// link runs into — which is §5.2's standing rule that drawing documents intent
+/// while the number that drives the engine lives somewhere it can be checked.
+/// The connector is where that queue is *drawn*; §7.3 makes it where the queue
+/// is set, which is the same one source of truth reached from the picture.
 enum FlowConnectionKind {
   /// The striped arrow: material moved downstream whether or not the next step
-  /// asked for it. The honest default — with no supermarkets in the model
-  /// (§5.5) and no WIP cap, everything here **is** a push.
+  /// asked for it, and piles up where it lands. The honest default — with no
+  /// supermarkets in the model (§5.5) and no discipline set, everything here
+  /// **is** a push.
   push,
 
   /// The open arrow: a release requires a completion, so the flow is pulled.
   /// A study-level CONWIP cap (§7.3) is the only real pull lever FlowMap has.
   pull,
 
-  /// A sequenced lane: the station it feeds takes its queue strictly in
-  /// arrival order, because someone said so (§7.4).
+  /// A sequenced lane, taken in arrival order (§7.4).
   fifoLane,
+
+  /// The top of the stack first — a lane on a plant that stacks material
+  /// rather than channelling it.
+  lifoLane,
+
+  /// Earliest need date first.
+  eddLane,
+
+  /// Shortest processing time first.
+  sptLane;
+
+  /// The word written inside the channel, or null for the two shapes that are
+  /// arrows rather than channels.
+  ///
+  /// **Untranslated on purpose.** `FIFO` is the notation's own word, not a
+  /// sentence about it, and a value-stream map read in three languages carries
+  /// the same four marks — which is also what lets the printed map (§13) write
+  /// what the canvas draws.
+  String? get channelLabel => switch (this) {
+    FlowConnectionKind.push || FlowConnectionKind.pull => null,
+    FlowConnectionKind.fifoLane => 'FIFO',
+    FlowConnectionKind.lifoLane => 'LIFO',
+    FlowConnectionKind.eddLane => 'EDD',
+    FlowConnectionKind.sptLane => 'SPT',
+  };
+
+  bool get isChannel => channelLabel != null;
 }
 
 /// What to draw on the link **into** [downstream].
 ///
 /// The kind belongs to the arrow's destination, not its source: a queue forms
-/// in front of a station, and it is that station's discipline the lane
+/// in front of a station, and it is that station's discipline the channel
 /// describes. The last link of the spine runs into the customer, which is not a
-/// station, so it falls back to the study's own kind.
+/// station and has no queue, so it falls back to the study's own kind.
+///
+/// **A stored discipline is a decision; an unset one is not.** Every station
+/// dispatches FIFO by default (§7.4), so drawing a channel wherever a queue
+/// *behaves* as FIFO would put one on every link and say nothing. An unset rule
+/// therefore draws the push arrow — which is what an uncontrolled pile is, and
+/// what §7.3's table lists it as — and choosing FIFO in the editor is the
+/// statement that the lane is sequenced.
 FlowConnectionKind connectionKindInto(
-  FlowNodeView? downstream, {
+  FlowStepView? downstream, {
   required bool hasWipCap,
-}) {
-  if (downstream is FlowStepView &&
-      downstream.queueDiscipline == DispatchRule.fifo) {
-    return FlowConnectionKind.fifoLane;
+}) => switch (downstream?.queue?.rule) {
+  DispatchRule.fifo => FlowConnectionKind.fifoLane,
+  DispatchRule.lifo => FlowConnectionKind.lifoLane,
+  DispatchRule.earliestDueDate => FlowConnectionKind.eddLane,
+  DispatchRule.shortestProcessing => FlowConnectionKind.sptLane,
+  null => hasWipCap ? FlowConnectionKind.pull : FlowConnectionKind.push,
+};
+
+/// The queue standing in front of one step, as the map draws it (§7.3, §5.5).
+///
+/// **One per target, shared by every step that feeds it.** Two studies whose
+/// flows both reach CLAD07 draw the same queue, because the plant has one floor
+/// space there — which is the correction §7.3 exists for, and the reason this
+/// is keyed by [targetId] rather than carried on the node.
+///
+/// The stock figure is an **observation of a current state**, not a delay the
+/// engine charges (§5.5): it feeds the lead-time ladder and the days-of-stock a
+/// current-state map exists to state, and a run measures the real wait itself.
+class FlowQueueView {
+  const FlowQueueView({
+    required this.targetId,
+    required this.targetName,
+    required this.wait,
+    this.name,
+    this.rule,
+    this.capacity,
+    this.quantity,
+    this.unit,
+    this.isCalendarWait = false,
+    this.referenceWorkingDay,
+  });
+
+  /// The workcenter or pool the queue stands in front of — the key it is stored
+  /// under, and what the editor writes back to.
+  final String targetId;
+
+  /// `CLAD04` or `CAL Pool` — the station's own name, not the step's label.
+  ///
+  /// The editor names the target and says the queue is shared by every step
+  /// that feeds it (§7.3), and a step's label is what *this* study calls its
+  /// visit; the other study's step may call it something else, and both wait in
+  /// the same line.
+  final String targetName;
+
+  /// `FIFO CEU27` — what the shop floor calls this floor space.
+  final String? name;
+
+  /// The discipline someone set, or null for an uncontrolled pile. Null is not
+  /// the same as FIFO here even though the engine treats it so: see
+  /// [connectionKindInto].
+  final DispatchRule? rule;
+
+  /// Orders it holds before the station behind it is blocked. Null is
+  /// unlimited.
+  final int? capacity;
+
+  /// How long the stock standing here represents. For a quantity this is
+  /// `pieces × takt`, resolved through the capacity of the step it feeds.
+  final Duration wait;
+
+  /// Pieces, for a quantity observation.
+  final int? quantity;
+
+  /// The unit a fixed wait was typed in, so the map reads `2 days` rather than
+  /// converting it to something nobody wrote.
+  final DurationUnit? unit;
+
+  /// A wait measured on the wall clock — cooling, transport — that does not
+  /// stop for the weekend.
+  final bool isCalendarWait;
+
+  /// The productive day this queue's rung is drawn in.
+  final Duration? referenceWorkingDay;
+
+  /// Whether there is anything standing here to draw a triangle for.
+  bool get hasStock => wait > Duration.zero || (quantity ?? 0) > 0;
+
+  /// [wait] in the days its own rung is drawn in (§17.4).
+  double get waitDays {
+    // A calendar wait is measured in calendar days: 48 h of cooling is two
+    // days, not the 2.9 productive days it would be against a 16.77-hour
+    // working day.
+    final day = (isCalendarWait ? null : referenceWorkingDay) ??
+        const Duration(hours: 24);
+    return day.inSeconds == 0 ? 0 : wait.inSeconds / day.inSeconds;
   }
-  return hasWipCap ? FlowConnectionKind.pull : FlowConnectionKind.push;
+
+  /// The working day the rung's `d` is measured in, or null where the wall
+  /// clock is.
+  Duration? get rungWorkingDay =>
+      isCalendarWait || referenceWorkingDay == Duration.zero
+      ? null
+      : referenceWorkingDay;
 }
 
-/// A process box.
-class FlowStepView extends FlowNodeView {
+/// A process box, and the queue standing in front of it.
+///
+/// **The only kind of node the spine has now** (§7.3). An inventory used to be
+/// a second kind, sitting between two boxes with its own name, discipline and
+/// capacity — and two studies through one machine therefore had two of them.
+/// The queue belongs to what a step targets, so it belongs to the step, and
+/// `FlowNodeView`'s sealed hierarchy became a base class with one subclass.
+class FlowStepView {
   const FlowStepView(
-    super.node, {
+    this.node, {
     required this.title,
     required this.typeName,
     required this.poolMemberCount,
@@ -232,18 +330,20 @@ class FlowStepView extends FlowNodeView {
     required this.problems,
     this.usesLocalEquivalent = false,
     this.scheduleCarriedForward = false,
-    this.queueDiscipline,
+    this.queue,
   });
 
-  /// This step's target's **explicitly set** queue discipline (§7.4), or null
-  /// when it follows the run's rule.
+  final FlowNode node;
+
+  String get id => node.id;
+  int get position => node.position;
+
+  /// The queue in front of this step (§7.3), or null when the step targets
+  /// nothing and so stands in front of no floor space.
   ///
-  /// The distinction matters here more than anywhere: under the default rule
-  /// every station in the plant dispatches FIFO, so "is this station FIFO"
-  /// would be true everywhere and a FIFO lane would be drawn on every link,
-  /// which says nothing. A stored row is a decision someone made about that
-  /// queue, and that is what the map draws (§5.2).
-  final DispatchRule? queueDiscipline;
+  /// Drawn on the link *into* this box rather than on the box, because that is
+  /// where the queue is: between the station before it and this one.
+  final FlowQueueView? queue;
 
   /// `CLAD04` or the pool's name — what the box is labelled.
   final String title;
@@ -381,59 +481,24 @@ class FlowStepView extends FlowNodeView {
 
   int get staffedShiftCount => operatorsPerShift.where((o) => o > 0).length;
 
-  @override
+  /// How long an order spends *in this box*, for the lead-time ladder's lower
+  /// rung. The queue's wait is its own rung above the link (§17.4).
   Duration get ladderTime => processTime ?? Duration.zero;
 
-  @override
+  /// The working day the ladder renders [ladderTime] against, so a rung can
+  /// read `3.8 d` the way a value-stream map draws it. Null — and the rung
+  /// falls back to hours — when no schedule gives this station a working day.
   Duration? get referenceWorkingDay =>
       productivePerWorkingDay == Duration.zero ? null : productivePerWorkingDay;
-}
 
-/// An inventory triangle.
-class FlowInventoryView extends FlowNodeView {
-  const FlowInventoryView(
-    super.node, {
-    required this.wait,
-    required this.label,
-    this.quantity,
-    this.downstreamWorkingDay,
-    this.waitUnit,
-  });
-
-  /// The working day of the step this buffer drains into — the rate that sets
-  /// how long its pieces sit there.
-  final Duration? downstreamWorkingDay;
-
-  /// The unit a fixed wait was typed in, so the triangle reads `2 days` rather
-  /// than converting it to something the user did not write.
-  final DurationUnit? waitUnit;
-
-  /// How long an order waits here. For a quantity buffer this is
-  /// `pieces × takt`, resolved through the following step's capacity.
-  final Duration wait;
-
-  /// Pieces, for a [InventoryMode.quantity] buffer.
-  final int? quantity;
-
-  final String label;
-
-  @override
-  Duration get ladderTime => wait;
-
-  /// A fixed wait measured on the wall clock — cooling, transport — that does
-  /// not stop for the weekend.
-  bool get isCalendarWait =>
-      node.inventoryMode == InventoryMode.duration &&
-      !node.inventoryUsesWorkingTime;
-
-  @override
-  Duration? get referenceWorkingDay {
-    // A calendar wait is measured in calendar days: 48 h of cooling is two
-    // days, not the 2.9 productive days it would be if divided by a 16.77-hour
-    // working day. Only a working-time wait, and a quantity buffer — whose
-    // wait is takt-derived — use the station's productive day.
-    if (isCalendarWait) return null;
-    return downstreamWorkingDay == Duration.zero ? null : downstreamWorkingDay;
+  /// [ladderTime] in the days its own rung is drawn in.
+  ///
+  /// The footer totals are summed from these rather than from the durations,
+  /// so `Lead time` is the sum of the rungs above it even when the steps
+  /// differ in how long their day is (DESIGN.md §17.4).
+  double get ladderDays {
+    final day = referenceWorkingDay ?? const Duration(hours: 24);
+    return day.inSeconds == 0 ? 0 : ladderTime.inSeconds / day.inSeconds;
   }
 }
 
@@ -479,7 +544,10 @@ class FlowView {
   final int? workingDays;
 
   final Study study;
-  final List<FlowNodeView> nodes;
+
+  /// The process boxes, in flow order. Each carries the queue standing in
+  /// front of it (§7.3), which is what the link into it is drawn as.
+  final List<FlowStepView> nodes;
 
   /// The first day of the span the navigator is showing, and the day every
   /// figure on the map is read at.
@@ -509,10 +577,22 @@ class FlowView {
   final bool taktMissing;
   final bool taktCarriedForward;
 
-  Iterable<FlowStepView> get steps => nodes.whereType<FlowStepView>();
+  Iterable<FlowStepView> get steps => nodes;
 
-  Iterable<FlowInventoryView> get buffers =>
-      nodes.whereType<FlowInventoryView>();
+  /// The queues the flow stands in, in flow order.
+  ///
+  /// **Deduplicated by target**, because two steps of one study may feed the
+  /// same station and the plant has one floor space there. Counting it twice is
+  /// the doubling §7.3 exists to undo, and it would land in the lead-time
+  /// ladder as well as in the picture.
+  Iterable<FlowQueueView> get queues {
+    final seen = <String>{};
+    return [
+      for (final step in nodes)
+        if (step.queue case final queue?)
+          if (seen.add(queue.targetId)) queue,
+    ];
+  }
 
   /// Total process time across the steps — the `Process time` footer figure.
   Duration get processTime => steps.fold(
@@ -520,9 +600,11 @@ class FlowView {
     (total, step) => total + (step.processTime ?? Duration.zero),
   );
 
-  /// Process plus waiting — the `Lead time` footer figure.
+  /// Process plus what is standing in the queues — the `Lead time` footer
+  /// figure.
   Duration get leadTime =>
-      nodes.fold(Duration.zero, (total, node) => total + node.ladderTime);
+      processTime +
+      queues.fold(Duration.zero, (total, queue) => total + queue.wait);
 
   /// What the map multiplies working days by to state running days.
   ///
@@ -553,7 +635,8 @@ class FlowView {
       steps.fold(0, (total, step) => total + step.ladderDays);
 
   double get leadTimeInDays =>
-      nodes.fold(0, (total, node) => total + node.ladderDays);
+      processTimeInDays +
+      queues.fold<double>(0, (total, queue) => total + queue.waitDays);
 
   /// The working day that makes [processTime] read as [processTimeInDays], for
   /// the one formatter the boxes, rungs and footer all share.
@@ -616,10 +699,12 @@ class WorkcenterContext {
   final String? typeName;
 }
 
-/// Builds the map (DESIGN.md §5.4, §6.1).
+/// Builds the map (DESIGN.md §5.4, §6.1, §7.3).
 ///
-/// [contexts] is keyed by workcenter id, [poolMembers] by pool id. Both are
-/// loaded in one pass by the repository so this stays a pure function.
+/// [contexts] is keyed by workcenter id, [poolMembers] by pool id and [queues]
+/// by dispatch target — a workcenter id **or** a pool id, which is the key the
+/// queue is stored under. All three are loaded in one pass by the repository so
+/// this stays a pure function.
 FlowView buildFlowView({
   required Study study,
   required List<FlowNode> nodes,
@@ -628,6 +713,7 @@ FlowView buildFlowView({
   required Map<String, List<String>> poolMembers,
   required TaktScheduleSpec taktSchedule,
   required DateTime asOf,
+  Map<String, ProjectQueue> queues = const {},
   PeriodGranularity granularity = PeriodGranularity.month,
   FlowDataSource dataSource = FlowDataSource.flowEquivalent,
   FlowDemandInput demand = const FlowDemandInput(),
@@ -647,38 +733,30 @@ FlowView buildFlowView({
     }
   }
 
-  final views = <FlowNodeView>[];
-  for (var i = 0; i < nodes.length; i++) {
-    final node = nodes[i];
-    final before = i > 0 ? nodes[i - 1] : null;
-    views.add(switch (node.kind) {
-      FlowNodeKind.step => _buildStep(
-        node: node,
-        lane: before?.kind == FlowNodeKind.inventory ? before : null,
-        contexts: contexts,
-        pools: pools,
-        poolMembers: poolMembers,
-        takt: takt,
-        asOf: start,
-        periodEnd: end,
-        dataSource: dataSource,
-        demand: demand,
-      ),
-      FlowNodeKind.inventory => _buildInventory(
-        node: node,
-        nodes: nodes,
-        contexts: contexts,
-        pools: pools,
-        poolMembers: poolMembers,
-        takt: takt,
-        asOf: start,
-      ),
-    });
-  }
+  // **Inventory nodes are skipped, not drawn** (§7.3). The rows stay on a v19
+  // database as the recovery path for a name the fold discarded, and nothing
+  // constructs one — but a spine that still drew them would show the floor
+  // space twice: once as a triangle between two boxes and once as the queue on
+  // the connector, which is the doubling this re-model exists to undo.
+  final views = [
+    for (final node in nodes)
+      if (node.kind == FlowNodeKind.step)
+        _buildStep(
+          node: node,
+          contexts: contexts,
+          pools: pools,
+          poolMembers: poolMembers,
+          queues: queues,
+          takt: takt,
+          asOf: start,
+          periodEnd: end,
+          dataSource: dataSource,
+          demand: demand,
+        ),
+  ];
 
   final walk = _walkCalendar(
     views: views,
-    nodes: nodes,
     contexts: contexts,
     poolMembers: poolMembers,
     from: start,
@@ -706,14 +784,12 @@ FlowView buildFlowView({
 
 FlowStepView _buildStep({
   required FlowNode node,
-
-  /// The inventory node immediately before this step, or null when there is
-  /// none. What governs this step's queue (§5.5) — and therefore what the link
-  /// into it is drawn as (§5.2).
-  required FlowNode? lane,
   required Map<String, WorkcenterContext> contexts,
   required Map<String, WorkcenterPool> pools,
   required Map<String, List<String>> poolMembers,
+
+  /// Every queue the project has, by dispatch target (§7.3).
+  required Map<String, ProjectQueue> queues,
   required TaktPeriodSpec? takt,
   required DateTime asOf,
   required DateTime periodEnd,
@@ -899,11 +975,17 @@ FlowStepView _buildStep({
 
   return FlowStepView(
     node,
-    // Read off the lane in front of it, which is where the rule is stored and
-    // where the queue actually forms (§5.5). It used to be keyed by the step's
-    // target, which meant the map drew a decision it could not show the reader
-    // the source of.
-    queueDiscipline: lane?.laneRule,
+    // **Keyed by what the step targets, not by the node in front of it**
+    // (§7.3). A pool is a target in its own right, so `CAL Pool` has one queue
+    // its three machines pull from — which is the shape §3.1 dispatches in and
+    // what the Gantt heading already drew.
+    queue: _buildQueue(
+      targetId: node.poolId ?? node.workcenterId,
+      targetName: poolName ?? workcenterName ?? title,
+      queues: queues,
+      takt: takt,
+      productivePerWorkingDay: productivePerDay,
+    ),
     title: title,
     typeName: typeName,
     poolMemberCount: poolMemberCount,
@@ -923,6 +1005,68 @@ FlowStepView _buildStep({
     rework: rework,
     problems: problems,
     scheduleCarriedForward: carriedForward,
+  );
+}
+
+/// The queue in front of one step, resolved for the period being viewed
+/// (§7.3, §5.5).
+///
+/// Null only when the step targets nothing: there is no floor space in front of
+/// a step that names no station.
+///
+/// **A target with no stored row still has a queue**, with everything about it
+/// unset. Every step has a queue in front of it (§7.3) — what differs is the
+/// rule — so a target nobody has configured is an unlimited pile with nothing
+/// standing in it, which is exactly what an absent row means. It is also what
+/// gives the connector something to click before the first edit.
+///
+/// **An unset rule is not FIFO here.** The engine dispatches such a queue in
+/// arrival order because a pile has to be taken in some order, but nobody has
+/// *decided* that, and §5.2's rule is that the map draws decisions rather than
+/// defaults.
+FlowQueueView? _buildQueue({
+  required String? targetId,
+  required String targetName,
+  required Map<String, ProjectQueue> queues,
+  required TaktPeriodSpec? takt,
+  required Duration productivePerWorkingDay,
+}) {
+  if (targetId == null) return null;
+  final row = queues[targetId];
+
+  final productive = productivePerWorkingDay == Duration.zero
+      ? null
+      : productivePerWorkingDay;
+  final mode = row?.stockMode ?? InventoryMode.quantity;
+
+  // A quantity is `pieces × takt` (§5.5) — days of stock at the rate the parts
+  // drain. The **line's** takt, deliberately, never the step's own equivalent:
+  // stock drains at the rate units leave the line, and a step's equivalent is a
+  // yardstick for balancing the equivalent part rather than a local rate.
+  final quantity = mode == InventoryMode.quantity
+      ? (row?.stockQuantity ?? 0)
+      : null;
+  final perPiece = takt == null || productive == null
+      ? Duration.zero
+      : takt.equivalentAt(productive);
+
+  return FlowQueueView(
+    targetId: targetId,
+    targetName: targetName,
+    name: row?.name,
+    rule: row?.rule,
+    capacity: row?.capacity,
+    wait: mode == InventoryMode.quantity
+        ? perPiece * (quantity ?? 0)
+        : Duration(seconds: row?.stockSeconds ?? 0),
+    quantity: quantity,
+    unit: row?.stockUnit,
+    // A fixed wait is charged on the wall clock unless it is working time. The
+    // per-queue flag the inventory node carried has not been re-modelled, so a
+    // duration is a calendar wait — which is what cooling, curing and transport
+    // are, and §5.5 leaves the other half open.
+    isCalendarWait: mode == InventoryMode.duration,
+    referenceWorkingDay: productive,
   );
 }
 
@@ -972,68 +1116,13 @@ Duration? _demandProcessTime({
   }
 }
 
-FlowInventoryView _buildInventory({
-  required FlowNode node,
-  required List<FlowNode> nodes,
-  required Map<String, WorkcenterContext> contexts,
-  required Map<String, WorkcenterPool> pools,
-  required Map<String, List<String>> poolMembers,
-  required TaktPeriodSpec? takt,
-  required DateTime asOf,
-}) {
-  final mode = node.inventoryMode ?? InventoryMode.quantity;
-  final label = node.label ?? '';
-
-  final downstream = _nextStep(nodes, node.position);
-  final context = downstream == null
-      ? null
-      : contexts[_targetOf(downstream, poolMembers)];
-
-  // Productive hours, not raw open hours: the same divisor the steps use, so a
-  // buffer and the step beside it measure a day the same way.
-  final lookup = context?.schedule.lookup(asOf);
-  final productivePerDay = (lookup == null || lookup.isMissing)
-      ? null
-      : context!.calendar.openTimePerWorkingDay(asOf) *
-            lookup.period!.availability;
-
-  if (mode == InventoryMode.duration) {
-    return FlowInventoryView(
-      node,
-      wait: Duration(seconds: node.inventorySeconds ?? 0),
-      label: label,
-      downstreamWorkingDay: productivePerDay,
-      waitUnit: node.inventoryUnit,
-    );
-  }
-
-  // A quantity buffer is `pieces × takt` (DESIGN.md §5.5) — days of stock at
-  // the rate the parts drain.
-  //
-  // The **line's** takt, deliberately, never a downstream step's own equivalent:
-  // stock drains at the rate units leave the line, and a step's equivalent is a
-  // yardstick for balancing the equivalent part, not a local production rate.
-  final quantity = node.inventoryQuantity ?? 0;
-  final perPiece = takt == null || productivePerDay == null
-      ? Duration.zero
-      : takt.equivalentAt(productivePerDay);
-
-  return FlowInventoryView(
-    node,
-    wait: perPiece * quantity,
-    quantity: quantity,
-    label: label,
-    downstreamWorkingDay: productivePerDay,
-  );
-}
-
 /// Walks one order through the flow from [from], returning when it finishes.
 ///
 /// A **walk, not a conversion**: process time is spent in its own station's
-/// open hours, a working-time buffer in the hours of the station it feeds, and
-/// a calendar buffer on the wall clock, weekends included. That is the whole
-/// point — the gap between this and the working-time lead time is the closed
-/// time, and no ratio can produce it.
+/// open hours, and the stock standing in the queue in front of a step is spent
+/// in that same station's hours — or on the wall clock where it is a fixed
+/// wait. That is the whole point — the gap between this and the working-time
+/// lead time is the closed time, and no ratio can produce it.
 ///
 /// Returns null rather than throwing if any step cannot be costed or its
 /// calendar can never open: the map still draws, and the footer shows a dash.
@@ -1055,42 +1144,34 @@ FlowInventoryView _buildInventory({
 /// working as the same number. That is true, and it is the first thing that will
 /// look like a defect.
 ({DateTime end, int runningDays, int workingDays})? _walkCalendar({
-  required List<FlowNodeView> views,
-  required List<FlowNode> nodes,
+  required List<FlowStepView> views,
   required Map<String, WorkcenterContext> contexts,
   required Map<String, List<String>> poolMembers,
   required DateTime from,
 }) {
   var cursor = from;
+  // A target already walked through, so a station two steps of one flow both
+  // visit does not charge its queue twice (§7.3): the plant has one floor space
+  // there, and an order passes through it once per visit but the *stock* stands
+  // there once.
+  final counted = <String>{};
   try {
     for (final view in views) {
-      switch (view) {
-        case FlowStepView(:final processTime):
-          if (processTime == null) return null;
-          final calendar = contexts[_targetOf(view.node, poolMembers)]?.calendar;
-          if (calendar == null) return null;
-          cursor = calendar.advance(cursor, processTime);
+      final calendar = contexts[_targetOf(view.node, poolMembers)]?.calendar;
 
-        case FlowInventoryView(:final wait):
-          if (view.isCalendarWait) {
-            cursor = cursor.add(wait);
-          } else {
-            // Working-time waits run on the calendar of the step they feed —
-            // the same station whose day their `d` is measured in. A buffer at
-            // the end of the flow feeds nothing, so it falls back to the
-            // station it just left; only a flow of buffers alone has no
-            // calendar at all, and then the wall clock is all that is left.
-            final neighbour =
-                _nextStep(nodes, view.position) ??
-                _previousStep(nodes, view.position);
-            final calendar = neighbour == null
-                ? null
-                : contexts[_targetOf(neighbour, poolMembers)]?.calendar;
-            cursor = calendar == null
-                ? cursor.add(wait)
-                : calendar.advance(cursor, wait);
-          }
+      // The queue comes first: an order joins the line in front of the station
+      // before the station touches it.
+      if (view.queue case final queue? when counted.add(queue.targetId)) {
+        if (queue.isCalendarWait || calendar == null) {
+          cursor = cursor.add(queue.wait);
+        } else {
+          cursor = calendar.advance(cursor, queue.wait);
+        }
       }
+
+      if (view.processTime == null) return null;
+      if (calendar == null) return null;
+      cursor = calendar.advance(cursor, view.processTime!);
     }
   } on StateError {
     // A calendar that can never supply the time — every shift unstaffed.
@@ -1100,9 +1181,8 @@ FlowInventoryView _buildInventory({
   // The calendars this flow actually uses, deduplicated by target so a station
   // visited twice is asked once.
   final calendars = <String, WorkingCalendar>{};
-  for (final node in nodes) {
-    if (node.kind != FlowNodeKind.step) continue;
-    final target = _targetOf(node, poolMembers);
+  for (final view in views) {
+    final target = _targetOf(view.node, poolMembers);
     final calendar = contexts[target]?.calendar;
     if (target != null && calendar != null) calendars[target] = calendar;
   }
@@ -1129,25 +1209,6 @@ FlowInventoryView _buildInventory({
   }
 
   return (end: cursor, runningDays: running, workingDays: working);
-}
-
-FlowNode? _previousStep(List<FlowNode> nodes, int beforePosition) {
-  FlowNode? found;
-  for (final node in nodes) {
-    if (node.position < beforePosition && node.kind == FlowNodeKind.step) {
-      found = node;
-    }
-  }
-  return found;
-}
-
-FlowNode? _nextStep(List<FlowNode> nodes, int afterPosition) {
-  for (final node in nodes) {
-    if (node.position > afterPosition && node.kind == FlowNodeKind.step) {
-      return node;
-    }
-  }
-  return null;
 }
 
 String? _targetOf(FlowNode step, Map<String, List<String>> poolMembers) {

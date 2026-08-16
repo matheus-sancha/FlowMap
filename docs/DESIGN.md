@@ -215,55 +215,68 @@ closed form.
 
 ### 5.2 Symbols
 
-- **Semantic** (on the spine, carry data, feed every calculation): Process step, Inventory,
-  Supplier, Customer.
+- **Semantic** (on the spine, carry data, feed every calculation): Process step, Supplier, Customer
+  — and the **queue on the link into each step**, which is not a node (§7.3).
 - **Decorative** (free-placed annotation, never affects numbers): shipment truck, supermarket,
   kanban post, production-control box, information arrows, kaizen burst, operator icon, text note.
 
 Kanban *rules* live in the study's release settings (§7.3), not in the kanban icon — drawing
 documents intent; the number that drives the engine is typed where it can be validated.
 
-**The arrows are derived, never chosen.** Every link on the spine is drawn as one of three things,
-and each is explained by something typed somewhere it could be validated — which is the same rule as
-the kanban icon's, applied to the connections:
+**The arrow is the queue, and the queue type chooses it.** Every link on the spine is drawn from
+something stored where it could be validated — the study's WIP cap, and the discipline on the queue
+in front of the step the link runs into:
 
 | Drawn | When | Why that is honest |
 |---|---|---|
-| **Push** — hatched shaft | the default | With no supermarkets in the model (§5.5) and no WIP cap, material moves downstream whether or not the next step asked. The hatching *is* the mark of a push, so the map now says on purpose what it used to say by accident. |
-| **Pull** — bare shaft | the study has a CONWIP cap (§7.3) | A release that requires a completion is a pull system. It is study-wide, so it reaches every link. |
-| **FIFO lane** — a channel: two rails, `FIFO` between them, a tick in and a solid triangle out | the station the link feeds is **explicitly** set to FIFO (§7.4) | Someone decided that queue runs in arrival order, and a sequenced lane is what that is. |
+| **Push** — hatched shaft, with the inventory triangle beneath it | no discipline is set | Material moves downstream whether or not the next step asked, and piles up where it lands. The hatching *is* the mark of a push; the triangle says how much is standing there. |
+| **Pull** — bare shaft | no discipline, and the study has a CONWIP cap (§7.3) | A release that requires a completion is a pull system. It is study-wide, so it reaches every link. |
+| **A channel** — two rails, the rule's word between them, a tick in and a solid triangle out | the queue is set to FIFO, LIFO, EDD or SPT | Someone decided the order that queue comes off in, and a sequenced lane is what that is. |
 
-**Push and pull share a shaft; a FIFO lane does not.** This section used to say all three were one
+**One channel shape for four rules, labelled.** The FIFO symbol already *is* a channel with `FIFO`
+written in it, so `LIFO`, `EDD` and `SPT` in the same channel extend the convention rather than
+inventing three glyphs — and nothing can be misread as a standard symbol meaning something else.
+_Rejected: a colour per rule._ Cheap and legible on screen, and §13's PDF on a shop-floor wall is
+often greyscale, where colour carrying meaning alone does not survive.
+
+**Push and pull share a shaft; a channel does not.** This section used to say all three were one
 shaft told apart by what went inside it, and the drawing followed: a hatched arrow with a divider
 line and the word written above. That was a principle invented to describe an implementation. A
 reader of a real value stream map recognises a FIFO lane as a *channel* — a fixed width, so it holds
 a sequence rather than a pile; an entry mark and an exit mark that differ, so it has a direction —
-and none of that is available to an arrow. So the lane is its own figure, and the two that genuinely
-are variants of one shaft remain variants of one shaft.
+and none of that is available to an arrow. So the channel is its own figure, and the two that
+genuinely are variants of one shaft remain variants of one shaft.
 
 Its stroke is 1.2 px, the same weight as the factory, the inventory triangle and the pool badge,
 for the reason §1.7 gave the badge: a symbol drawn in a different weight reads as pasted onto the
-map rather than part of it. The lane is sized to the 64 px gap the layout leaves between nodes, and
-drops its label rather than overrunning its own rails when a gap is narrower than the word.
+map rather than part of it. The channel is sized to the 64 px gap the layout leaves between nodes,
+and drops its label rather than overrunning its own rails when a gap is narrower than the word.
 
 - **The kind belongs to the arrow's destination.** A queue forms in front of a station, so it is that
-  station's discipline the lane describes. The last link runs into the customer, which is not a
-  station, and falls back to the study's own kind.
-- **Only an explicit FIFO draws a lane.** Under the default rule every station in the plant
-  dispatches FIFO, so "is this station FIFO" would be true everywhere and a lane on every link would
-  say nothing. A stored row is a decision; an absent one is not (§7.4).
-- **A lane beats the cap on the link it marks.** The cap describes the flow, the lane describes one
-  queue in it, and the more specific of the two is what gets drawn.
+  station's discipline the channel describes. The last link runs into the customer, which is not a
+  station and has no queue, and falls back to the study's own kind.
+- **An unset rule draws a push, not a FIFO.** The engine takes an undisciplined pile in arrival order
+  because something has to be first, so "does this queue behave as FIFO" would be true everywhere and
+  a channel on every link would say nothing. A stored rule is a decision; an absent one is not.
+- **A queue beats the cap on the link it marks.** The cap describes the flow, the queue describes one
+  line in it, and the more specific of the two is what gets drawn.
+- **A shared queue is drawn once.** Two steps of one flow on one station have one floor space between
+  them, so the triangle and its figure go on the first link into it — and the lead-time ladder counts
+  it once. The *discipline* still marks every link into that station: what is deduplicated is the
+  stock, not the rule.
 
-_Rejected: a push/pull/FIFO picker per link._ Total freedom to draw the current state as it really
-is, including flows the engine cannot run — but it creates a second source of truth about the flow,
-free to disagree with the engine, which is exactly what §5.3 exists to prevent.
+_Rejected: a push/pull/FIFO picker per link, storing nothing._ Total freedom to draw the current
+state as it really is, including flows the engine cannot run — but it creates a second source of
+truth about the flow, free to disagree with the engine, which is exactly what §5.3 exists to prevent.
+What §7.3 does instead is make the link the place the *stored* queue is edited, so the picture and
+the engine read one row.
 
 **The printed map labels rather than redraws.** `flow_pdf.dart` builds its map from the `pdf`
 package's own widgets so text stays selectable and the document stays vector; it does not replay
-`VsmSymbols`' paths, and a comment there claiming otherwise has been corrected. A pull link and a
-FIFO lane therefore say `PULL` and `FIFO` under the arrow, and a push says nothing, because a
-caption on every arrow is noise.
+`VsmSymbols`' paths, and a comment there claiming otherwise has been corrected. A pull link says
+`PULL` and a channel writes its own word — the same word the canvas puts between the rails, so the
+two drawings of one map read alike — and a push says nothing, because a caption on every arrow is
+noise.
 
 ### 5.3 Layout
 
@@ -309,7 +322,17 @@ problem in this study" without guessing from coordinates.
 Hence the period navigator (`Aug 2026`) and the timeline selector in the toolbar. A schedule edit
 redraws the map.
 
-### 5.5 Inventory nodes
+### 5.5 The queue in front of a step
+
+**It is not a node.** An inventory used to be a second kind on the spine, between two boxes, with its
+own name, discipline and capacity — so two studies whose flows both reached CLAD07 had one each, and
+the engine simulated two floor spaces where the plant has one. §7.3 is the correction: a queue
+belongs to what a step *targets*, is keyed `{projectId, targetId}`, and is drawn on the link into the
+box rather than in a slot of its own. `FlowNodeKind.inventory` stays parseable because the rows stay
+(§7.3's fold), and nothing constructs one: `StudiesRepository` lost its writers with the model.
+
+**Every step has one**, including a target nobody has configured — which is an unlimited pile with
+nothing standing in it, and is what gives the connector something to click before the first edit.
 
 Two modes:
 
@@ -344,10 +367,27 @@ whether or not the next station is free, and nothing now expresses that — a 24
 modelled as free. It needs a per-node switch saying which of the two a buffer is, and the day a
 plant has one is the day to add it.
 
-**A lane governs the queue in front of the step it feeds.** It carries a **discipline** (§7.4) and a
-**capacity in orders**; when it is full the station behind it has finished an order it cannot put
-down, and stops. That is what the names on a real map mean — `FIFO CEU27` is not a three-day delay,
-it is a channel with a rule and a floor space.
+**The queue carries a discipline** (§7.4) **and a capacity in orders**; when it is full the station
+behind it has finished an order it cannot put down, and stops. That is what the names on a real map
+mean — `FIFO CEU27` is not a three-day delay, it is a channel with a rule and a floor space.
+
+**Where it is edited: on the map, from the connector.** Click the link and set the name, the type,
+the capacity and the stock. It is where the queue is drawn and where it is read, and a planner
+setting a FIFO capacity is looking at the map when they think of it. The dialog **names the target
+and says the queue is shared** by every step that feeds it, which is the answer to the complaint that
+started §7.3 and is not something a reader should have to discover.
+
+_Rejected: editing it on Capacity beside the station schedules._ Same key, same scope, same tab, and
+it would put everything about a station in one place — but reading a rule on one surface and setting
+it on another is the split §6.4 has just finished undoing on the Flow toolbar. _Rejected: both, with
+a bulk table on Capacity._ Better for retuning ten lanes at once, and two write paths into one row is
+how the two come to disagree (§12.6).
+
+**The working-time switch did not come across.** A fixed wait on an inventory node could be declared
+wall-clock or working-time; `project_queues` stores no such flag, so every fixed wait is a calendar
+wait and a quantity is takt-derived and therefore in the station's own hours. That is the honest pair
+— cooling and transport really do run through a Saturday — and inventing the column inside a re-model
+is what the paragraph below already declines to do.
 
 **Blocking is after service.** A station cannot know whether the lane ahead will have room until it
 has something to put down, so it finishes and then waits. While it waits it is neither idle nor

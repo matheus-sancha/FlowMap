@@ -2,15 +2,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database.dart';
+import '../../../data/database/database_providers.dart';
 import '../../calendar/application/shift_pattern_spec.dart' show dateOnly;
 import '../../demand/application/demand_providers.dart';
 import '../../projects/application/projects_providers.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../schedules/application/schedules_providers.dart';
 import '../../studies/application/studies_providers.dart';
+import '../data/flow_queues_repository.dart';
 import 'flow_view.dart';
 
 part 'flow_providers.g.dart';
+
+/// The queue in front of each dispatch target, for one project (§7.3).
+final flowQueuesRepositoryProvider = Provider(
+  (ref) => FlowQueuesRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// Every queue the project has, by target — a workcenter id or a pool id.
+///
+/// Watched whole rather than per step: two studies through CLAD07 read the same
+/// row, and a per-target family would open one subscription per box on the map.
+final projectQueuesProvider =
+    StreamProvider.family<Map<String, ProjectQueue>, String>(
+      (ref, projectId) =>
+          ref.watch(flowQueuesRepositoryProvider).watchQueues(projectId),
+    );
 
 /// The span the map is showing, and how wide it is.
 class ViewedPeriodState {
@@ -153,6 +170,9 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
   );
   if (!taktPeriods.hasValue) return null;
 
+  final queues = ref.watch(projectQueuesProvider(project.id)).value;
+  if (queues == null) return null;
+
   final schedules = ref.watch(schedulesRepositoryProvider);
   final period = ref.watch(viewedPeriodProvider(studyId));
   final dataSource = ref.watch(flowDataSourceSelectionProvider(studyId));
@@ -191,6 +211,7 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
     contexts: contexts,
     pools: {for (final p in pools) p.id: p},
     poolMembers: membership,
+    queues: queues,
     taktSchedule: await schedules.loadTaktSchedule(
       project.id,
       study.productionLineId,
