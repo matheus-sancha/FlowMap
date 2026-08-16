@@ -34,10 +34,11 @@ void main() {
     required DateTime need,
     DateTime? delivered,
     String partId = 'p1',
+    int sequence = 1,
   }) => SimOrderOutcome(
     studyId: studyId,
     orderId: id,
-    sequence: 1,
+    sequence: sequence,
     partId: partId,
     needDate: need,
     released: start,
@@ -250,6 +251,263 @@ void main() {
       // station worked in. The whole-run figures that survive are *columns* of
       // a row, so with no rows there is nothing left to describe.
       expect(view.metrics.workcenters, isEmpty);
+    });
+  });
+
+  /// §7.5's three, which narrow **within** a study where the period is the only
+  /// thing that did before.
+  group('the project, part and order filters (§7.5)', () {
+    /// Three orders across two studies, built to make every claim below
+    /// falsifiable: two parts, two projects and one unbooked order, and the same
+    /// order number in both studies.
+    ///
+    /// | order | study | seq | part | project |
+    /// |---|---|---|---|---|
+    /// | `o1` | a | 0 | PN1 | MANIFOLD |
+    /// | `o2` | a | 1 | PN2 | Global 23 |
+    /// | `o3` | b | 0 | PN1 | *none* |
+    StoredRun booked() {
+      final orders = [
+        outcome('o1', studyId: 'a', need: DateTime(2026, 3, 1), sequence: 0),
+        outcome(
+          'o2',
+          studyId: 'a',
+          need: DateTime(2026, 4, 1),
+          sequence: 1,
+          partId: 'p2',
+        ),
+        outcome('o3', studyId: 'b', need: DateTime(2026, 5, 1), sequence: 0),
+      ];
+      final projects = {'o1': 'MANIFOLD', 'o2': 'Global 23', 'o3': null};
+      final result = SimRunResult(
+        start: start,
+        end: DateTime(2026, 12, 31),
+        guard: DateTime(2027, 1, 1),
+        steps: [step('o1', 'wc-1'), step('o2', 'wc-1'), step('o3', 'wc-2')],
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {'wc-1': Duration(hours: 100)},
+        openByWorkcenter: const {'wc-1': Duration(hours: 200)},
+      );
+
+      return StoredRun(
+        id: 'run-booked',
+        projectId: 'proj-1',
+        createdAt: start,
+        dispatch: DispatchRule.fifo,
+        dispatchOverrides: const [],
+        studies: [
+          study('a', cell: 'cell-1', line: 'line-1'),
+          study('b', cell: 'cell-2', line: 'line-2'),
+        ],
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1', 'p2': 'PN2'},
+          workcenterNames: const {'wc-1': 'CLAD04', 'wc-2': 'TTAT'},
+          theoreticalByOrder: const {},
+        ),
+        plan: [
+          for (final o in orders)
+            ProductionPlanRow(
+              outcome: o,
+              partNumber: o.partId == 'p1' ? 'PN1' : 'PN2',
+              partDescription: null,
+              customerProject: projects[o.orderId],
+              batchNumber: null,
+              batchSize: 1,
+              materialDate: null,
+              theoreticalLeadTime: const Duration(hours: 1),
+            ),
+        ],
+      );
+    }
+
+    Set<String> orderIds(FilteredRun view) => {
+      for (final o in view.result.orders) o.orderId,
+    };
+
+    test('a project filter keeps only that project s orders', () {
+      final view = filterRun(
+        booked(),
+        const RunFilter(customerProjects: {'MANIFOLD'}),
+      );
+
+      expect(orderIds(view), {'o1'});
+      expect(view.isWholeRun, isFalse);
+      // The steps follow the orders, which is what makes every table narrow
+      // rather than only the count at the top.
+      expect(view.result.steps.map((s) => s.orderId), ['o1']);
+      expect(view.plan.map((r) => r.outcome.orderId), ['o1']);
+    });
+
+    test('two projects are a union, not an intersection', () {
+      final view = filterRun(
+        booked(),
+        const RunFilter(customerProjects: {'MANIFOLD', 'Global 23'}),
+      );
+
+      expect(orderIds(view), {'o1', 'o2'});
+    });
+
+    test('the unbooked orders are selectable, and are not in any project', () {
+      // 11 % of the live database is this order. Offering the real names while
+      // silently dropping it from all of them would hide a ninth of the run.
+      expect(
+        orderIds(
+          filterRun(
+            booked(),
+            const RunFilter(customerProjects: {RunFilter.noProject}),
+          ),
+        ),
+        {'o3'},
+      );
+      // And it is not swept up by a named project.
+      expect(
+        orderIds(
+          filterRun(
+            booked(),
+            const RunFilter(customerProjects: {'MANIFOLD'}),
+          ),
+        ),
+        isNot(contains('o3')),
+      );
+    });
+
+    test('a part filter reads the number off the metrics', () {
+      expect(
+        orderIds(filterRun(booked(), const RunFilter(partNumbers: {'PN1'}))),
+        {'o1', 'o3'},
+      );
+      expect(
+        orderIds(filterRun(booked(), const RunFilter(partNumbers: {'PN2'}))),
+        {'o2'},
+      );
+    });
+
+    test('an order number names one order in every study, and says so by '
+        'doing it', () {
+      // The whole reason §7.5 refused to pretend this picks one thing: `o1` and
+      // `o3` are both order 1, in different studies.
+      expect(
+        orderIds(filterRun(booked(), const RunFilter(orderNumbers: {1}))),
+        {'o1', 'o3'},
+      );
+      // And combining with the study filter is what narrows it to one.
+      expect(
+        orderIds(
+          filterRun(
+            booked(),
+            const RunFilter(orderNumbers: {1}, studyIds: {'a'}),
+          ),
+        ),
+        {'o1'},
+      );
+    });
+
+    test('the order number is 1-based, as the column is', () {
+      // `o2` is sequence 1 and is therefore order **2**. Off by one here would
+      // silently select the neighbour of whatever was asked for.
+      expect(
+        orderIds(filterRun(booked(), const RunFilter(orderNumbers: {2}))),
+        {'o2'},
+      );
+    });
+
+    test('the three combine, and combine as an and', () {
+      expect(
+        orderIds(
+          filterRun(
+            booked(),
+            const RunFilter(
+              customerProjects: {'MANIFOLD', 'Global 23'},
+              partNumbers: {'PN1'},
+            ),
+          ),
+        ),
+        {'o1'},
+      );
+      // Nothing satisfies both.
+      expect(
+        orderIds(
+          filterRun(
+            booked(),
+            const RunFilter(
+              customerProjects: {'MANIFOLD'},
+              partNumbers: {'PN2'},
+            ),
+          ),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('order-level figures recompute over the slice', () {
+      final view = filterRun(
+        booked(),
+        const RunFilter(partNumbers: {'PN1'}),
+      );
+
+      expect(view.metrics.orders, 2);
+      // And the stations narrow with them: PN1 never went through wc-2's
+      // sibling, so only the stations these two orders touched have rows.
+      expect(
+        view.metrics.workcenters.map((w) => w.name).toSet(),
+        {'CLAD04', 'TTAT'},
+      );
+      expect(view.stationsAreWholeRun, isTrue);
+    });
+
+    test('each of the three makes the signature different', () {
+      // Without this the chart keeps drawing the slice before last, because the
+      // run id and the studies are unchanged by all three.
+      final base = filterRun(booked(), const RunFilter()).signature;
+      final byProject = filterRun(
+        booked(),
+        const RunFilter(customerProjects: {'MANIFOLD'}),
+      ).signature;
+      final byPart = filterRun(
+        booked(),
+        const RunFilter(partNumbers: {'PN1'}),
+      ).signature;
+      final byOrder = filterRun(
+        booked(),
+        const RunFilter(orderNumbers: {1}),
+      ).signature;
+
+      expect({base, byProject, byPart, byOrder}, hasLength(4));
+    });
+
+    test('none of them is the whole run, and no filter still is', () {
+      expect(filterRun(booked(), const RunFilter()).isWholeRun, isTrue);
+      for (final filter in const [
+        RunFilter(customerProjects: {'MANIFOLD'}),
+        RunFilter(partNumbers: {'PN1'}),
+        RunFilter(orderNumbers: {1}),
+      ]) {
+        expect(filterRun(booked(), filter).isWholeRun, isFalse);
+        expect(filter.narrowsOrders, isTrue);
+      }
+    });
+
+    test('a run stored before v12 has no project to match', () {
+      // Every plan row answers null, so a named project selects nothing and
+      // `(none)` selects everything — both true, neither inventing a project.
+      final legacy = run(); // its plan carries `customerProject: null`
+      expect(
+        filterRun(
+          legacy,
+          const RunFilter(customerProjects: {'MANIFOLD'}),
+        ).result.orders,
+        isEmpty,
+      );
+      expect(
+        filterRun(
+          legacy,
+          const RunFilter(customerProjects: {RunFilter.noProject}),
+        ).result.orders,
+        hasLength(3),
+      );
     });
   });
 }

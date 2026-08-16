@@ -8,6 +8,7 @@ import '../../resources/application/resources_providers.dart';
 import '../../studies/application/studies_providers.dart';
 import '../application/run_filter.dart';
 import '../application/simulation_providers.dart';
+import '../data/simulation_runs_repository.dart' show StoredRun;
 import 'simulation_tab.dart';
 
 /// The whole project's run, filtered (DESIGN.md §12.1).
@@ -48,12 +49,24 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
   late final Set<String> _studies = {?widget.initialStudyId};
   final _cells = <String>{};
   final _lines = <String>{};
+
+  /// §7.5's three. Unlike the studies, cells and lines above, these are values
+  /// out of the **run** rather than out of the plant — so they have nothing to
+  /// offer until a run exists, and a run replaced by a newer one may not contain
+  /// what is selected.
+  final _projects = <String>{};
+  final _parts = <String>{};
+  final _orders = <int>{};
+
   DateTimeRange? _period;
 
   RunFilter get _filter => RunFilter(
     studyIds: _studies,
     cellIds: _cells,
     lineIds: _lines,
+    customerProjects: _projects,
+    partNumbers: _parts,
+    orderNumbers: _orders,
     from: _period?.start,
     to: _period?.end,
   );
@@ -69,16 +82,30 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
       children: [
         _FilterBar(
           project: widget.project,
+          // The run itself, for the three filters whose options are values in
+          // it rather than parts of the plant.
+          run: runner.value,
           studies: _studies,
           cells: _cells,
           lines: _lines,
+          projects: _projects,
+          parts: _parts,
+          orders: _orders,
           period: _period,
           onChanged: () => setState(() {}),
           onClear: () => setState(() {
             _studies.clear();
             _cells.clear();
             _lines.clear();
+            _projects.clear();
+            _parts.clear();
+            _orders.clear();
             _period = null;
+          }),
+          onOrders: (values) => setState(() {
+            _orders
+              ..clear()
+              ..addAll(values);
           }),
           onPeriod: (range) => setState(() => _period = range),
         ),
@@ -122,22 +149,39 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
 class _FilterBar extends ConsumerWidget {
   const _FilterBar({
     required this.project,
+    required this.run,
     required this.studies,
     required this.cells,
     required this.lines,
+    required this.projects,
+    required this.parts,
+    required this.orders,
     required this.period,
     required this.onChanged,
     required this.onClear,
+    required this.onOrders,
     required this.onPeriod,
   });
 
   final Project project;
+
+  /// Null until a run exists, which is what leaves §7.5's three with nothing to
+  /// offer. **The right dependency rather than an awkward one**: offering a part
+  /// number the run never made would be a filter that returns nothing and looks
+  /// broken, which is the argument §7.10 makes for a run joining to nothing,
+  /// read from the other end.
+  final StoredRun? run;
+
   final Set<String> studies;
   final Set<String> cells;
   final Set<String> lines;
+  final Set<String> projects;
+  final Set<String> parts;
+  final Set<int> orders;
   final DateTimeRange? period;
   final VoidCallback onChanged;
   final VoidCallback onClear;
+  final ValueChanged<Set<int>> onOrders;
   final ValueChanged<DateTimeRange?> onPeriod;
 
   @override
@@ -157,10 +201,39 @@ class _FilterBar extends ConsumerWidget {
       for (final line in plantLines) line.line.id: line.line.name,
     };
 
+    // **From the run, not from the plant** — the values a planner can pick are
+    // the ones this run actually carries. Sorted, so the menus read the same way
+    // twice running.
+    //
+    // The project map is built from the plan and the part map from the metrics,
+    // which is the same split `filterRun` makes and for the same reason: only
+    // the plan carries a project, and the metrics always carry a part number.
+    final projectNames = <String>{
+      for (final row in run?.plan ?? const []) ?row.customerProject,
+    }.toList()..sort();
+    final partNames = <String>{
+      for (final part in run?.metrics.parts ?? const []) part.partNumber,
+    }.toList()..sort();
+
+    // `(no project)` is offered only when the run has an order without one, so
+    // a plant that books everything never sees an option that would select
+    // nothing (§7.5).
+    final anyUnbooked = (run?.plan ?? const []).any(
+      (row) => row.customerProject == null,
+    );
+
+    final projectOptions = <String, String>{
+      if (anyUnbooked) RunFilter.noProject: l10n.simFilterNoProject,
+      for (final name in projectNames) name: name,
+    };
+
     final anyFilter =
         studies.isNotEmpty ||
         cells.isNotEmpty ||
         lines.isNotEmpty ||
+        projects.isNotEmpty ||
+        parts.isNotEmpty ||
+        orders.isNotEmpty ||
         period != null;
 
     return Padding(
@@ -195,6 +268,36 @@ class _FilterBar extends ConsumerWidget {
                     options: linesById,
                     selected: lines,
                     onChanged: onChanged,
+                  ),
+                  const SizedBox(width: 8),
+                  // §7.5's three, after the plant's and before the period, so
+                  // the bar reads outward from what the plant *is* to what this
+                  // run put through it.
+                  _MultiPicker(
+                    label: l10n.simFilterProjects,
+                    options: projectOptions,
+                    selected: projects,
+                    onChanged: onChanged,
+                  ),
+                  const SizedBox(width: 8),
+                  _MultiPicker(
+                    label: l10n.simFilterParts,
+                    options: {for (final name in partNames) name: name},
+                    selected: parts,
+                    onChanged: onChanged,
+                  ),
+                  const SizedBox(width: 8),
+                  // **Typed rather than picked.** A 190-order run would make a
+                  // menu of 190 entries, which is a list to scroll rather than a
+                  // filter to use — and a planner reaching for an order number
+                  // already knows the number.
+                  _OrderNumberField(
+                    values: orders,
+                    enabled: run != null,
+                    studiesInView: studies.isEmpty
+                        ? (run?.studies.length ?? 0)
+                        : studies.length,
+                    onChanged: onOrders,
                   ),
                   const SizedBox(width: 8),
                   _PeriodPicker(period: period, onChanged: onPeriod),
@@ -287,6 +390,114 @@ class _MultiPicker extends StatelessWidget {
         label: Text(
           selected.isEmpty ? '$label · ${l10n.simFilterAll}' : '$label · ${selected.length}',
         ),
+      ),
+    );
+  }
+}
+
+/// The order-number field, which is the one filter control a test cannot reach
+/// by its label — the others are buttons carrying their own text.
+@visibleForTesting
+const orderFilterFieldKey = ValueKey('filter-order-numbers');
+
+/// The order-number filter (§7.5), typed rather than picked.
+///
+/// A 190-order run would make a menu of 190 entries, which is a list to scroll
+/// rather than a filter to use — and a planner reaching for an order number
+/// already knows the number. Commas or spaces separate several.
+///
+/// **It says that a number is not unique.** An order number is a position in
+/// *one* study's release sequence, so with two studies in view `5` selects order
+/// five of each — every 190-order run in the live database has each number
+/// twice. Narrowing to one is what the Studies filter beside it is for, and the
+/// field says so rather than letting the reader assume it found one thing.
+class _OrderNumberField extends StatefulWidget {
+  const _OrderNumberField({
+    required this.values,
+    required this.enabled,
+    required this.studiesInView,
+    required this.onChanged,
+  });
+
+  final Set<int> values;
+  final bool enabled;
+
+  /// How many studies the rest of the filter leaves in view, which is how many
+  /// orders one number names.
+  final int studiesInView;
+
+  final ValueChanged<Set<int>> onChanged;
+
+  @override
+  State<_OrderNumberField> createState() => _OrderNumberFieldState();
+}
+
+class _OrderNumberFieldState extends State<_OrderNumberField> {
+  late final _controller = TextEditingController(text: _format(widget.values));
+
+  static String _format(Set<int> values) =>
+      (values.toList()..sort()).join(', ');
+
+  /// **Anything that is not a positive number is dropped, not refused.** The
+  /// field narrows a view rather than writing a row, so §9.2's "forgiving is not
+  /// guessing" applies at its most forgiving end: a half-typed `5,` means five
+  /// while the comma is being typed, and stopping to complain about it would
+  /// fight the reader mid-keystroke.
+  static Set<int> _parse(String text) => {
+    for (final piece in text.split(RegExp(r'[,;\s]+')))
+      if (int.tryParse(piece.trim()) case final n? when n > 0) n,
+  };
+
+  @override
+  void didUpdateWidget(_OrderNumberField old) {
+    super.didUpdateWidget(old);
+    // Cleared from outside — the Clear button — rather than by typing.
+    if (widget.values.isEmpty && _parse(_controller.text).isNotEmpty) {
+      _controller.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final ambiguous = widget.values.isNotEmpty && widget.studiesInView > 1;
+
+    return SizedBox(
+      width: 168,
+      child: TextField(
+        key: orderFilterFieldKey,
+        controller: _controller,
+        enabled: widget.enabled,
+        decoration: InputDecoration(
+          isDense: true,
+          border: const OutlineInputBorder(),
+          labelText: l10n.simFilterOrders,
+          hintText: l10n.simFilterOrdersHint,
+          // Said only while it is true, which is the rule the Gantt's floored-bar
+          // note already follows: a permanent caveat is one a reader stops
+          // seeing.
+          helperText: ambiguous
+              ? l10n.simFilterOrdersEachStudy(widget.studiesInView)
+              : null,
+          helperMaxLines: 3,
+          suffixIcon: widget.values.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 16),
+                  onPressed: () {
+                    _controller.clear();
+                    widget.onChanged(const {});
+                  },
+                ),
+        ),
+        keyboardType: TextInputType.number,
+        onChanged: (text) => widget.onChanged(_parse(text)),
       ),
     );
   }

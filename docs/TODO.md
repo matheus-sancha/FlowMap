@@ -1494,13 +1494,24 @@ for a run joining to nothing.
    only one of the three a reader can check without a filter or a click, which is why it was first;
    not, as this list said, because it closes a defect. There is no defect; see above.
 2. ~~**Select a bar, follow the order.**~~ **Done.**
-3. **The three filters**, which is the one that touches `RunFilter`, `filterRun`, `signature`, the
-   filter bar and three `.arb` files.
+3. ~~**The three filters**~~, which is the one that touches `RunFilter`, `filterRun`, `signature`, the
+   filter bar and three `.arb` files. **Done.**
 
-**Neither of the first two has been driven.** Both are asserted by widget tests that never paint a
-pixel (§2.7), so what is untested is the whole visual question: whether the dimmed plant is still
-readable behind the followed order, and whether the card is too tall now that it can carry two more
-lines. They go in the same sitting as the label column's clamp.
+**None of the three has been driven.** All are asserted by tests that never paint a pixel (§2.7), so
+what is untested is every visual question they raise, and they go in the same sitting as the label
+column's clamp:
+
+- [ ] **Whether the dimmed plant is still readable** behind the followed order, at 0.16 for a bar and
+      0.08 for a stay. Too low and the context the selection exists to give is gone; too high and the
+      followed order does not stand out. Look at the 231-step run, where the bars are dense.
+- [ ] **Whether the card is too tall** now that it can carry a description and a project — it grew by
+      two lines and `_cardHeight` went 132 → 168.
+- [ ] **Whether the filter bar still fits.** It has seven controls now and scrolls horizontally; the
+      widget tests had to start calling `ensureVisible` to reach the later ones, which is the test
+      suite noticing a thing a reader will notice too. If the bar needs to wrap or the pickers need
+      to be narrower, this is where it shows.
+- [ ] **The order field against the real 190-order run**, which is the only place the ambiguity is
+      real: order 1 exists in both studies, so typing `1` must light two rows and say why.
 
 ---
 

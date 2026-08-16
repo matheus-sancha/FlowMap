@@ -2496,6 +2496,42 @@ abstract class AppLocalizations {
   /// **'all'**
   String get simFilterAll;
 
+  /// No description provided for @simFilterProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get simFilterProjects;
+
+  /// No description provided for @simFilterParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Part numbers'**
+  String get simFilterParts;
+
+  /// No description provided for @simFilterOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get simFilterOrders;
+
+  /// No description provided for @simFilterOrdersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 5, 12'**
+  String get simFilterOrdersHint;
+
+  /// No description provided for @simFilterNoProject.
+  ///
+  /// In en, this message translates to:
+  /// **'(no project)'**
+  String get simFilterNoProject;
+
+  /// No description provided for @simFilterOrdersEachStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Order numbers repeat in every study — {count} studies are in view'**
+  String simFilterOrdersEachStudy(int count);
+
   /// No description provided for @simFilterClear.
   ///
   /// In en, this message translates to:

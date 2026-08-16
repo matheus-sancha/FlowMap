@@ -208,6 +208,21 @@ void main() {
     );
   }
 
+  /// Opens the filter bar's picker labelled [label].
+  ///
+  /// **`ensureVisible` first, because the bar scrolls now.** §7.5 put three more
+  /// controls on it, so on an 800 px test surface the later ones start off the
+  /// right-hand edge — and a tap computed against an off-screen centre lands on
+  /// whatever is there instead, which is a test that fails for a reason that has
+  /// nothing to do with what it is asserting.
+  Future<void> openPicker(WidgetTester tester, String label) async {
+    final button = find.textContaining(label);
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pump(
     WidgetTester tester, {
     required SimRunInput assembled,
@@ -806,6 +821,161 @@ void main() {
 
     expect(find.text('KEPT-1'), findsWidgets);
     expect(find.text('DROPPED-2'), findsNothing);
+  });
+
+  /// §7.5's three, driven through their controls.
+  ///
+  /// `run_filter_test` asserts what they *mean*; these assert that the bar is
+  /// wired to them — which is the half the field reported missing the last time
+  /// a picker was added and did nothing.
+  group('the project, part and order filters (§7.5)', () {
+    /// The two-study plan run with the two orders booked to different customer
+    /// projects, and one left unbooked would be a third study — so this keeps
+    /// to two and the unbooked case stays in `run_filter_test`.
+    /// **Its metrics and its plan agree about the part numbers**, which
+    /// `twoStudyPlanRun` deliberately does not: that one calls both parts `PN2`
+    /// in the metrics to exercise §8.1.2's Study column while naming them
+    /// differently on the plan. A part filter reads the metrics and the plan
+    /// table shows the plan, so a fixture where the two disagree can only assert
+    /// its own inconsistency. `loadRun` builds both from one set of rows.
+    StoredRun bookedPlanRun() {
+      final base = twoStudyPlanRun();
+      const numbers = {'part-1': 'KEPT-1', 'part-2': 'DROPPED-2'};
+      return StoredRun(
+        id: base.id,
+        projectId: base.projectId,
+        createdAt: base.createdAt,
+        dispatch: base.dispatch,
+        dispatchOverrides: base.dispatchOverrides,
+        studies: base.studies,
+        result: base.result,
+        metrics: summariseRun(
+          result: base.result,
+          partNumbers: numbers,
+          workcenterNames: const {'wc-1': 'CLAD04'},
+          theoreticalByOrder: const {},
+        ),
+        plan: [
+          for (final row in base.plan)
+            ProductionPlanRow(
+              outcome: row.outcome,
+              partNumber: numbers[row.outcome.partId]!,
+              partDescription: row.partDescription,
+              customerProject: row.outcome.studyId == 'study-1'
+                  ? 'MANIFOLD'
+                  : 'Global 23',
+              batchNumber: row.batchNumber,
+              batchSize: row.batchSize,
+              materialDate: row.materialDate,
+              theoreticalLeadTime: row.theoreticalLeadTime,
+            ),
+        ],
+      );
+    }
+
+    Future<void> pumpBooked(WidgetTester tester) => pump(
+      tester,
+      assembled: input(
+        readiness: const [
+          StudyReadiness(studyId: 'study-1', name: 'Celula 11B', problems: []),
+        ],
+      ),
+      run: bookedPlanRun(),
+    );
+
+    testWidgets('checking a project narrows the page', (tester) async {
+      await pumpBooked(tester);
+
+      expect(find.text('KEPT-1'), findsWidgets);
+      expect(find.text('DROPPED-2'), findsWidgets);
+
+      await openPicker(tester, 'Projects');
+      // **Through the menu item, not through the text.** The plan table has a
+      // Project column, so `MANIFOLD` is on screen twice and the plain finder
+      // was tapping a table cell — a filter that never applied, failing as
+      // though the wiring were wrong.
+      await tester.tap(find.widgetWithText(CheckboxMenuButton, 'MANIFOLD'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('KEPT-1'), findsWidgets);
+      expect(find.text('DROPPED-2'), findsNothing);
+    });
+
+    testWidgets('the projects offered are the run s, not the plant s', (
+      tester,
+    ) async {
+      await pumpBooked(tester);
+
+      await openPicker(tester, 'Projects');
+
+      // Both, and nothing else — in particular no `(no project)`, because every
+      // order in this run is booked to one.
+      expect(find.widgetWithText(CheckboxMenuButton, 'MANIFOLD'), findsOne);
+      expect(find.widgetWithText(CheckboxMenuButton, 'Global 23'), findsOne);
+      expect(
+        find.widgetWithText(CheckboxMenuButton, '(no project)'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('checking a part number narrows the page', (tester) async {
+      await pumpBooked(tester);
+
+      await openPicker(tester, 'Part numbers');
+      await tester.tap(find.widgetWithText(CheckboxMenuButton, 'KEPT-1'));
+      await tester.pumpAndSettle();
+
+      // **Close it before looking.** The menu deliberately stays open so several
+      // can be ticked in one visit, and `DROPPED-2` is one of its own entries —
+      // so asserting over the whole tree with it open is asserting about the
+      // menu rather than about the page under it.
+      await openPicker(tester, 'Part numbers');
+
+      expect(find.text('DROPPED-2'), findsNothing);
+      expect(find.text('KEPT-1'), findsWidgets);
+    });
+
+    testWidgets('typing an order number narrows the page, and one number is '
+        'two orders', (tester) async {
+      // Both orders in this run are `sequence: 0`, so both are order 1 — the
+      // collision §7.5 found in the database, reproduced in a fixture.
+      await pumpBooked(tester);
+
+      await tester.enterText(find.byKey(orderFilterFieldKey), '1');
+      await tester.pumpAndSettle();
+
+      // One number, both studies' orders — and the field says why.
+      expect(find.text('KEPT-1'), findsWidgets);
+      expect(find.text('DROPPED-2'), findsWidgets);
+      expect(find.textContaining('repeat in every study'), findsOne);
+
+      // Order 2 is nobody, and an empty slice is empty rather than whole.
+      await tester.enterText(find.byKey(orderFilterFieldKey), '2');
+      await tester.pumpAndSettle();
+
+      expect(find.text('KEPT-1'), findsNothing);
+      expect(find.text('DROPPED-2'), findsNothing);
+    });
+
+    testWidgets('clearing the filters empties the order field too', (
+      tester,
+    ) async {
+      await pumpBooked(tester);
+
+      await tester.enterText(find.byKey(orderFilterFieldKey), '2');
+      await tester.pumpAndSettle();
+      expect(find.text('KEPT-1'), findsNothing);
+
+      await tester.ensureVisible(find.text('Clear filters'));
+      await tester.tap(find.text('Clear filters'));
+      await tester.pumpAndSettle();
+
+      // The text went with the filter. A field still reading `2` over an
+      // unfiltered page is the two-write-paths disagreement §12.6 warns about,
+      // one level down.
+      expect(find.text('KEPT-1'), findsWidgets);
+      expect(find.text('DROPPED-2'), findsWidgets);
+    });
   });
 }
 

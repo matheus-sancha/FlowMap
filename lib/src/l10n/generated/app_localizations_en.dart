@@ -1356,6 +1356,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simFilterAll => 'all';
 
   @override
+  String get simFilterProjects => 'Projects';
+
+  @override
+  String get simFilterParts => 'Part numbers';
+
+  @override
+  String get simFilterOrders => 'Orders';
+
+  @override
+  String get simFilterOrdersHint => 'e.g. 5, 12';
+
+  @override
+  String get simFilterNoProject => '(no project)';
+
+  @override
+  String simFilterOrdersEachStudy(int count) {
+    return 'Order numbers repeat in every study — $count studies are in view';
+  }
+
+  @override
   String get simFilterClear => 'Clear filters';
 
   @override

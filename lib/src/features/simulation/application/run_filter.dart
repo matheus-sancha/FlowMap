@@ -28,12 +28,25 @@ class RunFilter {
     this.studyIds = const {},
     this.cellIds = const {},
     this.lineIds = const {},
+    this.customerProjects = const {},
+    this.partNumbers = const {},
+    this.orderNumbers = const {},
     this.from,
     this.to,
   });
 
   /// One study, for its own Simulation tab.
   RunFilter.study(String studyId) : this(studyIds: {studyId});
+
+  /// What [customerProjects] holds for *no* project.
+  ///
+  /// 11 % of the live database's orders have none, so "orders not booked to a
+  /// project" is a slice a planner can legitimately want — and offering the
+  /// eighteen real names while silently dropping those orders from every one of
+  /// them would be a filter that hides a ninth of the run without saying so.
+  /// The empty string, because a project named `''` cannot exist: the column is
+  /// either null or something a user typed.
+  static const noProject = '';
 
   final Set<String> studyIds;
 
@@ -42,6 +55,29 @@ class RunFilter {
   /// narrowed this way — the studies are, and their stations follow.
   final Set<String> cellIds;
   final Set<String> lineIds;
+
+  /// The customer project the order is for — `MANIFOLD`, `Global 23` (§7.5).
+  ///
+  /// **The order's, not the part's** (§16.15), and therefore read off the run's
+  /// plan rather than off its metrics: the plan is the only projection that
+  /// carries it. [noProject] stands for the orders that have none.
+  final Set<String> customerProjects;
+
+  /// Part numbers, as the run recorded them.
+  ///
+  /// **Read from the metrics, not from the plan**, for the reason the part-name
+  /// mapping below already is: the metrics always carry it and the plan is a
+  /// projection this file should not depend on twice over.
+  final Set<String> partNumbers;
+
+  /// Positions in a study's release sequence, 1-based — the `Order` column.
+  ///
+  /// **One number can name several orders, and that is intended.** The sequence
+  /// is dense *per study* (§16.15), so on a two-study run `5` is order five of
+  /// each, and every 190-order run in the live database has each number twice.
+  /// Narrowing to one is what combining this with [studyIds] is for; the surface
+  /// offering it has to say so rather than implying it found one thing.
+  final Set<int> orderNumbers;
 
   /// The period, **by need date**.
   ///
@@ -57,10 +93,23 @@ class RunFilter {
       studyIds.isEmpty &&
       cellIds.isEmpty &&
       lineIds.isEmpty &&
+      customerProjects.isEmpty &&
+      partNumbers.isEmpty &&
+      orderNumbers.isEmpty &&
       from == null &&
       to == null;
 
-  bool get narrowsOrders => from != null || to != null;
+  /// Whether orders are dropped for a reason that is not their study.
+  ///
+  /// The period was the only such reason until §7.5; the three below narrow
+  /// **within** a study exactly as it does, so a slice can now hold some of a
+  /// study's orders rather than all or none of them.
+  bool get narrowsOrders =>
+      from != null ||
+      to != null ||
+      customerProjects.isNotEmpty ||
+      partNumbers.isNotEmpty ||
+      orderNumbers.isNotEmpty;
 
   bool includesDate(DateTime date) {
     if (from != null && date.isBefore(from!)) return false;
@@ -110,7 +159,12 @@ class FilteredRun {
   /// drawing the slice before last.
   String get signature =>
       '${run.id}|${(studyIds.toList()..sort()).join(',')}'
-      '|${filter.from?.millisecondsSinceEpoch}|${filter.to?.millisecondsSinceEpoch}';
+      '|${filter.from?.millisecondsSinceEpoch}|${filter.to?.millisecondsSinceEpoch}'
+      // §7.5's three, or a chart would keep drawing the slice before last on
+      // every filter that narrows within a study rather than across studies.
+      '|${(filter.customerProjects.toList()..sort()).join(',')}'
+      '|${(filter.partNumbers.toList()..sort()).join(',')}'
+      '|${(filter.orderNumbers.toList()..sort()).join(',')}';
 }
 
 /// Reads [run] through [filter].
@@ -146,8 +200,45 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
 
   bool keepsStudy(String studyId) => allowed == null || allowed.contains(studyId);
 
+  // **Two sources, and the split is deliberate.** A part number is on the
+  // metrics, which every run has; the customer project is on the plan, which is
+  // the only projection carrying it (§7.5). Both are built once here rather than
+  // searched per order — a §14-scale run is 2000 orders and this is called on
+  // every keystroke of the filter bar.
+  final partNumberOf = {
+    for (final part in run.metrics.parts) part.partId: part.partNumber,
+  };
+  final projectOf = {
+    for (final row in run.plan) row.outcome.orderId: row.customerProject,
+  };
+
+  bool keepsProject(SimOrderOutcome outcome) {
+    if (filter.customerProjects.isEmpty) return true;
+    // **An order the plan cannot answer for is treated as having none**, which
+    // is the same answer a stored-before-v12 run gives for every order — so a
+    // project filter on such a run selects nothing rather than everything, and
+    // `(none)` selects all of it. Both readings are true; neither invents a
+    // project the run never recorded.
+    final project = projectOf[outcome.orderId] ?? RunFilter.noProject;
+    return filter.customerProjects.contains(project);
+  }
+
+  bool keepsPart(SimOrderOutcome outcome) =>
+      filter.partNumbers.isEmpty ||
+      filter.partNumbers.contains(partNumberOf[outcome.partId]);
+
+  // 1-based, as `ProductionPlanRow.orderNumber` and the demand grid's row
+  // header are, so the number typed is the number read off the screen.
+  bool keepsOrderNumber(SimOrderOutcome outcome) =>
+      filter.orderNumbers.isEmpty ||
+      filter.orderNumbers.contains(outcome.sequence + 1);
+
   bool keepsOrder(SimOrderOutcome outcome) =>
-      keepsStudy(outcome.studyId) && filter.includesDate(outcome.needDate);
+      keepsStudy(outcome.studyId) &&
+      filter.includesDate(outcome.needDate) &&
+      keepsProject(outcome) &&
+      keepsPart(outcome) &&
+      keepsOrderNumber(outcome);
 
   final orders = run.result.orders.where(keepsOrder).toList();
   final keptOrderIds = {for (final outcome in orders) outcome.orderId};
@@ -162,6 +253,13 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
         if (keptOrderIds.contains(step.orderId)) step,
     ],
     orders: orders,
+    // **Still only by study and date, and §7.5's three deliberately do not
+    // reach them.** An empty slot is a release opportunity nobody took, so it
+    // carries a study and an instant and no order at all — there is no part to
+    // match, no project it was for and no position in a sequence it never
+    // entered. Narrowing them by a part filter would mean inventing which part
+    // the slot *would* have carried, and the honest reading is that a study's
+    // unused cadence is a fact about the study.
     emptySlots: [
       for (final slot in run.result.emptySlots)
         if (keepsStudy(slot.studyId) && filter.includesDate(slot.at))

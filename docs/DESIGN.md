@@ -1678,6 +1678,36 @@ Two rules that only writing it settled, both of which had already gone wrong onc
   (§16.18), and treating a blank as a wildcard would make a filtered view silently describe studies
   nobody asked for.
 
+**Three more filters, and they narrow *within* a study** (§7.5). Customer project, part number and
+order number join the studies, cells, lines and period — so a slice can now hold some of a study's
+orders where before it held all of them or none. Everything downstream follows unchanged, because
+they narrow the same set of orders the period already did.
+
+- **Their options come from the run, not from the plant.** Studies, cells and lines are structure and
+  are offered before a run exists; these three are values the run recorded, so the controls have
+  nothing to offer until there is one. That is the right dependency rather than an awkward one:
+  offering a part number the run never made would be a filter that returns nothing and looks broken,
+  which is §7.10's argument for a run joining to nothing, read from the other end.
+- **The project is read off the plan and the part number off the metrics.** Only the plan carries a
+  customer project (§8.5); the metrics always carry a part number and are what the existing part-name
+  mapping already reads, so neither takes a source it does not have to.
+- **`(no project)` is a value, not a gap.** 11 % of live orders have none, and offering the eighteen
+  real names while silently dropping those orders from every one of them would hide a ninth of the
+  run. It is offered only when the run actually has such an order. An order the plan cannot answer
+  for is read as having none, so a project filter on a pre-v12 run selects nothing and `(no project)`
+  selects all of it — both true, neither inventing a project.
+- **One order number names one order per study, and the field says so.** The sequence is dense per
+  study (§16.15), so `5` is order five of each; every 190-order run stored has each number twice.
+  Combining with the Studies filter is what narrows it to one, and the helper text appears only while
+  more than one study is in view. It is **typed rather than picked** — a 190-entry menu is a list to
+  scroll, not a filter to use — and anything unparseable is dropped rather than refused, because a
+  half-typed `5,` means five while the comma is being typed.
+- **Empty slots are deliberately not narrowed by them.** A slot is a release opportunity nobody took:
+  it carries a study and an instant and no order, so there is no part to match and no project it was
+  for. Narrowing them would mean inventing which part the slot *would* have carried.
+- **All three are in `FilteredRun.signature`**, or a chart would keep drawing the slice before last —
+  the run id and the studies are unchanged by every one of them.
+
 **The Gantt's rows can be narrowed to the stations alone.** The lane bands are what make the chart
 read as a queue; without them it reads as a flow, which is the other thing a reader comes to it for.
 A parameter to `buildGanttChart`, so `barAt`, the hover card and the floored-bar count all follow —
