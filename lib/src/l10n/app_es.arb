@@ -548,6 +548,7 @@
   "simGanttGapHelp": "Una fila por estación, una barra por orden, todos los estudios juntos: una estación se comparte, así que separar el gráfico por estudio la dibujaría parada mientras estaba procesando una orden de otra línea. Una barra es la estación comprometida con esa orden, incluidas las horas cerradas. Un hueco es una estación que no está procesando: cerrada o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.",
   "simGanttOrder": "Orden {number}",
   "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
+  "simGanttProject": "Proyecto",
   "simGanttCommitted": "Comprometida",
   "simGanttWaited": "Espera antes de empezar",
   "simGanttChangeover": "Se pagó un cambio de referencia para empezarla",

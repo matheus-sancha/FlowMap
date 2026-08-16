@@ -1648,6 +1648,9 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get simGanttProject => 'Proyecto';
+
+  @override
   String get simGanttCommitted => 'Comprometida';
 
   @override

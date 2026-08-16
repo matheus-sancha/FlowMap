@@ -78,6 +78,9 @@ void main() {
     // test pumping a second run into the same tree has to give it its own id or
     // it is asserting against the first one's chart.
     String id = 'run-1',
+    // Empty by default, which is what a chart with nothing to say beyond the
+    // steps looks like — and is exactly a run stored before v12 and v13.
+    List<ProductionPlanRow> plan = const [],
   }) {
     final result = SimRunResult(
       start: jan1,
@@ -99,7 +102,7 @@ void main() {
       dispatchOverrides: const [],
       studies: studies,
       result: result,
-      plan: const [],
+      plan: plan,
       metrics: summariseRun(
         result: result,
         partNumbers: partNumbers,
@@ -526,6 +529,162 @@ void main() {
     // that is answered is named (§8.6).
     expect(find.textContaining('A gap is a station not running'), findsOne);
     expect(find.textContaining('Queue table'), findsOne);
+  });
+
+  /// What the card says beyond the run's own steps (§7.5).
+  ///
+  /// Both come off the Production Plan (§8.5), which is where they were stored —
+  /// `customer_project` in v12 and `part_description` in v13 — and neither is
+  /// ever drawn on a bar, so the chart's geometry knows nothing about them.
+  group('the project and the description on the card (§7.5)', () {
+    ProductionPlanRow planRow(
+      SimOrderOutcome outcome, {
+      required String partNumber,
+      String? project,
+      String? description,
+    }) => ProductionPlanRow(
+      outcome: outcome,
+      partNumber: partNumber,
+      partDescription: description,
+      customerProject: project,
+      batchNumber: null,
+      batchSize: null,
+      materialDate: null,
+      theoreticalLeadTime: null,
+    );
+
+    /// The two-day run with the plan the real database would have beside it.
+    StoredRun described({String? project = 'MANIFOLD', String? description = 'PWB 10K 1.0'}) {
+      final base = twoDayRun();
+      return runOf(
+        id: 'run-described',
+        orders: base.result.orders,
+        steps: base.result.steps,
+        plan: [
+          for (final outcome in base.result.orders)
+            planRow(
+              outcome,
+              partNumber: outcome.partId == 'p1' ? 'PN1' : 'PN2',
+              project: project,
+              description: description,
+            ),
+        ],
+      );
+    }
+
+    Future<void> hoverFirstBar(WidgetTester tester, StoredRun run) async {
+      final layout = shownLayout(tester, run);
+      final bar = rowNamed(layout, 'CLAD04').bars.first;
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+      await gesture.moveTo(onBar(tester, bar));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the card names the project and the description', (
+      tester,
+    ) async {
+      final run = described();
+      await pump(tester, run);
+      await hoverFirstBar(tester, run);
+
+      expect(find.text('Project'), findsOne);
+      expect(find.text('MANIFOLD'), findsOne);
+      expect(find.text('PWB 10K 1.0'), findsOne);
+      // And it still says everything it said before.
+      expect(find.text('Order 1  ·  PN1'), findsOne);
+      expect(find.text('Committed'), findsOne);
+    });
+
+    testWidgets('a run stored before v12 leaves the lines out rather than '
+        'blanking them', (tester) async {
+      // Exactly what `loadRun` produces for a pre-v12 run: plan rows that exist
+      // and answer null. A labelled empty value would read as a project called
+      // nothing, which is the one thing worse than not saying.
+      final run = described(project: null, description: null);
+      await pump(tester, run);
+      await hoverFirstBar(tester, run);
+
+      expect(find.text('Order 1  ·  PN1'), findsOne);
+      expect(find.text('Project'), findsNothing);
+    });
+
+    testWidgets('an order with no project keeps its description', (
+      tester,
+    ) async {
+      // 11 % of the live database's orders are this: the run recorded a project
+      // column and this order simply has none.
+      final run = described(project: null);
+      await pump(tester, run);
+      await hoverFirstBar(tester, run);
+
+      expect(find.text('PWB 10K 1.0'), findsOne);
+      expect(find.text('Project'), findsNothing);
+    });
+
+    testWidgets('an order waiting in a lane is asked the same two things', (
+      tester,
+    ) async {
+      // The project and the description belong to the order, not to what it is
+      // standing in front of, so a lane's card answers them exactly as a bar's
+      // does. This is the assertion behind `_orderIdOf` switching on both kinds.
+      final base = twoDayRun();
+      final run = runOf(
+        id: 'run-lane-described',
+        orders: base.result.orders,
+        steps: [
+          for (final step in base.result.steps)
+            if (step.workcenterId == 'W2')
+              SimOrderStep(
+                studyId: step.studyId,
+                orderId: step.orderId,
+                nodeId: step.nodeId,
+                workcenterId: step.workcenterId,
+                queueStart: step.queueStart,
+                processStart: step.processStart,
+                processEnd: step.processEnd,
+                changeoverIncurred: step.changeoverIncurred,
+                laneNodeId: 'lane-1',
+              )
+            else
+              step,
+        ],
+        lanes: const [
+          SimLane(
+            studyId: 'study-1',
+            nodeId: 'lane-1',
+            position: 1,
+            name: 'FIFO CEU27',
+            capacity: 2,
+          ),
+        ],
+        plan: [
+          for (final outcome in base.result.orders)
+            planRow(
+              outcome,
+              partNumber: outcome.partId == 'p1' ? 'PN1' : 'PN2',
+              project: 'MANIFOLD',
+              description: 'PWB 10K 1.0',
+            ),
+        ],
+      );
+
+      await pump(tester, run);
+      final layout = shownLayout(tester, run);
+      final lane = rowNamed(layout, 'FIFO CEU27');
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+      await gesture.moveTo(onBar(tester, lane.visits.first));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Waited before starting'), findsOne);
+      expect(find.text('MANIFOLD'), findsOne);
+      expect(find.text('PWB 10K 1.0'), findsOne);
+    });
   });
 
   /// The frozen label column, once the pool started travelling on the rows.

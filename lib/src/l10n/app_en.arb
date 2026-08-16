@@ -595,6 +595,7 @@
   "simGanttGapHelp": "One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line's order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.",
   "simGanttOrder": "Order {number}",
   "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
+  "simGanttProject": "Project",
   "simGanttCommitted": "Committed",
   "simGanttWaited": "Waited before starting",
   "simGanttChangeover": "A changeover was paid to start it",

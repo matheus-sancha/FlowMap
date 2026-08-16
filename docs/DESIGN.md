@@ -1270,6 +1270,25 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   changes, and it is easier to read for standing still. It names the order, the part, the station,
   the span, the committed duration, the wait before starting, and the changeover at every scale
   including the zooms where the mark on the bar is omitted for want of room.
+
+  It also names **the study, on a run that has more than one**. A part number identifies a part only
+  inside its study (§16.15) and an order number is a position in *one* study's sequence, so on a
+  two-study run `Order 1 · PN1` names two different orders and the study is what tells them apart —
+  §8.1.2's rule for the Parts table's Study column, applied to the card for the same reason.
+
+  And it names **the customer project and the part description** (§7.5). Both come off the Production
+  Plan (§8.5) rather than through `buildGanttChart`: neither is ever drawn on a bar — a bar has room
+  for a part number and an order number and no more — so routing them through the layout would put
+  two label fields into a file whose subject is geometry, and `ProductionPlanRow` in front of an
+  `application/` library that is careful to have no data layer in it. The view reads them off the
+  slice's plan, keyed by order, which is how the plan is keyed and which answers both: the project
+  belongs to the order (§16.15), and the description arrives on the same row.
+
+  **Absent is not blank.** `customer_project` arrived in v12 and `part_description` in v13, so an
+  older run has no answer — and 11 % of live orders genuinely have no project. The line is omitted in
+  both cases rather than labelled with an empty value, which would read as a project called nothing.
+  A stay in a lane is asked the same two questions as a bar, because they belong to the order rather
+  than to what it is standing in front of.
 - **A card, not a painted box**, which is a departure from how the bars are drawn and earns it: the
   text is then localized, themed and findable by a widget test, at no cost to the argument above.
 - **What a gap means is on screen.** A gap is a station not running — closed and starved alike — and

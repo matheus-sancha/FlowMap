@@ -2940,6 +2940,12 @@ abstract class AppLocalizations {
   /// **'Order {number}'**
   String simGanttOrder(String number);
 
+  /// No description provided for @simGanttProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get simGanttProject;
+
   /// No description provided for @simGanttCommitted.
   ///
   /// In en, this message translates to:

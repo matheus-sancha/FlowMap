@@ -67,7 +67,11 @@ const _labelPadding = _labelPaddingLeft + _labelPaddingRight;
 /// pane; being a few pixels out puts it somewhere slightly less convenient,
 /// never off screen.
 const _cardWidth = 300.0;
-const _cardHeight = 132.0;
+
+/// Never exact — the card is `mainAxisSize.min` and a lane's lines are not a
+/// bar's — so it is the tallest the card gets, and it grew by two lines when
+/// the project and the description joined it.
+const _cardHeight = 168.0;
 
 /// The narrowest bar that can carry its own part number.
 const _labelledBarWidth = 46.0;
@@ -91,6 +95,28 @@ const ganttCanvasKey = ValueKey('gantt-canvas');
 
 /// The frozen label column, so a test can measure the width it settled on.
 const ganttLabelsKey = ValueKey('gantt-labels');
+
+/// What the plan knows about an order that the run's steps do not (§8.5).
+///
+/// A class rather than a record so both fields are named at every use, and so
+/// the doc explaining why they are nullable has somewhere to live.
+class _OrderFacts {
+  const _OrderFacts({this.project, this.description});
+
+  /// The customer project this batch is for — `MANIFOLD`, `Global 23`.
+  ///
+  /// **The order's, not the part's.** §16.15 moved it off `demand_parts` on the
+  /// field's own correction: a part is a part, and the project is what a given
+  /// batch of it is for. Null on a run stored before v12, and null for the 11 %
+  /// of live orders that simply have none.
+  final String? project;
+
+  /// The part's own description — `PWB 10K 1.0`. Null before v13.
+  ///
+  /// It identifies nothing: two parts legitimately share one, which is why it
+  /// is a label on the card rather than anything the chart is keyed by.
+  final String? description;
+}
 
 class GanttView extends StatefulWidget {
   const GanttView({super.key, required this.slice});
@@ -135,11 +161,41 @@ class _GanttViewState extends State<GanttView> {
   /// change it.
   double _labelWidth = _labelMinWidth;
 
+  /// What the hover card says about an order beyond what the run's steps do:
+  /// the customer project the batch is for, and the part's own description.
+  ///
+  /// **Read from the plan rather than from the chart**, and deliberately not
+  /// carried on `GanttBar`. Neither is ever drawn on a bar — the canvas has room
+  /// for a part number and an order number and no more — so putting them
+  /// through `buildGanttChart` would push two label fields into a file whose
+  /// subject is geometry, and would put `ProductionPlanRow` in front of an
+  /// `application/` library that is careful to have no data layer in it.
+  ///
+  /// Keyed by order, because that is how `run.plan` is keyed and it answers
+  /// both: the project belongs to the order, and the description reaches this
+  /// map on the same row it is stored on (§8.5).
+  late Map<String, _OrderFacts> _facts;
+
   @override
   void initState() {
     super.initState();
     _chart = _buildChart();
+    _facts = _readFacts();
   }
+
+  /// **Nullable all the way down, and never invented.** `customer_project`
+  /// arrived in v12 and `part_description` in v13, so a run stored before either
+  /// has no answer and the card leaves the line out rather than showing a blank
+  /// one. 11 % of the live database's orders genuinely have no project, which is
+  /// the same absence and reads the same way.
+  Map<String, _OrderFacts> _readFacts() => {
+    for (final row in widget.slice.plan)
+      if (row.customerProject != null || row.partDescription != null)
+        row.outcome.orderId: _OrderFacts(
+          project: row.customerProject,
+          description: row.partDescription,
+        ),
+  };
 
   @override
   void didChangeDependencies() {
@@ -156,6 +212,7 @@ class _GanttViewState extends State<GanttView> {
     // A different run is a different chart, a different fit, and nothing under
     // the pointer.
     _chart = _buildChart();
+    _facts = _readFacts();
     _measureLabels();
     _cached = null;
     _scale = null;
@@ -317,6 +374,7 @@ class _GanttViewState extends State<GanttView> {
                 down: _down,
                 pane: pane,
                 labelWidth: _labelWidth,
+                facts: _facts,
                 hovered: _hovered,
                 onHover: (bar) => setState(() => _hovered = bar),
                 onCtrlScroll: (event) => _zoomAtPointer(event, pane),
@@ -357,6 +415,7 @@ class _Chart extends StatelessWidget {
     required this.down,
     required this.pane,
     required this.labelWidth,
+    required this.facts,
     required this.hovered,
     required this.onHover,
     required this.onCtrlScroll,
@@ -368,6 +427,7 @@ class _Chart extends StatelessWidget {
   final ScrollController down;
   final double pane;
   final double labelWidth;
+  final Map<String, _OrderFacts> facts;
   final GanttHit? hovered;
   final ValueChanged<GanttHit?> onHover;
   final ValueChanged<PointerScrollEvent> onCtrlScroll;
@@ -460,6 +520,7 @@ class _Chart extends StatelessWidget {
                   pane: pane,
                   paneHeight: constraints.maxHeight,
                   labelWidth: labelWidth,
+                  facts: facts[_orderIdOf(bar)],
                   studies: studies,
                   station: _stationOf(layout, bar),
                 ),
@@ -480,6 +541,14 @@ class _Chart extends StatelessWidget {
       hit.bandIndex < layout.rows.length
       ? layout.rows[hit.bandIndex].band.name
       : '';
+
+  /// The order behind a hit, whichever kind it is. A stay in a lane belongs to
+  /// an order exactly as a bar does, so the card says the same two things about
+  /// both — the project and the description are the order's, not the station's.
+  static String _orderIdOf(GanttHit hit) => switch (hit) {
+    GanttPlacedBar(:final bar) => bar.orderId,
+    GanttPlacedVisit(:final visit) => visit.orderId,
+  };
 }
 
 /// Turns ctrl-scroll over the chart into a zoom, and leaves every other scroll
@@ -867,6 +936,7 @@ class _HoverCard extends StatelessWidget {
     required this.pane,
     required this.paneHeight,
     required this.labelWidth,
+    required this.facts,
     required this.studies,
     required this.station,
   });
@@ -891,6 +961,10 @@ class _HoverCard extends StatelessWidget {
   /// The frozen column the card is offset past, which is measured per chart
   /// rather than fixed — so the card follows it instead of assuming a constant.
   final double labelWidth;
+
+  /// The plan's answers for this order, or null on a run stored before they
+  /// were recorded.
+  final _OrderFacts? facts;
 
   final Map<String, String> studies;
   final String station;
@@ -982,10 +1056,27 @@ class _HoverCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  // **Directly under the part number it describes**, and
+                  // indented past the swatch so it reads as a subtitle of the
+                  // title rather than as the first of the facts below. It is a
+                  // label and not a key — two parts legitimately share one — so
+                  // it is dimmed like every other line the reader is not meant
+                  // to identify the bar by.
+                  if (facts?.description case final description?)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 20),
+                      child: _CardLine(text: description),
+                    ),
                   const SizedBox(height: 6),
                   _CardLine(
                     text: study == null ? station : '$station  ·  $study',
                   ),
+                  // What the batch is *for*, which is the order's own answer and
+                  // the reason §16.15 moved it off the part. Omitted rather than
+                  // blanked when the order has none — a labelled empty value
+                  // would read as a project called nothing.
+                  if (facts?.project case final project?)
+                    _CardValue(label: l10n.simGanttProject, value: project),
                   _CardLine(text: l10n.simRunSpan(instant(from), instant(to))),
                   switch (hit) {
                     // What the station was committed to it for.

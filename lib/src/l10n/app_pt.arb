@@ -548,6 +548,7 @@
   "simGanttGapHelp": "Uma linha por estação, uma barra por ordem, todos os estudos juntos: uma estação é compartilhada, então separar o gráfico por estudo a desenharia parada enquanto processava a ordem de outra linha. Uma barra é a estação comprometida com aquela ordem, incluindo as horas fechadas. Um vão é uma estação que não está processando: fechada ou sem material. Quanto desse vão estava sequer aberto é respondido na tabela de filas.",
   "simGanttOrder": "Ordem {number}",
   "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
+  "simGanttProject": "Projeto",
   "simGanttCommitted": "Comprometida",
   "simGanttWaited": "Espera antes de começar",
   "simGanttChangeover": "Houve troca de referência para começá-la",

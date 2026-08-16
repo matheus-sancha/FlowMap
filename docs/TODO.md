@@ -1439,10 +1439,23 @@ implying it found one thing.
 _Rejected: disabling the field until one study is selected._ It can never be ambiguous, and it leaves
 a dead control whose deadness is explained by the state of a different control.
 
-**And that is a defect the hover card has today**, independent of any of this: it reads
-`Order 1 · PN1` for two different orders on every multi-study run stored. The card gains the study
-on a run that has more than one — the rule §8.1.2 already applies to the Parts table's Study column,
-and the legend's, for the same reason.
+**The hover card already handles this, and the claim above that it does not was wrong.** It was
+written up here as a defect — *"it reads `Order 1 · PN1` for two different orders on every
+multi-study run stored"* — and then the code was read: `_HoverCard` resolves
+`studies.length > 1 ? studies[studyId] : null` and puts it on the station line, so the card's second
+line is `CEU27 · Célula 11B` on exactly the runs in question. The rule §8.1.2 applies to the Parts
+table and the legend is already applied here too.
+
+_What is actually left is a presentation nit, and it is worth doing while the card is open:_ the
+**title** line is the ambiguous one. It reads `Order 1 · PN1`, and a reader taking the card's
+headline at face value on a two-study run is reading something that names two orders — the answer is
+one line below. Moving the study into the title, or dropping it there, is a judgement about the
+card's shape rather than a correctness fix, and it does not sequence anything.
+
+_Recorded rather than quietly amended_, because the mistake is instructive: the defect was asserted
+from the schema — order numbers collide across studies, therefore the card must be ambiguous — and
+the card had solved it. §0's rule about citing a build is the same rule one level down. **A claim
+about what the app shows is worth what the reading of the code behind it is worth.**
 
 **Selecting a bar dims every bar that is not that order's, and outlines the ones that are.** Keyed on
 `orderId` rather than on the order number, which is what makes it correct on the runs the paragraph
@@ -1474,9 +1487,9 @@ for a run joining to nothing.
 
 **Three commits, in this order**, because each is separately drivable:
 
-1. **The project and the description reach the Gantt**, and the card qualifies an order by its study
-   on a multi-study run. Closes the defect above, and is the only one of the three that a reader can
-   check without a filter or a click.
+1. **The project and the description reach the Gantt**, on the bar's hover card. The only one of the
+   three a reader can check without a filter or a click, which is why it is first — not, as this list
+   first said, because it closes a defect. There is no defect; see above.
 2. **Select a bar, follow the order.**
 3. **The three filters**, which is the one that touches `RunFilter`, `filterRun`, `signature`, the
    filter bar and three `.arb` files.
