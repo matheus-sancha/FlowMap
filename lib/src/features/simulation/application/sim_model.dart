@@ -80,6 +80,7 @@ class SimStep {
     this.teardownValue,
     this.teardownUnit,
     this.samePartFraction = 0,
+    this.queueStock = Duration.zero,
   });
 
   final String id;
@@ -130,6 +131,19 @@ class SimStep {
   final double samePartFraction;
 
   bool get isPool => candidates.length > 1;
+
+  /// How long the stock in [queue] represents, resolved for **this study**
+  /// (§5.5, §7.9).
+  ///
+  /// A quantity is `pieces × takt` at this step's own productive day, which is
+  /// the same arithmetic the map draws — so a queue's days of stock read alike
+  /// on both. Zero where nothing is standing there.
+  ///
+  /// **The engine does not charge it** and never has: it is an observation of a
+  /// current state, and how long an order really waits is the question a run
+  /// exists to answer (§5.5). What reads it is the walk that says when an order
+  /// must *start*, where the floor space is real and an order has to sit in it.
+  final Duration queueStock;
 
   bool get hasChangeover => setupValue != null || teardownValue != null;
 
@@ -196,7 +210,22 @@ class SimQueue {
     this.name,
     this.rule = DispatchRule.fifo,
     this.capacity,
+    this.stockMode,
+    this.stockQuantity,
+    this.stockSeconds,
   });
+
+  /// What is standing in this queue today, exactly as stored (§5.5).
+  ///
+  /// **Carried raw, and read by nobody but the assembler.** A quantity is
+  /// `pieces × takt`, and a takt belongs to a *study's* line while this queue is
+  /// shared across every study that reaches the target — so the resolution
+  /// happens per study, into [SimStep.queueStock]. The engine still charges
+  /// nothing for it: an order passes straight through and waits, if it waits, in
+  /// the queue where the engine measures it.
+  final InventoryMode? stockMode;
+  final int? stockQuantity;
+  final int? stockSeconds;
 
   /// The workcenter or pool this queue stands in front of. Two steps sharing a
   /// target share this id, and that identity is the whole point.

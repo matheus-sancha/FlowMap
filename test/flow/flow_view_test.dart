@@ -1132,31 +1132,36 @@ void main() {
       );
     });
 
-    test('a fixed wait spends the weekend; a quantity waits it out', () {
-      // **The pair that is left after §7.3.** A fixed wait is a wall-clock wait
-      // — cooling, transport — and runs through a Saturday; a quantity is
-      // takt-derived and is spent in the station's own open hours, so it has to
-      // skip the weekend. The working-time *switch* went with the inventory
-      // node: `project_queues` carries no such flag, and §5.5 leaves a genuine
-      // process delay open rather than inventing the column inside a re-model.
-      final onTheClock = withNodes(
+    test('stock is spent on the wall clock, whichever way it was typed', () {
+      // **Both kinds, and that is what makes the map agree with a run.** §7.9's
+      // walk spends a queue's stock on the wall clock — a pile stands in front
+      // of the machine over the weekend too — so a map that spent a quantity in
+      // working hours would report a different span for the same flow.
+      final fixedWait = withNodes(
         [for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC')],
         queues: [
           queue('WC', mode: InventoryMode.duration, seconds: 48 * 3600),
         ],
       );
-      final inWorkingHours = withNodes(
+      final quantity = withNodes(
         [for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC')],
-        // Two takt-days at a one-day takt: the same 48 h of a station that is
-        // open round the clock on the days it is open at all.
+        // Two takt-days at a one-day takt: the same 48 h.
         queues: [queue('WC', quantity: 2)],
       );
 
-      expect(
-        inWorkingHours.endDate!.isAfter(onTheClock.endDate!),
-        isTrue,
-        reason: 'the wall clock runs through a weekend; working time does not',
-      );
+      expect(quantity.endDate, fixedWait.endDate);
+    });
+
+    test('the work still waits out the weekend', () {
+      // The other half of the same rule: a station's own time is spent in its
+      // open hours, so more work pushes the end date past a closed Saturday
+      // rather than through it.
+      final short = withNodes([step(0, workcenterId: 'WC')]);
+      final long = withNodes([
+        for (var i = 0; i < 6; i++) step(i, workcenterId: 'WC'),
+      ]);
+      expect(long.runningDays! - long.workingDays!, greaterThan(0));
+      expect(long.endDate!.isAfter(short.endDate!), isTrue);
     });
 
     test('an uncostable step yields a dash, not a guess', () {

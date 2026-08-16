@@ -4,22 +4,33 @@
 /// theoretical_LT = Σ_steps (part_pt × batch ÷ availability × (1 + rework))
 /// ```
 ///
-/// **Excludes queueing**, which is the point of the measure: it is the
-/// denominator of Lead Time Efficiency, and the gap between it and what a run
-/// actually observes *is* the queueing. **Excludes changeover** too, because
-/// changeover depends on what ran before and is therefore not a property of the
-/// part.
+/// **One walk, two answers**, because two questions are asked of it and they
+/// want different contents:
 ///
-/// **Excludes inventory**, which it did not until the model was driven against
-/// a real plant. This figure has to stay a floor under what a run observes, or
-/// the efficiency it feeds inverts its meaning — so it can only count what the
-/// engine can also charge, and §5.5's buffers no longer delay a run at all. On
-/// célula 11B they were 14 of both figures' days; counted here and not there,
-/// theoretical would have come out at 35.1 d against an actual of 25.8 d.
+/// * [TheoreticalLeadTime.elapsed] is **when an order has to start** — so it
+///   counts the changeover each step charges and the stock already standing in
+///   each queue, because both are real time an order spends between release and
+///   delivery. This is what the map's headline lead time and the production
+///   plan both report, and it is what the cold start is walked backwards from.
+/// * [TheoreticalLeadTime.workingTime] is **the floor** — step work only. It is
+///   the denominator of Lead Time Efficiency, and the gap between it and what a
+///   run observes *is* the queueing.
+///
+/// **The two must not be confused, and the reason is on the record.** A run
+/// charges nothing for stock (§5.5), so a span that counts it is not a floor
+/// under that run: counting it in the floor once gave célula 11B 35.1
+/// theoretical days against 25.8 actual — an efficiency above 1.0 that §8 says
+/// cannot happen. Keeping both out of one traversal is what stops them drifting
+/// while keeping each honest about its own question.
+///
+/// **Stock is counted once per target.** Two steps of one flow on one station
+/// share a floor space, and the map dedupes it the same way — charging it twice
+/// is the doubling §7.3 exists to undo.
 ///
 /// Walked through the working calendar rather than summed, so it lands on real
 /// dates: forty open hours off a Monday morning is the previous Tuesday, not
-/// the previous Saturday.
+/// the previous Saturday. Stock is spent on the **wall clock**: it is standing
+/// there over the weekend too.
 library;
 
 import '../../calendar/application/effective_time.dart';
@@ -73,6 +84,8 @@ TheoreticalLeadTime? theoreticalLeadTime({
 
   var cursor = from;
   var working = Duration.zero;
+  // One floor space per target, however many steps of this flow feed it.
+  final counted = <String>{};
 
   try {
     for (final node in nodes) {
@@ -94,6 +107,14 @@ TheoreticalLeadTime? theoreticalLeadTime({
             return null;
           }
 
+          // A changeover typed in `days` means this station's productive day
+          // (§7.6), so it has to be resolved before either half is charged.
+          // **Charged in full**: an order walking a plant it has to itself
+          // starts cold, so nothing repeats.
+          final productiveDay =
+              workcenter.calendar.openTimePerWorkingDay(cursor) *
+              workcenter.schedule.availabilityOn(cursor);
+
           // Read on the day the step starts, not once for the whole run: a
           // walk may cross a schedule boundary where availability changes.
           final occupancy = effectiveProcessTime(
@@ -103,7 +124,22 @@ TheoreticalLeadTime? theoreticalLeadTime({
             rework: workcenter.schedule.reworkOn(cursor),
           );
 
-          cursor = workcenter.calendar.advance(cursor, occupancy);
+          // The queue first: an order joins the line in front of the station
+          // before the station touches it. On the wall clock, because stock
+          // stands there whether or not the plant is open.
+          if (counted.add(node.queue.targetId)) {
+            cursor = cursor.add(node.queueStock);
+          }
+
+          cursor = workcenter.calendar.advance(
+            cursor,
+            occupancy +
+                node.setupAt(productiveDay, repeated: false) +
+                node.teardownAt(productiveDay, repeated: false),
+          );
+          // **The floor counts the work and nothing else.** Not the changeover,
+          // which depends on what ran before and is not a property of the part;
+          // not the stock, which a run never charges.
           working += occupancy;
       }
     }
@@ -133,6 +169,7 @@ DateTime? coldStartDate({
   List<TheoreticalLeadTimeProblem>? problems,
 }) {
   var cursor = needDate;
+  final counted = <String>{};
 
   try {
     for (final node in nodes.reversed) {
@@ -150,6 +187,10 @@ DateTime? coldStartDate({
             return null;
           }
 
+          final productiveDay =
+              workcenter.calendar.openTimePerWorkingDay(cursor) *
+              workcenter.schedule.availabilityOn(cursor);
+
           cursor = workcenter.calendar.retreat(
             cursor,
             effectiveProcessTime(
@@ -160,8 +201,16 @@ DateTime? coldStartDate({
               // at one station is not a case worth splitting a step over.
               availability: workcenter.schedule.availabilityOn(cursor),
               rework: workcenter.schedule.reworkOn(cursor),
-            ),
+            ) +
+                node.setupAt(productiveDay, repeated: false) +
+                node.teardownAt(productiveDay, repeated: false),
           );
+
+          // And back through the queue it came out of, on the wall clock —
+          // once per target, exactly as the forward walk counts it.
+          if (counted.add(node.queue.targetId)) {
+            cursor = cursor.subtract(node.queueStock);
+          }
       }
     }
   } on StateError {

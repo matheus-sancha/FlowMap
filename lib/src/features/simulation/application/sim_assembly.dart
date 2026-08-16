@@ -196,6 +196,18 @@ SimStudy? assembleSimStudy({
             queue:
                 resources.queues[demandTargetOf(node)!] ??
                 SimQueue(targetId: demandTargetOf(node)!),
+            // Resolved here rather than on the queue, because a quantity is
+            // `pieces × takt` and the takt belongs to *this* study's line while
+            // the queue is shared with every study that reaches the target
+            // (§7.3). At this step's own productive day, which is the arithmetic
+            // the map draws — so the two report the same days of stock.
+            queueStock: _stockAt(
+              resources.queues[demandTargetOf(node)!],
+              takt: takt,
+              productiveDay:
+                  resources.productivePerWorkingDay[candidates.first] ??
+                  Duration.zero,
+            ),
             // What the machines below are collectively called, where they are
             // a pool at all. `candidates` cannot say it, and §7.10's copy-in
             // rule needs it before the plant can be re-grouped underneath a
@@ -427,4 +439,25 @@ Map<String, StationPool> stationPools(List<SimStudy> studies) {
           name: (entry.value.values.toList()..sort()).join(' · '),
         ),
   };
+}
+
+
+/// How long the stock in [queue] represents (§5.5).
+///
+/// A fixed wait is what was typed. A quantity is `pieces × takt` — days of stock
+/// at the rate the parts drain — resolved at the station the queue feeds, which
+/// is how the map reads it. Zero where nothing is standing there, and zero when
+/// no schedule gives the station a productive day to measure a takt against.
+Duration _stockAt(
+  SimQueue? queue, {
+  required TaktPeriodSpec takt,
+  required Duration productiveDay,
+}) {
+  if (queue == null) return Duration.zero;
+  if (queue.stockMode == InventoryMode.duration) {
+    return Duration(seconds: queue.stockSeconds ?? 0);
+  }
+  final pieces = queue.stockQuantity ?? 0;
+  if (pieces <= 0 || productiveDay == Duration.zero) return Duration.zero;
+  return takt.equivalentAt(productiveDay) * pieces;
 }

@@ -110,6 +110,10 @@ class SimulationRepository {
           name: row.name,
           rule: row.rule ?? DispatchRule.fifo,
           capacity: row.capacity,
+          // Raw, for the assembler to resolve against each study's takt.
+          stockMode: row.stockMode,
+          stockQuantity: row.stockQuantity,
+          stockSeconds: row.stockSeconds,
         ),
     };
 

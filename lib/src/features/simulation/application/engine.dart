@@ -114,10 +114,19 @@ RunPlan planRun({
     if (walked == null) continue;
 
     // The study's own safety margin, on the wall clock (§7.8). Subtracted here
-    // rather than inside the walk: the walk is the queue-free minimum and has
-    // to stay comparable with what the run observes (§7.9), while this is a
-    // deliberate margin on top of it.
-    final candidate = walked.subtract(study.startBuffer);
+    // rather than inside the walk: the walk is the plan for one order and this
+    // is a deliberate margin on top of it.
+    var candidate = walked.subtract(study.startBuffer);
+
+    // **And never before the material lands.** Starting earlier buys nothing:
+    // §7.2 gates every release on `material date ≤ slot`, so slots opened ahead
+    // of the delivery go out empty and the order waits anyway — the run simply
+    // begins with a stretch of empty cadence it could not have used. Only the
+    // first order's date matters here, because it is the one this offset is
+    // walked back from.
+    final material = first.materialDate;
+    if (material != null && material.isAfter(candidate)) candidate = material;
+
     if (start == null || candidate.isBefore(start)) start = candidate;
   }
 

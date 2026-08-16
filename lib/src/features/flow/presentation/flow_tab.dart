@@ -1215,13 +1215,16 @@ class _FooterMetrics extends StatelessWidget {
             // figure reads as exactly 1.4× the working one and a reader can
             // check it. PCE divides the working figure, which is also on
             // screen, so that stays checkable too.
+            // **The walk, not the sum of the rungs.** A lead time has to be in
+            // the unit the run's actual lead time is, or the two cannot be
+            // compared — and comparing them is the whole point of having both.
+            // The rungs still add to `leadTime`, which PCE divides and which the
+            // ladder is drawn in (§17.4).
             _Metric(
               label: l10n.footerLeadTime,
-              value: formatAdaptiveDuration(
-                l10n,
-                view!.leadTime,
-                workingDay: view!.leadTimeWorkingDay,
-              ),
+              value: view!.elapsedLeadTime == null
+                  ? '—'
+                  : formatAdaptiveDuration(l10n, view!.elapsedLeadTime!),
               help: l10n.footerLeadTimeHelp,
             ),
             _Metric(

@@ -876,7 +876,37 @@ per order. The run ends when every order in every selected study is delivered,
 with a hard guard (≈5× the horizon implied by demand) that aborts and reports "demand exceeds
 capacity — N orders never completed" rather than looping forever.
 
-### 7.9 Theoretical lead time
+### 7.9 Theoretical lead time — one walk, two answers
+
+**Two questions are asked of this walk and they want different contents**, so it
+accumulates two figures in one traversal:
+
+- **`elapsed` — when an order has to start.** Counts the step work, the changeover each step
+  charges, and the stock already standing in each queue, walked on the real calendars. This is what
+  the map's headline lead time and the production plan's column both report, and what the cold start
+  is walked backwards from. Stock is spent on the **wall clock**: a pile stands in front of the
+  machine over the weekend too.
+- **`workingTime` — the floor.** Step work only. It is the denominator of Lead Time Efficiency, and
+  the gap between it and what a run observes *is* the queueing. It is computed and never shown as a
+  column, which is the one figure on the metrics card without one.
+
+**Why they cannot be the same number.** A run charges nothing for stock (§5.5), so a span that
+counts it is not a floor under that run — counting it in the floor once gave célula 11B 35.1
+theoretical days against 25.8 actual, an efficiency above 1.0 that §8 says cannot happen. One
+traversal is what stops the two drifting while keeping each honest about its own question.
+
+**Stock is counted once per target.** Two steps of one flow on one station share a floor space, and
+the map dedupes it the same way — charging it twice is the doubling §7.3 exists to undo.
+
+**The map and the plan now report the same walk.** `Flow Lead Time` was work content in productive
+days while `Theoretical LT` was an elapsed span in 24-hour days, excluding stock and changeover and
+using a different batch — five differences, both printed as `d`, and the field reported them as 48.8
+against 23.3 for one part. The map's headline is the walk now; its ladder and `Process time` stay in
+productive days, so **the headline is no longer the sum of the rungs beneath it** (§17.4). That is
+not a defect: elapsed time depends on *when* an order starts, and the same work across a shutdown
+takes longer than it does in June.
+
+### 7.9.1 The original statement
 
 ```
 theoretical_LT(part) = Σ_steps (part_pt × batch ÷ availability × (1 + rework))
