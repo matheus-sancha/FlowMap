@@ -3113,6 +3113,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.'**
   String get flowBatchHelp;
+
+  /// No description provided for @validationNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number'**
+  String get validationNumber;
+
+  /// No description provided for @validationAboveZero.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number above zero'**
+  String get validationAboveZero;
 }
 
 class _AppLocalizationsDelegate

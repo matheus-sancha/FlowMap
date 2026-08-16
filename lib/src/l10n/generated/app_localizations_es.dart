@@ -1759,4 +1759,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get flowBatchHelp =>
       'Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa la estación diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene.';
+
+  @override
+  String get validationNumber => 'Introduce un número';
+
+  @override
+  String get validationAboveZero => 'Introduce un número mayor que cero';
 }

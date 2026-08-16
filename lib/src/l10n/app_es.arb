@@ -582,5 +582,7 @@
   "flowQueueStock": "Lo que hay ahora",
   "queueTypePush": "Empuje \u2014 un mont\u00f3n, sin regla",
   "queueTypeSupermarket": "Supermercado \u2014 todav\u00eda no",
-  "flowBatchHelp": "Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa la estación diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene."
+  "flowBatchHelp": "Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa la estación diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene.",
+  "validationNumber": "Introduce un número",
+  "validationAboveZero": "Introduce un número mayor que cero"
 }

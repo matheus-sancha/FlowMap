@@ -522,6 +522,60 @@ void main() {
       expect(find.text(l10n.stepSamePart), findsOneWidget);
     });
 
+    testWidgets('clearing an optional changeover is not an error', (
+      tester,
+    ) async {
+      // Reported from the field: *"setup and changeover are optional, but when
+      // I delete the value from them the process step input are saying they are
+      // required"*. Emptying the box was already fine; **typing `0` was not**,
+      // and clearing a number very often lands on a zero rather than on an
+      // empty box. A setup of zero is no setup.
+      await open(tester, stepView(setupValue: 30, teardownValue: 10));
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      for (final typed in ['', '0', '0.0']) {
+        await tester.enterText(
+          find.widgetWithText(TextField, '30').hitTestable(),
+          typed,
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(l10n.validationRequired),
+          findsNothing,
+          reason: '"$typed" is a way of saying there is no setup',
+        );
+        expect(
+          find.text(l10n.validationNumber),
+          findsNothing,
+          reason: '"$typed" is a number, or the absence of one',
+        );
+        final save = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, l10n.actionSave),
+        );
+        expect(save.onPressed, isNotNull, reason: 'blocked on "$typed"');
+        await tester.enterText(
+          find.byType(TextField).at(2).hitTestable(),
+          '30',
+        );
+        await tester.pumpAndSettle();
+      }
+    });
+
+    testWidgets('something that is not a number still says so', (tester) async {
+      // The other half: the guard must not be so relaxed that a typo saves.
+      await open(tester, stepView(setupValue: 30));
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      await tester.enterText(find.widgetWithText(TextField, '30'), 'soon');
+      await tester.pumpAndSettle();
+
+      // And it says what is actually wrong, rather than calling an optional
+      // field required.
+      expect(find.text(l10n.validationNumber), findsOneWidget);
+      expect(find.text(l10n.validationRequired), findsNothing);
+    });
+
     testWidgets('a stored percentage comes back with its changeover', (
       tester,
     ) async {

@@ -382,32 +382,37 @@ class _StepDialogState extends State<_StepDialog> {
   static String _formatNumber(double value) =>
       value == value.roundToDouble() ? '${value.round()}' : '$value';
 
-  /// Blank means "follow the line's takt", which is why an empty field is
-  /// valid rather than an error.
-  double? get _equivalentValue {
-    final text = _equivalent.text.trim();
-    if (text.isEmpty) return null;
-    final value = double.tryParse(text.replaceAll(',', '.'));
-    return value != null && value > 0 ? value : null;
-  }
+  /// Blank means "follow the line's takt", and **so does zero**: a step that
+  /// consumes none of the flow's capacity is not a thing to state, so the two
+  /// ways of typing nothing agree rather than one of them erroring.
+  double? get _equivalentValue => _amountOrNull(_equivalent);
 
-  bool get _equivalentInvalid =>
-      _equivalent.text.trim().isNotEmpty && _equivalentValue == null;
+  bool get _equivalentInvalid => _invalid(_equivalent);
 
-  /// Blank means none, so an empty field is valid rather than an error — the
-  /// same rule the Process Specific Takt above already follows.
-  double? _positiveOrNull(TextEditingController controller) {
+  /// **Blank and zero both mean none**, so neither is an error.
+  ///
+  /// Zero used to be refused, and the field then said `Required` on an optional
+  /// field — reported from the field, and the two halves of a changeover are the
+  /// place it bites, because clearing a number very often lands on `0` rather
+  /// than on an empty box. A setup of zero *is* no setup; it is stored as
+  /// nothing, which is what the field already did with a blank.
+  double? _amountOrNull(TextEditingController controller) {
     final text = controller.text.trim();
     if (text.isEmpty) return null;
     final value = double.tryParse(text.replaceAll(',', '.'));
     return value != null && value > 0 ? value : null;
   }
 
-  bool _invalid(TextEditingController controller) =>
-      controller.text.trim().isNotEmpty && _positiveOrNull(controller) == null;
+  /// Only what cannot be read as a duration at all: letters, or a negative.
+  bool _invalid(TextEditingController controller) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return false;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value == null || value < 0;
+  }
 
-  double? get _setupValue => _positiveOrNull(_setup);
-  double? get _teardownValue => _positiveOrNull(_teardown);
+  double? get _setupValue => _amountOrNull(_setup);
+  double? get _teardownValue => _amountOrNull(_teardown);
 
   /// A percentage, so zero is a meaningful answer and the > 0 rule above does
   /// not apply: `0 %` and blank both mean a repeat is free, and a user who
@@ -496,7 +501,7 @@ class _StepDialogState extends State<_StepDialog> {
       stockMode: _stockMode,
       stockQuantity: isDuration
           ? null
-          : int.tryParse(_stockQuantity.text.trim()),
+          : (int.tryParse(_stockQuantity.text.trim()) ?? 0),
       stockSeconds: isDuration
           ? durationFrom(_stockWaitValue ?? 0, _stockUnit).inSeconds
           : null,
@@ -523,11 +528,20 @@ class _StepDialogState extends State<_StepDialog> {
     return value != null && value >= 0 ? value : null;
   }
 
-  bool get _stockInvalid =>
-      _targetId != null &&
-      (_stockMode == InventoryMode.quantity
-          ? (int.tryParse(_stockQuantity.text.trim()) ?? -1) < 0
-          : _stockWaitValue == null);
+  /// An emptied stock field is **nothing standing there**, not an error.
+  ///
+  /// It used to disable Save with no message against it at all, which is worse
+  /// than a wrong message: the button greys out and the dialog does not say why.
+  bool get _stockInvalid {
+    if (_targetId == null) return false;
+    final text = (_stockMode == InventoryMode.quantity ? _stockQuantity
+            : _stockWait)
+        .text
+        .trim();
+    if (text.isEmpty) return false;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value == null || value < 0;
+  }
 
   /// Rewrites the field so the number keeps its meaning when the unit changes:
   /// `48 hours` becomes `2 days`, not `48 days`.
@@ -662,7 +676,7 @@ class _StepDialogState extends State<_StepDialog> {
                     labelText: l10n.stepSamePart,
                     suffixText: '%',
                     suffixIcon: helpIcon(context, l10n.stepSamePartHelp),
-                    errorText: _samePartInvalid ? l10n.validationRequired : null,
+                    errorText: _samePartInvalid ? l10n.validationNumber : null,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -706,8 +720,14 @@ class _StepDialogState extends State<_StepDialog> {
                   decoration: InputDecoration(
                     labelText: l10n.laneCapacity,
                     suffixIcon: helpIcon(context, l10n.laneCapacityHelp),
+                    // **Zero really is refused here**, and this is the one
+                    // field where it is: a queue that holds nothing would stop
+                    // the line for good, and is far more likely to be a typo
+                    // than an intention (§5.5). Blank is unlimited. So the
+                    // message says what is wrong rather than claiming a field
+                    // nobody has to fill in is required.
                     errorText: _queueCapacityInvalid
-                        ? l10n.validationRequired
+                        ? l10n.validationAboveZero
                         : null,
                   ),
                   onChanged: (_) => setState(() {}),
@@ -747,7 +767,7 @@ class _StepDialogState extends State<_StepDialog> {
                     controller: _stockWait,
                     unit: _stockUnit,
                     label: l10n.inventoryWait,
-                    invalid: _stockWaitValue == null,
+                    invalid: _stockInvalid,
                     onChanged: () => setState(() {}),
                     onUnitChanged: _changeStockUnit,
                   ),
@@ -926,7 +946,7 @@ class _ValueAndUnit extends StatelessWidget {
             decoration: InputDecoration(
               labelText: label,
               hintText: hint,
-              errorText: invalid ? l10n.validationRequired : null,
+              errorText: invalid ? l10n.validationNumber : null,
             ),
             onChanged: (_) => onChanged(),
           ),
@@ -1123,7 +1143,7 @@ class _ValueAndUnitDuration extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: label,
-              errorText: invalid ? l10n.validationRequired : null,
+              errorText: invalid ? l10n.validationNumber : null,
             ),
             onChanged: (_) => onChanged(),
           ),
