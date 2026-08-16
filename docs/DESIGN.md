@@ -1291,6 +1291,31 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   than to what it is standing in front of.
 - **A card, not a painted box**, which is a departure from how the bars are drawn and earns it: the
   text is then localized, themed and findable by a widget test, at no cost to the argument above.
+- **Tapping a bar follows its order** (§7.5). Every other bar and every other stay fades back, and
+  the order's own gain the stroke the hover already uses — so one order's path down the plant reads
+  at a glance instead of being swept for. An order is on the chart many times over, which is the
+  whole point: one bar per station it visited, one stay per lane it waited in.
+
+  **What is remembered is an order id, not a hit and not an order number.** Not a hit, because the
+  bar that was clicked is one of many and the others are the answer. Not a number, because that is a
+  position in *one* study's sequence — on a two-study run it names two different orders and would
+  light both.
+
+  **A dimmed bar loses its label and its changeover mark as well as its fill.** They are the detail a
+  reader reads a bar for, and at full strength over a washed-out fill they would be the loudest thing
+  on a chart whose subject is elsewhere. The fill keeps the part's hue, so the plant stays legible as
+  shape and colour while one order is legible as text. A stay is already drawn at 0.30 rather than
+  solid, so it fades to a smaller number and drops its 1 px edge — otherwise every dimmed stay would
+  still be outlined.
+
+  **Tapping the order again clears it, and so does tapping no bar.** Both are wanted: a reader who has
+  found what they came for reaches for the bar in front of them, and one who has lost the thread
+  reaches for the space around it. A zoom or a lane toggle **keeps** the selection, because the order
+  is still on the chart; a different run or a narrowed filter clears it, because it may not be.
+
+  The gesture sits **inside both scroll views**, beside the ctrl-scroll and for the same reason: the
+  position it reports is then in the content coordinates `barAt` answers in, with no offset to
+  subtract back out.
 - **What a gap means is on screen.** A gap is a station not running — closed and starved alike — and
   this chart cannot tell the two apart, because splitting a bar at closed time would need calendars
   a stored run does not have. The line above the chart says so and names the Queue table as where

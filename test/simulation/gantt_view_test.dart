@@ -167,6 +167,38 @@ void main() {
     ],
   );
 
+  /// The same run with a lane in front of CEU27, so a chart under test has
+  /// one band of each kind in it.
+  StoredRun laned() => runOf(
+    id: 'run-laned',
+    orders: twoDayRun().result.orders,
+    steps: [
+      for (final step in twoDayRun().result.steps)
+        if (step.workcenterId == 'W2')
+          SimOrderStep(
+            studyId: step.studyId,
+            orderId: step.orderId,
+            nodeId: step.nodeId,
+            workcenterId: step.workcenterId,
+            queueStart: step.queueStart,
+            processStart: step.processStart,
+            processEnd: step.processEnd,
+            changeoverIncurred: step.changeoverIncurred,
+            laneNodeId: 'lane-1',
+          )
+        else
+          step,
+    ],
+    lanes: const [
+      SimLane(
+        studyId: 'study-1',
+        nodeId: 'lane-1',
+        position: 1,
+        name: 'FIFO CEU27',
+      ),
+    ],
+  );
+
   Future<void> pump(WidgetTester tester, StoredRun run) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -531,6 +563,124 @@ void main() {
     expect(find.textContaining('Queue table'), findsOne);
   });
 
+  /// Following one order down the plant (§7.5).
+  ///
+  /// The bars are painted, so a selection has no widget to find — what is
+  /// asserted is that the painter was handed the order the tap named, which is
+  /// the whole of the wiring. What the dimming *looks* like is a drive.
+  group('selecting a bar follows its order (§7.5)', () {
+    String? selectedIn(WidgetTester tester) =>
+        (tester.widget<CustomPaint>(find.byKey(ganttCanvasKey)).painter
+                as GanttPainter)
+            .selected;
+
+    /// Taps the canvas at [at], in content coordinates.
+    Future<void> tapAt(WidgetTester tester, Offset at) async {
+      await tester.tapAt(tester.getTopLeft(find.byKey(ganttCanvasKey)) + at);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('nothing is followed until a bar is tapped', (tester) async {
+      await pump(tester, twoDayRun());
+
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('tapping a bar follows its order, and tapping it again stops', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bar = rowNamed(shownLayout(tester, run), 'CLAD04').bars.first;
+      final at = Offset(bar.rect.left + 2, bar.rect.center.dy);
+
+      await tapAt(tester, at);
+      expect(selectedIn(tester), bar.bar.orderId);
+
+      await tapAt(tester, at);
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('tapping a different order follows that one instead', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bars = rowNamed(shownLayout(tester, run), 'CLAD04').bars;
+      final first = bars.first;
+      final other = bars.firstWhere(
+        (placed) => placed.bar.orderId != first.bar.orderId,
+      );
+
+      await tapAt(tester, Offset(first.rect.left + 2, first.rect.center.dy));
+      expect(selectedIn(tester), first.bar.orderId);
+
+      await tapAt(tester, Offset(other.rect.left + 2, other.rect.center.dy));
+      expect(selectedIn(tester), other.bar.orderId);
+    });
+
+    testWidgets('tapping where there is no bar stops following', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bar = rowNamed(shownLayout(tester, run), 'CLAD04').bars.first;
+      await tapAt(tester, Offset(bar.rect.left + 2, bar.rect.center.dy));
+      expect(selectedIn(tester), isNotNull);
+
+      // The axis strip, which `barAt` answers null for at any zoom.
+      await tapAt(tester, const Offset(4, 2));
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('an order waiting in a lane can be the one followed', (
+      tester,
+    ) async {
+      // A stay is a hit like a bar is, and it belongs to the same order — so
+      // reaching for an order where it is *queuing* has to work, which is often
+      // exactly where a reader spots it.
+      final run = laned();
+      await pump(tester, run);
+
+      final visit = rowNamed(shownLayout(tester, run), 'FIFO CEU27')
+          .visits
+          .first;
+      await tapAt(
+        tester,
+        Offset(visit.rect.left + 2, visit.rect.center.dy),
+      );
+
+      expect(selectedIn(tester), visit.visit.orderId);
+    });
+
+    testWidgets('a different run stops following, since the order may be gone', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bar = rowNamed(shownLayout(tester, run), 'CLAD04').bars.first;
+      await tapAt(tester, Offset(bar.rect.left + 2, bar.rect.center.dy));
+      expect(selectedIn(tester), isNotNull);
+
+      // A second run with the same work in it, so there is still a canvas to
+      // ask — the point is the id changing, which is what `didUpdateWidget`
+      // treats as a different run.
+      await pump(
+        tester,
+        runOf(
+          id: 'run-2',
+          orders: run.result.orders,
+          steps: run.result.steps,
+        ),
+      );
+      expect(selectedIn(tester), isNull);
+    });
+  });
+
   /// What the card says beyond the run's own steps (§7.5).
   ///
   /// Both come off the Production Plan (§8.5), which is where they were stored —
@@ -718,38 +868,6 @@ void main() {
         ),
       );
     }
-
-    /// The same run with a lane in front of CEU27, so a chart under test has
-    /// one band of each kind in it.
-    StoredRun laned() => runOf(
-      id: 'run-laned',
-      orders: twoDayRun().result.orders,
-      steps: [
-        for (final step in twoDayRun().result.steps)
-          if (step.workcenterId == 'W2')
-            SimOrderStep(
-              studyId: step.studyId,
-              orderId: step.orderId,
-              nodeId: step.nodeId,
-              workcenterId: step.workcenterId,
-              queueStart: step.queueStart,
-              processStart: step.processStart,
-              processEnd: step.processEnd,
-              changeoverIncurred: step.changeoverIncurred,
-              laneNodeId: 'lane-1',
-            )
-          else
-            step,
-      ],
-      lanes: const [
-        SimLane(
-          studyId: 'study-1',
-          nodeId: 'lane-1',
-          position: 1,
-          name: 'FIFO CEU27',
-        ),
-      ],
-    );
 
     /// The style the column drew [name] in. Each label is its own `Text` since
     /// the pool and the name stopped being two spans of one, so this reads the

@@ -76,6 +76,18 @@ const _cardHeight = 168.0;
 /// The narrowest bar that can carry its own part number.
 const _labelledBarWidth = 46.0;
 
+/// What a bar fades to while another order is being followed (§7.5).
+///
+/// Low enough that the followed order is unmistakable at a glance, and high
+/// enough that the rest of the plant is still *there* — a reader following one
+/// order is asking what it queued behind, and dimming the answer to nothing
+/// would remove the context the selection exists to put it in.
+const _dimmedBar = 0.16;
+
+/// And what a stay in a lane fades to. Smaller because a stay is already drawn
+/// at 0.30 rather than solid, so the same visual step is a smaller number.
+const _dimmedVisit = 0.08;
+
 /// The narrowest that can carry the order number after it.
 ///
 /// A part number alone is what a bar has always shown, so the threshold for it
@@ -150,6 +162,16 @@ class _GanttViewState extends State<GanttView> {
   /// way would mean 231 widgets on the real run and 20 000 at §14 scale.
   GanttHit? _hovered;
 
+  /// The order the reader is following, or null.
+  ///
+  /// **An order id, not a hit.** An order is on the chart many times over — one
+  /// bar per station it visited and one stay per lane it waited in — and
+  /// following it is the whole point, so what is remembered is the order rather
+  /// than the bar that was clicked. It is also why this cannot be the order
+  /// *number*: that is a position in one study's sequence, so on a two-study run
+  /// it names two different orders and would light up both (§7.5).
+  String? _selected;
+
   GanttLayout? _cached;
 
   /// How wide the frozen label column is for *this* chart's labels.
@@ -217,6 +239,11 @@ class _GanttViewState extends State<GanttView> {
     _cached = null;
     _scale = null;
     _hovered = null;
+    // **The selection goes with it, and only here.** A zoom or a lane toggle
+    // leaves the order on the chart, so following it survives both; a different
+    // run or a narrowed filter may not contain it at all, and an id matching
+    // nothing would dim every bar and light none.
+    _selected = null;
     if (_across.hasClients) _across.jumpTo(0);
     if (_down.hasClients) _down.jumpTo(0);
   }
@@ -376,7 +403,16 @@ class _GanttViewState extends State<GanttView> {
                 labelWidth: _labelWidth,
                 facts: _facts,
                 hovered: _hovered,
+                selected: _selected,
                 onHover: (bar) => setState(() => _hovered = bar),
+                // **Tapping the order again clears it, and so does tapping
+                // nothing.** Both are needed: a reader who has found what they
+                // came for reaches for the bar they are looking at, and one who
+                // has lost the thread reaches for the empty space around it.
+                onSelect: (hit) => setState(() {
+                  final order = hit == null ? null : _Chart._orderIdOf(hit);
+                  _selected = order == _selected ? null : order;
+                }),
                 onCtrlScroll: (event) => _zoomAtPointer(event, pane),
                 studies: _studyNames,
               ),
@@ -417,7 +453,9 @@ class _Chart extends StatelessWidget {
     required this.labelWidth,
     required this.facts,
     required this.hovered,
+    required this.selected,
     required this.onHover,
+    required this.onSelect,
     required this.onCtrlScroll,
     required this.studies,
   });
@@ -429,6 +467,12 @@ class _Chart extends StatelessWidget {
   final double labelWidth;
   final Map<String, _OrderFacts> facts;
   final GanttHit? hovered;
+
+  /// The order being followed, or null. See `_GanttViewState._selected`.
+  final String? selected;
+
+  /// The hit that was tapped, or null where the tap landed on no bar at all.
+  final ValueChanged<GanttHit?> onSelect;
   final ValueChanged<GanttHit?> onHover;
   final ValueChanged<PointerScrollEvent> onCtrlScroll;
   final Map<String, String> studies;
@@ -482,14 +526,23 @@ class _Chart extends StatelessWidget {
                             onExit: (_) => onHover(null),
                             child: _CtrlScroll(
                               onZoom: onCtrlScroll,
-                              child: CustomPaint(
+                              // **Inside the scroll views, like the ctrl-scroll
+                              // above it**, so the position it reports is in the
+                              // same content coordinates `barAt` answers in and
+                              // no scroll offset has to be subtracted back out.
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapDown: (details) =>
+                                    onSelect(barAt(layout, details.localPosition)),
+                                child: CustomPaint(
                                 key: ganttCanvasKey,
-                                painter: _GanttPainter(
+                                painter: GanttPainter(
                                   layout: layout,
                                   ticks: ticks,
                                   visibleFrom: offset,
                                   visibleTo: offset + pane,
                                   hovered: hovered,
+                                  selected: selected,
                                   band: theme.colorScheme.onSurface.withValues(
                                     alpha: 0.04,
                                   ),
@@ -500,6 +553,7 @@ class _Chart extends StatelessWidget {
                                       ) ??
                                       const TextStyle(fontSize: 12),
                                   outline: theme.colorScheme.onSurface,
+                                ),
                                 ),
                               ),
                             ),
@@ -1192,13 +1246,21 @@ String _tickLabel(GanttTickUnit unit, DateTime at, String locale) =>
     };
 
 /// Draws what the layout decided, and decides nothing itself.
-class _GanttPainter extends CustomPainter {
-  const _GanttPainter({
+///
+/// **Public only so a test can read what it was handed.** The bars are painted
+/// rather than built, so a selection has no widget to find and no text to match
+/// — the only honest assertion is that the painter was given the order the tap
+/// named. The same reasoning made [ganttCanvasKey] and `ganttLabelWidth`
+/// public; nothing outside this file constructs one.
+@visibleForTesting
+class GanttPainter extends CustomPainter {
+  const GanttPainter({
     required this.layout,
     required this.ticks,
     required this.visibleFrom,
     required this.visibleTo,
     required this.hovered,
+    required this.selected,
     required this.band,
     required this.rule,
     required this.axisStyle,
@@ -1214,10 +1276,19 @@ class _GanttPainter extends CustomPainter {
   final double visibleTo;
 
   final GanttHit? hovered;
+
+  /// The order being followed, or null for the ordinary chart.
+  final String? selected;
+
   final Color band;
   final Color rule;
   final TextStyle axisStyle;
   final Color outline;
+
+  /// Whether [orderId] is one the reader is not following, and is therefore
+  /// drawn back. False whenever nothing is selected, which is what keeps an
+  /// unselected chart pixel-for-pixel what it was.
+  bool _isDimmed(String orderId) => selected != null && orderId != selected;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1296,17 +1367,29 @@ class _GanttPainter extends CustomPainter {
         // order is followed down the chart by hue, but a waiting order must not
         // read as a running one — which is the whole reason §2.7 refused to
         // draw queue spans on a station's own row.
-        canvas.drawRRect(
-          shape,
-          Paint()..color = colour.fill.withValues(alpha: 0.30),
-        );
+        //
+        // A stay already sits at 0.30, so following an order takes it down
+        // rather than up: the dimmed figure is a fraction of a fraction, and
+        // the 1 px edge that makes an empty-looking slot readable goes with it,
+        // or every dimmed stay would still be outlined on a chart whose point is
+        // that one order is.
+        final dimmed = _isDimmed(placed.visit.orderId);
         canvas.drawRRect(
           shape,
           Paint()
-            ..color = colour.fill
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1,
+            ..color = colour.fill.withValues(
+              alpha: dimmed ? _dimmedVisit : 0.30,
+            ),
         );
+        if (!dimmed) {
+          canvas.drawRRect(
+            shape,
+            Paint()
+              ..color = colour.fill
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1,
+          );
+        }
       }
     }
 
@@ -1320,7 +1403,22 @@ class _GanttPainter extends CustomPainter {
           placed.rect,
           const Radius.circular(2),
         );
-        canvas.drawRRect(shape, Paint()..color = colour.fill);
+        final dimmed = _isDimmed(placed.bar.orderId);
+        canvas.drawRRect(
+          shape,
+          Paint()
+            ..color = dimmed
+                ? colour.fill.withValues(alpha: _dimmedBar)
+                : colour.fill,
+        );
+
+        // **Nothing else is drawn on a bar that is not the one being followed.**
+        // The changeover mark and the part number are the detail a reader is
+        // reading *this* bar for, and left at full strength over a washed-out
+        // fill they would be the loudest thing on a chart whose subject is
+        // somewhere else. The fill still carries the part's hue, so the plant is
+        // legible as shape and colour while one order is legible as text.
+        if (dimmed) continue;
 
         // A stroke, never a prefix with a width: the run stores only *that* a
         // changeover was paid, so anything measurable against the axis would be
@@ -1354,7 +1452,11 @@ class _GanttPainter extends CustomPainter {
           );
         }
 
-        if (identical(placed, hovered)) {
+        // The same stroke answers both, because they mean the same thing to a
+        // reader — *this* is the one you are asking about. A bar of the followed
+        // order is outlined whether or not the pointer is on it, which is what
+        // makes the order findable at a glance rather than by sweeping for it.
+        if (identical(placed, hovered) || selected != null) {
           canvas.drawRRect(
             shape,
             Paint()
@@ -1385,12 +1487,13 @@ class _GanttPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GanttPainter old) =>
+  bool shouldRepaint(covariant GanttPainter old) =>
       old.layout != layout ||
       old.ticks != ticks ||
       old.visibleFrom != visibleFrom ||
       old.visibleTo != visibleTo ||
       !identical(old.hovered, hovered) ||
+      old.selected != selected ||
       old.band != band ||
       old.rule != rule ||
       old.outline != outline;

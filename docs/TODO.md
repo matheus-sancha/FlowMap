@@ -1469,9 +1469,12 @@ draws the path most literally and it is the only one of the three that needs new
 `gantt_layout.dart`, routing around bands and surviving four orders of magnitude of zoom. The day the
 dimmed version is not enough is the day to price it.
 
-_Left open:_ what clears a selection. Clicking the bar again, clicking empty canvas and `Esc` are all
-defensible; changing the filter or the run must clear it, because the selected order may not be in
-the slice any more.
+~~_Left open:_ what clears a selection.~~ **Settled when it was built:** tapping the order again and
+tapping no bar both clear it, a zoom or a lane toggle keeps it because the order is still there, and
+a different run clears it because it may not be. **`Esc` was not done** — it needs the chart to hold
+focus, and taking focus for a chart that is one pane of a tabbed page risks a keystroke going
+somewhere the reader did not aim it. Worth adding the day the chart has a reason to be focused
+anyway.
 
 #### What it costs, and the one thing that is not free
 
@@ -1487,12 +1490,17 @@ for a run joining to nothing.
 
 **Three commits, in this order**, because each is separately drivable:
 
-1. **The project and the description reach the Gantt**, on the bar's hover card. The only one of the
-   three a reader can check without a filter or a click, which is why it is first — not, as this list
-   first said, because it closes a defect. There is no defect; see above.
-2. **Select a bar, follow the order.**
+1. ~~**The project and the description reach the Gantt**~~, on the bar's hover card. **Done** — the
+   only one of the three a reader can check without a filter or a click, which is why it was first;
+   not, as this list said, because it closes a defect. There is no defect; see above.
+2. ~~**Select a bar, follow the order.**~~ **Done.**
 3. **The three filters**, which is the one that touches `RunFilter`, `filterRun`, `signature`, the
    filter bar and three `.arb` files.
+
+**Neither of the first two has been driven.** Both are asserted by widget tests that never paint a
+pixel (§2.7), so what is untested is the whole visual question: whether the dimmed plant is still
+readable behind the followed order, and whether the card is too tall now that it can carry two more
+lines. They go in the same sitting as the label column's clamp.
 
 ---
 
