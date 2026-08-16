@@ -1,17 +1,25 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-15. This file is **only unstarted work**, and each item should be
+Working state as of 2026-08-16. This file is **only unstarted work**, and each item should be
 deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; `docs/HISTORY.md`
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **729 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v18**. M4 is code-complete, and the initial plan has
-no code left in it — §3.8 is deferred by decision and everything else in it has landed.
+Branch `m1-m2-foundation`, `flutter analyze` clean, **771 tests passing** (one of them `live`-tagged
+and skipped without a database). Schema is at **v19**, migrated against the real database at 08:46
+on 2026-08-16. M4 is code-complete, and the initial plan has no code left in it — §3.8 is deferred
+by decision and everything else in it has landed.
 
-**§5 is written and not yet driven**, which is the one thing this file's working state does not
-usually describe. The tree is not clean: v18 and the Gantt's lane bands are in it, covered by tests
-and unseen by a human. §5.3 is what closes that, and §6 does not start until it has.
+**The one thing to know before starting anything: almost nothing here has been looked at.** §5, §6
+and §7 are all code-complete and covered by tests, and **nothing in the suite renders a pixel**
+(§2.7). The last drive — `0.1.0-2026-08-16d`, half an hour of one person clicking — found **three
+defects that 765 tests had nothing to say about**, all of them §7.3's re-model reaching a surface
+nobody re-read. That is the ratio to plan around: driving is not a formality after the work, it is
+where the defects are. §5.3 and §7.5's list are the two open drive lists.
+
+**Latest build is `0.1.0-2026-08-16e`.** Every stored run predates the v19 engine change, so
+replaying one from the history picker shows per-node lanes rather than one queue per target. **Only
+a fresh run exercises what §7.3 built.**
 
 **§1–§4 have landed and are kept here rather than deleted**, against this file's own rule, because
 `HISTORY.md` stops at the 2026-08-11 feedback round and has not absorbed them yet. They are the only
@@ -1365,6 +1373,34 @@ it on another is the split §6.4 has just finished undoing on the Flow toolbar.
 
 _Rejected: both, with a bulk table on Capacity._ Better for retuning ten lanes at once, and two write
 paths into one row is how the two come to disagree (§12.6).
+
+#### What §7.3 still owes
+
+The model and the engine landed; two surfaces did not, and they are stated here as items rather than
+left in the prose above where they have already been missed once.
+
+- [ ] **The map's connector symbols.** The queue type is stored per target and **nothing draws it**:
+      `flow_view.dart` has no notion of a queue type, so every connector is still the push arrow.
+      The table in §7.3 is the spec — one channel shape labelled with the rule, push keeping its
+      striped arrow and triangle, supermarket named and not selectable.
+- [ ] **Where a queue is edited.** §7.3 settled this as *on the map, from the connector* — click the
+      channel and set the type, the capacity and the stock. There is currently **no way to edit a
+      queue at all** since the inventory node stopped being read, so a v19 database can only be
+      retuned by the fold's own output.
+- [ ] **Retire `SimulationRuns.dispatch` from the UI.** The engine stopped consulting it in
+      `00399b4`, and it is still read in four places: the run header
+      (`simulation_tab.dart:222, 228, 235`) and the Excel export (`plan_excel.dart:300–303`). It
+      stays on the *schema* for pre-v19 runs, which is deliberate — what has to go is the pretence
+      that a current run has one rule. §7.3's replacement is the per-station queue type, already
+      stored on `simulation_run_workcenters`.
+- [ ] **The runs-history label** becomes the date plus the queue type when every station shares one,
+      and `mixed` otherwise. Reads `2026-08-15 · FIFO` off the retired run-level rule today.
+
+_Swept for others on 2026-08-16 and found none:_ `lane.studyId` is no longer read anywhere for
+behaviour. **But it is still written and never read**, along with `SimLane.position`, which §8.6 says
+outright it does not place lanes by. Both are exactly the trap that produced the three defects above
+— a field that looks authoritative and answers a question nobody should be asking it. Worth deleting
+or documenting as recovery-only, the call §16.18 made for `changeover_seconds`.
 
 ### 7.4 Takt rebalances a group of like machines
 
