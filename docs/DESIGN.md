@@ -1708,6 +1708,26 @@ they narrow the same set of orders the period already did.
 - **All three are in `FilteredRun.signature`**, or a chart would keep drawing the slice before last —
   the run id and the studies are unchanged by every one of them.
 
+**A lane is kept by the steps that name it, not by its study.** A queue belongs to the station it
+stands in front of since v19 (§7.3), so `simulation_run_lanes` writes one row per *target* and stamps
+it with whichever study was written last — on the real run eight of ten lanes carry one study's id
+and two carry the other's. Filtering by study therefore took most of the queues away, which the field
+reported as *"when filtering one study, I can't see the CLAD pool queue"*. A step records the lane
+the order actually waited in and is the same thing the band is placed by, so a lane is in the slice
+exactly when an order in the slice queued there. Open stays follow their order, since an order the
+guard caught leaves no step to be kept by.
+
+**And a stay takes its study from the order, not from the lane**, for the same reason one level on:
+the card names the study on a multi-study run, and a shared queue's row would have labelled every
+order the other line put in it with the wrong one.
+
+**The results view is not keyed on the slice.** It was, so that a new slice would discard the zoom
+the Gantt holds — but it discarded the *view choice* with it, and a reader filtering while reading
+the Gantt was dropped back onto the tables at every keystroke. The key was also unnecessary:
+`GanttView.didUpdateWidget` already compares `slice.signature` and refits its zoom and drops its hover
+and selection. The state that must not survive a new slice is discarded by the widget that owns it,
+which is where that decision belongs.
+
 **The Gantt's rows can be narrowed to the stations alone.** The lane bands are what make the chart
 read as a queue; without them it reads as a flow, which is the other thing a reader comes to it for.
 A parameter to `buildGanttChart`, so `barAt`, the hover card and the floored-bar count all follow —

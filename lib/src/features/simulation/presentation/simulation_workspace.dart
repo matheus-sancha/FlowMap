@@ -131,11 +131,20 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
               title: l10n.simulationNeverRun,
               detail: l10n.simulationNeverRunHelp,
             ),
+            // **Not keyed on the slice.** It was, on the argument that the
+            // results widget holds the reader's zoom and view choice against the
+            // slice it was given — so a new slice should discard them. That
+            // threw away the *view choice* as well, and a reader who filters
+            // while reading the Gantt was dropped back onto the tables at every
+            // keystroke, which is what the field reported.
+            //
+            // The argument was also unnecessary. `GanttView.didUpdateWidget`
+            // already compares `slice.signature` and rebuilds its chart, refits
+            // its zoom and drops its hover and selection when it changes — so
+            // the state that genuinely must not survive a new slice is discarded
+            // by the widget that owns it, and the state that should survive now
+            // does.
             AsyncValue(value: final run!) => RunResults(
-              // Rebuilt when the filter changes, because the results widget
-              // holds the reader's zoom and view choice against the slice it was
-              // given — and a slice is what changed.
-              key: ValueKey(filterRun(run, _filter).signature),
               slice: filterRun(run, _filter),
               projectName: widget.project.name,
             ),

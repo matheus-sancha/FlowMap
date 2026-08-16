@@ -243,15 +243,32 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
   final orders = run.result.orders.where(keepsOrder).toList();
   final keptOrderIds = {for (final outcome in orders) outcome.orderId};
 
+  final steps = [
+    for (final step in run.result.steps)
+      if (keptOrderIds.contains(step.orderId)) step,
+  ];
+
+  // **Which queues the slice still stands in, read off the steps that survived.**
+  //
+  // This was `keepsStudy(lane.studyId)`, which stopped being right when v19 made
+  // a queue belong to the station it stands in front of rather than to a study
+  // (§7.3). One row is written per *target* now, and the study on it is whichever
+  // study happened to be written last — so on the real run eight of ten lanes
+  // carry one study's id and two carry the other's, and filtering to either
+  // study dropped most of the queues. The `CLAD Pool` band vanishing on a
+  // one-study view is what the field reported; it was never the pool's problem.
+  //
+  // A step is the honest source: it records the lane the order actually waited
+  // in, which is the same thing `_laneRows` places the band by. So a lane is in
+  // the slice exactly when an order in the slice queued there.
+  final keptLaneIds = {for (final step in steps) ?step.laneNodeId};
+
   final result = SimRunResult(
     start: run.result.start,
     end: run.result.end,
     guard: run.result.guard,
     abort: run.result.abort,
-    steps: [
-      for (final step in run.result.steps)
-        if (keptOrderIds.contains(step.orderId)) step,
-    ],
+    steps: steps,
     orders: orders,
     // **Still only by study and date, and §7.5's three deliberately do not
     // reach them.** An empty slot is a release opportunity nobody took, so it
@@ -270,9 +287,16 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     blockedByWorkcenter: run.result.blockedByWorkcenter,
     lanes: [
       for (final lane in run.result.lanes)
-        if (keepsStudy(lane.studyId)) lane,
+        if (keptLaneIds.contains(lane.nodeId)) lane,
     ],
-    openLaneVisits: run.result.openLaneVisits,
+    // By the order, for the reason above one level on: an order the guard caught
+    // still standing in a lane leaves no step, so it is not covered by
+    // `keptLaneIds` — and one belonging to an order the filter dropped must go
+    // with it or a lane would be drawn fuller than the slice it describes.
+    openLaneVisits: [
+      for (final open in run.result.openLaneVisits)
+        if (keptOrderIds.contains(open.orderId)) open,
+    ],
   );
 
   final sliced = summariseRun(

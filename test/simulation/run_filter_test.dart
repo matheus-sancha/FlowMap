@@ -254,6 +254,145 @@ void main() {
     });
   });
 
+  /// A queue belongs to the station it stands in front of, not to a study
+  /// (§7.3, v19) — so filtering by study must not take it away.
+  ///
+  /// **The field reported this as "when filtering one study, I can't see the
+  /// CLAD pool queue".** It was never the pool's problem: `simulation_run_lanes`
+  /// writes one row per *target* and stamps it with whichever study was written
+  /// last, so on the real run eight of ten lanes carry one study's id and two
+  /// carry the other's. Filtering to either study dropped most of the queues.
+  group('a shared queue survives a study filter (§7.3)', () {
+    /// Two studies feeding one station, both queuing in the one lane in front
+    /// of it — and the lane stamped with study `b`, as the repository stamps it.
+    StoredRun shared() {
+      final orders = [
+        outcome('o1', studyId: 'a', need: DateTime(2026, 3, 1)),
+        outcome('o2', studyId: 'b', need: DateTime(2026, 3, 2)),
+      ];
+      SimOrderStep queued(String orderId, String studyId) => SimOrderStep(
+        studyId: studyId,
+        orderId: orderId,
+        nodeId: 'node-1',
+        workcenterId: 'wc-1',
+        queueStart: start,
+        processStart: start.add(const Duration(hours: 1)),
+        processEnd: start.add(const Duration(hours: 2)),
+        changeoverIncurred: false,
+        laneNodeId: 'clad-pool',
+      );
+
+      final result = SimRunResult(
+        start: start,
+        end: DateTime(2026, 12, 31),
+        guard: DateTime(2027, 1, 1),
+        steps: [queued('o1', 'a'), queued('o2', 'b')],
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {'wc-1': Duration(hours: 100)},
+        openByWorkcenter: const {'wc-1': Duration(hours: 200)},
+        lanes: const [
+          // **Stamped `b`, and fed by both.** This is the whole fixture: the
+          // study on the row is an artefact of write order since v19.
+          SimLane(
+            studyId: 'b',
+            nodeId: 'clad-pool',
+            position: 0,
+            name: 'FIFO CLAD',
+          ),
+        ],
+      );
+
+      return StoredRun(
+        id: 'run-shared',
+        projectId: 'proj-1',
+        createdAt: start,
+        dispatch: DispatchRule.fifo,
+        dispatchOverrides: const [],
+        studies: [
+          study('a', cell: 'cell-1', line: 'line-1'),
+          study('b', cell: 'cell-2', line: 'line-2'),
+        ],
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: const {'wc-1': 'CLAD07'},
+          theoreticalByOrder: const {},
+        ),
+        plan: const [],
+      );
+    }
+
+    test('the study the lane is not stamped with still sees it', () {
+      // The reported bug, at its sharpest: study `a` queues in this lane and the
+      // row says `b`. Filtering to `a` used to drop it.
+      final view = filterRun(shared(), const RunFilter(studyIds: {'a'}));
+
+      expect(view.result.lanes.map((l) => l.name), ['FIFO CLAD']);
+      expect(view.result.steps.map((s) => s.orderId), ['o1']);
+    });
+
+    test('and so does the study it is stamped with', () {
+      final view = filterRun(shared(), const RunFilter(studyIds: {'b'}));
+
+      expect(view.result.lanes.map((l) => l.name), ['FIFO CLAD']);
+    });
+
+    test('a lane no kept order queued in is dropped', () {
+      // The rule is the steps, not the study — so narrowing to orders that never
+      // reached this queue takes the band away, which is right: the chart draws
+      // the queues the slice actually stood in.
+      final view = filterRun(
+        shared(),
+        RunFilter(from: DateTime(2027), to: DateTime(2027, 12, 31)),
+      );
+
+      expect(view.result.orders, isEmpty);
+      expect(view.result.lanes, isEmpty);
+    });
+
+    test('an open stay goes with the order it belongs to', () {
+      final base = shared();
+      final withOpen = StoredRun(
+        id: base.id,
+        projectId: base.projectId,
+        createdAt: base.createdAt,
+        dispatch: base.dispatch,
+        dispatchOverrides: base.dispatchOverrides,
+        studies: base.studies,
+        metrics: base.metrics,
+        plan: base.plan,
+        result: SimRunResult(
+          start: base.result.start,
+          end: base.result.end,
+          guard: base.result.guard,
+          steps: base.result.steps,
+          orders: base.result.orders,
+          emptySlots: const [],
+          busyByWorkcenter: base.result.busyByWorkcenter,
+          openByWorkcenter: base.result.openByWorkcenter,
+          lanes: base.result.lanes,
+          openLaneVisits: [
+            SimOpenLaneVisit(
+              studyId: 'b',
+              laneNodeId: 'clad-pool',
+              orderId: 'o2',
+              enteredAt: start,
+            ),
+          ],
+        ),
+      );
+
+      // `o2` is study `b`'s, so filtering to `a` leaves the lane standing and
+      // takes the stay with the order — or the band would be drawn fuller than
+      // the slice it describes.
+      final view = filterRun(withOpen, const RunFilter(studyIds: {'a'}));
+      expect(view.result.lanes, hasLength(1));
+      expect(view.result.openLaneVisits, isEmpty);
+    });
+  });
+
   /// §7.5's three, which narrow **within** a study where the period is the only
   /// thing that did before.
   group('the project, part and order filters (§7.5)', () {

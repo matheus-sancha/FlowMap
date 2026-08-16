@@ -1513,6 +1513,28 @@ column's clamp:
 - [ ] **The order field against the real 190-order run**, which is the only place the ambiguity is
       real: order 1 exists in both studies, so typing `1` must light two rows and say why.
 
+**Driven on 2026-08-16 under `0.1.0-2026-08-16d`, and it found two defects** — the value of driving
+it, stated plainly, since both were invisible to a suite of 765 tests:
+
+- [x] ~~**Filtering dropped the reader back onto the tables.**~~ *"When I'm in the gantt view and
+      filter something it goes back to the results."* `RunResults` was keyed on the slice signature,
+      so every filter change rebuilt it from scratch and took the view choice with it. Fixed by
+      removing the key — the zoom it existed to reset is reset by `GanttView` itself.
+- [x] ~~**Filtering by study took most of the queues away.**~~ *"When filtering one study, I can't
+      see the CLAD pool queue."* Not the pool's problem and not the Gantt's: v19 made a queue belong
+      to a target and `filterRun` was still keeping lanes by `lane.studyId`, which is now whichever
+      study was written last. **On the newest stored run, eight of ten lanes carry one study's id and
+      two carry the other's**, so either study lost most of its bands. Lanes are kept by the steps
+      that name them now.
+
+      _And a third, found while fixing it and never reported:_ a stay took its study from the lane,
+      so a shared queue labelled every order the other line put in it with the wrong study on the
+      hover card.
+
+      **The lesson for the list above:** all three are §7.3's re-model reaching a surface nobody
+      re-read when it landed. The queue stopped being a study's in v19 and two places went on asking
+      it which study it belonged to. Worth a sweep for others.
+
 ---
 
 ## 8. Known gaps, deliberately left

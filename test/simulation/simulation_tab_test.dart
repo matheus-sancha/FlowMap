@@ -957,6 +957,35 @@ void main() {
       expect(find.text('DROPPED-2'), findsNothing);
     });
 
+    testWidgets('filtering while reading the Gantt stays on the Gantt', (
+      tester,
+    ) async {
+      // **The field: "when I'm in the gantt view and filter something it goes
+      // back to the results".** `RunResults` was keyed on the slice signature,
+      // so every filter change threw its state away — including which of the two
+      // views the reader had chosen. The zoom that key existed to reset is reset
+      // by `GanttView.didUpdateWidget` anyway, which compares the same
+      // signature.
+      await pumpBooked(tester);
+
+      // `IndexedStack.index` is the view: 0 results, 1 Gantt. Both children are
+      // built either way, so nothing found by type could tell them apart.
+      int? shownView() =>
+          tester.widget<IndexedStack>(find.byType(IndexedStack).first).index;
+
+      expect(shownView(), 0);
+
+      await tester.tap(find.text('Gantt'));
+      await tester.pumpAndSettle();
+      expect(shownView(), 1);
+
+      await openPicker(tester, 'Projects');
+      await tester.tap(find.widgetWithText(CheckboxMenuButton, 'MANIFOLD'));
+      await tester.pumpAndSettle();
+
+      expect(shownView(), 1);
+    });
+
     testWidgets('clearing the filters empties the order field too', (
       tester,
     ) async {

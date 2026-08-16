@@ -785,7 +785,14 @@ List<GanttLaneVisit> _stackVisits(
       GanttLaneVisit(
         orderId: stay.orderId,
         orderNumber: outcome.sequence + 1,
-        studyId: lane.studyId,
+        // **The order's study, not the lane's.** A queue belongs to the station
+        // it stands in front of since v19 (§7.3), so a lane shared by two
+        // studies carries whichever study's id was written last — and the hover
+        // card, which names the study on a multi-study run, would have named the
+        // wrong one for every order the other study put in that queue. A bar
+        // takes its study from its step; a stay now takes it from the same
+        // place a bar does.
+        studyId: outcome.studyId,
         part: part,
         entered: stay.from,
         left: stay.to,

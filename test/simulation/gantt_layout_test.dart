@@ -1044,6 +1044,70 @@ void main() {
       );
     }
 
+    test('a stay takes the order s study, not the lane s (§7.3)', () {
+      // A queue belongs to the station it stands in front of since v19, and
+      // `simulation_run_lanes` stamps the row with whichever study was written
+      // last — so a lane shared by two studies carries one study's id for
+      // everybody's orders. The hover card names the study on a multi-study run,
+      // and took it from the lane: every order the *other* study put in that
+      // queue was labelled with the wrong line.
+      //
+      // Built directly rather than through `laneChart`, which gives every order
+      // one study.
+      const laneStudy = 'study-1';
+      const otherStudy = 'study-2';
+
+      final steps = [
+        stepOf(
+          orderId: 'o1',
+          workcenterId: 'W2',
+          queueStart: jan1,
+          processStart: at(2),
+          processEnd: at(3),
+          laneNodeId: 'lane-1',
+          studyId: otherStudy,
+        ),
+      ];
+      final orders = [
+        orderOf(
+          orderId: 'o1',
+          sequence: 0,
+          partId: 'p1',
+          studyId: otherStudy,
+        ),
+      ];
+      final result = SimRunResult(
+        start: jan1,
+        end: at(48),
+        guard: at(240),
+        steps: steps,
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+        lanes: const [
+          SimLane(
+            studyId: laneStudy,
+            nodeId: 'lane-1',
+            position: 1,
+            name: 'FIFO CLAD',
+          ),
+        ],
+      );
+
+      final chart = buildGanttChart(
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: const {'W2': 'CLAD07'},
+          theoreticalByOrder: const {},
+        ),
+      );
+
+      expect(chart.lanes.single.visits.single.studyId, otherStudy);
+    });
+
     test('the lane bands can be left out, and only they go', () {
       // Field feedback: a reader following an order down the page wants the
       // stations, and the queue bands between them are what is in the way. It is
