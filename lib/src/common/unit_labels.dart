@@ -1,4 +1,6 @@
 import '../data/database/enums.dart';
+import '../features/simulation/application/sim_result.dart'
+    show EmptySlotReason;
 import '../features/simulation/data/simulation_runs_repository.dart'
     show RunQueues;
 import '../l10n/generated/app_localizations.dart';
@@ -30,6 +32,17 @@ String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
       DispatchRule.lifo => l10n.dispatchLifo,
       DispatchRule.earliestDueDate => l10n.dispatchEarliestDueDate,
       DispatchRule.shortestProcessing => l10n.dispatchShortestProcessing,
+    };
+
+/// Why a release slot produced nothing (DESIGN.md §7.2).
+///
+/// The three gates §7.2 checks, named rather than counted: *which* one held the
+/// line is the thing a planner acts on, and "8 empty slots" is not.
+String emptySlotReasonLabel(AppLocalizations l10n, EmptySlotReason reason) =>
+    switch (reason) {
+      EmptySlotReason.awaitingMaterial => l10n.simEmptySlotAwaitingMaterial,
+      EmptySlotReason.wipCap => l10n.simEmptySlotWipCap,
+      EmptySlotReason.laneFull => l10n.simEmptySlotLaneFull,
     };
 
 /// What a whole run dispatched by, in one line (§7.3): the type every station

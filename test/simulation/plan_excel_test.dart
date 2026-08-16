@@ -22,6 +22,7 @@ void main() {
   const strings = PlanExcelStrings(
     runSheet: 'Run',
     unnamedStudy: 'Study',
+    emptySlotReason: _reasonOf,
     generated: 'FlowMap 0.1.0-test · generated 8/8/2026 10:12',
     runLabel: '8/8/2026 · mixed',
     queueTypes: ['CLAD04: Earliest need date', 'MILL02: FIFO'],
@@ -420,3 +421,11 @@ void main() {
     });
   });
 }
+
+
+/// The three gates §7.2 checks, as the workbook names them.
+String _reasonOf(EmptySlotReason reason) => switch (reason) {
+  EmptySlotReason.awaitingMaterial => 'Awaiting material',
+  EmptySlotReason.wipCap => 'WIP cap reached',
+  EmptySlotReason.laneFull => 'Lane full',
+};

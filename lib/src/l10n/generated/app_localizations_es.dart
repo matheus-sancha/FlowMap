@@ -1765,4 +1765,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get validationAboveZero => 'Introduce un número mayor que cero';
+
+  @override
+  String get simEmptySlotAwaitingMaterial => 'Esperando material';
+
+  @override
+  String get simEmptySlotWipCap => 'Límite de WIP alcanzado';
 }

@@ -34,6 +34,7 @@ import '../../../common/unit_labels.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/gantt_layout.dart';
 import '../application/run_filter.dart';
+import '../data/simulation_runs_repository.dart';
 
 /// The frozen left column carrying the station names.
 ///
@@ -211,11 +212,16 @@ class _GanttViewState extends State<GanttView> {
   /// one. 11 % of the live database's orders genuinely have no project, which is
   /// the same absence and reads the same way.
   Map<String, _OrderFacts> _readFacts() => {
-    for (final row in widget.slice.plan)
-      if (row.customerProject != null || row.partDescription != null)
-        row.outcome.orderId: _OrderFacts(
-          project: row.customerProject,
-          description: row.partDescription,
+    // Orders only: a slot that produced nothing has no bar to caption (§8.5).
+    for (final entry in widget.slice.plan)
+      if (entry case ProductionPlanRow(
+        :final outcome,
+        :final customerProject,
+        :final partDescription,
+      ) when customerProject != null || partDescription != null)
+        outcome.orderId: _OrderFacts(
+          project: customerProject,
+          description: partDescription,
         ),
   };
 

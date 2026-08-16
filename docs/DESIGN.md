@@ -1120,7 +1120,26 @@ occupation = required ÷ available
 _Rejected: the mockup's naming ("Utilization 100 %" on the box)._ It conflates an input with an
 output, and the inconsistency becomes permanent once it is in three `.arb` files and every PDF.
 
-### 8.5 The production plan — orders over time
+### 8.5 The production plan — orders over time, and the slots that made none
+
+**Empty release slots are rows.** The plan was the orders that survived §7.2's gate, so a study
+spending eight of twenty-three slots waiting for material read as a plan with gaps nobody could see.
+A slot now takes its own row where it happened, carrying the moment and **which gate held the line** —
+awaiting material, the WIP cap, or a full lane. "8 empty slots" is not something a planner acts on;
+which gate is.
+
+- **Ordered by date, not by sequence.** For the orders alone the two are the same list — §7.2
+  releases strictly from the head and never reorders — but a slot has a date and no sequence number,
+  and only a timeline can say where it belongs. An order that never released has neither and sorts
+  last, where a null would otherwise sort it first.
+- **A slot row is mostly blank**, which is the honest shape: there is no order to describe. It fills
+  the Order Start column, because that is the moment it happened.
+- **Filters: a slot is kept by its study, an order by its own id.** A part or an order-number filter
+  cannot speak about a slot — narrowing to a part would otherwise silently claim the line never
+  stalled — so those drop them; a study or cell filter keeps them.
+- The Excel export carries the same rows, for the same reason the table does.
+
+### 8.5.1 The columns
 
 `Order | Part Number | Description | Project | Batch Number | Batch Size | Need Date | Material
 Date | Order Start | Order End | Theoretical LT | Actual LT | Float`, a section of the Simulation

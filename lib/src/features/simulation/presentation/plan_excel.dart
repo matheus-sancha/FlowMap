@@ -26,6 +26,7 @@ import '../../../common/date_input.dart';
 import '../../../common/date_style_scope.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../diagnostics/application/diagnostics.dart';
+import '../application/sim_result.dart' show EmptySlotReason;
 import '../data/simulation_runs_repository.dart';
 
 /// The strings the workbook needs, captured before the export goes async.
@@ -42,6 +43,7 @@ class PlanExcelStrings {
     required this.runLabel,
     required this.queueTypes,
     required this.unnamedStudy,
+    required this.emptySlotReason,
   });
 
   /// The stamp sheet's own name.
@@ -63,6 +65,11 @@ class PlanExcelStrings {
 
   /// What a study whose name is nothing a sheet can be called falls back to.
   final String unnamedStudy;
+
+  /// Names the gate that held an empty release slot (§7.2). A function rather
+  /// than a list, because the reasons are an enum and the file is built off the
+  /// widget tree where `AppLocalizations` cannot be reached.
+  final String Function(EmptySlotReason) emptySlotReason;
 }
 
 /// Builds the workbook.
@@ -77,7 +84,7 @@ Uint8List buildPlanWorkbook({
   required String projectName,
   required PlanExcelStrings strings,
   required DateStyle dateStyle,
-  List<ProductionPlanRow>? plan,
+  List<PlanEntry>? plan,
 }) {
   // **What is on screen, not what is stored.** The export button sits under the
   // production plan, so it takes whatever slice that table is showing (§12.1);
@@ -106,9 +113,9 @@ Uint8List buildPlanWorkbook({
   // Grouped in the order the plan presents them, which within a study is
   // sequence order — and §7.2 releases strictly from the head, so that is also
   // release order (§8.5).
-  final byStudy = <String, List<ProductionPlanRow>>{};
+  final byStudy = <String, List<PlanEntry>>{};
   for (final row in rows) {
-    byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
+    byStudy.putIfAbsent(row.studyId, () => []).add(row);
   }
 
   stamp.appendRow([xl.TextCellValue(strings.generated)]);
@@ -132,7 +139,7 @@ Uint8List buildPlanWorkbook({
       for (final header in strings.headers) xl.TextCellValue(header),
     ]);
     for (final row in entry.value) {
-      sheet.appendRow(_planRow(row));
+      sheet.appendRow(_planRow(row, strings.emptySlotReason));
       _formatDates(sheet, sheet.maxRows - 1, dateStyle);
     }
   }
@@ -198,7 +205,28 @@ const _orderEndColumn = 9;
 /// someone reading; in a column about to be averaged it is text, and text in a
 /// number column is what turns a pivot into a mess. Blank means blank to a
 /// spreadsheet, which is the same statement in that language.
-List<xl.CellValue?> _planRow(ProductionPlanRow row) => [
+List<xl.CellValue?> _planRow(PlanEntry entry, String Function(EmptySlotReason) reasonOf) {
+  // A slot carries a moment and a reason and nothing else, so its row is mostly
+  // blank — which is the honest shape: there is no order to describe.
+  if (entry is PlanEmptySlot) {
+    return [
+      null,
+      xl.TextCellValue(reasonOf(entry.reason)),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      _instant(entry.slotAt),
+      null,
+      null,
+      null,
+      null,
+    ];
+  }
+  final row = entry as ProductionPlanRow;
+  return [
   xl.IntCellValue(row.orderNumber),
   xl.TextCellValue(row.partNumber),
   _text(row.partDescription),
@@ -212,10 +240,11 @@ List<xl.CellValue?> _planRow(ProductionPlanRow row) => [
   // agree about the moment; the file simply says more of it.
   _instant(row.orderStart),
   _instant(row.delivery),
-  _days(row.theoreticalLeadTime),
-  _days(row.actualLeadTime),
-  _days(row.float),
-];
+    _days(row.theoreticalLeadTime),
+    _days(row.actualLeadTime),
+    _days(row.float),
+  ];
+}
 
 xl.TextCellValue? _text(String? value) =>
     (value == null || value.isEmpty) ? null : xl.TextCellValue(value);
@@ -277,7 +306,7 @@ Future<void> exportPlanExcel(
   BuildContext context, {
   required StoredRun run,
   required String projectName,
-  List<ProductionPlanRow>? plan,
+  List<PlanEntry>? plan,
 }) async {
   final l10n = AppLocalizations.of(context);
   final locale = Localizations.localeOf(context).toString();
@@ -292,6 +321,7 @@ Future<void> exportPlanExcel(
     strings: PlanExcelStrings(
       runSheet: l10n.simExportRunSheet,
       unnamedStudy: l10n.study,
+      emptySlotReason: (reason) => emptySlotReasonLabel(l10n, reason),
       generated: l10n.exportGenerated(
         kBuildLabel,
         timestamp.format(DateTime.now()),

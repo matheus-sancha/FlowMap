@@ -1747,4 +1747,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get validationAboveZero => 'Enter a number above zero';
+
+  @override
+  String get simEmptySlotAwaitingMaterial => 'Awaiting material';
+
+  @override
+  String get simEmptySlotWipCap => 'WIP cap reached';
 }

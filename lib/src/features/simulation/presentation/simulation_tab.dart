@@ -388,9 +388,9 @@ class _ProductionPlan extends StatelessWidget {
       for (final study in slice.run.studies) study.studyId: study.name,
     };
 
-    final byStudy = <String, List<ProductionPlanRow>>{};
+    final byStudy = <String, List<PlanEntry>>{};
     for (final row in slice.plan) {
-      byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
+      byStudy.putIfAbsent(row.studyId, () => []).add(row);
     }
 
     return Column(
@@ -419,7 +419,7 @@ class _ProductionPlan extends StatelessWidget {
 class _PlanTable extends StatelessWidget {
   const _PlanTable({required this.rows});
 
-  final List<ProductionPlanRow> rows;
+  final List<PlanEntry> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -452,6 +452,29 @@ class _PlanTable extends StatelessWidget {
         rowCount: rows.length,
         cellAt: (index, column) {
           final row = rows[index];
+          // A slot that produced nothing has no part, no numbers and no
+          // outcome — only when it came round and which gate held it. It takes
+          // the Order Start column, because that is the moment it happened.
+          if (row is PlanEmptySlot) {
+            return switch (column) {
+              1 => Text(
+                emptySlotReasonLabel(l10n, row.reason),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              8 => Text(
+                date(row.slotAt),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              _ => const Text(''),
+            };
+          }
+          row as ProductionPlanRow;
+
           return switch (column) {
             0 => Text('${row.orderNumber}'),
             1 => Text(row.partNumber),

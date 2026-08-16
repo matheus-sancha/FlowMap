@@ -143,7 +143,7 @@ class FilteredRun {
   /// run**, because the run does not carry what a windowed denominator needs.
   final RunMetrics metrics;
 
-  final List<ProductionPlanRow> plan;
+  final List<PlanEntry> plan;
 
   /// Whether the station figures describe more than the slice, so the view can
   /// say so rather than letting them read as filtered.
@@ -251,7 +251,9 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
     for (final part in run.metrics.parts) part.partId: part.partNumber,
   };
   final projectOf = {
-    for (final row in run.plan) row.outcome.orderId: row.customerProject,
+    for (final entry in run.plan)
+      if (entry case ProductionPlanRow(:final outcome, :final customerProject))
+        outcome.orderId: customerProject,
   };
 
   final studies = <String, String>{};
@@ -367,7 +369,9 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     for (final part in run.metrics.parts) part.partId: part.partNumber,
   };
   final projectOf = {
-    for (final row in run.plan) row.outcome.orderId: row.customerProject,
+    for (final entry in run.plan)
+      if (entry case ProductionPlanRow(:final outcome, :final customerProject))
+        outcome.orderId: customerProject,
   };
 
   bool keepsProject(SimOrderOutcome outcome) {
@@ -485,10 +489,12 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     // The theoretical walk is stored per order on the plan row rather than on
     // the outcome, so it is read from there (§8.5).
     theoreticalByOrder: {
-      for (final row in run.plan)
-        if (keptOrderIds.contains(row.outcome.orderId) &&
-            row.theoreticalLeadTime != null)
-          row.outcome.orderId: row.theoreticalLeadTime!,
+      for (final entry in run.plan)
+        if (entry case ProductionPlanRow(
+          :final outcome,
+          :final theoreticalLeadTime?,
+        ) when keptOrderIds.contains(outcome.orderId))
+          outcome.orderId: theoreticalLeadTime,
     },
   );
 
@@ -511,9 +517,21 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     // from the whole run. That is exactly the split wanted; the splice threw it
     // away.
     metrics: sliced,
-    plan: [
-      for (final row in run.plan)
-        if (keptOrderIds.contains(row.outcome.orderId)) row,
+    plan: <PlanEntry>[
+      for (final entry in run.plan)
+        // **A slot is kept by its study, an order by its own id.** An empty slot
+        // has no part and no order number, so a part or order filter cannot
+        // speak about it — narrowing to a part would otherwise silently claim
+        // the line never stalled. A study or cell filter is the one that can,
+        // and does.
+        if (switch (entry) {
+          ProductionPlanRow(:final outcome) => keptOrderIds.contains(
+            outcome.orderId,
+          ),
+          PlanEmptySlot(:final studyId) =>
+            !filter.narrowsOrders && keepsStudy(studyId),
+        })
+          entry,
     ],
     stationsAreWholeRun: !filter.isWholeRun,
   );

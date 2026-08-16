@@ -1767,4 +1767,10 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get validationAboveZero => 'Digite um número maior que zero';
+
+  @override
+  String get simEmptySlotAwaitingMaterial => 'Aguardando material';
+
+  @override
+  String get simEmptySlotWipCap => 'Limite de WIP atingido';
 }

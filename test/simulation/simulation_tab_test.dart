@@ -922,7 +922,7 @@ void main() {
           theoreticalByOrder: const {},
         ),
         plan: [
-          for (final row in base.plan)
+          for (final row in base.plan.orders)
             ProductionPlanRow(
               outcome: row.outcome,
               partNumber: numbers[row.outcome.partId]!,
@@ -1174,4 +1174,14 @@ class _StubRunner extends SimulationRunner {
 
   @override
   Future<StoredRun?> build(String projectId) async => _run;
+}
+
+
+/// The plan's order rows, for tests that are about orders (§8.5).
+///
+/// The plan carries empty release slots too since they became rows; a test
+/// asserting on part numbers wants the orders, and saying so is better than
+/// indexing past a slot.
+extension PlanOrders on List<PlanEntry> {
+  List<ProductionPlanRow> get orders => whereType<ProductionPlanRow>().toList();
 }

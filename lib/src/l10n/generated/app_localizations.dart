@@ -3125,6 +3125,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a number above zero'**
   String get validationAboveZero;
+
+  /// No description provided for @simEmptySlotAwaitingMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting material'**
+  String get simEmptySlotAwaitingMaterial;
+
+  /// No description provided for @simEmptySlotWipCap.
+  ///
+  /// In en, this message translates to:
+  /// **'WIP cap reached'**
+  String get simEmptySlotWipCap;
 }
 
 class _AppLocalizationsDelegate

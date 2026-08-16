@@ -671,7 +671,7 @@ void main() {
     );
 
     final stored = await runs.loadRun(runId);
-    final plan = stored!.plan;
+    final plan = stored!.plan.orders;
 
     // One row per order, in sequence order — which is release order, so the
     // Order column and "over time" are the same list (§7.2, §8.4).
@@ -715,6 +715,61 @@ void main() {
     // on a run stored before v13 it means "this run did not record one"
     // (§16.14). The plan draws a dash for both, which is honest either way.
     expect(plan[1].partDescription, isNull);
+  });
+
+  test('an empty release slot is a row in the plan, in date order', () async {
+    // Reported from the field: a study that spends eight of twenty-three slots
+    // waiting for material read as a plan with invisible gaps. Interleaved, the
+    // table reads as the cadence actually ran (§7.2, §8.5).
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final plan = (await runs.loadRun(runId))!.plan;
+    expect(
+      plan.whereType<PlanEmptySlot>(),
+      hasLength(result.emptySlots.length),
+      reason: 'every slot the run recorded is a row',
+    );
+    expect(plan.orders, hasLength(result.orders.length));
+
+    // In date order, which is the whole point of interleaving them: an order
+    // that never released has no date and sorts last rather than first.
+    final dated = [for (final entry in plan) ?entry.at];
+    expect(
+      dated,
+      orderedEquals([...dated]..sort((a, b) => a.compareTo(b))),
+    );
+    final undated = plan.where((e) => e.at == null);
+    if (undated.isNotEmpty) {
+      expect(plan.reversed.take(undated.length), containsAll(undated));
+    }
+  });
+
+  test('a slot carries which gate held the line', () async {
+    // "8 empty slots" is not something a planner can act on; *which* gate is.
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final slots = (await runs.loadRun(
+      runId,
+    ))!.plan.whereType<PlanEmptySlot>().toList();
+    if (slots.isEmpty) return;
+    expect(slots.first.studyId, 'study-1');
+    expect(slots.map((s) => s.reason).toSet(), isNotEmpty);
   });
 
   test('the schedule horizon survives, and with it the warning', () async {
@@ -810,4 +865,14 @@ void main() {
     expect(stored!.result.scheduleHorizon, isNull);
     expect(stored.result.ordersPastHorizon, isEmpty);
   });
+}
+
+
+/// The plan's order rows, for tests that are about orders (§8.5).
+///
+/// The plan carries empty release slots too since they became rows; a test
+/// asserting on part numbers wants the orders, and saying so is better than
+/// indexing past a slot.
+extension PlanOrders on List<PlanEntry> {
+  List<ProductionPlanRow> get orders => whereType<ProductionPlanRow>().toList();
 }

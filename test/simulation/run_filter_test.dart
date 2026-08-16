@@ -143,7 +143,7 @@ void main() {
     expect(view.metrics.orders, 2);
     expect(view.result.orders.map((o) => o.orderId), ['o1', 'o2']);
     expect(view.result.steps.map((s) => s.orderId), ['o1', 'o2']);
-    expect(view.plan.map((r) => r.outcome.orderId), ['o1', 'o2']);
+    expect(view.plan.orders.map((r) => r.outcome.orderId), ['o1', 'o2']);
   });
 
   test('the stations narrow, but their open time does not', () {
@@ -676,7 +676,7 @@ void main() {
       // The steps follow the orders, which is what makes every table narrow
       // rather than only the count at the top.
       expect(view.result.steps.map((s) => s.orderId), ['o1']);
-      expect(view.plan.map((r) => r.outcome.orderId), ['o1']);
+      expect(view.plan.orders.map((r) => r.outcome.orderId), ['o1']);
     });
 
     test('two projects are a union, not an intersection', () {
@@ -870,4 +870,14 @@ void main() {
       );
     });
   });
+}
+
+
+/// The plan's order rows, for tests that are about orders (§8.5).
+///
+/// The plan carries empty release slots too since they became rows; a test
+/// asserting on part numbers wants the orders, and saying so is better than
+/// indexing past a slot.
+extension PlanOrders on List<PlanEntry> {
+  List<ProductionPlanRow> get orders => whereType<ProductionPlanRow>().toList();
 }

@@ -472,22 +472,42 @@ class SimulationRunsRepository {
       result: result,
       // Built from the same `orders` rows the result above was, so the plan's
       // dates and the metrics' cannot come from two different readings.
-      plan: [
-        for (final outcome in result.orders)
-          if (byOrderId[outcome.orderId] case final row?)
-            ProductionPlanRow(
-              outcome: outcome,
-              partNumber: row.partNumber,
-              partDescription: row.partDescription,
-              customerProject: row.customerProject,
-              batchNumber: row.batchNumber,
-              batchSize: row.batchSize,
-              materialDate: row.materialDate,
-              theoreticalLeadTime: row.theoreticalSeconds == null
-                  ? null
-                  : Duration(seconds: row.theoreticalSeconds!),
-            ),
-      ]..sort((a, b) => a.outcome.sequence.compareTo(b.outcome.sequence)),
+      plan:
+          <PlanEntry>[
+            for (final outcome in result.orders)
+              if (byOrderId[outcome.orderId] case final row?)
+                ProductionPlanRow(
+                  outcome: outcome,
+                  partNumber: row.partNumber,
+                  partDescription: row.partDescription,
+                  customerProject: row.customerProject,
+                  batchNumber: row.batchNumber,
+                  batchSize: row.batchSize,
+                  materialDate: row.materialDate,
+                  theoreticalLeadTime: row.theoreticalSeconds == null
+                      ? null
+                      : Duration(seconds: row.theoreticalSeconds!),
+                ),
+            for (final slot in result.emptySlots)
+              PlanEmptySlot(
+                studyId: slot.studyId,
+                slotAt: slot.at,
+                reason: slot.reason,
+              ),
+          ]..sort((a, b) {
+            // By date, so the table reads as the cadence ran. An order that
+            // never released has no date and goes to the end rather than to the
+            // beginning, where a null would sort it.
+            final left = a.at;
+            final right = b.at;
+            if (left == null) return right == null ? 0 : 1;
+            if (right == null) return -1;
+            final byDate = left.compareTo(right);
+            if (byDate != 0) return byDate;
+            // A slot and the order it released at the same instant: the order
+            // first, because the slot that produced it is not an empty one.
+            return a is ProductionPlanRow ? -1 : 1;
+          }),
       metrics: summariseRun(
         result: result,
         partNumbers: {for (final row in orders) row.partId: row.partNumber},
@@ -611,13 +631,15 @@ class StoredRun {
   /// What each station dispatched by, as the run recorded it (§7.3).
   final RunQueues queues;
 
-  /// The production plan (§8.5), in sequence order, all studies together.
+  /// The production plan (§8.5), in date order, all studies together.
   ///
-  /// The UI sections it by study; the ordering within one is release order,
-  /// because §7.2 releases strictly from the head of the sequence and never
-  /// reorders it, so "over time" and "in sequence" are the same list and cannot
-  /// disagree with the Order column.
-  final List<ProductionPlanRow> plan;
+  /// The UI sections it by study. **Ordered by date rather than by sequence**
+  /// since the empty slots joined it: §7.2 releases strictly from the head and
+  /// never reorders, so for the orders alone the two orderings are the same list
+  /// — but a slot that produced nothing has a date and no sequence number, and
+  /// only a timeline can say where it belongs. An order that never released has
+  /// neither and sorts last.
+  final List<PlanEntry> plan;
 
   /// The studies that took part, as they stood at the time.
   final List<SimulationRunStudy> studies;
@@ -642,7 +664,48 @@ class StoredRun {
 /// The demand half is nullable throughout because a run stored before schema
 /// v12 did not record it (§16.13). A blank cell says "this run did not keep
 /// that", which is true; it is not the same as an empty batch number.
-class ProductionPlanRow {
+/// One line of the production plan: an order, or a release slot that went out
+/// empty (DESIGN.md §8.5, §7.2).
+///
+/// **Empty slots are rows.** The plan used to be the orders that survived the
+/// release gate, so a study that spent eight of twenty-three slots waiting for
+/// material read as a plan with gaps nobody could see — reported from the field
+/// as wanting them shown. Interleaved by date, the table reads as the cadence
+/// actually ran: three slots, one order.
+sealed class PlanEntry {
+  const PlanEntry();
+
+  /// The study whose sequence this belongs to — what the plan sections by.
+  String get studyId;
+
+  /// When it happened, and what the plan sorts by. Null for an order that never
+  /// released, which has no place in a timeline and sorts last.
+  DateTime? get at;
+}
+
+/// A release slot that produced nothing, and why (§7.2).
+class PlanEmptySlot extends PlanEntry {
+  const PlanEmptySlot({
+    required this.studyId,
+    required this.slotAt,
+    required this.reason,
+  });
+
+  @override
+  final String studyId;
+
+  final DateTime slotAt;
+
+  /// Awaiting material, the WIP cap, or a full lane — the three gates §7.2
+  /// checks. Kept per slot rather than counted, because *which* gate held the
+  /// line is the thing a planner acts on.
+  final EmptySlotReason reason;
+
+  @override
+  DateTime? get at => slotAt;
+}
+
+class ProductionPlanRow extends PlanEntry {
   const ProductionPlanRow({
     required this.outcome,
     required this.partNumber,
@@ -656,6 +719,12 @@ class ProductionPlanRow {
 
   final SimOrderOutcome outcome;
   final String partNumber;
+
+  @override
+  String get studyId => outcome.studyId;
+
+  @override
+  DateTime? get at => outcome.released;
 
   /// Null on a run stored before v13, which did not record it (§16.14).
   final String? partDescription;
