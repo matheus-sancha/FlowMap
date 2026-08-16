@@ -581,5 +581,6 @@
   "flowQueueTypeHelp": "Como a esta\u00e7\u00e3o seguinte escolhe a pr\u00f3xima ordem desta fila. Um empurre \u00e9 uma pilha \u00e0 qual ningu\u00e9m deu uma ordem; as quatro regras s\u00e3o canais, e o mapa desenha cada uma diferente.",
   "flowQueueStock": "O que est\u00e1 aqui agora",
   "queueTypePush": "Empurre \u2014 uma pilha, sem regra",
-  "queueTypeSupermarket": "Supermercado \u2014 ainda n\u00e3o"
+  "queueTypeSupermarket": "Supermercado \u2014 ainda n\u00e3o",
+  "flowBatchHelp": "Quantas peças cada caixa custa. Os tempos de processo são por peça, então uma ordem de dez ocupa a estação dez vezes mais — que é o que a simulação cobra. Deixe vazio para seguir as ordens que esta peça tem."
 }

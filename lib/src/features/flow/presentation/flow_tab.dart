@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/formatters.dart';
+import '../../../common/help_icon.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
@@ -102,6 +103,14 @@ class _Toolbar extends ConsumerWidget {
             parts: parts,
             selectedPart: selectedPart,
           ),
+          // How many pieces the boxes are costing (§7.6). Beside the part,
+          // because it is the other half of "which order is this" — and absent
+          // under the flow equivalent, whose dummy part is one piece by
+          // definition (§6.1) and for which a lot size would be meaningless.
+          if (source.isDemandPart) ...[
+            const SizedBox(width: 12),
+            _BatchField(study: study, batch: view?.demandBatchSize ?? 1),
+          ],
           // The schedule varies inside the period the map is drawn for, so the
           // figures are one moment of several (§4.2). Beside what is being
           // shown, because that is what it qualifies.
@@ -125,6 +134,72 @@ class _Toolbar extends ConsumerWidget {
             icon: const Icon(Icons.picture_as_pdf_outlined),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// How many pieces a box is costing (DESIGN.md §7.6).
+///
+/// **Shows the batch in force, whether or not anyone typed it.** It opens on the
+/// one the selected part's orders actually use, so the map reconciles with a run
+/// without being told to; typing over it is the lot-sizing experiment, and
+/// emptying it hands the question back to the demand table.
+class _BatchField extends ConsumerStatefulWidget {
+  const _BatchField({required this.study, required this.batch});
+
+  final Study study;
+
+  /// What the map is using — the override if there is one, else the demand's.
+  final int batch;
+
+  @override
+  ConsumerState<_BatchField> createState() => _BatchFieldState();
+}
+
+class _BatchFieldState extends ConsumerState<_BatchField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: '${widget.batch}',
+  );
+
+  @override
+  void didUpdateWidget(_BatchField old) {
+    super.didUpdateWidget(old);
+    // Follows the demand when nothing has been typed — switching parts has to
+    // move the number, or the field would show the last part's lot.
+    final override = ref.read(flowBatchOverrideProvider(widget.study.id));
+    if (override == null && _controller.text != '${widget.batch}') {
+      _controller.text = '${widget.batch}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
+      width: 120,
+      child: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: l10n.demandBatchSize,
+          isDense: true,
+          suffixIcon: helpIcon(context, l10n.flowBatchHelp),
+        ),
+        onChanged: (text) {
+          final value = int.tryParse(text.trim());
+          ref
+              .read(flowBatchOverrideProvider(widget.study.id).notifier)
+              // Blank, or anything that is not a lot, hands the question back
+              // to the demand table rather than freezing the map at one piece.
+              .set(value != null && value >= 1 ? value : null);
+        },
       ),
     );
   }

@@ -628,5 +628,6 @@
   "flowQueueTypeHelp": "How the station ahead picks the next order out of this queue. A push is a pile nobody has given an order to; the four rules are channels, and the map draws each one differently.",
   "flowQueueStock": "What is standing here now",
   "queueTypePush": "Push \u2014 a pile, no rule",
-  "queueTypeSupermarket": "Supermarket \u2014 not yet"
+  "queueTypeSupermarket": "Supermarket \u2014 not yet",
+  "flowBatchHelp": "How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has."
 }

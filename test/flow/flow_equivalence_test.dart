@@ -58,19 +58,30 @@ void main() {
     updatedAt: now,
   );
 
-  FlowNode step(int position, {String? workcenterId, String? poolId}) =>
-      FlowNode(
-        id: 'node-$position',
-        studyId: 'study-1',
-        position: position,
-        kind: FlowNodeKind.step,
-        workcenterId: workcenterId,
-        poolId: poolId,
-        changeoverSeconds: 0,
-        inventoryUsesWorkingTime: false,
-        createdAt: now,
-        updatedAt: now,
-      );
+  FlowNode step(
+    int position, {
+    String? workcenterId,
+    String? poolId,
+    double? setupValue,
+    TaktUnit? setupUnit,
+    double? teardownValue,
+    TaktUnit? teardownUnit,
+  }) => FlowNode(
+    id: 'node-$position',
+    studyId: 'study-1',
+    position: position,
+    kind: FlowNodeKind.step,
+    workcenterId: workcenterId,
+    poolId: poolId,
+    changeoverSeconds: 0,
+    setupValue: setupValue,
+    setupUnit: setupUnit,
+    teardownValue: teardownValue,
+    teardownUnit: teardownUnit,
+    inventoryUsesWorkingTime: false,
+    createdAt: now,
+    updatedAt: now,
+  );
 
   WorkcenterContext context(
     String id, {
@@ -127,6 +138,104 @@ void main() {
     dataSource: dataSource,
     demand: demand,
   );
+
+  group('what a box costs an order (§7.6)', () {
+    test('a batch of ten occupies the station ten times as long', () {
+      // The gap that made the map and the run irreconcilable: process times are
+      // per piece, and the map had no notion of a batch at all — so an order of
+      // ten read a tenth of what the engine charged it.
+      FlowView at(int batch) => build(
+        nodes: [step(0, workcenterId: 'CLAD04')],
+        contexts: {'CLAD04': context('CLAD04')},
+        dataSource: FlowDataSource.singlePart,
+        demand: FlowDemandInput(
+          processTimes: const {
+            'p1': {'CLAD04': Duration(hours: 5)},
+          },
+          selectedPartId: 'p1',
+          batchSize: batch,
+        ),
+      );
+
+      expect(at(1).steps.single.processTime, const Duration(hours: 5));
+      expect(at(10).steps.single.processTime, const Duration(hours: 50));
+      expect(at(10).leadTime, at(1).leadTime * 10);
+    });
+
+    test('the flow equivalent is one piece whatever the batch says', () {
+      // Its dummy part *is* one piece (§6.1); multiplying a takt by a lot size
+      // would state a cadence no line runs at.
+      final view = build(
+        nodes: [step(0, workcenterId: 'CLAD04')],
+        contexts: {'CLAD04': context('CLAD04')},
+        dataSource: FlowDataSource.flowEquivalent,
+        demand: const FlowDemandInput(batchSize: 10),
+      );
+      expect(view.steps.single.processTime, const Duration(hours: 68));
+    });
+
+    test('a changeover lengthens the step, and the flow', () {
+      // It was on the box as a figure and in no total, so typing a setup moved
+      // one row and nothing else — reported from the field. The engine has
+      // always charged it as part of a station's occupancy (§7.6).
+      final without = build(
+        nodes: [step(0, workcenterId: 'CLAD04')],
+        contexts: {'CLAD04': context('CLAD04')},
+        dataSource: FlowDataSource.flowEquivalent,
+      );
+      final withSetup = build(
+        nodes: [
+          step(
+            0,
+            workcenterId: 'CLAD04',
+            setupValue: 2,
+            setupUnit: TaktUnit.hours,
+            teardownValue: 1,
+            teardownUnit: TaktUnit.hours,
+          ),
+        ],
+        contexts: {'CLAD04': context('CLAD04')},
+        dataSource: FlowDataSource.flowEquivalent,
+      );
+
+      expect(withSetup.steps.single.changeover, const Duration(hours: 3));
+      // The work is unchanged; what the order occupies the station for is not.
+      expect(
+        withSetup.steps.single.processTime,
+        without.steps.single.processTime,
+      );
+      expect(
+        withSetup.leadTime - without.leadTime,
+        const Duration(hours: 3),
+      );
+      expect(
+        withSetup.steps.single.ladderTime,
+        without.steps.single.ladderTime + const Duration(hours: 3),
+      );
+    });
+
+    test('availability is applied once, not twice', () {
+      // §6.2's rule, and the thing that broke when the batch went in: the engine
+      // works in open-clock hours and divides by availability to get there; the
+      // map works in productive hours and divides the rung by a productive day.
+      // Applying it here as well would count the loss twice.
+      final view = build(
+        nodes: [step(0, workcenterId: 'CLAD04')],
+        contexts: {
+          'CLAD04': context('CLAD04', availability: 0.5, rework: 0),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {'CLAD04': Duration(hours: 10)},
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.single.processTime, const Duration(hours: 10));
+    });
+  });
 
   group('a single part', () {
     test('the worked reference in §6.1', () {

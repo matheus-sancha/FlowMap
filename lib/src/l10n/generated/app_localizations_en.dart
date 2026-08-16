@@ -1737,4 +1737,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get queueTypeSupermarket => 'Supermarket — not yet';
+
+  @override
+  String get flowBatchHelp =>
+      'How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.';
 }

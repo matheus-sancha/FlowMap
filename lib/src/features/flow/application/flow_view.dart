@@ -88,7 +88,21 @@ class FlowDemandInput {
     this.piecesDueInPeriod = const {},
     this.selectedPartId,
     this.selectedPartNumber,
+    this.batchSize = 1,
   });
+
+  /// How many pieces the boxes are costing at once (§7.6).
+  ///
+  /// **The map used to have no notion of a batch**, so a box showed one piece
+  /// while the engine charged `pt × batch ÷ availability` — an order of ten read
+  /// a tenth of what the run did, and the two screens could not be reconciled.
+  /// It defaults to the batch the selected part's orders actually use and is
+  /// overridable, which is what makes lot sizing something the map can be asked
+  /// about (§7.6's "Batch Size is a real lever").
+  ///
+  /// One under [FlowDataSource.flowEquivalent]: the dummy part is one piece by
+  /// definition (§6.1).
+  final int batchSize;
 
   /// `partId → step target → stored per-piece time`, exactly as typed. Rework
   /// is applied here, not stored (§4.4).
@@ -481,9 +495,14 @@ class FlowStepView {
 
   int get staffedShiftCount => operatorsPerShift.where((o) => o > 0).length;
 
-  /// How long an order spends *in this box*, for the lead-time ladder's lower
-  /// rung. The queue's wait is its own rung above the link (§17.4).
-  Duration get ladderTime => processTime ?? Duration.zero;
+  /// How long an order spends *in this box* — its work **and its changeover**.
+  ///
+  /// **The changeover is in the rung since the map went per order.** It was on
+  /// the box as a figure and in no total, so typing a setup moved one row and
+  /// nothing else; the engine has always charged it as part of a station's
+  /// occupancy (§7.6), and a ladder that left it out could not be compared with
+  /// what a run reports. The queue's wait is its own rung above the link.
+  Duration get ladderTime => (processTime ?? Duration.zero) + changeover;
 
   /// The working day the ladder renders [ladderTime] against, so a rung can
   /// read `3.8 d` the way a value-stream map draws it. Null — and the rung
@@ -516,6 +535,7 @@ class FlowView {
     required this.taktCarriedForward,
     required this.scheduleVariesInPeriod,
     this.selectedPartNumber,
+    this.demandBatchSize = 1,
     this.endDate,
     this.runningDays,
     this.workingDays,
@@ -571,6 +591,11 @@ class FlowView {
   /// map. Null unless [dataSource] is [FlowDataSource.singlePart].
   final String? selectedPartNumber;
 
+  /// How many pieces the boxes were costed for (§7.6) — one under the flow
+  /// equivalent. Carried so the toolbar can show what the map used and the
+  /// printed map can say what it was drawn for.
+  final int demandBatchSize;
+
   /// The takt in force, or null if none is defined for [asOf].
   final TaktPeriodSpec? takt;
 
@@ -594,10 +619,17 @@ class FlowView {
     ];
   }
 
-  /// Total process time across the steps — the `Process time` footer figure.
+  /// Time at the stations — the `Process time` footer figure, and the sum of
+  /// the ladder's lower rungs (§17.4).
+  ///
+  /// **Work plus changeover**, because that is what an order occupies a station
+  /// for and what §7.6 charges it. It is therefore the map's statement of the
+  /// same quantity §7.9 walks as the theoretical lead time, and the gap between
+  /// this and what a run observes is the queueing — which is the one thing a run
+  /// exists to measure.
   Duration get processTime => steps.fold(
     Duration.zero,
-    (total, step) => total + (step.processTime ?? Duration.zero),
+    (total, step) => total + step.ladderTime,
   );
 
   /// Process plus what is standing in the queues — the `Lead time` footer
@@ -779,6 +811,7 @@ FlowView buildFlowView({
     selectedPartNumber: dataSource == FlowDataSource.singlePart
         ? demand.selectedPartNumber
         : null,
+    demandBatchSize: dataSource.isDemandPart ? demand.batchSize : 1,
   );
 }
 
@@ -1084,8 +1117,23 @@ Duration? _demandProcessTime({
   final key = node.poolId ?? node.workcenterId;
   if (key == null) return null;
 
-  Duration withRework(Duration stored) =>
-      Duration(seconds: (stored.inSeconds * (1 + rework)).round());
+  // **A whole order's work, in productive hours** (§7.6). This was one piece,
+  // which is why a box read a tenth of what a run charged an order of ten.
+  //
+  // **Availability is deliberately not divided out here**, and the tests that
+  // caught it doing so are §6.2's: the engine works in open-clock hours and
+  // divides by availability to get there, while the map works in *productive*
+  // hours throughout and divides the rung by a productive day. The two units
+  // differ by exactly that factor, so applying it here would count the loss
+  // twice — and it is why `pt × batch × (1 + rework)` over a productive day
+  // lands on the same number of days §7.9 walks over an open one.
+  Duration cost(Duration stored) => Duration(
+    seconds:
+        (stored.inSeconds *
+                (demand.batchSize < 1 ? 1 : demand.batchSize) *
+                (1 + rework))
+            .round(),
+  );
 
   switch (dataSource) {
     case FlowDataSource.flowEquivalent:
@@ -1095,7 +1143,7 @@ Duration? _demandProcessTime({
       final partId = demand.selectedPartId;
       if (partId == null) return null;
       final stored = demand.processTimes[partId]?[key];
-      return stored == null ? null : withRework(stored);
+      return stored == null ? null : cost(stored);
 
     case FlowDataSource.weightedVariants:
       // Sigma(pt x pieces) / Sigma pieces, over the parts that actually visit
@@ -1112,7 +1160,7 @@ Duration? _demandProcessTime({
         pieces += entry.value;
       }
       if (pieces == 0) return null;
-      return withRework(Duration(seconds: (work / pieces).round()));
+      return cost(Duration(seconds: (work / pieces).round()));
   }
 }
 

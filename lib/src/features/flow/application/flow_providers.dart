@@ -80,6 +80,45 @@ class FlowDataSourceSelection extends _$FlowDataSourceSelection {
   void select(FlowDataSource source) => state = source;
 }
 
+/// A batch size typed on the Flow toolbar, or null to follow the demand table.
+///
+/// **Null is a real state rather than a missing one.** It means "whatever this
+/// part's orders actually use", so switching parts follows the new part instead
+/// of carrying the last one's lot across — and typing a number is the lot-sizing
+/// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+/// the period and the data source: it is a question being asked of the map, not
+/// a property of the study.
+@riverpod
+class FlowBatchOverride extends _$FlowBatchOverride {
+  @override
+  int? build(String studyId) => null;
+
+  void set(int? batch) => state = batch;
+}
+
+/// The batch the selected part's orders actually use.
+///
+/// **The most common one**, not the first and not the mean: a part ordered in
+/// tens with one sample of one should read ten. Ties break to the larger, which
+/// is the more conservative statement of what a station is occupied for.
+int modalBatchSize(Iterable<int> batches) {
+  final counts = <int, int>{};
+  for (final batch in batches) {
+    if (batch >= 1) counts[batch] = (counts[batch] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return 1;
+  var best = 1;
+  var bestCount = 0;
+  for (final entry in counts.entries) {
+    if (entry.value > bestCount ||
+        (entry.value == bestCount && entry.key > best)) {
+      best = entry.key;
+      bestCount = entry.value;
+    }
+  }
+  return best;
+}
+
 /// What the map reads out of the demand table for a study at one period.
 ///
 /// Empty under [FlowDataSource.flowEquivalent] — assembling a mix nothing will
@@ -117,11 +156,26 @@ final flowDemandProvider = Provider.family<FlowDemandInput, String>((
     }
   }
 
+  // One order's worth, because that is what a run charges and what §7.9 walks.
+  // The flow equivalent stays one piece: its dummy part *is* one piece (§6.1),
+  // and multiplying a takt by a lot size would state a cadence no line runs at.
+  final orders = ref.watch(demandOrdersProvider(studyId)).value ??
+      const <DemandOrder>[];
+  final batch = source == FlowDataSource.singlePart
+      ? (ref.watch(flowBatchOverrideProvider(studyId)) ??
+            modalBatchSize([
+              for (final order in orders)
+                if (order.partId == selected?.id) order.batchSize,
+            ]))
+      : (ref.watch(flowBatchOverrideProvider(studyId)) ??
+            modalBatchSize([for (final order in orders) order.batchSize]));
+
   return FlowDemandInput(
     processTimes: table.times,
     piecesDueInPeriod: pieces,
     selectedPartId: selected?.id,
     selectedPartNumber: selected?.partNumber,
+    batchSize: batch,
   );
 });
 

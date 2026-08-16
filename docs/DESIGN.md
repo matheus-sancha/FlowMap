@@ -310,9 +310,31 @@ fourth in the routing.
 
 Nothing on the box is typed except **Changeover**. Everything else is derived:
 
+**A box costs one order, not one piece** (§7.6). Process times are stored per piece, and the map
+multiplied by nothing — so an order of ten read a tenth of what the engine charged it, and the map's
+lead time could not be compared with any figure a run reports. It now shows
+`pt × batch × (1 + rework)`, and the **changeover is in the lead-time ladder** rather than being a
+figure on the box that fed no total. Reported from the field as *"I'm adding setup and breakdown
+time, but it's not changing the LT of the station"*, which it did not.
+
+- **The batch comes from the demand, and is overridable.** A field on the toolbar beside the part
+  picker opens on the batch that part's orders actually use — the most common one, ties to the larger
+  — so the map reconciles with a run without being told to. Typing over it is the lot-sizing
+  experiment §7.6 says Batch Size exists to be; emptying it hands the question back to the demand
+  table. Absent under the flow equivalent, whose dummy part is one piece by definition (§6.1).
+- **Availability is applied once, and not here.** The engine works in open-clock hours and divides by
+  availability to get there; the map works in *productive* hours throughout and divides each rung by
+  a productive day. Dividing here as well counts the loss twice — §6.2 already said so, and the
+  equivalence tests caught this making exactly that mistake.
+- **What the three figures now are.** The map's `Process time` is Σ `(work + changeover)` — the same
+  quantity §7.9 walks, plus the changeover §7.9 excludes because it depends on what ran before. The
+  gap between the map and a run's actual lead time is therefore the **queueing**, which is the one
+  thing a run exists to measure. The map's lead time additionally carries the days-of-stock in its
+  queues, which a run charges nothing for (§5.5).
+
 | Field | Source |
 |---|---|
-| Process time | selected data source: Flow equivalent \| one part \| all variants weighted by demand mix |
+| Process time | selected data source: Flow equivalent \| one part \| all variants weighted by demand mix, × batch |
 | Availability, Operators, Shifts | that workcenter's project schedule for the displayed period |
 | Occupation | required hours ÷ available productive hours for the period |
 

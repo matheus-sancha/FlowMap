@@ -3107,6 +3107,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Supermarket — not yet'**
   String get queueTypeSupermarket;
+
+  /// No description provided for @flowBatchHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.'**
+  String get flowBatchHelp;
 }
 
 class _AppLocalizationsDelegate
