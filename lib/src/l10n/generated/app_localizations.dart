@@ -2511,7 +2511,7 @@ abstract class AppLocalizations {
   /// No description provided for @simStationsWholeRun.
   ///
   /// In en, this message translates to:
-  /// **'These describe the whole run, not the filtered slice — the run does not store what a narrowed open time would need.'**
+  /// **'Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.'**
   String get simStationsWholeRun;
 
   /// No description provided for @simulationRun.

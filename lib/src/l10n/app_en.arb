@@ -514,7 +514,7 @@
   "simFilterAll": "all",
   "simFilterClear": "Clear filters",
   "simWorkspace": "Simulation",
-  "simStationsWholeRun": "These describe the whole run, not the filtered slice — the run does not store what a narrowed open time would need.",
+  "simStationsWholeRun": "Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.",
   "simulationRun": "Simulate",
   "simulationRunning": "Running…",
   "simulationRunSettings": "Run settings",

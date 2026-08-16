@@ -217,11 +217,20 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     filter: filter,
     studyIds: studyIds,
     result: result,
-    // **The station rankings come from the unfiltered run**, spliced back over
-    // the slice's own figures. Recomputing them from filtered steps would give
-    // a busy total for the slice over an open total for the run, which is a
-    // utilisation that means nothing.
-    metrics: sliced.withWorkcenters(run.metrics.workcenters),
+    // **Per column, not per table.** The stations used to be spliced back
+    // wholesale from the unfiltered run, on the argument that a busy total for
+    // the slice over an open total for the run is a utilisation that means
+    // nothing. True of utilisation — and it was applied to five other columns
+    // that have no such problem, so "ranked by queue" ranked the whole plant
+    // whatever was filtered.
+    //
+    // The splice was also unnecessary. `result` above carries the run's own
+    // `busyByWorkcenter`, `openByWorkcenter` and `blockedByWorkcenter` maps
+    // unfiltered, so `summariseRun` already tallies queue, visits and
+    // changeovers from the slice's steps while reading utilisation and blocked
+    // from the whole run. That is exactly the split wanted; the splice threw it
+    // away.
+    metrics: sliced,
     plan: [
       for (final row in run.plan)
         if (keptOrderIds.contains(row.outcome.orderId)) row,

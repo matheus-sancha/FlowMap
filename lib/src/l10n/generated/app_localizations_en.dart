@@ -1363,7 +1363,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simStationsWholeRun =>
-      'These describe the whole run, not the filtered slice — the run does not store what a narrowed open time would need.';
+      'Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.';
 
   @override
   String get simulationRun => 'Simulate';

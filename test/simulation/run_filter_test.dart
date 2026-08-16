@@ -55,18 +55,6 @@ void main() {
     changeoverIncurred: false,
   );
 
-  WorkcenterRunMetrics station(String id, String name) => WorkcenterRunMetrics(
-    workcenterId: id,
-    name: name,
-    visits: 10,
-    busy: const Duration(hours: 100),
-    open: const Duration(hours: 200),
-    blocked: Duration.zero,
-    queueTime: const Duration(hours: 5),
-    changeovers: 2,
-    contributedTime: const Duration(hours: 100),
-  );
-
   StoredRun run() {
     final orders = [
       outcome(
@@ -91,15 +79,24 @@ void main() {
       steps: [step('o1', 'wc-1'), step('o2', 'wc-1'), step('o3', 'wc-2')],
       orders: orders,
       emptySlots: const [],
-      busyByWorkcenter: const {},
-      openByWorkcenter: const {},
+      // Busy and open live on the run, which is what makes them whole-run
+      // figures a slice cannot narrow — they used to be supplied by splicing
+      // the metrics after the fact, which hid that.
+      busyByWorkcenter: const {
+        'wc-1': Duration(hours: 100),
+        'wc-2': Duration(hours: 100),
+      },
+      openByWorkcenter: const {
+        'wc-1': Duration(hours: 200),
+        'wc-2': Duration(hours: 200),
+      },
     );
     final metrics = summariseRun(
       result: result,
       partNumbers: const {'p1': 'PN1'},
       workcenterNames: const {'wc-1': 'CLAD04', 'wc-2': 'TTAT'},
       theoreticalByOrder: const {},
-    ).withWorkcenters([station('wc-1', 'CLAD04'), station('wc-2', 'TTAT')]);
+    );
 
     return StoredRun(
       id: 'run-1',
@@ -147,13 +144,19 @@ void main() {
     expect(view.plan.map((r) => r.outcome.orderId), ['o1', 'o2']);
   });
 
-  test('the stations stay whole, and the view says so', () {
-    // Utilisation's denominator is a run total and the run does not carry what a
-    // windowed one would need — so a slice reports the plant, labelled, rather
-    // than a busy total over an open total that do not describe the same thing.
+  test('the stations narrow, but their open time does not', () {
+    // **Per column, not per table.** This asserted that a slice reported every
+    // station in the plant, on the argument that utilisation cannot be
+    // narrowed. Utilisation cannot; the rows, the queue and the visits can, and
+    // ranking the whole plant under a filter is what the field reported as
+    // "the ranked by queue table does not filter".
+    //
+    // Study a's orders only ever reach CLAD04, so TTAT leaves the table — and
+    // CLAD04's open time still describes the whole run, because that is the one
+    // figure the run stores as a total.
     final view = filterRun(run(), RunFilter.study('a'));
 
-    expect(view.metrics.workcenters.map((w) => w.name), ['CLAD04', 'TTAT']);
+    expect(view.metrics.workcenters.map((w) => w.name), ['CLAD04']);
     expect(
       view.metrics.workcenters.first.open,
       const Duration(hours: 200),
@@ -162,14 +165,16 @@ void main() {
     expect(view.stationsAreWholeRun, isTrue);
   });
 
-  test('a cell filter narrows the studies, not the stations', () {
+  test('a cell filter narrows the studies, and the stations follow', () {
     // Workcenters belong to a plant rather than to a cell (§7.10), so a cell
-    // filter is a study filter one level up.
+    // filter is a study filter one level up — and the stations that survive are
+    // the ones those studies' orders actually reached. Study b runs on TTAT
+    // alone.
     final view = filterRun(run(), const RunFilter(cellIds: {'cell-2'}));
 
     expect(view.studyIds, {'b'});
     expect(view.metrics.orders, 1);
-    expect(view.metrics.workcenters, hasLength(2));
+    expect(view.metrics.workcenters.map((w) => w.name), ['TTAT']);
   });
 
   test('a run made before v17 matches no cell rather than every cell', () {
@@ -241,9 +246,10 @@ void main() {
 
       expect(view.metrics.orders, 0);
       expect(view.plan, isEmpty);
-      // The stations still describe the run, which is the one thing that does
-      // not go empty with the slice.
-      expect(view.metrics.workcenters, hasLength(2));
+      // And the stations go with them: a slice no order reached is a slice no
+      // station worked in. The whole-run figures that survive are *columns* of
+      // a row, so with no rows there is nothing left to describe.
+      expect(view.metrics.workcenters, isEmpty);
     });
   });
 }

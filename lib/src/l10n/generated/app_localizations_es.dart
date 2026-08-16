@@ -1380,7 +1380,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simStationsWholeRun =>
-      'Describen la corrida completa, no la porción filtrada — la corrida no guarda lo que haría falta para acotar el tiempo abierto.';
+      'Utilización y Bloqueado describen la corrida completa — la corrida no guarda lo que haría falta para acotar el tiempo abierto. Las demás columnas siguen el filtro.';
 
   @override
   String get simulationRun => 'Simular';

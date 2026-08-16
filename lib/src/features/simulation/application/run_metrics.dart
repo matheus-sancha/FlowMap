@@ -152,25 +152,6 @@ class RunMetrics {
   /// Every station the run touched, ranked busiest-queue first.
   final List<WorkcenterRunMetrics> workcenters;
 
-  /// The same order-level figures against a different set of stations.
-  ///
-  /// Exists for one caller: a filtered view (§12.1) recomputes counts, on-time
-  /// and lead times over its slice, and then puts the **whole run's** stations
-  /// back — because a busy total for a slice over an open total for the run is
-  /// a utilisation that means nothing, and the run does not carry what a
-  /// windowed open total would need.
-  RunMetrics withWorkcenters(List<WorkcenterRunMetrics> stations) => RunMetrics(
-    orders: orders,
-    delivered: delivered,
-    onTime: onTime,
-    emptySlots: emptySlots,
-    averageFloat: averageFloat,
-    averageLeadTime: averageLeadTime,
-    theoreticalLeadTime: theoreticalLeadTime,
-    parts: parts,
-    workcenters: stations,
-  );
-
   int get late => delivered - onTime;
 
   /// On-time ÷ total (§8). Counted over **all** orders, not just the delivered
