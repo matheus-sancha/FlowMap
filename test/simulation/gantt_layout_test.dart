@@ -1298,7 +1298,7 @@ void main() {
 
     const cal = StationPool(id: 'pool-1', name: 'CAL Pool');
 
-    test('a pool\'s machines sit under one heading', () {
+    test('a pool\'s machines each name their pool', () {
       // The complaint itself: three cladding machines reading as three loose
       // stations, with nothing on screen carrying the name that was typed on
       // the map. §3.1 keeps them as separate rows on purpose — that is what
@@ -1312,14 +1312,15 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((b) => b.name), [
-        'CAL Pool',
-        'CLAD07',
-        'CLAD08',
-      ]);
-      // The heading is not a band of the run: it carries nothing to hover and
-      // it is not a station.
-      expect(chart.rows.first, isA<GanttPoolGroup>());
+      // **No heading band.** A pool had a row of its own above its machines and
+      // it read as a lane — an empty strip between the axis and the first thing
+      // with bars. The pool travels on the rows instead, so what belongs
+      // together says so without a band that belongs to nothing.
+      expect(chart.rows.map((b) => b.name), ['CLAD07', 'CLAD08']);
+      expect(
+        chart.stations.map((r) => r.poolName),
+        ['CAL Pool', 'CAL Pool'],
+      );
       expect(chart.stations.map((r) => r.workcenterId), ['CLAD07', 'CLAD08']);
     });
 
@@ -1341,15 +1342,16 @@ void main() {
       );
 
       expect(chart.lanes, hasLength(2));
-      // Both above the heading's machines rather than one above each — a lane
-      // feeds the pool, not the member that happened to pull the first order.
+      // Both above the pool's machines rather than one above each — a lane
+      // feeds the pool, not the member that happened to pull the first order —
+      // and each says which pool it feeds.
       expect(chart.rows.map((b) => b.name), [
-        'CAL Pool',
         'FIFO A',
         'FIFO B',
         'CLAD07',
         'CLAD08',
       ]);
+      expect(chart.lanes.map((l) => l.poolName), ['CAL Pool', 'CAL Pool']);
     });
 
     test('a pool\'s lane is not pinned to whichever member ran first', () {
@@ -1369,7 +1371,6 @@ void main() {
       );
 
       expect(chart.rows.map((b) => b.name), [
-        'CAL Pool',
         'FIFO CAL',
         'CLAD07',
         'CLAD08',
@@ -1392,8 +1393,10 @@ void main() {
         ],
       );
 
-      expect(chart.rows.whereType<GanttPoolGroup>().map((g) => g.name), [
-        'CAL Pool',
+      // Only the grouped machine names a pool; the loose one names both and
+      // belongs to neither.
+      expect(chart.stations.map((r) => r.poolId).whereType<String>(), [
+        'pool-1',
       ]);
       final loose = chart.stations.firstWhere(
         (r) => r.workcenterId == 'CLAD07',
@@ -1415,7 +1418,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.whereType<GanttPoolGroup>(), isEmpty);
+      expect(chart.stations.every((r) => r.poolName == null), isTrue);
       expect(chart.rows.map((b) => b.name), ['FIFO W', 'CLAD07', 'CLAD08']);
     });
   });

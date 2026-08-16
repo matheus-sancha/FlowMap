@@ -38,13 +38,6 @@ abstract final class GanttMetrics {
   /// The bar inside it, centred.
   static const barHeight = 18.0;
 
-  /// A pool's heading band (§3.1).
-  ///
-  /// Shorter than [rowHeight] because it carries a word rather than a run: a
-  /// header as tall as the machines under it would read as a fourth machine,
-  /// which is exactly the confusion the header exists to end.
-  static const poolHeaderHeight = 18.0;
-
   /// One waiting order's slot down a lane band (§8.6).
   ///
   /// A lane's band is as deep as the lane is, so a full lane is visibly full
@@ -277,28 +270,6 @@ sealed class GanttBand {
   double get height;
 }
 
-/// A pool's heading, above the machines that ran under it (DESIGN.md §3.1).
-///
-/// **Not a row of the run** — it carries no bars and nothing can be hovered on
-/// it. §3.1 keeps a pool's members as individual stations on purpose, because
-/// that is what lets a run say which machine ran an order and keeps the
-/// per-machine yardstick intact; what was missing was only the word the reader
-/// typed. This is that word, and nothing more.
-///
-/// Shallower than a station's band, so a pool of three does not read as four
-/// machines.
-class GanttPoolGroup extends GanttBand {
-  const GanttPoolGroup({required this.poolId, required this.name});
-
-  final String poolId;
-
-  @override
-  final String name;
-
-  @override
-  double get height => GanttMetrics.poolHeaderHeight;
-}
-
 /// One station's row.
 class GanttRow extends GanttBand {
   const GanttRow({
@@ -350,6 +321,7 @@ class GanttLaneRow extends GanttBand {
   const GanttLaneRow({
     required this.laneNodeId,
     required this.name,
+    this.poolName,
     required this.capacity,
     required this.depth,
     required this.visits,
@@ -360,6 +332,10 @@ class GanttLaneRow extends GanttBand {
   /// `FIFO CEU27`, or a stand-in when the buffer was never labelled.
   @override
   final String name;
+
+  /// The pool this lane feeds, where it feeds one — so the label can read
+  /// `CLAD Pool · FIFO CLAD` and say which machines are behind it (§3.1).
+  final String? poolName;
 
   /// What the lane could hold, or null for unlimited (§5.5).
   final int? capacity;
@@ -602,6 +578,11 @@ GanttChart buildGanttChart({
           partsById: partsById,
           ordersById: ordersById,
           groupOf: groupOf,
+          poolNameOf: {
+            for (final station in metrics.workcenters)
+              if (station.poolId != null && station.poolName != null)
+                station.poolId!: station.poolName!,
+          },
         )
       : const <String, List<GanttLaneRow>>{};
 
@@ -618,13 +599,15 @@ GanttChart buildGanttChart({
     }
     group = key;
 
-    // The header first, so everything beneath it reads as belonging to it —
-    // including the lane, which feeds the pool rather than any one machine.
-    if (station.poolId != null) {
-      rows.add(GanttPoolGroup(poolId: station.poolId!, name: station.poolName!));
-    }
-    // Then the lanes in front of it: an order stands in the lane and is then
-    // taken by the station, so upstream is up the page.
+    // **No heading band.** A pool used to get a row of its own above its
+    // machines, and it read as a lane rather than as a label — a band with
+    // nothing in it, between the axis and the first thing that had bars. The
+    // pool travels on the rows instead: every member and every lane feeding it
+    // is labelled `CLAD Pool · CLAD07`, so what belongs together says so without
+    // a band that belongs to nothing.
+    //
+    // The lanes come first: an order stands in the lane and is then taken by
+    // the station, so upstream is up the page.
     rows.addAll(lanes[key] ?? const []);
     rows.add(station);
   }
@@ -668,6 +651,7 @@ Map<String, List<GanttLaneRow>> _laneRows({
   required Map<String, GanttPart> partsById,
   required Map<String, SimOrderOutcome> ordersById,
   required Map<String, String> groupOf,
+  required Map<String, String> poolNameOf,
 }) {
   if (result.lanes.isEmpty) return const {};
 
@@ -747,6 +731,7 @@ Map<String, List<GanttLaneRow>> _laneRows({
       GanttLaneRow(
         laneNodeId: lane.nodeId,
         name: lane.name ?? _unnamedLane,
+        poolName: poolNameOf[entry.value],
         capacity: lane.capacity,
         depth: depth,
         visits: visits,
@@ -1051,11 +1036,6 @@ GanttLayout layoutGantt({
         }
         rows.add(GanttRowLayout(band: band, top: top, visits: placed));
 
-      case GanttPoolGroup():
-        // A heading takes its height and places nothing. It carries no bars and
-        // no visits by construction, so there is nothing here for `barAt` to
-        // find and nothing for the floored count to count.
-        rows.add(GanttRowLayout(band: band, top: top));
     }
 
     top += band.height;
@@ -1128,11 +1108,6 @@ GanttHit? barAt(GanttLayout layout, Offset position) {
           }
         }
 
-      case GanttPoolGroup():
-        // Nothing to ask about: the heading is a word, not a run. Falls through
-        // to the null below, so hovering it clears the card rather than leaving
-        // the last station's showing.
-        break;
     }
     return null;
   }

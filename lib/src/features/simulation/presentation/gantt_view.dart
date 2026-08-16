@@ -503,8 +503,34 @@ class _Labels extends StatelessWidget {
                         '${lane.name} (${lane.capacity})',
                       final band => band.name,
                     },
-                    child: Text(
-                      row.band.name,
+                    // **The pool travels on the row**, rather than on a
+                    // heading band above the rows it named. That band read as a
+                    // lane — an empty strip between the axis and the first
+                    // thing with bars — so it is gone, and every member and
+                    // every lane feeding the pool now says which pool it is:
+                    // `CLAD Pool · CLAD07`. What belongs together says so
+                    // without a band that belongs to nothing.
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          if (switch (row.band) {
+                            GanttRow(:final poolName) => poolName,
+                            GanttLaneRow(:final poolName) => poolName,
+                          }
+                              case final pool?) ...[
+                            TextSpan(
+                              text: '$pool · ',
+                              // Dimmer than the name it qualifies: it repeats
+                              // down every member of the pool, and the machine
+                              // is what the reader is looking for.
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.outline,
+                              ),
+                            ),
+                          ],
+                          TextSpan(text: row.band.name),
+                        ],
+                      ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                       style: switch (row.band) {
@@ -515,15 +541,6 @@ class _Labels extends StatelessWidget {
                           fontStyle: FontStyle.italic,
                         ),
                         GanttRow() => theme.textTheme.bodySmall,
-                        // The one label that names a group rather than a band
-                        // of the run, so it is the one label that is not
-                        // whispering: the machines beneath it are indented
-                        // under this word.
-                        GanttPoolGroup() => theme.textTheme.labelSmall
-                            ?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
                       },
                     ),
                   ),
@@ -994,13 +1011,6 @@ class _GanttPainter extends CustomPainter {
               rulePaint,
             );
           }
-
-        case GanttPoolGroup():
-          // Left unpainted, and deliberately outside the station count above:
-          // it is a heading rather than a band of the run, so striping it would
-          // break the alternation a reader follows one machine across — which
-          // is the same argument that already excludes the lanes.
-          break;
       }
     }
 
