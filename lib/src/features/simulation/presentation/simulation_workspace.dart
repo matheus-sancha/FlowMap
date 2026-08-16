@@ -60,13 +60,20 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
 
   DateTimeRange? _period;
 
+  /// **Copied, every one of them.** The pickers above mutate these sets in
+  /// place, so handing the instances over would give a value object a live view
+  /// of state that changes under it — which is what made a slice taken before an
+  /// edit report the identity of the slice after it. `FilteredRun` now fixes its
+  /// signature when it is built, so this is no longer what stands between the
+  /// Gantt and a stale chart; it is here because a filter that shares its
+  /// caller's mutable state is a trap for the next thing that compares two.
   RunFilter get _filter => RunFilter(
-    studyIds: _studies,
-    cellIds: _cells,
-    lineIds: _lines,
-    customerProjects: _projects,
-    partNumbers: _parts,
-    orderNumbers: _orders,
+    studyIds: {..._studies},
+    cellIds: {..._cells},
+    lineIds: {..._lines},
+    customerProjects: {..._projects},
+    partNumbers: {..._parts},
+    orderNumbers: {..._orders},
     from: _period?.start,
     to: _period?.end,
   );

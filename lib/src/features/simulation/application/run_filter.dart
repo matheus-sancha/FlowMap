@@ -120,7 +120,7 @@ class RunFilter {
 
 /// A stored run as one slice of it reads.
 class FilteredRun {
-  const FilteredRun({
+  FilteredRun({
     required this.run,
     required this.filter,
     required this.studyIds,
@@ -128,7 +128,7 @@ class FilteredRun {
     required this.metrics,
     required this.plan,
     required this.stationsAreWholeRun,
-  });
+  }) : signature = _signatureOf(run, filter, studyIds);
 
   final StoredRun run;
   final RunFilter filter;
@@ -157,7 +157,29 @@ class FilteredRun {
   /// The run's id alone is not enough: the combined workspace changes the filter
   /// without changing the run, and a chart that only watched the id would keep
   /// drawing the slice before last.
-  String get signature =>
+  ///
+  /// **Computed when the slice is taken, not read back through the filter.** It
+  /// was a getter, and the filter bar keeps one long-lived `Set` per control and
+  /// mutates it in place — so a slice taken before an edit saw the edit through
+  /// its own filter, and recomputed to the value of the slice that replaced it.
+  /// A cache comparing old against new therefore found them equal and kept its
+  /// old answer: the Gantt went on drawing the slice before last while every
+  /// table beside it moved.
+  ///
+  /// Only the study segment escaped, because [studyIds] is built fresh by
+  /// [filterRun] rather than read through — which is why the three §7.5 filters
+  /// appeared to work *only* when a study filter was also touched.
+  ///
+  /// A snapshot's identity has to be fixed at the moment the snapshot is taken;
+  /// anything else is not a snapshot. Stored rather than trusting every caller
+  /// to hand over sets it will not touch again.
+  final String signature;
+
+  static String _signatureOf(
+    StoredRun run,
+    RunFilter filter,
+    Set<String> studyIds,
+  ) =>
       '${run.id}|${(studyIds.toList()..sort()).join(',')}'
       '|${filter.from?.millisecondsSinceEpoch}|${filter.to?.millisecondsSinceEpoch}'
       // §7.5's three, or a chart would keep drawing the slice before last on

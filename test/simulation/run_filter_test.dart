@@ -597,6 +597,28 @@ void main() {
       expect(view.stationsAreWholeRun, isTrue);
     });
 
+    test('a slice s signature is fixed when the slice is taken', () {
+      // **The filter bar mutates one long-lived set per control**, in place, and
+      // hands the same instance to every `RunFilter` it builds. So a
+      // `FilteredRun` taken before the edit could still see the edit through it
+      // — and `signature` being a getter meant the *old* slice recomputed to the
+      // new value. `GanttView.didUpdateWidget` compares old against new to
+      // decide whether to rebuild its chart, found them equal, and returned
+      // early: the three §7.5 filters moved every table and left the Gantt
+      // showing the slice before last.
+      //
+      // Only the study segment escaped, because `FilteredRun.studyIds` is built
+      // fresh in `filterRun` rather than read through — which is exactly why the
+      // field saw the three "only work when a single study is filtered".
+      final projects = <String>{'MANIFOLD'};
+      final view = filterRun(booked(), RunFilter(customerProjects: projects));
+      final taken = view.signature;
+
+      projects.add('Global 23');
+
+      expect(view.signature, taken);
+    });
+
     test('each of the three makes the signature different', () {
       // Without this the chart keeps drawing the slice before last, because the
       // run id and the studies are unchanged by all three.

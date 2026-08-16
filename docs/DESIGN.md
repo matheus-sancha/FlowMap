@@ -1721,6 +1721,16 @@ guard caught leaves no step to be kept by.
 the card names the study on a multi-study run, and a shared queue's row would have labelled every
 order the other line put in it with the wrong one.
 
+**A slice fixes its signature when it is taken.** `FilteredRun.signature` was a getter reading back
+through its `RunFilter` — and the filter bar keeps one long-lived `Set` per control and mutates it in
+place, so a slice taken *before* an edit saw the edit through its own filter and recomputed to the
+identity of the slice that replaced it. Any cache comparing old against new then found them equal and
+kept its old answer: the Gantt drew the slice before last while every table beside it moved. Only the
+study segment escaped, because `studyIds` is built fresh by `filterRun` rather than read through —
+which is why the three §7.5 filters appeared to work *only* when a study filter was also touched. A
+snapshot's identity has to be fixed at the moment the snapshot is taken; anything else is not a
+snapshot. The bar copies its sets as well, so a filter never shares its caller's mutable state.
+
 **The results view is not keyed on the slice.** It was, so that a new slice would discard the zoom
 the Gantt holds — but it discarded the *view choice* with it, and a reader filtering while reading
 the Gantt was dropped back onto the tables at every keystroke. The key was also unnecessary:

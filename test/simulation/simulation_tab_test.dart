@@ -8,6 +8,7 @@ import 'package:flowmap/src/features/simulation/application/simulation_providers
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/projects/presentation/project_workspace_screen.dart';
 import 'package:flowmap/src/features/resources/application/resources_providers.dart';
+import 'package:flowmap/src/features/simulation/presentation/gantt_view.dart';
 import 'package:flowmap/src/features/simulation/presentation/simulation_workspace.dart';
 import 'package:flowmap/src/features/studies/application/studies_providers.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
@@ -873,6 +874,53 @@ void main() {
       );
     }
 
+    /// The booked run with a step per order, so the Gantt has something to
+    /// draw. `twoStudyRun` carries no steps — right for the tables, and it makes
+    /// the chart empty, which is the one thing a test about the chart cannot
+    /// use.
+    StoredRun bookedSteppedRun() {
+      final base = bookedPlanRun();
+      final result = SimRunResult(
+        start: base.result.start,
+        end: base.result.end,
+        guard: base.result.guard,
+        orders: base.result.orders,
+        steps: [
+          for (final outcome in base.result.orders)
+            SimOrderStep(
+              studyId: outcome.studyId,
+              orderId: outcome.orderId,
+              nodeId: 'node-1',
+              workcenterId: 'wc-1',
+              queueStart: DateTime(2026, 8, 3),
+              processStart: DateTime(2026, 8, 4),
+              processEnd: DateTime(2026, 8, 5),
+              changeoverIncurred: false,
+            ),
+        ],
+        emptySlots: const [],
+        busyByWorkcenter: base.result.busyByWorkcenter,
+        openByWorkcenter: base.result.openByWorkcenter,
+      );
+
+      return StoredRun(
+        id: base.id,
+        projectId: base.projectId,
+        createdAt: base.createdAt,
+        dispatch: base.dispatch,
+        dispatchOverrides: base.dispatchOverrides,
+        studies: base.studies,
+        result: result,
+        plan: base.plan,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'part-1': 'KEPT-1', 'part-2': 'DROPPED-2'},
+          workcenterNames: const {'wc-1': 'CLAD04'},
+          theoreticalByOrder: const {},
+        ),
+      );
+    }
+
     Future<void> pumpBooked(WidgetTester tester) => pump(
       tester,
       assembled: input(
@@ -984,6 +1032,49 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(shownView(), 1);
+    });
+
+    testWidgets('a project filter alone rebuilds the Gantt', (tester) async {
+      // **The field: the three "only work when a single study is filtered".**
+      // Every table moved and the chart did not, because `FilteredRun.signature`
+      // read back through a filter holding the picker's live set — so the slice
+      // being replaced reported the identity of the slice replacing it, and
+      // `GanttView.didUpdateWidget` returned early. The study segment was the
+      // only one built fresh, which is why touching Studies appeared to fix it.
+      //
+      // Asserted on the painter because the bars are painted: there is no widget
+      // per bar for a finder to reach.
+      await pump(
+        tester,
+        assembled: input(
+          readiness: const [
+            StudyReadiness(studyId: 'study-1', name: 'Celula 11B', problems: []),
+          ],
+        ),
+        run: bookedSteppedRun(),
+      );
+
+      await tester.tap(find.text('Gantt'));
+      await tester.pumpAndSettle();
+
+      Set<String> partsDrawn() => (tester
+                  .widget<CustomPaint>(find.byKey(ganttCanvasKey))
+                  .painter!
+              as GanttPainter)
+          .layout
+          .chart
+          .parts
+          .map((p) => p.partNumber)
+          .toSet();
+
+      expect(partsDrawn(), {'KEPT-1', 'DROPPED-2'});
+
+      // No study touched — only a project.
+      await openPicker(tester, 'Projects');
+      await tester.tap(find.widgetWithText(CheckboxMenuButton, 'MANIFOLD'));
+      await tester.pumpAndSettle();
+
+      expect(partsDrawn(), {'KEPT-1'});
     });
 
     testWidgets('clearing the filters empties the order field too', (
