@@ -1300,6 +1300,60 @@ greyscale, where colour carrying meaning alone does not survive.
 `mixed` otherwise. It reads `2026-08-15 · FIFO` today and keeps doing so on a uniform plant; a full
 breakdown does not fit a menu row, and the per-station record is what a comparison reads anyway.
 
+#### The migration, and what it costs
+
+**The fold is the first migration in this repo that moves data between concepts** rather than adding
+nullable columns. Every inventory node becomes part of a queue row keyed `{projectId, targetId}` —
+and the real database shows why that is not a rename: **15 inventory nodes fold onto 10 targets**,
+because the two studies share five stations and their nodes disagree about them.
+
+| target | Célula 11B | the other study |
+|---|---|---|
+| CLAD Pool | `FIFO CLAD`, fifo | `FIFO CLAD`, fifo |
+| `0a602188` | `FIFO TTAT`, rule unset | `FIFO TTAT`, fifo |
+| `12f4b95c` | `FIFO BAN` | **`FIFO BAN11`** |
+| `41a557b2` | `FIFO END` | `FIFO END` |
+| `8983ca52` | `FIFO COATING` | **`FIFO Coating`** |
+
+That table *is* the bug the field reported, seen as data: there is one floor space in front of BAN11
+and the map has been carrying two names for it.
+
+**First study wins, by study then position.** The first node to reach a target sets its name; a
+non-null rule or capacity from a later node fills a blank rather than being lost, so nothing that was
+actually configured is dropped in favour of an unset field. Deterministic, and it never silently
+prefers one name without a record.
+
+**Every discarded value goes to the diagnostics log**, named against its target, so `FIFO BAN11` is
+recoverable by reading it.
+
+**And the `inventory` rows stay.** They are not deleted and not read — the same call §16.18 made for
+`changeover_seconds`, and stronger here: the rows themselves are the recovery path for a name the
+fold discarded, which beats a log line. `FlowNodeKind.inventory` therefore stays in the enum, because
+a stored value has to remain parseable; nothing constructs one.
+
+_Rejected: deleting them._ It makes the upgrade irreversible against a v18 backup for no gain but
+tidiness, and §17.5 already tracks what is built and unreachable.
+
+_Rejected: leaving conflicts unset and making the user resolve them._ Nothing guessed — and §11 would
+block runs on a plant that ran perfectly well the day before, on five targets at once.
+
+#### Where a queue is edited
+
+**On the map, from the connector.** Click the channel between two boxes and set its type, its capacity
+in orders and the stock standing there. It is where the queue is drawn and where it is read, and a
+planner setting a FIFO capacity is looking at the map when they think of it.
+
+**The editor names the target and says the queue is shared** by every step that feeds it — the same
+sentence §7.2's Capacity tab now carries for the takt, and the answer to the complaint that started
+this round.
+
+_Rejected: editing it on Capacity beside the station schedules._ Same key, same scope, same tab, and
+it would put everything about a station in one place — but reading a rule on one surface and setting
+it on another is the split §6.4 has just finished undoing on the Flow toolbar.
+
+_Rejected: both, with a bulk table on Capacity._ Better for retuning ten lanes at once, and two write
+paths into one row is how the two come to disagree (§12.6).
+
 ### 7.4 Takt rebalances a group of like machines
 
 *Field: "If I change the takt time I need to rebalance the operations of the workcenters, otherwise
