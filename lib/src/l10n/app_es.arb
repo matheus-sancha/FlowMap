@@ -474,6 +474,7 @@
   "simulationDispatch": "Despacho",
   "simulationDispatchHelp": "Cómo elige un centro de trabajo la siguiente orden en espera. Todas las reglas desempatan por llegada, luego prioridad del estudio y luego secuencia, así que las mismas entradas siempre producen la misma ejecución.",
   "dispatchFifo": "FIFO — por llegada",
+  "dispatchLifo": "LIFO",
   "dispatchEarliestDueDate": "Fecha de necesidad más próxima",
   "dispatchShortestProcessing": "Menor tiempo de proceso",
   "simulationStudiesIn": "{count, plural, =0{Ningún estudio seleccionado} =1{1 estudio en esta ejecución} other{{count} estudios en esta ejecución}}",

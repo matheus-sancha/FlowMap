@@ -86,6 +86,12 @@ enum DispatchRule {
   /// By arrival at the step. The default, and what a shop floor does.
   fifo,
 
+  /// Last in, first out — the top of the stack. Real on a plant that stacks
+  /// material rather than channelling it, and the reason a queue type is drawn
+  /// on the map: a LIFO lane behaves nothing like the FIFO beside it and
+  /// nothing on a current-state map used to say which one a station had.
+  lifo,
+
   /// Earliest need date first — "what if we dispatched by due date" is exactly
   /// the experiment this app exists to run.
   earliestDueDate,

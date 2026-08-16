@@ -783,6 +783,13 @@ class _Engine {
       case DispatchRule.shortestProcessing:
         final work = a.work.compareTo(b.work);
         if (work != 0) return work < 0;
+      case DispatchRule.lifo:
+        // **The one rule that inverts the fall-through rather than adding a
+        // key.** Every other rule breaks ties by arrival ascending; a stack is
+        // arrival descending, so the last order to reach the queue is the one
+        // on top of it.
+        final last = b.since.compareTo(a.since);
+        if (last != 0) return last < 0;
       case DispatchRule.fifo:
         break;
     }

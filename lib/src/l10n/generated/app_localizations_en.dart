@@ -1385,6 +1385,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dispatchFifo => 'FIFO — by arrival';
 
   @override
+  String get dispatchLifo => 'LIFO';
+
+  @override
   String get dispatchEarliestDueDate => 'Earliest need date';
 
   @override

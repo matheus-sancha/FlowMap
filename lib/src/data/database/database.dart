@@ -43,6 +43,7 @@ const _seededAtKey = 'reference_data.seeded_at';
     CalendarExceptions,
     TaktPeriods,
     WorkcenterSchedulePeriods,
+    ProjectQueues,
     Studies,
     FlowNodes,
     FlowAnnotations,
@@ -73,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -587,6 +588,181 @@ class AppDatabase extends _$AppDatabase {
           simulationRunWorkcenters,
           simulationRunWorkcenters.poolName,
         );
+      }
+
+      if (from < 19) {
+        // Field feedback, 2026-08-15: "the inventories of a workcenter used in
+        // multiple flows must be the same, they are not."
+        //
+        // They were not, because an inventory was a node on one study's spine
+        // (§5.5). Two studies whose flows both reached CLAD07 each had their
+        // own, with their own name, discipline and capacity — and the engine
+        // simulated two floor spaces where the plant has one. The Gantt drawing
+        // them twice was repeating what the model said.
+        //
+        // So a queue belongs to what a step *targets*, one row per
+        // `{project, target}`, and every step feeding that target reads it.
+        await _ensureTable(m, projectQueues);
+        await _ensureColumn(m, studies, studies.inboundStock);
+        await _ensureColumn(m, studies, studies.outboundStock);
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.queueType,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.queueCapacity,
+        );
+
+        // **The fold, and it is the first step here that moves data between
+        // concepts rather than adding a column.**
+        //
+        // Each inventory node becomes part of the queue in front of the step
+        // *after* it on its own spine — that step's target is what the node was
+        // really describing. Several nodes therefore land on one row: on the
+        // database this was written against, 15 nodes fold onto 10 targets,
+        // because the two studies share five stations and disagree about two of
+        // their names.
+        //
+        // **First study wins, by study then position.** The first node to reach
+        // a target sets the name; a later node's non-null rule or capacity
+        // fills a blank rather than being lost, so nothing that was actually
+        // configured is dropped in favour of something unset. Deterministic, and
+        // it never silently prefers one name without saying so.
+        //
+        // Guarded on emptiness rather than on `from`, so an upgrade interrupted
+        // after this point does not fold twice and overwrite a queue the user
+        // has since edited (§16.11).
+        final alreadyFolded = (await customSelect(
+          'SELECT 1 FROM project_queues LIMIT 1',
+        ).get()).isNotEmpty;
+
+        if (!alreadyFolded) {
+          // Ordered so the fold is reproducible: study, then position down the
+          // spine. `study_id` is a uuid, so this is arbitrary but stable —
+          // which is all determinism needs.
+          final nodes = await customSelect('''
+            SELECT inv.study_id      AS study_id,
+                   inv.position      AS position,
+                   inv.label         AS label,
+                   inv.lane_rule     AS lane_rule,
+                   inv.lane_capacity AS lane_capacity,
+                   inv.inventory_mode     AS mode,
+                   inv.inventory_quantity AS quantity,
+                   inv.inventory_seconds  AS seconds,
+                   inv.inventory_unit     AS unit,
+                   s.project_id      AS project_id,
+                   COALESCE(nxt.pool_id, nxt.workcenter_id) AS target_id
+              FROM flow_nodes inv
+              JOIN studies s ON s.id = inv.study_id
+              LEFT JOIN flow_nodes nxt
+                     ON nxt.study_id = inv.study_id
+                    AND nxt.position = inv.position + 1
+                    AND nxt.kind = 'step'
+             WHERE inv.kind = 'inventory'
+             ORDER BY inv.study_id, inv.position
+          ''').get();
+
+          final now = DateTime.now();
+          // What each target has been given so far, so a second node can fill a
+          // blank without overwriting an answer.
+          final folded = <String, Map<String, Object?>>{};
+
+          for (final node in nodes) {
+            final target = node.read<String?>('target_id');
+            if (target == null) {
+              // An inventory node with no step after it describes a queue in
+              // front of nothing. It is dropped rather than guessed at, and
+              // said out loud — the same rule §8.6 applies to a lane no step
+              // ever named.
+              Diag.event(
+                'v19.orphan',
+                'node at ${node.read<int>('position')} feeds no step',
+              );
+              continue;
+            }
+            final project = node.read<String>('project_id');
+            final key = '$project|$target';
+            final seen = folded[key];
+
+            if (seen == null) {
+              folded[key] = {
+                'name': node.read<String?>('label'),
+                'rule': node.read<String?>('lane_rule'),
+                'capacity': node.read<int?>('lane_capacity'),
+                'mode': node.read<String?>('mode'),
+                'quantity': node.read<int?>('quantity'),
+                'seconds': node.read<int?>('seconds'),
+                'unit': node.read<String?>('unit'),
+              };
+              continue;
+            }
+
+            // A later node on the same target. Fill what is blank, and say what
+            // is not taken — `FIFO BAN11` is recoverable from this line, and
+            // from the `flow_nodes` row itself, which is kept.
+            for (final pair in [
+              ('name', node.read<String?>('label')),
+              ('rule', node.read<String?>('lane_rule')),
+              ('mode', node.read<String?>('mode')),
+              ('unit', node.read<String?>('unit')),
+            ]) {
+              final (field, value) = pair;
+              if (value == null) continue;
+              if (seen[field] == null) {
+                seen[field] = value;
+              } else if (seen[field] != value) {
+                Diag.event('v19.discarded', '$field on $target');
+              }
+            }
+            for (final pair in [
+              ('capacity', node.read<int?>('lane_capacity')),
+              ('quantity', node.read<int?>('quantity')),
+              ('seconds', node.read<int?>('seconds')),
+            ]) {
+              final (field, value) = pair;
+              if (value == null) continue;
+              if (seen[field] == null) {
+                seen[field] = value;
+              } else if (seen[field] != value) {
+                Diag.event('v19.discarded', '$field on $target');
+              }
+            }
+          }
+
+          for (final entry in folded.entries) {
+            final parts = entry.key.split('|');
+            await customInsert(
+              'INSERT INTO project_queues (project_id, target_id, name, rule, '
+              'capacity, stock_mode, stock_quantity, stock_seconds, '
+              'stock_unit, created_at, updated_at) '
+              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              variables: [
+                Variable<String>(parts[0]),
+                Variable<String>(parts[1]),
+                Variable<String>(entry.value['name'] as String?),
+                Variable<String>(entry.value['rule'] as String?),
+                Variable<int>(entry.value['capacity'] as int?),
+                Variable<String>(entry.value['mode'] as String?),
+                Variable<int>(entry.value['quantity'] as int?),
+                Variable<int>(entry.value['seconds'] as int?),
+                Variable<String>(entry.value['unit'] as String?),
+                Variable<DateTime>(now),
+                Variable<DateTime>(now),
+              ],
+            );
+          }
+
+          Diag.event('v19.fold', '${nodes.length} nodes → ${folded.length} queues');
+        }
+
+        // **The inventory rows are kept and stop being read.** The same call
+        // §16.18 made for `changeover_seconds`, and stronger here: a row is a
+        // better recovery path for a name the fold discarded than a log line
+        // is. Deleting them would make the upgrade irreversible against a v18
+        // backup for no gain but tidiness.
       }
 
       // Reference-data seeding runs outside every version guard, on every

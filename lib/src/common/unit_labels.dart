@@ -25,6 +25,7 @@ String taktUnitLabel(AppLocalizations l10n, TaktUnit unit) => switch (unit) {
 String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
     switch (rule) {
       DispatchRule.fifo => l10n.dispatchFifo,
+      DispatchRule.lifo => l10n.dispatchLifo,
       DispatchRule.earliestDueDate => l10n.dispatchEarliestDueDate,
       DispatchRule.shortestProcessing => l10n.dispatchShortestProcessing,
     };

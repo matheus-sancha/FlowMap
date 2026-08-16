@@ -1401,6 +1401,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dispatchFifo => 'FIFO — por chegada';
 
   @override
+  String get dispatchLifo => 'LIFO';
+
+  @override
   String get dispatchEarliestDueDate => 'Data de necessidade mais próxima';
 
   @override

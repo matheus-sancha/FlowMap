@@ -341,6 +341,24 @@ class SimulationRunWorkcenters extends Table {
   /// reached it through a pool at all.
   TextColumn get poolName => text().nullable()();
 
+  /// The queue this station dispatched by when the run was made (§7.4, §12.6).
+  ///
+  /// Copied in for §7.10's reason and no other: the queue lives on the project
+  /// and can be retuned tomorrow, and a run that read it back would silently
+  /// change what it claims to have done. It is also what lets a comparison say
+  /// *which* queues differed rather than only that something did.
+  ///
+  /// Null on a run made before v19, whose rule is on [SimulationRuns.dispatch]
+  /// instead — the one column this replaced.
+  ///
+  /// **Plain text, not `textEnum`**, for the reason [SimulationRuns.dispatch]
+  /// gives at the top of this file: `textEnum` throws on a name it has never
+  /// heard of, so a queue type added by a later build would make an older one
+  /// fail to open the whole run list rather than show the one run it cannot
+  /// read. The repository parses, and falls back.
+  TextColumn get queueType => text().nullable()();
+  IntColumn get queueCapacity => integer().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {runId, workcenterId};
 }

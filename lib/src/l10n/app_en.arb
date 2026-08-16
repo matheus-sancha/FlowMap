@@ -521,6 +521,7 @@
   "simulationDispatch": "Dispatch",
   "simulationDispatchHelp": "How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.",
   "dispatchFifo": "FIFO — by arrival",
+  "dispatchLifo": "LIFO",
   "dispatchEarliestDueDate": "Earliest need date",
   "dispatchShortestProcessing": "Shortest processing time",
   "simulationStudiesIn": "{count, plural, =0{No studies selected} =1{1 study in this run} other{{count} studies in this run}}",

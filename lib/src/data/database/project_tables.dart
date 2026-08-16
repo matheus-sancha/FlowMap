@@ -234,6 +234,21 @@ class Studies extends Table {
   TextColumn get supplierName => text().nullable()();
   TextColumn get customerName => text().nullable()();
 
+  /// Stock standing at the two ends of the flow (DESIGN.md §5.5, §12.6).
+  ///
+  /// **Observations, not queues.** Every step has a queue in front of it
+  /// ([ProjectQueues]) and the ends have no step to belong to — so these are
+  /// the raw material waiting before the first box and the finished goods
+  /// waiting after the last, drawn as triangles against the endpoints. Nothing
+  /// dispatches out of them: §7.2 releases orders on a takt rather than pulling
+  /// from a rack, and inventing a pull here would be a mechanism the engine
+  /// does not have.
+  ///
+  /// In pieces, like [FlowNodes.inventoryQuantity], so the map can show them as
+  /// days through the takt of the period being viewed.
+  IntColumn get inboundStock => integer().nullable()();
+  IntColumn get outboundStock => integer().nullable()();
+
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -575,4 +590,76 @@ class FlowAnnotations extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// The queue in front of one dispatch target, for one project
+/// (DESIGN.md §5.5, §3.1, §12.6).
+///
+/// **A queue belongs to what a step targets, not to a study's flow.** It used
+/// to be a node on one study's spine, so two studies whose flows both reached
+/// CLAD07 each had their own — with their own name, discipline and capacity —
+/// and the engine simulated two floor spaces where the plant has one. The field
+/// reported it as the Gantt doubling its inventories; the drawing was only
+/// repeating what the model said.
+///
+/// So the key is `{projectId, targetId}` and every step feeding that target
+/// reads this one row. `targetId` is a workcenter **or a pool**: §3.1 dispatches
+/// a pool's order to whichever member frees first, which only means anything if
+/// the orders wait in one line, so a pool has one queue and its members pull
+/// from it.
+///
+/// **Project-scoped, like [WorkcenterSchedulePeriods].** §3's seam puts identity
+/// in Resources and period-scoped numbers in the Project — and capping a lane is
+/// an *experiment*, which is exactly what §0's confounder run did to
+/// `FIFO CEU27`. Putting it in Resources would make that experiment edit every
+/// project at once.
+///
+/// Unreferenced by foreign key for the reason `part_process_times` is: no one
+/// key can point at two tables.
+class ProjectQueues extends Table {
+  TextColumn get projectId =>
+      text().references(Projects, #id, onDelete: KeyAction.cascade)();
+
+  /// The workcenter or pool the queue sits in front of.
+  TextColumn get targetId => text()();
+
+  /// `FIFO CEU27` — what the shop floor calls this floor space.
+  ///
+  /// One name per target, which is the whole point. The v19 fold found the two
+  /// studies calling one of them `FIFO BAN` and `FIFO BAN11`; §16.20 records
+  /// which won and where the other went.
+  TextColumn get name => text().nullable()();
+
+  /// How the next order is chosen (§7.4).
+  ///
+  /// **This replaced the run's dispatch rule.** One place a dispatch decision is
+  /// made and the map shows every one of them, which is what a value stream map
+  /// is for. Null is [DispatchRule.fifo] — what a shop floor does, and what
+  /// every lane was before it could say otherwise.
+  TextColumn get rule => textEnum<DispatchRule>().nullable()();
+
+  /// How many orders fit, in orders. Null is unlimited.
+  ///
+  /// **Its own figure, not [stockQuantity].** One is a rule about the future
+  /// and the other an observation of today; they share a unit and mean opposite
+  /// things (§16.16), and §5.5's correction was precisely that an observation
+  /// must not be read as a rule.
+  IntColumn get capacity => integer().nullable()();
+
+  /// What is standing here now — the days-of-stock a current-state VSM exists to
+  /// state, and a rung on the lead-time ladder (§5.5).
+  ///
+  /// Carries no time in a run: an order passes straight through and waits, if it
+  /// waits, in this queue where the engine measures it. That is §2.12's
+  /// correction and it is unchanged by the re-model.
+  TextColumn get stockMode => textEnum<InventoryMode>().nullable()();
+  IntColumn get stockQuantity => integer().nullable()();
+  IntColumn get stockSeconds => integer().nullable()();
+  TextColumn get stockUnit => textEnum<DurationUnit>().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {projectId, targetId};
 }

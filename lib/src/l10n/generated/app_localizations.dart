@@ -2550,6 +2550,12 @@ abstract class AppLocalizations {
   /// **'FIFO — by arrival'**
   String get dispatchFifo;
 
+  /// No description provided for @dispatchLifo.
+  ///
+  /// In en, this message translates to:
+  /// **'LIFO'**
+  String get dispatchLifo;
+
   /// No description provided for @dispatchEarliestDueDate.
   ///
   /// In en, this message translates to:

@@ -7143,6 +7143,731 @@ class WorkcenterSchedulePeriodsCompanion
   }
 }
 
+class $ProjectQueuesTable extends ProjectQueues
+    with TableInfo<$ProjectQueuesTable, ProjectQueue> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProjectQueuesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _projectIdMeta = const VerificationMeta(
+    'projectId',
+  );
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+    'project_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES projects (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
+  @override
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DispatchRule?, String> rule =
+      GeneratedColumn<String>(
+        'rule',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<DispatchRule?>($ProjectQueuesTable.$converterrulen);
+  static const VerificationMeta _capacityMeta = const VerificationMeta(
+    'capacity',
+  );
+  @override
+  late final GeneratedColumn<int> capacity = GeneratedColumn<int>(
+    'capacity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<InventoryMode?, String>
+  stockMode = GeneratedColumn<String>(
+    'stock_mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  ).withConverter<InventoryMode?>($ProjectQueuesTable.$converterstockModen);
+  static const VerificationMeta _stockQuantityMeta = const VerificationMeta(
+    'stockQuantity',
+  );
+  @override
+  late final GeneratedColumn<int> stockQuantity = GeneratedColumn<int>(
+    'stock_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stockSecondsMeta = const VerificationMeta(
+    'stockSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> stockSeconds = GeneratedColumn<int>(
+    'stock_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DurationUnit?, String> stockUnit =
+      GeneratedColumn<String>(
+        'stock_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<DurationUnit?>($ProjectQueuesTable.$converterstockUnitn);
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    projectId,
+    targetId,
+    name,
+    rule,
+    capacity,
+    stockMode,
+    stockQuantity,
+    stockSeconds,
+    stockUnit,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'project_queues';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProjectQueue> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('project_id')) {
+      context.handle(
+        _projectIdMeta,
+        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('target_id')) {
+      context.handle(
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('capacity')) {
+      context.handle(
+        _capacityMeta,
+        capacity.isAcceptableOrUnknown(data['capacity']!, _capacityMeta),
+      );
+    }
+    if (data.containsKey('stock_quantity')) {
+      context.handle(
+        _stockQuantityMeta,
+        stockQuantity.isAcceptableOrUnknown(
+          data['stock_quantity']!,
+          _stockQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('stock_seconds')) {
+      context.handle(
+        _stockSecondsMeta,
+        stockSeconds.isAcceptableOrUnknown(
+          data['stock_seconds']!,
+          _stockSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {projectId, targetId};
+  @override
+  ProjectQueue map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProjectQueue(
+      projectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}project_id'],
+      )!,
+      targetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
+      rule: $ProjectQueuesTable.$converterrulen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}rule'],
+        ),
+      ),
+      capacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}capacity'],
+      ),
+      stockMode: $ProjectQueuesTable.$converterstockModen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}stock_mode'],
+        ),
+      ),
+      stockQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stock_quantity'],
+      ),
+      stockSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stock_seconds'],
+      ),
+      stockUnit: $ProjectQueuesTable.$converterstockUnitn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}stock_unit'],
+        ),
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ProjectQueuesTable createAlias(String alias) {
+    return $ProjectQueuesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<DispatchRule, String, String> $converterrule =
+      const EnumNameConverter<DispatchRule>(DispatchRule.values);
+  static JsonTypeConverter2<DispatchRule?, String?, String?> $converterrulen =
+      JsonTypeConverter2.asNullable($converterrule);
+  static JsonTypeConverter2<InventoryMode, String, String> $converterstockMode =
+      const EnumNameConverter<InventoryMode>(InventoryMode.values);
+  static JsonTypeConverter2<InventoryMode?, String?, String?>
+  $converterstockModen = JsonTypeConverter2.asNullable($converterstockMode);
+  static JsonTypeConverter2<DurationUnit, String, String> $converterstockUnit =
+      const EnumNameConverter<DurationUnit>(DurationUnit.values);
+  static JsonTypeConverter2<DurationUnit?, String?, String?>
+  $converterstockUnitn = JsonTypeConverter2.asNullable($converterstockUnit);
+}
+
+class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
+  final String projectId;
+
+  /// The workcenter or pool the queue sits in front of.
+  final String targetId;
+
+  /// `FIFO CEU27` — what the shop floor calls this floor space.
+  ///
+  /// One name per target, which is the whole point. The v19 fold found the two
+  /// studies calling one of them `FIFO BAN` and `FIFO BAN11`; §16.20 records
+  /// which won and where the other went.
+  final String? name;
+
+  /// How the next order is chosen (§7.4).
+  ///
+  /// **This replaced the run's dispatch rule.** One place a dispatch decision is
+  /// made and the map shows every one of them, which is what a value stream map
+  /// is for. Null is [DispatchRule.fifo] — what a shop floor does, and what
+  /// every lane was before it could say otherwise.
+  final DispatchRule? rule;
+
+  /// How many orders fit, in orders. Null is unlimited.
+  ///
+  /// **Its own figure, not [stockQuantity].** One is a rule about the future
+  /// and the other an observation of today; they share a unit and mean opposite
+  /// things (§16.16), and §5.5's correction was precisely that an observation
+  /// must not be read as a rule.
+  final int? capacity;
+
+  /// What is standing here now — the days-of-stock a current-state VSM exists to
+  /// state, and a rung on the lead-time ladder (§5.5).
+  ///
+  /// Carries no time in a run: an order passes straight through and waits, if it
+  /// waits, in this queue where the engine measures it. That is §2.12's
+  /// correction and it is unchanged by the re-model.
+  final InventoryMode? stockMode;
+  final int? stockQuantity;
+  final int? stockSeconds;
+  final DurationUnit? stockUnit;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const ProjectQueue({
+    required this.projectId,
+    required this.targetId,
+    this.name,
+    this.rule,
+    this.capacity,
+    this.stockMode,
+    this.stockQuantity,
+    this.stockSeconds,
+    this.stockUnit,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['project_id'] = Variable<String>(projectId);
+    map['target_id'] = Variable<String>(targetId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    if (!nullToAbsent || rule != null) {
+      map['rule'] = Variable<String>(
+        $ProjectQueuesTable.$converterrulen.toSql(rule),
+      );
+    }
+    if (!nullToAbsent || capacity != null) {
+      map['capacity'] = Variable<int>(capacity);
+    }
+    if (!nullToAbsent || stockMode != null) {
+      map['stock_mode'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockModen.toSql(stockMode),
+      );
+    }
+    if (!nullToAbsent || stockQuantity != null) {
+      map['stock_quantity'] = Variable<int>(stockQuantity);
+    }
+    if (!nullToAbsent || stockSeconds != null) {
+      map['stock_seconds'] = Variable<int>(stockSeconds);
+    }
+    if (!nullToAbsent || stockUnit != null) {
+      map['stock_unit'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockUnitn.toSql(stockUnit),
+      );
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ProjectQueuesCompanion toCompanion(bool nullToAbsent) {
+    return ProjectQueuesCompanion(
+      projectId: Value(projectId),
+      targetId: Value(targetId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      rule: rule == null && nullToAbsent ? const Value.absent() : Value(rule),
+      capacity: capacity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capacity),
+      stockMode: stockMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockMode),
+      stockQuantity: stockQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockQuantity),
+      stockSeconds: stockSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockSeconds),
+      stockUnit: stockUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockUnit),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ProjectQueue.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProjectQueue(
+      projectId: serializer.fromJson<String>(json['projectId']),
+      targetId: serializer.fromJson<String>(json['targetId']),
+      name: serializer.fromJson<String?>(json['name']),
+      rule: $ProjectQueuesTable.$converterrulen.fromJson(
+        serializer.fromJson<String?>(json['rule']),
+      ),
+      capacity: serializer.fromJson<int?>(json['capacity']),
+      stockMode: $ProjectQueuesTable.$converterstockModen.fromJson(
+        serializer.fromJson<String?>(json['stockMode']),
+      ),
+      stockQuantity: serializer.fromJson<int?>(json['stockQuantity']),
+      stockSeconds: serializer.fromJson<int?>(json['stockSeconds']),
+      stockUnit: $ProjectQueuesTable.$converterstockUnitn.fromJson(
+        serializer.fromJson<String?>(json['stockUnit']),
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'projectId': serializer.toJson<String>(projectId),
+      'targetId': serializer.toJson<String>(targetId),
+      'name': serializer.toJson<String?>(name),
+      'rule': serializer.toJson<String?>(
+        $ProjectQueuesTable.$converterrulen.toJson(rule),
+      ),
+      'capacity': serializer.toJson<int?>(capacity),
+      'stockMode': serializer.toJson<String?>(
+        $ProjectQueuesTable.$converterstockModen.toJson(stockMode),
+      ),
+      'stockQuantity': serializer.toJson<int?>(stockQuantity),
+      'stockSeconds': serializer.toJson<int?>(stockSeconds),
+      'stockUnit': serializer.toJson<String?>(
+        $ProjectQueuesTable.$converterstockUnitn.toJson(stockUnit),
+      ),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ProjectQueue copyWith({
+    String? projectId,
+    String? targetId,
+    Value<String?> name = const Value.absent(),
+    Value<DispatchRule?> rule = const Value.absent(),
+    Value<int?> capacity = const Value.absent(),
+    Value<InventoryMode?> stockMode = const Value.absent(),
+    Value<int?> stockQuantity = const Value.absent(),
+    Value<int?> stockSeconds = const Value.absent(),
+    Value<DurationUnit?> stockUnit = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => ProjectQueue(
+    projectId: projectId ?? this.projectId,
+    targetId: targetId ?? this.targetId,
+    name: name.present ? name.value : this.name,
+    rule: rule.present ? rule.value : this.rule,
+    capacity: capacity.present ? capacity.value : this.capacity,
+    stockMode: stockMode.present ? stockMode.value : this.stockMode,
+    stockQuantity: stockQuantity.present
+        ? stockQuantity.value
+        : this.stockQuantity,
+    stockSeconds: stockSeconds.present ? stockSeconds.value : this.stockSeconds,
+    stockUnit: stockUnit.present ? stockUnit.value : this.stockUnit,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ProjectQueue copyWithCompanion(ProjectQueuesCompanion data) {
+    return ProjectQueue(
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      name: data.name.present ? data.name.value : this.name,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      capacity: data.capacity.present ? data.capacity.value : this.capacity,
+      stockMode: data.stockMode.present ? data.stockMode.value : this.stockMode,
+      stockQuantity: data.stockQuantity.present
+          ? data.stockQuantity.value
+          : this.stockQuantity,
+      stockSeconds: data.stockSeconds.present
+          ? data.stockSeconds.value
+          : this.stockSeconds,
+      stockUnit: data.stockUnit.present ? data.stockUnit.value : this.stockUnit,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectQueue(')
+          ..write('projectId: $projectId, ')
+          ..write('targetId: $targetId, ')
+          ..write('name: $name, ')
+          ..write('rule: $rule, ')
+          ..write('capacity: $capacity, ')
+          ..write('stockMode: $stockMode, ')
+          ..write('stockQuantity: $stockQuantity, ')
+          ..write('stockSeconds: $stockSeconds, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    projectId,
+    targetId,
+    name,
+    rule,
+    capacity,
+    stockMode,
+    stockQuantity,
+    stockSeconds,
+    stockUnit,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProjectQueue &&
+          other.projectId == this.projectId &&
+          other.targetId == this.targetId &&
+          other.name == this.name &&
+          other.rule == this.rule &&
+          other.capacity == this.capacity &&
+          other.stockMode == this.stockMode &&
+          other.stockQuantity == this.stockQuantity &&
+          other.stockSeconds == this.stockSeconds &&
+          other.stockUnit == this.stockUnit &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
+  final Value<String> projectId;
+  final Value<String> targetId;
+  final Value<String?> name;
+  final Value<DispatchRule?> rule;
+  final Value<int?> capacity;
+  final Value<InventoryMode?> stockMode;
+  final Value<int?> stockQuantity;
+  final Value<int?> stockSeconds;
+  final Value<DurationUnit?> stockUnit;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ProjectQueuesCompanion({
+    this.projectId = const Value.absent(),
+    this.targetId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.capacity = const Value.absent(),
+    this.stockMode = const Value.absent(),
+    this.stockQuantity = const Value.absent(),
+    this.stockSeconds = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProjectQueuesCompanion.insert({
+    required String projectId,
+    required String targetId,
+    this.name = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.capacity = const Value.absent(),
+    this.stockMode = const Value.absent(),
+    this.stockQuantity = const Value.absent(),
+    this.stockSeconds = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : projectId = Value(projectId),
+       targetId = Value(targetId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ProjectQueue> custom({
+    Expression<String>? projectId,
+    Expression<String>? targetId,
+    Expression<String>? name,
+    Expression<String>? rule,
+    Expression<int>? capacity,
+    Expression<String>? stockMode,
+    Expression<int>? stockQuantity,
+    Expression<int>? stockSeconds,
+    Expression<String>? stockUnit,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (projectId != null) 'project_id': projectId,
+      if (targetId != null) 'target_id': targetId,
+      if (name != null) 'name': name,
+      if (rule != null) 'rule': rule,
+      if (capacity != null) 'capacity': capacity,
+      if (stockMode != null) 'stock_mode': stockMode,
+      if (stockQuantity != null) 'stock_quantity': stockQuantity,
+      if (stockSeconds != null) 'stock_seconds': stockSeconds,
+      if (stockUnit != null) 'stock_unit': stockUnit,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProjectQueuesCompanion copyWith({
+    Value<String>? projectId,
+    Value<String>? targetId,
+    Value<String?>? name,
+    Value<DispatchRule?>? rule,
+    Value<int?>? capacity,
+    Value<InventoryMode?>? stockMode,
+    Value<int?>? stockQuantity,
+    Value<int?>? stockSeconds,
+    Value<DurationUnit?>? stockUnit,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ProjectQueuesCompanion(
+      projectId: projectId ?? this.projectId,
+      targetId: targetId ?? this.targetId,
+      name: name ?? this.name,
+      rule: rule ?? this.rule,
+      capacity: capacity ?? this.capacity,
+      stockMode: stockMode ?? this.stockMode,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
+      stockSeconds: stockSeconds ?? this.stockSeconds,
+      stockUnit: stockUnit ?? this.stockUnit,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(
+        $ProjectQueuesTable.$converterrulen.toSql(rule.value),
+      );
+    }
+    if (capacity.present) {
+      map['capacity'] = Variable<int>(capacity.value);
+    }
+    if (stockMode.present) {
+      map['stock_mode'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockModen.toSql(stockMode.value),
+      );
+    }
+    if (stockQuantity.present) {
+      map['stock_quantity'] = Variable<int>(stockQuantity.value);
+    }
+    if (stockSeconds.present) {
+      map['stock_seconds'] = Variable<int>(stockSeconds.value);
+    }
+    if (stockUnit.present) {
+      map['stock_unit'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockUnitn.toSql(stockUnit.value),
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectQueuesCompanion(')
+          ..write('projectId: $projectId, ')
+          ..write('targetId: $targetId, ')
+          ..write('name: $name, ')
+          ..write('rule: $rule, ')
+          ..write('capacity: $capacity, ')
+          ..write('stockMode: $stockMode, ')
+          ..write('stockQuantity: $stockQuantity, ')
+          ..write('stockSeconds: $stockSeconds, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -7292,6 +8017,28 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _inboundStockMeta = const VerificationMeta(
+    'inboundStock',
+  );
+  @override
+  late final GeneratedColumn<int> inboundStock = GeneratedColumn<int>(
+    'inbound_stock',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _outboundStockMeta = const VerificationMeta(
+    'outboundStock',
+  );
+  @override
+  late final GeneratedColumn<int> outboundStock = GeneratedColumn<int>(
+    'outbound_stock',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -7337,6 +8084,8 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     paceSetterTargetId,
     supplierName,
     customerName,
+    inboundStock,
+    outboundStock,
     notes,
     createdAt,
     updatedAt,
@@ -7453,6 +8202,24 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
         ),
       );
     }
+    if (data.containsKey('inbound_stock')) {
+      context.handle(
+        _inboundStockMeta,
+        inboundStock.isAcceptableOrUnknown(
+          data['inbound_stock']!,
+          _inboundStockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('outbound_stock')) {
+      context.handle(
+        _outboundStockMeta,
+        outboundStock.isAcceptableOrUnknown(
+          data['outbound_stock']!,
+          _outboundStockMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -7536,6 +8303,14 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
         DriftSqlType.string,
         data['${effectivePrefix}customer_name'],
       ),
+      inboundStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}inbound_stock'],
+      ),
+      outboundStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}outbound_stock'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -7613,6 +8388,21 @@ class Study extends DataClass implements Insertable<Study> {
   /// would be a row that can only ever be renamed.
   final String? supplierName;
   final String? customerName;
+
+  /// Stock standing at the two ends of the flow (DESIGN.md §5.5, §12.6).
+  ///
+  /// **Observations, not queues.** Every step has a queue in front of it
+  /// ([ProjectQueues]) and the ends have no step to belong to — so these are
+  /// the raw material waiting before the first box and the finished goods
+  /// waiting after the last, drawn as triangles against the endpoints. Nothing
+  /// dispatches out of them: §7.2 releases orders on a takt rather than pulling
+  /// from a rack, and inventing a pull here would be a mechanism the engine
+  /// does not have.
+  ///
+  /// In pieces, like [FlowNodes.inventoryQuantity], so the map can show them as
+  /// days through the takt of the period being viewed.
+  final int? inboundStock;
+  final int? outboundStock;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -7629,6 +8419,8 @@ class Study extends DataClass implements Insertable<Study> {
     this.paceSetterTargetId,
     this.supplierName,
     this.customerName,
+    this.inboundStock,
+    this.outboundStock,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -7655,6 +8447,12 @@ class Study extends DataClass implements Insertable<Study> {
     }
     if (!nullToAbsent || customerName != null) {
       map['customer_name'] = Variable<String>(customerName);
+    }
+    if (!nullToAbsent || inboundStock != null) {
+      map['inbound_stock'] = Variable<int>(inboundStock);
+    }
+    if (!nullToAbsent || outboundStock != null) {
+      map['outbound_stock'] = Variable<int>(outboundStock);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -7686,6 +8484,12 @@ class Study extends DataClass implements Insertable<Study> {
       customerName: customerName == null && nullToAbsent
           ? const Value.absent()
           : Value(customerName),
+      inboundStock: inboundStock == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inboundStock),
+      outboundStock: outboundStock == null && nullToAbsent
+          ? const Value.absent()
+          : Value(outboundStock),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -7716,6 +8520,8 @@ class Study extends DataClass implements Insertable<Study> {
       ),
       supplierName: serializer.fromJson<String?>(json['supplierName']),
       customerName: serializer.fromJson<String?>(json['customerName']),
+      inboundStock: serializer.fromJson<int?>(json['inboundStock']),
+      outboundStock: serializer.fromJson<int?>(json['outboundStock']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -7737,6 +8543,8 @@ class Study extends DataClass implements Insertable<Study> {
       'paceSetterTargetId': serializer.toJson<String?>(paceSetterTargetId),
       'supplierName': serializer.toJson<String?>(supplierName),
       'customerName': serializer.toJson<String?>(customerName),
+      'inboundStock': serializer.toJson<int?>(inboundStock),
+      'outboundStock': serializer.toJson<int?>(outboundStock),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -7756,6 +8564,8 @@ class Study extends DataClass implements Insertable<Study> {
     Value<String?> paceSetterTargetId = const Value.absent(),
     Value<String?> supplierName = const Value.absent(),
     Value<String?> customerName = const Value.absent(),
+    Value<int?> inboundStock = const Value.absent(),
+    Value<int?> outboundStock = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -7774,6 +8584,10 @@ class Study extends DataClass implements Insertable<Study> {
         : this.paceSetterTargetId,
     supplierName: supplierName.present ? supplierName.value : this.supplierName,
     customerName: customerName.present ? customerName.value : this.customerName,
+    inboundStock: inboundStock.present ? inboundStock.value : this.inboundStock,
+    outboundStock: outboundStock.present
+        ? outboundStock.value
+        : this.outboundStock,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -7806,6 +8620,12 @@ class Study extends DataClass implements Insertable<Study> {
       customerName: data.customerName.present
           ? data.customerName.value
           : this.customerName,
+      inboundStock: data.inboundStock.present
+          ? data.inboundStock.value
+          : this.inboundStock,
+      outboundStock: data.outboundStock.present
+          ? data.outboundStock.value
+          : this.outboundStock,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -7827,6 +8647,8 @@ class Study extends DataClass implements Insertable<Study> {
           ..write('paceSetterTargetId: $paceSetterTargetId, ')
           ..write('supplierName: $supplierName, ')
           ..write('customerName: $customerName, ')
+          ..write('inboundStock: $inboundStock, ')
+          ..write('outboundStock: $outboundStock, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -7848,6 +8670,8 @@ class Study extends DataClass implements Insertable<Study> {
     paceSetterTargetId,
     supplierName,
     customerName,
+    inboundStock,
+    outboundStock,
     notes,
     createdAt,
     updatedAt,
@@ -7868,6 +8692,8 @@ class Study extends DataClass implements Insertable<Study> {
           other.paceSetterTargetId == this.paceSetterTargetId &&
           other.supplierName == this.supplierName &&
           other.customerName == this.customerName &&
+          other.inboundStock == this.inboundStock &&
+          other.outboundStock == this.outboundStock &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -7886,6 +8712,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
   final Value<String?> paceSetterTargetId;
   final Value<String?> supplierName;
   final Value<String?> customerName;
+  final Value<int?> inboundStock;
+  final Value<int?> outboundStock;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -7903,6 +8731,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     this.paceSetterTargetId = const Value.absent(),
     this.supplierName = const Value.absent(),
     this.customerName = const Value.absent(),
+    this.inboundStock = const Value.absent(),
+    this.outboundStock = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -7921,6 +8751,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     this.paceSetterTargetId = const Value.absent(),
     this.supplierName = const Value.absent(),
     this.customerName = const Value.absent(),
+    this.inboundStock = const Value.absent(),
+    this.outboundStock = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -7945,6 +8777,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     Expression<String>? paceSetterTargetId,
     Expression<String>? supplierName,
     Expression<String>? customerName,
+    Expression<int>? inboundStock,
+    Expression<int>? outboundStock,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -7965,6 +8799,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
         'pace_setter_target_id': paceSetterTargetId,
       if (supplierName != null) 'supplier_name': supplierName,
       if (customerName != null) 'customer_name': customerName,
+      if (inboundStock != null) 'inbound_stock': inboundStock,
+      if (outboundStock != null) 'outbound_stock': outboundStock,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -7985,6 +8821,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     Value<String?>? paceSetterTargetId,
     Value<String?>? supplierName,
     Value<String?>? customerName,
+    Value<int?>? inboundStock,
+    Value<int?>? outboundStock,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -8003,6 +8841,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
       paceSetterTargetId: paceSetterTargetId ?? this.paceSetterTargetId,
       supplierName: supplierName ?? this.supplierName,
       customerName: customerName ?? this.customerName,
+      inboundStock: inboundStock ?? this.inboundStock,
+      outboundStock: outboundStock ?? this.outboundStock,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -8049,6 +8889,12 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     if (customerName.present) {
       map['customer_name'] = Variable<String>(customerName.value);
     }
+    if (inboundStock.present) {
+      map['inbound_stock'] = Variable<int>(inboundStock.value);
+    }
+    if (outboundStock.present) {
+      map['outbound_stock'] = Variable<int>(outboundStock.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -8079,6 +8925,8 @@ class StudiesCompanion extends UpdateCompanion<Study> {
           ..write('paceSetterTargetId: $paceSetterTargetId, ')
           ..write('supplierName: $supplierName, ')
           ..write('customerName: $customerName, ')
+          ..write('inboundStock: $inboundStock, ')
+          ..write('outboundStock: $outboundStock, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -15134,6 +15982,28 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _queueTypeMeta = const VerificationMeta(
+    'queueType',
+  );
+  @override
+  late final GeneratedColumn<String> queueType = GeneratedColumn<String>(
+    'queue_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _queueCapacityMeta = const VerificationMeta(
+    'queueCapacity',
+  );
+  @override
+  late final GeneratedColumn<int> queueCapacity = GeneratedColumn<int>(
+    'queue_capacity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -15145,6 +16015,8 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     units,
     poolId,
     poolName,
+    queueType,
+    queueCapacity,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -15234,6 +16106,21 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
         poolName.isAcceptableOrUnknown(data['pool_name']!, _poolNameMeta),
       );
     }
+    if (data.containsKey('queue_type')) {
+      context.handle(
+        _queueTypeMeta,
+        queueType.isAcceptableOrUnknown(data['queue_type']!, _queueTypeMeta),
+      );
+    }
+    if (data.containsKey('queue_capacity')) {
+      context.handle(
+        _queueCapacityMeta,
+        queueCapacity.isAcceptableOrUnknown(
+          data['queue_capacity']!,
+          _queueCapacityMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -15281,6 +16168,14 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
       poolName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}pool_name'],
+      ),
+      queueType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}queue_type'],
+      ),
+      queueCapacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}queue_capacity'],
       ),
     );
   }
@@ -15349,6 +16244,24 @@ class SimulationRunWorkcenter extends DataClass
   /// deserves to see why it is standing on its own. Null only when no step
   /// reached it through a pool at all.
   final String? poolName;
+
+  /// The queue this station dispatched by when the run was made (§7.4, §12.6).
+  ///
+  /// Copied in for §7.10's reason and no other: the queue lives on the project
+  /// and can be retuned tomorrow, and a run that read it back would silently
+  /// change what it claims to have done. It is also what lets a comparison say
+  /// *which* queues differed rather than only that something did.
+  ///
+  /// Null on a run made before v19, whose rule is on [SimulationRuns.dispatch]
+  /// instead — the one column this replaced.
+  ///
+  /// **Plain text, not `textEnum`**, for the reason [SimulationRuns.dispatch]
+  /// gives at the top of this file: `textEnum` throws on a name it has never
+  /// heard of, so a queue type added by a later build would make an older one
+  /// fail to open the whole run list rather than show the one run it cannot
+  /// read. The repository parses, and falls back.
+  final String? queueType;
+  final int? queueCapacity;
   const SimulationRunWorkcenter({
     required this.runId,
     required this.workcenterId,
@@ -15359,6 +16272,8 @@ class SimulationRunWorkcenter extends DataClass
     required this.units,
     this.poolId,
     this.poolName,
+    this.queueType,
+    this.queueCapacity,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -15375,6 +16290,12 @@ class SimulationRunWorkcenter extends DataClass
     }
     if (!nullToAbsent || poolName != null) {
       map['pool_name'] = Variable<String>(poolName);
+    }
+    if (!nullToAbsent || queueType != null) {
+      map['queue_type'] = Variable<String>(queueType);
+    }
+    if (!nullToAbsent || queueCapacity != null) {
+      map['queue_capacity'] = Variable<int>(queueCapacity);
     }
     return map;
   }
@@ -15394,6 +16315,12 @@ class SimulationRunWorkcenter extends DataClass
       poolName: poolName == null && nullToAbsent
           ? const Value.absent()
           : Value(poolName),
+      queueType: queueType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(queueType),
+      queueCapacity: queueCapacity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(queueCapacity),
     );
   }
 
@@ -15412,6 +16339,8 @@ class SimulationRunWorkcenter extends DataClass
       units: serializer.fromJson<int>(json['units']),
       poolId: serializer.fromJson<String?>(json['poolId']),
       poolName: serializer.fromJson<String?>(json['poolName']),
+      queueType: serializer.fromJson<String?>(json['queueType']),
+      queueCapacity: serializer.fromJson<int?>(json['queueCapacity']),
     );
   }
   @override
@@ -15427,6 +16356,8 @@ class SimulationRunWorkcenter extends DataClass
       'units': serializer.toJson<int>(units),
       'poolId': serializer.toJson<String?>(poolId),
       'poolName': serializer.toJson<String?>(poolName),
+      'queueType': serializer.toJson<String?>(queueType),
+      'queueCapacity': serializer.toJson<int?>(queueCapacity),
     };
   }
 
@@ -15440,6 +16371,8 @@ class SimulationRunWorkcenter extends DataClass
     int? units,
     Value<String?> poolId = const Value.absent(),
     Value<String?> poolName = const Value.absent(),
+    Value<String?> queueType = const Value.absent(),
+    Value<int?> queueCapacity = const Value.absent(),
   }) => SimulationRunWorkcenter(
     runId: runId ?? this.runId,
     workcenterId: workcenterId ?? this.workcenterId,
@@ -15450,6 +16383,10 @@ class SimulationRunWorkcenter extends DataClass
     units: units ?? this.units,
     poolId: poolId.present ? poolId.value : this.poolId,
     poolName: poolName.present ? poolName.value : this.poolName,
+    queueType: queueType.present ? queueType.value : this.queueType,
+    queueCapacity: queueCapacity.present
+        ? queueCapacity.value
+        : this.queueCapacity,
   );
   SimulationRunWorkcenter copyWithCompanion(
     SimulationRunWorkcentersCompanion data,
@@ -15472,6 +16409,10 @@ class SimulationRunWorkcenter extends DataClass
       units: data.units.present ? data.units.value : this.units,
       poolId: data.poolId.present ? data.poolId.value : this.poolId,
       poolName: data.poolName.present ? data.poolName.value : this.poolName,
+      queueType: data.queueType.present ? data.queueType.value : this.queueType,
+      queueCapacity: data.queueCapacity.present
+          ? data.queueCapacity.value
+          : this.queueCapacity,
     );
   }
 
@@ -15486,7 +16427,9 @@ class SimulationRunWorkcenter extends DataClass
           ..write('blockedSeconds: $blockedSeconds, ')
           ..write('units: $units, ')
           ..write('poolId: $poolId, ')
-          ..write('poolName: $poolName')
+          ..write('poolName: $poolName, ')
+          ..write('queueType: $queueType, ')
+          ..write('queueCapacity: $queueCapacity')
           ..write(')'))
         .toString();
   }
@@ -15502,6 +16445,8 @@ class SimulationRunWorkcenter extends DataClass
     units,
     poolId,
     poolName,
+    queueType,
+    queueCapacity,
   );
   @override
   bool operator ==(Object other) =>
@@ -15515,7 +16460,9 @@ class SimulationRunWorkcenter extends DataClass
           other.blockedSeconds == this.blockedSeconds &&
           other.units == this.units &&
           other.poolId == this.poolId &&
-          other.poolName == this.poolName);
+          other.poolName == this.poolName &&
+          other.queueType == this.queueType &&
+          other.queueCapacity == this.queueCapacity);
 }
 
 class SimulationRunWorkcentersCompanion
@@ -15529,6 +16476,8 @@ class SimulationRunWorkcentersCompanion
   final Value<int> units;
   final Value<String?> poolId;
   final Value<String?> poolName;
+  final Value<String?> queueType;
+  final Value<int?> queueCapacity;
   final Value<int> rowid;
   const SimulationRunWorkcentersCompanion({
     this.runId = const Value.absent(),
@@ -15540,6 +16489,8 @@ class SimulationRunWorkcentersCompanion
     this.units = const Value.absent(),
     this.poolId = const Value.absent(),
     this.poolName = const Value.absent(),
+    this.queueType = const Value.absent(),
+    this.queueCapacity = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunWorkcentersCompanion.insert({
@@ -15552,6 +16503,8 @@ class SimulationRunWorkcentersCompanion
     this.units = const Value.absent(),
     this.poolId = const Value.absent(),
     this.poolName = const Value.absent(),
+    this.queueType = const Value.absent(),
+    this.queueCapacity = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        workcenterId = Value(workcenterId),
@@ -15568,6 +16521,8 @@ class SimulationRunWorkcentersCompanion
     Expression<int>? units,
     Expression<String>? poolId,
     Expression<String>? poolName,
+    Expression<String>? queueType,
+    Expression<int>? queueCapacity,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -15580,6 +16535,8 @@ class SimulationRunWorkcentersCompanion
       if (units != null) 'units': units,
       if (poolId != null) 'pool_id': poolId,
       if (poolName != null) 'pool_name': poolName,
+      if (queueType != null) 'queue_type': queueType,
+      if (queueCapacity != null) 'queue_capacity': queueCapacity,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -15594,6 +16551,8 @@ class SimulationRunWorkcentersCompanion
     Value<int>? units,
     Value<String?>? poolId,
     Value<String?>? poolName,
+    Value<String?>? queueType,
+    Value<int?>? queueCapacity,
     Value<int>? rowid,
   }) {
     return SimulationRunWorkcentersCompanion(
@@ -15606,6 +16565,8 @@ class SimulationRunWorkcentersCompanion
       units: units ?? this.units,
       poolId: poolId ?? this.poolId,
       poolName: poolName ?? this.poolName,
+      queueType: queueType ?? this.queueType,
+      queueCapacity: queueCapacity ?? this.queueCapacity,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -15640,6 +16601,12 @@ class SimulationRunWorkcentersCompanion
     if (poolName.present) {
       map['pool_name'] = Variable<String>(poolName.value);
     }
+    if (queueType.present) {
+      map['queue_type'] = Variable<String>(queueType.value);
+    }
+    if (queueCapacity.present) {
+      map['queue_capacity'] = Variable<int>(queueCapacity.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -15658,6 +16625,8 @@ class SimulationRunWorkcentersCompanion
           ..write('units: $units, ')
           ..write('poolId: $poolId, ')
           ..write('poolName: $poolName, ')
+          ..write('queueType: $queueType, ')
+          ..write('queueCapacity: $queueCapacity, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -16591,6 +17560,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaktPeriodsTable taktPeriods = $TaktPeriodsTable(this);
   late final $WorkcenterSchedulePeriodsTable workcenterSchedulePeriods =
       $WorkcenterSchedulePeriodsTable(this);
+  late final $ProjectQueuesTable projectQueues = $ProjectQueuesTable(this);
   late final $StudiesTable studies = $StudiesTable(this);
   late final $FlowNodesTable flowNodes = $FlowNodesTable(this);
   late final $FlowAnnotationsTable flowAnnotations = $FlowAnnotationsTable(
@@ -16636,6 +17606,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     calendarExceptions,
     taktPeriods,
     workcenterSchedulePeriods,
+    projectQueues,
     studies,
     flowNodes,
     flowAnnotations,
@@ -16761,6 +17732,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       result: [
         TableUpdate('workcenter_schedule_periods', kind: UpdateKind.delete),
       ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'projects',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('project_queues', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -22436,6 +23414,24 @@ final class $$ProjectsTableReferences
     );
   }
 
+  static MultiTypedResultKey<$ProjectQueuesTable, List<ProjectQueue>>
+  _projectQueuesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.projectQueues,
+    aliasName: 'projects__id__project_queues__project_id',
+  );
+
+  $$ProjectQueuesTableProcessedTableManager get projectQueuesRefs {
+    final manager = $$ProjectQueuesTableTableManager(
+      $_db,
+      $_db.projectQueues,
+    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_projectQueuesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$StudiesTable, List<Study>> _studiesRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
@@ -22633,6 +23629,31 @@ class $$ProjectsTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> projectQueuesRefs(
+    Expression<bool> Function($$ProjectQueuesTableFilterComposer f) f,
+  ) {
+    final $$ProjectQueuesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.projectQueues,
+      getReferencedColumn: (t) => t.projectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectQueuesTableFilterComposer(
+            $db: $db,
+            $table: $db.projectQueues,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 
@@ -22926,6 +23947,31 @@ class $$ProjectsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> projectQueuesRefs<T extends Object>(
+    Expression<T> Function($$ProjectQueuesTableAnnotationComposer a) f,
+  ) {
+    final $$ProjectQueuesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.projectQueues,
+      getReferencedColumn: (t) => t.projectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectQueuesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.projectQueues,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> studiesRefs<T extends Object>(
     Expression<T> Function($$StudiesTableAnnotationComposer a) f,
   ) {
@@ -22996,6 +24042,7 @@ class $$ProjectsTableTableManager
             bool calendarExceptionsRefs,
             bool taktPeriodsRefs,
             bool workcenterSchedulePeriodsRefs,
+            bool projectQueuesRefs,
             bool studiesRefs,
             bool simulationRunsRefs,
           })
@@ -23070,6 +24117,7 @@ class $$ProjectsTableTableManager
                 calendarExceptionsRefs = false,
                 taktPeriodsRefs = false,
                 workcenterSchedulePeriodsRefs = false,
+                projectQueuesRefs = false,
                 studiesRefs = false,
                 simulationRunsRefs = false,
               }) {
@@ -23080,6 +24128,7 @@ class $$ProjectsTableTableManager
                     if (taktPeriodsRefs) db.taktPeriods,
                     if (workcenterSchedulePeriodsRefs)
                       db.workcenterSchedulePeriods,
+                    if (projectQueuesRefs) db.projectQueues,
                     if (studiesRefs) db.studies,
                     if (simulationRunsRefs) db.simulationRuns,
                   ],
@@ -23193,6 +24242,27 @@ class $$ProjectsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (projectQueuesRefs)
+                        await $_getPrefetchedData<
+                          Project,
+                          $ProjectsTable,
+                          ProjectQueue
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ProjectsTableReferences
+                              ._projectQueuesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ProjectsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).projectQueuesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.projectId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (studiesRefs)
                         await $_getPrefetchedData<
                           Project,
@@ -23261,6 +24331,7 @@ typedef $$ProjectsTableProcessedTableManager =
         bool calendarExceptionsRefs,
         bool taktPeriodsRefs,
         bool workcenterSchedulePeriodsRefs,
+        bool projectQueuesRefs,
         bool studiesRefs,
         bool simulationRunsRefs,
       })
@@ -24703,6 +25774,448 @@ typedef $$WorkcenterSchedulePeriodsTableProcessedTableManager =
       WorkcenterSchedulePeriod,
       PrefetchHooks Function({bool projectId, bool workcenterId})
     >;
+typedef $$ProjectQueuesTableCreateCompanionBuilder =
+    ProjectQueuesCompanion Function({
+      required String projectId,
+      required String targetId,
+      Value<String?> name,
+      Value<DispatchRule?> rule,
+      Value<int?> capacity,
+      Value<InventoryMode?> stockMode,
+      Value<int?> stockQuantity,
+      Value<int?> stockSeconds,
+      Value<DurationUnit?> stockUnit,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ProjectQueuesTableUpdateCompanionBuilder =
+    ProjectQueuesCompanion Function({
+      Value<String> projectId,
+      Value<String> targetId,
+      Value<String?> name,
+      Value<DispatchRule?> rule,
+      Value<int?> capacity,
+      Value<InventoryMode?> stockMode,
+      Value<int?> stockQuantity,
+      Value<int?> stockSeconds,
+      Value<DurationUnit?> stockUnit,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ProjectQueuesTableReferences
+    extends BaseReferences<_$AppDatabase, $ProjectQueuesTable, ProjectQueue> {
+  $$ProjectQueuesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
+      db.projects.createAlias('project_queues__project_id__projects__id');
+
+  $$ProjectsTableProcessedTableManager get projectId {
+    final $_column = $_itemColumn<String>('project_id')!;
+
+    final manager = $$ProjectsTableTableManager(
+      $_db,
+      $_db.projects,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ProjectQueuesTableFilterComposer
+    extends Composer<_$AppDatabase, $ProjectQueuesTable> {
+  $$ProjectQueuesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DispatchRule?, DispatchRule, String>
+  get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get capacity => $composableBuilder(
+    column: $table.capacity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<InventoryMode?, InventoryMode, String>
+  get stockMode => $composableBuilder(
+    column: $table.stockMode,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stockSeconds => $composableBuilder(
+    column: $table.stockSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DurationUnit?, DurationUnit, String>
+  get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ProjectsTableFilterComposer get projectId {
+    final $$ProjectsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableFilterComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProjectQueuesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProjectQueuesTable> {
+  $$ProjectQueuesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get capacity => $composableBuilder(
+    column: $table.capacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stockMode => $composableBuilder(
+    column: $table.stockMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stockSeconds => $composableBuilder(
+    column: $table.stockSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ProjectsTableOrderingComposer get projectId {
+    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableOrderingComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProjectQueuesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProjectQueuesTable> {
+  $$ProjectQueuesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DispatchRule?, String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<int> get capacity =>
+      $composableBuilder(column: $table.capacity, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<InventoryMode?, String> get stockMode =>
+      $composableBuilder(column: $table.stockMode, builder: (column) => column);
+
+  GeneratedColumn<int> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stockSeconds => $composableBuilder(
+    column: $table.stockSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DurationUnit?, String> get stockUnit =>
+      $composableBuilder(column: $table.stockUnit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ProjectsTableAnnotationComposer get projectId {
+    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProjectQueuesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProjectQueuesTable,
+          ProjectQueue,
+          $$ProjectQueuesTableFilterComposer,
+          $$ProjectQueuesTableOrderingComposer,
+          $$ProjectQueuesTableAnnotationComposer,
+          $$ProjectQueuesTableCreateCompanionBuilder,
+          $$ProjectQueuesTableUpdateCompanionBuilder,
+          (ProjectQueue, $$ProjectQueuesTableReferences),
+          ProjectQueue,
+          PrefetchHooks Function({bool projectId})
+        > {
+  $$ProjectQueuesTableTableManager(_$AppDatabase db, $ProjectQueuesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProjectQueuesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProjectQueuesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProjectQueuesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> projectId = const Value.absent(),
+                Value<String> targetId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+                Value<DispatchRule?> rule = const Value.absent(),
+                Value<int?> capacity = const Value.absent(),
+                Value<InventoryMode?> stockMode = const Value.absent(),
+                Value<int?> stockQuantity = const Value.absent(),
+                Value<int?> stockSeconds = const Value.absent(),
+                Value<DurationUnit?> stockUnit = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProjectQueuesCompanion(
+                projectId: projectId,
+                targetId: targetId,
+                name: name,
+                rule: rule,
+                capacity: capacity,
+                stockMode: stockMode,
+                stockQuantity: stockQuantity,
+                stockSeconds: stockSeconds,
+                stockUnit: stockUnit,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String projectId,
+                required String targetId,
+                Value<String?> name = const Value.absent(),
+                Value<DispatchRule?> rule = const Value.absent(),
+                Value<int?> capacity = const Value.absent(),
+                Value<InventoryMode?> stockMode = const Value.absent(),
+                Value<int?> stockQuantity = const Value.absent(),
+                Value<int?> stockSeconds = const Value.absent(),
+                Value<DurationUnit?> stockUnit = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ProjectQueuesCompanion.insert(
+                projectId: projectId,
+                targetId: targetId,
+                name: name,
+                rule: rule,
+                capacity: capacity,
+                stockMode: stockMode,
+                stockQuantity: stockQuantity,
+                stockSeconds: stockSeconds,
+                stockUnit: stockUnit,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ProjectQueuesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({projectId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (projectId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.projectId,
+                                referencedTable: $$ProjectQueuesTableReferences
+                                    ._projectIdTable(db),
+                                referencedColumn: $$ProjectQueuesTableReferences
+                                    ._projectIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ProjectQueuesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProjectQueuesTable,
+      ProjectQueue,
+      $$ProjectQueuesTableFilterComposer,
+      $$ProjectQueuesTableOrderingComposer,
+      $$ProjectQueuesTableAnnotationComposer,
+      $$ProjectQueuesTableCreateCompanionBuilder,
+      $$ProjectQueuesTableUpdateCompanionBuilder,
+      (ProjectQueue, $$ProjectQueuesTableReferences),
+      ProjectQueue,
+      PrefetchHooks Function({bool projectId})
+    >;
 typedef $$StudiesTableCreateCompanionBuilder =
     StudiesCompanion Function({
       required String id,
@@ -24717,6 +26230,8 @@ typedef $$StudiesTableCreateCompanionBuilder =
       Value<String?> paceSetterTargetId,
       Value<String?> supplierName,
       Value<String?> customerName,
+      Value<int?> inboundStock,
+      Value<int?> outboundStock,
       Value<String?> notes,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -24736,6 +26251,8 @@ typedef $$StudiesTableUpdateCompanionBuilder =
       Value<String?> paceSetterTargetId,
       Value<String?> supplierName,
       Value<String?> customerName,
+      Value<int?> inboundStock,
+      Value<int?> outboundStock,
       Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -24925,6 +26442,16 @@ class $$StudiesTableFilterComposer
 
   ColumnFilters<String> get customerName => $composableBuilder(
     column: $table.customerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get inboundStock => $composableBuilder(
+    column: $table.inboundStock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get outboundStock => $composableBuilder(
+    column: $table.outboundStock,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -25167,6 +26694,16 @@ class $$StudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get inboundStock => $composableBuilder(
+    column: $table.inboundStock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get outboundStock => $composableBuilder(
+    column: $table.outboundStock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -25295,6 +26832,16 @@ class $$StudiesTableAnnotationComposer
 
   GeneratedColumn<String> get customerName => $composableBuilder(
     column: $table.customerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get inboundStock => $composableBuilder(
+    column: $table.inboundStock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get outboundStock => $composableBuilder(
+    column: $table.outboundStock,
     builder: (column) => column,
   );
 
@@ -25525,6 +27072,8 @@ class $$StudiesTableTableManager
                 Value<String?> paceSetterTargetId = const Value.absent(),
                 Value<String?> supplierName = const Value.absent(),
                 Value<String?> customerName = const Value.absent(),
+                Value<int?> inboundStock = const Value.absent(),
+                Value<int?> outboundStock = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -25542,6 +27091,8 @@ class $$StudiesTableTableManager
                 paceSetterTargetId: paceSetterTargetId,
                 supplierName: supplierName,
                 customerName: customerName,
+                inboundStock: inboundStock,
+                outboundStock: outboundStock,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -25561,6 +27112,8 @@ class $$StudiesTableTableManager
                 Value<String?> paceSetterTargetId = const Value.absent(),
                 Value<String?> supplierName = const Value.absent(),
                 Value<String?> customerName = const Value.absent(),
+                Value<int?> inboundStock = const Value.absent(),
+                Value<int?> outboundStock = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -25578,6 +27131,8 @@ class $$StudiesTableTableManager
                 paceSetterTargetId: paceSetterTargetId,
                 supplierName: supplierName,
                 customerName: customerName,
+                inboundStock: inboundStock,
+                outboundStock: outboundStock,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -31379,6 +32934,8 @@ typedef $$SimulationRunWorkcentersTableCreateCompanionBuilder =
       Value<int> units,
       Value<String?> poolId,
       Value<String?> poolName,
+      Value<String?> queueType,
+      Value<int?> queueCapacity,
       Value<int> rowid,
     });
 typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
@@ -31392,6 +32949,8 @@ typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
       Value<int> units,
       Value<String?> poolId,
       Value<String?> poolName,
+      Value<String?> queueType,
+      Value<int?> queueCapacity,
       Value<int> rowid,
     });
 
@@ -31475,6 +33034,16 @@ class $$SimulationRunWorkcentersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get queueType => $composableBuilder(
+    column: $table.queueType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get queueCapacity => $composableBuilder(
+    column: $table.queueCapacity,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SimulationRunsTableFilterComposer get runId {
     final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -31548,6 +33117,16 @@ class $$SimulationRunWorkcentersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get queueType => $composableBuilder(
+    column: $table.queueType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get queueCapacity => $composableBuilder(
+    column: $table.queueCapacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SimulationRunsTableOrderingComposer get runId {
     final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -31612,6 +33191,14 @@ class $$SimulationRunWorkcentersTableAnnotationComposer
 
   GeneratedColumn<String> get poolName =>
       $composableBuilder(column: $table.poolName, builder: (column) => column);
+
+  GeneratedColumn<String> get queueType =>
+      $composableBuilder(column: $table.queueType, builder: (column) => column);
+
+  GeneratedColumn<int> get queueCapacity => $composableBuilder(
+    column: $table.queueCapacity,
+    builder: (column) => column,
+  );
 
   $$SimulationRunsTableAnnotationComposer get runId {
     final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
@@ -31685,6 +33272,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 Value<int> units = const Value.absent(),
                 Value<String?> poolId = const Value.absent(),
                 Value<String?> poolName = const Value.absent(),
+                Value<String?> queueType = const Value.absent(),
+                Value<int?> queueCapacity = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion(
                 runId: runId,
@@ -31696,6 +33285,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 units: units,
                 poolId: poolId,
                 poolName: poolName,
+                queueType: queueType,
+                queueCapacity: queueCapacity,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -31709,6 +33300,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 Value<int> units = const Value.absent(),
                 Value<String?> poolId = const Value.absent(),
                 Value<String?> poolName = const Value.absent(),
+                Value<String?> queueType = const Value.absent(),
+                Value<int?> queueCapacity = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion.insert(
                 runId: runId,
@@ -31720,6 +33313,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 units: units,
                 poolId: poolId,
                 poolName: poolName,
+                queueType: queueType,
+                queueCapacity: queueCapacity,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -32557,6 +34152,8 @@ class $AppDatabaseManager {
         _db,
         _db.workcenterSchedulePeriods,
       );
+  $$ProjectQueuesTableTableManager get projectQueues =>
+      $$ProjectQueuesTableTableManager(_db, _db.projectQueues);
   $$StudiesTableTableManager get studies =>
       $$StudiesTableTableManager(_db, _db.studies);
   $$FlowNodesTableTableManager get flowNodes =>

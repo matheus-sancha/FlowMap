@@ -1803,6 +1803,263 @@ void main() {
     );
   });
 
+
+  test('v18 to v19: two studies\' inventories fold onto one queue', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // v18's shape: the v17 fixture plus v18's two columns. Built from the
+    // hoisted strings for the reason the v17 one is — two fixtures claiming to
+    // be one schema apart must not drift.
+    final v18 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute(
+            'CREATE TABLE workcenter_lines ('
+            'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+            'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+            'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+          )
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN same_part_percent REAL NULL')
+          ..execute('ALTER TABLE simulation_run_steps ADD COLUMN changeover_seconds INTEGER NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_name TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_name TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_workcenters ADD COLUMN pool_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_workcenters ADD COLUMN pool_name TEXT NULL')
+          ..execute('PRAGMA user_version = 18');
+
+    v18
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-ban', 'plant-1', 'BAN11', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-solo', 'plant-1', 'TCN20', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      );
+
+    // Two studies, both reaching BAN11 — the shape the real database has, and
+    // the reason this is a fold rather than a rename. Study `a` sorts first.
+    for (final id in ['a-study', 'b-study']) {
+      v18.execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('$id', 'proj-1', 'cell-1', 'line-1', '$id', $now, $now)",
+      );
+    }
+
+    // `a-study`: an inventory naming the lane, then the step it feeds.
+    // `b-study`: the same target, a different name, and a rule and capacity
+    // `a` left blank.
+    for (final (study, pos, kind, label, rule, cap, target) in [
+      ('a-study', 0, 'inventory', 'FIFO BAN', null, null, null),
+      ('a-study', 1, 'step', null, null, null, 'wc-ban'),
+      ('b-study', 0, 'inventory', 'FIFO BAN11', 'shortestProcessing', 3, null),
+      ('b-study', 1, 'step', null, null, null, 'wc-ban'),
+      // A queue nothing shares, so the ordinary case is covered too.
+      ('b-study', 2, 'inventory', 'FIFO TCN', null, null, null),
+      ('b-study', 3, 'step', null, null, null, 'wc-solo'),
+      // And an inventory with no step after it: a queue in front of nothing.
+      ('b-study', 4, 'inventory', 'FIFO NOWHERE', null, null, null),
+    ]) {
+      final wc = target == null ? 'NULL' : "'$target'";
+      final lbl = label == null ? 'NULL' : "'$label'";
+      final rl = rule == null ? 'NULL' : "'$rule'";
+      final cp = cap?.toString() ?? 'NULL';
+      v18.execute(
+        'INSERT INTO flow_nodes (id, study_id, position, kind, workcenter_id, '
+        'label, lane_rule, lane_capacity, changeover_seconds, created_at, '
+        'updated_at) '
+        "VALUES ('$study-$pos', '$study', $pos, '$kind', $wc, $lbl, $rl, $cp, "
+        '0, $now, $now)',
+      );
+    }
+    v18.close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final queues = await db.select(db.projectQueues).get()
+      ..sort((a, b) => a.targetId.compareTo(b.targetId));
+
+    // Three inventory nodes across two studies land on **two** queues, and the
+    // fourth — the one feeding no step — lands on none.
+    expect(queues.map((q) => q.targetId), ['wc-ban', 'wc-solo']);
+
+    // **First study wins the name.** `a-study` sorts first, so `FIFO BAN` is
+    // the one kept and `FIFO BAN11` is not.
+    final ban = queues.first;
+    expect(ban.name, 'FIFO BAN');
+
+    // **And a later node fills what the first left blank.** `a` set no rule and
+    // no capacity, so `b`'s survive rather than being lost to the name it did
+    // not win.
+    expect(ban.rule, DispatchRule.shortestProcessing);
+    expect(ban.capacity, 3);
+
+    // The unshared one folds with everything it had.
+    expect(queues.last.name, 'FIFO TCN');
+
+    // **The inventory rows are still there.** They stop being read; they are
+    // not deleted, because they are the recovery path for `FIFO BAN11`.
+    final nodes = await db.select(db.flowNodes).get();
+    expect(
+      nodes.where((n) => n.kind == FlowNodeKind.inventory),
+      hasLength(4),
+    );
+
+    expect(
+      await db.customSelect('PRAGMA user_version').getSingle().then(
+        (row) => row.data.values.first,
+      ),
+      db.schemaVersion,
+    );
+  });
+
+  test('v19 folds once, however often the upgrade is replayed', () async {
+    // §16.11's shape: an upgrade that died after the fold and replays from a
+    // counter that no longer describes the tables. Folding twice would
+    // overwrite a queue the user has since edited, so the step is guarded on
+    // the table being empty rather than on `from`.
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final v18 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          // Faithful to v18 rather than minimal: `inventory_unit` arrives at v4
+          // and the fold reads it, so a fixture without it is not a database
+          // that could ever reach v19.
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          // Reference-data seeding runs on every upgrade, and it writes an
+          // icon — so a v18 fixture without the column fails on the seed rather
+          // than on anything this test is about.
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute('PRAGMA user_version = 18')
+          ..execute(
+            'INSERT INTO plants (id, name, created_at, updated_at) '
+            "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO shift_patterns '
+            '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+            "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+            "VALUES ('wc-1', 'plant-1', 'CLAD07', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO projects '
+            '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+            "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+            "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+            "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO studies (id, project_id, production_cell_id, '
+            'production_line_id, name, created_at, updated_at) '
+            "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO flow_nodes (id, study_id, position, kind, label, '
+            'changeover_seconds, created_at, updated_at) '
+            "VALUES ('n0', 'study-1', 0, 'inventory', 'FIFO CLAD', 0, $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO flow_nodes (id, study_id, position, kind, '
+            'workcenter_id, changeover_seconds, created_at, updated_at) '
+            "VALUES ('n1', 'study-1', 1, 'step', 'wc-1', 0, $now, $now)",
+          );
+    v18.close();
+
+    final first = AppDatabase(NativeDatabase(file));
+    await first.select(first.projectQueues).get();
+    // The user renames the queue after the upgrade.
+    await first.customStatement(
+      "UPDATE project_queues SET name = 'Renamed by hand'",
+    );
+    await first.close();
+
+    // Wind the counter back, as an interrupted upgrade leaves it.
+    final rewound = sqlite3.open(file.path)
+      ..execute('PRAGMA user_version = 18');
+    rewound.close();
+
+    final second = AppDatabase(NativeDatabase(file));
+    addTearDown(second.close);
+    final queues = await second.select(second.projectQueues).get();
+
+    expect(queues, hasLength(1));
+    expect(
+      queues.single.name,
+      'Renamed by hand',
+      reason: 'the fold ran once; a replay must not undo an edit',
+    );
+  });
+
   test('an upgrade that died part-way can still be opened', () async {
     // The shape found on the developer's own machine: `user_version` 6, but
     // the v7 and v8 steps had already run — `workcenters` rebuilt without
