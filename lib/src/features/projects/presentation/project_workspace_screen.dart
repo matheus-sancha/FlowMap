@@ -13,7 +13,8 @@ import '../../flow/presentation/flow_tab.dart';
 import '../../flow/presentation/period_control.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
-import '../../schedules/presentation/schedules_tab.dart';
+import '../../schedules/presentation/capacity_tab.dart';
+import '../../schedules/presentation/exceptions_screen.dart';
 import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
 import '../../simulation/presentation/simulation_tab.dart';
@@ -38,6 +39,7 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
     required this.projectId,
     this.studyId,
     this.showSimulation = false,
+    this.showExceptions = false,
     this.simulationStudyId,
   });
 
@@ -47,6 +49,13 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   /// Whether the body is the project's run rather than a study's tabs (§12.1).
   /// A destination in the sidebar, so it is part of the location.
   final bool showSimulation;
+
+  /// Whether the body is the project's calendar exceptions (§4.3, §12.1).
+  ///
+  /// A destination rather than a tab, for the same reason the run is one: an
+  /// exception is stored per project and applies to every study in it, so it
+  /// was never one study's to edit.
+  final bool showExceptions;
 
   /// The study to pre-select in the run's filter, from `?study=`.
   ///
@@ -86,7 +95,7 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   /// Five, from seven. The study's Simulation tab is gone — a run spans studies
   /// and is read in one place now, and `View results` navigates there rather
   /// than moving an index, which is the whole reason the banner needed a
-  /// controller at all. `Flow Takt` and `Workcenters` merged into `Schedules`
+  /// controller at all. `Flow Takt` and `Workcenters` merged into `Capacity`
   /// (§12.6), which is one question and was two tabs.
   late final TabController _tabs = TabController(length: 5, vsync: this);
 
@@ -209,7 +218,9 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               ),
               const VerticalDivider(width: 1),
               Expanded(
-                child: widget.showSimulation
+                child: widget.showExceptions
+                    ? ExceptionsScreen(project: project)
+                    : widget.showSimulation
                     ? SimulationWorkspace(
                         project: project,
                         // From `?study=`, so a study's own slice is one click
@@ -624,6 +635,21 @@ class _StudiesSidebar extends ConsumerWidget {
             ),
           ),
         ),
+        // Beside the run, and for the same reason it is here rather than on a
+        // tab: an exception is stored per project and closes the plant for
+        // every study in it (§4.3, §12.1).
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () =>
+                  context.go('/projects/${project.id}/exceptions'),
+              icon: const Icon(Icons.event_busy_outlined),
+              label: Text(l10n.navExceptions),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -832,7 +858,7 @@ class _StudyTabsState extends State<_StudyTabs> {
             children: [
               FlowTab(study: study),
               StudySettingsTab(project: widget.project, study: study),
-              SchedulesTab(project: widget.project, study: study),
+              CapacityTab(project: widget.project, study: study),
               DemandTab(study: study),
               SummaryTab(study: study),
             ],
@@ -852,7 +878,7 @@ class _StudyTabsState extends State<_StudyTabs> {
     tabs: [
       Tab(text: l10n.studyTabFlow),
       Tab(text: l10n.studyTabSettings),
-      Tab(text: l10n.studyTabSchedules),
+      Tab(text: l10n.studyTabCapacity),
       Tab(text: l10n.studyTabDemand),
       Tab(text: l10n.studyTabSummary),
     ],

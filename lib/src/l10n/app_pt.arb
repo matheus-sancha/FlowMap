@@ -48,10 +48,11 @@
   "productionLineNew": "Nova linha de produção",
 
   "workcenter": "Centro de trabalho",
-  "studyTabSchedules": "Calendários",
+  "studyTabCapacity": "Capacidade",
+  "exceptionsScope": "Aplica-se ao projeto inteiro — a todos os seus estudos.",
+  "navExceptions": "Exceções",
   "calendarExceptions": "Exceções",
   "schedulesTaktScope": "compartilhado por todos os estudos desta linha",
-  "schedulesExceptionsScope": "o projeto inteiro",
   "schedulesStationsScope": "o fluxo deste estudo",
   "workcenters": "Centros de trabalho",
   "workcenterNew": "Novo centro de trabalho",
@@ -363,6 +364,7 @@
   "reworkInvalid": "Deve ser 0% ou mais",
   "occupation": "Ocupação",
   "workcentersTabEmpty": "Adicione etapas ao fluxo para programar seus centros de trabalho aqui.",
+  "workcentersTabPattern": "Padrão de turnos: {shifts}",
 
   "scheduleIssueEmpty": "Nenhum período definido. Nada aqui pode ser calculado até existir pelo menos um.",
   "scheduleIssueOverlap": "Dois períodos cobrem {from} até {to}.",

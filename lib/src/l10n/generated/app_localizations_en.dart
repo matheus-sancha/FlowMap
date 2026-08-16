@@ -125,16 +125,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workcenter => 'Workcenter';
 
   @override
-  String get studyTabSchedules => 'Schedules';
+  String get studyTabCapacity => 'Capacity';
+
+  @override
+  String get exceptionsScope =>
+      'Applies to the whole project — every study in it.';
+
+  @override
+  String get navExceptions => 'Exceptions';
 
   @override
   String get calendarExceptions => 'Exceptions';
 
   @override
   String get schedulesTaktScope => 'shared by every study on this line';
-
-  @override
-  String get schedulesExceptionsScope => 'the whole project';
 
   @override
   String get schedulesStationsScope => 'this study\'s flow';
@@ -1022,6 +1026,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get workcentersTabEmpty =>
       'Add steps to the flow to schedule their workcenters here.';
+
+  @override
+  String workcentersTabPattern(String shifts) {
+    return 'Shift pattern: $shifts';
+  }
 
   @override
   String get scheduleIssueEmpty =>

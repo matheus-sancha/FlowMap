@@ -328,11 +328,23 @@ abstract class AppLocalizations {
   /// **'Workcenter'**
   String get workcenter;
 
-  /// No description provided for @studyTabSchedules.
+  /// No description provided for @studyTabCapacity.
   ///
   /// In en, this message translates to:
-  /// **'Schedules'**
-  String get studyTabSchedules;
+  /// **'Capacity'**
+  String get studyTabCapacity;
+
+  /// No description provided for @exceptionsScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to the whole project — every study in it.'**
+  String get exceptionsScope;
+
+  /// No description provided for @navExceptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Exceptions'**
+  String get navExceptions;
 
   /// No description provided for @calendarExceptions.
   ///
@@ -345,12 +357,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'shared by every study on this line'**
   String get schedulesTaktScope;
-
-  /// No description provided for @schedulesExceptionsScope.
-  ///
-  /// In en, this message translates to:
-  /// **'the whole project'**
-  String get schedulesExceptionsScope;
 
   /// No description provided for @schedulesStationsScope.
   ///
@@ -1913,6 +1919,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add steps to the flow to schedule their workcenters here.'**
   String get workcentersTabEmpty;
+
+  /// No description provided for @workcentersTabPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift pattern: {shifts}'**
+  String workcentersTabPattern(String shifts);
 
   /// No description provided for @scheduleIssueEmpty.
   ///

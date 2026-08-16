@@ -46,6 +46,17 @@ GoRouter router(Ref ref) {
                           studyId: state.pathParameters['studyId'],
                         ),
                       ),
+                      // The project's own calendar, out of the study it was
+                      // never about (§4.3, §12.1). A destination rather than a
+                      // tab, for the same reason the run is one: it spans every
+                      // study in the project.
+                      GoRoute(
+                        path: 'exceptions',
+                        builder: (context, state) => ProjectWorkspaceScreen(
+                          projectId: state.pathParameters['projectId']!,
+                          showExceptions: true,
+                        ),
+                      ),
                       // The **only** place a run is read (§12.1), and a place
                       // rather than an overlay, so it is linkable and the
                       // window reopens on it.

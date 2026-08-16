@@ -27,18 +27,11 @@ class CalendarExceptionsView extends ConsumerWidget {
     super.key,
     required this.project,
     required this.shiftLabels,
-    this.dense = false,
   });
 
   final Project project;
   final List<String> shiftLabels;
 
-  /// Drop the card, the heading and the help text, and let the list scroll.
-  ///
-  /// §12.6's Schedules tab supplies all three itself — it heads every section
-  /// with a title and the scope it covers — so drawing them again here would be
-  /// a heading under a heading in a band 260 px tall.
-  final bool dense;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,10 +46,8 @@ class CalendarExceptionsView extends ConsumerWidget {
       children: [
         Row(
           children: [
-            if (!dense) ...[
-              Text(l10n.exceptions, style: theme.textTheme.titleSmall),
-              const Spacer(),
-            ],
+            Text(l10n.exceptions, style: theme.textTheme.titleSmall),
+            const Spacer(),
             OutlinedButton.icon(
               onPressed: () => _edit(context, ref),
               icon: const Icon(Icons.add),
@@ -64,15 +55,13 @@ class CalendarExceptionsView extends ConsumerWidget {
             ),
           ],
         ),
-        if (!dense) ...[
-          const SizedBox(height: 4),
-          Text(
-            l10n.exceptionsHelp,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.exceptionsHelp,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
           ),
-        ],
+        ),
         const SizedBox(height: 12),
         if (exceptions.isEmpty)
           Text(l10n.exceptionsEmpty, style: theme.textTheme.bodyMedium)
@@ -84,11 +73,6 @@ class CalendarExceptionsView extends ConsumerWidget {
           ),
       ],
     );
-
-    // The band it sits in is a fixed height (§12.6), so the list scrolls inside
-    // it rather than overflowing it — a plant with twenty shutdowns is not an
-    // unusual plant.
-    if (dense) return SingleChildScrollView(child: body);
 
     return Card(child: Padding(padding: const EdgeInsets.all(16), child: body));
   }

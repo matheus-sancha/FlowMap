@@ -125,7 +125,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenter => 'Centro de trabalho';
 
   @override
-  String get studyTabSchedules => 'Calendários';
+  String get studyTabCapacity => 'Capacidade';
+
+  @override
+  String get exceptionsScope =>
+      'Aplica-se ao projeto inteiro — a todos os seus estudos.';
+
+  @override
+  String get navExceptions => 'Exceções';
 
   @override
   String get calendarExceptions => 'Exceções';
@@ -133,9 +140,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get schedulesTaktScope =>
       'compartilhado por todos os estudos desta linha';
-
-  @override
-  String get schedulesExceptionsScope => 'o projeto inteiro';
 
   @override
   String get schedulesStationsScope => 'o fluxo deste estudo';
@@ -1035,6 +1039,11 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get workcentersTabEmpty =>
       'Adicione etapas ao fluxo para programar seus centros de trabalho aqui.';
+
+  @override
+  String workcentersTabPattern(String shifts) {
+    return 'Padrão de turnos: $shifts';
+  }
 
   @override
   String get scheduleIssueEmpty =>

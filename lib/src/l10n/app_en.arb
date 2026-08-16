@@ -49,10 +49,11 @@
   "productionLineNew": "New production line",
 
   "workcenter": "Workcenter",
-  "studyTabSchedules": "Schedules",
+  "studyTabCapacity": "Capacity",
+  "exceptionsScope": "Applies to the whole project — every study in it.",
+  "navExceptions": "Exceptions",
   "calendarExceptions": "Exceptions",
   "schedulesTaktScope": "shared by every study on this line",
-  "schedulesExceptionsScope": "the whole project",
   "schedulesStationsScope": "this study's flow",
   "workcenters": "Workcenters",
   "workcenterNew": "New workcenter",
@@ -385,6 +386,10 @@
   "reworkInvalid": "Must be 0% or more",
   "occupation": "Occupation",
   "workcentersTabEmpty": "Add steps to the flow to schedule their workcenters here.",
+  "workcentersTabPattern": "Shift pattern: {shifts}",
+  "@workcentersTabPattern": {
+    "placeholders": { "shifts": { "type": "String" } }
+  },
 
   "scheduleIssueEmpty": "No periods defined. Nothing here can be costed until there is at least one.",
   "scheduleIssueOverlap": "Two periods both cover {from} to {to}.",
