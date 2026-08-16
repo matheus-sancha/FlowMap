@@ -1269,16 +1269,36 @@ already uses. Discipline, capacity in orders, and the observed stock (§5.5's qu
 sit together, project-scoped, so capping a lane stays the per-project experiment §0 actually ran on
 `FIFO CEU27`.
 
-_Still open, and each needs an answer before this is built:_
+**The run records each station's queue type and capacity**, on
+`simulation_run_workcenters` beside §5.1's pool columns. §7.10's rule: a run joins to nothing, so a
+run opened next month still says what each station dispatched by after the queues have been retuned
+— and it is what lets §10's comparison say *which* queues differed rather than only that something
+did. `SimulationRuns.dispatch` stays for pre-v19 runs and stops being written.
 
-- **What the runs-history label says** once there is no dispatch rule to name a run by. Today it
-  reads `2026-08-15 · FIFO`.
-- **Whether a raw-material queue before the first step, and a finished-goods stock after the last,
-  are expressible.** Every step has a queue in front of it; the flow's two ends have neither a step
-  before nor after.
-- **What LIFO, SPT and EDD channels look like.** Only FIFO and the push triangle are standard VSM
-  symbols; the other three have to be invented, and an invented symbol that reads as a standard one
-  is worse than a labelled box.
+_Rejected: reading the queues back from the project._ No duplication and no migration — and retuning
+a queue would silently rewrite what every past run claims to have done, which is the drift §7.10
+exists to prevent and which §5.1 has just added two columns to avoid.
+
+**The flow's two ends carry stock, and it is not a queue.** A study gains an inbound and an outbound
+figure, drawn as triangles against the supplier and customer endpoints (§5.3). They feed the
+lead-time ladder and the days-of-stock a current-state VSM exists to state — and nothing dispatches
+out of them, because §7.2 releases on a takt rather than pulling from a rack.
+
+_Left open, and it is a real mechanism when it is wanted:_ making the inbound stock gate releases, so
+a run can report starvation from supply. §8.5 already carries a material date per order, so the input
+exists; what does not exist is the engine behaviour, and it is not being invented inside a re-model.
+
+**One channel shape, labelled with the rule.** The FIFO symbol already *is* a channel with `FIFO`
+written in it, so `LIFO`, `SPT` and `EDD` in the same channel extend the convention rather than
+inventing three glyphs — and nothing can be misread as a standard symbol meaning something else. Push
+keeps its striped arrow and triangle.
+
+_Rejected: colour per rule._ Cheap and legible on screen, and §13's PDF on a shop-floor wall is often
+greyscale, where colour carrying meaning alone does not survive.
+
+**The runs-history label** becomes the date plus the queue type when every station shares one, and
+`mixed` otherwise. It reads `2026-08-15 · FIFO` today and keeps doing so on a uniform plant; a full
+breakdown does not fit a menu row, and the per-station record is what a comparison reads anyway.
 
 ### 7.4 Takt rebalances a group of like machines
 
