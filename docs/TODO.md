@@ -1388,6 +1388,11 @@ What is left of §7.3 is one thing it settled and nothing has built:
       days-of-stock a current-state VSM exists to state, and nothing dispatches out of them. Two
       nullable columns on `studies`, so it is a schema step (v20) rather than a surface one.
 
+**Two field findings from `0.1.0-2026-08-16`'s map landed on 2026-08-16**: the lead-time ladder's
+rungs overlapped and are now one equal, aligned slot each, which widened every link that carries a
+queue to a process box's width; and the queue type moved out of the connector into the process step
+dialog, where the workcenter is chosen. The connector still opens it.
+
 **Drive the map before anything else in §7.** Nothing in the suite renders a pixel and this round
 replaced the whole inventory surface: the triangle moved off the spine and under the link, the
 lead-time ladder grew a rung per queue instead of per buffer node, the insert menu lost a choice, and

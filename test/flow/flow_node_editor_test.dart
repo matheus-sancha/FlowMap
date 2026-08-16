@@ -1,6 +1,9 @@
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/flow/application/flow_providers.dart';
+import 'package:flowmap/src/features/flow/data/flow_queues_repository.dart';
+import 'package:flowmap/src/features/studies/application/studies_providers.dart';
+import 'package:flowmap/src/features/studies/data/studies_repository.dart';
 import 'package:flowmap/src/features/flow/application/flow_view.dart';
 import 'package:flowmap/src/features/flow/presentation/flow_node_editor.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
@@ -22,23 +25,37 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final now = DateTime(2026, 8, 1);
 
-  FlowQueueView queueView({
+  final clad = Workcenter(
+    id: 'wc-1',
+    plantId: 'plant-1',
+    parallelCapacity: 1,
+    name: 'CLAD04',
+    createdAt: now,
+    updatedAt: now,
+  );
+
+  /// A stored queue in front of [target].
+  ProjectQueue queueRow(
+    String target, {
     String? name,
     DispatchRule? rule,
     int? capacity,
-    Duration wait = const Duration(hours: 48),
-    DurationUnit? unit = DurationUnit.hours,
+    InventoryMode mode = InventoryMode.duration,
     int? quantity,
-  }) => FlowQueueView(
-    targetId: 'CLAD04',
-    targetName: 'CLAD04',
+    int? seconds = 48 * 3600,
+    DurationUnit? unit = DurationUnit.hours,
+  }) => ProjectQueue(
+    projectId: 'project-1',
+    targetId: target,
     name: name,
     rule: rule,
     capacity: capacity,
-    wait: wait,
-    quantity: quantity,
-    unit: unit,
-    isCalendarWait: quantity == null,
+    stockMode: mode,
+    stockQuantity: quantity,
+    stockSeconds: seconds,
+    stockUnit: unit,
+    createdAt: now,
+    updatedAt: now,
   );
 
   final study = Study(
@@ -83,97 +100,179 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('the queue editor (§7.3)', () {
-    testWidgets('mounts without throwing, and names its target', (
+  group('the queue, in the step dialog (§7.3)', () {
+    /// A step bound to CLAD04, so it has a target and therefore a queue.
+    FlowStepView boundStep() => FlowStepView(
+      FlowNode(
+        id: 'node-1',
+        studyId: 'study-1',
+        position: 0,
+        kind: FlowNodeKind.step,
+        workcenterId: 'wc-1',
+        changeoverSeconds: 0,
+        inventoryUsesWorkingTime: false,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      title: 'CLAD04',
+      typeName: null,
+      poolMemberCount: null,
+      dataSource: FlowDataSource.flowEquivalent,
+      processTime: const Duration(hours: 68),
+      equivalentProcessTime: const Duration(hours: 68),
+      changeover: Duration.zero,
+      openPerWorkingDay: const Duration(hours: 22, minutes: 40),
+      productivePerWorkingDay: const Duration(hours: 16, minutes: 46),
+      openInPeriod: const Duration(hours: 476),
+      capacityInPeriod: const Duration(hours: 352),
+      operatorsAllocated: 3,
+      operatorsPerShift: const [1, 1, 1],
+      availability: 1,
+      rework: 0,
+      problems: const [],
+    );
+
+    Future<void> openStep(
+      WidgetTester tester, {
+      List<ProjectQueue> queues = const [],
+      List<Workcenter> workcenters = const [],
+      FlowStepView? step,
+    }) => pumpHost(
       tester,
-    ) async {
-      await pumpHost(
-        tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(),
-        ),
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(AlertDialog), findsOneWidget);
-      // Move and delete are a *node's* actions; a queue is not on the spine and
-      // cannot be reordered off it.
-      expect(find.byIcon(Icons.arrow_back), findsNothing);
-      expect(find.byIcon(Icons.delete_outline), findsNothing);
-
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      expect(find.text(l10n.flowQueueTitle('CLAD04')), findsOneWidget);
-      // Said out loud, because a planner editing this from inside one study has
-      // to know the other study's orders stand in the same line.
-      expect(find.text(l10n.flowQueueShared('CLAD04')), findsOneWidget);
-    });
-
-    testWidgets('inserting a node offers a step, with no menu in the way', (
-      tester,
-    ) async {
-      await pumpHost(
-        tester,
-        (context, ref) =>
-            showInsertNodeMenu(context, ref, study: study, position: 0),
-        overrides: [
-          // It reaches straight for the targets now rather than asking which
-          // kind of node first, so the provider it reads has to be stubbed.
-          flowTargetsProvider('study-1').overrideWith(
-            (ref) async => (
-              workcenters: <Workcenter>[],
-              pools: <WorkcenterPool>[],
-            ),
+      (context, ref) {
+        final byTarget = {for (final row in queues) row.targetId: row};
+        return step == null
+            ? showInsertNodeMenu(
+                context,
+                ref,
+                study: study,
+                position: 0,
+                queues: byTarget,
+              )
+            : showStepEditor(
+                context,
+                ref,
+                study: study,
+                step: step,
+                queues: byTarget,
+              );
+      },
+      overrides: [
+        flowTargetsProvider('study-1').overrideWith(
+          (ref) async => (
+            workcenters: workcenters.isEmpty ? [clad] : workcenters,
+            pools: <WorkcenterPool>[],
           ),
+        ),
+      ],
+    );
+
+    testWidgets('a bound step carries its target\'s queue, and says it is '
+        'shared', (tester) async {
+      await openStep(
+        tester,
+        step: boundStep(),
+        queues: [
+          queueRow('wc-1', name: 'FIFO CLAD04', rule: DispatchRule.lifo,
+              capacity: 3),
         ],
       );
 
       expect(tester.takeException(), isNull);
-      // One thing goes on the spine now (§7.3), so the choice dialog went with
-      // the inventory node and the step dialog opens directly.
-      expect(find.byType(SimpleDialog), findsNothing);
-      expect(find.byType(AlertDialog), findsOneWidget);
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      expect(find.text(l10n.flowQueueTitle('CLAD04')), findsOneWidget);
+      // Said out loud, because a planner editing this from inside one study has
+      // to know the other study's orders stand in the same line.
+      expect(find.text(l10n.flowQueueShared('CLAD04')), findsOneWidget);
+
+      // Selected rather than merely offered: a control that opened on the
+      // default would silently reset the queue on the next save.
+      expect(
+        find.text(dispatchRuleLabel(l10n, DispatchRule.lifo)),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextField, 'FIFO CLAD04'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '3'), findsOneWidget);
     });
 
-    testWidgets('offers all four wait units', (tester) async {
-      await pumpHost(
+    testWidgets('a step that targets nothing has no queue section', (
+      tester,
+    ) async {
+      // There is no floor space in front of a step that names no station, and
+      // nothing to key a row by.
+      await openStep(tester);
+
+      expect(tester.takeException(), isNull);
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      expect(find.text(l10n.flowQueueName), findsNothing);
+      expect(find.text(l10n.flowQueueStock), findsNothing);
+    });
+
+    testWidgets('picking a workcenter reveals that target\'s queue', (
+      tester,
+    ) async {
+      // The insert path: the section is absent until a target is chosen, then
+      // fills from the row that target already has — which may be one another
+      // study wrote, and is shown rather than overwritten.
+      await openStep(
         tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(),
-        ),
+        queues: [queueRow('wc-1', name: 'FIFO CLAD04', capacity: 4)],
       );
 
-      await tester.ensureVisible(
-        find.byType(DropdownButtonFormField<DurationUnit>),
-      );
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      expect(find.text(l10n.flowQueueName), findsNothing);
+
+      await tester.tap(find.text(l10n.valueNone));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(DropdownButtonFormField<DurationUnit>));
+      await tester.tap(find.text('CLAD04').last);
       await tester.pumpAndSettle();
 
-      // Four in the menu; the closed field shows the selected one too.
-      expect(find.text('days'), findsWidgets);
-      expect(find.text('hours'), findsWidgets);
-      expect(find.text('minutes'), findsWidgets);
-      expect(find.text('seconds'), findsWidgets);
+      expect(find.text(l10n.flowQueueTitle('CLAD04')), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'FIFO CLAD04'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '4'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an untouched queue says it is a push, not FIFO', (
+      tester,
+    ) async {
+      await openStep(tester, step: boundStep());
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      // The distinction §5.2 rests on: "nobody has decided" is not the same
+      // state as "someone chose FIFO", and only the second draws a channel.
+      expect(find.text(l10n.queueTypePush), findsOneWidget);
+      expect(find.text(l10n.laneCapacity), findsOneWidget);
+    });
+
+    testWidgets('supermarket is named and cannot be chosen', (tester) async {
+      await openStep(tester, step: boundStep());
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      // Opened through the entry it is showing, because the picker's own type
+      // is private to the dialog. Scrolled to first: the step dialog carries
+      // the whole queue below the changeover now, so the picker starts below
+      // the fold on an 800 px test surface.
+      await tester.ensureVisible(find.text(l10n.queueTypePush));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.queueTypePush));
+      await tester.pumpAndSettle();
+
+      // Listed rather than omitted, so a reader looking for it finds out why it
+      // is not there: the engine cannot honour it, and a supermarket symbol
+      // over FIFO behaviour would be a map that lies about the plant (§7.3).
+      expect(find.text(l10n.queueTypeSupermarket), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('changing the unit keeps the wait, not the number', (
       tester,
     ) async {
-      await pumpHost(
+      await openStep(
         tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(),
-        ),
+        step: boundStep(),
+        queues: [queueRow('wc-1')],
       );
 
       expect(find.widgetWithText(TextField, '48'), findsOneWidget);
@@ -192,95 +291,21 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('it carries the name, rule and capacity it was given', (
-      tester,
-    ) async {
-      await pumpHost(
-        tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(
-            name: 'FIFO CEU27',
-            rule: DispatchRule.earliestDueDate,
-            capacity: 3,
-          ),
-        ),
-      );
-
-      expect(tester.takeException(), isNull);
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-
-      // Selected rather than merely offered: a control that opened on the
-      // default would silently reset the queue on the next save (§7.3).
-      expect(
-        find.text(dispatchRuleLabel(l10n, DispatchRule.earliestDueDate)),
-        findsOneWidget,
-      );
-      expect(find.widgetWithText(TextField, 'FIFO CEU27'), findsOneWidget);
-      expect(find.widgetWithText(TextField, '3'), findsOneWidget);
-    });
-
-    testWidgets('an untouched queue says it is a push, not FIFO', (
-      tester,
-    ) async {
-      await pumpHost(
-        tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(),
-        ),
-      );
-
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      // The distinction §5.2 rests on: "nobody has decided" is not the same
-      // state as "someone chose FIFO", and only the second draws a channel.
-      expect(find.text(l10n.queueTypePush), findsOneWidget);
-      expect(find.text(l10n.laneCapacity), findsOneWidget);
-    });
-
-    testWidgets('supermarket is named and cannot be chosen', (tester) async {
-      await pumpHost(
-        tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(),
-        ),
-      );
-
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      // Opened through the entry it is showing, because the picker's own type
-      // is private to the dialog.
-      await tester.tap(find.text(l10n.queueTypePush));
-      await tester.pumpAndSettle();
-
-      // Listed rather than omitted, so a reader looking for it finds out why it
-      // is not there: the engine cannot honour it, and a supermarket symbol
-      // over FIFO behaviour would be a map that lies about the plant (§7.3).
-      expect(find.text(l10n.queueTypeSupermarket), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('a queue holding pieces shows a count rather than a wait', (
       tester,
     ) async {
-      await pumpHost(
+      await openStep(
         tester,
-        (context, ref) => showQueueEditor(
-          context,
-          ref,
-          projectId: 'project-1',
-          queue: queueView(
+        step: boundStep(),
+        queues: [
+          queueRow(
+            'wc-1',
+            mode: InventoryMode.quantity,
             quantity: 5,
+            seconds: null,
             unit: null,
-            wait: const Duration(hours: 12),
           ),
-        ),
+        ],
       );
 
       expect(tester.takeException(), isNull);
@@ -289,6 +314,115 @@ void main() {
         findsNothing,
         reason: 'a quantity has no unit of its own — takt supplies it',
       );
+      expect(find.widgetWithText(TextField, '5'), findsOneWidget);
+    });
+
+    testWidgets('saving a label leaves the shared queue alone', (tester) async {
+      // **The rule the two studies depend on.** They share five targets on the
+      // real database, and a step dialog is opened to change a label far more
+      // often than to retune a floor space — so a save that always wrote the
+      // queue would let one study revert the other's capacity without either of
+      // them seeing it (§7.3, §12.6).
+      final writes = _RecordingQueues();
+
+      await pumpHost(
+        tester,
+        (context, ref) => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: boundStep(),
+          queues: {
+            'wc-1': queueRow(
+              'wc-1',
+              rule: DispatchRule.earliestDueDate,
+              capacity: 4,
+            ),
+          },
+        ),
+        overrides: [
+          flowTargetsProvider('study-1').overrideWith(
+            (ref) async => (workcenters: [clad], pools: <WorkcenterPool>[]),
+          ),
+          flowQueuesRepositoryProvider.overrideWithValue(writes),
+          // Save writes the step before it writes the queue, and the step's
+          // repository holds a database this test has no use for.
+          studiesRepositoryProvider.overrideWithValue(_SilentSteps()),
+        ],
+      );
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      // The step's own label, found by the field it is labelled with rather
+      // than by position — the dialog has several text fields now.
+      await tester.enterText(
+        find.ancestor(
+          of: find.text(l10n.flowNodeLabel),
+          matching: find.byType(TextField),
+        ),
+        'Renamed',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.actionSave));
+      await tester.pumpAndSettle();
+
+      // Not "wrote the same values back" — **did not write at all**. An upsert
+      // of what it loaded would still stamp `updated_at` and would still race
+      // the other study's dialog.
+      expect(writes.saved, isEmpty);
+    });
+
+    testWidgets('changing the queue type writes it', (tester) async {
+      // The other half: the rule above must not be so eager that a deliberate
+      // edit is dropped too.
+      final writes = _RecordingQueues();
+
+      await pumpHost(
+        tester,
+        (context, ref) => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: boundStep(),
+          queues: const {},
+        ),
+        overrides: [
+          flowTargetsProvider('study-1').overrideWith(
+            (ref) async => (workcenters: [clad], pools: <WorkcenterPool>[]),
+          ),
+          flowQueuesRepositoryProvider.overrideWithValue(writes),
+          // Save writes the step before it writes the queue, and the step's
+          // repository holds a database this test has no use for.
+          studiesRepositoryProvider.overrideWithValue(_SilentSteps()),
+        ],
+      );
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await tester.ensureVisible(find.text(l10n.queueTypePush));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.queueTypePush));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(dispatchRuleLabel(l10n, DispatchRule.lifo)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.actionSave));
+      await tester.pumpAndSettle();
+
+      // A target nobody had described gets a row, because somebody described
+      // it — keyed by the target rather than by the step.
+      expect(writes.saved, hasLength(1));
+      expect(writes.saved.single.targetId, 'wc-1');
+      expect(writes.saved.single.rule, DispatchRule.lifo);
+    });
+
+    testWidgets('inserting a node offers a step, with no menu in the way', (
+      tester,
+    ) async {
+      await openStep(tester);
+
+      expect(tester.takeException(), isNull);
+      // One thing goes on the spine now (§7.3), so the choice dialog went with
+      // the inventory node and the step dialog opens directly.
+      expect(find.byType(SimpleDialog), findsNothing);
+      expect(find.byType(AlertDialog), findsOneWidget);
     });
   });
 
@@ -338,22 +472,13 @@ void main() {
           ref,
           study: study,
           step: step,
+          // The step dialog carries the queue now (§7.3); these tests are about
+          // the changeover fields, so the plant has no queue described yet.
+          queues: const {},
         ),
         overrides: [
           flowTargetsProvider('study-1').overrideWith(
-            (ref) async => (
-              workcenters: <Workcenter>[
-                Workcenter(
-                  id: 'wc-1',
-                  plantId: 'plant-1',
-                  parallelCapacity: 1,
-                  name: 'CLAD04',
-                  createdAt: now,
-                  updatedAt: now,
-                ),
-              ],
-              pools: <WorkcenterPool>[],
-            ),
+            (ref) async => (workcenters: [clad], pools: <WorkcenterPool>[]),
           ),
         ],
       );
@@ -407,4 +532,43 @@ void main() {
       expect(find.widgetWithText(TextField, '25'), findsOneWidget);
     });
   });
+}
+
+/// Swallows the step write, so a test about the queue does not need a database.
+///
+/// `noSuchMethod` rather than the twenty-odd members `implements` would demand:
+/// what is under test is what happens *after* the step is stored, and every one
+/// of those members would be a stub returning nothing.
+class _SilentSteps implements StudiesRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
+}
+
+/// A stand-in that records what the step dialog asked to be written.
+///
+/// **No database.** Drift's query streams schedule real timers, which a
+/// `testWidgets` fake clock never fires — `pumpAndSettle` then spins until the
+/// test times out. What is under test here is whether `saveQueue` is called at
+/// all, and that is a question about the dialog rather than about SQLite.
+class _RecordingQueues implements FlowQueuesRepository {
+  final List<({String targetId, DispatchRule? rule, int? capacity})> saved = [];
+
+  @override
+  Future<void> saveQueue({
+    required String projectId,
+    required String targetId,
+    String? name,
+    DispatchRule? rule,
+    int? capacity,
+    InventoryMode? stockMode,
+    int? stockQuantity,
+    int? stockSeconds,
+    DurationUnit? stockUnit,
+  }) async {
+    saved.add((targetId: targetId, rule: rule, capacity: capacity));
+  }
+
+  @override
+  Stream<Map<String, ProjectQueue>> watchQueues(String projectId) =>
+      const Stream.empty();
 }

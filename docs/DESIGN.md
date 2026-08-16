@@ -387,17 +387,38 @@ plant has one is the day to add it.
 behind it has finished an order it cannot put down, and stops. That is what the names on a real map
 mean — `FIFO CEU27` is not a three-day delay, it is a channel with a rule and a floor space.
 
-**Where it is edited: on the map, from the connector.** Click the link and set the name, the type,
-the capacity and the stock. It is where the queue is drawn and where it is read, and a planner
-setting a FIFO capacity is looking at the map when they think of it. The dialog **names the target
-and says the queue is shared** by every step that feeds it, which is the answer to the complaint that
-started §7.3 and is not something a reader should have to discover.
+**Where it is edited: in the process step dialog**, under the workcenter the step targets. Choosing
+the queue type is part of putting a station on the map — *"when a workcenter is added the user must
+select the type"* — so it belongs in the dialog that adds the workcenter. Clicking the channel opens
+that same dialog. The section **names the target and says the queue is shared** by every step that
+feeds it, which is the answer to the complaint that started §7.3 and is not something a reader should
+have to discover.
+
+This reverses one round of its own history: the queue was editable on the connector alone, on the
+argument that a planner setting a FIFO capacity is looking at the map when they think of it. That
+argument still holds and is why the channel is still a click target; what it got wrong is that a
+queue is not an afterthought to a step, it is part of describing one.
+
+- **Push is a type, and the default.** The picker always shows a value, so adding a workcenter is
+  always a conscious choice, and `rule` stays null for a push — no schema change, and §5.2 keeps its
+  rule that a channel means somebody decided something. Supermarket is listed and disabled (§7.3).
+- **The section follows the target picker.** Repointing a step from CLAD17 to CLAD09 reloads the
+  fields from CLAD09's row — including one another study wrote, which is then *shown* rather than
+  overwritten. What the heading names is what Save writes. On insert the section is absent until a
+  workcenter is chosen, because a step that names no station has no floor space in front of it.
+- **The row is written only when a queue field changed.** A step dialog is opened to change a label
+  far more often than to retune a floor space, and the row is shared — five targets on the real
+  database are reached by both studies. Writing on every save would let one study revert another's
+  capacity by renaming a step, with neither of them seeing it. A target nobody has described
+  therefore keeps no row at all.
+- **The queues are handed to the dialog, not fetched by it.** The canvas is already watching them —
+  it cannot draw a channel otherwise — so the answer is on screen before the click.
 
 _Rejected: editing it on Capacity beside the station schedules._ Same key, same scope, same tab, and
 it would put everything about a station in one place — but reading a rule on one surface and setting
-it on another is the split §6.4 has just finished undoing on the Flow toolbar. _Rejected: both, with
-a bulk table on Capacity._ Better for retuning ten lanes at once, and two write paths into one row is
-how the two come to disagree (§12.6).
+it on another is the split §6.4 has just finished undoing on the Flow toolbar. _Rejected: keeping it
+on the connector as well._ Two write paths into one shared row is how the two come to disagree
+(§12.6).
 
 **The working-time switch did not come across.** A fixed wait on an inventory node could be declared
 wall-clock or working-time; `project_queues` stores no such flag, so every fixed wait is a calendar

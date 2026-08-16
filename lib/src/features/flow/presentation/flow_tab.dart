@@ -438,22 +438,34 @@ class _CanvasState extends ConsumerState<_Canvas> {
                 ),
               ),
             // The queue each link runs into (§7.3) — the stock standing there,
-            // and the click that sets it. **After the connections painter and
-            // before the insert buttons**: it draws under the shaft the painter
-            // put down, and the `+` keeps its own 36 px of the same segment.
-            for (final connection in layout.connections)
-              if (connection.queue case final queue?)
+            // and the click that opens the step that owns it. **After the
+            // connections painter and before the insert buttons**: it draws
+            // under the shaft the painter put down, and the `+` keeps its own
+            // 36 px of the same segment.
+            //
+            // Indexed against the nodes rather than walked over the connections,
+            // because the link into a box and that box are the same entry: the
+            // queue is drawn on the link and set in the dialog of the step it
+            // feeds.
+            for (var i = 0; i < layout.nodes.length; i++)
+              if (layout.connections[i].queue case final queue?)
                 Positioned(
-                  left: connection.from.dx,
+                  left: layout.connections[i].from.dx,
                   // From just above the shaft, so the **channel itself** is the
                   // click target §7.3 settled on — not only the triangle under
                   // it, which a queue with nothing standing in it does not draw.
                   top: layout.spineY - FlowMetrics.stockOffset,
-                  width: connection.to.dx - connection.from.dx,
-                  height: FlowMetrics.stockSymbol + 34 + FlowMetrics.stockOffset * 2,
+                  width:
+                      layout.connections[i].to.dx -
+                      layout.connections[i].from.dx,
+                  height:
+                      FlowMetrics.stockSymbol +
+                      34 +
+                      FlowMetrics.stockOffset * 2,
                   child: _QueueNode(
                     queue: queue,
-                    projectId: study.projectId,
+                    step: layout.nodes[i].view,
+                    study: study,
                   ),
                 ),
             for (final insertion in layout.insertionPoints)
@@ -594,6 +606,10 @@ class _StepBox extends ConsumerWidget {
     final theme = Theme.of(context);
     final hasProblem = step.problems.isNotEmpty;
     final notes = step.node.notes;
+    // Watched here rather than plumbed down from the canvas: the dialog needs
+    // every target's queue so its section can follow the target picker, and
+    // this is already loaded — the map cannot draw a channel without it.
+    final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
 
     return Tooltip(
       // A note is the reader's own writing and outranks the box's description
@@ -608,6 +624,7 @@ class _StepBox extends ConsumerWidget {
           ref,
           study: study,
           step: step,
+          queues: queues ?? const {},
         ),
         child: Container(
           decoration: BoxDecoration(
@@ -856,30 +873,41 @@ class _DataRow extends StatelessWidget {
 /// belongs to what a step targets, so it is drawn where the material actually
 /// waits — between the box before it and the box it feeds.
 ///
-/// The whole segment is the click target, because §7.3 settled that a queue is
-/// set from the connector: a planner deciding a FIFO capacity is looking at the
-/// map when they think of it. That includes a target nobody has configured yet,
-/// which draws nothing and still opens the editor — otherwise the first queue
-/// on a plant could never be created from here.
+/// The whole segment is the click target, and it **opens the step dialog of the
+/// step this link feeds** (§7.3, revised). The queue was editable on the channel
+/// itself for one round; the field's answer was that choosing the type is part
+/// of putting a workcenter on the map, so it moved into the dialog that puts the
+/// workcenter there — and one row keeps one write path (§12.6). Clicking here
+/// still works, because the map is where a planner is looking when they think of
+/// a queue.
 class _QueueNode extends ConsumerWidget {
-  const _QueueNode({required this.queue, required this.projectId});
+  const _QueueNode({
+    required this.queue,
+    required this.step,
+    required this.study,
+  });
 
   final FlowQueueView queue;
-  final String projectId;
+
+  /// The step this link runs into — the one whose dialog owns the queue.
+  final FlowStepView step;
+  final Study study;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
+    final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
 
     return Tooltip(
       message: l10n.flowQueueEdit,
       child: InkWell(
-        onTap: () => showQueueEditor(
+        onTap: () => showStepEditor(
           context,
           ref,
-          projectId: projectId,
-          queue: queue,
+          study: study,
+          step: step,
+          queues: queues ?? const {},
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1036,6 +1064,7 @@ class _InsertButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
     return Tooltip(
       message: l10n.flowInsertHere,
       child: Material(
@@ -1048,6 +1077,7 @@ class _InsertButton extends ConsumerWidget {
             ref,
             study: study,
             position: position,
+            queues: queues ?? const {},
           ),
           child: Icon(
             Icons.add,
