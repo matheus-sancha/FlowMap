@@ -742,16 +742,16 @@ slice is), **§7.10** (the cell and line the run carries), **§10.1**, **§17.5*
 
 ---
 
-## 5. The pool and the lane — round five, **the complaint answered, the drive part-done**
+## 5. The pool and the lane — round five, **written, and not yet driven**
 
 Settled by interview on 2026-08-15, after driving `0.1.0-2026-08-15b` with **two studies in one
 run** — the first time the build has been asked the question §7.7 exists to answer. Two things came
 back from it, and reading the code for them found a third nobody had reported.
 
-**The code is written and the field's own case is confirmed**: `flutter analyze` clean, **729 tests
-passing**, schema at **v18**, and on 2026-08-15 a run with two studies over the CAL pool drew the
-pool heading with both FIFO bands above it. What is outstanding is the rest of §5.3 — the tables, an
-old run, and the hover — none of which is the complaint, and one of which fails silently.
+**The code is written and none of it has been seen**: `flutter analyze` clean, **736 tests passing**
+after §6, schema at **v18** in the tree. The live database is still at **v17** — the last session in
+`log.txt` is 15:27 on 2026-08-15 under `0.1.0-2026-08-15f`, which predates every line of this round.
+§5.3 was briefly ticked on a verbal report and is unticked; the entry there records why.
 
 **Split from §6 deliberately.** The interview settled these two bugs and the workspace restructure as
 one round driven at the end; they are separated again because this half is *finished and checkable*
@@ -850,18 +850,32 @@ reported, three in `sim_assembly_test.dart` for the resolution rule, one migrati
 **nothing in the suite renders a pixel** (§2.7), so the heading, the band order and the label column
 are only covered by pressing it.
 
-- [x] ~~**The run that raised it.**~~ **Confirmed 2026-08-15.** Two studies stepping on the CAL pool:
-      the pool heading sits over its members and **both** FIFO bands draw above it, neither missing.
-      That is the whole of what the field reported, answered on one screen. The migration ran to get
-      there, so v18 has now opened the real database as well as a fixture.
+- [ ] **The run that raised it.** Two studies stepping on the CAL pool: the pool heading over its
+      members and **both** FIFO bands above it, neither missing. That is the whole of what the field
+      reported, and it is one screen.
 
-      _Not recorded, and it should have been:_ the build label. §0's rule is that the session
-      header's label is the only claim a stale link cannot produce, and this entry cannot cite one.
-      The next drive states it.
+      **This was ticked on 2026-08-15 and is unticked, because the tick was wrong.** It was recorded
+      as confirmed on a verbal report and written up as *"the migration ran to get there, so v18 has
+      now opened the real database as well as a fixture"*. None of that happened. The evidence,
+      gathered afterwards rather than before:
+
+      | | |
+      |---|---|
+      | `PRAGMA user_version` on the live database | **17** |
+      | `pool_id` / `pool_name` on `simulation_run_workcenters` | **absent** |
+      | last session in `log.txt` | **15:27:15, `0.1.0-2026-08-15f`, `db.open schema 17 from 17`** |
+
+      There is no session of any kind after 15:27, and every line of §5 landed after it. So whatever
+      was looked at, it was not this build against this database — and the entry claimed a migration
+      that the schema says never ran.
+
+      _The lesson is §0's own, arriving from a new direction._ That section already says the session
+      header's build label is the only claim a stale link cannot produce, and this entry was written
+      **without one** — it noted the omission and ticked the box anyway. A drive with no label
+      recorded is not a weaker record of a drive; it is not a record that a drive happened. The box
+      does not get ticked again until an entry can cite a label and a `db.open` line.
 - [ ] **The heading reads as a heading**, not as a fourth machine — 18 px against the stations' 30,
-      the primary colour in the frozen label column, no band fill, and nothing hovers on it. Partly
-      covered by the above, since the heading was recognised as one; what is unchecked is the hover,
-      which is the half a screenshot cannot show.
+      the primary colour in the frozen label column, no band fill, and nothing hovers on it.
 - [ ] **The Queue and Share tables keep their ranking** and carry `CLAD07  CAL Pool` in the first
       column. The top row must still be the station that queued most (§8.1). **The column went from
       160 px to 210** to fit the pool, which is the change most likely to look wrong rather than be
