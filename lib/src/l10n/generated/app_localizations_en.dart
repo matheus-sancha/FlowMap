@@ -1756,4 +1756,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simEmptySlotWipCap => 'WIP cap reached';
+
+  @override
+  String get flowEndStockInbound => 'Raw material stock';
+
+  @override
+  String get flowEndStockOutbound => 'Finished goods stock';
+
+  @override
+  String get flowEndStockEdit =>
+      'Set the stock standing at this end of the flow';
+
+  @override
+  String get flowEndStockQuantity => 'Pieces standing here';
+
+  @override
+  String get flowEndStockHelp =>
+      'An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.';
+
+  @override
+  String get flowEndStockNone => 'Not counted';
+
+  @override
+  String get flowEndStockDays => 'Days of stock';
 }

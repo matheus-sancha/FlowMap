@@ -3143,6 +3143,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'WIP cap reached'**
   String get simEmptySlotWipCap;
+
+  /// No description provided for @flowEndStockInbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw material stock'**
+  String get flowEndStockInbound;
+
+  /// No description provided for @flowEndStockOutbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished goods stock'**
+  String get flowEndStockOutbound;
+
+  /// No description provided for @flowEndStockEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the stock standing at this end of the flow'**
+  String get flowEndStockEdit;
+
+  /// No description provided for @flowEndStockQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Pieces standing here'**
+  String get flowEndStockQuantity;
+
+  /// No description provided for @flowEndStockHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.'**
+  String get flowEndStockHelp;
+
+  /// No description provided for @flowEndStockNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not counted'**
+  String get flowEndStockNone;
+
+  /// No description provided for @flowEndStockDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Days of stock'**
+  String get flowEndStockDays;
 }
 
 class _AppLocalizationsDelegate

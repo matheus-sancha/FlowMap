@@ -6,7 +6,6 @@ import '../../../common/help_icon.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
-import '../../../common/dialogs.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/application/demand_providers.dart';
 import '../../demand/application/demand_table.dart' show demandTargetOf;
@@ -347,31 +346,20 @@ class _CanvasState extends ConsumerState<_Canvas> {
     });
   }
 
-  /// Renames one endpoint, leaving the other alone.
+  /// Writes one end of the flow — its name and the stock standing there.
   ///
-  /// `updateStudy` takes both names, so passing only the one that changed would
-  /// null the other — the same shape of bug that left these fields unwritable
-  /// in the first place (§17.5).
-  Future<void> _renameEndpoint(
+  /// This used to read the whole study back and pass every field through, with
+  /// a comment explaining that naming only the endpoint that changed would null
+  /// the other one. `setFlowEnd` writes the two columns of one end and leaves
+  /// everything else absent, so there is nothing left here to get wrong.
+  Future<void> _writeEndpoint(
     WidgetRef ref, {
-    String? supplier,
-    String? customer,
-    bool supplierGiven = false,
-    bool customerGiven = false,
-  }) {
-    final study = widget.study;
-    return ref
-        .read(studiesRepositoryProvider)
-        .updateStudy(
-          study.id,
-          name: study.name,
-          supplierName: supplierGiven ? supplier : study.supplierName,
-          customerName: customerGiven ? customer : study.customerName,
-          wipCap: study.wipCap,
-          priority: study.priority,
-          notes: study.notes,
-        );
-  }
+    required bool inbound,
+    required String? name,
+    required int? stock,
+  }) => ref
+      .read(studiesRepositoryProvider)
+      .setFlowEnd(widget.study.id, inbound: inbound, name: name, stock: stock);
 
   /// Zooms about the centre of [viewport], keeping what is under it there.
   ///
@@ -491,14 +479,26 @@ class _CanvasState extends ConsumerState<_Canvas> {
             _Endpoint(
               rect: layout.supplier,
               label: view.study.supplierName ?? l10n.flowSupplier,
-              onRename: (name) =>
-                  _renameEndpoint(ref, supplier: name, supplierGiven: true),
+              title: l10n.flowEndStockInbound,
+              stock: view.study.inboundStock,
+              onCommit: ({required name, required stock}) => _writeEndpoint(
+                ref,
+                inbound: true,
+                name: name,
+                stock: stock,
+              ),
             ),
             _Endpoint(
               rect: layout.customer,
               label: view.study.customerName ?? l10n.flowCustomer,
-              onRename: (name) =>
-                  _renameEndpoint(ref, customer: name, customerGiven: true),
+              title: l10n.flowEndStockOutbound,
+              stock: view.study.outboundStock,
+              onCommit: ({required name, required stock}) => _writeEndpoint(
+                ref,
+                inbound: false,
+                name: name,
+                stock: stock,
+              ),
             ),
             for (final placed in layout.nodes)
               Positioned(
@@ -543,6 +543,16 @@ class _CanvasState extends ConsumerState<_Canvas> {
                     study: study,
                   ),
                 ),
+            // The two end piles (§7.3), under their own endpoints rather than
+            // on a link — so the inbound one cannot be mistaken for the first
+            // step's queue, which is a different pile in a different place.
+            for (final placed in [?layout.inboundStock, ?layout.outboundStock])
+              Positioned(
+                left: placed.rect.left - 40,
+                top: placed.rect.top,
+                width: placed.rect.width + 80,
+                child: _EndStock(stock: placed.view, study: study),
+              ),
             for (final insertion in layout.insertionPoints)
               Positioned(
                 left: insertion.center.x - 18,
@@ -582,20 +592,41 @@ class _CanvasState extends ConsumerState<_Canvas> {
 ///
 /// One writer for both, so the field the caller does not name keeps its value
 /// rather than being nulled by an update that was not about it.
+///
+/// **The tap owns both the name and the end stock** (§7.3). The stock could
+/// have hung its own affordance on the canvas, and that was rejected: it would
+/// have to be drawn on every map, including the ones that have never counted an
+/// end pile, and §5.2's rule is that the map draws decisions rather than
+/// defaults. The endpoint is already there and already clickable, so an
+/// uncounted end costs nothing on screen and is still one click away.
 class _Endpoint extends StatelessWidget {
   const _Endpoint({
     required this.rect,
     required this.label,
-    required this.onRename,
+    required this.title,
+    required this.stock,
+    required this.onCommit,
   });
 
   final Rect rect;
   final String label;
 
-  /// Naming the real supplier and customer is the whole point of the fields
-  /// (§16.2): they were stored and drawn from M2, and until now nothing could
-  /// write them, so both endpoints always read their defaults.
-  final ValueChanged<String?> onRename;
+  /// What this end of the flow is called in the dialog's heading — the pile is
+  /// raw material at one end and finished goods at the other, and a dialog
+  /// headed `Supplier` would not say which figure is being typed.
+  final String title;
+
+  /// Pieces standing at this end, or null where nobody has counted (§7.3).
+  final int? stock;
+
+  /// Naming the real supplier and customer is the whole point of the name
+  /// fields (§16.2): they were stored and drawn from M2, and until the round
+  /// that added this nothing could write them.
+  ///
+  /// Both values go back together because the dialog sets both — sending only
+  /// the one that changed is the shape of bug the endpoint writer already
+  /// carries a comment about.
+  final void Function({required String? name, required int? stock}) onCommit;
 
   @override
   Widget build(BuildContext context) {
@@ -605,20 +636,29 @@ class _Endpoint extends StatelessWidget {
       left: rect.left,
       top: rect.top,
       width: rect.width,
-      height: rect.height + 24,
+      height: rect.height + FlowMetrics.endpointLabelHeight,
       child: Tooltip(
         message: l10n.flowEndpointRename,
         child: InkWell(
           onTap: () async {
-            final name = await promptForName(
-              context,
-              title: l10n.flowEndpointRename,
-              label: l10n.fieldName,
-              initialValue: label,
+            final result = await showDialog<({String? name, int? stock})>(
+              context: context,
+              builder: (context) => _EndpointDialog(
+                title: title,
+                name: label,
+                stock: stock,
+              ),
             );
             // An emptied name puts the default back, rather than leaving a
             // blank factory nobody can click.
-            if (name != null) onRename(name.trim().isEmpty ? null : name.trim());
+            if (result != null) {
+              onCommit(
+                name: (result.name?.trim().isEmpty ?? true)
+                    ? null
+                    : result.name!.trim(),
+                stock: result.stock,
+              );
+            }
           },
           child: Column(
             children: [
@@ -639,6 +679,152 @@ class _Endpoint extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// What one end of the flow is called, and what is standing there (§7.3).
+///
+/// Two fields rather than two dialogs, because they are one question — *what is
+/// at this end of the line* — and because `updateStudy` writes a study rather
+/// than a field, so two dialogs would be two write paths into one row (§12.6).
+class _EndpointDialog extends StatefulWidget {
+  const _EndpointDialog({
+    required this.title,
+    required this.name,
+    required this.stock,
+  });
+
+  final String title;
+  final String name;
+  final int? stock;
+
+  @override
+  State<_EndpointDialog> createState() => _EndpointDialogState();
+}
+
+class _EndpointDialogState extends State<_EndpointDialog> {
+  late final _name = TextEditingController(text: widget.name);
+  late final _stock = TextEditingController(
+    text: widget.stock == null ? '' : '${widget.stock}',
+  );
+
+  /// Set once the field has been typed into badly, so the error appears on the
+  /// second keystroke rather than greeting an empty dialog.
+  String? _stockError;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _stock.dispose();
+    super.dispose();
+  }
+
+  /// Blank is a real answer — *nobody has counted* — and is not the same as
+  /// zero, which is *someone looked and there is none*. Only the second draws a
+  /// triangle and charges the lead time (§7.3).
+  ({bool ok, int? value}) _readStock() {
+    final text = _stock.text.trim();
+    if (text.isEmpty) return (ok: true, value: null);
+    final value = int.tryParse(text);
+    if (value == null || value < 0) return (ok: false, value: null);
+    return (ok: true, value: value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _name,
+            autofocus: true,
+            decoration: InputDecoration(labelText: l10n.fieldName),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _stock,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: l10n.flowEndStockQuantity,
+              hintText: l10n.flowEndStockNone,
+              errorText: _stockError,
+              suffixIcon: helpIcon(context, l10n.flowEndStockHelp),
+            ),
+            onChanged: (_) {
+              if (_stockError == null) return;
+              setState(() => _stockError = _readStock().ok
+                  ? null
+                  : l10n.validationNumber);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          onPressed: () {
+            final stock = _readStock();
+            if (!stock.ok) {
+              setState(() => _stockError = l10n.validationNumber);
+              return;
+            }
+            Navigator.of(context).pop((name: _name.text, stock: stock.value));
+          },
+          child: Text(l10n.actionSave),
+        ),
+      ],
+    );
+  }
+}
+
+/// The triangle for a counted end pile, under its endpoint (§7.3).
+///
+/// **Drawn whenever it exists, including at zero** — which is where it parts
+/// company with [_QueueNode], and deliberately. A queue is in front of every
+/// step whether or not anyone has thought about it, so a triangle there has to
+/// mean *stock stands here*. An end pile only exists once somebody has counted
+/// it, so the triangle means *this was counted* and the figure under it says
+/// what the count was. A counted zero is a finding.
+class _EndStock extends ConsumerWidget {
+  const _EndStock({required this.stock, required this.study});
+
+  final FlowEndStockView stock;
+  final Study study;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: FlowMetrics.stockSymbol,
+          height: FlowMetrics.stockSymbol,
+          child: CustomPaint(
+            painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+          ),
+        ),
+        Text('${stock.quantity}', style: theme.textTheme.bodySmall),
+        Text(
+          stock.end == FlowEnd.inbound
+              ? l10n.flowEndStockInbound
+              : l10n.flowEndStockOutbound,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }

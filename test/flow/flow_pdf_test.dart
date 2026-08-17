@@ -67,6 +67,8 @@ void main() {
   FlowView viewWith(
     List<FlowNode> nodes, {
     Map<String, ProjectQueue> queues = const {},
+    int? inbound,
+    int? outbound,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
@@ -86,6 +88,8 @@ void main() {
         includeInSimulation: false,
         startBufferDays: 0,
         priority: 100,
+        inboundStock: inbound,
+        outboundStock: outbound,
         createdAt: now,
         updatedAt: now,
       ),
@@ -255,6 +259,55 @@ void main() {
         format.calls,
         contains((duration: wait.wait, workingDay: wait.rungWorkingDay)),
       );
+    });
+
+    test('the two ends print a rung each, in flow order (§7.3)', () async {
+      final view = viewWith([step(0)], inbound: 2, outbound: 1);
+      final format = _Format();
+      await buildFlowPdf(
+        view: view,
+        strings: strings,
+        formatDuration: format.call,
+      );
+
+      // Measured against the box beside each, the way every other rung is
+      // measured against its own station's day.
+      expect(view.inbound!.rungWorkingDay, isNotNull);
+      expect(
+        format.calls,
+        contains((
+          duration: view.inbound!.wait,
+          workingDay: view.inbound!.rungWorkingDay,
+        )),
+      );
+      expect(
+        format.calls,
+        contains((
+          duration: view.outbound!.wait,
+          workingDay: view.outbound!.rungWorkingDay,
+        )),
+      );
+    });
+
+    test('a map with no end counted prints exactly what it used to', () async {
+      // Counted against itself: the same flow with and without the two ends,
+      // so the difference is the feature and nothing else. Each end costs two
+      // renderings — the figure under its triangle and its rung.
+      final bare = _Format();
+      await buildFlowPdf(
+        view: viewWith([step(0)]),
+        strings: strings,
+        formatDuration: bare.call,
+      );
+
+      final counted = _Format();
+      await buildFlowPdf(
+        view: viewWith([step(0)], inbound: 2, outbound: 1),
+        strings: strings,
+        formatDuration: counted.call,
+      );
+
+      expect(counted.calls, hasLength(bare.calls.length + 4));
     });
 
     test('the footer totals carry the ladder working day', () async {

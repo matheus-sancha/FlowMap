@@ -314,6 +314,73 @@ class FlowQueueView {
       : referenceWorkingDay;
 }
 
+/// Which end of the flow a stock observation stands at.
+enum FlowEnd {
+  /// Raw material waiting in front of the first box, against the supplier.
+  inbound,
+
+  /// Finished goods waiting after the last box, against the customer.
+  outbound,
+}
+
+/// Stock standing at one end of the flow (§7.3, §5.5).
+///
+/// **Not a queue, and the difference is the whole reason it is a separate
+/// type.** A queue belongs to what a step targets and every step has one; these
+/// two belong to the *study* and have no step to stand in front of. Nothing
+/// dispatches out of them either — §7.2 releases orders on a takt rather than
+/// pulling from a rack, and inventing a pull here would be a mechanism the
+/// engine does not have.
+///
+/// What it is for is the other half of what a current-state map states: the
+/// **days of stock** at the two ends, which is exactly the figure a value-stream
+/// map is drawn to expose and which no queue in the middle can answer.
+class FlowEndStockView {
+  const FlowEndStockView({
+    required this.end,
+    required this.quantity,
+    required this.wait,
+    this.referenceWorkingDay,
+  });
+
+  final FlowEnd end;
+
+  /// Pieces standing there. Always set — a [FlowEndStockView] is not built at
+  /// all when the study records nothing, so `0` means *someone looked and there
+  /// was none*, which is a different statement from silence (§5.2).
+  final int quantity;
+
+  /// [quantity] × the line's takt — how long that pile represents.
+  ///
+  /// **The line's takt, never a station's equivalent.** Stock at the ends
+  /// drains at the rate units leave the line, which is the same argument
+  /// [FlowQueueView] makes for a quantity queue.
+  final Duration wait;
+
+  /// The productive day [wait] is rendered against, taken from the step this
+  /// pile is adjacent to — the first for [FlowEnd.inbound], the last for
+  /// [FlowEnd.outbound].
+  ///
+  /// **Borrowed, because an endpoint is not a station and has no day of its
+  /// own.** It only matters when the takt is stated in `days`, where it is the
+  /// unit conversion rather than a claim about the endpoint (§6.1.1). The
+  /// adjacent station is the honest lender: raw material drains at the rate the
+  /// first box consumes it, and finished goods pile at the rate the last box
+  /// makes them.
+  final Duration? referenceWorkingDay;
+
+  bool get hasStock => quantity > 0;
+
+  /// [wait] in the days its own rung is drawn in (§17.4).
+  double get waitDays {
+    final day = referenceWorkingDay ?? const Duration(hours: 24);
+    return day.inSeconds == 0 ? 0 : wait.inSeconds / day.inSeconds;
+  }
+
+  Duration? get rungWorkingDay =>
+      referenceWorkingDay == Duration.zero ? null : referenceWorkingDay;
+}
+
 /// A process box, and the queue standing in front of it.
 ///
 /// **The only kind of node the spine has now** (§7.3). An inventory used to be
@@ -535,9 +602,27 @@ class FlowView {
     required this.scheduleVariesInPeriod,
     this.selectedPartNumber,
     this.demandBatchSize = 1,
+    this.inbound,
+    this.outbound,
   });
 
   final Study study;
+
+  /// Stock at the two ends of the flow, or null where the study records none
+  /// (§7.3).
+  ///
+  /// **Null and zero say different things**, which is why these are nullable
+  /// rather than defaulting to an empty pile. Null is *nobody has said*, and
+  /// draws no triangle and no rung; zero is *someone looked and there is none*,
+  /// and draws both. That is §5.2's rule that the map shows decisions, and it
+  /// is what keeps every map made before this feature looking exactly as it
+  /// did.
+  final FlowEndStockView? inbound;
+  final FlowEndStockView? outbound;
+
+  /// The two end piles that exist, in flow order — the one thing that wants
+  /// both and does not care which is which.
+  Iterable<FlowEndStockView> get endStock => [?inbound, ?outbound];
 
   /// The process boxes, in flow order. Each carries the queue standing in
   /// front of it (§7.3), which is what the link into it is drawn as.
@@ -606,11 +691,19 @@ class FlowView {
     (total, step) => total + step.ladderTime,
   );
 
-  /// Process plus what is standing in the queues — the `Lead time` footer
-  /// figure.
+  /// Process plus what is standing in the queues and at the two ends — the
+  /// `Lead time` footer figure.
+  ///
+  /// **The ends count**, because the lead time a current-state map states is
+  /// the door-to-door one: material sitting in goods-in has not started and
+  /// finished goods sitting in the despatch bay have not shipped. §7.3 is
+  /// explicit that they feed the ladder, and the footer is the sum of the rungs
+  /// (§17.4) — so leaving them out here would make the total disagree with the
+  /// comb drawn above it, which is the one invariant that section exists for.
   Duration get leadTime =>
       processTime +
-      queues.fold(Duration.zero, (total, queue) => total + queue.wait);
+      queues.fold(Duration.zero, (total, queue) => total + queue.wait) +
+      endStock.fold(Duration.zero, (total, end) => total + end.wait);
 
   /// What the map multiplies working days by to state running days.
   ///
@@ -650,7 +743,13 @@ class FlowView {
 
   double get leadTimeInDays =>
       processTimeInDays +
-      queues.fold<double>(0, (total, queue) => total + queue.waitDays);
+      queues.fold<double>(0, (total, queue) => total + queue.waitDays) +
+      endStock.fold<double>(0, (total, end) => total + end.waitDays);
+
+  /// Days of stock at the two ends — the figure a current-state map is drawn to
+  /// expose, stated on its own rather than only folded into [leadTimeInDays].
+  double get endStockInDays =>
+      endStock.fold<double>(0, (total, end) => total + end.waitDays);
 
   /// The working day that makes [processTime] read as [processTimeInDays], for
   /// the one formatter the boxes, rungs and footer all share.
@@ -769,9 +868,26 @@ FlowView buildFlowView({
         ),
   ];
 
+  // The ends borrow the adjacent step's productive day, because an endpoint is
+  // not a station (see [FlowEndStockView.referenceWorkingDay]). On an empty
+  // flow there is nothing to borrow from and a takt in `days` cannot be
+  // resolved, which lands the pile at zero — the same answer a queue with no
+  // bound station already gives.
   return FlowView(
     study: study,
     nodes: views,
+    inbound: _buildEndStock(
+      end: FlowEnd.inbound,
+      quantity: study.inboundStock,
+      takt: takt,
+      productivePerWorkingDay: views.firstOrNull?.referenceWorkingDay,
+    ),
+    outbound: _buildEndStock(
+      end: FlowEnd.outbound,
+      quantity: study.outboundStock,
+      takt: takt,
+      productivePerWorkingDay: views.lastOrNull?.referenceWorkingDay,
+    ),
     asOf: start,
     periodEnd: end,
     granularity: granularity,
@@ -1029,6 +1145,36 @@ FlowStepView _buildStep({
 /// arrival order because a pile has to be taken in some order, but nobody has
 /// *decided* that, and §5.2's rule is that the map draws decisions rather than
 /// defaults.
+/// One end of the flow's stock, or null where the study records none (§7.3).
+///
+/// **Null in, null out.** A study that has never been asked about its ends is
+/// not the same as one whose ends are empty, and only the second draws a
+/// triangle and a rung — see [FlowView.inbound].
+FlowEndStockView? _buildEndStock({
+  required FlowEnd end,
+  required int? quantity,
+  required TaktPeriodSpec? takt,
+  required Duration? productivePerWorkingDay,
+}) {
+  if (quantity == null) return null;
+
+  final productive =
+      productivePerWorkingDay == null ||
+          productivePerWorkingDay == Duration.zero
+      ? null
+      : productivePerWorkingDay;
+  final perPiece = takt == null || productive == null
+      ? Duration.zero
+      : takt.equivalentAt(productive);
+
+  return FlowEndStockView(
+    end: end,
+    quantity: quantity,
+    wait: perPiece * quantity,
+    referenceWorkingDay: productive,
+  );
+}
+
 FlowQueueView? _buildQueue({
   required String? targetId,
   required String targetName,

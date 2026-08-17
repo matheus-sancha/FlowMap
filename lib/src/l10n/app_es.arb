@@ -587,5 +587,12 @@
   "validationNumber": "Introduce un número",
   "validationAboveZero": "Introduce un número mayor que cero",
   "simEmptySlotAwaitingMaterial": "Esperando material",
-  "simEmptySlotWipCap": "Límite de WIP alcanzado"
+  "simEmptySlotWipCap": "Límite de WIP alcanzado",
+  "flowEndStockInbound": "Stock de materia prima",
+  "flowEndStockOutbound": "Stock de producto terminado",
+  "flowEndStockEdit": "Definir el stock en este extremo del flujo",
+  "flowEndStockQuantity": "Piezas presentes aquí",
+  "flowEndStockHelp": "Una observación de lo que hay hoy en planta, en piezas, mostrada como días según el takt del período en pantalla. Cuenta para el lead time y para los días de stock, y nada se despacha desde aquí: los pedidos se liberan por takt, no se retiran de una estantería. Déjalo en blanco si nadie lo ha contado.",
+  "flowEndStockNone": "Sin contar",
+  "flowEndStockDays": "Días de stock"
 }

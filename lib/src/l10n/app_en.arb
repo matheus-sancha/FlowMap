@@ -634,5 +634,12 @@
   "validationNumber": "Enter a number",
   "validationAboveZero": "Enter a number above zero",
   "simEmptySlotAwaitingMaterial": "Awaiting material",
-  "simEmptySlotWipCap": "WIP cap reached"
+  "simEmptySlotWipCap": "WIP cap reached",
+  "flowEndStockInbound": "Raw material stock",
+  "flowEndStockOutbound": "Finished goods stock",
+  "flowEndStockEdit": "Set the stock standing at this end of the flow",
+  "flowEndStockQuantity": "Pieces standing here",
+  "flowEndStockHelp": "An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.",
+  "flowEndStockNone": "Not counted",
+  "flowEndStockDays": "Days of stock"
 }

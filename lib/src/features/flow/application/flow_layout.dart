@@ -65,6 +65,13 @@ abstract final class FlowMetrics {
   static const endpointWidth = 104.0;
   static const endpointHeight = 52.0;
 
+  /// The name printed under an endpoint's factory symbol.
+  ///
+  /// Here rather than as a literal in the canvas because the end stock's
+  /// triangle hangs below it (§7.3), and two files guessing at the same offset
+  /// is how a symbol comes to overlap the label it sits under.
+  static const endpointLabelHeight = 24.0;
+
   /// A link that carries a queue — every link on the spine except the last.
   ///
   /// **The same width as a process box**, and that is the whole point: the
@@ -103,6 +110,22 @@ class PlacedNode {
   const PlacedNode({required this.view, required this.rect});
 
   final FlowStepView view;
+  final Rect rect;
+}
+
+/// Stock at one end of the flow, and where its triangle sits (§7.3).
+///
+/// **Under its endpoint, not on a link.** A queue's triangle hangs below the
+/// arrow it belongs to; these belong to the supplier and customer symbols
+/// instead, which keeps the inbound pile clear of the first step's own queue —
+/// two different piles that would otherwise land on the same link and read as
+/// one.
+class PlacedEndStock {
+  const PlacedEndStock({required this.view, required this.rect});
+
+  final FlowEndStockView view;
+
+  /// The triangle's box, centred under the endpoint it belongs to.
   final Rect rect;
 }
 
@@ -171,11 +194,17 @@ class FlowLayout {
     required this.connections,
     required this.ladder,
     required this.size,
+    this.inboundStock,
+    this.outboundStock,
   });
 
   final Rect supplier;
   final List<PlacedNode> nodes;
   final Rect customer;
+
+  /// The two end piles, or null where the study records none (§7.3).
+  final PlacedEndStock? inboundStock;
+  final PlacedEndStock? outboundStock;
   final List<InsertionPoint> insertionPoints;
 
   /// The arrows, in flow order. Computed here rather than in the canvas so the
@@ -289,6 +318,29 @@ FlowLayout layoutFlow(FlowView view) {
   // there). That is what keeps the rungs summing to the footer's lead time,
   // which is §17.4's rule and the reason the totals are read off the rungs.
   final ladderTop = top + FlowMetrics.nodeHeight + FlowMetrics.ladderOffset;
+
+  // **The ends get a rung each, over their own endpoint** (§7.3), so the comb
+  // still tiles edge to edge and every rung still sits under the thing it
+  // measures. They are the two rungs that are *not* drawn when there is nothing
+  // to draw: a queue rung is always present because alternation is what makes
+  // the comb regular, but an endpoint has no box after it to alternate with,
+  // and a study that has never been asked about its ends should look exactly as
+  // it did before this existed (§5.2 — the map draws decisions).
+  if (view.inbound case final stock?) {
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          supplier.left,
+          ladderTop,
+          FlowMetrics.endpointWidth,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: stock.wait,
+        isWaiting: true,
+        referenceWorkingDay: stock.rungWorkingDay,
+      ),
+    );
+  }
   for (var i = 0; i < nodes.length; i++) {
     final placed = nodes[i];
     final queue = connections[i].queue;
@@ -319,6 +371,21 @@ FlowLayout layoutFlow(FlowView view) {
       ),
     );
   }
+  if (view.outbound case final stock?) {
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          customer.left,
+          ladderTop,
+          FlowMetrics.endpointWidth,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: stock.wait,
+        isWaiting: true,
+        referenceWorkingDay: stock.rungWorkingDay,
+      ),
+    );
+  }
 
   // `+ Insert here`, one per link — centred on **the arrow it sits on**, not on
   // the gap. Derived from the connection so there is one place the arrow's
@@ -340,6 +407,8 @@ FlowLayout layoutFlow(FlowView view) {
     supplier: supplier,
     nodes: nodes,
     customer: customer,
+    inboundStock: _placeEndStock(view.inbound, supplier),
+    outboundStock: _placeEndStock(view.outbound, customer),
     insertionPoints: insertions,
     connections: connections,
     ladder: ladder,
@@ -349,6 +418,27 @@ FlowLayout layoutFlow(FlowView view) {
     ),
   );
 }
+
+/// Centres an end pile's triangle under the endpoint it belongs to.
+///
+/// Below the symbol rather than beside it, so a long supplier name and a wide
+/// pile do not compete for the same horizontal room — and so the triangle sits
+/// at the same depth as the queue triangles that hang below the spine, which is
+/// what makes the row of them read as one kind of thing.
+PlacedEndStock? _placeEndStock(FlowEndStockView? view, Rect endpoint) =>
+    view == null
+    ? null
+    : PlacedEndStock(
+        view: view,
+        rect: Rect.fromLTWH(
+          endpoint.center.dx - FlowMetrics.stockSymbol / 2,
+          endpoint.bottom +
+              FlowMetrics.endpointLabelHeight +
+              FlowMetrics.stockOffset,
+          FlowMetrics.stockSymbol,
+          FlowMetrics.stockSymbol,
+        ),
+      );
 
 /// Whether the canvas should refit itself to [viewport] (DESIGN.md §12.2).
 ///

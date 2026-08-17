@@ -5,11 +5,12 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **815 tests passing** (one of them `live`-tagged
+Branch `m1-m2-foundation`, `flutter analyze` clean, **831 tests passing** (one of them `live`-tagged
 and skipped without a database). Schema is at **v19**, migrated against the real database at 08:46
-on 2026-08-16, and **§7.6 needs no migration** — it is the first round since §4 that does not touch
-the schema. M4 is code-complete, and the initial plan has no code left in it — §3.8 is deferred by
-decision and everything else in it has landed.
+on 2026-08-16, and **neither §7.6 nor the last of §7.3 needed a migration** — the flow's two ends
+found their columns already there, added by v19 ahead of the surface. **§7.3 is code-complete.** M4
+is code-complete too, and the initial plan has no code left in it — §3.8 is deferred by decision and
+everything else in it has landed.
 
 **The one thing to know before starting anything: almost nothing here has been looked at.** §5, §6,
 §7 and §7.6 are all code-complete and covered by tests, and **nothing in the suite renders a pixel**
@@ -1389,18 +1390,48 @@ is out of the UI — the popover's dropdown, the run header, the runs-history la
 all read the per-station queue type and say `mixed` where the stations differ. The map draws the
 queue on the connector, one channel shape per rule, and sets it from there.
 
-What is left of §7.3 is one thing it settled and nothing has built:
+~~What is left of §7.3 is one thing it settled and nothing has built:~~ **§7.3 is code-complete as of
+2026-08-17.**
 
-- [ ] **The flow's two ends carry stock.** A study gains an inbound and an outbound figure, drawn as
-      triangles against the supplier and customer endpoints — they feed the lead-time ladder and the
-      days-of-stock a current-state VSM exists to state, and nothing dispatches out of them.
+- [x] ~~**The flow's two ends carry stock.**~~ **Built 2026-08-17, and it needed no migration.**
+      `studies.inbound_stock` and `outbound_stock` were added by the v19 migration ahead of the
+      surface that would fill them, so this was a surface, a ladder and a PDF. This entry said "a
+      schema step (v20)" and was wrong about the only part of it that would have set the sequence.
 
-      **It is not a schema step. `studies.inbound_stock` and `outbound_stock` already exist**, added
-      by the v19 migration ahead of the surface that would fill them — so this is a surface, a ladder
-      and a PDF, with no migration and no fixture. Confirmed 2026-08-17: the two columns are named in
-      `project_tables.dart`, `database.dart` and the generated file, **and nowhere else in the tree**.
-      This entry said "a schema step (v20)" and was wrong about the only part of it that would have
-      set the sequence.
+      A study's two ends draw as triangles under the supplier and customer symbols, convert to days
+      as a quantity queue does, and feed the lead-time ladder and the footer's lead time. Both are
+      set from the endpoint's own dialog, beside the name of that end. **Nothing dispatches out of
+      them**, which is §7.2's release rule left alone rather than a limitation — see §5.5.1.
+
+      _Worth knowing, and it is the one thing to check on screen:_ **the map's lead time now exceeds
+      the plan's `Theoretical LT` by whatever is standing at the two ends.** That is a sixth
+      difference between the two figures and it is deliberate — §7.9 lists the five that were closed
+      and the one accepted, and §5.5.1 argues this one. It is also exactly the shape of drift §7.6
+      was written to stop, so it is written down in both places rather than left to be rediscovered
+      as a defect.
+
+      _Also settled while building it:_ `updateStudy` writes every field it is given
+      unconditionally, so its six callers each read the whole study back and pass it through — and
+      `flow_tab.dart` carried a comment about the bug that caused when an endpoint rename nulled the
+      opposite endpoint. The end stock got its own `setFlowEnd` instead of a seventh argument, and
+      the endpoint writer no longer passes anything through. **The six other callers are still in
+      that shape** and are worth the same treatment the day one of them is touched.
+
+      **Drive it** — nothing in the suite renders a pixel, and this puts two new symbols on the map:
+
+      - [ ] **The triangles sit under their factories and clear of the names**, at both ends, on a
+            real flow. The geometry is asserted against `endpointLabelHeight`, which the canvas and
+            the layout now share — but only a screen can say whether a long supplier name and a
+            triangle under it read as one thing or as a collision.
+      - [ ] **A counted zero looks like a finding, not like a bug.** It draws a triangle with `0` in
+            it where an uncounted end draws nothing at all, and that distinction is the whole design.
+            If a zero reads as an error on screen, the rule is right and the drawing is wrong.
+      - [ ] **The footer still equals the rungs**, with both ends counted. Asserted in a test, and
+            §17.4 is the invariant most worth seeing hold with two more rungs in the comb.
+      - [ ] **The printed map**, where the ends are a `▽` and a figure rather than a drawn triangle,
+            and where the comb is bracketed by two more rungs than it used to be.
+      - [ ] **es and pt**, on the endpoint dialog — `flowEndStockHelp` is the longest string added
+            this round and it sits in a dialog that was one field wide until now.
 
 **Two field findings from `0.1.0-2026-08-16`'s map landed on 2026-08-16**: the lead-time ladder's
 rungs overlapped and are now one equal, aligned slot each, which widened every link that carries a

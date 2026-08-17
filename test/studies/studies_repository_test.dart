@@ -432,6 +432,86 @@ void main() {
     });
   });
 
+  /// The stock standing at the two ends of the flow (§7.3).
+  group('the flow ends', () {
+    test('one end is written and the other is left alone', () async {
+      final id = await newStudy();
+
+      await studies.setFlowEnd(
+        id,
+        inbound: true,
+        name: 'Steel Co',
+        stock: 40,
+      );
+      await studies.setFlowEnd(
+        id,
+        inbound: false,
+        name: 'Assembly',
+        stock: 12,
+      );
+
+      final study = (await studies.loadStudy(id))!;
+      expect(study.supplierName, 'Steel Co');
+      expect(study.inboundStock, 40);
+      expect(study.customerName, 'Assembly');
+      expect(study.outboundStock, 12);
+    });
+
+    test('editing one end does not clear the other', () async {
+      // The bug this method exists to make impossible: `updateStudy` writes
+      // every field it is given, so an endpoint edit that named only its own
+      // half used to null the other one.
+      final id = await newStudy();
+      await studies.setFlowEnd(id, inbound: false, name: 'Assembly', stock: 12);
+
+      await studies.setFlowEnd(id, inbound: true, name: 'Steel Co', stock: 40);
+
+      final study = (await studies.loadStudy(id))!;
+      expect(study.customerName, 'Assembly');
+      expect(study.outboundStock, 12);
+    });
+
+    test('nobody counted and counted zero are different answers', () async {
+      final id = await newStudy();
+      expect((await studies.loadStudy(id))!.inboundStock, isNull);
+
+      await studies.setFlowEnd(id, inbound: true, name: null, stock: 0);
+      expect((await studies.loadStudy(id))!.inboundStock, 0);
+
+      // And it can be put back to uncounted, which is what an emptied field
+      // means rather than a zero.
+      await studies.setFlowEnd(id, inbound: true, name: null, stock: null);
+      expect((await studies.loadStudy(id))!.inboundStock, isNull);
+    });
+
+    test('a duplicate carries both figures across', () async {
+      // §2.6b's lesson: this method has silently dropped a column before, and
+      // it did so from the round the column was added until a test asked.
+      final source = await newStudy();
+      await studies.setFlowEnd(source, inbound: true, name: 'S', stock: 40);
+      await studies.setFlowEnd(source, inbound: false, name: 'C', stock: 12);
+
+      final copyId = await studies.duplicateStudy(source, newName: 'B');
+
+      final copy = (await studies.loadStudy(copyId))!;
+      expect(copy.inboundStock, 40);
+      expect(copy.outboundStock, 12);
+    });
+
+    test('an unrelated edit leaves both ends standing', () async {
+      // `updateStudy` does not mention these columns at all, which is the
+      // point — a caller that has never heard of end stock cannot clear it.
+      final id = await newStudy();
+      await studies.setFlowEnd(id, inbound: true, name: 'S', stock: 40);
+
+      await studies.updateStudy(id, name: 'Renamed', wipCap: 5);
+
+      final study = (await studies.loadStudy(id))!;
+      expect(study.name, 'Renamed');
+      expect(study.inboundStock, 40);
+    });
+  });
+
   group('deleting a study', () {
     test('takes its flow with it', () async {
       final studyId = await newStudy();

@@ -193,7 +193,11 @@ Future<Uint8List> buildFlowPdf({
             runSpacing: 12,
             crossAxisAlignment: pw.WrapCrossAlignment.start,
             children: [
-              _endpoint(strings.supplier),
+              _endpoint(
+                strings.supplier,
+                stock: view.inbound,
+                formatDuration: formatDuration,
+              ),
               for (final node in view.nodes) ...[
                 _arrow(
                   connectionKindInto(
@@ -210,7 +214,11 @@ Future<Uint8List> buildFlowPdf({
                 connectionKindInto(null, hasWipCap: view.study.wipCap != null),
                 formatDuration: formatDuration,
               ),
-              _endpoint(strings.customer),
+              _endpoint(
+                strings.customer,
+                stock: view.outbound,
+                formatDuration: formatDuration,
+              ),
             ],
           ),
           _notesList(view, strings),
@@ -233,7 +241,16 @@ Future<Uint8List> buildFlowPdf({
   return document.save();
 }
 
-pw.Widget _endpoint(String label) => pw.Container(
+/// One end of the flow: the factory, its name, and the stock counted there.
+///
+/// [stock] is null where nobody has counted (§7.3), and prints nothing at all —
+/// so a map that has never used the feature comes off the printer exactly as it
+/// did before. A counted zero prints, because it is a finding.
+pw.Widget _endpoint(
+  String label, {
+  FlowEndStockView? stock,
+  FlowDurationFormat? formatDuration,
+}) => pw.Container(
   width: 90,
   child: pw.Column(
     children: [
@@ -243,6 +260,21 @@ pw.Widget _endpoint(String label) => pw.Container(
       ),
       pw.SizedBox(height: 4),
       pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
+      if (stock != null) ...[
+        pw.SizedBox(height: 4),
+        // The triangle is a label on paper for the reason every other symbol is
+        // (see `_arrow`): the printed map states what the canvas draws.
+        pw.Text('▽', style: const pw.TextStyle(fontSize: 10)),
+        pw.Text(
+          '${stock.quantity}',
+          style: const pw.TextStyle(fontSize: 8),
+        ),
+        if (formatDuration != null)
+          pw.Text(
+            formatDuration(stock.wait, workingDay: stock.rungWorkingDay),
+            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+          ),
+      ],
     ],
   ),
 );
@@ -420,6 +452,13 @@ pw.Widget _ladder(FlowView view, FlowDurationFormat formatDuration) {
   // the reason `FlowView.queues` is: one floor space, counted once.
   final drawn = <String>{};
   final rungs = <({Duration time, Duration? day, bool waiting})>[];
+  // The two ends bracket the comb (§7.3), on the same rule as the canvas: a
+  // rung where somebody has counted, and nothing at all where nobody has. They
+  // are part of the footer's lead time, so leaving them off paper would print a
+  // sawtooth that does not add up to the total printed under it.
+  if (view.inbound case final stock?) {
+    rungs.add((time: stock.wait, day: stock.rungWorkingDay, waiting: true));
+  }
   for (final node in view.nodes) {
     if (node.queue case final queue?
         when queue.hasStock && drawn.add(queue.targetId)) {
@@ -430,6 +469,9 @@ pw.Widget _ladder(FlowView view, FlowDurationFormat formatDuration) {
       day: node.referenceWorkingDay,
       waiting: false,
     ));
+  }
+  if (view.outbound case final stock?) {
+    rungs.add((time: stock.wait, day: stock.rungWorkingDay, waiting: true));
   }
 
   return pw.Row(

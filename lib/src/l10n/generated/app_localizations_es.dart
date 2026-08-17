@@ -1774,4 +1774,26 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simEmptySlotWipCap => 'Límite de WIP alcanzado';
+
+  @override
+  String get flowEndStockInbound => 'Stock de materia prima';
+
+  @override
+  String get flowEndStockOutbound => 'Stock de producto terminado';
+
+  @override
+  String get flowEndStockEdit => 'Definir el stock en este extremo del flujo';
+
+  @override
+  String get flowEndStockQuantity => 'Piezas presentes aquí';
+
+  @override
+  String get flowEndStockHelp =>
+      'Una observación de lo que hay hoy en planta, en piezas, mostrada como días según el takt del período en pantalla. Cuenta para el lead time y para los días de stock, y nada se despacha desde aquí: los pedidos se liberan por takt, no se retiran de una estantería. Déjalo en blanco si nadie lo ha contado.';
+
+  @override
+  String get flowEndStockNone => 'Sin contar';
+
+  @override
+  String get flowEndStockDays => 'Días de stock';
 }

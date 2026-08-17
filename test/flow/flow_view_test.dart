@@ -166,8 +166,14 @@ void main() {
     Map<String, List<String>> members = const {},
     List<ProjectQueue> queues = const [],
     int? wipCap,
+    Value<int?> inbound = const Value.absent(),
+    Value<int?> outbound = const Value.absent(),
   }) => buildFlowView(
-    study: wipCap == null ? study() : study().copyWith(wipCap: Value(wipCap)),
+    study: study().copyWith(
+      wipCap: wipCap == null ? const Value.absent() : Value(wipCap),
+      inboundStock: inbound,
+      outboundStock: outbound,
+    ),
     nodes: nodes,
     contexts: contexts,
     pools: pools,
@@ -1437,6 +1443,162 @@ void main() {
     test('a viewport with no width yet fits nothing', () {
       expect(refit(viewport: const Size(0, 600)), isFalse);
       expect(refit(viewport: const Size(double.infinity, 600)), isFalse);
+    });
+  });
+
+  /// Stock at the two ends of the flow (§7.3) — the raw material in front of
+  /// the first box and the finished goods after the last.
+  group('the flow ends carry stock', () {
+    // One step on a three-shift station under a 3-day takt, so a piece is 68
+    // hours and the arithmetic below is checkable by hand.
+    FlowView oneStep({
+      Value<int?> inbound = const Value.absent(),
+      Value<int?> outbound = const Value.absent(),
+    }) => build(
+      nodes: [step(0, workcenterId: 'CLAD04')],
+      contexts: {'CLAD04': context('CLAD04')},
+      inbound: inbound,
+      outbound: outbound,
+    );
+
+    test('a study nobody has counted has no end stock at all', () {
+      final view = oneStep();
+
+      expect(view.inbound, isNull);
+      expect(view.outbound, isNull);
+      expect(view.endStock, isEmpty);
+      // And the map is exactly what it was before the feature existed: no rung
+      // for either end, and a lead time that is only the step.
+      expect(view.leadTime, const Duration(hours: 68));
+      expect(layoutFlow(view).ladder, hasLength(2));
+    });
+
+    test('pieces become days at the line takt', () {
+      final view = oneStep(inbound: const Value(2));
+
+      // Two pieces at one 3-day takt each, where a day at ABC three shifts is
+      // 22:40 — the same conversion a quantity queue makes.
+      expect(view.inbound!.quantity, 2);
+      expect(view.inbound!.wait, const Duration(hours: 136));
+      expect(view.inbound!.waitDays, closeTo(6, 0.001));
+    });
+
+    test('both ends count towards the lead time and the days of stock', () {
+      final view = oneStep(
+        inbound: const Value(2),
+        outbound: const Value(1),
+      );
+
+      expect(view.endStockInDays, closeTo(9, 0.001));
+      // The step's 68 hours, plus three takts of stock across the two ends.
+      expect(view.leadTime, const Duration(hours: 68 * 4));
+      expect(view.leadTimeInDays, closeTo(12, 0.001));
+      // Process time is untouched: stock is waiting, not work.
+      expect(view.processTime, const Duration(hours: 68));
+    });
+
+    test('the footer still equals the rungs drawn above it (§17.4)', () {
+      // The one invariant this feature could break: the ladder is where the
+      // totals are read from, so an end that charges the lead time and draws no
+      // rung would put a footer on screen that does not add up.
+      final view = oneStep(
+        inbound: const Value(2),
+        outbound: const Value(1),
+      );
+      final ladder = layoutFlow(view).ladder;
+
+      expect(
+        ladder.fold(Duration.zero, (total, rung) => total + rung.duration),
+        view.leadTime,
+      );
+    });
+
+    test('a counted zero is not the same as nobody counting', () {
+      final counted = oneStep(inbound: const Value(0));
+
+      // It exists, so it draws its triangle and its rung — someone looked and
+      // found the rack empty, which is a finding rather than silence.
+      expect(counted.inbound, isNotNull);
+      expect(counted.inbound!.quantity, 0);
+      expect(counted.inbound!.wait, Duration.zero);
+      expect(layoutFlow(counted).ladder, hasLength(3));
+      expect(layoutFlow(counted).inboundStock, isNotNull);
+
+      // Where nobody counted there is no rung and no triangle.
+      expect(layoutFlow(oneStep()).inboundStock, isNull);
+    });
+
+    test('each end borrows the productive day of the box beside it', () {
+      // A three-shift station at one end and a one-shift station at the other,
+      // so a takt in `days` resolves differently at each — which is the whole
+      // reason the day is borrowed rather than assumed.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'THREE'),
+          step(1, workcenterId: 'ONE'),
+        ],
+        contexts: {
+          'THREE': context('THREE'),
+          'ONE': context('ONE', operators: [1, 0, 0]),
+        },
+        inbound: const Value(1),
+        outbound: const Value(1),
+      );
+
+      expect(view.inbound!.referenceWorkingDay, view.steps.first.referenceWorkingDay);
+      expect(view.outbound!.referenceWorkingDay, view.steps.last.referenceWorkingDay);
+      // Different days, so the same one piece is a different span at each end.
+      expect(view.inbound!.wait, isNot(view.outbound!.wait));
+    });
+
+    test('an empty flow has nothing to borrow a day from', () {
+      // No step, so a takt in `days` cannot be resolved and the pile lands at
+      // zero rather than being charged against a day nobody works.
+      final view = build(
+        nodes: const [],
+        contexts: const {},
+        inbound: const Value(5),
+      );
+
+      expect(view.inbound!.quantity, 5);
+      expect(view.inbound!.wait, Duration.zero);
+    });
+
+    test('the triangles hang under their own endpoints', () {
+      // Under the endpoint rather than on a link, so the inbound pile cannot be
+      // read as the first step's queue — a different pile in a different place.
+      final view = oneStep(
+        inbound: const Value(2),
+        outbound: const Value(1),
+      );
+      final layout = layoutFlow(view);
+
+      expect(
+        layout.inboundStock!.rect.center.dx,
+        closeTo(layout.supplier.center.dx, 0.001),
+      );
+      expect(
+        layout.outboundStock!.rect.center.dx,
+        closeTo(layout.customer.center.dx, 0.001),
+      );
+      // Clear of the name printed under the factory symbol.
+      expect(
+        layout.inboundStock!.rect.top,
+        greaterThan(layout.supplier.bottom + FlowMetrics.endpointLabelHeight),
+      );
+    });
+
+    test('the end rungs bracket the comb', () {
+      final layout = layoutFlow(
+        oneStep(inbound: const Value(2), outbound: const Value(1)),
+      );
+
+      // Inbound, then the step's own pair, then outbound — in flow order, each
+      // rung over the thing it measures.
+      expect(layout.ladder.first.rect.left, layout.supplier.left);
+      expect(layout.ladder.first.isWaiting, isTrue);
+      expect(layout.ladder.last.rect.left, layout.customer.left);
+      expect(layout.ladder.last.isWaiting, isTrue);
     });
   });
 }

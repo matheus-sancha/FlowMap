@@ -94,6 +94,12 @@ class StudiesRepository {
     String? paceSetterTargetId,
     bool paceSetterGiven = false,
     String? notes,
+    // **The end stock is deliberately not here** (§7.3). This method writes
+    // every field it is given unconditionally, so each caller has to read the
+    // whole study back and pass it through — six call sites that a seventh
+    // field would each have to learn about, and one of them already carries a
+    // comment about the bug that shape caused. [setFlowEnd] writes those two
+    // columns instead.
   }) => (_db.update(_db.studies)..where((s) => s.id.equals(id))).write(
     StudiesCompanion(
       name: Value(name),
@@ -111,6 +117,34 @@ class StudiesRepository {
           ? Value(paceSetterTargetId)
           : const Value.absent(),
       notes: Value(notes),
+      updatedAt: Value(DateTime.now()),
+    ),
+  );
+
+  /// Names one end of the flow and records the stock standing there (§7.3).
+  ///
+  /// **Its own method rather than four more arguments on [updateStudy]**, and
+  /// the reason is that method's own history: it writes every field it is
+  /// given unconditionally, so each of its six callers has to read the whole
+  /// study back and pass it through, and `flow_tab.dart` carries a comment
+  /// about the bug that shape already caused once. An endpoint edit touches
+  /// exactly two columns at one end, and this says so — the other end and every
+  /// other field are absent, so nothing else can be clobbered by a caller that
+  /// forgot to mention it.
+  ///
+  /// A null [name] restores the default label; a null [stock] means *nobody has
+  /// counted*, which is not the same as a counted zero (§7.3).
+  Future<void> setFlowEnd(
+    String studyId, {
+    required bool inbound,
+    required String? name,
+    required int? stock,
+  }) => (_db.update(_db.studies)..where((s) => s.id.equals(studyId))).write(
+    StudiesCompanion(
+      supplierName: inbound ? Value(name) : const Value.absent(),
+      inboundStock: inbound ? Value(stock) : const Value.absent(),
+      customerName: inbound ? const Value.absent() : Value(name),
+      outboundStock: inbound ? const Value.absent() : Value(stock),
       updatedAt: Value(DateTime.now()),
     ),
   );
@@ -176,6 +210,11 @@ class StudiesRepository {
                 wipCap: Value(source.wipCap),
                 supplierName: Value(source.supplierName),
                 customerName: Value(source.customerName),
+                // §2.6b found this method silently dropping a column that had
+                // been added without it, and the same test shape asks after
+                // each of these.
+                inboundStock: Value(source.inboundStock),
+                outboundStock: Value(source.outboundStock),
                 notes: Value(source.notes),
                 createdAt: now,
                 updatedAt: now,

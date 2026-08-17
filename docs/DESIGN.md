@@ -397,6 +397,56 @@ including the pile in front of the machine, and a run beating it is a finding ra
 What the engine must not do is *delay* an order for that stock, which is what this section is about
 and is unchanged.
 
+#### 5.5.1 The flow's two ends
+
+**A study carries an inbound and an outbound figure, and neither is a queue.** Every queue belongs to
+what a step targets; the ends have no step to stand in front of, so they belong to the *study* —
+`studies.inbound_stock` and `outbound_stock`, in pieces, added by the v19 migration ahead of this
+surface (§16.20). They draw as triangles under the supplier and customer symbols and they convert to
+days exactly as a quantity queue does, `pieces × takt of the period on screen`.
+
+**Nothing dispatches out of them.** §7.2 releases orders on a takt rather than pulling from a rack,
+so an inbound pile that gated releases would be a mechanism the engine does not have — and inventing
+one inside a surface round is precisely what §7.3 refused when it parked the supermarket. The
+consequence, stated so nobody has to rediscover it: **the ends are a map figure and do not reach the
+run.** §7.9's theoretical walk counts the queues and not these, so the map's lead time exceeds the
+plan's `Theoretical LT` by whatever is standing at the two ends.
+
+**That is a sixth difference between the map and the plan, and it is a deliberate one.** §7.9 lists
+the five that were closed and the one that is accepted, and this is now beside it: the map answers
+*what does this value stream cost door to door*, which is the question a current-state VSM exists to
+answer and which includes the goods-in rack. The plan answers *when will this order be done*, and no
+order waits behind that rack because nothing in the model makes it. When the two are compared, the
+gap is the end stock and it is checkable.
+
+**Null and zero are different answers**, which is the whole reason the columns are nullable. Null is
+*nobody has counted* — no triangle, no rung, and a map that looks exactly as it did before the
+feature existed, which is §5.2's rule that the map draws decisions rather than defaults. Zero is
+*someone looked and the rack was empty*, which is a finding, so it draws both. The end triangle
+therefore parts company with a queue's: a queue is in front of every step whether or not anyone has
+thought about it, so its triangle has to mean *stock stands here*; an end pile exists only once it
+has been counted, so its triangle means *this was counted* and the figure says what the count was.
+
+**Each end borrows the productive day of the box beside it**, because an endpoint is not a station
+and has none of its own. It matters only where the takt is stated in `days`, where it is the unit
+conversion rather than a claim about the endpoint (§6.1.1), and the adjacent station is the honest
+lender: raw material drains at the rate the first box consumes it, and finished goods pile at the
+rate the last box makes them. An empty flow has nothing to borrow from, so a takt in days cannot be
+resolved and the pile lands at zero — the same answer a queue in front of an unbound step gives.
+
+**Both live on the endpoint's dialog, with its name.** One tap on the factory symbol sets what this
+end of the line is called and what is standing there. _Rejected: a separate affordance on the
+canvas._ It would have to be drawn on every map, including every map that has never counted an end
+pile, to be discoverable at all. _Rejected: the Study Settings tab._ It is where the study's other
+scalars live, and it is not where a planner is looking when they think about the rack by the door
+— the same argument §7.3 made for editing a queue on the map rather than on Capacity.
+
+`StudiesRepository.setFlowEnd` writes the two columns of one end and leaves everything else absent.
+`updateStudy` deliberately does **not** carry them: it writes every field it is given
+unconditionally, so each of its six callers reads the whole study back and passes it through, and
+`flow_tab.dart` already carried a comment about the bug that shape caused when an endpoint rename
+nulled the opposite endpoint. A seventh field on that method would be a seventh chance to repeat it.
+
 _This replaced "an order simply waits that long between steps."_ It survived until the model was
 driven against a real plant, where six buffers named `FIFO CLAD09`, `FIFO TTAT`, `FIFO CEU27` and so
 on held every order for a fixed 14 days of a 39.8-day lead time whether or not the next station was
@@ -953,8 +1003,11 @@ was five differences at once under two labels both printed as `d`. Four of them 
 plan both include queue stock, both include the full changeover, both apply rework, and both land on
 the same day count despite the map working in productive hours and the engine in open ones (§17.3).
 The fifth — the map shows the toolbar's batch, the plan each order's own — is accepted and known.
-Converted to the same unit the two should agree to within the calendar's weekends, which is a
-cross-check worth a test so they cannot silently drift again.
+**A sixth was added deliberately when §5.5.1 landed**: the map counts the stock at the flow's two
+ends and the plan does not, because nothing dispatches out of those piles and the engine never sees
+them. So the map's lead time exceeds the plan's `Theoretical LT` by exactly the end stock. Converted
+to the same unit and with the ends taken off, the two should agree to within the calendar's weekends
+— which is a cross-check worth a test so they cannot silently drift again.
 
 ### 7.9.1 The original statement
 
