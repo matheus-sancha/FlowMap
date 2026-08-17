@@ -101,7 +101,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
             return null;
           }
 
-          final perPiece = part.timeAt(node.demandKey);
+          final perPiece = node.processTimeFor(part.id, part);
           if (perPiece == null) {
             report(TheoreticalLeadTimeProblem.noProcessTime);
             return null;
@@ -198,7 +198,7 @@ DateTime? coldStartDate({
             return null;
           }
 
-          final perPiece = part.timeAt(node.demandKey);
+          final perPiece = node.processTimeFor(part.id, part);
           if (perPiece == null) {
             problems?.add(TheoreticalLeadTimeProblem.noProcessTime);
             return null;

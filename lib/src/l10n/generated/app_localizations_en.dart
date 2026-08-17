@@ -1779,4 +1779,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flowEndStockDays => 'Days of stock';
+
+  @override
+  String get stepBalancedMark => '⇄';
+
+  @override
+  String stepBalancedHelp(String type, String measured) {
+    return 'Rebalanced across the $type stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. $measured was measured here, and the demand table still holds it.';
+  }
 }

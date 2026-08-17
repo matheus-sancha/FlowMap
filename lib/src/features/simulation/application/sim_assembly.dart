@@ -10,6 +10,7 @@ import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../../demand/application/demand_table.dart';
 import '../../flow/application/flow_view.dart' show flowStepTitle;
+import '../../flow/application/takt_balance.dart';
 import '../../schedules/application/takt_schedule.dart';
 import 'sim_model.dart';
 
@@ -108,10 +109,19 @@ class SimResourceContext {
     this.queues = const {},
     this.cellNames = const {},
     this.lineNames = const {},
+    this.workcenterTypeNames = const {},
   });
 
   final Map<String, String> workcenterNames;
   final Map<String, String> poolNames;
+
+  /// Workcenter id → the name of its type, which is the identity §7.4 forms a
+  /// balance group on.
+  ///
+  /// Defaulted to empty because a run with no types is a run where no two
+  /// adjacent stations are alike, which is what every flow was before this rule
+  /// existed — so the balance simply finds no groups.
+  final Map<String, String> workcenterTypeNames;
 
   /// Cell and line id → name, so a study can copy where it sat into the run
   /// (§7.10) rather than leaving a filter to join back to the plant.
@@ -239,6 +249,32 @@ SimStudy? assembleSimStudy({
     }
   }
 
+  // **Rebalance each run of adjacent like machines against the takt** (§7.4),
+  // once per part, and hand each step its share.
+  //
+  // After the loop because a group is a property of the *sequence* — which
+  // steps sit next to which — and the loop above sees one node at a time. Per
+  // part because the work content being split is a part's, and two parts of one
+  // flow legitimately balance differently.
+  //
+  // The takt in force is the run's, resolved at its start (§18.3), which is the
+  // one place this differs from the map: the map balances against the viewed
+  // period's takt. Both call the same function, so they can differ only by
+  // their takt and never by their arithmetic.
+  final balanced = _balanceSteps(
+    simNodes,
+    parts: parts,
+    processTimes: processTimes,
+    takt: takt,
+    resources: resources,
+  );
+  if (balanced.isNotEmpty) {
+    for (var i = 0; i < simNodes.length; i++) {
+      final shares = balanced[simNodes[i].id];
+      if (shares != null) simNodes[i] = simNodes[i].withBalance(shares);
+    }
+  }
+
   // Which station's clock the takt's days are measured in, and therefore how
   // often a slot comes round (§7.2). It must be one station's clock, and it
   // must not depend on a period, because a run spans years while §8.2's
@@ -312,6 +348,61 @@ SimStudy? assembleSimStudy({
     priority: study.priority,
     wipCap: study.wipCap,
   );
+}
+
+/// The share each step of each balance group takes, as
+/// `step id → {part id → duration}` (§7.4).
+///
+/// Empty where no two adjacent steps share a workcenter type, which is every
+/// flow that existed before this rule — so a run with no groups is byte for byte
+/// the run it was.
+///
+/// **A pool step is in no group.** Its members are interchangeable and the pool
+/// is one target with one queue (§3.1), so "the first workcenter and the last of
+/// the same type in the sequence" names nothing inside it. Typed as null here,
+/// which is what keeps it out.
+Map<String, Map<String, Duration>> _balanceSteps(
+  List<SimStep> steps, {
+  required List<DemandPart> parts,
+  required Map<String, Map<String, Duration>> processTimes,
+  required TaktPeriodSpec takt,
+  required SimResourceContext resources,
+}) {
+  final types = [
+    for (final step in steps)
+      step.poolId != null
+          ? null
+          : resources.workcenterTypeNames[step.candidates.firstOrNull],
+  ];
+  if (types.every((t) => t == null)) return const {};
+
+  // One takt of each station's own capacity — the cap it fills to, and the same
+  // figure the map calls the step's flow-equivalent time (§6.1).
+  final takts = [
+    for (final step in steps)
+      resources.productivePerWorkingDay[step.candidates.firstOrNull] == null
+          ? null
+          : takt.equivalentAt(
+              resources.productivePerWorkingDay[step.candidates.first]!,
+            ),
+  ];
+
+  final shares = <String, Map<String, Duration>>{};
+  for (final part in parts) {
+    final measured = processTimes[part.id] ?? const <String, Duration>{};
+    final derived = balancedProcessTimes([
+      for (var i = 0; i < steps.length; i++)
+        (
+          typeName: types[i],
+          measured: measured[steps[i].demandKey],
+          takt: takts[i],
+        ),
+    ]);
+    derived.forEach((i, duration) {
+      (shares[steps[i].id] ??= {})[part.id] = duration;
+    });
+  }
+  return shares;
 }
 
 /// The workcenters a step may run on, in a stable order.

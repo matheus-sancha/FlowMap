@@ -168,7 +168,11 @@ void main() {
     int? wipCap,
     Value<int?> inbound = const Value.absent(),
     Value<int?> outbound = const Value.absent(),
+    FlowDataSource dataSource = FlowDataSource.flowEquivalent,
+    FlowDemandInput demand = const FlowDemandInput(),
   }) => buildFlowView(
+    dataSource: dataSource,
+    demand: demand,
     study: study().copyWith(
       wipCap: wipCap == null ? const Value.absent() : Value(wipCap),
       inboundStock: inbound,
@@ -1443,6 +1447,197 @@ void main() {
     test('a viewport with no width yet fits nothing', () {
       expect(refit(viewport: const Size(0, 600)), isFalse);
       expect(refit(viewport: const Size(double.infinity, 600)), isFalse);
+    });
+  });
+
+  /// Rebalancing a run of like machines against the takt (§7.4), on the map.
+  ///
+  /// The rule itself is pinned in `takt_balance_test.dart`; what these ask is
+  /// that the flow feeds it the right three things — the type, the measurement
+  /// and one takt of each station's capacity — and that the totals follow.
+  group('the takt rebalances a group of like machines', () {
+    /// Three cladding stations in a row, each measured at [each] hours.
+    FlowView threeClads({
+      required List<int> measured,
+      String type = 'Cladding',
+      String lastType = 'Cladding',
+    }) => build(
+      nodes: [
+        step(0, workcenterId: 'CLAD07'),
+        step(1, workcenterId: 'CLAD08'),
+        step(2, workcenterId: 'CLAD09'),
+      ],
+      contexts: {
+        'CLAD07': context('CLAD07', typeName: type),
+        'CLAD08': context('CLAD08', typeName: type),
+        'CLAD09': context('CLAD09', typeName: lastType),
+      },
+      dataSource: FlowDataSource.singlePart,
+      demand: FlowDemandInput(
+        processTimes: {
+          'p1': {
+            for (var i = 0; i < 3; i++)
+              ['CLAD07', 'CLAD08', 'CLAD09'][i]: Duration(hours: measured[i]),
+          },
+        },
+        selectedPartId: 'p1',
+      ),
+    );
+
+    test('each fills to takt and the last takes the remainder', () {
+      // A 3-day takt at ABC three shifts is 68 hours, and there are 180 hours
+      // of cladding to place: 68, 68, and 44 left on the last.
+      final view = threeClads(measured: [60, 60, 60]);
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 68),
+        const Duration(hours: 68),
+        const Duration(hours: 44),
+      ]);
+    });
+
+    test('the measurement is kept beside the derived share', () {
+      // §5.5's rule applied a third time: the rule never overwrites the
+      // observation, so the demand grid still has something to show.
+      final view = threeClads(measured: [60, 60, 60]);
+
+      expect(
+        view.steps.map((s) => s.measuredProcessTime),
+        List.filled(3, const Duration(hours: 60)),
+      );
+      expect(view.steps.map((s) => s.isBalanced), [true, true, true]);
+    });
+
+    test('no work is created or lost', () {
+      // The whole point is a redistribution. `Process time` is the sum of the
+      // rungs, so if the split invented work the footer would say so.
+      final view = threeClads(measured: [60, 60, 60]);
+
+      expect(view.processTime, const Duration(hours: 180));
+    });
+
+    test('a different type at the end leaves it out of the group', () {
+      // Two claddings and a furnace: only the first two share the work, so the
+      // furnace keeps exactly what was measured at it.
+      final view = threeClads(measured: [60, 60, 60], lastType: 'Heat treat');
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 68),
+        const Duration(hours: 52),
+        const Duration(hours: 60),
+      ]);
+      expect(view.steps.last.isBalanced, isFalse);
+    });
+
+    test('changing the takt moves the balance with no other edit', () {
+      // The ask, on the map: the same measurements read at two takts.
+      FlowView at(double days) => build(
+        nodes: [
+          step(0, workcenterId: 'CLAD07'),
+          step(1, workcenterId: 'CLAD08'),
+        ],
+        contexts: {
+          'CLAD07': context('CLAD07', typeName: 'Cladding'),
+          'CLAD08': context('CLAD08', typeName: 'Cladding'),
+        },
+        takt: taktOf(days, TaktUnit.days),
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'CLAD07': Duration(hours: 40),
+              'CLAD08': Duration(hours: 40),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      // One takt is 22:40 a day. At three days the first fills to 68 and 12 is
+      // left; at one day it fills to 22:40 and the rest piles on the last.
+      expect(at(3).steps.first.processTime, const Duration(hours: 68));
+      expect(at(3).steps.last.processTime, const Duration(hours: 12));
+      expect(
+        at(1).steps.first.processTime,
+        const Duration(hours: 22, minutes: 40),
+      );
+      expect(
+        at(1).steps.last.processTime,
+        const Duration(hours: 57, minutes: 20),
+      );
+      // And neither takt changed the total.
+      expect(at(3).processTime, at(1).processTime);
+    });
+
+    test('the flow equivalent is a fixed point of the balance', () {
+      // Under the equivalent every step costs one takt of its own capacity by
+      // construction (§6.1), so the split has nothing to move — and a map that
+      // is not showing a real part must read exactly as it did before this rule
+      // existed.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CLAD07'),
+          step(1, workcenterId: 'CLAD08'),
+        ],
+        contexts: {
+          'CLAD07': context('CLAD07', typeName: 'Cladding'),
+          'CLAD08': context('CLAD08', typeName: 'Cladding'),
+        },
+      );
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 68),
+        const Duration(hours: 68),
+      ]);
+      expect(view.steps.map((s) => s.isBalanced), [false, false]);
+    });
+
+    test('a station never measured still takes a share of its group', () {
+      // The readiness rule generalises from the step to the group (§11): what
+      // is blocking is a group holding nothing, not a member holding nothing,
+      // because inside a group the work belongs to the group.
+      final view = threeClads(measured: [60, 60, 0]);
+
+      expect(view.steps.first.processTime, const Duration(hours: 68));
+      expect(view.steps.elementAt(1).processTime, const Duration(hours: 52));
+      expect(view.steps.last.processTime, Duration.zero);
+      expect(
+        view.steps.every((s) => s.problems.isEmpty),
+        isTrue,
+        reason: 'the group has work, so no member is short of a process time',
+      );
+    });
+
+    test('two stations of a type that are not adjacent are two groups', () {
+      // Adjacency is what makes the rule physical — work cannot move across an
+      // intervening furnace — so neither cladding is balanced against the
+      // other and both keep what was measured.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CLAD07'),
+          step(1, workcenterId: 'TTAT'),
+          step(2, workcenterId: 'CLAD08'),
+        ],
+        contexts: {
+          'CLAD07': context('CLAD07', typeName: 'Cladding'),
+          'TTAT': context('TTAT', typeName: 'Heat treat'),
+          'CLAD08': context('CLAD08', typeName: 'Cladding'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'CLAD07': Duration(hours: 90),
+              'TTAT': Duration(hours: 10),
+              'CLAD08': Duration(hours: 90),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.map((s) => s.isBalanced), [false, false, false]);
+      expect(view.steps.first.processTime, const Duration(hours: 90));
     });
   });
 

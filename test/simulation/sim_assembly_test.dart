@@ -105,7 +105,9 @@ void main() {
       'W': Duration(hours: 10),
       'X': Duration(hours: 10),
     },
+    Map<String, String> types = const {},
   }) => SimResourceContext(
+    workcenterTypeNames: types,
     workcenterNames: const {
       'W': 'CLAD04',
       'X': 'TTAT',
@@ -520,6 +522,131 @@ void main() {
       // Sorted, so the label cannot depend on the order the project happens to
       // list its studies in.
       expect(map['L1']!.name, 'CNC Lathes · pool-2');
+    });
+  });
+
+  /// The takt rebalancing a run of like machines, as the engine gets it (§7.4).
+  ///
+  /// The rule is pinned in `takt_balance_test.dart`; what matters here is that
+  /// assembly feeds it the run's takt and hands each step a *per part* share.
+  group('a group of like machines is rebalanced (§7.4)', () {
+    /// Two stations, both 10-hour productive days, under a 3-hour takt.
+    SimStudy? twoStations({
+      Map<String, String> types = const {'W': 'Cladding', 'X': 'Cladding'},
+      Map<String, Map<String, Duration>> processTimes = const {
+        'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+      },
+      List<DemandPart>? parts,
+    }) => assembleSimStudy(
+      study: study,
+      nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+      parts: parts ?? [part('p1', 'PN1')],
+      processTimes: processTimes,
+      orders: [order(0, 'p1')],
+      taktSchedule: taktOf(3, TaktUnit.hours),
+      resources: resources(types: types),
+      asOf: now,
+    );
+
+    test('the first fills to takt and the last takes the remainder', () {
+      final built = twoStations()!;
+
+      // Four hours of cladding at a 3-hour takt: 3 on the first, 1 on the last.
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 3),
+      );
+      expect(
+        built.steps.last.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 1),
+      );
+    });
+
+    test('the stored times are untouched — only the step carries the split', () {
+      // §5.5's rule: the rule never overwrites the observation. `SimPart` is
+      // what the run stores and what a reader gets back.
+      final built = twoStations()!;
+
+      expect(built.parts['p1']!.timeAt('W'), const Duration(hours: 2));
+      expect(built.parts['p1']!.timeAt('X'), const Duration(hours: 2));
+    });
+
+    test('two stations of different types are not a group', () {
+      // Which is every flow that existed before this rule, so it has to come
+      // out byte for byte as it did.
+      final built = twoStations(types: const {'W': 'Cladding', 'X': 'Testing'})!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 2),
+      );
+    });
+
+    test('a run with no types at all balances nothing', () {
+      final built = twoStations(types: const {})!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+    });
+
+    test('two parts balance separately', () {
+      // The work content being split is a part's, and two parts of one flow
+      // legitimately balance differently — which is why the share is keyed by
+      // part rather than folded into the step.
+      final built = twoStations(
+        parts: [part('p1', 'PN1'), part('p2', 'PN2')],
+        processTimes: const {
+          'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+          'p2': {'W': Duration(minutes: 30), 'X': Duration(minutes: 30)},
+        },
+      )!;
+
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 3),
+      );
+      // One hour of work fits inside a 3-hour takt, so the first takes it all
+      // and the last takes nothing.
+      expect(
+        built.steps.first.processTimeFor('p2', built.parts['p2']),
+        const Duration(hours: 1),
+      );
+      expect(
+        built.steps.last.processTimeFor('p2', built.parts['p2']),
+        Duration.zero,
+      );
+    });
+
+    test('a pool step is in no group', () {
+      // Its members are interchangeable and it is one target with one queue
+      // (§3.1), so "the first workcenter and the last of the same type in the
+      // sequence" names nothing inside it.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [step(0, poolId: 'pool-1'), step(1, workcenterId: 'X')],
+        parts: [part('p1', 'PN1')],
+        processTimes: {
+          'p1': {
+            'pool-1': const Duration(hours: 2),
+            'X': const Duration(hours: 2),
+          },
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: taktOf(3, TaktUnit.hours),
+        resources: resources(
+          pools: {
+            'pool-1': ['L1'],
+          },
+          productive: const {
+            'L1': Duration(hours: 10),
+            'X': Duration(hours: 10),
+          },
+          types: const {'L1': 'Cladding', 'X': 'Cladding'},
+        ),
+        asOf: now,
+      )!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
     });
   });
 }

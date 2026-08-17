@@ -12,6 +12,7 @@ import '../../../data/database/enums.dart';
 import '../../calendar/application/working_calendar.dart';
 import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
+import 'takt_balance.dart';
 
 /// How wide a span the period navigator steps through.
 ///
@@ -396,6 +397,7 @@ class FlowStepView {
     required this.poolMemberCount,
     required this.dataSource,
     required this.processTime,
+    required this.measuredProcessTime,
     required this.equivalentProcessTime,
     required this.changeover,
     this.samePartFraction = 0,
@@ -455,7 +457,30 @@ class FlowStepView {
   ///
   /// Null when [problems] is non-empty: a step that cannot be costed shows a
   /// dash rather than a plausible zero.
+  ///
+  /// **Inside a balance group this is the derived share, not the measurement**
+  /// (§7.4). Every consumer that reads a step's time wants the effective one —
+  /// the ladder, the footer, PCE, the printed map — so the derived figure lands
+  /// here and the observation moves to [measuredProcessTime], rather than the
+  /// other way round where each of those would have to remember to ask.
   final Duration? processTime;
+
+  /// What was actually measured at this station, before §7.4 rebalanced it.
+  ///
+  /// Equal to [processTime] everywhere except inside a balance group, where the
+  /// two differ by whatever the takt moved between stations. It is the figure
+  /// the demand grid holds and edits, so a surface showing what someone typed
+  /// shows this — and a surface showing what the flow costs shows the other.
+  ///
+  /// _Kept beside the derived figure rather than instead of it_, which is
+  /// §5.5's rule about never overwriting an observation with a rule, applied a
+  /// third time.
+  final Duration? measuredProcessTime;
+
+  /// Whether [processTime] is a derived share rather than the measurement
+  /// (§7.4) — what a surface needs to know before it presents one as the other.
+  bool get isBalanced =>
+      measuredProcessTime != null && processTime != measuredProcessTime;
 
   /// One takt of this station's productive capacity — the flow equivalent's
   /// process time here (DESIGN.md §6.1), or the step's own Process Specific
@@ -851,22 +876,53 @@ FlowView buildFlowView({
   // constructs one — but a spine that still drew them would show the floor
   // space twice: once as a triangle between two boxes and once as the queue on
   // the connector, which is the doubling this re-model exists to undo.
-  final views = [
+  final steps = [
     for (final node in nodes)
-      if (node.kind == FlowNodeKind.step)
-        _buildStep(
-          node: node,
-          contexts: contexts,
-          pools: pools,
-          poolMembers: poolMembers,
-          queues: queues,
-          takt: takt,
-          asOf: start,
-          periodEnd: end,
-          dataSource: dataSource,
-          demand: demand,
-        ),
+      if (node.kind == FlowNodeKind.step) node,
   ];
+
+  FlowStepView buildOne(FlowNode node, Duration? balanced) => _buildStep(
+    node: node,
+    contexts: contexts,
+    pools: pools,
+    poolMembers: poolMembers,
+    queues: queues,
+    takt: takt,
+    asOf: start,
+    periodEnd: end,
+    dataSource: dataSource,
+    demand: demand,
+    balanced: balanced,
+  );
+
+  // **Built twice, because a balance group is a property of the flow and
+  // `_buildStep` sees one node** (§7.4). The first pass is what each station
+  // measured and what one takt is worth at it; the balance reads the sequence
+  // of those, and the second pass hands each group member its share.
+  //
+  // Calling a pure function twice rather than making the view mutable or giving
+  // it a twenty-field `copyWith`. A flow is a handful of steps, and the two
+  // passes cannot disagree because the second differs only in the argument the
+  // first computed.
+  final draft = [for (final node in steps) buildOne(node, null)];
+  final shares = balancedProcessTimes([
+    for (final step in draft)
+      (
+        typeName: step.typeName,
+        measured: step.processTime,
+        // One takt of this station's own capacity — the cap it fills to. A step
+        // that states its own equivalent has said what a takt is worth at it,
+        // and that is the figure to fill to rather than the line's default.
+        takt: step.equivalentProcessTime,
+      ),
+  ]);
+
+  final views = shares.isEmpty
+      ? draft
+      : [
+          for (var i = 0; i < steps.length; i++)
+            shares[i] == null ? draft[i] : buildOne(steps[i], shares[i]),
+        ];
 
   // The ends borrow the adjacent step's productive day, because an endpoint is
   // not a station (see [FlowEndStockView.referenceWorkingDay]). On an empty
@@ -916,6 +972,12 @@ FlowStepView _buildStep({
   required DateTime periodEnd,
   required FlowDataSource dataSource,
   required FlowDemandInput demand,
+
+  /// The share §7.4's balance gave this step, or null where it is in no group.
+  ///
+  /// Passed in rather than resolved here because a group is a property of the
+  /// *flow* — which steps sit next to which — and this function sees one node.
+  Duration? balanced,
 }) {
   final problems = <StepProblem>[];
 
@@ -1091,8 +1153,19 @@ FlowStepView _buildStep({
     );
     // A step the part being shown has no time for is a blocking readiness
     // error (§11) — not a zero, and not a quiet fall-back to the takt.
-    if (processTime == null) problems.add(StepProblem.noProcessTime);
+    //
+    // **Unless the balance has given it a share** (§7.4): inside a group of
+    // like machines the work is the group's and a member that was never
+    // measured is one the takt may still put work on. What is blocking there is
+    // a group holding nothing, which is why `balanceFlow` declines to split a
+    // total of zero and leaves this rule to speak.
+    if (processTime == null && balanced == null) {
+      problems.add(StepProblem.noProcessTime);
+    }
   }
+
+  final measuredProcessTime = processTime;
+  if (balanced != null) processTime = balanced;
 
   return FlowStepView(
     node,
@@ -1112,6 +1185,7 @@ FlowStepView _buildStep({
     poolMemberCount: poolMemberCount,
     dataSource: dataSource,
     processTime: processTime,
+    measuredProcessTime: measuredProcessTime,
     equivalentProcessTime: equivalentProcessTime,
     usesLocalEquivalent: localEquivalent != null,
     changeover: changeover,

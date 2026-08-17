@@ -641,5 +641,8 @@
   "flowEndStockQuantity": "Pieces standing here",
   "flowEndStockHelp": "An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.",
   "flowEndStockNone": "Not counted",
-  "flowEndStockDays": "Days of stock"
+  "flowEndStockDays": "Days of stock",
+  "stepBalancedMark": "⇄",
+  "stepBalancedHelp": "Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.",
+  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } }
 }

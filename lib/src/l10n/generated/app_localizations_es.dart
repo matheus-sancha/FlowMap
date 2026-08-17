@@ -1796,4 +1796,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get flowEndStockDays => 'Días de stock';
+
+  @override
+  String get stepBalancedMark => '⇄';
+
+  @override
+  String stepBalancedHelp(String type, String measured) {
+    return 'Reequilibrado entre las estaciones de $type contiguas en este flujo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió $measured, y la tabla de demanda lo sigue guardando.';
+  }
 }

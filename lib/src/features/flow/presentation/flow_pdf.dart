@@ -47,8 +47,16 @@ class FlowPdfStrings {
     required this.dataSource,
     required this.taktValue,
     required this.localEquivalentMark,
+    this.balancedMark = '',
     required this.notes,
   });
+
+  /// What marks a step whose process time §7.4 rebalanced across a run of like
+  /// machines — the same mark the canvas puts on the box.
+  ///
+  /// Defaulted to nothing so a caller that predates the rule prints what it
+  /// always did; the app passes it.
+  final String balancedMark;
 
   /// Heading for the findings list under the map (§5.4).
   final String notes;
@@ -120,6 +128,7 @@ Future<void> exportFlowPdf(
         : '${_number(view.takt!.value)} '
               '${taktUnitLabel(l10n, view.takt!.unit)}',
     localEquivalentMark: ' *',
+    balancedMark: ' ${l10n.stepBalancedMark}',
   );
 
   // The same rendering the screen uses, working day and all, so an exported map
@@ -356,9 +365,17 @@ pw.Widget _stepBox(
         child: pw.Column(
           children: [
             _pdfRow(
-              step.usesLocalEquivalent
-                  ? '${strings.processTime}${strings.localEquivalentMark}'
-                  : strings.processTime,
+              // A rebalanced step is marked on paper too (§7.4) — the printed
+              // map is read on a wall where nobody can hover for the reason,
+              // so the mark is what says the figure is derived rather than
+              // measured. The screen's tooltip carries the sentence.
+              switch (step) {
+                _ when step.isBalanced =>
+                  '${strings.processTime}${strings.balancedMark}',
+                _ when step.usesLocalEquivalent =>
+                  '${strings.processTime}${strings.localEquivalentMark}',
+                _ => strings.processTime,
+              },
               step.processTime == null
                   ? '—'
                   : formatDuration(step.processTime!),

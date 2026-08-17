@@ -967,9 +967,28 @@ class _StepBox extends ConsumerWidget {
                         // A step whose equivalent is its own, not one takt,
                         // is marked — a reader comparing two boxes has to know
                         // one of them is not measured in takts.
-                        label: step.usesLocalEquivalent
-                            ? '${l10n.stepProcessTime} *'
-                            : l10n.stepProcessTime,
+                        //
+                        // **And a rebalanced step is marked too** (§7.4). What
+                        // is shown there is the group's work split against the
+                        // takt, not what was measured at this station, so a
+                        // reader comparing the box with the demand grid would
+                        // otherwise find two numbers and no explanation — which
+                        // is exactly how §7.6's inverted metric survived.
+                        label: switch (step) {
+                          _ when step.isBalanced =>
+                            '${l10n.stepProcessTime} ${l10n.stepBalancedMark}',
+                          _ when step.usesLocalEquivalent =>
+                            '${l10n.stepProcessTime} *',
+                          _ => l10n.stepProcessTime,
+                        },
+                        help: step.isBalanced
+                            ? l10n.stepBalancedHelp(
+                                step.typeName ?? '',
+                                formatDurationHms(
+                                  step.measuredProcessTime ?? Duration.zero,
+                                ),
+                              )
+                            : null,
                         value: step.processTime == null
                             ? '—'
                             : formatDurationHms(step.processTime!),
@@ -1090,6 +1109,7 @@ class _DataRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.warning = false,
+    this.help,
   });
 
   final String label;
@@ -1099,11 +1119,19 @@ class _DataRow extends StatelessWidget {
   /// constraint: occupation above 100 % (DESIGN.md §8.1).
   final bool warning;
 
+  /// Said on hover where the figure is not simply what somebody typed — §7.4's
+  /// rebalanced process time is the case it was added for.
+  ///
+  /// A bare `Tooltip` with no affordance, which is the convention the flow
+  /// footer's `_Metric` already uses. The box has no room for an info icon and
+  /// the mark on the label is the affordance.
+  final String? help;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.bodySmall;
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1123,6 +1151,7 @@ class _DataRow extends StatelessWidget {
         ],
       ),
     );
+    return help == null ? row : Tooltip(message: help!, child: row);
   }
 }
 

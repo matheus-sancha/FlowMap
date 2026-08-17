@@ -594,5 +594,8 @@
   "flowEndStockQuantity": "Piezas presentes aquí",
   "flowEndStockHelp": "Una observación de lo que hay hoy en planta, en piezas, mostrada como días según el takt del período en pantalla. Cuenta para el lead time y para los días de stock, y nada se despacha desde aquí: los pedidos se liberan por takt, no se retiran de una estantería. Déjalo en blanco si nadie lo ha contado.",
   "flowEndStockNone": "Sin contar",
-  "flowEndStockDays": "Días de stock"
+  "flowEndStockDays": "Días de stock",
+  "stepBalancedMark": "⇄",
+  "stepBalancedHelp": "Reequilibrado entre las estaciones de {type} contiguas en este flujo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió {measured}, y la tabla de demanda lo sigue guardando.",
+  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } }
 }

@@ -5,12 +5,17 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **831 tests passing** (one of them `live`-tagged
+Branch `m1-m2-foundation`, `flutter analyze` clean, **858 tests passing** (one of them `live`-tagged
 and skipped without a database). Schema is at **v19**, migrated against the real database at 08:46
-on 2026-08-16, and **neither §7.6 nor the last of §7.3 needed a migration** — the flow's two ends
-found their columns already there, added by v19 ahead of the surface. **§7.3 is code-complete.** M4
-is code-complete too, and the initial plan has no code left in it — §3.8 is deferred by decision and
-everything else in it has landed.
+on 2026-08-16, and **none of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
+found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
+code-complete.** M4 is too, and the initial plan has no code left in it — §3.8 is deferred by
+decision and everything else in it has landed.
+
+**Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
+stock called itself "a schema step (v20)" when the columns already existed, and §7.4 said "what is
+stored is the group's measured total" when the sum of cells the demand table already holds *is* that
+total. Both were written before the code around them was read.
 
 **The one thing to know before starting anything: almost nothing here has been looked at.** §5, §6,
 §7 and §7.6 are all code-complete and covered by tests, and **nothing in the suite renders a pixel**
@@ -1164,7 +1169,7 @@ distrust the next one that does.
 | **§7.1** | The filter filters | small, and it makes every later drive trustworthy |
 | **§7.2** | Capacity, not Schedules | rename, cards back, exceptions leave the study |
 | **§7.3** | A queue belongs to a station | the deep one — schema, engine, symbols |
-| **§7.4** | Takt rebalances a group | derived process times — **nothing written** |
+| **§7.4** | Takt rebalances a group | derived process times — **written, not driven** |
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 
@@ -1499,8 +1504,53 @@ formula owns it, and a planner who wants CLAD07 at forty minutes because that is
 nowhere to say so. The day that is wanted is the day a per-station override arrives, and it will need
 the "measured beside chosen" pair this section rejected.
 
-_Left open:_ what the process-time grid shows for a station in a group — the derived figure, the
-measured total, or both.
+~~_Left open:_ what the process-time grid shows for a station in a group — the derived figure, the
+measured total, or both.~~ **Settled when it was built: the grid shows the measurement.** It is where
+the number is typed, and a cell that shows a figure other than the one entered into it argues with
+its user. The map shows the derived split and marks the box so a reader knows the two answer
+different questions.
+
+#### Built 2026-08-17 — **written, not driven**
+
+**And it needed no schema step, which this section assumed it would.** The per-station cells the
+demand table already holds *are* the measurement, and their sum *is* the group's work content — so
+"what is stored is the group's measured total" was already true and nothing new is stored. That is
+the second entry in §7 to have over-specified its own cost; §7.3's flow-ends stock was the first.
+
+- `takt_balance.dart` is the rule, **pure and shared by the map and the engine**. They balance
+  against different takts — the viewed period's and the run's (§18.3) — so they can differ by their
+  takt and never by their arithmetic. The file exists because §7.6 is the record of what two copies
+  of one rule cost.
+- `FlowStepView.processTime` is the derived share and `measuredProcessTime` the observation. The
+  derived figure went into the field every consumer already reads — box, ladder, footer, PCE, printed
+  map — because a rule that put it anywhere else needs each of those to remember to ask.
+- In the engine the share rides on `SimStep.balancedProcessTimes`, keyed by **part**. Two parts of
+  one flow legitimately balance differently, and keying by target would collide on a flow that visits
+  one machine twice in a row. `SimStep.processTimeFor` is the single place the choice between the two
+  figures is made, so the engine and the theoretical walk cannot disagree about what a step is worth.
+- **A rebalanced box is marked**, on screen with a tooltip naming the type and stating what was
+  measured there, on paper with the mark alone — a map on a wall cannot be hovered.
+- Readiness generalises from the step to the group: what blocks is a group holding nothing, not a
+  member holding nothing.
+
+29 tests. `flutter analyze` clean, **858 tests passing**.
+
+#### Drive it
+
+- [ ] **A real célula 11B flow with two adjacent stations of one type.** The plant may not have one
+      — if it does not, contrive it by giving two consecutive workcenters the same type, because the
+      whole rule is invisible until a group exists.
+- [ ] **Change the takt and watch the split move with no other edit.** That is the ask, and it is the
+      one check that cannot pass by accident.
+- [ ] **The mark and its tooltip**, in all three languages. `stepBalancedHelp` is the longest string
+      on the canvas and it sits in a `Tooltip` on a box that is 168 px wide.
+- [ ] **The demand grid still shows what was typed** while the box beside it shows something else.
+      This is the pair most likely to be read as a bug, and the mark is the only thing that explains
+      it.
+- [ ] **A run against a balanced flow**, checked against the map: both should place the same work on
+      the same stations when the run's takt and the viewed period's takt agree. If they disagree,
+      that is the takt differing and not the rule — worth confirming rather than assuming.
+- [ ] **The printed map**, where the mark is all there is.
 
 ### 7.5 Following one order through the plant
 

@@ -3185,6 +3185,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Days of stock'**
   String get flowEndStockDays;
+
+  /// No description provided for @stepBalancedMark.
+  ///
+  /// In en, this message translates to:
+  /// **'⇄'**
+  String get stepBalancedMark;
+
+  /// No description provided for @stepBalancedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.'**
+  String stepBalancedHelp(String type, String measured);
 }
 
 class _AppLocalizationsDelegate

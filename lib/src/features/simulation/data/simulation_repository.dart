@@ -89,6 +89,18 @@ class SimulationRepository {
       );
     }
 
+    // Workcenter → the name of its type, which is the identity §7.4 balances
+    // on. By name rather than by id because the balance compares two stations
+    // and a name is what a reader would compare them by — and because the type
+    // rows are a handful, so the join is one query for the whole plant.
+    final typeNames = {
+      for (final type in await _db.select(_db.workcenterTypes).get())
+        type.id: type.name,
+    };
+    final workcenterTypeNames = {
+      for (final row in workcenterRows) row.id: ?typeNames[row.typeId],
+    };
+
     final pools = await (_db.select(
       _db.workcenterPools,
     )..where((p) => p.plantId.equals(project.plantId))).get();
@@ -186,6 +198,7 @@ class SimulationRepository {
             queues: queues,
             cellNames: cellNames,
             lineNames: lineNames,
+            workcenterTypeNames: workcenterTypeNames,
           ),
           asOf: asOf,
           problems: problems,

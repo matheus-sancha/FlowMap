@@ -657,6 +657,96 @@ The two data sources that read this:
 A step targeting a pool reads the **pool's** cell (§3.1, §9), never that of the
 member standing in for it on the map.
 
+### 6.2.1 The takt rebalances a run of like machines
+
+*Field: "If I change the takt time I need to rebalance the operations of the workcenters, otherwise
+it will be unbalanced. The app should identify workcenters of the same type, then rebalance the
+process time according to the takt time, topping the first workcenter at the takt time and leaving
+the rest, under or over, to the last workcenter of the same type in the sequence."*
+
+**Consecutive steps sharing a workcenter type are one balance group.** A run of adjacent cladding
+operations shares the work; cladding again after heat treat is a different operation and a new group.
+Adjacency is what makes the rule physical — work cannot move across an intervening furnace, so it
+must not move across one here either. A group of one is not a group and keeps what was measured at
+it, which is what leaves every flow of unlike machines behaving exactly as it did before this rule.
+
+**The type is the identity.** Types are user-defined and free to create, so a plant needing model
+precision makes `CNC Lathe — Mazak` and `CNC Lathe — Haas` two types, rather than the schema gaining
+a second identity axis whose blank default would balance everything together. A station with no type
+is in no group **and breaks the run**, for the same reason a furnace does: nothing says it is like
+its neighbours.
+
+**A pool step is in no group.** Its members are interchangeable and it is one target with one queue
+(§3.1), so *"the first workcenter and the last of the same type in the sequence"* names nothing
+inside it.
+
+```
+measured   30   30   30      takt = 40
+derived    40   40   10      fill each to its own takt, remainder on the last
+```
+
+**Each station fills to its *own* takt**, which is one takt of its own capacity (§6.1) and therefore
+worth more clock at a three-shift station than at a one-shift one. The last is the station allowed to
+be under or over: under when the group has slack, over when it is the bottleneck — and either way the
+overflow is visible at the end of the run rather than smeared across it where nobody would see it.
+
+**The split is derived, never written.** What is stored is what was measured at each station, exactly
+as before; the group's work content is the sum of those, and the split is computed against the takt in
+force. Change the takt and the balance follows with no action, which is the whole ask. It is also
+§5.5's rule applied a third time — **never overwrite an observation with a rule** — because a written
+split would be stale the moment takt moved, and a later takt change would leave the old one in place
+silently, which is the unbalanced line this exists to prevent.
+
+**No schema step was needed, and that is worth stating** because the round that specified this
+assumed one. The per-station cells the demand table already holds *are* the measurement, and their
+sum *is* the group's work content. Nothing new is stored.
+
+**The map and the engine balance against different takts, and that is correct.** The map uses the
+viewed period's, the engine the run's (§18.3 keeps a run at one cadence). They call the same
+function — `takt_balance.dart`, pure and shared — so they can differ by their takt and never by their
+arithmetic. That file exists precisely because §7.6 is the record of what two copies of one rule cost.
+
+**Where the two figures live.** `FlowStepView.processTime` is the *derived* share and
+`measuredProcessTime` is the observation. The derived figure lands in the field every consumer
+already reads — the box, the ladder, the footer, PCE, the printed map — because a rule that put it
+anywhere else would need each of those to remember to ask, and one that forgot would be §7.6's drift
+again. In the engine the share rides on `SimStep.balancedProcessTimes`, keyed by **part**: two parts
+of one flow legitimately balance differently, and keying by target instead would collide on a flow
+that visits one machine twice in a row.
+
+**A rebalanced box is marked**, on screen and on paper. What it shows is the group's work split
+against the takt rather than what was measured at that station, so a reader comparing the box with
+the demand grid would otherwise find two numbers and no explanation. The screen's mark carries a
+tooltip naming the type and stating what was measured there; the printed map has the mark alone,
+because a map on a wall cannot be hovered.
+
+**Settled: the demand grid shows the measurement.** This was left open when the round was specified —
+the derived figure, the measured total, or both. The grid is where the number is *typed*, and a cell
+that shows a figure other than the one entered into it is a cell that argues with its user. So the
+grid is the observation and the map is the derived split, and the mark on the box is what tells a
+reader the two are answering different questions.
+
+**Readiness generalises from the step to the group.** A step the selected part has no time for is a
+blocking error (§6.2, §11) — but inside a group the work belongs to the group, so a member that was
+never measured is simply one the takt may put no work on. What blocks is a group holding nothing,
+which is why the rule declines to split a total of zero and leaves §6.2's per-step error to speak.
+
+**A group whose takt cannot be resolved is not balanced at all.** One member with no schedule and
+there is no cap to fill to, so the split would be an invention; the measured figures stand and the
+step's own readiness problem says why.
+
+_The cost, stated plainly:_ a station's process time inside a group stops being what the map shows
+for it. The formula owns that, and a planner who wants CLAD07 at forty minutes because that is what
+fits has nowhere to say so. The day that is wanted is the day a per-station override arrives, and it
+will need a "measured beside chosen" pair on the grid — which is exactly the shape this section
+rejected for the map, and would be right there for a different reason.
+
+_Worth knowing:_ **the flow equivalent is a fixed point of the balance.** Under it every step costs
+one takt of its own capacity by construction (§6.1), so measured and cap are the same figure at every
+member and the split returns what it was given. A map that is not showing a real part therefore reads
+exactly as it did before this rule existed — not by a special case, but because there is nothing to
+move.
+
 ### 6.3 MM3 — sequence smoothness
 
 **Centered** moving average of 3 over the equivalence of the demand sequence: `(prev + current +

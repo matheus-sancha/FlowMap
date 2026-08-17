@@ -657,7 +657,10 @@ class _Engine {
   /// The caller has already established there is room; this is the write.
   void _admit(SimStudy study, SimOrder order, int index) {
     final step = study.nodes[index];
-    final perPiece = study.parts[order.partId]?.timeAt(step.demandKey);
+    final perPiece = step.processTimeFor(
+      order.partId,
+      study.parts[order.partId],
+    );
     if (perPiece == null) {
       // A part with no time at a step it must visit is a blocking readiness
       // error (§11). The engine will not invent one; the order simply never

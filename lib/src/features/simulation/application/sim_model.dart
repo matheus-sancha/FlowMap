@@ -81,6 +81,7 @@ class SimStep {
     this.teardownUnit,
     this.samePartFraction = 0,
     this.queueStock = Duration.zero,
+    this.balancedProcessTimes = const {},
   });
 
   final String id;
@@ -100,6 +101,27 @@ class SimStep {
   /// The id this step's process times are keyed by — the pool where it targets
   /// one, never a member standing in for it (§9).
   final String demandKey;
+
+  /// Part id → the share §7.4's balance gave this step, where it sits in a run
+  /// of adjacent like machines. Empty everywhere else.
+  ///
+  /// **Keyed by part and held on the step**, rather than folded into
+  /// [SimPart.processTimes] before the engine sees them. Those are keyed by
+  /// *target*, and two steps of one group are two stations only if they name
+  /// two — a flow that visits one machine twice in a row would collide on the
+  /// key and take one member's share for both.
+  ///
+  /// Resolved at assembly because the split is against the takt in force
+  /// (§7.4), and the run has exactly one (§18.3).
+  final Map<String, Duration> balancedProcessTimes;
+
+  /// What one piece of [partId] costs here: the balanced share where this step
+  /// is in a group, and the measured time otherwise.
+  ///
+  /// The one place the choice is made, so the engine and the theoretical walk
+  /// cannot disagree about which of the two figures a step is worth.
+  Duration? processTimeFor(String partId, SimPart? part) =>
+      balancedProcessTimes[partId] ?? part?.timeAt(demandKey);
 
   /// The pool this step targets, or null where it names a single workcenter
   /// (§3.1). Carried so a finished run can record which pool each of its
@@ -131,6 +153,29 @@ class SimStep {
   final double samePartFraction;
 
   bool get isPool => candidates.length > 1;
+
+  /// The same step, carrying the shares §7.4's balance gave it.
+  ///
+  /// A copy rather than a mutable field: a `SimStep` is handed to the engine,
+  /// the theoretical walk and the run writer, and a value any of them could
+  /// change is a value none of them can trust.
+  SimStep withBalance(Map<String, Duration> shares) => SimStep(
+    id: id,
+    position: position,
+    queue: queue,
+    title: title,
+    candidates: candidates,
+    demandKey: demandKey,
+    poolId: poolId,
+    poolName: poolName,
+    setupValue: setupValue,
+    setupUnit: setupUnit,
+    teardownValue: teardownValue,
+    teardownUnit: teardownUnit,
+    samePartFraction: samePartFraction,
+    queueStock: queueStock,
+    balancedProcessTimes: shares,
+  );
 
   /// How long the stock in [queue] represents, resolved for **this study**
   /// (§5.5, §7.9).
