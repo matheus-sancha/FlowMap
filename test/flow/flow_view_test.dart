@@ -952,11 +952,11 @@ void main() {
     });
   });
 
-  group('the running-days walk', () {
-    // The walk always starts at the first day of the viewed period, so every
-    // case here begins 1 August 2026 — a Saturday. ABC works Monday to Friday,
-    // so nothing moves until Monday the 3rd at 05:45, and each takt-day of
-    // 22:40 spills into the following morning.
+  group('the footer lead times', () {
+    // The map is a **generic** view of the flow (§7.9): the calendar's only job
+    // here is to say what a day is worth in this period, so neither figure
+    // depends on which weekday the period happens to open on. Every case below
+    // starts 1 August 2026 — a Saturday — and none of them cares.
     FlowView withNodes(
       List<FlowNode> nodes, {
       double availability = 1,
@@ -971,37 +971,6 @@ void main() {
       taktSchedule: taktOf(1, TaktUnit.days),
       asOf: DateTime(2026, 8),
     );
-
-    test('walks the real calendar from the first day of the period', () {
-      // Three takt-days from Saturday the 1st: the weekend passes, then Monday
-      // 05:45 → Tuesday 05:05 → Wednesday → Thursday the 6th.
-      final view = withNodes([
-        step(0, workcenterId: 'WC'),
-        step(1, workcenterId: 'WC'),
-        step(2, workcenterId: 'WC'),
-      ]);
-
-      expect(view.endDate!.month, 8);
-      expect(view.endDate!.day, 6);
-      // 1st to 6th inclusive.
-      expect(view.runningDays, 6);
-    });
-
-    test('running days count the closed time that lead time does not', () {
-      final view = withNodes([
-        for (var i = 0; i < 6; i++) step(i, workcenterId: 'WC'),
-      ]);
-
-      // Six takt-days of working time, whatever the calendar does with them.
-      expect(view.leadTime, const Duration(hours: 136));
-      // But they span two weekends' worth of calendar.
-      expect(view.runningDays, greaterThan(6));
-      expect(
-        view.runningDays! - 6,
-        greaterThanOrEqualTo(4),
-        reason: 'the gap is the weekends, and is the reason to show both',
-      );
-    });
 
     test('running days are the working-day lead time × 1.4', () {
       final view = withNodes([
@@ -1020,170 +989,56 @@ void main() {
       expect(FlowView.runningDayFactor, 1.4);
     });
 
-    test('working days are the open subset of running days (§17.2)', () {
-      // 1 August 2026 is a Saturday and ABC works Monday to Friday. Three
-      // takt-days finish on Thursday the 6th, so the walk spans six calendar
-      // days of which the first two are the weekend.
+    test('the lead time is work content, not an elapsed span', () {
       final view = withNodes([
-        for (var i = 0; i < 3; i++) step(i, workcenterId: 'WC'),
+        for (var i = 0; i < 6; i++) step(i, workcenterId: 'WC'),
       ]);
 
-      expect(view.runningDays, 6);
-      expect(view.workingDays, 4);
+      // Six takt-days of working time, whatever the calendar does with them —
+      // and the weekends those six days actually span are **not** in here. An
+      // elapsed walk sat in this slot for a while under a label reading
+      // `working days`, which is the regression §17.2 records.
+      expect(view.leadTime, const Duration(hours: 136));
     });
 
-    test('the ratio falls out of the week rather than being imposed', () {
-      // The field asked for `running = 1.4 × working`, and 1.4 is 7 ÷ 5. Taking
-      // both figures off one walk gets that for free on a five-day week — and
-      // gets the right answer instead of 1.4 on a plant that is not, which a
-      // literal factor could not (§17.2).
-      final long = withNodes([
-        for (var i = 0; i < 20; i++) step(i, workcenterId: 'WC'),
-      ]);
-
-      final ratio = long.runningDays! / long.workingDays!;
-      expect(ratio, closeTo(1.4, 0.12));
-    });
-
-    test('a day any station is open is a working day', () {
-      // The union, not a nominated station. `WC` keeps ABC's five-day week;
-      // `ALL` runs every day — so every day of the span becomes a working one
-      // and the two figures converge. That reads like the feature is broken and
-      // is in fact the rule working: the line could make progress on a Sunday.
-      final continuous = ShiftPatternSpec(
-        name: 'Continuous',
-        cycleType: ShiftCycleType.rotating,
-        workingWeekdays: ShiftPatternSpec.weekdayMask([1, 2, 3, 4, 5, 6, 7]),
-        shifts: const [
-          ShiftWindow(
-            label: 'All day',
-            position: 0,
-            startMinute: 0,
-            endMinute: 24 * 60,
-            breakSeconds: 0,
-          ),
-        ],
-      );
-      final schedule = WorkcenterScheduleSpec([
-        WorkcenterSchedulePeriodSpec(
-          startDate: DateTime(2026, 1, 1),
-          endDate: DateTime(2026, 12, 31),
-          operatorsPerShift: const [1],
-          availability: 1,
-          rework: 0,
-        ),
-      ]);
-
-      final view = buildFlowView(
+    test('neither figure moves with the weekday the period opens on', () {
+      // The same flow read at the start of two different months. A generic
+      // figure cannot change because one month happens to open on a Saturday
+      // and the other on a Tuesday; an elapsed walk would.
+      FlowView at(DateTime asOf) => buildFlowView(
         study: study(),
-        nodes: [
-          step(0, workcenterId: 'WC'),
-          step(1, workcenterId: 'ALL'),
-        ],
-        contexts: {
-          'WC': context('WC'),
-          'ALL': WorkcenterContext(
-            workcenter: workcenter('ALL'),
-            calendar: WorkingCalendar.scheduled(
-              pattern: continuous,
-              staffing: schedule,
-            ),
-            schedule: schedule,
-          ),
-        },
+        nodes: [for (var i = 0; i < 3; i++) step(i, workcenterId: 'WC')],
+        contexts: {'WC': context('WC')},
         pools: const {},
         poolMembers: const {},
         taktSchedule: taktOf(1, TaktUnit.days),
-        asOf: DateTime(2026, 8),
+        asOf: asOf,
       );
 
-      expect(view.workingDays, view.runningDays);
+      final saturday = at(DateTime(2026, 8));
+      final tuesday = at(DateTime(2026, 9));
+
+      expect(DateTime(2026, 8).weekday, DateTime.saturday);
+      expect(DateTime(2026, 9).weekday, DateTime.tuesday);
+      expect(saturday.leadTime, tuesday.leadTime);
+      expect(saturday.leadTimeInRunningDays, tuesday.leadTimeInRunningDays);
     });
 
-    test('working days never exceed running days', () {
-      for (final count in [1, 3, 8, 15]) {
-        final view = withNodes([
-          for (var i = 0; i < count; i++) step(i, workcenterId: 'WC'),
-        ]);
-        expect(view.workingDays, lessThanOrEqualTo(view.runningDays!));
-        expect(view.workingDays, greaterThan(0));
-      }
-    });
-
-    test('a longer flow ends later', () {
-      final short = withNodes([step(0, workcenterId: 'WC')]);
-      final long = withNodes([
-        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
-      ]);
-      expect(long.endDate!.isAfter(short.endDate!), isTrue);
-      expect(long.runningDays!, greaterThan(short.runningDays!));
-    });
-
-    test('running days stay consistent with the end date', () {
-      final view = withNodes(
-        [step(0, workcenterId: 'WC'), step(1, workcenterId: 'WC')],
-        queues: [
-          queue('WC', mode: InventoryMode.duration, seconds: 24 * 3600),
-        ],
-      );
-      expect(
-        view.runningDays,
-        view.endDate!.difference(view.asOf).inDays + 1,
-      );
-    });
-
-    test('stock is spent on the wall clock, whichever way it was typed', () {
-      // **Both kinds, and that is what makes the map agree with a run.** §7.9's
-      // walk spends a queue's stock on the wall clock — a pile stands in front
-      // of the machine over the weekend too — so a map that spent a quantity in
-      // working hours would report a different span for the same flow.
-      final fixedWait = withNodes(
-        [for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC')],
-        queues: [
-          queue('WC', mode: InventoryMode.duration, seconds: 48 * 3600),
-        ],
-      );
-      final quantity = withNodes(
-        [for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC')],
-        // Two takt-days at a one-day takt: the same 48 h.
+    test('queue stock is in the lead time and not in the process time', () {
+      final bare = withNodes([step(0, workcenterId: 'WC')]);
+      final stocked = withNodes(
+        [step(0, workcenterId: 'WC')],
         queues: [queue('WC', quantity: 2)],
       );
 
-      expect(quantity.endDate, fixedWait.endDate);
-    });
-
-    test('the work still waits out the weekend', () {
-      // The other half of the same rule: a station's own time is spent in its
-      // open hours, so more work pushes the end date past a closed Saturday
-      // rather than through it.
-      final short = withNodes([step(0, workcenterId: 'WC')]);
-      final long = withNodes([
-        for (var i = 0; i < 6; i++) step(i, workcenterId: 'WC'),
-      ]);
-      expect(long.runningDays! - long.workingDays!, greaterThan(0));
-      expect(long.endDate!.isAfter(short.endDate!), isTrue);
-    });
-
-    test('an uncostable step yields a dash, not a guess', () {
-      final view = withNodes([step(0)]);
-      expect(view.endDate, isNull);
-      expect(view.runningDays, isNull);
-    });
-
-    test('a workcenter that never opens does not hang the walk', () {
-      final view = buildFlowView(
-        study: study(),
-        nodes: [step(0, workcenterId: 'WC')],
-        contexts: {'WC': context('WC', operators: const [0, 0, 0])},
-        pools: const {},
-        poolMembers: const {},
-        taktSchedule: taktOf(1, TaktUnit.days),
-        asOf: DateTime(2026, 8),
+      expect(stocked.processTime, bare.processTime);
+      expect(stocked.leadTime, greaterThan(bare.leadTime));
+      // And the running-days figure restates the lead time including it, so the
+      // ×1.4 relationship a reader checks on screen still holds.
+      expect(
+        stocked.leadTimeInRunningDays.inSeconds,
+        (stocked.leadTime.inSeconds * 1.4).round(),
       );
-      // The calendar can never supply the time, so the walk reports nothing
-      // rather than searching to its ten-year limit and throwing.
-      expect(view.endDate, isNull);
-      expect(view.runningDays, isNull);
     });
   });
 

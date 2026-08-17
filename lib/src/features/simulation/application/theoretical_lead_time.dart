@@ -169,10 +169,27 @@ DateTime? coldStartDate({
   List<TheoreticalLeadTimeProblem>? problems,
 }) {
   var cursor = needDate;
-  final counted = <String>{};
+
+  // **The steps the forward walk charges stock at**, worked out from the
+  // un-reversed list: the first step in flow order to reach each target.
+  //
+  // Going backwards, the first step to *meet* a target is the last one in flow
+  // order, so charging it where it is met puts the stock at the wrong end of
+  // the flow. That is not a rounding difference. Stock is spent on the wall
+  // clock and work on the calendar (§7.9), so moving a two-day jump from the
+  // front of a flow to the back changes which weekends the work after it
+  // crosses: for `A → B → A` with two days at A, the walks landed 5 Jun → 10
+  // Jun forwards and 10 Jun → 4 Jun backwards. The first order's start date and
+  // its stated lead time then do not add up to its need date.
+  final chargesStock = <int>{};
+  final seen = <String>{};
+  for (var i = 0; i < nodes.length; i++) {
+    if (seen.add(nodes[i].queue.targetId)) chargesStock.add(i);
+  }
 
   try {
-    for (final node in nodes.reversed) {
+    for (var i = nodes.length - 1; i >= 0; i--) {
+      final node = nodes[i];
       switch (node) {
         case SimStep():
           final workcenter = workcenters[node.candidates.firstOrNull];
@@ -206,9 +223,10 @@ DateTime? coldStartDate({
                 node.teardownAt(productiveDay, repeated: false),
           );
 
-          // And back through the queue it came out of, on the wall clock —
-          // once per target, exactly as the forward walk counts it.
-          if (counted.add(node.queue.targetId)) {
+          // And back through the queue it came out of, on the wall clock — at
+          // the step the forward walk charges it at, so the two walks invert
+          // each other exactly.
+          if (chargesStock.contains(i)) {
             cursor = cursor.subtract(node.queueStock);
           }
       }

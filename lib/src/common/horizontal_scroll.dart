@@ -16,7 +16,7 @@
 ///
 /// **The wheel is deliberately not touched.** Hijacking it would strand
 /// whatever vertical scroll the pane sits in: park the pointer on a
-/// thirteen-column production plan and the page below it could never be
+/// fourteen-column production plan and the page below it could never be
 /// reached.
 library;
 

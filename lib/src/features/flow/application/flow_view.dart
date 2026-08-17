@@ -9,7 +9,6 @@ library;
 
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
-import '../../calendar/application/shift_pattern_spec.dart' show dateOnly;
 import '../../calendar/application/working_calendar.dart';
 import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
@@ -536,32 +535,7 @@ class FlowView {
     required this.scheduleVariesInPeriod,
     this.selectedPartNumber,
     this.demandBatchSize = 1,
-    this.endDate,
-    this.runningDays,
-    this.workingDays,
   });
-
-  /// When one order that started on [asOf] would finish, walked through the
-  /// real calendars rather than converted.
-  ///
-  /// Null when the walk cannot be made — an unbound step, a workcenter with no
-  /// staffed shift. A dash is honest; a converted figure would not be.
-  final DateTime? endDate;
-
-  /// Calendar days that walk spans, weekends and shutdowns included.
-  final int? runningDays;
-
-  /// The subset of those on which at least one workcenter the flow uses was
-  /// open (§17.2).
-  ///
-  /// **Three figures answer "how long", and they are not interchangeable.**
-  /// [leadTime] is working *time*, summed in each station's own productive day,
-  /// and is what [processCycleEfficiency] divides. These two are counts of
-  /// calendar days. `running ÷ working` lands near 1.4 on a five-day week
-  /// because that is 7 ÷ 5, and the ratio is derived rather than imposed
-  /// precisely so it reads 1.0 on a seven-day plant and higher across a
-  /// shutdown.
-  final int? workingDays;
 
   final Study study;
 
@@ -650,24 +624,18 @@ class FlowView {
   /// A run walks each station's real calendar (§7.2), so it charges the
   /// weekends and shutdowns this plant actually has; the map states the
   /// convention. When they differ, the run is what happened.
+  ///
+  /// **The map is generic and the plan is specific** (§7.9). The calendar's only
+  /// job here is to say what a day is worth in this period
+  /// (`open hours × availability`), so [leadTime] is work content that does not
+  /// change with the weekday you happen to be looking at. The production plan's
+  /// `Theoretical LT` is an elapsed span for one order on real dates and
+  /// legitimately varies row to row. A calendar walk lived here briefly and put
+  /// an elapsed span under a label reading *working days*; §17.2 has the story.
   static const double runningDayFactor = 1.4;
 
   /// [leadTime] restated in running days (§17.2).
   Duration get leadTimeInRunningDays => leadTime * runningDayFactor;
-
-  /// **What the map reports as the lead time** — one order walked through the
-  /// real calendars from [asOf], weekends and shutdowns included (§7.9).
-  ///
-  /// The same walk the production plan's theoretical column is, and in the same
-  /// unit as the run's actual lead time, so the three finally sit on one axis:
-  /// plan minus map is the queueing, and nothing else.
-  ///
-  /// **It is not the sum of the ladder beneath it**, and that is not a defect.
-  /// [leadTime] is work content in each station's own productive day (§17.4) and
-  /// the rungs still add up to it; this is elapsed time, which depends on *when*
-  /// the order starts — the same work across a shutdown takes longer than it
-  /// does in June. Null when the walk cannot be made.
-  Duration? get elapsedLeadTime => endDate?.difference(asOf);
 
   /// Process ÷ lead time: the fraction of elapsed time that is value-adding.
   double get processCycleEfficiency {
@@ -801,21 +769,11 @@ FlowView buildFlowView({
         ),
   ];
 
-  final walk = _walkCalendar(
-    views: views,
-    contexts: contexts,
-    poolMembers: poolMembers,
-    from: start,
-  );
-
   return FlowView(
     study: study,
     nodes: views,
     asOf: start,
     periodEnd: end,
-    endDate: walk?.end,
-    runningDays: walk?.runningDays,
-    workingDays: walk?.workingDays,
     granularity: granularity,
     dataSource: dataSource,
     takt: takt,
@@ -1176,106 +1134,4 @@ Duration? _demandProcessTime({
       if (pieces == 0) return null;
       return cost(Duration(seconds: (work / pieces).round()));
   }
-}
-
-/// Walks one order through the flow from [from], returning when it finishes.
-///
-/// A **walk, not a conversion**: process time is spent in its own station's
-/// open hours, and the stock standing in the queue in front of a step is spent
-/// in that same station's hours — or on the wall clock where it is a fixed
-/// wait. That is the whole point — the gap between this and the working-time
-/// lead time is the closed time, and no ratio can produce it.
-///
-/// Returns null rather than throwing if any step cannot be costed or its
-/// calendar can never open: the map still draws, and the footer shows a dash.
-/// Walks the flow on the calendar, and reports both ways of counting the span.
-///
-/// **Running days is every day it touches; working days is only the days the
-/// plant was open**, and the two come out of the same walk on purpose. The gap
-/// between them is the closed time, which is what §17.2 already said no ratio
-/// could produce — a five-day week gives about 1.4, a seven-day plant gives 1.0,
-/// and a shutdown widens it, all of which a fixed factor gets wrong.
-///
-/// **A day is a working day when at least one workcenter the flow uses is open
-/// on it.** The union rather than a nominated station: it reads as *a day the
-/// line could make progress*, it needs no representative to be chosen, and it is
-/// stable when a step is re-bound. A Saturday one station works counts; a Sunday
-/// nobody works does not.
-///
-/// A flow containing one round-the-clock station therefore reports running and
-/// working as the same number. That is true, and it is the first thing that will
-/// look like a defect.
-({DateTime end, int runningDays, int workingDays})? _walkCalendar({
-  required List<FlowStepView> views,
-  required Map<String, WorkcenterContext> contexts,
-  required Map<String, List<String>> poolMembers,
-  required DateTime from,
-}) {
-  var cursor = from;
-  // A target already walked through, so a station two steps of one flow both
-  // visit does not charge its queue twice (§7.3): the plant has one floor space
-  // there, and an order passes through it once per visit but the *stock* stands
-  // there once.
-  final counted = <String>{};
-  try {
-    for (final view in views) {
-      final calendar = contexts[_targetOf(view.node, poolMembers)]?.calendar;
-
-      // The queue comes first: an order joins the line in front of the station
-      // before the station touches it. **On the wall clock** — stock stands
-      // there over the weekend too, and §7.9's walk spends it the same way, so
-      // the map and the run cannot report different spans for one flow.
-      if (view.queue case final queue? when counted.add(queue.targetId)) {
-        cursor = cursor.add(queue.wait);
-      }
-
-      if (view.processTime == null) return null;
-      if (calendar == null) return null;
-      // `ladderTime`, not the work alone: a changeover is time the order spends
-      // at the station (§7.6), and leaving it out of the walk while counting it
-      // in the rung would make the footer disagree with its own ladder.
-      cursor = calendar.advance(cursor, view.ladderTime);
-    }
-  } on StateError {
-    // A calendar that can never supply the time — every shift unstaffed.
-    return null;
-  }
-
-  // The calendars this flow actually uses, deduplicated by target so a station
-  // visited twice is asked once.
-  final calendars = <String, WorkingCalendar>{};
-  for (final view in views) {
-    final target = _targetOf(view.node, poolMembers);
-    final calendar = contexts[target]?.calendar;
-    if (target != null && calendar != null) calendars[target] = calendar;
-  }
-
-  // Both counts are inclusive of both ends: a flow that starts and finishes on
-  // one day spans one running day, not zero. The start day may itself be closed,
-  // in which case it is a running day and not a working one.
-  final last = dateOnly(cursor);
-  var running = 0;
-  var working = 0;
-  for (
-    var day = dateOnly(from);
-    !day.isAfter(last);
-    day = DateTime(day.year, day.month, day.day + 1)
-  ) {
-    running++;
-    // Short-circuits on the first open station, which on an ordinary weekday is
-    // the first one asked. Built by day rather than by asking each calendar for
-    // its whole span, because §16.9 makes local `DateTime` arithmetic the
-    // expensive thing here and this way each day costs one construction.
-    if (calendars.values.any((c) => c.openTimeOnDate(day) > Duration.zero)) {
-      working++;
-    }
-  }
-
-  return (end: cursor, runningDays: running, workingDays: working);
-}
-
-String? _targetOf(FlowNode step, Map<String, List<String>> poolMembers) {
-  if (step.workcenterId != null) return step.workcenterId;
-  final members = poolMembers[step.poolId] ?? const <String>[];
-  return members.isEmpty ? null : members.first;
 }

@@ -480,9 +480,7 @@ pw.Widget _footer(
     ),
     _metric(
       strings.leadTime,
-      view.elapsedLeadTime == null
-          ? '—'
-          : formatDuration(view.elapsedLeadTime!),
+      formatDuration(view.leadTime, workingDay: view.leadTimeWorkingDay),
     ),
     _metric(
       strings.pce,

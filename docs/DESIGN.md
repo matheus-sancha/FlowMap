@@ -389,10 +389,13 @@ The figure keeps its two real jobs, neither of which is the engine's: the **lead
 map**, which is read off the flow rather than off a run, and the **days-of-stock** a current-state
 VSM exists to state. Both are unchanged.
 
-§7.9's theoretical lead time excludes it for the same reason, and that half is not optional: that
-figure is only meaningful as a floor under what a run observes, so it can count only what the engine
-can also charge. Counted in one and not the other, célula 11B reported 35.1 theoretical days against
-25.8 actual ones — a lead-time efficiency below 1.0, which §8 says cannot happen.
+**§7.9's theoretical lead time counts it, and the engine's not counting it is the point of the
+pair.** This paragraph once said the opposite — that theoretical had to exclude stock so it could
+stay a floor under a run, citing célula 11B's 35.1 theoretical days against 25.8 actual as proof of
+a defect. §7.9 overturns that: theoretical is a **standard** describing the plant as it stands,
+including the pile in front of the machine, and a run beating it is a finding rather than an error.
+What the engine must not do is *delay* an order for that stock, which is what this section is about
+and is unchanged.
 
 _This replaced "an order simply waits that long between steps."_ It survived until the model was
 driven against a real plant, where six buffers named `FIFO CLAD09`, `FIFO TTAT`, `FIFO CEU27` and so
@@ -867,12 +870,28 @@ The buffer is a deliberate margin on top of the derivation, in **calendar days**
 Slippage accrues on a wall calendar — a week late is a week late whether or not the plant was open —
 and the theoretical walk already returns a wall-clock instant, so the cold start stays one
 subtraction on one clock (§17.4). It is subtracted outside the walk rather than inside it, because
-the walk is the queue-free minimum and has to stay comparable with what the run observes (§7.9).
+the walk is the standard the plan reports and has to stay comparable with what the run observes
+(§7.9); a margin someone chose is not part of what the flow costs.
 
 **It is one lever, not one per order.** The cold start is derived from the *first* order and every
 later one releases on a takt slot from there, so a 10-day buffer moves every release 10 days earlier
 and gives the whole sequence the same margin. Worth saying because the formula reads as if it were
-per order. The run ends when every order in every selected study is delivered,
+per order.
+
+**One cold start per study, not one per run.** A run may carry several studies and each is a line
+with its own flow, its own first order and its own need date, so each is walked back to its own
+start. The run's clock begins at the earliest of them, because it has to begin somewhere, but a
+study whose own cold start is three months later **does not release until then**.
+
+This was `min()` across the studies, with every study's first slot scheduled at that one instant —
+the per-study figure was computed correctly and discarded a line later. The damage was not only
+cosmetic. A study released three months early delivers three months early, so its float reads as
+slack that does not exist and OTD is flattered; worse, its orders occupy **shared stations** for
+three months of simulated time they would never have been there, competing for capacity with the
+study that legitimately started. Measuring real contention is the whole purpose of a run (§7.7), so
+a multi-study run was reporting queueing that could not happen.
+
+The run ends when every order in every selected study is delivered,
 with a hard guard (≈5× the horizon implied by demand) that aborts and reports "demand exceeds
 capacity — N orders never completed" rather than looping forever.
 
@@ -882,29 +901,60 @@ capacity — N orders never completed" rather than looping forever.
 accumulates two figures in one traversal:
 
 - **`elapsed` — when an order has to start.** Counts the step work, the changeover each step
-  charges, and the stock already standing in each queue, walked on the real calendars. This is what
-  the map's headline lead time and the production plan's column both report, and what the cold start
-  is walked backwards from. Stock is spent on the **wall clock**: a pile stands in front of the
-  machine over the weekend too.
-- **`workingTime` — the floor.** Step work only. It is the denominator of Lead Time Efficiency, and
-  the gap between it and what a run observes *is* the queueing. It is computed and never shown as a
-  column, which is the one figure on the metrics card without one.
+  charges, and the stock already standing in each queue, walked on the real calendars. This is the
+  production plan's `Theoretical LT` column and what the cold start is walked backwards from —
+  **not** the map's footer, which is a different measure (see below). Stock is spent on the **wall
+  clock**: a pile stands in front of the machine over the weekend too.
+- **`workingTime` — work content.** Step work only, no changeover and no stock. It is computed and
+  reported nowhere; see the warning below before giving it a consumer.
 
-**Why they cannot be the same number.** A run charges nothing for stock (§5.5), so a span that
-counts it is not a floor under that run — counting it in the floor once gave célula 11B 35.1
-theoretical days against 25.8 actual, an efficiency above 1.0 that §8 says cannot happen. One
-traversal is what stops the two drifting while keeping each honest about its own question.
+**Theoretical LT is a standard, not a floor.** It is what an order takes if it flows through the
+plant as the plant stands today — waiting behind the stock that is really in front of each machine,
+and paying a full cold changeover at every step. A run charges **neither** (§5.5 for stock, §7.6's
+repeat discount for changeover), so **an actual lead time shorter than the theoretical one is a
+normal result**, not a defect: the flow beat the standard because the standard assumed a queue the
+run did not have.
 
-**Stock is counted once per target.** Two steps of one flow on one station share a floor space, and
-the map dedupes it the same way — charging it twice is the doubling §7.3 exists to undo.
+This overturns what §7.9.1, §8 and §8.5 each used to assert — *"1.0 is the queue-free minimum"*,
+*"theoretical can never exceed actual"*. That claim was false in both directions and it was written
+down in three places, all agreeing with each other and none agreeing with the code, which is why an
+inverted efficiency formula survived in the app for as long as it did. **Where a floor is wanted,
+`workingTime` is the figure that can bear the weight** — it excludes stock, but it also excludes
+changeover, which a run *does* spend, so it is not a floor either without adding the changeover
+back. Nothing needs one today. Do not reintroduce the claim without deciding which of the three
+spans it is about.
 
-**The map and the plan now report the same walk.** `Flow Lead Time` was work content in productive
-days while `Theoretical LT` was an elapsed span in 24-hour days, excluding stock and changeover and
-using a different batch — five differences, both printed as `d`, and the field reported them as 48.8
-against 23.3 for one part. The map's headline is the walk now; its ladder and `Process time` stay in
-productive days, so **the headline is no longer the sum of the rungs beneath it** (§17.4). That is
-not a defect: elapsed time depends on *when* an order starts, and the same work across a shutdown
-takes longer than it does in June.
+**Stock is counted once per target, at the same step in both directions.** Two steps of one flow on
+one station share a floor space, and the map dedupes it the same way — charging it twice is the
+doubling §7.3 exists to undo. The step it is charged at is the **first** in flow order to reach that
+target, and `coldStartDate` walking backwards must use that same step rather than the first one it
+happens to meet, which is the last in flow order.
+
+That is not pedantry. Stock is spent on the **wall clock** and work on the **calendar**, so moving
+a two-day jump from the front of a flow to the back changes which weekends the following work
+crosses. Charged at opposite ends, the two walks disagreed: for a flow `A → B → A` with two days of
+stock at A, the forward walk made 5 Jun → 10 Jun while the backward walk made 10 Jun → 4 Jun. The
+first order's start date and its stated lead time then do not add up to its need date — visible on
+row 1 of the production plan, and it shifts the release of every order in the study behind it
+(§7.8). **The invariant, and it is worth a test:** walking forward from `coldStartDate(need)` lands
+exactly on `need`. It holds for any flow, and it is the only thing that would have caught this.
+
+**The map and the plan deliberately answer different questions**, and §17.2 already said so before
+this section briefly claimed otherwise. The map is a **generic** view of a flow: the calendar's only
+job there is to say what a day is worth in this period (`open hours × availability`), so the map's
+lead time is work content in **working days** and does not depend on which weekday you happen to be
+looking at. The plan is a **specific order on specific dates**: its Theoretical LT is an elapsed
+span in **running days**, so it legitimately varies row to row — five working days released on a
+Monday span 4.7 days and the same five released on a Thursday span 6.7, because one crossed a
+weekend. Both are correct; they are different measures and are labelled as such.
+
+What must **not** return is the state that produced the field's 48.8-against-23.3 complaint, which
+was five differences at once under two labels both printed as `d`. Four of them stay closed: map and
+plan both include queue stock, both include the full changeover, both apply rework, and both land on
+the same day count despite the map working in productive hours and the engine in open ones (§17.3).
+The fifth — the map shows the toolbar's batch, the plan each order's own — is accepted and known.
+Converted to the same unit the two should agree to within the calendar's weekends, which is a
+cross-check worth a test so they cannot silently drift again.
 
 ### 7.9.1 The original statement
 
@@ -916,12 +966,27 @@ walked through the working calendar so it lands on real dates. **Excludes queuei
 the measure) and **excludes changeover** (it depends on what ran before, so it is not a property of
 the part). Used for both the study start offset and the Lead Time Efficiency denominator.
 
-**Excludes inventory**, which it counted until §5.5's buffers stopped delaying a run. This figure is
-only meaningful as a **floor** under what a run observes — the gap between the two *is* the queueing
-— so it can count only what the engine can also charge. Counted here and not there, célula 11B
-reported 35.1 theoretical days against 25.8 actual ones, an efficiency of 0.73× where §8 says 1.0 is
-the queue-free minimum. `coldStartDate` walks the same nodes backwards and skips them for the same
-reason: a run that will not spend the time must not have it reserved.
+**Everything from here down is history, and §7.9 supersedes it.** It is kept because the reasoning
+was sound against the question being asked at the time, and because knowing an argument was made
+and then overturned is worth more than a clean page. What it says that is **no longer true**:
+
+- The measure **includes** inventory and **includes** changeover today. It is a standard describing
+  the plant as it stands, not a bound on a run (§7.9).
+- `coldStartDate` **does** count the stock, and must, or the start date it produces will not
+  reconcile with the lead time the plan reports for the same order.
+- Lead Time Efficiency is **`theoretical ÷ actual`** and its denominator is the actual lead time,
+  not this walk (§8.7). This paragraph naming this walk "the denominator" is the origin of the
+  inversion that shipped.
+
+The original argument, unedited: *"**Excludes inventory**, which it counted until §5.5's buffers
+stopped delaying a run. This figure is only meaningful as a **floor** under what a run observes — the
+gap between the two* is *the queueing — so it can count only what the engine can also charge.
+Counted here and not there, célula 11B reported 35.1 theoretical days against 25.8 actual ones, an
+efficiency of 0.73× where §8 says 1.0 is the queue-free minimum."*
+
+The 11B numbers are real and the arithmetic is right; what was wrong was calling 0.73 a defect. Read
+the current way round it is **137 %** — that cell ran better than a standard which charged it for a
+queue it did not have to stand in. That is a finding, not a bug.
 
 Flow-equivalent lead time (`takt × steps + inventory`) is kept as a separate footer reference — the
 mockup shows both (6.0 vs 9.0 working days). **That one keeps its inventory**, because it is a
@@ -980,8 +1045,8 @@ record that", which is true.
 ## 8. Metrics
 
 Per the spec: delivery float (need date − actual), average float per order, OTD (on-time ÷ total),
-average lead time per part number, lead-time efficiency (actual ÷ theoretical, §7.9), sequence
-evaluation (§6.3), operators allocated vs needed (§7.5), empty-slot count (§7.2).
+average lead time per part number, lead-time efficiency (**theoretical ÷ actual**, §7.9, §8.7),
+sequence evaluation (§6.3), operators allocated vs needed (§7.5), empty-slot count (§7.2).
 
 ### 8.1 Bottleneck
 
@@ -1014,10 +1079,12 @@ machines together and it has no ranking to lose (§8.6).
   on `SimOrderOutcome.float`, which every other figure sums, so the plan's column and the
   Simulation tab's headline cannot point opposite ways. `isOnTime` is unaffected — it compares two
   instants and never had a sign.
-- **Lead-time efficiency is `actual ÷ theoretical`**, the direction §8 states — so 1.0 is queue-free
-  and higher is worse. The excess over 1.0 is exactly what §7.9 leaves out: waiting. Each order's
-  theoretical figure is walked from **its own release instant**, so the comparison is the same
-  order in the same plant minus the queueing, not an average against a fixture.
+- **Lead-time efficiency is `theoretical ÷ actual`, shown as a percentage** — above 100 % means the
+  flow beat the standard, below means it queued more than the standard allows (§8.7). This bullet
+  said `actual ÷ theoretical` and the code matched it, which is how a metric shipped reading upside
+  down. Each order's theoretical figure is walked from **its own release instant**, so the
+  comparison is the same order in the same plant, not an average against a fixture — and both sides
+  of the ratio are averaged over the **same** orders, which they were not (§8.7).
 
 ### 8.1.2 The per-part table, as built
 
@@ -1142,8 +1209,8 @@ which gate is.
 ### 8.5.1 The columns
 
 `Order | Part Number | Description | Project | Batch Number | Batch Size | Need Date | Material
-Date | Order Start | Order End | Theoretical LT | Actual LT | Float`, a section of the Simulation
-tab's results.
+Date | Order Start | Order End | Theoretical LT | Actual LT | Efficiency | Float`, a section of the
+Simulation tab's results.
 
 - **A reading of a stored run, not of the demand.** It reads `simulation_run_orders`, so its dates
   cannot disagree with the run that produced them and opening an earlier run from the history menu
@@ -1154,17 +1221,36 @@ tab's results.
   widens that column for every row and pushes Float off the right edge. The same answer §5.4 gave a
   node's notes, so the app has one way of putting long free text in a narrow place. It identifies
   nothing — two parts may share one (§16.14) — so nothing is lost by not reading it in full.
-- **Both lead times, theoretical first.** Theoretical is the stored §7.9 walk, queue-free and
-  changeover-free, from this order's own release. Actual is Order End minus Order Start, read off
-  the outcome rather than stored, so it cannot come from a different subtraction than the tab's
-  average lead time. Both are wall-clock from the same instant, so they are directly comparable, and
-  **theoretical can never exceed actual** — the excess is exactly the queueing, which is why the two
-  sit side by side. Both render through the same formatter the metrics card uses for the same two
-  figures, so §17.4's one-kind-of-day rule holds by construction rather than by care.
+- **Both lead times, theoretical first.** Theoretical is the stored §7.9 walk from this order's own
+  release — **including the queue stock and a full changeover at every step**, which is what makes
+  it a statement about the plant as it stands. Actual is Order End minus Order Start, read off the
+  outcome rather than stored, so it cannot come from a different subtraction than the tab's average
+  lead time. Both are wall-clock from the same instant and in **running days**, so they are directly
+  comparable. Both render through the same formatter the metrics card uses for the same two figures,
+  so §17.4's one-kind-of-day rule holds by construction rather than by care.
 
-_Rejected: a third column for actual ÷ theoretical, or for actual − theoretical._ Either only
-restates the pair, on a table already scrolling horizontally at thirteen columns. The ratio is
-already reported for the run as a whole on the metrics card.
+  **Theoretical may exceed actual or fall short of it**, and either way round is a real reading —
+  see §7.9. This bullet asserted the opposite (*"theoretical can never exceed actual"*) and was one
+  of the three places the floor claim was written down.
+
+- **Theoretical LT varies row to row, and that is the measure working.** It is an elapsed span, so
+  it depends on which weekday the order released: five working days of content span 4.7 days from a
+  Monday and 6.7 from a Thursday, and a shutdown moves one row by a fortnight. Since releases come
+  one takt apart they drift through the week, so the column oscillates even with the capacity
+  untouched. The alternative — a fixed standard per part, in working days, identical on every row —
+  was considered and **rejected for this table**: a planner reading a plan wants to know when *this*
+  order will be done, and that includes the weekend it is about to cross. The fixed-standard reading
+  is what the **map** gives (§7.9), which is why both exist.
+
+- **Lead Time Efficiency per order** sits beside the pair: `theoretical ÷ actual` for that row, as a
+  percentage. This is §8.7's warm-up made visible — the headline figure on the metrics card excludes
+  the warm-up orders, and this column is where a reader sees the ramp those orders form rather than
+  having it silently averaged away.
+
+_Rejected: a column for actual − theoretical._ It only restates the pair, on a table already
+scrolling horizontally. _Superseded: the same rejection once covered the ratio._ It was reinstated
+per order when §8.7 established that a single run-level ratio hides a warm-up ramp that changes
+meaning with the length of the run.
 - **Order is the sequence position, 1-based** — the number the demand grid's row header shows, and
   not a works order number. §9.1's decision that FlowMap carries none of those still holds; Batch
   Number is what a planner matches against their own paperwork.
@@ -1531,6 +1617,82 @@ Within one study — the common case — every bar is the same colour.
 _Rejected: colour by part number rather than by part._ `DemandParts` is unique on
 `{studyId, partNumber}` (§16.15), so two lines' `PN2` are two parts; merging them would give one
 colour to two routings. §8.1.2 is the other half of this decision.
+
+### 8.7 Lead Time Efficiency, and the warm-up it has to survive
+
+```
+LTE = theoretical ÷ actual,  as a percentage
+```
+
+**Above 100 % is good.** The order crossed the flow faster than the standard, because it queued less
+than the flow expects. Below 100 % is worse: more queueing than the standard allows for. That
+direction is the whole reason a planner reads it, and it is the direction the field states it in.
+
+**It shipped inverted.** The code computed `actual ÷ theoretical` and rendered it as `0.73×`, so a
+flow running *well* displayed a *low* number and there was no unit on screen to give the reading
+away. It survived because §7.9.1, §8 and §8.5 all described the reciprocal and all agreed with each
+other (§7.9). Displayed as a percentage now, so the direction is legible without a tooltip.
+
+**Both figures must come from the same orders.** Actual was averaged over the delivered orders and
+theoretical over the ones that could be walked, and an order that delivered but could not be walked
+— a step bound to a workcenter since removed from the model — landed in one average and not the
+other. A ratio of two means over two different populations is not a ratio of anything. Only orders
+carrying both figures count toward either.
+
+#### The warm-up
+
+**The plant starts empty, so the first orders cannot be compared with the later ones.** Theoretical
+charges every order for standing behind the stock that is on the floor today; the run starts with
+empty queues and never charges that stock at all (§5.5). The head of the sequence therefore meets a
+plant nothing has queued in yet and scores far above 100 %, and the queues only build up as the run
+fills.
+
+The damage is not that early orders score well — they genuinely ran fast. It is that **the headline
+average then depends on how many orders are in the run**: a ten-order run is mostly warm-up, a
+five-hundred-order one barely notices it, and the same plant scores differently in each. A figure
+that moves with the length of the run cannot be compared between runs, which is what a headline
+metric is for.
+
+**So the headline excludes the warm-up, and the plan shows every order.**
+
+- **Warm-up is every order released before its own study's first delivery.** Until one order has
+  crossed the whole flow, no downstream station has seen contention at all, so those orders are not
+  measuring the same plant the rest are. Defined off the run's own numbers rather than as a fixed
+  count, so it scales with the flow instead of needing a tuning knob.
+
+  **Per study, not per run**, for the same reason §7.8 gives each study its own cold start: a study
+  is a line with its own flow, and a line that begins three months later fills its own pipeline
+  then, not when the earliest line filled its.
+
+- **A run that never fills its pipeline reports no efficiency at all.** If every order released
+  before the first delivery — a handful of orders, or a sequence released faster than the flow can
+  clear — nothing settled and the figure is a dash. That is the rule working rather than a gap: a
+  number computed over warm-up orders and labelled the same as one computed over settled ones is
+  exactly the incomparability this exists to remove. Real runs fill within the first lead time and
+  are unaffected; the per-order column carries every row either way.
+- **It is a heuristic and it under-corrects**, which is worth stating plainly: queues keep growing
+  after the pipeline fills, so the orders just past the cut still score a little high. It is the
+  cheapest rule that removes the run-length dependence, and the per-order column is what makes the
+  residual visible instead of hidden.
+- **Only LTE excludes them.** Average lead time, float and OTD count every order, warm-up included.
+  Those are facts about orders a planner promised to someone; LTE is a ratio against a standard, and
+  only the ratio is distorted by comparing against a standard the early orders were never measured
+  against.
+- **The per-order column carries no exclusion** (§8.5.1). A planner should be able to see the ramp
+  and judge it, and a column that silently blanked its first rows would be the same hiding in a
+  different place.
+
+_Rejected: seeding the queues with their stock at run start._ The faithful answer — the stock really
+is on the floor on day one, and a run that modelled it would need no warm-up rule because it would
+charge what the standard charges. It is a different simulation, not a correction to this one: it
+reverses §5.5, and it needs answers this model does not have (is that stock processed, does it
+consume capacity, whose orders are they, what is their sequence). Worth doing on its own terms one
+day; not worth folding into a calculation fix.
+
+_Rejected: comparing actual against a stock-free theoretical instead._ It removes the warm-up
+distortion completely, because an empty plant *is* the queue-free case, and it costs the meaning the
+field asked for: above 100 % would no longer read as "less queue than the flow expects" — there
+would be no expectation to beat.
 
 ---
 
@@ -2091,7 +2253,7 @@ vertical job everywhere (rows in the grid, the page on the Simulation tab), Flut
 axis only while Shift is held, mouse drag-to-scroll is off by default on desktop, and the one
 `Scrollbar` in the tree was given no controller, so it held no position to drag and faded in only
 *while* scrolling — which is the thing that could not be started. With fifteen workcenters on the
-parts grid, or thirteen columns on the production plan, the table simply read as cut off.
+parts grid, or fourteen columns on the production plan, the table simply read as cut off.
 
 - **The bar is always visible while there is something to reach, and it is draggable.** Both are
   stated rather than inherited: `thumbVisibility` needs a controller of its own, and Material makes a
@@ -2125,7 +2287,7 @@ parts grid, or thirteen columns on the production plan, the table simply read as
   helper. The plan has four adjacent date columns; a label over the wrong column is a misread, which
   is worse than a heading that scrolls away. The gutters are set to nothing so that
   `ResultColumn.width` describes the column it names — `DataTable`'s defaults would put 672 px of air
-  into a thirteen-column plan.
+  into a fourteen-column plan.
 - **The vertical bar sits outside the horizontal scroll view**, holding the inner controller. Nesting
   alone cannot pin both bars: inside, the vertical bar lands on the *table's* right edge, which on a
   wide table is off screen. The cost is that its track then spans the heading too, and Material's
@@ -2214,7 +2376,7 @@ All exports stamped with app version, project/study name and run timestamp.
 
 ### 13.1 The production plan, in Excel — as built
 
-`.xlsx`, one sheet per study, a header row, §8.5's thirteen columns, built from the same `StoredRun`
+`.xlsx`, one sheet per study, a header row, §8.5's fourteen columns, built from the same `StoredRun`
 the table renders — so the file and the screen cannot disagree about what the run did (§7.10). A
 planner merges it into their own system, which no PDF allows.
 
@@ -2222,7 +2384,7 @@ planner merges it into their own system, which no PDF allows.
   `9.1 d` sorts `1.2 d` after `10.4 d` and pivots into nothing, and being able to do arithmetic on
   the other side is the whole reason this is a spreadsheet rather than a printout. Need date and
   material date are dates with no time of day, because none was ever entered for them; Order Start
-  and Order End carry the instant, which is *more* than the table shows — thirteen columns leave no
+  and Order End carry the instant, which is *more* than the table shows — fourteen columns leave no
   room for a clock and a file has no such constraint, so the two agree about the moment and the file
   says more of it.
 - **And each of them carries a number format**, taken from §12.4's `DateStyle`. A typed cell with no
@@ -2895,6 +3057,79 @@ to be. The v16 → v17 test's version assertion now reads `db.schemaVersion` rat
 what it was ever asserting is that the upgrade ran to completion, and pinning the number made the
 arrival of a later version read as that step failing.
 
+### 16.20 Schema v19, a queue belongs to a station
+
+**The first migration in this repo that moves data between concepts**, and after four consecutive
+migrations that only added nullable columns it is worth saying which parts of §16.11's rule still
+apply and which do not.
+
+| Table | What | For |
+|---|---|---|
+| `project_queues` | new, keyed `{project_id, target_id}` — name, rule, capacity, and the stock standing there as mode + quantity/seconds + unit | §7.3's queue, one per thing a step targets |
+| `studies` | `inbound_stock`, `outbound_stock` | the flow's two ends (§7.3) — **added ahead of their surface; nothing reads or writes them yet** |
+| `simulation_run_workcenters` | `queue_type`, `queue_capacity` | what each station of a run dispatched by, copied in per §7.10 |
+
+**The key is `{project, target}`, which is the seam the workcenter schedule already uses.** A target
+is a workcenter or a pool as a whole, so `CAL Pool` has one queue and its three machines pull from
+it. Project-scoped rather than study-scoped, so capping a lane stays the per-project experiment §0
+actually ran on `FIFO CEU27`.
+
+**The two `studies` columns are the honest exception on this table.** They landed with the migration
+because a schema step is cheaper taken once, and the surface that fills them was not built. A reader
+finding them populated by nothing is reading the truth, not a bug.
+
+#### The fold
+
+Each `inventory` node becomes part of the queue in front of the step **after** it on its own spine —
+that step's target is what the node was really describing. Several nodes therefore land on one row:
+on the database this was written against, **15 nodes fold onto 10 targets**, because the two studies
+share five stations and disagree about two of the names. That count *is* the field's complaint seen
+as data — there is one floor space in front of BAN11 and the map was carrying `FIFO BAN` and
+`FIFO BAN11` for it.
+
+**First study wins, by study then position.** The first node to reach a target sets the name; a later
+node's non-null rule, capacity or stock fills a **blank** rather than being lost, so nothing that was
+actually configured is dropped in favour of something unset. `study_id` is a uuid, so the order is
+arbitrary — but it is stable, which is all determinism needs.
+
+**Every value not taken is named in the diagnostics log**, as `v19.discarded` against its target, and
+`v19.fold` states the two counts. So `FIFO BAN11` is recoverable by reading the log — and, better, by
+reading the row it came from.
+
+**An inventory node with no step after it is dropped and said out loud** (`v19.orphan`). It describes
+a queue in front of nothing, and a queue belongs to a target. Guessing one is the rule §8.6 already
+refuses for a lane no step ever named. This is the case to know about when a v19 database disagrees
+with a v18 backup: a trailing buffer, or two buffers in a row, has silently lost its figure.
+
+**The fold is guarded on `project_queues` being empty, not on `from`.** An upgrade interrupted after
+the insert would otherwise fold a second time and overwrite a queue the user has since edited —
+§16.11's half-upgraded database arriving where a data move, rather than a table rebuild, is what it
+would corrupt.
+
+#### What is kept rather than cleaned up
+
+- **The `inventory` rows stay, and stop being read.** The same call §16.18 made for
+  `changeover_seconds`, and stronger here: the row is a better recovery path for a discarded name
+  than a log line is, and deleting it would make the upgrade irreversible against a v18 backup for no
+  gain but tidiness. `FlowNodeKind.inventory` therefore stays in the enum so a stored value remains
+  parseable; nothing constructs one.
+- **`simulation_runs.dispatch` is written empty rather than made nullable.** The column is `NOT NULL`
+  and widening it means a `TableMigration` rebuilding the largest header table in the app — the trap
+  §16.11, §16.13, §16.15 and §16.16 are each a record of. Empty parses to no rule, so it contributes
+  nothing and every station of a v19 run speaks for itself; the 35 runs made before v19 keep the
+  single rule they really were made with, and it fills in for them per station.
+- **`SimLane.study_id` and `SimLane.position` are kept and no longer read.** v19 made a queue belong
+  to a target, so a lane's study is whichever one was written last — on the newest stored run, eight
+  of ten lanes carry one study's id and two carry the other's. Two surfaces went on asking it and
+  both were wrong (§7.5). They are **recovery-only**: they say which node a lane was and where it sat
+  on that study's spine at the time, which is the only way back to a pre-v19 run's shape. Nothing may
+  read either for behaviour.
+
+**Stored runs are invalidated where two studies shared a target, or a lane carried a capacity.** Two
+floor spaces became one, so contention that the engine used to split is now shared — the fifth time
+after §5.5's buffers, §7.4's lanes, v15 and v17. A run against a single-study flow with uncapped
+queues is unaffected.
+
 ## 17. Done between M2 and M3
 
 ### 17.1 A buffer's time now agrees with itself
@@ -2947,19 +3182,39 @@ split is cleaner than the compromise was:
   and charges the weekends and shutdowns this plant actually has. When the two
   differ, the run is what happened.
 
-`_walkCalendar` is still in the tree and is no longer reached from the UI. It
-returns the end date, the true running-day count and the true count of days any
-station was open, all from one walk; it is fully tested. Kept rather than deleted
-because §13's simulation *report* wants a calendar-true span and because the
-argument above may be wanted again — but it is listed in §17.5 as
-built-but-unreachable, which is the honest place for it rather than pretending it
-is load-bearing.
+**`_walkCalendar` is deleted, and the second time it took the footer is why.**
+Kept-but-unreachable did not hold. §7.9 later ruled that the map and the plan
+should report one walk, and the walk's end date was wired into the footer's
+`Lead time (working days)` slot — where it stayed, mislabelled, because the label
+was written for this section's figure and never revisited. What was on screen was
+an **elapsed calendar span, weekends included, under a label reading "working
+days"**, sitting next to `running days` holding `working × 1.4` — the two the
+wrong way round, and near enough in value to be hard to catch.
+
+Two further casualties of that arrangement, both of which had a comment in the
+tree claiming otherwise: the ×1.4 stopped being checkable on screen, because the
+figure it is 1.4 of was no longer displayed; and PCE's denominator left the footer
+while PCE stayed on it.
+
+So the split this section describes is restored and the walk goes with it,
+`endDate`, `runningDays` and `workingDays` included — the last two computed on
+every rebuild and displayed nowhere from the day they were written. §13's report
+can walk the calendar itself if it ever wants a calendar-true span; keeping a
+tested, unreachable function against that day is what put it back on screen in
+the wrong slot.
 
 _The lesson, and it is not about calendars:_ an interview can settle what a
 figure *should* mean and still be answering a question the field was not asking.
 Both figures were correct; neither was wanted. The cost of finding out was one
 round trip to a running build, which is exactly what §2.0's rule buys and the
 reason it is worth its context switches.
+
+_The second lesson, and it cost more than the first:_ a decision recorded in one
+section can be overturned by another that never names it. §7.9 did not argue
+against this section — it did not know it was there. **A figure's label and its
+contents were owned by two sections that never referenced each other**, which is
+how a map ended up counting weekends under a heading that says working days. The
+cross-references in both directions are the fix, and they are load-bearing.
 
 ### 17.3 A day is worth a day
 
@@ -3054,7 +3309,7 @@ next milestone plans them rather than rediscovering them:
 | ~~`flow_nodes.notes`~~ | **reached 2026-08-05** — a field in both node editors, a marker on the box, the words in the tooltip and a findings list on the PDF (§5.4) | — |
 | The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty. §5.4's node notes deliberately do **not** use it |
 | `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
-| `_walkCalendar` and `FlowView.endDate` / `runningDays` / `workingDays` | complete and fully tested; nothing on screen reads them | §13's simulation report, which wants a calendar-true span. **Unreached by decision rather than omission** (§17.2): it was built, driven and rejected in favour of the 1.4 convention. Kept because the walk is the only thing in the app that can state a real end date for a flow, and because deleting a tested answer to a question that will be asked again is the expensive kind of tidiness |
+| ~~`_walkCalendar` and `FlowView.endDate` / `runningDays` / `workingDays`~~ | **deleted** — this row's own reasoning is what went wrong. Kept as a tested answer to a question that would be asked again, it was reached again: §7.9 wired the end date into the footer's `working days` slot, where it sat mislabelled as an elapsed span counting weekends, and `runningDays` / `workingDays` were never displayed at all. §13's report can walk the calendar when it needs one. **The lesson for this table**: unreachable code with a plausible future consumer is not inert, it is a loaded slot | — |
 | ~~`wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn`~~ | **reached in M4** — the engine walks dates rather than periods, which is what the two `…On(date)` accessors were written for | — |
 
 ---

@@ -53,10 +53,23 @@ SimRunResult runSimulation({
     );
   }
 
+  // An explicit [start] moves the run's clock, and the studies **keep their
+  // offsets from each other**: it says where the run begins, not that every
+  // line begins together. With one study the shift is exactly [start], which is
+  // what a caller overriding it means by it.
+  final shift = plan.start == null
+      ? Duration.zero
+      : from.difference(plan.start!);
+  final startByStudy = {
+    for (final entry in plan.startByStudy.entries)
+      entry.key: entry.value.add(shift),
+  };
+
   return _Engine(
     studies: studies,
     workcenters: workcenters,
     start: from,
+    startByStudy: startByStudy,
     guard: guard ?? plan.guardFrom(from),
     scheduleHorizon: scheduleHorizon,
   ).run();
@@ -64,10 +77,31 @@ SimRunResult runSimulation({
 
 /// Where a run begins and where it gives up (DESIGN.md §7.8).
 class RunPlan {
-  const RunPlan({required this.start, required this.lastNeedDate});
+  const RunPlan({
+    required this.start,
+    required this.lastNeedDate,
+    this.startByStudy = const {},
+  });
 
-  /// Cold start, or null when no study has a costable first order.
+  /// The run's clock start — the **earliest** of [startByStudy], or null when
+  /// no study has a costable first order.
   final DateTime? start;
+
+  /// **Each study's own cold start**, keyed by study id (§7.8).
+  ///
+  /// A run may carry several studies and each is a line with its own flow, its
+  /// own first order and its own need date. The run's clock has to begin
+  /// somewhere, so [start] is the earliest of these — but a study whose own
+  /// cold start is three months later does not release until then.
+  ///
+  /// This was collapsed to the minimum and every study was scheduled there. A
+  /// study released three months early delivers three months early, so its
+  /// float read as slack that did not exist and OTD was flattered; worse, its
+  /// orders occupied **shared** stations for three months of simulated time
+  /// they would never have been there, competing for capacity with the study
+  /// that legitimately started. Measuring real contention is what a run is for
+  /// (§7.7), so a multi-study run reported queueing that could not happen.
+  final Map<String, DateTime> startByStudy;
 
   /// The furthest need date in the demand.
   final DateTime? lastNeedDate;
@@ -90,6 +124,7 @@ RunPlan planRun({
 }) {
   DateTime? start;
   DateTime? lastNeed;
+  final byStudy = <String, DateTime>{};
 
   for (final study in studies) {
     for (final order in study.orders) {
@@ -127,10 +162,13 @@ RunPlan planRun({
     final material = first.materialDate;
     if (material != null && material.isAfter(candidate)) candidate = material;
 
+    // Kept per study **and** folded into the run's clock start. The fold is
+    // only for the clock: what each study releases from is its own entry.
+    byStudy[study.id] = candidate;
     if (start == null || candidate.isBefore(start)) start = candidate;
   }
 
-  return RunPlan(start: start, lastNeedDate: lastNeed);
+  return RunPlan(start: start, lastNeedDate: lastNeed, startByStudy: byStudy);
 }
 
 // --- The engine -------------------------------------------------------------
@@ -337,11 +375,17 @@ class _Engine {
     required this.start,
     required this.guard,
     required this.scheduleHorizon,
+    this.startByStudy = const {},
   });
 
   final List<SimStudy> studies;
   final Map<String, SimWorkcenter> workcenters;
   final DateTime start;
+
+  /// Where each study's first release slot falls (§7.8). A study absent from
+  /// here — no costable first order — falls back to [start].
+  final Map<String, DateTime> startByStudy;
+
   final DateTime guard;
 
   /// Carried, never read: §11.1's horizon is reported rather than obeyed.
@@ -402,7 +446,15 @@ class _Engine {
         _released[order.id] = null;
         _delivered[order.id] = null;
       }
-      if (study.orders.isNotEmpty) _schedule(start, _EventKind.slot, key: study.id);
+      // **Its own cold start, not the run's** (§7.8): the run's clock begins at
+      // the earliest study's, and a later line waits for its own.
+      if (study.orders.isNotEmpty) {
+        _schedule(
+          startByStudy[study.id] ?? start,
+          _EventKind.slot,
+          key: study.id,
+        );
+      }
     }
 
     SimAbortReason? abort;

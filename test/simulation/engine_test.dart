@@ -458,6 +458,94 @@ void main() {
     });
   });
 
+  group('one cold start per study (§7.8)', () {
+    /// Two lines on their own stations, wanted a fortnight apart. `early` is
+    /// due on the 10th and `late` on the 24th, each needing four hours of work
+    /// on a station open round the clock — so their cold starts are two weeks
+    /// apart and nothing else differs.
+    List<SimStudy> lines() => [
+      study(
+        id: 'early',
+        nodes: [
+          step(0, ['W']),
+        ],
+        parts: {
+          'p1': part('p1', {'W': const Duration(hours: 4)}),
+        },
+        orders: [order(0, 'p1', needDay: 10)],
+      ),
+      study(
+        id: 'late',
+        nodes: [
+          step(0, ['X']),
+        ],
+        parts: {
+          'p2': part('p2', {'X': const Duration(hours: 4)}),
+        },
+        // Sequence 1, so the two studies' orders do not share an id: the
+        // engine keys its release and delivery instants by order id, which the
+        // database makes unique across the project (`DemandOrders.primaryKey`)
+        // but this fixture would otherwise not.
+        orders: [order(1, 'p2', needDay: 24)],
+      ),
+    ];
+
+    final plant = {'W': workcenter('W'), 'X': workcenter('X')};
+
+    DateTime releaseOf(SimRunResult result, String studyId) =>
+        result.orders.firstWhere((o) => o.studyId == studyId).released!;
+
+    final earlyStart = DateTime(2026, 8, 10).subtract(const Duration(hours: 4));
+    final lateStart = DateTime(2026, 8, 24).subtract(const Duration(hours: 4));
+
+    test('planRun keeps each study\'s own start beside the run\'s', () {
+      final plan = planRun(studies: lines(), workcenters: plant);
+
+      expect(plan.startByStudy, {'early': earlyStart, 'late': lateStart});
+      // The run's clock is the earliest of them, because it has to begin
+      // somewhere — but the fold is only for the clock.
+      expect(plan.start, earlyStart);
+    });
+
+    test('a later study waits for its own start, not the run\'s', () {
+      final result = runSimulation(studies: lines(), workcenters: plant);
+
+      // Each is four hours ahead of its own need date, which is what §7.8's
+      // derivation says and what the single-study case has always done.
+      expect(releaseOf(result, 'early'), earlyStart);
+      expect(releaseOf(result, 'late'), lateStart);
+
+      // **The two are a fortnight apart**, which is the whole point. Collapsed
+      // to the earliest — as this was — `late` released on the 9th and sat
+      // finished for two weeks, reporting float it did not have and holding a
+      // shared station through time it would never have been there.
+      expect(
+        releaseOf(result, 'late').difference(releaseOf(result, 'early')),
+        const Duration(days: 14),
+      );
+    });
+
+    test('the run clock still begins at the earliest of them', () {
+      expect(runSimulation(studies: lines(), workcenters: plant).start, earlyStart);
+    });
+
+    test('an explicit start moves the run and keeps the offsets', () {
+      // A caller overriding the start says where the *run* begins, not that
+      // every line begins together — so the fortnight between them survives.
+      final shifted = runSimulation(
+        studies: lines(),
+        workcenters: plant,
+        start: DateTime(2026, 8),
+      );
+
+      expect(releaseOf(shifted, 'early'), DateTime(2026, 8));
+      expect(
+        releaseOf(shifted, 'late').difference(releaseOf(shifted, 'early')),
+        const Duration(days: 14),
+      );
+    });
+  });
+
   group('the start buffer (§7.8)', () {
     /// No explicit start, so §7.8's derivation is what is under test: the need
     /// date, back through the theoretical walk, then back again by the buffer.

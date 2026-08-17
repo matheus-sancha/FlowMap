@@ -1487,14 +1487,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get simTheoreticalLeadTimeHelp =>
-      'As mesmas ordens sem filas, cada uma percorrida desde sua própria liberação pelos calendários reais. Exclui o setup, que depende do que rodou antes e não é propriedade da peça.';
+      'O que estas ordens levariam atravessando a planta como ela está — o trabalho, um setup completo em cada etapa e o estoque parado em cada fila — percorrido desde a liberação de cada ordem pelos calendários reais.';
 
   @override
   String get simLeadTimeEfficiency => 'Eficiência do lead time';
 
   @override
   String get simLeadTimeEfficiencyHelp =>
-      'Real ÷ teórico. 1,0 é sem filas e mais alto é pior; o excesso sobre 1,0 é exatamente a espera.';
+      'Teórico ÷ real. Acima de 100% o fluxo esperou menos do que o padrão prevê; abaixo de 100% esperou mais. As ordens de aquecimento — liberadas antes da primeira entrega da sua linha, quando o fluxo ainda estava vazio — ficam de fora.';
 
   @override
   String get simEmptySlots => 'Janelas de liberação vazias';
@@ -1591,6 +1591,9 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get simPlanActualLeadTime => 'LT real';
+
+  @override
+  String get simPlanLeadTimeEfficiency => 'Eficiência';
 
   @override
   String get simRunQueuesMixed => 'misto';

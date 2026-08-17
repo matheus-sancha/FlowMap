@@ -129,6 +129,10 @@ class RunMetrics {
     required this.theoreticalLeadTime,
     required this.parts,
     required this.workcenters,
+    this.settledActual,
+    this.settledTheoretical,
+    this.settledOrders = 0,
+    this.warmUpOrders = 0,
   });
 
   final int orders;
@@ -143,9 +147,30 @@ class RunMetrics {
   /// Average wall-clock time in the flow, over the orders that finished.
   final Duration? averageLeadTime;
 
-  /// The same orders' theoretical lead time (§7.9), averaged — the denominator
-  /// of [leadTimeEfficiency], and queue-free by construction.
+  /// The same orders' theoretical lead time (§7.9), averaged.
+  ///
+  /// **A standard, not a floor**: it charges the stock standing in every queue
+  /// and a full cold changeover at every step, neither of which a run spends,
+  /// so it may land either side of [averageLeadTime].
   final Duration? theoreticalLeadTime;
+
+  /// [averageLeadTime] and [theoreticalLeadTime] again, over the orders
+  /// [leadTimeEfficiency] is actually computed from (§8.7).
+  ///
+  /// Two things are excluded, and only from these. **Orders missing either
+  /// figure** — delivered but not walkable, or walkable but never delivered —
+  /// because a ratio of two means taken over two different populations is a
+  /// ratio of nothing. And **the warm-up**: every order released before its
+  /// study's first delivery, which met a flow no order had yet crossed.
+  ///
+  /// Null when no order qualifies.
+  final Duration? settledActual;
+  final Duration? settledTheoretical;
+
+  /// How many orders [leadTimeEfficiency] covers, and how many the warm-up rule
+  /// held back — so a reader can see what the headline is speaking for.
+  final int settledOrders;
+  final int warmUpOrders;
 
   final List<PartMetrics> parts;
 
@@ -158,18 +183,28 @@ class RunMetrics {
   /// ones: an order that never came out is not on time.
   double get onTimeDelivery => orders == 0 ? 0 : onTime / orders;
 
-  /// `actual ÷ theoretical` (§8, §7.9).
+  /// `theoretical ÷ actual`, rendered as a percentage (§8.7).
   ///
-  /// **1.0 is queue-free and higher is worse** — the name comes from the spec,
-  /// but the direction is the one §8 states. The excess over 1.0 is exactly
-  /// what the theoretical figure leaves out: waiting.
+  /// **Above 1.0 is good**: the flow crossed faster than the standard, because
+  /// it queued less than the standard expects. Below 1.0 is more queueing than
+  /// the standard allows for.
+  ///
+  /// This was `actual ÷ theoretical` and shipped that way, so a flow running
+  /// *well* displayed a *low* number. It survived because §7.9.1, §8 and §8.5
+  /// all described the reciprocal and all agreed with each other; only the code
+  /// and the field disagreed.
+  ///
+  /// **Computed from [settledActual] and [settledTheoretical]**, not from the
+  /// two averages above them: those count every order, because they are facts
+  /// about orders someone was promised, while this is a ratio against a
+  /// standard the warm-up orders were never measured against.
   double? get leadTimeEfficiency {
-    final actual = averageLeadTime;
-    final theoretical = theoreticalLeadTime;
-    if (actual == null || theoretical == null || theoretical.inSeconds == 0) {
+    final actual = settledActual;
+    final theoretical = settledTheoretical;
+    if (actual == null || theoretical == null || actual.inSeconds == 0) {
       return null;
     }
-    return actual.inSeconds / theoretical.inSeconds;
+    return theoretical.inSeconds / actual.inSeconds;
   }
 
   /// The station the headline names: the one orders wait at longest.
@@ -286,6 +321,27 @@ RunMetrics summariseRun({
   var delivered = 0;
   var onTime = 0;
 
+  // **The warm-up boundary, per study** (§8.7): the first moment that study
+  // delivered anything. Until then no order of that line has crossed the whole
+  // flow, so nothing downstream has seen contention and those orders are not
+  // measuring the same plant the rest are.
+  //
+  // Per study rather than per run, because a study is a line with its own flow
+  // and — since §7.8 — its own cold start. A line that begins three months
+  // later fills its own pipeline then, not when the earliest line filled its.
+  final firstDelivery = <String, DateTime>{};
+  for (final outcome in result.orders) {
+    final at = outcome.delivered;
+    if (at == null) continue;
+    final known = firstDelivery[outcome.studyId];
+    if (known == null || at.isBefore(known)) firstDelivery[outcome.studyId] = at;
+  }
+
+  var settledActualTotal = Duration.zero;
+  var settledTheoreticalTotal = Duration.zero;
+  var settledCount = 0;
+  var warmUpCount = 0;
+
   final byPart = <String, _PartTally>{};
 
   for (final outcome in result.orders) {
@@ -319,6 +375,18 @@ RunMetrics summariseRun({
       if (theoretical != null) {
         theoreticalTotal += theoretical;
         theoreticalCount++;
+
+        // Both figures present, so this order *could* go into the ratio. Only
+        // the warm-up rule can hold it back now.
+        final opened = firstDelivery[outcome.studyId];
+        final released = outcome.released;
+        if (opened != null && released != null && released.isBefore(opened)) {
+          warmUpCount++;
+        } else {
+          settledActualTotal += lead;
+          settledTheoreticalTotal += theoretical;
+          settledCount++;
+        }
       }
     }
   }
@@ -368,6 +436,14 @@ RunMetrics summariseRun({
     theoreticalLeadTime: theoreticalCount == 0
         ? null
         : theoreticalTotal ~/ theoreticalCount,
+    settledActual: settledCount == 0
+        ? null
+        : settledActualTotal ~/ settledCount,
+    settledTheoretical: settledCount == 0
+        ? null
+        : settledTheoreticalTotal ~/ settledCount,
+    settledOrders: settledCount,
+    warmUpOrders: warmUpCount,
     parts: [
       for (final entry in byPart.entries) entry.value.toMetrics(entry.key),
     ]..sort((a, b) {

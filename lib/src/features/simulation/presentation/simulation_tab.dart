@@ -96,7 +96,7 @@ enum _RunView { results, gantt }
 /// only the body beneath them. That is what lets the Gantt take the full body
 /// height — it was a section below the production plan in the first draft, which
 /// was one more block on a page already carrying a header, a headline, a metrics
-/// card, three tables and a thirteen-column plan, and it would have needed a
+/// card, three tables and a fourteen-column plan, and it would have needed a
 /// height cap, a second vertical scrollbar and a nested scroll to fit there.
 ///
 /// Held in an `IndexedStack`, so switching to the results and back returns the
@@ -447,6 +447,11 @@ class _PlanTable extends StatelessWidget {
           // is read against it. The gap between the two is the queueing.
           ResultColumn(label: l10n.simPlanTheoreticalLeadTime, width: 130),
           ResultColumn(label: l10n.simPlanActualLeadTime, width: 120),
+          // The ratio of the two beside them (§8.7). The card's headline drops
+          // the warm-up orders so it can be compared between runs; this column
+          // keeps every row, which is where the ramp those orders form becomes
+          // visible instead of being averaged away.
+          ResultColumn(label: l10n.simPlanLeadTimeEfficiency, width: 120),
           ResultColumn(label: l10n.simAverageFloat, width: 130),
         ],
         rowCount: rows.length,
@@ -496,6 +501,11 @@ class _PlanTable extends StatelessWidget {
             9 => Text(date(row.delivery)),
             10 => Text(_duration(l10n, row.theoreticalLeadTime)),
             11 => Text(_duration(l10n, row.actualLeadTime)),
+            12 => Text(
+              row.leadTimeEfficiency == null
+                  ? '—'
+                  : '${(row.leadTimeEfficiency! * 100).toStringAsFixed(0)}%',
+            ),
             // The one figure here that is a verdict rather than a fact, so
             // late is coloured. Positive is early (§8).
             _ => Text(
@@ -683,9 +693,14 @@ class _MetricsCard extends StatelessWidget {
             ),
             _MetricRow(
               label: l10n.simLeadTimeEfficiency,
+              // A percentage, not a `×` multiple: the figure reads "how much of
+              // the standard did the flow beat", and above 100 % is good
+              // (§8.7). Printed as `0.73×` it read as a low number for a flow
+              // that was running well, which is how a metric shipped upside
+              // down and stayed that way.
               value: metrics.leadTimeEfficiency == null
                   ? '—'
-                  : '${metrics.leadTimeEfficiency!.toStringAsFixed(2)}×',
+                  : '${(metrics.leadTimeEfficiency! * 100).toStringAsFixed(0)}%',
               help: l10n.simLeadTimeEfficiencyHelp,
             ),
             _MetricRow(

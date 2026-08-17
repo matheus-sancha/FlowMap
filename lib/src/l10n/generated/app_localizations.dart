@@ -2673,7 +2673,7 @@ abstract class AppLocalizations {
   /// No description provided for @simTheoreticalLeadTimeHelp.
   ///
   /// In en, this message translates to:
-  /// **'The same orders without queueing, each walked from its own release through the real calendars. Excludes changeover, which depends on what ran before and so is not a property of the part.'**
+  /// **'What these orders would take flowing through the plant as it stands — the work, a full changeover at every step and the stock standing in each queue — walked from each order\'s own release through the real calendars.'**
   String get simTheoreticalLeadTimeHelp;
 
   /// No description provided for @simLeadTimeEfficiency.
@@ -2685,7 +2685,7 @@ abstract class AppLocalizations {
   /// No description provided for @simLeadTimeEfficiencyHelp.
   ///
   /// In en, this message translates to:
-  /// **'Actual ÷ theoretical. 1.0 is queue-free and higher is worse; the excess over 1.0 is exactly the waiting.'**
+  /// **'Theoretical ÷ actual. Above 100% the flow queued less than the standard expects; below 100% it queued more. Warm-up orders — those released before their line\'s first delivery, when the flow was still empty — are left out.'**
   String get simLeadTimeEfficiencyHelp;
 
   /// No description provided for @simEmptySlots.
@@ -2861,6 +2861,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Actual LT'**
   String get simPlanActualLeadTime;
+
+  /// No description provided for @simPlanLeadTimeEfficiency.
+  ///
+  /// In en, this message translates to:
+  /// **'Efficiency'**
+  String get simPlanLeadTimeEfficiency;
 
   /// No description provided for @simRunQueuesMixed.
   ///

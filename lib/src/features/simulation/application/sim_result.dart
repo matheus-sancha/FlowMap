@@ -156,11 +156,8 @@ enum EmptySlotReason {
 /// A lane, as it stood when the run was made (§5.5, §7.10).
 ///
 /// **Carried on the result so the chart never joins back to the flow.** §8.6
-/// draws a lane row between the two station rows it connects, and the run
-/// stores no node positions otherwise — `routingRanks` derives a station's
-/// place from the steps, but a buffer leaves no step behind. [position] is what
-/// makes a lane placeable, and it has to be the position the flow had *then*,
-/// because the map may have been edited since.
+/// draws a lane row above the target it feeds, and it finds that target from
+/// the steps that name the lane — not from anything stored here.
 ///
 /// Deliberately not carrying the discipline: nothing that draws a lane reads
 /// it, and a field nothing reads is the failure §1.5 found once already. The
@@ -174,12 +171,29 @@ class SimLane {
     this.capacity,
   });
 
+  /// **Recovery-only. Do not read this for behaviour** (§16.20).
+  ///
+  /// v19 made a queue belong to a *target*, so a lane feeding a station two
+  /// studies both step on is one row and this holds whichever study was written
+  /// last — on the newest stored run, eight of ten lanes carry one study's id
+  /// and two carry the other's. `filterRun` and the hover card each asked it
+  /// anyway and each got a wrong answer (§7.5); lanes are kept by the steps that
+  /// name them now, and a stay takes its study from the step.
+  ///
+  /// Kept rather than dropped because widening or removing a `NOT NULL` column
+  /// rebuilds the table (§16.11), and because it is part of the only way back to
+  /// what a pre-v19 run's flow looked like.
   final String studyId;
 
   /// The `flow_nodes` row it was, whether or not it still exists.
   final String nodeId;
 
   /// Its place on the spine at the time of the run.
+  ///
+  /// **Recovery-only, for the same reason as [studyId]** (§16.20). §8.6 places a
+  /// lane by the target its steps name, so nothing reads this — and on a lane
+  /// two studies share it is one study's position, which is not a fact about the
+  /// other.
   final int position;
 
   /// `FIFO CEU27`, or null when the buffer was never labelled.

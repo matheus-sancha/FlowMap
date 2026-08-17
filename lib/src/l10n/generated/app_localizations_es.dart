@@ -1486,14 +1486,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simTheoreticalLeadTimeHelp =>
-      'Las mismas órdenes sin colas, cada una recorrida desde su propio lanzamiento por los calendarios reales. Excluye el cambio de referencia, que depende de lo que se hizo antes y no es propiedad de la pieza.';
+      'Lo que tardarían estas órdenes atravesando la planta tal como está — el trabajo, un cambio de referencia completo en cada paso y el stock parado en cada cola — recorrido desde el lanzamiento de cada orden por los calendarios reales.';
 
   @override
   String get simLeadTimeEfficiency => 'Eficiencia del lead time';
 
   @override
   String get simLeadTimeEfficiencyHelp =>
-      'Real ÷ teórico. 1,0 es sin colas y más alto es peor; el exceso sobre 1,0 es exactamente la espera.';
+      'Teórico ÷ real. Por encima del 100% el flujo esperó menos de lo que el estándar prevé; por debajo del 100% esperó más. Las órdenes de arranque — lanzadas antes de la primera entrega de su línea, cuando el flujo aún estaba vacío — quedan fuera.';
 
   @override
   String get simEmptySlots => 'Ranuras de lanzamiento vacías';
@@ -1589,6 +1589,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simPlanActualLeadTime => 'LT real';
+
+  @override
+  String get simPlanLeadTimeEfficiency => 'Eficiencia';
 
   @override
   String get simRunQueuesMixed => 'mixto';

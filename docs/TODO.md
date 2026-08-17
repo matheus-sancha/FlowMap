@@ -1,21 +1,27 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-16. This file is **only unstarted work**, and each item should be
+Working state as of 2026-08-17. This file is **only unstarted work**, and each item should be
 deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; `docs/HISTORY.md`
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **771 tests passing** (one of them `live`-tagged
+Branch `m1-m2-foundation`, `flutter analyze` clean, **815 tests passing** (one of them `live`-tagged
 and skipped without a database). Schema is at **v19**, migrated against the real database at 08:46
-on 2026-08-16. M4 is code-complete, and the initial plan has no code left in it — §3.8 is deferred
-by decision and everything else in it has landed.
+on 2026-08-16, and **§7.6 needs no migration** — it is the first round since §4 that does not touch
+the schema. M4 is code-complete, and the initial plan has no code left in it — §3.8 is deferred by
+decision and everything else in it has landed.
 
-**The one thing to know before starting anything: almost nothing here has been looked at.** §5, §6
-and §7 are all code-complete and covered by tests, and **nothing in the suite renders a pixel**
+**The one thing to know before starting anything: almost nothing here has been looked at.** §5, §6,
+§7 and §7.6 are all code-complete and covered by tests, and **nothing in the suite renders a pixel**
 (§2.7). The last drive — `0.1.0-2026-08-16d`, half an hour of one person clicking — found **three
 defects that 765 tests had nothing to say about**, all of them §7.3's re-model reaching a surface
 nobody re-read. That is the ratio to plan around: driving is not a formality after the work, it is
-where the defects are. §5.3 and §7.5's list are the two open drive lists.
+where the defects are. §5.3, §7.5 and §7.6 are the three open drive lists.
+
+**And §7.6 is the sharper version of the same lesson**, because it was found by reading rather than
+by clicking: Lead Time Efficiency had shipped **upside down**, and it survived because three sections
+of `DESIGN.md` described the reciprocal and all agreed with each other. **A suite that agrees with a
+wrong premise is not evidence.** §7.6 is the round that fixed it and the four things it reached.
 
 **Latest build is `0.1.0-2026-08-16e`.** Every stored run predates the v19 engine change, so
 replaying one from the history picker shows per-node lanes rather than one queue per target. **Only
@@ -1157,7 +1163,9 @@ distrust the next one that does.
 | **§7.1** | The filter filters | small, and it makes every later drive trustworthy |
 | **§7.2** | Capacity, not Schedules | rename, cards back, exceptions leave the study |
 | **§7.3** | A queue belongs to a station | the deep one — schema, engine, symbols |
-| **§7.4** | Takt rebalances a group | derived process times |
+| **§7.4** | Takt rebalances a group | derived process times — **nothing written** |
+| **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
+| **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -1385,8 +1393,14 @@ What is left of §7.3 is one thing it settled and nothing has built:
 
 - [ ] **The flow's two ends carry stock.** A study gains an inbound and an outbound figure, drawn as
       triangles against the supplier and customer endpoints — they feed the lead-time ladder and the
-      days-of-stock a current-state VSM exists to state, and nothing dispatches out of them. Two
-      nullable columns on `studies`, so it is a schema step (v20) rather than a surface one.
+      days-of-stock a current-state VSM exists to state, and nothing dispatches out of them.
+
+      **It is not a schema step. `studies.inbound_stock` and `outbound_stock` already exist**, added
+      by the v19 migration ahead of the surface that would fill them — so this is a surface, a ladder
+      and a PDF, with no migration and no fixture. Confirmed 2026-08-17: the two columns are named in
+      `project_tables.dart`, `database.dart` and the generated file, **and nowhere else in the tree**.
+      This entry said "a schema step (v20)" and was wrong about the only part of it that would have
+      set the sequence.
 
 **Two field findings from `0.1.0-2026-08-16`'s map landed on 2026-08-16**: the lead-time ladder's
 rungs overlapped and are now one equal, aligned slot each, which widened every link that carries a
@@ -1405,14 +1419,25 @@ one:_ every project whose queues came out of the fold now draws its old inventor
 connectors, and any flow whose buffers were **not** in front of a step — a trailing buffer, two in a
 row — has silently lost that figure, because a queue belongs to a target and those had none.
 
-_Swept for others on 2026-08-16 and found none:_ `lane.studyId` is no longer read anywhere for
-behaviour. **But it is still written and never read**, along with `SimLane.position`, which §8.6 says
-outright it does not place lanes by. Both are exactly the trap that produced the three defects above
-— a field that looks authoritative and answers a question nobody should be asking it. Worth deleting
-or documenting as recovery-only, the call §16.18 made for `changeover_seconds`.
+~~_Swept for others on 2026-08-16 and found none:_ `lane.studyId` is no longer read anywhere for
+behaviour. **But it is still written and never read**, along with `SimLane.position`.~~ **Settled
+2026-08-17: documented as recovery-only**, which is the call §16.18 made for `changeover_seconds`,
+rather than deleted — both are `NOT NULL` columns on a stored table and dropping one rebuilds it
+(§16.11), and they are the only way back to what a pre-v19 run's flow looked like. `SimLane`'s doc
+comment now says *do not read this for behaviour* against each, with the reason; the class comment's
+claim that `position` *"is what makes a lane placeable"* is deleted, since §8.6 has placed lanes by
+the steps that name them since v19 and that sentence is the trap itself — a field that looks
+authoritative and answers a question nobody should be asking it.
 
-_Owed, and not code:_ `project_tables.dart` points at **§16.20** for what the v19 fold discarded, and
-`DESIGN.md` stops at §16.19. The schema note for v19 was never written.
+~~_Owed, and not code:_ `project_tables.dart` points at **§16.20** for what the v19 fold discarded, and
+`DESIGN.md` stops at §16.19. The schema note for v19 was never written.~~ **Written 2026-08-17.**
+§16.20 covers the new table and its key, the four columns, the fold and its 15-onto-10, first-study-
+wins and the `v19.discarded` log, the orphan case, why the fold is guarded on emptiness rather than
+on `from`, and what is kept rather than cleaned up. Two things it records that were not written down
+anywhere before: **`studies.inbound_stock` and `outbound_stock` landed in v19 and nothing fills
+them**, and **stored runs are invalidated only where two studies shared a target or a lane carried a
+capacity** — a single-study flow with uncapped queues is comparable across v19, which the blanket
+claim elsewhere would have had a reader assume otherwise.
 
 ### 7.4 Takt rebalances a group of like machines
 
@@ -1582,6 +1607,100 @@ it, stated plainly, since both were invisible to a suite of 765 tests:
       **The lesson for the list above:** all three are §7.3's re-model reaching a surface nobody
       re-read when it landed. The queue stopped being a study's in v19 and two places went on asking
       it which study it belonged to. Worth a sweep for others.
+
+### 7.6 The standard, the ratio and the warm-up — **written, not driven**
+
+**From reading §7.5's own lesson back.** The sweep it asked for found a metric that had been upside
+down since it was built, and pulling on it reached the theoretical walk, the cold start and the flow
+footer. `flutter analyze` clean, **815 tests passing**, no schema change and no migration — every
+figure here moves because the arithmetic was wrong, not because the model changed.
+
+**Nothing here has been seen.** Nothing in the suite renders a pixel (§2.7), and this round changes
+what four numbers on two screens *mean*.
+
+**Why it is one round and not four commits of unrelated tidying:** every item below is the same
+mistake. §7.9's theoretical lead time was described as a **floor** under what a run observes, and
+three sections of `DESIGN.md` said so in agreement with each other and in disagreement with the code.
+Once it is a floor, an efficiency above 1.0 is impossible, so a ratio reading 0.73 looks like the
+formula and not like the premise — and everything downstream is built to keep a claim that was never
+true.
+
+- **Theoretical LT is a standard, not a floor.** It is what an order takes flowing through the plant
+  as it stands: the work, the stock really standing in front of each machine, and a full cold
+  changeover at every step. A run charges **neither** the stock (§5.5) nor the full changeover
+  (§7.6's repeat discount), so **an actual lead time shorter than the theoretical one is a normal
+  result**. Célula 11B's 35.1 theoretical against 25.8 actual, written up in three places as proof of
+  a defect, reads **137 %** the right way round — that cell beat a standard which charged it for a
+  queue it did not have to stand in.
+- **Lead Time Efficiency was inverted.** The code computed `actual ÷ theoretical` and rendered
+  `0.73×`, so a flow running *well* displayed a *low* number, with no unit on screen to give it away.
+  It is `theoretical ÷ actual` now and shown as a percentage, which is the direction the field states
+  it in and the direction a reader can check without a tooltip.
+- **The two halves of the ratio came from different populations.** Actual was averaged over the
+  delivered orders and theoretical over the walkable ones, so an order that delivered but could not
+  be walked — a step bound to a workcenter since removed — landed in one average and not the other.
+  Only orders carrying both count toward either now.
+- **The headline excludes the warm-up.** The plant starts empty, so the head of the sequence meets a
+  flow nothing has queued in yet and scores far above 100 %. Left in, the headline moves with how
+  many orders are in the run — a ten-order run is mostly warm-up — which is exactly what a headline
+  metric must not do. Warm-up is every order released before **its own study's** first delivery, and
+  a run that never fills its pipeline reports a dash rather than a number computed over warm-up
+  alone. The per-order column carries every row, so the ramp is visible rather than averaged away.
+- **The cold start was one per run and should be one per study.** The per-study figure was computed
+  correctly and discarded a line later by a `min()` across the studies. The damage was not cosmetic:
+  a study released three months early delivers three months early, so its float reads as slack that
+  does not exist — and its orders occupy **shared stations** for three months they would never have
+  been there, which is contention a multi-study run reported and could not happen. Measuring real
+  contention is the whole purpose of §7.7.
+- **The two walks charged stock at opposite ends of the flow.** Forward, stock is charged at the
+  first step in flow order to reach a target; `coldStartDate` walks backwards and was charging it at
+  the first step it *met*, which is the last in flow order. Stock is spent on the wall clock and work
+  on the calendar, so moving a two-day jump from the front of a flow to the back changes which
+  weekends the work after it crosses: for `A → B → A`, 5 Jun → 10 Jun forwards against 10 Jun → 4 Jun
+  backwards. **The invariant now under test: walking forward from `coldStartDate(need)` lands exactly
+  on `need`.** It is the only thing that would have caught this, and it is worth more than the fix.
+- **`_walkCalendar` is deleted, and the second time it took the footer is why.** §17.5 listed it as
+  built-but-unreachable and kept; it then got wired into the footer's `Lead time` slot, where an
+  elapsed calendar span sat under a label reading **working days** beside a `running days` holding
+  `working × 1.4` — the two the wrong way round and near enough in value to be hard to catch. The
+  footer is the sum of the rungs again (§17.4), in working days, so the ×1.4 and PCE's denominator
+  are both back on screen and both checkable.
+- **The production plan gains an `Efficiency` column**, fourteen now. It is where §8.7's warm-up is
+  made visible instead of hidden.
+
+**DESIGN.md this round — written:** **§7.9** (rewritten — a standard rather than a floor, stock
+charged at the same step in both directions, the map and the plan answering different questions),
+**§7.9.1** (kept as history, with what is no longer true stated first), **§7.8** (one cold start per
+study), **§8** and **§8.1.1** (the ratio's direction), **§8.5.1** (the column, and why Theoretical LT
+legitimately varies row to row), **§8.7** (new — the formula, the same-population rule, the warm-up
+and what it under-corrects), **§5.5**, **§12.6** and **§13.1** (thirteen columns became fourteen),
+**§17.2** (`_walkCalendar` deleted and why).
+
+#### Drive it
+
+The whole round is numbers on screens, and every one of them is asserted by a test that paints
+nothing. **Do this against a fresh run** — every stored run predates it.
+
+- [ ] **The efficiency reads the right way round and carries a unit.** A well-running cell should
+      show **above 100 %**. If it still reads `0.73×` anywhere, a surface was missed rather than the
+      formula being wrong.
+- [ ] **The headline against the plan's column.** The card excludes the warm-up and the column does
+      not, so the column's first rows should be visibly higher and should settle. If they do not
+      settle, the heuristic is under-correcting more than §8.7 admits and that is worth knowing.
+- [ ] **A short run reports a dash rather than a number.** Cut the demand to a handful of orders so
+      nothing delivers before the last release. That is the rule working; it will look like a bug.
+- [ ] **Row 1 of the plan reconciles.** `Order Start + Theoretical LT = Need Date` on the first row
+      of each study — the invariant the backward walk was breaking, seen where a planner would see
+      it.
+- [ ] **A two-study run where the studies start months apart.** Each releases at its own cold start,
+      not both at the earlier one; the later study's float stops reading as slack it does not have.
+      This is the item most worth contriving, because it is the one whose failure flatters the
+      numbers rather than breaking them.
+- [ ] **The flow footer's three figures.** `Running days` = 1.4 × `Lead time (working days)` on a
+      five-day plant, PCE divides the working figure that is on screen beside it, and neither is an
+      elapsed span. Both themes.
+- [ ] **The plan at fourteen columns**, on screen and in Excel — `Efficiency` is the column most
+      likely to have pushed Float off the right edge (§12.6).
 
 ---
 

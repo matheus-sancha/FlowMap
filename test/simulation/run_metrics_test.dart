@@ -42,13 +42,19 @@ void main() {
     );
   }
 
-  SimStep step(int position, String target, {Duration? changeover}) => SimStep(
+  SimStep step(
+    int position,
+    String target, {
+    Duration? changeover,
+    Duration stock = Duration.zero,
+  }) => SimStep(
     id: 'node-$position',
     position: position,
     title: target,
     candidates: [target],
     demandKey: target,
     queue: SimQueue(targetId: target),
+    queueStock: stock,
     setupValue: changeover?.inSeconds.toDouble(),
     setupUnit: TaktUnit.seconds,
   );
@@ -221,15 +227,25 @@ void main() {
       );
 
       // One order alone in an empty plant waits for nothing, so the run and
-      // the queue-free walk agree exactly.
+      // the standard agree exactly. Both averages count it, because they are
+      // facts about an order someone was promised.
       expect(metrics.averageLeadTime, const Duration(hours: 3));
       expect(metrics.theoreticalLeadTime, const Duration(hours: 3));
-      expect(metrics.leadTimeEfficiency, closeTo(1.0, 0.0001));
+
+      // **But the efficiency is a dash**, and that is the warm-up rule working
+      // rather than a gap (§8.7). This order was released before its study had
+      // delivered anything — it crossed a flow nothing had queued in — so there
+      // is no settled order to compute a comparable ratio from. A number here
+      // would be a figure that moves with the length of the run, which is what
+      // the rule exists to stop.
+      expect(metrics.leadTimeEfficiency, isNull);
+      expect(metrics.warmUpOrders, 1);
+      expect(metrics.settledOrders, 0);
     });
 
-    test('queueing is exactly the excess over 1.0', () {
-      // Three orders released an hour apart onto a station that takes four
-      // hours each: the second and third wait.
+    test('queueing pulls efficiency below 100 %, over the settled orders', () {
+      // Six orders released an hour apart onto a station that takes four hours
+      // each, so the queue builds and never drains.
       final setup = scenario(
         nodes: [step(0, 'W')],
         parts: {
@@ -240,7 +256,7 @@ void main() {
           ),
         },
         orders: [
-          for (var i = 0; i < 3; i++)
+          for (var i = 0; i < 6; i++)
             SimOrder(
               id: 'o$i',
               sequence: i,
@@ -262,10 +278,69 @@ void main() {
         workcenters: setup.workcenters,
       );
 
-      // Lead times 4 h, 7 h, 10 h — average 7 — against a theoretical 4.
-      expect(metrics.averageLeadTime, const Duration(hours: 7));
+      // The station runs back to back from the start, finishing at 4, 8, 12,
+      // 16, 20 and 24 h. The first delivery is therefore at 4 h, so the four
+      // orders released at 0, 1, 2 and 3 h are warm-up and the two released at
+      // 4 and 5 h are settled.
+      expect(metrics.warmUpOrders, 4);
+      expect(metrics.settledOrders, 2);
+
+      // Those two took 16 h and 19 h against a standard of 4 h each.
+      expect(metrics.settledActual, const Duration(hours: 17, minutes: 30));
+      expect(metrics.settledTheoretical, const Duration(hours: 4));
+
+      // **Below 100 % is more queueing than the standard allows for** (§8.7).
+      expect(metrics.leadTimeEfficiency, closeTo(4 / 17.5, 0.0001));
+
+      // And the two averages on the card still count every order, warm-up
+      // included: they are facts, not a ratio against a standard.
+      expect(metrics.averageLeadTime, const Duration(hours: 11, minutes: 30));
       expect(metrics.theoreticalLeadTime, const Duration(hours: 4));
-      expect(metrics.leadTimeEfficiency, closeTo(1.75, 0.0001));
+    });
+
+    test('efficiency goes above 100 % when a queue holds stock (§7.9)', () {
+      // **The reading §8 used to call impossible.** The standard charges the
+      // order for standing behind the two hours of stock in front of W; the
+      // engine charges nothing for it (§5.5). So a run that met no contention
+      // beats the standard, and that is a finding rather than a defect.
+      final setup = scenario(
+        nodes: [step(0, 'W', stock: const Duration(hours: 2))],
+        parts: {
+          'p1': SimPart(
+            id: 'p1',
+            partNumber: 'PN1',
+            processTimes: const {'W': Duration(hours: 1)},
+          ),
+        },
+        orders: [
+          for (var i = 0; i < 3; i++)
+            SimOrder(
+              id: 'o$i',
+              sequence: i,
+              partId: 'p1',
+              needDate: aug1.add(const Duration(days: 2)),
+            ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        release: const Duration(hours: 4),
+      );
+
+      final metrics = computeRunMetrics(
+        result: runSimulation(
+          studies: setup.studies,
+          workcenters: setup.workcenters,
+          start: aug1,
+        ),
+        studies: setup.studies,
+        workcenters: setup.workcenters,
+      );
+
+      // An hour of work each, four hours apart, so nothing ever waits.
+      expect(metrics.averageLeadTime, const Duration(hours: 1));
+      // Three hours of standard: two of stock on the wall clock, one of work.
+      expect(metrics.theoreticalLeadTime, const Duration(hours: 3));
+      expect(metrics.settledOrders, 2);
+      expect(metrics.leadTimeEfficiency, closeTo(3.0, 0.0001));
     });
   });
 

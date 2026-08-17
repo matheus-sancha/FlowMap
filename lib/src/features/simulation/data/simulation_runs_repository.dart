@@ -759,4 +759,21 @@ class ProductionPlanRow extends PlanEntry {
 
   /// Slack against the need date: positive is early (§8).
   Duration? get float => outcome.float;
+
+  /// This order's own `theoretical ÷ actual` (§8.7), or null when either half
+  /// is missing.
+  ///
+  /// **Carries no warm-up exclusion, unlike the metrics card's headline.** The
+  /// early orders of a study meet a flow nothing has queued in yet and score
+  /// far above 1.0; that ramp is real and a planner should be able to see it
+  /// and judge it. A column that silently blanked its own first rows would be
+  /// the same hiding in a different place.
+  double? get leadTimeEfficiency {
+    final actual = actualLeadTime;
+    final theoretical = theoreticalLeadTime;
+    if (actual == null || theoretical == null || actual.inSeconds == 0) {
+      return null;
+    }
+    return theoretical.inSeconds / actual.inSeconds;
+  }
 }

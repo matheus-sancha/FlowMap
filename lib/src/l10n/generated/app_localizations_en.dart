@@ -1470,14 +1470,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simTheoreticalLeadTimeHelp =>
-      'The same orders without queueing, each walked from its own release through the real calendars. Excludes changeover, which depends on what ran before and so is not a property of the part.';
+      'What these orders would take flowing through the plant as it stands — the work, a full changeover at every step and the stock standing in each queue — walked from each order\'s own release through the real calendars.';
 
   @override
   String get simLeadTimeEfficiency => 'Lead-time efficiency';
 
   @override
   String get simLeadTimeEfficiencyHelp =>
-      'Actual ÷ theoretical. 1.0 is queue-free and higher is worse; the excess over 1.0 is exactly the waiting.';
+      'Theoretical ÷ actual. Above 100% the flow queued less than the standard expects; below 100% it queued more. Warm-up orders — those released before their line\'s first delivery, when the flow was still empty — are left out.';
 
   @override
   String get simEmptySlots => 'Empty release slots';
@@ -1573,6 +1573,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simPlanActualLeadTime => 'Actual LT';
+
+  @override
+  String get simPlanLeadTimeEfficiency => 'Efficiency';
 
   @override
   String get simRunQueuesMixed => 'mixed';

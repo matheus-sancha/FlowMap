@@ -39,6 +39,7 @@ void main() {
       'Order end',
       'Theoretical LT (d)',
       'Actual LT (d)',
+      'Efficiency (%)',
       'Float (d)',
     ],
   );
@@ -266,12 +267,14 @@ void main() {
       ),
     );
 
-    test('the header is §8.5\'s thirteen columns', () {
+    test('the header is §8.5\'s fourteen columns', () {
       final headers = row(single(), 'Line', 0);
 
-      expect(headers, hasLength(13));
+      expect(headers, hasLength(14));
       expect(headers.first.toString(), 'Order');
       expect(headers.last.toString(), 'Float (d)');
+      // The ratio carries `%` where its neighbours carry a unit of time (§8.7).
+      expect(headers[12].toString(), 'Efficiency (%)');
     });
 
     test('the order number is a number', () {
@@ -318,13 +321,26 @@ void main() {
 
       expect(cells[10], const xl.DoubleCellValue(0.25)); // 6 h theoretical
       expect(cells[11], const xl.DoubleCellValue(1.25)); // 30 h actual
-      expect(cells[12], isA<xl.DoubleCellValue>());
+      expect(cells[13], isA<xl.DoubleCellValue>());
+    });
+
+    test('efficiency is theoretical ÷ actual, as a number (§8.7)', () {
+      // 6 h against 30 h — the order took five times the standard, so it
+      // queued a great deal more than the standard allows for. **A number, not
+      // a string**: the `%` is in the heading so the cell stays arithmetic.
+      final cell = row(single(), 'Line', 1)[12]!;
+
+      // Read the value rather than the type: the package narrows a whole
+      // number to an int cell on the way back out, and what this column has to
+      // be is arithmetic rather than text.
+      expect(cell, isNot(isA<xl.TextCellValue>()));
+      expect(num.parse(cell.toString()), closeTo(20, 0.05));
     });
 
     test('float keeps its sign, because negative is late (§8)', () {
       // Need date 20 Aug 00:00, order end 4 Aug 12:30 — fifteen days and
       // eleven and a half hours in hand.
-      final float = row(single(), 'Line', 1)[12]! as xl.DoubleCellValue;
+      final float = row(single(), 'Line', 1)[13]! as xl.DoubleCellValue;
 
       expect(float.value, closeTo(15.479166, 0.000001));
     });

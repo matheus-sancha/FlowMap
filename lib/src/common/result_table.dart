@@ -18,7 +18,7 @@
 /// the wrong column is a misread rather than a missing read.
 ///
 /// The gutters are set to nothing on purpose. `DataTable`'s 24 px margin and
-/// 56 px spacing would put 672 px of air into a thirteen-column plan and make
+/// 56 px spacing would put 728 px of air into a fourteen-column plan and make
 /// `ResultColumn.width` a number that does not describe the column it names.
 /// The breathing room belongs *inside* the declared width, where it can be seen.
 ///

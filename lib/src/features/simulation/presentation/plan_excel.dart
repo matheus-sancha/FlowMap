@@ -49,7 +49,7 @@ class PlanExcelStrings {
   /// The stamp sheet's own name.
   final String runSheet;
 
-  /// §8.5's thirteen columns, in order, with the unit on the three that carry
+  /// §8.5's fourteen columns, in order, with the unit on the four that carry
   /// one.
   final List<String> headers;
 
@@ -223,6 +223,7 @@ List<xl.CellValue?> _planRow(PlanEntry entry, String Function(EmptySlotReason) r
       null,
       null,
       null,
+      null,
     ];
   }
   final row = entry as ProductionPlanRow;
@@ -235,13 +236,20 @@ List<xl.CellValue?> _planRow(PlanEntry entry, String Function(EmptySlotReason) r
   row.batchSize == null ? null : xl.IntCellValue(row.batchSize!),
   _date(row.outcome.needDate),
   _date(row.materialDate),
-  // The instant, where the screen shows only the date: a thirteen-column table
+  // The instant, where the screen shows only the date: a fourteen-column table
   // has no room for a clock and a spreadsheet has no such constraint. They
   // agree about the moment; the file simply says more of it.
   _instant(row.orderStart),
   _instant(row.delivery),
     _days(row.theoreticalLeadTime),
     _days(row.actualLeadTime),
+    // A number the reader can average, like every other figure here — the `%`
+    // is in the heading, so the cell stays arithmetic.
+    row.leadTimeEfficiency == null
+        ? null
+        : xl.DoubleCellValue(
+            (row.leadTimeEfficiency! * 1000).roundToDouble() / 10,
+          ),
     _days(row.float),
   ];
 }
@@ -353,6 +361,8 @@ Future<void> exportPlanExcel(
         l10n.simPlanOrderEnd,
         '${l10n.simPlanTheoreticalLeadTime} (${l10n.unitDaysShort})',
         '${l10n.simPlanActualLeadTime} (${l10n.unitDaysShort})',
+        // A ratio, so it carries `%` where its neighbours carry a unit of time.
+        '${l10n.simPlanLeadTimeEfficiency} (%)',
         '${l10n.simAverageFloat} (${l10n.unitDaysShort})',
       ],
     ),
