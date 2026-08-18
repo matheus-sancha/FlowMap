@@ -1154,14 +1154,14 @@ FlowStepView _buildStep({
     // A step the part being shown has no time for is a blocking readiness
     // error (§11) — not a zero, and not a quiet fall-back to the takt.
     //
-    // **Unless the balance has given it a share** (§7.4): inside a group of
-    // like machines the work is the group's and a member that was never
-    // measured is one the takt may still put work on. What is blocking there is
-    // a group holding nothing, which is why `balanceFlow` declines to split a
-    // total of zero and leaves this rule to speak.
-    if (processTime == null && balanced == null) {
-      problems.add(StepProblem.noProcessTime);
-    }
+    // **§7.4 weakened this and §7.7.1 puts it back.** The weakening let a group
+    // member with no time take a share, on the reading that inside a group the
+    // work belongs to the group. That is true of a *blank* and false of a
+    // *zero*, and nothing here distinguished them — so a part storing `0` at
+    // CEU30 to say it does not route there was handed 94.3 h of CEU32's work.
+    // The balance now takes only stations with positive time, so a null here is
+    // a null again: an unanswered question, and §6.2 is right that it blocks.
+    if (processTime == null) problems.add(StepProblem.noProcessTime);
   }
 
   final measuredProcessTime = processTime;

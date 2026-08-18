@@ -726,10 +726,33 @@ that shows a figure other than the one entered into it is a cell that argues wit
 grid is the observation and the map is the derived split, and the mark on the box is what tells a
 reader the two are answering different questions.
 
-**Readiness generalises from the step to the group.** A step the selected part has no time for is a
-blocking error (§6.2, §11) — but inside a group the work belongs to the group, so a member that was
-never measured is simply one the takt may put no work on. What blocks is a group holding nothing,
-which is why the rule declines to split a total of zero and leaves §6.2's per-step error to speak.
+**Only stations with positive work are members**, and this paragraph replaces one that said the
+opposite. **A zero is how a plant says a part does not route through a station** — every part on the
+real database carries an explicit cell for every station in its flow, some of them zero — so a member
+with no positive time is left out of the pot and keeps its zero. It is left out **transparently**: it
+is the same operation, so the members either side of it still balance with each other.
+
+_This was got wrong and shipped._ The first version read a zero as an unmeasured member of the group
+and gave it a share, on the reading that inside a group the work belongs to the group. Against
+célula 11D, `P1000247599` stores 0 h at CEU30 and 146 h at CEU32, and the map showed **94.3 h at
+CEU30** — ninety-four hours of work on a machine the part never visits, and eighty-nine taken off the
+one that does it. That reasoning is right for a *blank* and wrong for a *zero*, and nothing
+distinguished them.
+
+**A blank still blocks.** `StepProblem.noProcessTime` means what it meant before this section
+existed: a step the selected part has no time for is a blocking readiness error (§6.2, §11). The two
+are different statements — a blank is an unanswered question and a zero is an answer — and the
+correction is that the balance now takes only positive times, so the per-step rule never had to be
+weakened at all.
+
+**A group is therefore two or more stations that each have work.** `CEU30 = 0, CEU32 = 146` is one
+member, so it is no group and CEU32 keeps every minute of it.
+
+_Worth knowing, and it follows from the rule rather than qualifying it:_ **the split can empty a
+station out of a part's routing.** Where a group's whole work content fits inside one takt, the first
+station takes all of it and the rest derive zero — on 11D, `P7000109738P01` has 15 h stored at CEU32
+and the map shows 0 h there. That is "top the first workcenter at the takt" working as specified,
+and it means a derived zero and a stored zero look alike on the map while meaning different things.
 
 **A group whose takt cannot be resolved is not balanced at all.** One member with no schedule and
 there is no cap to fill to, so the split would be an invention; the measured figures stand and the

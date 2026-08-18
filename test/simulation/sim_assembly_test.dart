@@ -617,6 +617,27 @@ void main() {
       );
     });
 
+    test('a station this part does not run on is not a member (§7.7.1)', () {
+      // The engine reads the same rule as the map, so the defect had to be
+      // fixed in one place — a run that put 94.3 h on a machine the part never
+      // visits would have queued and costed an operation that does not exist.
+      final built = twoStations(
+        processTimes: const {
+          'p1': {'W': Duration.zero, 'X': Duration(hours: 4)},
+        },
+      )!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        Duration.zero,
+      );
+      expect(
+        built.steps.last.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 4),
+      );
+    });
+
     test('a pool step is in no group', () {
       // Its members are interchangeable and it is one target with one queue
       // (§3.1), so "the first workcenter and the last of the same type in the

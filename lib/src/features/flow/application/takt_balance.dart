@@ -24,8 +24,14 @@ typedef BalanceStep = ({
   String? typeName,
 
   /// What was measured at this station: the observation, straight from the
-  /// demand table. Null and zero are the same thing here — nothing measured
-  /// contributes nothing to the total.
+  /// demand table.
+  ///
+  /// **Zero means the part does not route here, and null means nobody has
+  /// said** — and neither takes a share (§7.7.1). They are different statements
+  /// everywhere else in the app: a blank cell is a blocking readiness error
+  /// (§6.2) and a zero is the plant saying it looked and the answer is none.
+  /// Here they land in the same place, because a station with no positive work
+  /// is a station this part does not use.
   Duration? measured,
 
   /// One takt of this station's own capacity — the cap it fills to. Null where
@@ -47,6 +53,10 @@ class BalanceGroup {
 
   /// The indices of its members in the list handed to [balanceFlow], in flow
   /// order.
+  ///
+  /// **The stations that take a share**, not every step of the type-run it was
+  /// found in: one whose measured time is zero does not route here and is left
+  /// out (§7.7.1), without breaking the run for the ones either side of it.
   final List<int> indices;
 
   /// The work content the group holds for this part — the sum of what was
@@ -70,6 +80,12 @@ class BalanceGroup {
 /// is what keeps a flow of unlike machines behaving exactly as it did before
 /// this rule existed.
 ///
+/// **Only stations with positive work are members** (§7.7.1). A zero is how the
+/// plant says a part does not route through a station, so `CEU30 = 0 h,
+/// CEU32 = 146 h` is one member and therefore no group at all — CEU32 keeps its
+/// 146 h. A station sitting out is **transparent**: the members either side of
+/// it still balance with each other.
+///
 /// **Fill each to its own takt and leave the remainder on the last**, which is
 /// what was asked for. The last station is the one allowed to be under or over:
 /// under when the group has slack, over when it is the bottleneck, and either
@@ -79,8 +95,7 @@ class BalanceGroup {
 /// **A group whose takt cannot be resolved is not balanced at all.** One member
 /// with no schedule and there is no cap to fill to, so the split would be an
 /// invention — the measured figures stand and the step's own readiness problem
-/// says why. The same for a group nothing was measured in: zero split four ways
-/// is four zeroes, and a zero is a number someone will add up (§11).
+/// says why.
 List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
   final groups = <BalanceGroup>[];
 
@@ -97,15 +112,33 @@ List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
       end++;
     }
 
-    final indices = [for (var i = start; i <= end; i++) i];
+    final run = [for (var i = start; i <= end; i++) i];
     start = end + 1;
+
+    // **Only the stations this part actually runs on** (§7.7.1). A zero is how
+    // the plant says a part does not route through a station, and giving one a
+    // share puts work on a machine the part never visits — 94.3 h onto CEU30
+    // for `P1000247599`, which is the defect this rule was corrected for.
+    //
+    // **Left out without breaking the run.** A station that does not take a
+    // share is transparent to the ones either side of it: it is the same
+    // operation, it simply has no work of this part. Walling the group at it
+    // would stop two machines sharing work for a reason nobody asked for and
+    // nothing on screen would say.
+    final indices = [
+      for (final i in run)
+        if ((steps[i].measured ?? Duration.zero) > Duration.zero) i,
+    ];
     if (indices.length < 2) continue;
 
+    // Positive by construction now, so there is no zero-total case left to
+    // guard: a group is two or more stations that each have work.
     final total = indices.fold(
       Duration.zero,
-      (sum, i) => sum + (steps[i].measured ?? Duration.zero),
+      (sum, i) => sum + steps[i].measured!,
     );
-    if (total == Duration.zero) continue;
+    // Asked of the members only. A station sitting out has no cap to fill and
+    // its missing schedule is not this group's problem.
     if (indices.any((i) => steps[i].takt == null)) continue;
 
     // Fill each but the last to its own takt; the last takes what is left.

@@ -1172,6 +1172,7 @@ distrust the next one that does.
 | **§7.4** | Takt rebalances a group | derived process times — **written, not driven** |
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
+| **§7.7** | The takt a run ran at, and pinning a station | **a live defect in §7.4**, two captions, one flag — settled by interview, **nothing written** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -1783,6 +1784,196 @@ nothing. **Do this against a fresh run** — every stored run predates it.
 - [ ] **The plan at fourteen columns**, on screen and in Excel — `Efficiency` is the column most
       likely to have pushed Float off the right edge (§12.6).
 
+### 7.7 The takt a run ran at, and pinning a station — settled by interview 2026-08-17
+
+**From driving §7.4 against célula 11D**, which has a takt change on **1 April 2026** — 4 days before,
+5 after. The rebalance could not be found on screen, and finding out why turned up one live defect,
+two invisible captions and a feature the app has never had. Settled question by question; every
+answer below is the field's, not a default.
+
+**§18.3 is closed by decision, not deferred again.** *"Changing a takt mid-run is impractical in
+reality"* — a line does not re-cadence halfway through a batch of work. So **a run is a single-takt
+experiment**, and the way to see what a takt change costs is to run it twice and read the Gantt, the
+occupation and the queue indicators against each other. That is a stronger position than "not settled
+yet" and it should replace §18.3's entry in §8 rather than sit beside it.
+
+| | |
+|---|---|
+| **§7.7.1** | The zero-time defect — **live in `aa3e87e`, fix first** |
+| **§7.7.2** | A run records the takt it ran at |
+| **§7.7.3** | The two captions nobody can read |
+| **§7.7.4** | Pinning a station out of its balance group |
+
+#### 7.7.1 The defect: §7.4 invents a routing
+
+*Field: "if a part has 0 h for CEU30 and 100 h for CEU32 it should keep 0 h at CEU30, because that
+indicates the part does not run in CEU30."*
+
+**A zero is how this plant says a part does not route through a station**, and every 11D part carries
+an explicit row for every station in its flow — some of them zero. §7.4 read those zeroes as
+unmeasured members of the group and gave them a share. Against the real database:
+
+| | stored | §7.4 shows |
+|---|---|---|
+| `P1000247599` CEU30 | **0 h** | **94.3 h** |
+| `P1000247599` CEU32 | 146 h | 57.1 h |
+
+**94.3 hours placed on a machine the part never visits, and 89 taken off the one that does it.** Not
+a rounding difference — an invented routing, on a figure the map, the ladder, the footer, PCE, the
+printed map and the engine all read.
+
+**And the test written for it asserted the wrong belief.** *"A station never measured still takes a
+share of its group"* was written as a feature, with a comment explaining that inside a group the work
+belongs to the group. That reasoning is right for a blank and wrong for a zero, and nothing
+distinguished them.
+
+The rule, corrected:
+
+- **Zero means the part does not route here.** Excluded from the group's pot, keeps its zero, and —
+  per §7.7.4's transparency rule — does not wall off its neighbours.
+- **Blank still blocks.** `StepProblem.noProcessTime` goes back to what it was before §7.4 weakened
+  it. A blank is an unanswered question and §6.2 is right that it must stop a run; a zero is an
+  answer. The two are different statements and the app already distinguished them.
+- **A group needs two or more members with a positive time** to exist at all. `CEU30=0, CEU32=146`
+  is therefore not a group, and CEU32 keeps 146 h.
+
+_Known and deliberately out of scope:_ the **engine** does not treat a zero as a skip. `_admit` still
+queues the order at that station and it still pays setup and teardown for a zero-length operation, so
+the map and the run disagree about what a zero means. That predates §7.4 and wants its own decision.
+
+#### 7.7.2 A run records the takt it ran at
+
+**A stored run does not say what takt it used.** `SimulationRuns` carries `dispatch`, `runStart`,
+`runEnd`, `guard`, `abortReason` and `scheduleHorizon` — and not the one parameter the whole
+experiment turns on. §7.10 forbids joining back to the live schedule, so it cannot be recovered:
+edit the takt table and every stored run silently misreports what it did.
+
+That is one level below the confusion that started this round. The Gantt could not be read because
+**the run never said which takt drew it**, and under §7.7's decision that a run is a single-takt
+experiment, the takt is the run's identity.
+
+**Three columns on `simulation_run_studies`** — the shape §16.18 used for cell and line, and per
+study because takt is keyed by *production line*, so a two-line run has two takts:
+
+| column | for |
+|---|---|
+| takt value + unit | what a human reads. `2026-08-17 · 11D · 4 d · FIFO` in the history picker, so two runs can be told apart in the menu at all |
+| resolved release interval, seconds | what the engine *used* — `takt.equivalentAt(pacemaker's productive day)`. Depends on a schedule that may be edited afterwards, which is precisely what §7.10 freezes |
+
+_Rejected: one takt on `simulation_runs`._ Cheapest, and wrong the moment a run carries two lines.
+
+#### 7.7.3 The two captions nobody can read
+
+Neither of these is a wrong number. Both are a correct number with an invisible caveat, and §2.5
+already litigated the shape: *"with no affordance nobody hovers."*
+
+- **The map's period.** `flow_tab.dart:116` draws an 18 px ⓘ when the viewed span crosses a change,
+  and `app_en.arb:422` already says the right thing — *"Takt or staffing changes inside this period.
+  The map shows the state on its first day."* It was on screen the whole evening and never read,
+  and it does not say **which** of the two changed, **when**, or **what the other value is**. It
+  becomes **visible text**: `Takt 4 d → 5 d on 1 Apr — showing 4 d`. On **Summary as well as Flow**:
+  same provider, same trap.
+
+  _Measured, so the size of it is on the record:_ at **year** granularity the span starts 1 January
+  and 11D reads the 4-day takt for the whole of 2026 — CEU30 75.4 h, CEU32 171.4 h. At month,
+  quarter or semester in H2 it reads 5 days — 94.3 h and 152.5 h. Same map, same day, same part.
+
+  _Rejected: snapping the period navigator to takt boundaries._ It makes the wrong view unreachable
+  rather than merely captioned, which is stronger — and `viewedPeriodProvider` is shared with Demand
+  and Summary, where takt governs nothing. Distorting a control two tabs depend on to fix a problem
+  one of them has.
+
+  _Rejected: refusing the takt-derived figures, or showing a range._ Everything on that year view is
+  a truthful statement about 1 January; blanking six unrelated figures to caveat one is worse. A
+  `4–5 d` range in the footer over point values in every box below it is worse still.
+
+- **The run's span.** A fourth nullable column beside §7.7.2's three: the date of the next takt
+  change inside the run's span, or null. Shown as a **line in the run header**, not an icon —
+  `Ran at 4 d. The takt changes to 5 d on 1 Apr, inside this run's span.` Stored rather than derived,
+  for §11.1's stated reason: *"a run that could not say this would drop its own caveat the moment the
+  reader came back to it, which is exactly when they are most likely to quote the figures."*
+
+  _Rejected: blocking the run._ Readiness could refuse a demand span that crosses a change — and it
+  would forbid the one experiment the field asked for, which is to run 2026 at each takt and compare.
+  It would also block 11D outright until somebody edited the schedule.
+
+#### 7.7.4 Pinning a station out of its balance group
+
+*Field: "I would like to add an option to the user to disable the rebalancing for a workcenter."*
+
+**Today the only escape hatch is to clear the workcenter's type**, which is what CLAD06 is
+accidentally doing — the one untyped workcenter in a plant where every other CLAD is `Cladding`. That
+also blanks the box's type line and loses the icon, so it is a side effect standing in for an intent.
+
+- **Stored per flow step**, a nullable flag on `flow_nodes`, **on by default** so nothing already in
+  the tree changes. Not per workcenter, and the argument is §1.1's own: *"it is this line's use of
+  the station, and a duplicated study must be re-tunable without disturbing the original."* 11B, 11C
+  and 11D **share four stations** — BAN11, TTAT, END and Coating — so a per-workcenter flag on any of
+  them changes three studies from a screen showing one, which is §1.3's lesson verbatim. And group
+  membership is a *flow* fact: whether CEU30's work can move depends on what is beside it, and that
+  differs per study by construction.
+
+  _Rejected: a flag on the workcenter type._ `Machining - HBM is never balanced` is one switch for a
+  whole class, and it cannot express "these two, but not those two".
+
+- **A pinned station is transparent, not a wall.** With `A B C D` all one type and C pinned, A, B and
+  D still balance across it. Pinning C must not silently stop D balancing — a consequence nobody
+  asked for and which shows as D quietly reverting to its measured figure with nothing on screen.
+  **"Untyped" and "pinned" are different statements and behave differently:** untyped means *I do not
+  know what this machine is*, which has to be a wall; pinned means *I know exactly what it is and its
+  content is fixed*, which is the same operation and so is not.
+
+  _Academic on this plant today, and worth saying:_ every group in the database is exactly two
+  stations — CEU30+CEU32, CEU27+CEU26, CEU21+CEU22 — and at two members both rules give the same
+  answer. This is a decision about what the rule *means*.
+
+- **The toggle is always visible, greyed with a reason when it cannot apply.** In the step dialog
+  beside Process Specific Takt, which is where §7.3 put the queue type — *"where the workcenter is
+  chosen"*. Positive wording, `Rebalance with adjacent like machines`, checked; the column is a
+  *disable* flag so null reads as on and no study needs a backfill.
+
+  **This is the item that fixes the bug that started the round.** The three reasons a station is not
+  in a group are all things the app knows, and the greyed caption says which: *the workcenter has no
+  type*, *no adjacent step shares its type*, *this part's time here is zero*. Opening CLAD06's dialog
+  would have answered the question in one click instead of an evening.
+
+  _Rejected: hiding it when it cannot apply_ (§2.1's rule for the same-part percentage). It protects
+  the height of a dialog that already scrolls at 700 px — and it makes all three reasons silent,
+  which is exactly where this round started.
+
+- **A station that is not participating gets no mark.** Marking every non-participant would put a
+  glyph on seven of 11D's nine boxes and say nothing; marking only the pinned ones inside a live
+  group was considered and dropped. **The user has told the app to leave the station alone and the
+  map obeys quietly.** If a still station inside a moving group turns out to read as a defect on
+  screen, a mark is a one-line addition later.
+
+#### What this costs, and the order
+
+**One v20 migration** carrying all five columns — `flow_nodes.balance_disabled`, and
+`simulation_run_studies`' takt value, unit, release interval and next-change date. All nullable, all
+landing on tables that predate them, so it is the shape §16.19 called *"no table is rebuilt"*.
+
+1. **§7.7.1 first and on its own, with no schema.** It is live in `aa3e87e` and it is inventing
+   routings on real data right now. The wrong test goes with it.
+2. **The v20 migration**, then §7.7.4's flag and dialog.
+3. **§7.7.2 and §7.7.3** — the run's takt, the run header line, the map caption on Flow and Summary.
+
+**DESIGN.md this round:** **§6.2.1** (rewritten — the zero rule, the pin, transparency), **§7.8** or
+wherever §18.3 is answered (a run is a single-takt experiment, by decision), **§7.10** (what a run
+records about its takt), **§11.1**'s neighbour (the span caveat), **§12.1** (the run header line),
+**§16.20**'s successor **§16.21** (schema v20), and **§8**'s §18.3 entry retired.
+
+#### Drive it
+
+- [ ] **`P1000247599` on the map**, which is the defect: CEU30 must read 0 h and CEU32 146 h.
+- [ ] **The greyed toggle on CLAD06**, saying the workcenter has no type — the sentence that would
+      have saved this round.
+- [ ] **Pin CEU30 and watch CEU32 keep its measurement**, then unpin and watch it move.
+- [ ] **The map caption at year granularity on 11D**, naming 4 d → 5 d on 1 Apr.
+- [ ] **Two runs of 11D, one at each takt**, told apart in the history picker by their takt, each
+      carrying the change caveat — and the Gantt, occupation and queue indicators read against each
+      other. That is the whole of how a takt change is studied under this round's decision.
+
 ---
 
 ## 8. Known gaps, deliberately left
@@ -1798,8 +1989,13 @@ nothing. **Do this against a fresh run** — every stored run predates it.
       means the read-only twin of `DataGrid`: a heading row over a `ListView.builder`, which is the
       structure the grid already uses. **§3 makes two more tables grids**, which narrows this rather
       than closing it.
-- [ ] **§18.3 is still open**: takt changes mid-flight. A run keeps one release cadence throughout,
-      resolved at its start by the second assembly pass (§16.10).
+- [x] ~~**§18.3 is still open**: takt changes mid-flight.~~ **Settled by decision 2026-08-17, not
+      deferred again** (§7.7): *"changing a takt mid-run is impractical in reality"* — a line does not
+      re-cadence halfway through a batch of work. **A run is a single-takt experiment**, resolved at
+      its start by the second assembly pass (§16.10), and a takt change is studied by running it
+      twice and reading the Gantt, the occupation and the queue indicators against each other. What
+      §7.7 owes is not a mechanism but three captions: the run must **say** which takt it ran at, and
+      both the run and the map must say when a change falls inside the span they are showing.
 - [ ] **§18.5 is still open**: empty slots as a reported metric. They are counted, dated, stored and
       shown; what is missing is a decision about whether a list of *which* slots is wanted, and
       whether an empty slot should ever be a warning.

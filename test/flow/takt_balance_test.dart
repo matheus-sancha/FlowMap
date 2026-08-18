@@ -103,10 +103,12 @@ void main() {
     });
 
     test('a group with slack leaves later stations empty', () {
+      // 30 minutes across three 40-minute stations: the first swallows it and
+      // the two behind it have nothing left to do.
       final groups = balanceFlow([
         step('Cladding', measured: 25),
-        step('Cladding', measured: 5),
-        step('Cladding'),
+        step('Cladding', measured: 4),
+        step('Cladding', measured: 1),
       ]);
 
       expect(groups.single.derived, {
@@ -167,6 +169,69 @@ void main() {
       expect(group.derived[0], const Duration(minutes: 60));
       expect(group.derived[1], const Duration(minutes: 20));
       expect(group.derived[2], const Duration(minutes: 100));
+    });
+  });
+
+  /// A zero is how the plant says a part does not route through a station
+  /// (§7.7.1). Giving one a share puts work on a machine the part never visits.
+  group('a station this part does not run on', () {
+    test('a zero keeps its zero and is not a member', () {
+      // The defect, as data. `P1000247599` stores 0 h at CEU30 and 146 h at
+      // CEU32; §7.4 gave CEU30 94.3 h of CEU32's work.
+      final groups = balanceFlow([
+        step('Machining', measured: 0),
+        step('Machining', measured: 146),
+      ]);
+
+      // One member is not a group, so CEU32 keeps every minute of it.
+      expect(groups, isEmpty);
+      expect(balancedProcessTimes([
+        step('Machining', measured: 0),
+        step('Machining', measured: 146),
+      ]), isEmpty);
+    });
+
+    test('a null is not a member either', () {
+      // A blank cell is a different statement from a zero — it blocks the run
+      // (§6.2) rather than saying the part skips the station — but neither is
+      // positive work, so neither takes a share.
+      expect(
+        balanceFlow([step('Machining'), step('Machining', measured: 146)]),
+        isEmpty,
+      );
+    });
+
+    test('a station sitting out does not wall off its neighbours', () {
+      // Transparent, not a wall: it is the same operation, it simply has no
+      // work of this part. Walling here would stop two machines sharing for a
+      // reason nobody asked for and nothing on screen would say.
+      final group = balanceFlow([
+        step('Machining', measured: 60),
+        step('Machining', measured: 0),
+        step('Machining', measured: 60),
+      ]).single;
+
+      expect(group.indices, [0, 2]);
+      expect(group.measuredTotal, const Duration(minutes: 120));
+      expect(group.derived, {
+        0: const Duration(minutes: 40),
+        2: const Duration(minutes: 80),
+      });
+      // And the station sitting out is untouched — no share, no entry.
+      expect(group.derived.containsKey(1), isFalse);
+    });
+
+    test('a member sitting out takes its missing takt with it', () {
+      // A station with no schedule would stop the group (see below) — but only
+      // if it is a member. One this part does not run on has no cap to fill and
+      // its missing schedule is not this group's problem.
+      final group = balanceFlow([
+        step('Machining', measured: 60),
+        step('Machining', measured: 0, cap: null),
+        step('Machining', measured: 60),
+      ]).single;
+
+      expect(group.indices, [0, 2]);
     });
   });
 

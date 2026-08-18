@@ -1592,20 +1592,71 @@ void main() {
       expect(view.steps.map((s) => s.isBalanced), [false, false]);
     });
 
-    test('a station never measured still takes a share of its group', () {
-      // The readiness rule generalises from the step to the group (§11): what
-      // is blocking is a group holding nothing, not a member holding nothing,
-      // because inside a group the work belongs to the group.
+    test('a station this part does not run on keeps its zero (§7.7.1)', () {
+      // The defect §7.4 shipped with, on the shape that found it: a zero is how
+      // the plant says a part does not route through a station, and this test
+      // used to assert the opposite — that the takt could put work there.
+      //
+      // Against the real database, `P1000247599` stores 0 h at CEU30 and 146 h
+      // at CEU32, and the map showed CEU30 94.3 h.
       final view = threeClads(measured: [60, 60, 0]);
 
+      expect(view.steps.last.processTime, Duration.zero);
+      expect(view.steps.last.isBalanced, isFalse);
+      // The two that do run it still share their own work across each other.
       expect(view.steps.first.processTime, const Duration(hours: 68));
       expect(view.steps.elementAt(1).processTime, const Duration(hours: 52));
-      expect(view.steps.last.processTime, Duration.zero);
-      expect(
-        view.steps.every((s) => s.problems.isEmpty),
-        isTrue,
-        reason: 'the group has work, so no member is short of a process time',
+    });
+
+    test('one station of a pair at zero leaves the other whole', () {
+      // The live case, exactly: one member is not a group, so nothing moves.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CEU30'),
+          step(1, workcenterId: 'CEU32'),
+        ],
+        contexts: {
+          'CEU30': context('CEU30', typeName: 'Machining - HBM'),
+          'CEU32': context('CEU32', typeName: 'Machining - HBM'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {'CEU30': Duration.zero, 'CEU32': Duration(hours: 146)},
+          },
+          selectedPartId: 'p1',
+        ),
       );
+
+      expect(view.steps.first.processTime, Duration.zero);
+      expect(view.steps.last.processTime, const Duration(hours: 146));
+      expect(view.steps.every((s) => s.isBalanced), isFalse);
+    });
+
+    test('a blank blocks the step again (§7.7.1)', () {
+      // §7.4 weakened this so a group member with no time could take a share.
+      // A blank is an unanswered question, not a statement that the part skips
+      // the station — the two were collapsed and that is what caused the bug.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CEU30'),
+          step(1, workcenterId: 'CEU32'),
+        ],
+        contexts: {
+          'CEU30': context('CEU30', typeName: 'Machining - HBM'),
+          'CEU32': context('CEU32', typeName: 'Machining - HBM'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {'CEU32': Duration(hours: 146)},
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.first.problems, contains(StepProblem.noProcessTime));
+      expect(view.steps.first.processTime, isNull);
     });
 
     test('two stations of a type that are not adjacent are two groups', () {
