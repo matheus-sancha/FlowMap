@@ -7,6 +7,7 @@ import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dar
 import 'package:flowmap/src/features/calendar/application/working_calendar.dart';
 import 'package:flowmap/src/features/flow/application/flow_layout.dart';
 import 'package:flowmap/src/features/flow/application/flow_view.dart';
+import 'package:flowmap/src/features/flow/application/takt_balance.dart';
 import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/schedules/application/workcenter_schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +76,7 @@ void main() {
     String? workcenterId,
     String? poolId,
     int changeoverSeconds = 0,
+    bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
     String? label,
@@ -86,6 +88,7 @@ void main() {
     workcenterId: workcenterId,
     poolId: poolId,
     changeoverSeconds: changeoverSeconds,
+    balanceDisabled: balanceDisabled,
     equivalentValue: equivalentValue,
     equivalentUnit: equivalentUnit,
     inventoryUsesWorkingTime: false,
@@ -1631,6 +1634,46 @@ void main() {
       expect(view.steps.first.processTime, Duration.zero);
       expect(view.steps.last.processTime, const Duration(hours: 146));
       expect(view.steps.every((s) => s.isBalanced), isFalse);
+    });
+
+    test('a pinned station keeps its measurement (§7.7.4)', () {
+      // The flag reaches the map. Pinning one of a pair means nothing moves at
+      // all, which is the case the real plant will see — every group on it is
+      // exactly two stations.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CEU30', balanceDisabled: true),
+          step(1, workcenterId: 'CEU32'),
+        ],
+        contexts: {
+          'CEU30': context('CEU30', typeName: 'Machining - HBM'),
+          'CEU32': context('CEU32', typeName: 'Machining - HBM'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'CEU30': Duration(hours: 71),
+              'CEU32': Duration(hours: 167),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.first.processTime, const Duration(hours: 71));
+      expect(view.steps.last.processTime, const Duration(hours: 167));
+      expect(view.steps.first.isPinned, isTrue);
+      expect(view.steps.first.standing, BalanceStanding.pinned);
+    });
+
+    test('the map carries why a step is not sharing work', () {
+      // The caption the step dialog reads. Computed from the same walk as the
+      // split, so it cannot disagree with the figure on the box.
+      final view = threeClads(measured: [60, 60, 60], lastType: 'Heat treat');
+
+      expect(view.steps.first.standing, BalanceStanding.balanced);
+      expect(view.steps.last.standing, BalanceStanding.noLikeNeighbour);
     });
 
     test('a blank blocks the step again (§7.7.1)', () {

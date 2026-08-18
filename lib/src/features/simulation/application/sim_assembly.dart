@@ -263,6 +263,7 @@ SimStudy? assembleSimStudy({
   // their takt and never by their arithmetic.
   final balanced = _balanceSteps(
     simNodes,
+    nodes: nodes,
     parts: parts,
     processTimes: processTimes,
     takt: takt,
@@ -363,11 +364,18 @@ SimStudy? assembleSimStudy({
 /// which is what keeps it out.
 Map<String, Map<String, Duration>> _balanceSteps(
   List<SimStep> steps, {
+  required List<FlowNode> nodes,
   required List<DemandPart> parts,
   required Map<String, Map<String, Duration>> processTimes,
   required TaktPeriodSpec takt,
   required SimResourceContext resources,
 }) {
+  // Pinned out of its group by the user (§7.7.4), by node id — the run has to
+  // honour it or the map and the Gantt would place work differently.
+  final pinned = {
+    for (final node in nodes)
+      if (node.balanceDisabled ?? false) node.id,
+  };
   final types = [
     for (final step in steps)
       step.poolId != null
@@ -396,6 +404,7 @@ Map<String, Map<String, Duration>> _balanceSteps(
           typeName: types[i],
           measured: measured[steps[i].demandKey],
           takt: takts[i],
+          pinned: pinned.contains(steps[i].id),
         ),
     ]);
     derived.forEach((i, duration) {

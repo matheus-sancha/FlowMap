@@ -37,7 +37,38 @@ typedef BalanceStep = ({
   /// One takt of this station's own capacity — the cap it fills to. Null where
   /// the takt or the station's schedule could not be resolved.
   Duration? takt,
+
+  /// Pinned by the user (§7.7.4): this station keeps what was measured at it
+  /// and takes no share.
+  ///
+  /// **Transparent, not a wall.** The members either side of a pinned station
+  /// still balance with each other — it is the same operation, its content is
+  /// simply fixed. That is what parts it from an *untyped* station, which has
+  /// to be a wall because nothing says it is like its neighbours at all.
+  bool pinned,
 });
+
+/// Why a step is not taking a derived share, for a surface that has to say so
+/// (§7.7.4).
+///
+/// Ordered by how much the reader can do about it: the first three are facts
+/// about the plant or the part, the fourth is the user's own decision.
+enum BalanceStanding {
+  /// Taking a derived share of its group.
+  balanced,
+
+  /// The workcenter has no type, so nothing says it is like its neighbours.
+  noType,
+
+  /// This part has no work here, so the station is not in the pot (§7.7.1).
+  noWorkHere,
+
+  /// No adjacent step shares its type, so there is nothing to share work with.
+  noLikeNeighbour,
+
+  /// Pinned out of its group by the user.
+  pinned,
+}
 
 /// A run of adjacent steps that share a workcenter type (§7.4).
 class BalanceGroup {
@@ -125,10 +156,7 @@ List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
     // operation, it simply has no work of this part. Walling the group at it
     // would stop two machines sharing work for a reason nobody asked for and
     // nothing on screen would say.
-    final indices = [
-      for (final i in run)
-        if ((steps[i].measured ?? Duration.zero) > Duration.zero) i,
-    ];
+    final indices = [for (final i in run) if (_takesAShare(steps[i])) i];
     if (indices.length < 2) continue;
 
     // Positive by construction now, so there is no zero-total case left to
@@ -167,9 +195,44 @@ List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
   return groups;
 }
 
+/// Whether a step can take a share at all: it must have work of this part, and
+/// must not be pinned (§7.7.1, §7.7.4).
+bool _takesAShare(BalanceStep step) =>
+    !step.pinned && (step.measured ?? Duration.zero) > Duration.zero;
+
 /// [balanceFlow]'s answer flattened to the lookup both callers actually want:
 /// the derived time for a step, by index, absent where the step is not in a
 /// balanced group.
 Map<int, Duration> balancedProcessTimes(List<BalanceStep> steps) => {
   for (final group in balanceFlow(steps)) ...group.derived,
 };
+
+/// Why each step is or is not taking a share, by index (§7.7.4).
+///
+/// **Derived from the same walk the split is**, rather than worked out again by
+/// whatever wants to display it: a caption that disagreed with the figure beside
+/// it would be worse than no caption, and this round exists because a caveat
+/// nobody could read cost an evening.
+Map<int, BalanceStanding> balanceStandings(List<BalanceStep> steps) {
+  final balanced = balancedProcessTimes(steps);
+  final standings = <int, BalanceStanding>{};
+
+  for (var i = 0; i < steps.length; i++) {
+    if (balanced.containsKey(i)) {
+      standings[i] = BalanceStanding.balanced;
+      continue;
+    }
+    final step = steps[i];
+    standings[i] = switch (step) {
+      _ when step.typeName == null => BalanceStanding.noType,
+      _ when step.pinned => BalanceStanding.pinned,
+      _ when (step.measured ?? Duration.zero) <= Duration.zero =>
+        BalanceStanding.noWorkHere,
+      // It has a type, has work and is not pinned, so what it lacks is somebody
+      // to share with — either no neighbour of its type, or none that is itself
+      // taking a share.
+      _ => BalanceStanding.noLikeNeighbour,
+    };
+  }
+  return standings;
+}

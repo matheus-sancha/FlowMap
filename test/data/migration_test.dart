@@ -1951,6 +1951,32 @@ void main() {
       hasLength(4),
     );
 
+    // **v20 rides along, and its whole claim is that it changes nothing.**
+    // Asserted here rather than from a fixture of its own because it carries
+    // four nullable columns and no carry — there is nothing to isolate, and
+    // §16.18's warning about a fixture full of nulls is about a migration that
+    // *moves* data, which this one deliberately does not.
+    //
+    // Rebalancing is on for every step that already existed, which is what a
+    // null in a disable flag means (§7.7.4).
+    expect(
+      nodes.every((n) => n.balanceDisabled == null),
+      isTrue,
+      reason: 'a pre-v20 step must keep rebalancing on',
+    );
+
+    // And the run's three takt columns land. Asserted against the table's own
+    // shape rather than against rows, because this fixture stores no run —
+    // a `every()` over an empty list passes whether or not the columns exist,
+    // which is §16.18's warning arriving from the other direction.
+    final columns = await db
+        .customSelect('PRAGMA table_info(simulation_run_studies)')
+        .get();
+    expect(
+      columns.map((row) => row.data['name']),
+      containsAll(['takt_value', 'takt_unit', 'next_takt_change']),
+    );
+
     expect(
       await db.customSelect('PRAGMA user_version').getSingle().then(
         (row) => row.data.values.first,

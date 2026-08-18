@@ -1804,4 +1804,31 @@ class AppLocalizationsEs extends AppLocalizations {
   String stepBalancedHelp(String type, String measured) {
     return 'Reequilibrado entre las estaciones de $type contiguas en este flujo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió $measured, y la tabla de demanda lo sigue guardando.';
   }
+
+  @override
+  String get stepRebalance =>
+      'Reequilibrar con máquinas contiguas del mismo tipo';
+
+  @override
+  String get stepRebalanceHelp =>
+      'Las estaciones del mismo tipo que están una al lado de la otra reparten su trabajo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Desactívalo para fijar esta estación en lo que se midió en ella.';
+
+  @override
+  String stepRebalanceNoType(String name) {
+    return '$name no tiene tipo de centro de trabajo, así que nada dice que sea igual a sus vecinas.';
+  }
+
+  @override
+  String stepRebalanceNoNeighbour(String type) {
+    return 'Ningún paso contiguo comparte el tipo $type.';
+  }
+
+  @override
+  String get stepRebalanceNoWork =>
+      'Esta pieza no tiene tiempo aquí, así que la estación no reparte trabajo.';
+
+  @override
+  String stepRebalanceOn(String type) {
+    return 'Repartiendo trabajo con las estaciones $type contiguas.';
+  }
 }

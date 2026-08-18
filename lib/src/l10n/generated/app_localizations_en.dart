@@ -1787,4 +1787,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String stepBalancedHelp(String type, String measured) {
     return 'Rebalanced across the $type stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. $measured was measured here, and the demand table still holds it.';
   }
+
+  @override
+  String get stepRebalance => 'Rebalance with adjacent like machines';
+
+  @override
+  String get stepRebalanceHelp =>
+      'Stations of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this station at what was measured on it.';
+
+  @override
+  String stepRebalanceNoType(String name) {
+    return '$name has no workcenter type, so nothing says it is like its neighbours.';
+  }
+
+  @override
+  String stepRebalanceNoNeighbour(String type) {
+    return 'No adjacent step shares the type $type.';
+  }
+
+  @override
+  String get stepRebalanceNoWork =>
+      'This part has no time here, so the station is not sharing work.';
+
+  @override
+  String stepRebalanceOn(String type) {
+    return 'Sharing work with the adjacent $type stations.';
+  }
 }

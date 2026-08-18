@@ -597,5 +597,14 @@
   "flowEndStockDays": "Dias de estoque",
   "stepBalancedMark": "⇄",
   "stepBalancedHelp": "Reequilibrado entre as estações de {type} vizinhas neste fluxo: cada uma enche até o seu takt e a última fica com o resto, então mudar o takt move a divisão sem nenhuma outra edição. Aqui foram medidos {measured}, e a tabela de demanda continua guardando esse valor.",
-  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } }
+  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } },
+  "stepRebalance": "Reequilibrar com máquinas vizinhas do mesmo tipo",
+  "stepRebalanceHelp": "Estações do mesmo tipo lado a lado dividem o trabalho: cada uma enche até o seu takt e a última fica com o resto, então mudar o takt move a divisão sem nenhuma outra edição. Desligue para fixar esta estação no que foi medido nela.",
+  "stepRebalanceNoType": "{name} não tem tipo de centro de trabalho, então nada diz que ela é igual às vizinhas.",
+  "stepRebalanceNoNeighbour": "Nenhum passo vizinho compartilha o tipo {type}.",
+  "stepRebalanceNoWork": "Esta peça não tem tempo aqui, então a estação não divide trabalho.",
+  "stepRebalanceOn": "Dividindo trabalho com as estações {type} vizinhas.",
+  "@stepRebalanceNoType": { "placeholders": { "name": { "type": "String" } } },
+  "@stepRebalanceNoNeighbour": { "placeholders": { "type": { "type": "String" } } },
+  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } }
 }

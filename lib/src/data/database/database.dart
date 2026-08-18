@@ -74,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -763,6 +763,50 @@ class AppDatabase extends _$AppDatabase {
         // better recovery path for a name the fold discarded than a log line
         // is. Deleting them would make the upgrade irreversible against a v18
         // backup for no gain but tidiness.
+      }
+
+      if (from < 20) {
+        // Four nullable columns and **nothing rebuilt** — back to the shape
+        // §16.19 called safe, after v19's fold was the one migration in this
+        // repo that moved data between concepts (§16.21).
+        //
+        // Field, against célula 11D: a station a part does not run on was being
+        // given a share of its neighbours' work, and there was no way to pin a
+        // station out of §6.2.1's rebalancing at all. The first was a defect and
+        // is fixed in code; this is the flag for the second.
+        //
+        // **Null is off, so rebalancing stays on.** Every step already in the
+        // tree behaves exactly as it did, which is the call §16.18 made for the
+        // same-part percentage.
+        await _ensureColumn(m, flowNodes, flowNodes.balanceDisabled);
+
+        // What the run ran at. §18.3 is settled rather than deferred — a run
+        // keeps one cadence throughout — so the takt is the run's identity, and
+        // until now a stored run could not say what it was. `release_seconds`
+        // already held the *resolved* interval; these hold the figure a human
+        // typed, and when it next changes inside the run's span (§7.7.2, §7.7.3).
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.taktValue,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.taktUnit,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.nextTaktChange,
+        );
+
+        // **Nothing is backfilled**, and the reason is the one §16.19 gave for
+        // the pool columns: the takt schedule lives in the project and may say
+        // something different today from what a run used. Reading it here would
+        // make every stored run claim a cadence it never ran at, which is the
+        // drift §7.10's copy-in rule exists to prevent. Pre-v20 runs say
+        // nothing, which is §12.1's rule that a blank is not a wildcard.
       }
 
       // Reference-data seeding runs outside every version guard, on every

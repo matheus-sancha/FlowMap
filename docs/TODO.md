@@ -5,9 +5,9 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **858 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v19**, migrated against the real database at 08:46
-on 2026-08-16, and **none of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
+Branch `m1-m2-foundation`, `flutter analyze` clean, **875 tests passing** (one of them `live`-tagged
+and skipped without a database). Schema is at **v20**, migrated against a copy of the real database on 2026-08-17 (v19 met it at
+08:46 on 2026-08-16), and **none of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
 found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
 code-complete.** M4 is too, and the initial plan has no code left in it — §3.8 is deferred by
 decision and everything else in it has landed.
@@ -1172,7 +1172,7 @@ distrust the next one that does.
 | **§7.4** | Takt rebalances a group | derived process times — **written, not driven** |
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
-| **§7.7** | The takt a run ran at, and pinning a station | **a live defect in §7.4**, two captions, one flag — settled by interview, **nothing written** |
+| **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — §7.7.2/§7.7.3 remain |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -1953,10 +1953,22 @@ also blanks the box's type line and loses the icon, so it is a side effect stand
 `simulation_run_studies`' takt value, unit, release interval and next-change date. All nullable, all
 landing on tables that predate them, so it is the shape §16.19 called *"no table is rebuilt"*.
 
-1. **§7.7.1 first and on its own, with no schema.** It is live in `aa3e87e` and it is inventing
-   routings on real data right now. The wrong test goes with it.
-2. **The v20 migration**, then §7.7.4's flag and dialog.
+1. ~~**§7.7.1 first and on its own, with no schema.**~~ **Done 2026-08-17 in `92afe19`**, with the
+   test that asserted the wrong belief.
+2. ~~**The v20 migration**, then §7.7.4's flag and dialog.~~ **Done 2026-08-17.** Four columns, not
+   five — `simulation_run_studies.release_seconds` already held the resolved interval, which makes
+   this the **third** entry in a week to over-specify its own cost. **v20 has met the real database**
+   on a copy: `user_version` 20, `integrity_check` ok, 250 orders, 91 runs and 86,463 run steps
+   intact, 0 of 39 nodes pinned, 0 of 156 run studies claiming a takt. Written up as §16.21.
+
+   _And it found a stale assertion rather than a defect._ `live_db_check_test.dart` asserted that
+   every zero-changeover node still had a null setup — true at the moment v17 ran, false the first
+   time anybody used the feature v17 shipped. Two nodes now carry hand-typed setups (`1 min`, and
+   `12 h` with a 24 h teardown). That file's own header records it being broken once by a later
+   *migration*; this is the same failure through ordinary *use*. The carry is asserted by the unit it
+   writes now.
 3. **§7.7.2 and §7.7.3** — the run's takt, the run header line, the map caption on Flow and Summary.
+   **The columns are in; nothing writes or reads them yet.**
 
 **DESIGN.md this round:** **§6.2.1** (rewritten — the zero rule, the pin, transparency), **§7.8** or
 wherever §18.3 is answered (a run is a single-takt experiment, by decision), **§7.10** (what a run

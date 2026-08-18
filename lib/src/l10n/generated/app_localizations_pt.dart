@@ -1806,4 +1806,31 @@ class AppLocalizationsPt extends AppLocalizations {
   String stepBalancedHelp(String type, String measured) {
     return 'Reequilibrado entre as estações de $type vizinhas neste fluxo: cada uma enche até o seu takt e a última fica com o resto, então mudar o takt move a divisão sem nenhuma outra edição. Aqui foram medidos $measured, e a tabela de demanda continua guardando esse valor.';
   }
+
+  @override
+  String get stepRebalance =>
+      'Reequilibrar com máquinas vizinhas do mesmo tipo';
+
+  @override
+  String get stepRebalanceHelp =>
+      'Estações do mesmo tipo lado a lado dividem o trabalho: cada uma enche até o seu takt e a última fica com o resto, então mudar o takt move a divisão sem nenhuma outra edição. Desligue para fixar esta estação no que foi medido nela.';
+
+  @override
+  String stepRebalanceNoType(String name) {
+    return '$name não tem tipo de centro de trabalho, então nada diz que ela é igual às vizinhas.';
+  }
+
+  @override
+  String stepRebalanceNoNeighbour(String type) {
+    return 'Nenhum passo vizinho compartilha o tipo $type.';
+  }
+
+  @override
+  String get stepRebalanceNoWork =>
+      'Esta peça não tem tempo aqui, então a estação não divide trabalho.';
+
+  @override
+  String stepRebalanceOn(String type) {
+    return 'Dividindo trabalho com as estações $type vizinhas.';
+  }
 }

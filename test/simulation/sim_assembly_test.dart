@@ -28,6 +28,7 @@ void main() {
     String? workcenterId,
     String? poolId,
     int changeover = 0,
+    bool? pinned,
   }) => FlowNode(
     id: 'node-$position',
     studyId: 'study-1',
@@ -36,6 +37,7 @@ void main() {
     workcenterId: workcenterId,
     poolId: poolId,
     changeoverSeconds: 0,
+    balanceDisabled: pinned,
     setupValue: changeover == 0 ? null : changeover.toDouble(),
     setupUnit: TaktUnit.seconds,
     inventoryUsesWorkingTime: false,
@@ -635,6 +637,32 @@ void main() {
       expect(
         built.steps.last.processTimeFor('p1', built.parts['p1']),
         const Duration(hours: 4),
+      );
+    });
+
+    test('a pinned step is honoured by the run too (§7.7.4)', () {
+      // The map and the Gantt have to place work the same way, so the flag
+      // cannot live only on the surface that draws it.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [
+          step(0, workcenterId: 'W', pinned: true),
+          step(1, workcenterId: 'X'),
+        ],
+        parts: [part('p1', 'PN1')],
+        processTimes: {
+          'p1': {'W': const Duration(hours: 2), 'X': const Duration(hours: 2)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: taktOf(3, TaktUnit.hours),
+        resources: resources(types: const {'W': 'Cladding', 'X': 'Cladding'}),
+        asOf: now,
+      )!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 2),
       );
     });
 

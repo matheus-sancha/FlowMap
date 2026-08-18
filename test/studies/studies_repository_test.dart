@@ -347,6 +347,7 @@ void main() {
         teardownValue: 10,
         teardownUnit: TaktUnit.minutes,
         samePartPercent: 25,
+        balanceDisabled: true,
         equivalentValue: 4,
         equivalentUnit: TaktUnit.hours,
       );
@@ -384,6 +385,7 @@ void main() {
       expect(copiedNodes.first.teardownValue, 10);
       expect(copiedNodes.first.teardownUnit, TaktUnit.minutes);
       expect(copiedNodes.first.samePartPercent, 25);
+      expect(copiedNodes.first.balanceDisabled, isTrue);
       expect(copiedNodes.first.equivalentValue, 4);
       expect(copiedNodes.first.equivalentUnit, TaktUnit.hours);
       expect(copiedNodes.last.workcenterId, workcenterB);

@@ -9074,6 +9074,20 @@ class $FlowNodesTable extends FlowNodes
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _balanceDisabledMeta = const VerificationMeta(
+    'balanceDisabled',
+  );
+  @override
+  late final GeneratedColumn<bool> balanceDisabled = GeneratedColumn<bool>(
+    'balance_disabled',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("balance_disabled" IN (0, 1))',
+    ),
+  );
   static const VerificationMeta _equivalentValueMeta = const VerificationMeta(
     'equivalentValue',
   );
@@ -9223,6 +9237,7 @@ class $FlowNodesTable extends FlowNodes
     teardownValue,
     teardownUnit,
     samePartPercent,
+    balanceDisabled,
     equivalentValue,
     equivalentUnit,
     inventoryMode,
@@ -9315,6 +9330,15 @@ class $FlowNodesTable extends FlowNodes
         samePartPercent.isAcceptableOrUnknown(
           data['same_part_percent']!,
           _samePartPercentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_disabled')) {
+      context.handle(
+        _balanceDisabledMeta,
+        balanceDisabled.isAcceptableOrUnknown(
+          data['balance_disabled']!,
+          _balanceDisabledMeta,
         ),
       );
     }
@@ -9457,6 +9481,10 @@ class $FlowNodesTable extends FlowNodes
       samePartPercent: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}same_part_percent'],
+      ),
+      balanceDisabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}balance_disabled'],
       ),
       equivalentValue: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
@@ -9625,6 +9653,23 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// second percentage would only ever move with the first.
   final double? samePartPercent;
 
+  /// Pins this step out of §6.2.1's takt rebalancing (DESIGN.md §7.7.4).
+  ///
+  /// **Per step, not per workcenter**, for §7.6's reason — it is this line's
+  /// use of the station, and a duplicated study must be re-tunable without
+  /// disturbing the original. Célula 11B, 11C and 11D share four stations
+  /// between them, so a flag on the machine would change three studies from a
+  /// screen showing one.
+  ///
+  /// **Null is off, so rebalancing is on.** A disable flag rather than an
+  /// enable one, so every step already in the tree keeps today's behaviour with
+  /// no backfill — the same call §7.6 made for the same-part percentage.
+  ///
+  /// A pinned station is **transparent** to its group rather than a wall: it is
+  /// the same operation, so the members either side of it still balance with
+  /// each other (§6.2.1).
+  final bool? balanceDisabled;
+
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).
   ///
@@ -9701,6 +9746,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     this.teardownValue,
     this.teardownUnit,
     this.samePartPercent,
+    this.balanceDisabled,
     this.equivalentValue,
     this.equivalentUnit,
     this.inventoryMode,
@@ -9751,6 +9797,9 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     }
     if (!nullToAbsent || samePartPercent != null) {
       map['same_part_percent'] = Variable<double>(samePartPercent);
+    }
+    if (!nullToAbsent || balanceDisabled != null) {
+      map['balance_disabled'] = Variable<bool>(balanceDisabled);
     }
     if (!nullToAbsent || equivalentValue != null) {
       map['equivalent_value'] = Variable<double>(equivalentValue);
@@ -9826,6 +9875,9 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       samePartPercent: samePartPercent == null && nullToAbsent
           ? const Value.absent()
           : Value(samePartPercent),
+      balanceDisabled: balanceDisabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceDisabled),
       equivalentValue: equivalentValue == null && nullToAbsent
           ? const Value.absent()
           : Value(equivalentValue),
@@ -9886,6 +9938,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
         serializer.fromJson<String?>(json['teardownUnit']),
       ),
       samePartPercent: serializer.fromJson<double?>(json['samePartPercent']),
+      balanceDisabled: serializer.fromJson<bool?>(json['balanceDisabled']),
       equivalentValue: serializer.fromJson<double?>(json['equivalentValue']),
       equivalentUnit: $FlowNodesTable.$converterequivalentUnitn.fromJson(
         serializer.fromJson<String?>(json['equivalentUnit']),
@@ -9933,6 +9986,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
         $FlowNodesTable.$converterteardownUnitn.toJson(teardownUnit),
       ),
       'samePartPercent': serializer.toJson<double?>(samePartPercent),
+      'balanceDisabled': serializer.toJson<bool?>(balanceDisabled),
       'equivalentValue': serializer.toJson<double?>(equivalentValue),
       'equivalentUnit': serializer.toJson<String?>(
         $FlowNodesTable.$converterequivalentUnitn.toJson(equivalentUnit),
@@ -9972,6 +10026,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     Value<double?> teardownValue = const Value.absent(),
     Value<TaktUnit?> teardownUnit = const Value.absent(),
     Value<double?> samePartPercent = const Value.absent(),
+    Value<bool?> balanceDisabled = const Value.absent(),
     Value<double?> equivalentValue = const Value.absent(),
     Value<TaktUnit?> equivalentUnit = const Value.absent(),
     Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -10002,6 +10057,9 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     samePartPercent: samePartPercent.present
         ? samePartPercent.value
         : this.samePartPercent,
+    balanceDisabled: balanceDisabled.present
+        ? balanceDisabled.value
+        : this.balanceDisabled,
     equivalentValue: equivalentValue.present
         ? equivalentValue.value
         : this.equivalentValue,
@@ -10055,6 +10113,9 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       samePartPercent: data.samePartPercent.present
           ? data.samePartPercent.value
           : this.samePartPercent,
+      balanceDisabled: data.balanceDisabled.present
+          ? data.balanceDisabled.value
+          : this.balanceDisabled,
       equivalentValue: data.equivalentValue.present
           ? data.equivalentValue.value
           : this.equivalentValue,
@@ -10102,6 +10163,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ..write('teardownValue: $teardownValue, ')
           ..write('teardownUnit: $teardownUnit, ')
           ..write('samePartPercent: $samePartPercent, ')
+          ..write('balanceDisabled: $balanceDisabled, ')
           ..write('equivalentValue: $equivalentValue, ')
           ..write('equivalentUnit: $equivalentUnit, ')
           ..write('inventoryMode: $inventoryMode, ')
@@ -10133,6 +10195,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     teardownValue,
     teardownUnit,
     samePartPercent,
+    balanceDisabled,
     equivalentValue,
     equivalentUnit,
     inventoryMode,
@@ -10163,6 +10226,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           other.teardownValue == this.teardownValue &&
           other.teardownUnit == this.teardownUnit &&
           other.samePartPercent == this.samePartPercent &&
+          other.balanceDisabled == this.balanceDisabled &&
           other.equivalentValue == this.equivalentValue &&
           other.equivalentUnit == this.equivalentUnit &&
           other.inventoryMode == this.inventoryMode &&
@@ -10191,6 +10255,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
   final Value<double?> teardownValue;
   final Value<TaktUnit?> teardownUnit;
   final Value<double?> samePartPercent;
+  final Value<bool?> balanceDisabled;
   final Value<double?> equivalentValue;
   final Value<TaktUnit?> equivalentUnit;
   final Value<InventoryMode?> inventoryMode;
@@ -10218,6 +10283,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.teardownValue = const Value.absent(),
     this.teardownUnit = const Value.absent(),
     this.samePartPercent = const Value.absent(),
+    this.balanceDisabled = const Value.absent(),
     this.equivalentValue = const Value.absent(),
     this.equivalentUnit = const Value.absent(),
     this.inventoryMode = const Value.absent(),
@@ -10246,6 +10312,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.teardownValue = const Value.absent(),
     this.teardownUnit = const Value.absent(),
     this.samePartPercent = const Value.absent(),
+    this.balanceDisabled = const Value.absent(),
     this.equivalentValue = const Value.absent(),
     this.equivalentUnit = const Value.absent(),
     this.inventoryMode = const Value.absent(),
@@ -10279,6 +10346,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Expression<double>? teardownValue,
     Expression<String>? teardownUnit,
     Expression<double>? samePartPercent,
+    Expression<bool>? balanceDisabled,
     Expression<double>? equivalentValue,
     Expression<String>? equivalentUnit,
     Expression<String>? inventoryMode,
@@ -10307,6 +10375,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       if (teardownValue != null) 'teardown_value': teardownValue,
       if (teardownUnit != null) 'teardown_unit': teardownUnit,
       if (samePartPercent != null) 'same_part_percent': samePartPercent,
+      if (balanceDisabled != null) 'balance_disabled': balanceDisabled,
       if (equivalentValue != null) 'equivalent_value': equivalentValue,
       if (equivalentUnit != null) 'equivalent_unit': equivalentUnit,
       if (inventoryMode != null) 'inventory_mode': inventoryMode,
@@ -10338,6 +10407,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Value<double?>? teardownValue,
     Value<TaktUnit?>? teardownUnit,
     Value<double?>? samePartPercent,
+    Value<bool?>? balanceDisabled,
     Value<double?>? equivalentValue,
     Value<TaktUnit?>? equivalentUnit,
     Value<InventoryMode?>? inventoryMode,
@@ -10366,6 +10436,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       teardownValue: teardownValue ?? this.teardownValue,
       teardownUnit: teardownUnit ?? this.teardownUnit,
       samePartPercent: samePartPercent ?? this.samePartPercent,
+      balanceDisabled: balanceDisabled ?? this.balanceDisabled,
       equivalentValue: equivalentValue ?? this.equivalentValue,
       equivalentUnit: equivalentUnit ?? this.equivalentUnit,
       inventoryMode: inventoryMode ?? this.inventoryMode,
@@ -10428,6 +10499,9 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     }
     if (samePartPercent.present) {
       map['same_part_percent'] = Variable<double>(samePartPercent.value);
+    }
+    if (balanceDisabled.present) {
+      map['balance_disabled'] = Variable<bool>(balanceDisabled.value);
     }
     if (equivalentValue.present) {
       map['equivalent_value'] = Variable<double>(equivalentValue.value);
@@ -10499,6 +10573,7 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
           ..write('teardownValue: $teardownValue, ')
           ..write('teardownUnit: $teardownUnit, ')
           ..write('samePartPercent: $samePartPercent, ')
+          ..write('balanceDisabled: $balanceDisabled, ')
           ..write('equivalentValue: $equivalentValue, ')
           ..write('equivalentUnit: $equivalentUnit, ')
           ..write('inventoryMode: $inventoryMode, ')
@@ -13118,6 +13193,40 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _taktValueMeta = const VerificationMeta(
+    'taktValue',
+  );
+  @override
+  late final GeneratedColumn<double> taktValue = GeneratedColumn<double>(
+    'takt_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _taktUnitMeta = const VerificationMeta(
+    'taktUnit',
+  );
+  @override
+  late final GeneratedColumn<String> taktUnit = GeneratedColumn<String>(
+    'takt_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextTaktChangeMeta = const VerificationMeta(
+    'nextTaktChange',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextTaktChange =
+      GeneratedColumn<DateTime>(
+        'next_takt_change',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _priorityMeta = const VerificationMeta(
     'priority',
   );
@@ -13201,6 +13310,9 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     name,
     releaseSeconds,
     releaseCalendarId,
+    taktValue,
+    taktUnit,
+    nextTaktChange,
     priority,
     wipCap,
     startBufferDays,
@@ -13262,6 +13374,27 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         releaseCalendarId.isAcceptableOrUnknown(
           data['release_calendar_id']!,
           _releaseCalendarIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('takt_value')) {
+      context.handle(
+        _taktValueMeta,
+        taktValue.isAcceptableOrUnknown(data['takt_value']!, _taktValueMeta),
+      );
+    }
+    if (data.containsKey('takt_unit')) {
+      context.handle(
+        _taktUnitMeta,
+        taktUnit.isAcceptableOrUnknown(data['takt_unit']!, _taktUnitMeta),
+      );
+    }
+    if (data.containsKey('next_takt_change')) {
+      context.handle(
+        _nextTaktChangeMeta,
+        nextTaktChange.isAcceptableOrUnknown(
+          data['next_takt_change']!,
+          _nextTaktChangeMeta,
         ),
       );
     }
@@ -13353,6 +13486,18 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         DriftSqlType.string,
         data['${effectivePrefix}release_calendar_id'],
       ),
+      taktValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}takt_value'],
+      ),
+      taktUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}takt_unit'],
+      ),
+      nextTaktChange: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_takt_change'],
+      ),
       priority: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}priority'],
@@ -13403,6 +13548,42 @@ class SimulationRunStudy extends DataClass
 
   /// Whose open time that interval was measured in — the pace setter.
   final String? releaseCalendarId;
+
+  /// The takt this study ran at, as it was typed — `4` and `days`
+  /// (DESIGN.md §7.7.2).
+  ///
+  /// **The run's identity, and until v20 it did not carry one.** §18.3 is
+  /// settled: a run keeps one cadence throughout, so the takt is the parameter
+  /// the whole experiment turns on — and a stored run could not say what it
+  /// was. §7.10 forbids joining back to `takt_periods`, so editing the schedule
+  /// silently rewrote what every past run claimed to have done.
+  ///
+  /// **Beside [releaseSeconds] rather than instead of it.** That is the same
+  /// takt already resolved against the pace setter's productive day, which is
+  /// what the engine spaced slots by; this is the figure a human typed and
+  /// reads. One cannot be recovered from the other once a schedule moves.
+  ///
+  /// **Per study, because takt is keyed by production line** — a run carrying
+  /// two lines ran at two takts, and a column on the run could only hold one.
+  ///
+  /// Null on every run made before v20, which means *made before a run said
+  /// this* — the meaning a blank has had on these tables since v12.
+  final double? taktValue;
+
+  /// [taktValue]'s unit by name. Plain text rather than `textEnum` for §16.10's
+  /// reason: a run written by a later build must not stop an older one opening
+  /// the list.
+  final String? taktUnit;
+
+  /// When the takt next changes inside this run's span, or null if it does not
+  /// (DESIGN.md §7.7.3).
+  ///
+  /// **Stored rather than derived, for §11.1's stated reason**: a run that
+  /// could not say this would drop its own caveat the moment the reader came
+  /// back to it, which is exactly when they are most likely to quote the
+  /// figures. Célula 11D's takt goes 4 d → 5 d on 1 April 2026, and a run
+  /// spanning that date ran entirely at one of them.
+  final DateTime? nextTaktChange;
   final int priority;
   final int? wipCap;
 
@@ -13434,6 +13615,9 @@ class SimulationRunStudy extends DataClass
     required this.name,
     required this.releaseSeconds,
     this.releaseCalendarId,
+    this.taktValue,
+    this.taktUnit,
+    this.nextTaktChange,
     required this.priority,
     this.wipCap,
     required this.startBufferDays,
@@ -13451,6 +13635,15 @@ class SimulationRunStudy extends DataClass
     map['release_seconds'] = Variable<int>(releaseSeconds);
     if (!nullToAbsent || releaseCalendarId != null) {
       map['release_calendar_id'] = Variable<String>(releaseCalendarId);
+    }
+    if (!nullToAbsent || taktValue != null) {
+      map['takt_value'] = Variable<double>(taktValue);
+    }
+    if (!nullToAbsent || taktUnit != null) {
+      map['takt_unit'] = Variable<String>(taktUnit);
+    }
+    if (!nullToAbsent || nextTaktChange != null) {
+      map['next_takt_change'] = Variable<DateTime>(nextTaktChange);
     }
     map['priority'] = Variable<int>(priority);
     if (!nullToAbsent || wipCap != null) {
@@ -13481,6 +13674,15 @@ class SimulationRunStudy extends DataClass
       releaseCalendarId: releaseCalendarId == null && nullToAbsent
           ? const Value.absent()
           : Value(releaseCalendarId),
+      taktValue: taktValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktValue),
+      taktUnit: taktUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktUnit),
+      nextTaktChange: nextTaktChange == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextTaktChange),
       priority: Value(priority),
       wipCap: wipCap == null && nullToAbsent
           ? const Value.absent()
@@ -13514,6 +13716,9 @@ class SimulationRunStudy extends DataClass
       releaseCalendarId: serializer.fromJson<String?>(
         json['releaseCalendarId'],
       ),
+      taktValue: serializer.fromJson<double?>(json['taktValue']),
+      taktUnit: serializer.fromJson<String?>(json['taktUnit']),
+      nextTaktChange: serializer.fromJson<DateTime?>(json['nextTaktChange']),
       priority: serializer.fromJson<int>(json['priority']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
       startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
@@ -13536,6 +13741,9 @@ class SimulationRunStudy extends DataClass
       'name': serializer.toJson<String>(name),
       'releaseSeconds': serializer.toJson<int>(releaseSeconds),
       'releaseCalendarId': serializer.toJson<String?>(releaseCalendarId),
+      'taktValue': serializer.toJson<double?>(taktValue),
+      'taktUnit': serializer.toJson<String?>(taktUnit),
+      'nextTaktChange': serializer.toJson<DateTime?>(nextTaktChange),
       'priority': serializer.toJson<int>(priority),
       'wipCap': serializer.toJson<int?>(wipCap),
       'startBufferDays': serializer.toJson<int>(startBufferDays),
@@ -13552,6 +13760,9 @@ class SimulationRunStudy extends DataClass
     String? name,
     int? releaseSeconds,
     Value<String?> releaseCalendarId = const Value.absent(),
+    Value<double?> taktValue = const Value.absent(),
+    Value<String?> taktUnit = const Value.absent(),
+    Value<DateTime?> nextTaktChange = const Value.absent(),
     int? priority,
     Value<int?> wipCap = const Value.absent(),
     int? startBufferDays,
@@ -13567,6 +13778,11 @@ class SimulationRunStudy extends DataClass
     releaseCalendarId: releaseCalendarId.present
         ? releaseCalendarId.value
         : this.releaseCalendarId,
+    taktValue: taktValue.present ? taktValue.value : this.taktValue,
+    taktUnit: taktUnit.present ? taktUnit.value : this.taktUnit,
+    nextTaktChange: nextTaktChange.present
+        ? nextTaktChange.value
+        : this.nextTaktChange,
     priority: priority ?? this.priority,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
     startBufferDays: startBufferDays ?? this.startBufferDays,
@@ -13594,6 +13810,11 @@ class SimulationRunStudy extends DataClass
       releaseCalendarId: data.releaseCalendarId.present
           ? data.releaseCalendarId.value
           : this.releaseCalendarId,
+      taktValue: data.taktValue.present ? data.taktValue.value : this.taktValue,
+      taktUnit: data.taktUnit.present ? data.taktUnit.value : this.taktUnit,
+      nextTaktChange: data.nextTaktChange.present
+          ? data.nextTaktChange.value
+          : this.nextTaktChange,
       priority: data.priority.present ? data.priority.value : this.priority,
       wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
       startBufferDays: data.startBufferDays.present
@@ -13622,6 +13843,9 @@ class SimulationRunStudy extends DataClass
           ..write('name: $name, ')
           ..write('releaseSeconds: $releaseSeconds, ')
           ..write('releaseCalendarId: $releaseCalendarId, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
+          ..write('nextTaktChange: $nextTaktChange, ')
           ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
@@ -13640,6 +13864,9 @@ class SimulationRunStudy extends DataClass
     name,
     releaseSeconds,
     releaseCalendarId,
+    taktValue,
+    taktUnit,
+    nextTaktChange,
     priority,
     wipCap,
     startBufferDays,
@@ -13657,6 +13884,9 @@ class SimulationRunStudy extends DataClass
           other.name == this.name &&
           other.releaseSeconds == this.releaseSeconds &&
           other.releaseCalendarId == this.releaseCalendarId &&
+          other.taktValue == this.taktValue &&
+          other.taktUnit == this.taktUnit &&
+          other.nextTaktChange == this.nextTaktChange &&
           other.priority == this.priority &&
           other.wipCap == this.wipCap &&
           other.startBufferDays == this.startBufferDays &&
@@ -13673,6 +13903,9 @@ class SimulationRunStudiesCompanion
   final Value<String> name;
   final Value<int> releaseSeconds;
   final Value<String?> releaseCalendarId;
+  final Value<double?> taktValue;
+  final Value<String?> taktUnit;
+  final Value<DateTime?> nextTaktChange;
   final Value<int> priority;
   final Value<int?> wipCap;
   final Value<int> startBufferDays;
@@ -13687,6 +13920,9 @@ class SimulationRunStudiesCompanion
     this.name = const Value.absent(),
     this.releaseSeconds = const Value.absent(),
     this.releaseCalendarId = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
+    this.nextTaktChange = const Value.absent(),
     this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
@@ -13702,6 +13938,9 @@ class SimulationRunStudiesCompanion
     required String name,
     required int releaseSeconds,
     this.releaseCalendarId = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
+    this.nextTaktChange = const Value.absent(),
     required int priority,
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
@@ -13721,6 +13960,9 @@ class SimulationRunStudiesCompanion
     Expression<String>? name,
     Expression<int>? releaseSeconds,
     Expression<String>? releaseCalendarId,
+    Expression<double>? taktValue,
+    Expression<String>? taktUnit,
+    Expression<DateTime>? nextTaktChange,
     Expression<int>? priority,
     Expression<int>? wipCap,
     Expression<int>? startBufferDays,
@@ -13736,6 +13978,9 @@ class SimulationRunStudiesCompanion
       if (name != null) 'name': name,
       if (releaseSeconds != null) 'release_seconds': releaseSeconds,
       if (releaseCalendarId != null) 'release_calendar_id': releaseCalendarId,
+      if (taktValue != null) 'takt_value': taktValue,
+      if (taktUnit != null) 'takt_unit': taktUnit,
+      if (nextTaktChange != null) 'next_takt_change': nextTaktChange,
       if (priority != null) 'priority': priority,
       if (wipCap != null) 'wip_cap': wipCap,
       if (startBufferDays != null) 'start_buffer_days': startBufferDays,
@@ -13755,6 +14000,9 @@ class SimulationRunStudiesCompanion
     Value<String>? name,
     Value<int>? releaseSeconds,
     Value<String?>? releaseCalendarId,
+    Value<double?>? taktValue,
+    Value<String?>? taktUnit,
+    Value<DateTime?>? nextTaktChange,
     Value<int>? priority,
     Value<int?>? wipCap,
     Value<int>? startBufferDays,
@@ -13770,6 +14018,9 @@ class SimulationRunStudiesCompanion
       name: name ?? this.name,
       releaseSeconds: releaseSeconds ?? this.releaseSeconds,
       releaseCalendarId: releaseCalendarId ?? this.releaseCalendarId,
+      taktValue: taktValue ?? this.taktValue,
+      taktUnit: taktUnit ?? this.taktUnit,
+      nextTaktChange: nextTaktChange ?? this.nextTaktChange,
       priority: priority ?? this.priority,
       wipCap: wipCap ?? this.wipCap,
       startBufferDays: startBufferDays ?? this.startBufferDays,
@@ -13798,6 +14049,15 @@ class SimulationRunStudiesCompanion
     }
     if (releaseCalendarId.present) {
       map['release_calendar_id'] = Variable<String>(releaseCalendarId.value);
+    }
+    if (taktValue.present) {
+      map['takt_value'] = Variable<double>(taktValue.value);
+    }
+    if (taktUnit.present) {
+      map['takt_unit'] = Variable<String>(taktUnit.value);
+    }
+    if (nextTaktChange.present) {
+      map['next_takt_change'] = Variable<DateTime>(nextTaktChange.value);
     }
     if (priority.present) {
       map['priority'] = Variable<int>(priority.value);
@@ -13834,6 +14094,9 @@ class SimulationRunStudiesCompanion
           ..write('name: $name, ')
           ..write('releaseSeconds: $releaseSeconds, ')
           ..write('releaseCalendarId: $releaseCalendarId, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
+          ..write('nextTaktChange: $nextTaktChange, ')
           ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
@@ -27352,6 +27615,7 @@ typedef $$FlowNodesTableCreateCompanionBuilder =
       Value<double?> teardownValue,
       Value<TaktUnit?> teardownUnit,
       Value<double?> samePartPercent,
+      Value<bool?> balanceDisabled,
       Value<double?> equivalentValue,
       Value<TaktUnit?> equivalentUnit,
       Value<InventoryMode?> inventoryMode,
@@ -27381,6 +27645,7 @@ typedef $$FlowNodesTableUpdateCompanionBuilder =
       Value<double?> teardownValue,
       Value<TaktUnit?> teardownUnit,
       Value<double?> samePartPercent,
+      Value<bool?> balanceDisabled,
       Value<double?> equivalentValue,
       Value<TaktUnit?> equivalentUnit,
       Value<InventoryMode?> inventoryMode,
@@ -27508,6 +27773,11 @@ class $$FlowNodesTableFilterComposer
 
   ColumnFilters<double> get samePartPercent => $composableBuilder(
     column: $table.samePartPercent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get balanceDisabled => $composableBuilder(
+    column: $table.balanceDisabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -27704,6 +27974,11 @@ class $$FlowNodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get balanceDisabled => $composableBuilder(
+    column: $table.balanceDisabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get equivalentValue => $composableBuilder(
     column: $table.equivalentValue,
     builder: (column) => ColumnOrderings(column),
@@ -27886,6 +28161,11 @@ class $$FlowNodesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get balanceDisabled => $composableBuilder(
+    column: $table.balanceDisabled,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get equivalentValue => $composableBuilder(
     column: $table.equivalentValue,
     builder: (column) => column,
@@ -28054,6 +28334,7 @@ class $$FlowNodesTableTableManager
                 Value<double?> teardownValue = const Value.absent(),
                 Value<TaktUnit?> teardownUnit = const Value.absent(),
                 Value<double?> samePartPercent = const Value.absent(),
+                Value<bool?> balanceDisabled = const Value.absent(),
                 Value<double?> equivalentValue = const Value.absent(),
                 Value<TaktUnit?> equivalentUnit = const Value.absent(),
                 Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -28081,6 +28362,7 @@ class $$FlowNodesTableTableManager
                 teardownValue: teardownValue,
                 teardownUnit: teardownUnit,
                 samePartPercent: samePartPercent,
+                balanceDisabled: balanceDisabled,
                 equivalentValue: equivalentValue,
                 equivalentUnit: equivalentUnit,
                 inventoryMode: inventoryMode,
@@ -28110,6 +28392,7 @@ class $$FlowNodesTableTableManager
                 Value<double?> teardownValue = const Value.absent(),
                 Value<TaktUnit?> teardownUnit = const Value.absent(),
                 Value<double?> samePartPercent = const Value.absent(),
+                Value<bool?> balanceDisabled = const Value.absent(),
                 Value<double?> equivalentValue = const Value.absent(),
                 Value<TaktUnit?> equivalentUnit = const Value.absent(),
                 Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -28137,6 +28420,7 @@ class $$FlowNodesTableTableManager
                 teardownValue: teardownValue,
                 teardownUnit: teardownUnit,
                 samePartPercent: samePartPercent,
+                balanceDisabled: balanceDisabled,
                 equivalentValue: equivalentValue,
                 equivalentUnit: equivalentUnit,
                 inventoryMode: inventoryMode,
@@ -31107,6 +31391,9 @@ typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
       required String name,
       required int releaseSeconds,
       Value<String?> releaseCalendarId,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
+      Value<DateTime?> nextTaktChange,
       required int priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
@@ -31123,6 +31410,9 @@ typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> releaseSeconds,
       Value<String?> releaseCalendarId,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
+      Value<DateTime?> nextTaktChange,
       Value<int> priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
@@ -31190,6 +31480,21 @@ class $$SimulationRunStudiesTableFilterComposer
 
   ColumnFilters<String> get releaseCalendarId => $composableBuilder(
     column: $table.releaseCalendarId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextTaktChange => $composableBuilder(
+    column: $table.nextTaktChange,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -31281,6 +31586,21 @@ class $$SimulationRunStudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextTaktChange => $composableBuilder(
+    column: $table.nextTaktChange,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get priority => $composableBuilder(
     column: $table.priority,
     builder: (column) => ColumnOrderings(column),
@@ -31362,6 +31682,17 @@ class $$SimulationRunStudiesTableAnnotationComposer
 
   GeneratedColumn<String> get releaseCalendarId => $composableBuilder(
     column: $table.releaseCalendarId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get taktValue =>
+      $composableBuilder(column: $table.taktValue, builder: (column) => column);
+
+  GeneratedColumn<String> get taktUnit =>
+      $composableBuilder(column: $table.taktUnit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextTaktChange => $composableBuilder(
+    column: $table.nextTaktChange,
     builder: (column) => column,
   );
 
@@ -31461,6 +31792,9 @@ class $$SimulationRunStudiesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> releaseSeconds = const Value.absent(),
                 Value<String?> releaseCalendarId = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
+                Value<DateTime?> nextTaktChange = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
@@ -31475,6 +31809,9 @@ class $$SimulationRunStudiesTableTableManager
                 name: name,
                 releaseSeconds: releaseSeconds,
                 releaseCalendarId: releaseCalendarId,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
+                nextTaktChange: nextTaktChange,
                 priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
@@ -31491,6 +31828,9 @@ class $$SimulationRunStudiesTableTableManager
                 required String name,
                 required int releaseSeconds,
                 Value<String?> releaseCalendarId = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
+                Value<DateTime?> nextTaktChange = const Value.absent(),
                 required int priority,
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
@@ -31505,6 +31845,9 @@ class $$SimulationRunStudiesTableTableManager
                 name: name,
                 releaseSeconds: releaseSeconds,
                 releaseCalendarId: releaseCalendarId,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
+                nextTaktChange: nextTaktChange,
                 priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,

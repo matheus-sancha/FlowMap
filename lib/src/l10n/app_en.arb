@@ -644,5 +644,14 @@
   "flowEndStockDays": "Days of stock",
   "stepBalancedMark": "⇄",
   "stepBalancedHelp": "Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.",
-  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } }
+  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } },
+  "stepRebalance": "Rebalance with adjacent like machines",
+  "stepRebalanceHelp": "Stations of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this station at what was measured on it.",
+  "stepRebalanceNoType": "{name} has no workcenter type, so nothing says it is like its neighbours.",
+  "stepRebalanceNoNeighbour": "No adjacent step shares the type {type}.",
+  "stepRebalanceNoWork": "This part has no time here, so the station is not sharing work.",
+  "stepRebalanceOn": "Sharing work with the adjacent {type} stations.",
+  "@stepRebalanceNoType": { "placeholders": { "name": { "type": "String" } } },
+  "@stepRebalanceNoNeighbour": { "placeholders": { "type": { "type": "String" } } },
+  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } }
 }

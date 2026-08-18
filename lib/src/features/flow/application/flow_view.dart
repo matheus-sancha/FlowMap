@@ -398,6 +398,7 @@ class FlowStepView {
     required this.dataSource,
     required this.processTime,
     required this.measuredProcessTime,
+    this.standing = BalanceStanding.noLikeNeighbour,
     required this.equivalentProcessTime,
     required this.changeover,
     this.samePartFraction = 0,
@@ -481,6 +482,19 @@ class FlowStepView {
   /// (§7.4) — what a surface needs to know before it presents one as the other.
   bool get isBalanced =>
       measuredProcessTime != null && processTime != measuredProcessTime;
+
+  /// Why this step is or is not taking a derived share (§7.7.4).
+  ///
+  /// **Carried rather than re-derived by whatever displays it.** The step
+  /// dialog says in words why a station is not being rebalanced, and a caption
+  /// worked out separately from the split could disagree with the figure beside
+  /// it — which is worse than no caption, and is the failure this whole round
+  /// came out of.
+  final BalanceStanding standing;
+
+  /// Pinned out of its balance group by the user (§7.7.4), whether or not it
+  /// would otherwise have been in one.
+  bool get isPinned => node.balanceDisabled ?? false;
 
   /// One takt of this station's productive capacity — the flow equivalent's
   /// process time here (DESIGN.md §6.1), or the step's own Process Specific
@@ -881,7 +895,11 @@ FlowView buildFlowView({
       if (node.kind == FlowNodeKind.step) node,
   ];
 
-  FlowStepView buildOne(FlowNode node, Duration? balanced) => _buildStep(
+  FlowStepView buildOne(
+    FlowNode node,
+    Duration? balanced, [
+    BalanceStanding standing = BalanceStanding.noLikeNeighbour,
+  ]) => _buildStep(
     node: node,
     contexts: contexts,
     pools: pools,
@@ -893,6 +911,7 @@ FlowView buildFlowView({
     dataSource: dataSource,
     demand: demand,
     balanced: balanced,
+    standing: standing,
   );
 
   // **Built twice, because a balance group is a property of the flow and
@@ -905,7 +924,7 @@ FlowView buildFlowView({
   // passes cannot disagree because the second differs only in the argument the
   // first computed.
   final draft = [for (final node in steps) buildOne(node, null)];
-  final shares = balancedProcessTimes([
+  final balanceInput = [
     for (final step in draft)
       (
         typeName: step.typeName,
@@ -914,15 +933,16 @@ FlowView buildFlowView({
         // that states its own equivalent has said what a takt is worth at it,
         // and that is the figure to fill to rather than the line's default.
         takt: step.equivalentProcessTime,
+        pinned: step.node.balanceDisabled ?? false,
       ),
-  ]);
+  ];
+  final shares = balancedProcessTimes(balanceInput);
+  final standings = balanceStandings(balanceInput);
 
-  final views = shares.isEmpty
-      ? draft
-      : [
-          for (var i = 0; i < steps.length; i++)
-            shares[i] == null ? draft[i] : buildOne(steps[i], shares[i]),
-        ];
+  final views = [
+    for (var i = 0; i < steps.length; i++)
+      buildOne(steps[i], shares[i], standings[i]!),
+  ];
 
   // The ends borrow the adjacent step's productive day, because an endpoint is
   // not a station (see [FlowEndStockView.referenceWorkingDay]). On an empty
@@ -978,6 +998,9 @@ FlowStepView _buildStep({
   /// Passed in rather than resolved here because a group is a property of the
   /// *flow* — which steps sit next to which — and this function sees one node.
   Duration? balanced,
+
+  /// Why it is or is not taking one (§7.7.4), from the same walk.
+  BalanceStanding standing = BalanceStanding.noLikeNeighbour,
 }) {
   final problems = <StepProblem>[];
 
@@ -1186,6 +1209,7 @@ FlowStepView _buildStep({
     dataSource: dataSource,
     processTime: processTime,
     measuredProcessTime: measuredProcessTime,
+    standing: standing,
     equivalentProcessTime: equivalentProcessTime,
     usesLocalEquivalent: localEquivalent != null,
     changeover: changeover,

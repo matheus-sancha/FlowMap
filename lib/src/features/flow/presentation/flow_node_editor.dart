@@ -10,6 +10,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../studies/application/studies_providers.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
+import '../application/takt_balance.dart' show BalanceStanding;
 
 /// Adds a process step to the spine, and the queue in front of it.
 ///
@@ -50,6 +51,7 @@ Future<void> showInsertNodeMenu(
         teardownValue: draft.teardownValue,
         teardownUnit: draft.teardownUnit,
         samePartPercent: draft.samePartPercent,
+        balanceDisabled: draft.balanceDisabled,
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
         label: draft.label,
@@ -139,6 +141,7 @@ Future<void> showStepEditor(
         teardownValue: draft.teardownValue,
         teardownUnit: draft.teardownUnit,
         samePartPercent: draft.samePartPercent,
+        balanceDisabled: draft.balanceDisabled,
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
         label: draft.label,
@@ -191,6 +194,7 @@ class _StepDraft implements _StepResult {
     this.teardownValue,
     this.teardownUnit,
     this.samePartPercent,
+    this.balanceDisabled,
     this.equivalentValue,
     this.equivalentUnit,
     this.label,
@@ -212,6 +216,10 @@ class _StepDraft implements _StepResult {
   final TaktUnit? setupUnit;
   final double? teardownValue;
   final TaktUnit? teardownUnit;
+
+  /// Pinned out of §6.2.1's takt rebalancing (§7.7.4). Null is off, so
+  /// rebalancing is on — the default every step already in the tree has.
+  final bool? balanceDisabled;
 
   /// How much of the pair a repeat of the same part still pays. Null is 0 %.
   final double? samePartPercent;
@@ -352,6 +360,10 @@ class _StepDialogState extends State<_StepDialog> {
   );
   late TaktUnit _equivalentUnit =
       widget.existing?.node.equivalentUnit ?? TaktUnit.hours;
+
+  /// §7.7.4's pin, held as the positive question the checkbox asks. Null in
+  /// storage means off, so a step that has never been asked reads as on.
+  late bool _rebalances = !(widget.existing?.node.balanceDisabled ?? false);
   late final TextEditingController _label = TextEditingController(
     text: widget.existing?.node.label ?? '',
   );
@@ -642,6 +654,20 @@ class _StepDialogState extends State<_StepDialog> {
                 onChanged: () => setState(() {}),
                 onUnitChanged: (unit) => setState(() => _equivalentUnit = unit),
               ),
+              const SizedBox(height: 8),
+              // §7.7.4. **Always here, greyed with a reason where it cannot
+              // apply** — the field asked for this switch after an evening
+              // spent unable to find out why a station was not being
+              // rebalanced, and the three reasons are all things the app knows.
+              // Hiding it (§2.1's rule for the same-part percentage) would
+              // protect the dialog's height and leave all three silent.
+              _RebalanceField(
+                value: _rebalances,
+                standing: widget.existing?.standing,
+                stationName: _targetName,
+                typeName: widget.existing?.typeName,
+                onChanged: (value) => setState(() => _rebalances = value),
+              ),
               const SizedBox(height: 16),
               _FieldGroup(label: l10n.stepChangeover),
               const SizedBox(height: 8),
@@ -843,6 +869,10 @@ class _StepDialogState extends State<_StepDialog> {
                       // cleared of both halves does not keep a percentage that
                       // now applies to nothing.
                       samePartPercent: _hasChangeover ? _samePartValue : null,
+                      // Stored as the negative so null reads as on (§7.7.4),
+                      // and written as null rather than `false` when it is on
+                      // so an untouched step keeps the blank it has always had.
+                      balanceDisabled: _rebalances ? null : true,
                       equivalentValue: equivalent,
                       // The unit is meaningless without a value, so it is only
                       // stored alongside one.
@@ -880,6 +910,94 @@ class _StepDialogState extends State<_StepDialog> {
 ///
 /// Setup and teardown are two halves of one operation and read wrong as two
 /// unrelated numbers between a takt and a label.
+/// Whether this step shares its work with the like machines beside it (§7.7.4).
+///
+/// **Greyed with a reason rather than hidden** where it cannot apply. The switch
+/// is on by default and does nothing on a station that has no like neighbour —
+/// but "does nothing" is exactly what a reader needs told, because the question
+/// this round came out of was *why is my station not being rebalanced?* and the
+/// answer was invisible in all three of its forms.
+class _RebalanceField extends StatelessWidget {
+  const _RebalanceField({
+    required this.value,
+    required this.standing,
+    required this.stationName,
+    required this.typeName,
+    required this.onChanged,
+  });
+
+  final bool value;
+
+  /// Why the step is or is not taking a share, from the same walk that computed
+  /// the split — so the caption cannot disagree with the figure on the box.
+  ///
+  /// Null on a step being inserted, which has no place in the flow yet and so
+  /// no neighbours to be like.
+  final BalanceStanding? standing;
+
+  final String stationName;
+  final String? typeName;
+  final ValueChanged<bool> onChanged;
+
+  /// What to say under the switch, or null where the label already says it.
+  String? _reason(AppLocalizations l10n) => switch (standing) {
+    null => null,
+    BalanceStanding.balanced => l10n.stepRebalanceOn(typeName ?? ''),
+    BalanceStanding.noType => l10n.stepRebalanceNoType(stationName),
+    BalanceStanding.noWorkHere => l10n.stepRebalanceNoWork,
+    BalanceStanding.noLikeNeighbour => l10n.stepRebalanceNoNeighbour(
+      typeName ?? '',
+    ),
+    // Pinned is the user's own decision and the unticked box already says it.
+    BalanceStanding.pinned => null,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    // Nothing to share with, so the switch is inert — but visible, and
+    // captioned with why. A pinned station keeps its switch live so it can be
+    // unpinned again.
+    final canApply =
+        standing == null ||
+        standing == BalanceStanding.balanced ||
+        standing == BalanceStanding.pinned;
+    final reason = _reason(l10n);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Checkbox(
+              value: value,
+              onChanged: canApply ? (next) => onChanged(next ?? true) : null,
+            ),
+            Expanded(
+              child: Text(
+                l10n.stepRebalance,
+                style: canApply ? null : TextStyle(color: theme.disabledColor),
+              ),
+            ),
+            ?helpIcon(context, l10n.stepRebalanceHelp),
+          ],
+        ),
+        if (reason != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 2),
+            child: Text(
+              reason,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _FieldGroup extends StatelessWidget {
   const _FieldGroup({required this.label});
 

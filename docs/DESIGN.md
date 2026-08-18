@@ -748,6 +748,40 @@ weakened at all.
 **A group is therefore two or more stations that each have work.** `CEU30 = 0, CEU32 = 146` is one
 member, so it is no group and CEU32 keeps every minute of it.
 
+**A station can be pinned out of its group** (§7.7.4). `flow_nodes.balance_disabled`, nullable, and
+**null is off — rebalancing is on by default**, so no study already in the tree changes and no
+backfill is needed.
+
+**Per step, not per workcenter**, and the argument is §7.6's own: it is this line's use of the
+station, and a duplicated study must be re-tunable without disturbing the original. Célula 11B, 11C
+and 11D share four stations between them, so a flag on the machine would change three studies from a
+screen showing one. Group membership is a *flow* fact anyway — whether a station's work can move
+depends on what is beside it, which differs per study by construction.
+
+**A pinned station is transparent, not a wall.** With `A B C D` all one type and C pinned, A, B and D
+still balance across it. It is the same operation and only its content is fixed, so walling the group
+there would stop D sharing for a reason nobody asked for and nothing on screen would say. That is
+what parts a pin from an **untyped** station, which has to be a wall because nothing says it is like
+its neighbours at all.
+
+_Academic on the current plant and worth saying:_ every group on the real database is exactly two
+stations, and at two members a pin and a wall give the same answer. This is a decision about what the
+rule means.
+
+**The switch is always visible in the step dialog, greyed with a reason where it cannot apply.** The
+round this came from began with an evening spent unable to find out why a station was not being
+rebalanced, and all three reasons are things the app knows: *the workcenter has no type*, *no
+adjacent step shares its type*, *this part has no time here*. `balanceStandings` returns them from
+the same walk that computes the split, so a caption can never disagree with the figure on the box.
+
+_Rejected: hiding the switch where it cannot apply_ (§2.1's rule for the same-part percentage). It
+protects the height of a dialog that already scrolls at 700 px, and it leaves all three reasons
+silent — which is exactly where the round started.
+
+**A station that is not participating gets no mark on the map.** Marking every non-participant would
+put a glyph on seven of célula 11D's nine boxes and say nothing. The user has told the app to leave
+the station alone and the map obeys quietly.
+
 _Worth knowing, and it follows from the rule rather than qualifying it:_ **the split can empty a
 station out of a part's routing.** Where a group's whole work content fits inside one takt, the first
 station takes all of it and the rest derive zero — on 11D, `P7000109738P01` has 15 h stored at CEU32
@@ -3295,6 +3329,41 @@ would corrupt.
 floor spaces became one, so contention that the engine used to split is now shared — the fifth time
 after §5.5's buffers, §7.4's lanes, v15 and v17. A run against a single-study flow with uncapped
 queues is unaffected.
+
+### 16.21 Schema v20, the pin and the takt a run ran at
+
+**Four nullable columns and nothing rebuilt** — back to the shape §16.19 called safe, after v19's
+fold was the one migration in this repo that moved data between concepts.
+
+| Table | Columns | For |
+|---|---|---|
+| `flow_nodes` | `balance_disabled` | pinning a station out of §6.2.1's rebalancing (§7.7.4) |
+| `simulation_run_studies` | `takt_value`, `takt_unit`, `next_takt_change` | what a run ran at, and whether the takt changed inside its span (§7.7.2, §7.7.3) |
+
+**Nothing is backfilled, and that is the whole of the step.** A null in a disable flag is *off*, so
+every step keeps rebalancing and an upgraded database draws exactly the map it drew before — the call
+§16.18 made for the same-part percentage. And no stored run is given a takt: the schedule lives in
+the project and may say something different today, so reading it here would make every past run
+assert a cadence it never ran at, which is the drift §7.10's copy-in rule exists to prevent.
+
+**`release_seconds` was already there and is not duplicated.** It holds the takt *resolved* against
+the pace setter's productive day, which is what spaced the slots; `takt_value` and `takt_unit` hold
+the figure a human typed and reads. Neither can be recovered from the other once a schedule moves,
+which is why both stay. The round that specified this asked for a column for the resolved interval —
+the third entry in a week to over-specify its own cost.
+
+**No stored run is invalidated.** No figure moves and no charge changes; v20 adds places to record
+things, and one flag that is off everywhere until somebody sets it.
+
+Met the real database on a copy: `user_version` 20, `integrity_check` ok, 39 flow nodes, 250 orders,
+91 runs and 86,463 run steps intact, 0 of 39 nodes pinned and 0 of 156 run studies claiming a takt.
+
+_And it found a stale assertion in `live_db_check_test.dart` rather than a defect in itself._ That
+file asserted every zero-changeover node still had a null setup — a fact about **the moment v17
+ran**, which stopped being a fact about the database the first time anybody used the feature v17
+shipped. Two nodes now carry hand-typed setups. The file's own header records it being broken once by
+a later *migration*; this is the same failure arriving through ordinary *use*, and the carry is now
+asserted by the unit it writes rather than by the absence of anything else.
 
 ## 17. Done between M2 and M3
 

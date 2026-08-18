@@ -88,6 +88,42 @@ class SimulationRunStudies extends Table {
   /// Whose open time that interval was measured in — the pace setter.
   TextColumn get releaseCalendarId => text().nullable()();
 
+  /// The takt this study ran at, as it was typed — `4` and `days`
+  /// (DESIGN.md §7.7.2).
+  ///
+  /// **The run's identity, and until v20 it did not carry one.** §18.3 is
+  /// settled: a run keeps one cadence throughout, so the takt is the parameter
+  /// the whole experiment turns on — and a stored run could not say what it
+  /// was. §7.10 forbids joining back to `takt_periods`, so editing the schedule
+  /// silently rewrote what every past run claimed to have done.
+  ///
+  /// **Beside [releaseSeconds] rather than instead of it.** That is the same
+  /// takt already resolved against the pace setter's productive day, which is
+  /// what the engine spaced slots by; this is the figure a human typed and
+  /// reads. One cannot be recovered from the other once a schedule moves.
+  ///
+  /// **Per study, because takt is keyed by production line** — a run carrying
+  /// two lines ran at two takts, and a column on the run could only hold one.
+  ///
+  /// Null on every run made before v20, which means *made before a run said
+  /// this* — the meaning a blank has had on these tables since v12.
+  RealColumn get taktValue => real().nullable()();
+
+  /// [taktValue]'s unit by name. Plain text rather than `textEnum` for §16.10's
+  /// reason: a run written by a later build must not stop an older one opening
+  /// the list.
+  TextColumn get taktUnit => text().nullable()();
+
+  /// When the takt next changes inside this run's span, or null if it does not
+  /// (DESIGN.md §7.7.3).
+  ///
+  /// **Stored rather than derived, for §11.1's stated reason**: a run that
+  /// could not say this would drop its own caveat the moment the reader came
+  /// back to it, which is exactly when they are most likely to quote the
+  /// figures. Célula 11D's takt goes 4 d → 5 d on 1 April 2026, and a run
+  /// spanning that date ran entirely at one of them.
+  DateTimeColumn get nextTaktChange => dateTime().nullable()();
+
   IntColumn get priority => integer()();
   IntColumn get wipCap => integer().nullable()();
 

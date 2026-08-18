@@ -169,19 +169,74 @@ void main() {
       'with a setup: ${nodes.where((n) => n.setupValue != null).length}',
     );
 
-    // A zero carries as null rather than as `0 s`, so an untouched node reads as
-    // untouched in the editor.
+    // **The carry writes seconds, and only the carry does.** A zero becomes null
+    // rather than `0 s`, so an untouched node reads as untouched in the editor —
+    // but "untouched" is the whole difficulty, and this assertion used to ignore
+    // it.
+    //
+    // _It was `everyElement(isNull)` over every zero-changeover node, and by
+    // 2026-08-17 that was false:_ two nodes on the real database carry setups
+    // somebody typed — `1 min`, and `12 h` with a 24 h teardown — against a
+    // stored changeover of zero. The claim was a fact about the **moment v17
+    // ran** and stopped being a fact about the database the first time anyone
+    // used the feature v17 shipped.
+    //
+    // That is this file's own header arriving from a new direction: it records
+    // being broken once by a later *migration*, and this is being broken by
+    // ordinary *use*. So the carry is asserted by its fingerprint — the unit it
+    // writes — rather than by the absence of anything else.
     expect(
-      nodes.where((n) => n.changeoverSeconds == 0).map((n) => n.setupValue),
-      everyElement(isNull),
+      nodes.where(
+        (n) => n.changeoverSeconds == 0 && n.setupUnit == TaktUnit.seconds,
+      ),
+      isEmpty,
+      reason: 'a zero must carry as null, not as 0 s',
     );
 
-    // Teardown and the percentage arrive empty everywhere: nothing could have
-    // supplied them, and a null percentage is 0%, which is the free-repeat rule
-    // this database has always run under. That is what makes v17
-    // behaviour-preserving until something is typed.
-    expect(nodes.map((n) => n.teardownValue), everyElement(isNull));
-    expect(nodes.map((n) => n.samePartPercent), everyElement(isNull));
+    // ignore: avoid_print
+    print(
+      'hand-typed setups since v17: '
+      '${nodes.where((n) => n.setupValue != null && n.changeoverSeconds == 0).length}, '
+      'teardowns: ${nodes.where((n) => n.teardownValue != null).length}, '
+      'percentages: ${nodes.where((n) => n.samePartPercent != null).length}',
+    );
+
+    // Teardown and the percentage had nothing that could have supplied them, so
+    // v17 left them empty — which is what made it behaviour-preserving until
+    // something was typed. Something has been typed since, so what is asserted
+    // now is the half that stays true: no *carried* node gained either.
+    expect(
+      carried.where((n) => n.teardownValue != null || n.samePartPercent != null),
+      isEmpty,
+      reason: 'the carry supplied a setup and nothing else',
+    );
+
+    // --- v20: the pin, and the takt a run ran at ------------------------------
+
+    // **Nothing is backfilled, and that is the whole of v20's claim.** Every
+    // step keeps rebalancing on, because null in a disable flag is off (§7.7.4)
+    // — so an upgraded database draws exactly the map it drew before.
+    expect(
+      nodes.where((n) => n.balanceDisabled != null),
+      isEmpty,
+      reason: 'v20 must not pin anything the user did not pin',
+    );
+
+    // And no stored run claims a takt it was never asked about. The schedule
+    // lives in the project and may say something different today, so reading it
+    // here would make every past run assert a cadence it never ran at (§7.10).
+    final runStudies = await db.select(db.simulationRunStudies).get();
+    expect(runStudies, isNotEmpty, reason: 'the run studies survived it');
+    expect(
+      runStudies.where(
+        (s) =>
+            s.taktValue != null ||
+            s.taktUnit != null ||
+            s.nextTaktChange != null,
+      ),
+      isEmpty,
+      reason: 'a pre-v20 run says nothing about its takt rather than guessing',
+    );
 
     // --- what no migration may cost -----------------------------------------
 

@@ -3197,6 +3197,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.'**
   String stepBalancedHelp(String type, String measured);
+
+  /// No description provided for @stepRebalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalance with adjacent like machines'**
+  String get stepRebalance;
+
+  /// No description provided for @stepRebalanceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stations of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this station at what was measured on it.'**
+  String get stepRebalanceHelp;
+
+  /// No description provided for @stepRebalanceNoType.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no workcenter type, so nothing says it is like its neighbours.'**
+  String stepRebalanceNoType(String name);
+
+  /// No description provided for @stepRebalanceNoNeighbour.
+  ///
+  /// In en, this message translates to:
+  /// **'No adjacent step shares the type {type}.'**
+  String stepRebalanceNoNeighbour(String type);
+
+  /// No description provided for @stepRebalanceNoWork.
+  ///
+  /// In en, this message translates to:
+  /// **'This part has no time here, so the station is not sharing work.'**
+  String get stepRebalanceNoWork;
+
+  /// No description provided for @stepRebalanceOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} stations.'**
+  String stepRebalanceOn(String type);
 }
 
 class _AppLocalizationsDelegate

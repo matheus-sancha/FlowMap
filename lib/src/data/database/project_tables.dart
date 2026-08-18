@@ -338,6 +338,23 @@ class FlowNodes extends Table {
   /// second percentage would only ever move with the first.
   RealColumn get samePartPercent => real().nullable()();
 
+  /// Pins this step out of §6.2.1's takt rebalancing (DESIGN.md §7.7.4).
+  ///
+  /// **Per step, not per workcenter**, for §7.6's reason — it is this line's
+  /// use of the station, and a duplicated study must be re-tunable without
+  /// disturbing the original. Célula 11B, 11C and 11D share four stations
+  /// between them, so a flag on the machine would change three studies from a
+  /// screen showing one.
+  ///
+  /// **Null is off, so rebalancing is on.** A disable flag rather than an
+  /// enable one, so every step already in the tree keeps today's behaviour with
+  /// no backfill — the same call §7.6 made for the same-part percentage.
+  ///
+  /// A pinned station is **transparent** to its group rather than a wall: it is
+  /// the same operation, so the members either side of it still balance with
+  /// each other (§6.2.1).
+  BoolColumn get balanceDisabled => boolean().nullable()();
+
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).
   ///

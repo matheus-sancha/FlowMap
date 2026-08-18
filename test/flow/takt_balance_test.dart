@@ -7,10 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const takt = Duration(minutes: 40);
 
-  BalanceStep step(String? type, {int? measured, Duration? cap = takt}) => (
+  BalanceStep step(
+    String? type, {
+    int? measured,
+    Duration? cap = takt,
+    bool pinned = false,
+  }) => (
     typeName: type,
     measured: measured == null ? null : Duration(minutes: measured),
     takt: cap,
+    pinned: pinned,
   );
 
   group('what makes a group', () {
@@ -232,6 +238,106 @@ void main() {
       ]).single;
 
       expect(group.indices, [0, 2]);
+    });
+  });
+
+  /// Pinning a station out of its group (§7.7.4). On by default, so a pin is
+  /// always something someone chose.
+  group('a station pinned by the user', () {
+    test('keeps its measurement and takes no share', () {
+      final group = balanceFlow([
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 30, pinned: true),
+        step('Cladding', measured: 30),
+      ]).single;
+
+      expect(group.indices, [0, 2]);
+      // Only the two that share are in the pot — the pinned one's 30 stays its
+      // own, which is what "leave this station alone" has to mean.
+      expect(group.measuredTotal, const Duration(minutes: 60));
+      expect(group.derived, {
+        0: const Duration(minutes: 40),
+        2: const Duration(minutes: 20),
+      });
+    });
+
+    test('is transparent, not a wall', () {
+      // The decision that only bites at three members or more: pinning the
+      // middle station must not stop the outer two sharing, because it is the
+      // same operation and only its content is fixed.
+      final group = balanceFlow([
+        step('Cladding', measured: 50),
+        step('Cladding', measured: 50, pinned: true),
+        step('Cladding', measured: 50),
+      ]).single;
+
+      expect(group.indices, [0, 2]);
+      expect(group.derived[0], const Duration(minutes: 40));
+      expect(group.derived[2], const Duration(minutes: 60));
+    });
+
+    test('pinning one of a pair leaves the other whole', () {
+      // Every group on the real plant is exactly two stations, so this is the
+      // case the field will actually see: nothing moves at all.
+      expect(
+        balanceFlow([
+          step('Cladding', measured: 30, pinned: true),
+          step('Cladding', measured: 30),
+        ]),
+        isEmpty,
+      );
+    });
+
+    test('pinning every member balances nothing', () {
+      expect(
+        balanceFlow([
+          step('Cladding', measured: 30, pinned: true),
+          step('Cladding', measured: 30, pinned: true),
+        ]),
+        isEmpty,
+      );
+    });
+  });
+
+  /// What a surface says about why a step is or is not sharing work (§7.7.4).
+  group('the standing a step reports', () {
+    test('names each reason, from the same walk as the split', () {
+      final standings = balanceStandings([
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 30, pinned: true),
+        step('Cladding', measured: 0),
+        step(null, measured: 30),
+        step('Heat treat', measured: 30),
+      ]);
+
+      expect(standings[0], BalanceStanding.balanced);
+      expect(standings[1], BalanceStanding.balanced);
+      expect(standings[2], BalanceStanding.pinned);
+      expect(standings[3], BalanceStanding.noWorkHere);
+      expect(standings[4], BalanceStanding.noType);
+      expect(standings[5], BalanceStanding.noLikeNeighbour);
+    });
+
+    test('a lone station of its type says so', () {
+      // The sentence that would have answered this round's opening question in
+      // one click.
+      expect(
+        balanceStandings([step('Cladding', measured: 30)])[0],
+        BalanceStanding.noLikeNeighbour,
+      );
+    });
+
+    test('an untyped station says that first, before anything else', () {
+      // CLAD06 on the real plant: it sits beside CLAD25 and would be a group,
+      // and the reason it is not is the missing type rather than the
+      // neighbour.
+      final standings = balanceStandings([
+        step(null, measured: 30),
+        step('Cladding', measured: 30),
+      ]);
+
+      expect(standings[0], BalanceStanding.noType);
     });
   });
 
