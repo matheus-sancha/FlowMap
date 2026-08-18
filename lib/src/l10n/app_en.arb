@@ -653,5 +653,12 @@
   "stepRebalanceOn": "Sharing work with the adjacent {type} stations.",
   "@stepRebalanceNoType": { "placeholders": { "name": { "type": "String" } } },
   "@stepRebalanceNoNeighbour": { "placeholders": { "type": { "type": "String" } } },
-  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } }
+  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } },
+  "simRunTakt": "Ran at {takt}",
+  "simRunTaktChanges": "The takt changes on {date}, inside this run's span.",
+  "simRunTaktMixed": "mixed",
+  "flowTaktChanges": "Takt {from} → {to} on {date} — showing {shown}",
+  "@simRunTakt": { "placeholders": { "takt": { "type": "String" } } },
+  "@simRunTaktChanges": { "placeholders": { "date": { "type": "String" } } },
+  "@flowTaktChanges": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" }, "date": { "type": "String" }, "shown": { "type": "String" } } }
 }

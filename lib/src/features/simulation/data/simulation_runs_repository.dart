@@ -164,6 +164,15 @@ class SimulationRunsRepository {
               name: study.name,
               releaseSeconds: study.releaseInterval.inSeconds,
               releaseCalendarId: Value(study.releaseCalendarId),
+              // The takt as typed, beside the interval it resolved to (§7.7.2).
+              // A run keeps one cadence throughout (§18.3), so this is what the
+              // whole experiment turns on — and the schedule it came from may be
+              // edited tomorrow, which is why it is copied rather than joined.
+              taktValue: Value(study.taktValue),
+              taktUnit: Value(study.taktUnit?.name),
+              // When it stops being that figure. The header shows the caveat
+              // only where this falls inside the run's own span (§7.7.3).
+              nextTaktChange: Value(study.nextTaktChange),
               // Copied in so a run can still say why it began where it did
               // after the study's buffer is changed (§7.10).
               startBufferDays: Value(study.startBuffer.inDays),

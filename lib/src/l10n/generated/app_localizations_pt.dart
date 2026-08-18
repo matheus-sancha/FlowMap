@@ -1833,4 +1833,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String stepRebalanceOn(String type) {
     return 'Dividindo trabalho com as estações $type vizinhas.';
   }
+
+  @override
+  String simRunTakt(String takt) {
+    return 'Executado com $takt';
+  }
+
+  @override
+  String simRunTaktChanges(String date) {
+    return 'O takt muda em $date, dentro do período desta execução.';
+  }
+
+  @override
+  String get simRunTaktMixed => 'misto';
+
+  @override
+  String flowTaktChanges(String from, String to, String date, String shown) {
+    return 'Takt $from → $to em $date — mostrando $shown';
+  }
 }

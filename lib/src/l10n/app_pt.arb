@@ -606,5 +606,12 @@
   "stepRebalanceOn": "Dividindo trabalho com as estações {type} vizinhas.",
   "@stepRebalanceNoType": { "placeholders": { "name": { "type": "String" } } },
   "@stepRebalanceNoNeighbour": { "placeholders": { "type": { "type": "String" } } },
-  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } }
+  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } },
+  "simRunTakt": "Executado com {takt}",
+  "simRunTaktChanges": "O takt muda em {date}, dentro do período desta execução.",
+  "simRunTaktMixed": "misto",
+  "flowTaktChanges": "Takt {from} → {to} em {date} — mostrando {shown}",
+  "@simRunTakt": { "placeholders": { "takt": { "type": "String" } } },
+  "@simRunTaktChanges": { "placeholders": { "date": { "type": "String" } } },
+  "@flowTaktChanges": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" }, "date": { "type": "String" }, "shown": { "type": "String" } } }
 }

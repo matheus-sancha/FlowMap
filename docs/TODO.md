@@ -1968,7 +1968,21 @@ landing on tables that predate them, so it is the shape §16.19 called *"no tabl
    *migration*; this is the same failure through ordinary *use*. The carry is asserted by the unit it
    writes now.
 3. **§7.7.2 and §7.7.3** — the run's takt, the run header line, the map caption on Flow and Summary.
-   **The columns are in; nothing writes or reads them yet.**
+   **Half done 2026-08-17.** A run now records the takt it ran at and when that stops being true, and
+   the run header states both — `Ran at 4 days · The takt changes on 1 Apr, inside this run's span`,
+   in the tertiary colour where the change falls inside the span. `taktLabel` is shared so the three
+   surfaces that write a takt cannot disagree about its format.
+
+   _Trimmed while building:_ the caveat names the **date** and not the new figure. Saying "changes to
+   5 days" would need the next takt's value and unit stored as two more columns, and the new figure is
+   one click away on Capacity. Worth revisiting if the date alone reads as incomplete.
+
+   **Still owed, and it is the half that would have prevented the original confusion:**
+   - the **map caption** on Flow and Summary — `flow_tab.dart:116`'s bare ⓘ becomes visible text
+     naming both takts and the date. `TaktScheduleSpec.changeAfter` is built and tested for exactly
+     this; `FlowView` needs to carry the change so the caption can read it.
+   - the **runs-history picker** label, so two runs of one study can be told apart in the menu by
+     their takt — which is what makes §7.7's "run it twice and compare" possible at all.
 
 **DESIGN.md this round:** **§6.2.1** (rewritten — the zero rule, the pin, transparency), **§7.8** or
 wherever §18.3 is answered (a run is a single-takt experiment, by decision), **§7.10** (what a run

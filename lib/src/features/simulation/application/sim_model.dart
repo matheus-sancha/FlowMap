@@ -372,6 +372,9 @@ class SimStudy {
     required this.orders,
     required this.releaseInterval,
     this.releaseCalendarId,
+    this.taktValue,
+    this.taktUnit,
+    this.nextTaktChange,
     this.paceSetterNodeId,
     this.startBuffer = Duration.zero,
     this.priority = 100,
@@ -423,6 +426,23 @@ class SimStudy {
   /// already answered — the bottleneck sets the pace (§18.8). The engine is
   /// handed a duration and a clock to measure it on.
   final Duration releaseInterval;
+
+  /// The takt this study ran at, as it was typed (DESIGN.md §7.7.2).
+  ///
+  /// **[releaseInterval] is this same takt already resolved** against the pace
+  /// setter's productive day; these two are the figure a human typed and reads.
+  /// Neither can be recovered from the other once a schedule is edited, which is
+  /// why a run stores both (§7.10).
+  final double? taktValue;
+  final TaktUnit? taktUnit;
+
+  /// When the line's takt next becomes a different figure after this study's
+  /// start, or null if it never does (§7.7.3).
+  ///
+  /// **A caveat, not a mechanism.** §18.3 is settled: a run keeps one cadence
+  /// throughout, so a change falling inside a run's span is something the run
+  /// has to *say* rather than something the engine acts on.
+  final DateTime? nextTaktChange;
 
   /// Whose open time [releaseInterval] is measured in. Null puts the slots on
   /// the wall clock, which is right for a takt given in hours and wrong for one

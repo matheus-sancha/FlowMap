@@ -80,4 +80,36 @@ class TaktScheduleSpec {
   TaktPeriodSpec? taktOn(DateTime date) => schedule.at(date);
 
   PeriodLookup<TaktPeriodSpec> lookup(DateTime date) => schedule.lookup(date);
+
+  /// When the takt next becomes a **different figure** after [from], and what it
+  /// becomes (DESIGN.md §7.7.3).
+  ///
+  /// Null where it never does — one period, or several that all state the same
+  /// takt. A schedule that reads 4 d, 4 d, 5 d changes once, at the third
+  /// period's start, because a period boundary is not a change if the number
+  /// either side of it is the same.
+  ///
+  /// **What both of §7.7.3's captions are built from.** The map says which takt
+  /// it is showing when the viewed span crosses one of these, and a run says the
+  /// same about its own span — §18.3 keeps a run at a single cadence, so the
+  /// change is a caveat on the figures rather than something the engine acts on.
+  TaktChange? changeAfter(DateTime from) {
+    final current = taktOn(from);
+    if (current == null) return null;
+    for (final period in periods) {
+      if (!period.startDate.isAfter(from)) continue;
+      if (period.value == current.value && period.unit == current.unit) {
+        continue;
+      }
+      return (at: period.startDate, from: current, to: period);
+    }
+    return null;
+  }
 }
+
+/// The moment a line's takt stops being one figure and starts being another.
+typedef TaktChange = ({
+  DateTime at,
+  TaktPeriodSpec from,
+  TaktPeriodSpec to,
+});

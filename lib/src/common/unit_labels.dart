@@ -1,6 +1,7 @@
 import '../data/database/enums.dart';
 import '../features/simulation/application/sim_result.dart'
     show EmptySlotReason;
+import '../data/database/database.dart' show SimulationRunStudy;
 import '../features/simulation/data/simulation_runs_repository.dart'
     show RunQueues;
 import '../l10n/generated/app_localizations.dart';
@@ -21,6 +22,16 @@ String taktUnitLabel(AppLocalizations l10n, TaktUnit unit) => switch (unit) {
   TaktUnit.minutes => l10n.unitMinutes,
   TaktUnit.seconds => l10n.unitSeconds,
 };
+
+/// A takt written the way it is spoken — `4 days`, not `4.0 days`.
+///
+/// Here rather than on any one surface because §7.7 gave three of them the same
+/// sentence to write: the map's caption when a viewed span crosses a change, the
+/// run header's `Ran at 4 days`, and the runs-history picker. Three copies of
+/// one format is how `4 d` and `4.0 days` end up on screen together.
+String taktLabel(AppLocalizations l10n, double value, TaktUnit unit) =>
+    '${value == value.roundToDouble() ? value.round() : value} '
+    '${taktUnitLabel(l10n, unit)}';
 
 /// What a dispatch rule is called (DESIGN.md §7.4).
 ///
@@ -59,6 +70,36 @@ String? runQueueLabel(AppLocalizations l10n, RunQueues queues) => queues.label(
   name: (rule) => dispatchRuleLabel(l10n, rule),
   mixed: l10n.simRunQueuesMixed,
 );
+
+/// What a stored run ran at, or null where it never recorded one (§7.7.2).
+///
+/// **`mixed` where a run's studies ran at different takts**, which is honest on
+/// a multi-line run: takt is keyed by production line, so two studies on two
+/// lines legitimately have two. The same word [runQueueLabel] uses for the same
+/// reason, and beside it for the same reason again — the history menu and the
+/// run header must not disagree about what a run was.
+///
+/// Null on every run made before v20, which means *made before a run said this*
+/// rather than *ran at no takt*.
+String? runTaktLabel(
+  AppLocalizations l10n,
+  List<SimulationRunStudy> studies,
+) => _taktLabel(l10n, [
+  for (final study in studies)
+    if (study.taktValue case final value?) (value, study.taktUnit),
+]);
+
+String? _taktLabel(
+  AppLocalizations l10n,
+  List<(double, String?)> taktsWithUnits,
+) {
+  if (taktsWithUnits.isEmpty) return null;
+  final distinct = taktsWithUnits.toSet();
+  if (distinct.length > 1) return l10n.simRunTaktMixed;
+  final (value, unit) = distinct.single;
+  final parsed = TaktUnit.values.where((u) => u.name == unit).firstOrNull;
+  return parsed == null ? null : taktLabel(l10n, value, parsed);
+}
 
 /// The abbreviation the footer band and the process boxes use.
 String taktUnitShort(AppLocalizations l10n, TaktUnit unit) => switch (unit) {

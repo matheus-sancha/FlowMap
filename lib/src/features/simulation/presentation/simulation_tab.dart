@@ -215,6 +215,19 @@ class _RunHeader extends StatelessWidget {
 
     final date = dateStyle.format(run.createdAt);
     final queues = runQueueLabel(l10n, run.queues);
+    final takt = runTaktLabel(l10n, run.studies);
+    // Only where the change actually falls inside what this run covered. The
+    // column records the schedule's next change after the run's start (§7.7.3),
+    // and a change three years after the last order is not this run's caveat.
+    final taktChange = run.studies
+        .map((s) => s.nextTaktChange)
+        .nonNulls
+        .where((at) => at.isBefore(run.result.end))
+        .fold<DateTime?>(
+          null,
+          (earliest, at) =>
+              earliest == null || at.isBefore(earliest) ? at : earliest,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -227,6 +240,30 @@ class _RunHeader extends StatelessWidget {
             color: theme.colorScheme.outline,
           ),
         ),
+        // **What this run ran at, and when that stops being true** (§7.7.2,
+        // §7.7.3). A run keeps one cadence throughout (§18.3), so the takt is
+        // the parameter the whole experiment turns on — and until v20 a stored
+        // run could not say it, which is why a Gantt drawn at one takt could not
+        // be told from a Gantt drawn at another.
+        //
+        // A line rather than an icon, deliberately: the same caveat lived behind
+        // a hover on the map and cost an evening.
+        if (takt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              [
+                l10n.simRunTakt(takt),
+                if (taktChange != null)
+                  l10n.simRunTaktChanges(dateStyle.format(taktChange)),
+              ].join('  ·  '),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: taktChange == null
+                    ? theme.colorScheme.outline
+                    : theme.colorScheme.tertiary,
+              ),
+            ),
+          ),
         // Which station dispatched by what, and only when they disagree. A
         // header saying `mixed` without saying what the mixture was tells the
         // reader the run is not one thing without telling them what it is;

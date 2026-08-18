@@ -342,6 +342,14 @@ SimStudy? assembleSimStudy({
       resources.productivePerWorkingDay[paceSetter] ?? Duration.zero,
     ),
     releaseCalendarId: paceSetter,
+    // The takt as it was typed, beside the interval it resolves to (§7.7.2).
+    // A run is a single-takt experiment (§18.3), so this is the parameter the
+    // whole thing turns on — and until v20 a stored run could not say it.
+    taktValue: takt.value,
+    taktUnit: takt.unit,
+    // And when it stops being that figure, so a run spanning the change can say
+    // so rather than leaving the reader to remember (§7.7.3, §11.1's rule).
+    nextTaktChange: taktSchedule.changeAfter(asOf)?.at,
     paceSetterNodeId: paceNode!.id,
     // Calendar days, which is what the column stores and what every surface
     // showing it says (§7.8, §17.4).

@@ -3233,6 +3233,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sharing work with the adjacent {type} stations.'**
   String stepRebalanceOn(String type);
+
+  /// No description provided for @simRunTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran at {takt}'**
+  String simRunTakt(String takt);
+
+  /// No description provided for @simRunTaktChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'The takt changes on {date}, inside this run\'s span.'**
+  String simRunTaktChanges(String date);
+
+  /// No description provided for @simRunTaktMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'mixed'**
+  String get simRunTaktMixed;
+
+  /// No description provided for @flowTaktChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt {from} → {to} on {date} — showing {shown}'**
+  String flowTaktChanges(String from, String to, String date, String shown);
 }
 
 class _AppLocalizationsDelegate
