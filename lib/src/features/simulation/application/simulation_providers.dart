@@ -6,6 +6,7 @@ import '../../../data/database/database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../demand/application/demand_providers.dart';
 import '../../diagnostics/application/diagnostics.dart';
+import '../../projects/application/projects_providers.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../schedules/application/schedules_providers.dart';
 import '../../studies/application/studies_providers.dart';
@@ -66,6 +67,26 @@ final simRunInputProvider = FutureProvider.family<SimRunInput, String>((
   ref.watch(projectSchedulesProvider(projectId));
   ref.watch(calendarExceptionsProvider(projectId));
   ref.watch(shiftPatternsProvider);
+
+  // **The plant itself, which this watched nothing of until §7.4 made it
+  // load-bearing.** A workcenter's *type* is the identity a balance group is
+  // formed on, so typing CLAD06 `Cladding` changes what every order costs at it
+  // — and with none of these watched, the assembled input stayed cached and
+  // Simulate silently re-ran the plant as it was before the edit. The map got it
+  // right the whole time, because `flowViewProvider` has always watched these
+  // four; the two surfaces disagreeing about one plant is exactly what §12.6
+  // warns about.
+  //
+  // Watched rather than gated on: a null project is `assembleRun`'s own empty
+  // case, and returning early here would make the readiness panel go blank
+  // while the stream is still warming up.
+  final project = ref.watch(projectProvider(projectId)).value;
+  if (project != null) {
+    ref.watch(workcentersProvider(project.plantId));
+    ref.watch(poolsProvider(project.plantId));
+    ref.watch(poolMembershipProvider(project.plantId));
+  }
+  ref.watch(workcenterTypesProvider);
   for (final study in flagged) {
     ref.watch(flowNodesProvider(study.id));
     ref.watch(demandOrdersProvider(study.id));
