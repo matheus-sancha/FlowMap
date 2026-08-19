@@ -40,11 +40,19 @@ class SimulationRunsRepository {
   /// about.
   Stream<List<RunListing>> watchRuns(String projectId) {
     final stations = _db.simulationRunWorkcenters;
+    final studies = _db.simulationRunStudies;
     final query =
         _db.select(_db.simulationRuns).join([
             leftOuterJoin(
               stations,
               stations.runId.equalsExp(_db.simulationRuns.id),
+            ),
+            // The takt is on the study rows (§7.7.2), joined here so the menu can
+            // tell two runs of one study apart by what they ran at — which is
+            // what makes §7.7's "run it twice and compare" legible in the list.
+            leftOuterJoin(
+              studies,
+              studies.runId.equalsExp(_db.simulationRuns.id),
             ),
           ])
           ..where(_db.simulationRuns.projectId.equals(projectId))
@@ -62,18 +70,36 @@ class SimulationRunsRepository {
       // above is the ordering that comes out.
       final headers = <String, SimulationRun>{};
       final byRun = <String, List<({String name, DispatchRule rule})>>{};
+      final takts = <String, List<(double, String?)>>{};
+      // The two joins multiply: one row per (station × study), so a station or a
+      // study is seen once per row of the other and has to be counted once.
+      final seenStations = <String, Set<String>>{};
+      final seenStudies = <String, Set<String>>{};
       for (final row in rows) {
         final header = row.readTable(_db.simulationRuns);
         headers[header.id] = header;
         final queues = byRun.putIfAbsent(header.id, () => []);
         final station = row.readTableOrNull(stations);
-        if (station == null) continue;
-        final rule = _stationRule(station.queueType, header.dispatch);
-        if (rule != null) queues.add((name: station.name, rule: rule));
+        if (station != null &&
+            (seenStations[header.id] ??= {}).add(station.workcenterId)) {
+          final rule = _stationRule(station.queueType, header.dispatch);
+          if (rule != null) queues.add((name: station.name, rule: rule));
+        }
+        final study = row.readTableOrNull(studies);
+        if (study != null &&
+            (seenStudies[header.id] ??= {}).add(study.studyId)) {
+          if (study.taktValue case final value?) {
+            (takts[header.id] ??= []).add((value, study.taktUnit));
+          }
+        }
       }
       return [
         for (final entry in headers.entries)
-          (run: entry.value, queues: RunQueues(byRun[entry.key] ?? const [])),
+          (
+            run: entry.value,
+            queues: RunQueues(byRun[entry.key] ?? const []),
+            takts: takts[entry.key] ?? const [],
+          ),
       ];
     });
   }
@@ -568,8 +594,18 @@ class SimulationRunsRepository {
       _parseOrNull(DispatchRule.values, queueType ?? runRule);
 }
 
-/// One line of the runs history: a run's header row and what it dispatched by.
-typedef RunListing = ({SimulationRun run, RunQueues queues});
+/// One line of the runs history: a run's header row, what it dispatched by, and
+/// the takt each of its studies ran at (§7.7.2).
+///
+/// **[takts] carries the raw `(value, unit-name)` pairs**, not the full study
+/// rows: the menu labels every run, so it reads the lightest thing that can name
+/// a takt. The distinct pairs collapse to one label or to `mixed` through
+/// `taktLabelForValues`, the same fold the run header uses.
+typedef RunListing = ({
+  SimulationRun run,
+  RunQueues queues,
+  List<(double, String?)> takts,
+});
 
 /// What each station of a run dispatched by, as the run recorded it (§7.3).
 ///

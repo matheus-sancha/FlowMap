@@ -869,6 +869,8 @@ void main() {
       expect(view.scheduleVariesInPeriod, isFalse);
       expect(view.asOf, DateTime(2026));
       expect(view.periodEnd, DateTime(2026, 12, 31));
+      // No takt change to caption when the takt holds all year (§7.7.3).
+      expect(view.taktChange, isNull);
     });
 
     test('a takt change inside the span is flagged, not averaged', () {
@@ -900,6 +902,12 @@ void main() {
       // The map still shows one real takt — the one in force on 1 January —
       // rather than an average the line never runs at.
       expect(view.takt!.value, 3);
+      // And the caption can name it: from the shown takt, to the next, on the
+      // day it moves (§7.7.3).
+      expect(view.taktChange, isNotNull);
+      expect(view.taktChange!.at, DateTime(2026, 7, 1));
+      expect(view.taktChange!.from.value, 3);
+      expect(view.taktChange!.to.value, 4);
     });
 
     test('a staffing change inside the span is flagged too', () {
@@ -935,6 +943,9 @@ void main() {
         granularity: PeriodGranularity.year,
       );
       expect(view.scheduleVariesInPeriod, isTrue);
+      // A staffing move has no single takt to name, so the caption falls back to
+      // the icon (§7.7.3) and there is no takt change.
+      expect(view.taktChange, isNull);
     });
 
     test('the same change is not flagged when the span sits inside it', () {
@@ -962,6 +973,8 @@ void main() {
         granularity: PeriodGranularity.quarter,
       );
       expect(view.scheduleVariesInPeriod, isFalse);
+      // The change is on 1 July, outside Q1 — not this map's caveat (§7.7.3).
+      expect(view.taktChange, isNull);
     });
   });
 

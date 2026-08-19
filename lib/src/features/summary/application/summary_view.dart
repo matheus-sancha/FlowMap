@@ -143,10 +143,22 @@ class SummaryView {
     required this.targets,
     required this.ordersInPeriod,
     required this.demandTakt,
+    this.taktChange,
+    this.scheduleVaries = false,
   });
 
   final DateTime start;
   final DateTime end;
+
+  /// The takt change inside the viewed span, carried from the map so the Summary
+  /// says the same thing the Flow toolbar does (DESIGN.md §7.7.3). The two tabs
+  /// share the viewed period, so they share the caveat — see
+  /// [FlowView.taktChange].
+  final TaktChange? taktChange;
+
+  /// Whether the takt or the staffing moves inside the span — the icon case, for
+  /// a staffing change that has no single takt to name.
+  final bool scheduleVaries;
 
   /// Ranked by occupation, busiest first — the §8.1 bottleneck ranking.
   final List<TargetOccupation> targets;
@@ -272,6 +284,8 @@ SummaryView buildSummary({
     end: end,
     targets: targets,
     ordersInPeriod: inPeriod.length,
+    taktChange: flow.taktChange,
+    scheduleVaries: flow.scheduleVariesInPeriod,
     demandTakt: _demandTakt(
       flow: flow,
       demand: demand,

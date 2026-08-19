@@ -34,13 +34,18 @@ class RunsMenu extends ConsumerWidget {
         ref.watch(projectRunsProvider(projectId)).value ?? const <RunListing>[];
     if (runs.isEmpty) return const SizedBox.shrink();
 
-    // The date, and what the run dispatched by when every station agreed —
-    // `mixed` when they did not (§7.3). A full breakdown does not fit a menu
-    // row, and the per-station list is on the run header the row opens.
+    // The date, what the run dispatched by when every station agreed — `mixed`
+    // when they did not (§7.3) — and the takt it ran at (§7.7.2). The takt is
+    // what tells two runs of one study apart in the menu, which is what makes
+    // "run it twice and compare" (§7.7) legible without opening each. A full
+    // breakdown does not fit a menu row; the per-station list is on the run
+    // header the row opens.
     String label(RunListing listing) {
       final date = dateStyle.format(listing.run.createdAt);
       final queues = runQueueLabel(l10n, listing.queues);
-      return queues == null ? date : l10n.simRunLabel(date, queues);
+      final head = queues == null ? date : l10n.simRunLabel(date, queues);
+      final takt = taktLabelForValues(l10n, listing.takts);
+      return takt == null ? head : '$head  ·  $takt';
     }
 
     return PopupMenuButton<({String runId, bool delete})>(

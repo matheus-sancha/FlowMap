@@ -639,6 +639,7 @@ class FlowView {
     required this.taktMissing,
     required this.taktCarriedForward,
     required this.scheduleVariesInPeriod,
+    this.taktChange,
     this.selectedPartNumber,
     this.demandBatchSize = 1,
     this.inbound,
@@ -682,6 +683,17 @@ class FlowView {
   /// Reported rather than averaged: the average of a 3-day and a 4-day takt is
   /// a takt the line never runs at.
   final bool scheduleVariesInPeriod;
+
+  /// The takt change that falls inside the viewed span, or null when none does
+  /// (DESIGN.md §7.7.3).
+  ///
+  /// **What the map's caption names.** [scheduleVariesInPeriod] is the broader
+  /// "takt or staffing moved" that only ever earned an icon; this is the one
+  /// change a reader can be told about in words — which takt, when, and what it
+  /// becomes — because the takt is a single figure and staffing is fifty. Null
+  /// when the takt holds across the whole span, which is the common case and
+  /// draws no caption at all.
+  final TaktChange? taktChange;
 
   final FlowDataSource dataSource;
 
@@ -885,6 +897,16 @@ FlowView buildFlowView({
     }
   }
 
+  // The takt change the caption names (§7.7.3): the first one strictly after the
+  // span's first day, kept only when it also lands on or before the last. A
+  // change three months past the period being viewed is not this map's caveat,
+  // and `varies` above already covers a staffing-only move that has no takt to
+  // name.
+  final nextTaktChange = taktSchedule.changeAfter(start);
+  final taktChange = nextTaktChange != null && !nextTaktChange.at.isAfter(end)
+      ? nextTaktChange
+      : null;
+
   // **Inventory nodes are skipped, not drawn** (§7.3). The rows stay on a v19
   // database as the recovery path for a name the fold discarded, and nothing
   // constructs one — but a spine that still drew them would show the floor
@@ -972,6 +994,7 @@ FlowView buildFlowView({
     taktMissing: taktLookup.isMissing,
     taktCarriedForward: taktLookup.isCarriedForward,
     scheduleVariesInPeriod: varies,
+    taktChange: taktChange,
     selectedPartNumber: dataSource == FlowDataSource.singlePart
         ? demand.selectedPartNumber
         : null,

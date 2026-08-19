@@ -5,7 +5,7 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **875 tests passing** (one of them `live`-tagged
+Branch `m1-m2-foundation`, `flutter analyze` clean, **877 tests passing** (one of them `live`-tagged
 and skipped without a database). Schema is at **v20**, migrated against a copy of the real database on 2026-08-17 (v19 met it at
 08:46 on 2026-08-16), and **none of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
 found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
@@ -1172,7 +1172,7 @@ distrust the next one that does.
 | **§7.4** | Takt rebalances a group | derived process times — **written, not driven** |
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
-| **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — §7.7.2/§7.7.3 remain |
+| **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -1977,12 +1977,25 @@ landing on tables that predate them, so it is the shape §16.19 called *"no tabl
    5 days" would need the next takt's value and unit stored as two more columns, and the new figure is
    one click away on Capacity. Worth revisiting if the date alone reads as incomplete.
 
-   **Still owed, and it is the half that would have prevented the original confusion:**
-   - the **map caption** on Flow and Summary — `flow_tab.dart:116`'s bare ⓘ becomes visible text
-     naming both takts and the date. `TaktScheduleSpec.changeAfter` is built and tested for exactly
-     this; `FlowView` needs to carry the change so the caption can read it.
-   - the **runs-history picker** label, so two runs of one study can be told apart in the menu by
-     their takt — which is what makes §7.7's "run it twice and compare" possible at all.
+   ~~**Still owed, and it is the half that would have prevented the original confusion:**~~
+   **Both landed 2026-08-18 — written, not driven. `flutter analyze` clean, 877 tests.**
+   - ~~the **map caption** on Flow and Summary~~ **Done.** `flow_tab.dart`'s bare ⓘ is visible text on
+     both tabs: `Takt 4 days → 5 days on 1 Apr — showing 4 days`, in the tertiary colour. `FlowView`
+     carries a `taktChange` (the first change strictly after the span's first day that also lands on
+     or before its last, via `TaktScheduleSpec.changeAfter`); `SummaryView` copies it, so the two
+     tabs that share the viewed period cannot disagree about the caveat. A staffing-only change keeps
+     the icon — `scheduleVariesInPeriod` is the broader flag and staffing has no single figure to
+     name. One shared widget, `common/period_varies_caption.dart`. **The string `flowTaktChanges` was
+     already staged in all three `.arb` files** — added ahead of the drive with a separate `shown`
+     placeholder — so this was wiring, not new copy; the near-duplicate `flowTaktChange` I first added
+     was removed once the staged key surfaced.
+   - ~~the **runs-history picker** label~~ **Done.** The menu row reads `2026-08-15 · FIFO · 4 days`.
+     `watchRuns` gained a second join on `simulation_run_studies` (deduped past the station cartesian
+     by `workcenterId` and `studyId`), and `RunListing` carries the raw `(value, unit)` pairs;
+     `taktLabelForValues` — the fold `runTaktLabel` already used, now public — turns them into one
+     label or `mixed`, so the menu and the run header it opens name a run's takt the same way.
+
+   _Still owed here: nothing in code — this closes §7.7.3's build. The drive below is what remains._
 
 **DESIGN.md this round:** **§6.2.1** (rewritten — the zero rule, the pin, transparency), **§7.8** or
 wherever §18.3 is answered (a run is a single-takt experiment, by decision), **§7.10** (what a run

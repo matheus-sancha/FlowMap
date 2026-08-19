@@ -84,12 +84,20 @@ String? runQueueLabel(AppLocalizations l10n, RunQueues queues) => queues.label(
 String? runTaktLabel(
   AppLocalizations l10n,
   List<SimulationRunStudy> studies,
-) => _taktLabel(l10n, [
+) => taktLabelForValues(l10n, [
   for (final study in studies)
     if (study.taktValue case final value?) (value, study.taktUnit),
 ]);
 
-String? _taktLabel(
+/// The one takt a run's studies shared, `mixed` when they differed, or null when
+/// none was recorded (§7.7.2).
+///
+/// **Takes the raw `(value, unit-name)` pairs** rather than study rows, because
+/// the runs-history menu reads takt out of a lighter listing than the run header
+/// does — a menu that labels every row cannot afford to carry each run's full
+/// study snapshot. [runTaktLabel] is the same fold over the full rows, so the
+/// menu and the header it opens cannot name a run's takt two different ways.
+String? taktLabelForValues(
   AppLocalizations l10n,
   List<(double, String?)> taktsWithUnits,
 ) {

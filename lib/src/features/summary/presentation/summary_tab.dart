@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/period_varies_caption.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
@@ -42,6 +43,16 @@ class SummaryTab extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.outline,
                 ),
               ),
+              // The same takt-change caveat the Flow toolbar carries (§7.7.3):
+              // the two tabs share the viewed period, so a change that makes the
+              // map one moment of several makes this one too.
+              if (summary.taktChange != null || summary.scheduleVaries) ...[
+                const SizedBox(height: 8),
+                PeriodVariesCaption(
+                  taktChange: summary.taktChange,
+                  scheduleVaries: summary.scheduleVaries,
+                ),
+              ],
               const SizedBox(height: 12),
               _Headline(summary: summary),
               const SizedBox(height: 16),

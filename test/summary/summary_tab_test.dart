@@ -1,4 +1,6 @@
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
+import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/summary/application/summary_providers.dart';
 import 'package:flowmap/src/features/summary/application/summary_view.dart';
 import 'package:flowmap/src/features/summary/presentation/summary_tab.dart';
@@ -94,6 +96,44 @@ void main() {
     expect(find.text('TTAT'), findsOneWidget);
     expect(find.text('20 orders due'), findsOneWidget);
     expect(find.text('Raw demand takt'), findsOneWidget);
+  });
+
+  testWidgets('a takt change in the span is named, not left to an icon', (
+    tester,
+  ) async {
+    // §7.7.3: the Summary shares the viewed period with the map, so it carries
+    // the same caption — visible text, not the bare ⓘ that went unread.
+    await pump(
+      tester,
+      SummaryView(
+        start: DateTime(2026),
+        end: DateTime(2026, 12, 31),
+        ordersInPeriod: 20,
+        targets: const [],
+        demandTakt: null,
+        taktChange: (
+          at: DateTime(2026, 4, 1),
+          from: TaktPeriodSpec(
+            startDate: DateTime(2026),
+            endDate: DateTime(2026, 3, 31),
+            value: 4,
+            unit: TaktUnit.days,
+          ),
+          to: TaktPeriodSpec(
+            startDate: DateTime(2026, 4, 1),
+            endDate: DateTime(2026, 12, 31),
+            value: 5,
+            unit: TaktUnit.days,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('Takt 4 days → 5 days'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('showing 4 days'), findsOneWidget);
   });
 
   testWidgets('an empty study says what it is missing', (tester) async {

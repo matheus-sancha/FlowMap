@@ -627,6 +627,40 @@ void main() {
     expect(byId[mixed]!.isMixed, isTrue);
   });
 
+  test('the history carries the takt each run ran at (§7.7.2)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    // The takt is on the study rows, so a study has to actually carry one for
+    // the listing to name it — which is what tells two runs of one study apart
+    // in the menu (§7.7).
+    final base = studies.single;
+    final withTakt = SimStudy(
+      id: base.id,
+      name: base.name,
+      nodes: base.nodes,
+      parts: base.parts,
+      orders: base.orders,
+      releaseInterval: base.releaseInterval,
+      releaseCalendarId: base.releaseCalendarId,
+      priority: base.priority,
+      wipCap: base.wipCap,
+      taktValue: 4,
+      taktUnit: TaktUnit.days,
+    );
+    final result = runSimulation(studies: [withTakt], workcenters: plant);
+    await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: [withTakt],
+      workcenters: plant,
+    );
+
+    // The raw pair comes back through the join, deduped past the station
+    // cartesian, ready for `taktLabelForValues` to fold to `4 days`.
+    final listed = await runs.watchRuns(projectId).first;
+    expect(listed.single.takts, [(4.0, 'days')]);
+  });
+
   test(
     'two runs in the same second still come back in a fixed order',
     () async {

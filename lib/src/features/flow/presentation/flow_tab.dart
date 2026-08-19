@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/formatters.dart';
 import '../../../common/help_icon.dart';
+import '../../../common/period_varies_caption.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
@@ -111,16 +112,16 @@ class _Toolbar extends ConsumerWidget {
             _BatchField(study: study, batch: view?.demandBatchSize ?? 1),
           ],
           // The schedule varies inside the period the map is drawn for, so the
-          // figures are one moment of several (§4.2). Beside what is being
-          // shown, because that is what it qualifies.
-          if (view?.scheduleVariesInPeriod ?? false) ...[
+          // figures are one moment of several (§4.2). A takt change reads in
+          // words (§7.7.3); a staffing-only change keeps the icon. Flexible so a
+          // long caption ellipsises on a narrow toolbar rather than overflowing.
+          if (view != null &&
+              (view.taktChange != null || view.scheduleVariesInPeriod)) ...[
             const SizedBox(width: 8),
-            Tooltip(
-              message: l10n.periodVariesHelp,
-              child: Icon(
-                Icons.info_outline,
-                size: 18,
-                color: Theme.of(context).colorScheme.tertiary,
+            Flexible(
+              child: PeriodVariesCaption(
+                taktChange: view.taktChange,
+                scheduleVaries: view.scheduleVariesInPeriod,
               ),
             ),
           ],
