@@ -154,6 +154,7 @@ class GanttBar {
     required this.end,
     required this.wait,
     required this.changeover,
+    this.process,
     this.slot = 0,
   });
 
@@ -179,6 +180,17 @@ class GanttBar {
 
   /// Whether a changeover was paid to start it (§7.6).
   final bool changeover;
+
+  /// What the **work** cost, changeover excluded — the figure [occupied] cannot
+  /// be read back into (§7.4, v21).
+  ///
+  /// [occupied] is this same work laid on the calendar, so it is longer by
+  /// whatever closed time the bar crossed: a 76-hour operation spanning a
+  /// weekend draws 148 hours wide. That makes the bar useless for checking
+  /// §7.4's balance, which moves work *between* two stations — so the card
+  /// states this beside it. Null on a run stored before v21, where the card
+  /// omits the line rather than inventing one.
+  final Duration? process;
 
   /// Which unit of the station ran it, as far as the chart can tell: the
   /// topmost sub-row no overlapping bar is using.
@@ -207,6 +219,7 @@ class GanttBar {
     end: end,
     wait: wait,
     changeover: changeover,
+    process: process,
     slot: slot,
   );
 }
@@ -464,6 +477,7 @@ GanttChart buildGanttChart({
             end: step.processEnd,
             wait: step.wait,
             changeover: step.changeoverIncurred,
+            process: step.process,
           ),
         );
 

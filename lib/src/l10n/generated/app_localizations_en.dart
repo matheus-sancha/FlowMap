@@ -1615,6 +1615,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simGanttCommitted => 'Committed';
 
   @override
+  String get simGanttProcess => 'Process time';
+
+  @override
   String get simGanttWaited => 'Waited before starting';
 
   @override

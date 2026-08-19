@@ -18,6 +18,7 @@ class SimOrderStep {
     required this.processEnd,
     required this.changeoverIncurred,
     this.changeoverSeconds,
+    this.processSeconds,
     this.laneNodeId,
     this.blocked = Duration.zero,
   });
@@ -46,6 +47,19 @@ class SimOrderStep {
   /// it, including as zero. That is the distinction the column exists to keep:
   /// zero means nothing was charged, null means nobody recorded it.
   final int? changeoverSeconds;
+
+  /// What the **work** cost here, in seconds of the station's open clock —
+  /// changeover excluded (§7.4).
+  ///
+  /// [occupied] is the same work laid on the calendar and is therefore longer
+  /// by whatever closed time it crossed; this is the figure that says what the
+  /// station was asked to do, and the only one in which §7.4's balance is
+  /// visible. Null on a run read back from before v21.
+  final int? processSeconds;
+
+  /// [processSeconds] as a duration, or null where the run never recorded it.
+  Duration? get process =>
+      processSeconds == null ? null : Duration(seconds: processSeconds!);
 
   /// The lane the order waited in before this step, or null when the step has
   /// none and the order queued at the station itself (§5.5).

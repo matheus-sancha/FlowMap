@@ -74,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -807,6 +807,25 @@ class AppDatabase extends _$AppDatabase {
         // make every stored run claim a cadence it never ran at, which is the
         // drift §7.10's copy-in rule exists to prevent. Pre-v20 runs say
         // nothing, which is §12.1's rule that a blank is not a wildcard.
+      }
+
+      if (from < 21) {
+        // What the work at a step actually cost, so §7.4's balance can be read
+        // off a run at all. The step rows bracket the work on the calendar and
+        // nothing recorded the work itself, so a station given a bigger share
+        // and a station that merely crossed a weekend looked the same on the
+        // Gantt. One nullable column on a table that predates it — no rebuild,
+        // the shape §16.19 called for.
+        //
+        // **Not backfilled**, for §16.21's reason one more time: deriving it
+        // would need the batch, availability and rework as they stood, and a
+        // run joins to nothing (§7.10). Pre-v21 runs say nothing and the card
+        // omits the line rather than inventing a figure.
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.processSeconds,
+        );
       }
 
       // Reference-data seeding runs outside every version guard, on every

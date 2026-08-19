@@ -251,6 +251,7 @@ class SimulationRunsRepository {
               processEnd: step.processEnd,
               changeoverIncurred: Value(step.changeoverIncurred),
               changeoverSeconds: Value(step.changeoverSeconds),
+              processSeconds: Value(step.processSeconds),
               // The lane it was pulled out of, and how long the station then
               // stood holding it (§5.5). Both are read back below, and a column
               // written by nobody is the failure §1.5 found once already.
@@ -425,6 +426,7 @@ class SimulationRunsRepository {
             processEnd: row.processEnd,
             changeoverIncurred: row.changeoverIncurred,
             changeoverSeconds: row.changeoverSeconds,
+            processSeconds: row.processSeconds,
             laneNodeId: row.laneNodeId,
             blocked: Duration(seconds: row.blockedSeconds),
           ),

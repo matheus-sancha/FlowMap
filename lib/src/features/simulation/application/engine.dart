@@ -855,14 +855,17 @@ class _Engine {
     // measured in, so derating the result as well would count it twice, which is
     // the trap §6.1 warns about from the capacity side. Rework attaches to the
     // part's work only.
-    final occupancy =
-        effectiveProcessTime(
-          processTimePerPiece: waiting.perPiece,
-          batchSize: waiting.order.batchSize,
-          availability: availability,
-          rework: schedule.reworkOn(_now),
-        ) +
-        changeover;
+    // Kept apart from the changeover rather than only summed, because the work
+    // is what §7.4's balance moves between stations and a run had no way to
+    // state it: the step rows bracket the work on the calendar, so a bigger
+    // share and a longer weekend look identical (§7.10, v21).
+    final work = effectiveProcessTime(
+      processTimePerPiece: waiting.perPiece,
+      batchSize: waiting.order.batchSize,
+      availability: availability,
+      rework: schedule.reworkOn(_now),
+    );
+    final occupancy = work + changeover;
 
     final DateTime end;
     try {
@@ -899,6 +902,9 @@ class _Engine {
         // percentage is neither incurred nor not, and this is the only place the
         // new rule can be checked against what it did.
         changeoverSeconds: changeover.inSeconds,
+        // And what the work itself cost, which is the half §7.4 moves and the
+        // one an elapsed span cannot be read back into (v21).
+        processSeconds: work.inSeconds,
         // The lane it was pulled out of, so the run can say where it stood
         // without joining back to a flow that may have been edited (§7.10).
         laneNodeId: waiting.lane.targetId,

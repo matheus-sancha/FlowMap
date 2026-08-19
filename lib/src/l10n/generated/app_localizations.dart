@@ -2928,6 +2928,12 @@ abstract class AppLocalizations {
   /// **'Committed'**
   String get simGanttCommitted;
 
+  /// No description provided for @simGanttProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process time'**
+  String get simGanttProcess;
+
   /// No description provided for @simGanttWaited.
   ///
   /// In en, this message translates to:

@@ -15154,6 +15154,17 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _processSecondsMeta = const VerificationMeta(
+    'processSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> processSeconds = GeneratedColumn<int>(
+    'process_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _laneNodeIdMeta = const VerificationMeta(
     'laneNodeId',
   );
@@ -15189,6 +15200,7 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     processEnd,
     changeoverIncurred,
     changeoverSeconds,
+    processSeconds,
     laneNodeId,
     blockedSeconds,
   ];
@@ -15292,6 +15304,15 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         ),
       );
     }
+    if (data.containsKey('process_seconds')) {
+      context.handle(
+        _processSecondsMeta,
+        processSeconds.isAcceptableOrUnknown(
+          data['process_seconds']!,
+          _processSecondsMeta,
+        ),
+      );
+    }
     if (data.containsKey('lane_node_id')) {
       context.handle(
         _laneNodeIdMeta,
@@ -15359,6 +15380,10 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         DriftSqlType.int,
         data['${effectivePrefix}changeover_seconds'],
       ),
+      processSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}process_seconds'],
+      ),
       laneNodeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}lane_node_id'],
@@ -15412,6 +15437,29 @@ class SimulationRunStep extends DataClass
   /// on these tables since v12 — not "no changeover", which is zero.
   final int? changeoverSeconds;
 
+  /// What the **work** cost at this step, in seconds of the station's open
+  /// clock — `per-piece × batch × (1 + rework) ÷ availability`, changeover
+  /// excluded (§7.4, §7.6).
+  ///
+  /// **The only place a run says what a step was actually worth.**
+  /// [processStart] and [processEnd] bracket the work on the *calendar*, so
+  /// their difference is an elapsed span that swallows nights, weekends and
+  /// shutdowns — a 76-hour operation reads as 148 hours across a normal week.
+  /// That is the right figure for drawing a bar and the wrong one for checking
+  /// what a station was asked to do, and until this column there was no second
+  /// figure to check it against: §7.4's balance moves work *between* stations,
+  /// and a reader could not see the split it produced anywhere in the run.
+  ///
+  /// Recomputing it on read is not open to us — it needs the batch, the
+  /// availability and the rework as they stood, and §7.10 forbids joining back
+  /// to a plant that may have been retuned since. So it is copied in like every
+  /// other figure a run has to keep saying.
+  ///
+  /// Null on every run made before v21, which means *made before a run said
+  /// this* — not "no work", which is zero and is what a step the part does not
+  /// route through legitimately records.
+  final int? processSeconds;
+
   /// The lane the order waited in before this step, or null when the step had
   /// none and it queued at the station itself (§5.5).
   ///
@@ -15445,6 +15493,7 @@ class SimulationRunStep extends DataClass
     required this.processEnd,
     required this.changeoverIncurred,
     this.changeoverSeconds,
+    this.processSeconds,
     this.laneNodeId,
     required this.blockedSeconds,
   });
@@ -15462,6 +15511,9 @@ class SimulationRunStep extends DataClass
     map['changeover_incurred'] = Variable<bool>(changeoverIncurred);
     if (!nullToAbsent || changeoverSeconds != null) {
       map['changeover_seconds'] = Variable<int>(changeoverSeconds);
+    }
+    if (!nullToAbsent || processSeconds != null) {
+      map['process_seconds'] = Variable<int>(processSeconds);
     }
     if (!nullToAbsent || laneNodeId != null) {
       map['lane_node_id'] = Variable<String>(laneNodeId);
@@ -15484,6 +15536,9 @@ class SimulationRunStep extends DataClass
       changeoverSeconds: changeoverSeconds == null && nullToAbsent
           ? const Value.absent()
           : Value(changeoverSeconds),
+      processSeconds: processSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processSeconds),
       laneNodeId: laneNodeId == null && nullToAbsent
           ? const Value.absent()
           : Value(laneNodeId),
@@ -15507,6 +15562,7 @@ class SimulationRunStep extends DataClass
       processEnd: serializer.fromJson<DateTime>(json['processEnd']),
       changeoverIncurred: serializer.fromJson<bool>(json['changeoverIncurred']),
       changeoverSeconds: serializer.fromJson<int?>(json['changeoverSeconds']),
+      processSeconds: serializer.fromJson<int?>(json['processSeconds']),
       laneNodeId: serializer.fromJson<String?>(json['laneNodeId']),
       blockedSeconds: serializer.fromJson<int>(json['blockedSeconds']),
     );
@@ -15525,6 +15581,7 @@ class SimulationRunStep extends DataClass
       'processEnd': serializer.toJson<DateTime>(processEnd),
       'changeoverIncurred': serializer.toJson<bool>(changeoverIncurred),
       'changeoverSeconds': serializer.toJson<int?>(changeoverSeconds),
+      'processSeconds': serializer.toJson<int?>(processSeconds),
       'laneNodeId': serializer.toJson<String?>(laneNodeId),
       'blockedSeconds': serializer.toJson<int>(blockedSeconds),
     };
@@ -15541,6 +15598,7 @@ class SimulationRunStep extends DataClass
     DateTime? processEnd,
     bool? changeoverIncurred,
     Value<int?> changeoverSeconds = const Value.absent(),
+    Value<int?> processSeconds = const Value.absent(),
     Value<String?> laneNodeId = const Value.absent(),
     int? blockedSeconds,
   }) => SimulationRunStep(
@@ -15556,6 +15614,9 @@ class SimulationRunStep extends DataClass
     changeoverSeconds: changeoverSeconds.present
         ? changeoverSeconds.value
         : this.changeoverSeconds,
+    processSeconds: processSeconds.present
+        ? processSeconds.value
+        : this.processSeconds,
     laneNodeId: laneNodeId.present ? laneNodeId.value : this.laneNodeId,
     blockedSeconds: blockedSeconds ?? this.blockedSeconds,
   );
@@ -15583,6 +15644,9 @@ class SimulationRunStep extends DataClass
       changeoverSeconds: data.changeoverSeconds.present
           ? data.changeoverSeconds.value
           : this.changeoverSeconds,
+      processSeconds: data.processSeconds.present
+          ? data.processSeconds.value
+          : this.processSeconds,
       laneNodeId: data.laneNodeId.present
           ? data.laneNodeId.value
           : this.laneNodeId,
@@ -15605,6 +15669,7 @@ class SimulationRunStep extends DataClass
           ..write('processEnd: $processEnd, ')
           ..write('changeoverIncurred: $changeoverIncurred, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('processSeconds: $processSeconds, ')
           ..write('laneNodeId: $laneNodeId, ')
           ..write('blockedSeconds: $blockedSeconds')
           ..write(')'))
@@ -15623,6 +15688,7 @@ class SimulationRunStep extends DataClass
     processEnd,
     changeoverIncurred,
     changeoverSeconds,
+    processSeconds,
     laneNodeId,
     blockedSeconds,
   );
@@ -15640,6 +15706,7 @@ class SimulationRunStep extends DataClass
           other.processEnd == this.processEnd &&
           other.changeoverIncurred == this.changeoverIncurred &&
           other.changeoverSeconds == this.changeoverSeconds &&
+          other.processSeconds == this.processSeconds &&
           other.laneNodeId == this.laneNodeId &&
           other.blockedSeconds == this.blockedSeconds);
 }
@@ -15655,6 +15722,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
   final Value<DateTime> processEnd;
   final Value<bool> changeoverIncurred;
   final Value<int?> changeoverSeconds;
+  final Value<int?> processSeconds;
   final Value<String?> laneNodeId;
   final Value<int> blockedSeconds;
   final Value<int> rowid;
@@ -15669,6 +15737,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     this.processEnd = const Value.absent(),
     this.changeoverIncurred = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
+    this.processSeconds = const Value.absent(),
     this.laneNodeId = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -15684,6 +15753,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     required DateTime processEnd,
     this.changeoverIncurred = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
+    this.processSeconds = const Value.absent(),
     this.laneNodeId = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -15706,6 +15776,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Expression<DateTime>? processEnd,
     Expression<bool>? changeoverIncurred,
     Expression<int>? changeoverSeconds,
+    Expression<int>? processSeconds,
     Expression<String>? laneNodeId,
     Expression<int>? blockedSeconds,
     Expression<int>? rowid,
@@ -15721,6 +15792,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       if (processEnd != null) 'process_end': processEnd,
       if (changeoverIncurred != null) 'changeover_incurred': changeoverIncurred,
       if (changeoverSeconds != null) 'changeover_seconds': changeoverSeconds,
+      if (processSeconds != null) 'process_seconds': processSeconds,
       if (laneNodeId != null) 'lane_node_id': laneNodeId,
       if (blockedSeconds != null) 'blocked_seconds': blockedSeconds,
       if (rowid != null) 'rowid': rowid,
@@ -15738,6 +15810,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Value<DateTime>? processEnd,
     Value<bool>? changeoverIncurred,
     Value<int?>? changeoverSeconds,
+    Value<int?>? processSeconds,
     Value<String?>? laneNodeId,
     Value<int>? blockedSeconds,
     Value<int>? rowid,
@@ -15753,6 +15826,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       processEnd: processEnd ?? this.processEnd,
       changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
       changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
+      processSeconds: processSeconds ?? this.processSeconds,
       laneNodeId: laneNodeId ?? this.laneNodeId,
       blockedSeconds: blockedSeconds ?? this.blockedSeconds,
       rowid: rowid ?? this.rowid,
@@ -15792,6 +15866,9 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     if (changeoverSeconds.present) {
       map['changeover_seconds'] = Variable<int>(changeoverSeconds.value);
     }
+    if (processSeconds.present) {
+      map['process_seconds'] = Variable<int>(processSeconds.value);
+    }
     if (laneNodeId.present) {
       map['lane_node_id'] = Variable<String>(laneNodeId.value);
     }
@@ -15817,6 +15894,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
           ..write('processEnd: $processEnd, ')
           ..write('changeoverIncurred: $changeoverIncurred, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('processSeconds: $processSeconds, ')
           ..write('laneNodeId: $laneNodeId, ')
           ..write('blockedSeconds: $blockedSeconds, ')
           ..write('rowid: $rowid')
@@ -32476,6 +32554,7 @@ typedef $$SimulationRunStepsTableCreateCompanionBuilder =
       required DateTime processEnd,
       Value<bool> changeoverIncurred,
       Value<int?> changeoverSeconds,
+      Value<int?> processSeconds,
       Value<String?> laneNodeId,
       Value<int> blockedSeconds,
       Value<int> rowid,
@@ -32492,6 +32571,7 @@ typedef $$SimulationRunStepsTableUpdateCompanionBuilder =
       Value<DateTime> processEnd,
       Value<bool> changeoverIncurred,
       Value<int?> changeoverSeconds,
+      Value<int?> processSeconds,
       Value<String?> laneNodeId,
       Value<int> blockedSeconds,
       Value<int> rowid,
@@ -32579,6 +32659,11 @@ class $$SimulationRunStepsTableFilterComposer
 
   ColumnFilters<int> get changeoverSeconds => $composableBuilder(
     column: $table.changeoverSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get processSeconds => $composableBuilder(
+    column: $table.processSeconds,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -32670,6 +32755,11 @@ class $$SimulationRunStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get processSeconds => $composableBuilder(
+    column: $table.processSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get laneNodeId => $composableBuilder(
     column: $table.laneNodeId,
     builder: (column) => ColumnOrderings(column),
@@ -32752,6 +32842,11 @@ class $$SimulationRunStepsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get processSeconds => $composableBuilder(
+    column: $table.processSeconds,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get laneNodeId => $composableBuilder(
     column: $table.laneNodeId,
     builder: (column) => column,
@@ -32829,6 +32924,7 @@ class $$SimulationRunStepsTableTableManager
                 Value<DateTime> processEnd = const Value.absent(),
                 Value<bool> changeoverIncurred = const Value.absent(),
                 Value<int?> changeoverSeconds = const Value.absent(),
+                Value<int?> processSeconds = const Value.absent(),
                 Value<String?> laneNodeId = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -32843,6 +32939,7 @@ class $$SimulationRunStepsTableTableManager
                 processEnd: processEnd,
                 changeoverIncurred: changeoverIncurred,
                 changeoverSeconds: changeoverSeconds,
+                processSeconds: processSeconds,
                 laneNodeId: laneNodeId,
                 blockedSeconds: blockedSeconds,
                 rowid: rowid,
@@ -32859,6 +32956,7 @@ class $$SimulationRunStepsTableTableManager
                 required DateTime processEnd,
                 Value<bool> changeoverIncurred = const Value.absent(),
                 Value<int?> changeoverSeconds = const Value.absent(),
+                Value<int?> processSeconds = const Value.absent(),
                 Value<String?> laneNodeId = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -32873,6 +32971,7 @@ class $$SimulationRunStepsTableTableManager
                 processEnd: processEnd,
                 changeoverIncurred: changeoverIncurred,
                 changeoverSeconds: changeoverSeconds,
+                processSeconds: processSeconds,
                 laneNodeId: laneNodeId,
                 blockedSeconds: blockedSeconds,
                 rowid: rowid,

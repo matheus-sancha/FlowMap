@@ -175,6 +175,41 @@ void main() {
     return (studies: [study], plant: plant);
   }
 
+  test('a step records the work it cost, not only the span (v21)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final loaded = await runs.loadRun(runId);
+    final steps = loaded!.result.steps;
+
+    // **Written, and read back.** A column written by nobody is the failure
+    // §1.5 found once already, and one read by nobody is the same defect from
+    // the other end — this is the only figure in a run that states §7.4's
+    // balance, so both halves have to hold.
+    expect(steps.every((s) => s.processSeconds != null), isTrue);
+
+    // And it is the *work*, not the span: `occupied` lays the same work on the
+    // calendar, so it can only be longer. Equal where the work fitted inside
+    // one open stretch, which the fixture's short steps do.
+    for (final step in steps) {
+      expect(step.process, isNotNull);
+      expect(step.process!, lessThanOrEqualTo(step.occupied));
+    }
+
+    // The first step of `model()` carries a 1-hour setup, so its work and its
+    // occupancy are not the same number — which is what makes the two columns
+    // worth keeping apart (§7.6).
+    final clad = steps.firstWhere((s) => s.workcenterId == 'wc-1');
+    expect(clad.changeoverSeconds, greaterThan(0));
+  });
+
   test('the lanes survive storage, so the chart can draw them', () async {
     final projectId = await seedProject();
     final plant = {

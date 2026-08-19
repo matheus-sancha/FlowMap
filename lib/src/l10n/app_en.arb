@@ -593,6 +593,7 @@
   "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
   "simGanttProject": "Project",
   "simGanttCommitted": "Committed",
+  "simGanttProcess": "Process time",
   "simGanttWaited": "Waited before starting",
   "simGanttChangeover": "A changeover was paid to start it",
   "simScheduleTail": "{count, plural, =1{1 order finished after {date} using the last defined schedule} other{{count} orders finished after {date} using the last defined schedule}}",

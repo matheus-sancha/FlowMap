@@ -70,9 +70,10 @@ const _labelPadding = _labelPaddingLeft + _labelPaddingRight;
 const _cardWidth = 300.0;
 
 /// Never exact — the card is `mainAxisSize.min` and a lane's lines are not a
-/// bar's — so it is the tallest the card gets, and it grew by two lines when
-/// the project and the description joined it.
-const _cardHeight = 168.0;
+/// bar's — so it is the tallest the card gets. It grew by two lines when the
+/// project and the description joined it, and by one more when the work content
+/// did (v21).
+const _cardHeight = 186.0;
 
 /// The narrowest bar that can carry its own part number.
 const _labelledBarWidth = 46.0;
@@ -1139,7 +1140,8 @@ class _HoverCard extends StatelessWidget {
                     _CardValue(label: l10n.simGanttProject, value: project),
                   _CardLine(text: l10n.simRunSpan(instant(from), instant(to))),
                   switch (hit) {
-                    // What the station was committed to it for.
+                    // What the station was committed to it for — elapsed, so
+                    // closed time is in it (§8.6).
                     GanttPlacedBar(:final bar) => _CardValue(
                       label: l10n.simGanttCommitted,
                       value: formatAdaptiveDuration(l10n, bar.occupied),
@@ -1152,6 +1154,20 @@ class _HoverCard extends StatelessWidget {
                     ),
                   },
                   if (hit case GanttPlacedBar(:final bar)) ...[
+                    // **The work, above the wait, under the elapsed span it
+                    // cannot be read out of** (§7.4, v21). `Committed` is this
+                    // laid on the calendar, so the two differ by the nights and
+                    // weekends the bar crossed — and only this one says what the
+                    // station was asked to do, which is where §7.4's balance
+                    // between two like machines becomes checkable at all.
+                    // Omitted on a pre-v21 run rather than shown as zero: a step
+                    // the part does not route through legitimately records zero
+                    // work, and the two must not look alike.
+                    if (bar.process case final process?)
+                      _CardValue(
+                        label: l10n.simGanttProcess,
+                        value: formatAdaptiveDuration(l10n, process),
+                      ),
                     _CardValue(
                       label: l10n.simGanttWaited,
                       value: formatAdaptiveDuration(l10n, bar.wait),

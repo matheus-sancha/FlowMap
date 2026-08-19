@@ -258,6 +258,29 @@ class SimulationRunSteps extends Table {
   /// on these tables since v12 — not "no changeover", which is zero.
   IntColumn get changeoverSeconds => integer().nullable()();
 
+  /// What the **work** cost at this step, in seconds of the station's open
+  /// clock — `per-piece × batch × (1 + rework) ÷ availability`, changeover
+  /// excluded (§7.4, §7.6).
+  ///
+  /// **The only place a run says what a step was actually worth.**
+  /// [processStart] and [processEnd] bracket the work on the *calendar*, so
+  /// their difference is an elapsed span that swallows nights, weekends and
+  /// shutdowns — a 76-hour operation reads as 148 hours across a normal week.
+  /// That is the right figure for drawing a bar and the wrong one for checking
+  /// what a station was asked to do, and until this column there was no second
+  /// figure to check it against: §7.4's balance moves work *between* stations,
+  /// and a reader could not see the split it produced anywhere in the run.
+  ///
+  /// Recomputing it on read is not open to us — it needs the batch, the
+  /// availability and the rework as they stood, and §7.10 forbids joining back
+  /// to a plant that may have been retuned since. So it is copied in like every
+  /// other figure a run has to keep saying.
+  ///
+  /// Null on every run made before v21, which means *made before a run said
+  /// this* — not "no work", which is zero and is what a step the part does not
+  /// route through legitimately records.
+  IntColumn get processSeconds => integer().nullable()();
+
   /// The lane the order waited in before this step, or null when the step had
   /// none and it queued at the station itself (§5.5).
   ///

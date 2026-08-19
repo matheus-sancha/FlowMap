@@ -1633,6 +1633,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simGanttCommitted => 'Comprometida';
 
   @override
+  String get simGanttProcess => 'Tempo de processo';
+
+  @override
   String get simGanttWaited => 'Espera antes de começar';
 
   @override

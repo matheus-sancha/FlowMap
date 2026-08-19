@@ -1977,6 +1977,18 @@ void main() {
       containsAll(['takt_value', 'takt_unit', 'next_takt_change']),
     );
 
+    // **v21 rides along on the same terms**, and is asserted the same way and
+    // for the same reason: one nullable column, no carry, and no row in this
+    // fixture to carry it — so the claim worth making is that the column
+    // exists on a table that predates it, not that some row is null.
+    final stepColumns = await db
+        .customSelect('PRAGMA table_info(simulation_run_steps)')
+        .get();
+    expect(
+      stepColumns.map((row) => row.data['name']),
+      contains('process_seconds'),
+    );
+
     expect(
       await db.customSelect('PRAGMA user_version').getSingle().then(
         (row) => row.data.values.first,

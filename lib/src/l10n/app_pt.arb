@@ -546,6 +546,7 @@
   "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
   "simGanttProject": "Projeto",
   "simGanttCommitted": "Comprometida",
+  "simGanttProcess": "Tempo de processo",
   "simGanttWaited": "Espera antes de começar",
   "simGanttChangeover": "Houve troca de referência para começá-la",
   "simScheduleTail": "{count, plural, =1{1 pedido terminou depois de {date} usando o último calendário definido} other{{count} pedidos terminaram depois de {date} usando o último calendário definido}}",
