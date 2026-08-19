@@ -887,8 +887,10 @@ which is the right answer to a different question: occupation is *per period*, a
 This one needs no period and cannot change under the run's own feet. Ties break by id, so two runs
 of the same study cannot disagree.
 
-The takt is resolved **once, at the run's start**. §18.3 leaves mid-flight takt changes open, and
-until it is settled a run keeps one cadence throughout.
+The takt is resolved **once, at the run's start**, and a run keeps that one cadence throughout —
+§18.3 is settled by decision (§7.7), not left open: a run is a single-takt experiment, and a change
+that falls inside its span is a caveat the run and the map state (§7.7.2, §7.7.3) rather than
+something the engine acts on.
 
 ### 7.3 Kanban — study-level CONWIP cap
 
@@ -2958,8 +2960,8 @@ Simulation tab (§12.1) is the first thing in the app that can start one.
 - **The run is assembled twice.** §7.2 resolves the takt at the run's start, and §7.8 puts that
   start a theoretical lead time before the first need date — which cannot be walked until the study
   has been assembled. So the first pass uses the need date, the plan it produces gives the real
-  start, and the second resolves the cadence there. There is no third: chasing a fixed point is the
-  mid-flight takt change §18.3 has not settled, and a run keeps one cadence throughout.
+  start, and the second resolves the cadence there. There is no third: chasing a fixed point would be
+  the mid-flight re-cadencing §18.3 rules out (§7.7), and a run keeps one cadence throughout.
 - **Readiness is carried per study, and `canRun` requires all of them.** "A step has no workcenter"
   is not actionable until you know whose step it is, and a run the user asked for over three studies
   that quietly ran two would report a plant that was never contended for (§7.7).
@@ -3558,8 +3560,14 @@ it.
    semantic step. No shipping lead time is charged before the need-date comparison. (§8)
 2. **A workcenter may belong to several pools**, but a step targets exactly one workcenter or one
    pool. (§3.1, M1)
-3. **Takt changes mid-flight** affect only future release slots; orders already in the flow are not
-   re-planned. (§7.2, M4)
+3. ~~**Takt changes mid-flight**~~ — **settled by decision 2026-08-17 (§7.7): a run is a single-takt
+   experiment.** Changing a takt mid-run is impractical in reality — a line does not re-cadence
+   halfway through a batch — so the takt is resolved once at the run's start (§7.2) and a change that
+   falls inside a run's span is a **caveat the run and the map state**, not a mechanism the engine
+   acts on: the run header says which takt it ran at and when a change lands inside its span (§7.7.2,
+   §12.1), and the flow and summary captions say the same about the viewed period (§7.7.3). A takt
+   change is studied by running it twice and reading the Gantt, occupation and queue indicators
+   against each other. (§7.2, §7.7, M4)
 4. **Single user, single machine.** No concurrent access, no file locking, no sync. (§2, M1)
 5. **Empty slots are a reported metric**, not an error — count and dates listed in the simulation
    report. (§7.2, M4)
