@@ -2688,6 +2688,15 @@ that feeds it would be the cheaper half done first.
 - **In-app explainability**: every derived figure expands to show its inputs and formula —
   `Occupation 112 % = 1 340 h required ÷ 1 196 h available`. This is what lets an engineer defend a
   result in a meeting, and what makes a wrong input findable in the field where no one is watching.
+- **A provider container where the question is *when*, not *what*.** A repository test calls
+  `assembleRun` and gets the right answer; it cannot say whether the app would have asked. The caches
+  in between are hand-written watch lists, and a watch list is correct the day it is written and
+  silently short a year later — which is exactly how a workcenter's type came to reach the map and
+  not the run (§6.2.1). So a `ProviderContainer` over a real in-memory database, an edit written
+  through the ordinary repository, and the cache asked whether it noticed. Two rules it costs to
+  learn and cheap to state: **an unlistened provider is never recomputed**, so a container test with
+  no `listen` passes whatever the wiring does; and a provider fed by a stream **answers empty
+  first**, so a starting state has to be settled for exactly as the state under test is.
 
 ---
 
