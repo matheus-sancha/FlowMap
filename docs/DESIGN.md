@@ -676,6 +676,16 @@ a second identity axis whose blank default would balance everything together. A 
 is in no group **and breaks the run**, for the same reason a furnace does: nothing says it is like
 its neighbours.
 
+**And the run has to be told when a type is edited.** `simRunInputProvider` watched the schedules,
+the flow and the demand and nothing of the plant, so typing `Cladding` onto CLAD06 left the
+assembled input cached and Simulate re-ran the plant as it stood *before* the edit. Harmless while a
+type was an icon on a box; load-bearing the moment a balance group is formed on one. The map was
+right the whole time — `flowViewProvider` has always watched the workcenters, the pools, the
+membership and the types — so what this produced was **two surfaces reading one plant and disagreeing
+about it**, which is the failure §12.6 names from the other direction. The watch is deliberately not
+a gate: a project still loading is `assembleRun`'s own empty case, and returning early on it would
+blank the readiness panel while the stream warms up.
+
 **A pool step is in no group.** Its members are interchangeable and it is one target with one queue
 (§3.1), so *"the first workcenter and the last of the same type in the sequence"* names nothing
 inside it.
@@ -1232,11 +1242,25 @@ something could not be answered without them:
   neither incurred nor not, and the run is the only place the setup rule can be checked against what
   it actually did. `changeover_incurred` survives beside it, because a run made before v17 can
   answer that and can never answer the seconds.
+- **Per step, since v21: what the *work* cost**, in seconds, changeover excluded. The step's own
+  start and end bracket that work on the **calendar**, so their difference carries every night and
+  weekend it crossed — 76 hours of work reads 148 hours wide across a normal week. That is the right
+  figure for drawing a bar and the wrong one for asking what a station was *asked to do*, and
+  §6.2.1's balance moves exactly that between two like machines: without this column the split a run
+  actually used could not be read back off it at all. Nor recomputed — it needs the batch, the
+  availability and the rework as they stood.
 - **Per study, since v17: the cell and the production line** it sat in, ids and names both. §12.1's
   combined view filters by them, and this is the rule's own consequence — the study may since have
   moved or been deleted, so the filter cannot go and ask. **A cell or line filter is a study filter
   one level up**: workcenters belong to a *plant*, not to a cell, so stations are never filtered this
   way — the studies narrow and their stations follow.
+- **Per study, since v20: the takt it ran at** — the value a human typed, its unit, the interval it
+  resolved to against the pace setter's productive day, and the date of the next takt change falling
+  inside the run's span. A run is a single-takt experiment (§18.3), so the takt is its identity, and
+  the schedule it was read from lives in the project and may say something else tomorrow. The typed
+  figure and the resolved interval are both kept because neither survives the other once a schedule
+  moves: one is what a reader recognises in the history picker, the other is what actually spaced the
+  slots.
 
 _Rejected: backfilling a run stored before a column existed._ It would make one run a hybrid of two
 moments, which is the one thing the copy-in rule exists to prevent. A blank says "this run did not
@@ -1484,9 +1508,10 @@ holding the printout runs one line.
 ### 8.6 The Gantt
 
 Y is the workcenter, X is time, the bars are orders — **one chart for the whole run, all studies
-together**. It needs no new data: `simulation_run_steps` already keeps a workcenter, a queue start,
-a process start, a process end and a changeover flag per order-step, which is what §7.10 says that
-storage exists for.
+together**. **The chart itself needs no new data**: `simulation_run_steps` already keeps a
+workcenter, a queue start, a process start, a process end and a changeover flag per order-step, which
+is what §7.10 says that storage exists for. The one column a later round did have to add is not
+geometry at all — it is a figure the card states and the bars cannot carry, and it is below.
 
 All studies together is deliberately the opposite of §8.5's per-study sectioning, and for a stated
 reason: the plan's rows are orders and an order belongs to one line, but **a station is shared**.
@@ -1727,6 +1752,18 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   changes, and it is easier to read for standing still. It names the order, the part, the station,
   the span, the committed duration, the wait before starting, and the changeover at every scale
   including the zooms where the mark on the bar is omitted for want of room.
+
+  **It states the work beside the committed span, because the span cannot be read back into it**
+  (§6.2.1, v21). The committed duration is elapsed, so it holds the closed time the bar crossed — a
+  station given a bigger share of its group's work and one that merely ran over a weekend draw the
+  same width. That made a rebalance visible on the map and invisible in the run of it, which is the
+  one place a planner goes to find out what a change actually did. The work is the figure the balance
+  moves; the card carries both, and the difference between them is the plant's own closed time.
+
+  **A run made before v21 omits the line rather than showing a zero.** A step whose part does not
+  route through its station records zero work on purpose (§6.2.1), so a blank standing in for one
+  would read as a routing the part does not have — §7.10's own rule that a blank means *this run did
+  not record that*, arriving where the two readings are furthest apart.
 
   It also names **the study, on a run that has more than one**. A part number identifies a part only
   inside its study (§16.15) and an order number is a position in *one* study's sequence, so on a
@@ -3366,6 +3403,40 @@ ran**, which stopped being a fact about the database the first time anybody used
 shipped. Two nodes now carry hand-typed setups. The file's own header records it being broken once by
 a later *migration*; this is the same failure arriving through ordinary *use*, and the carry is now
 asserted by the unit it writes rather than by the absence of anything else.
+
+### 16.22 Schema v21, what the work at a step cost
+
+**One nullable column on a table that predates it** — `simulation_run_steps.process_seconds`, the
+work charged at that step in seconds of the station's open clock, changeover excluded. Nothing is
+rebuilt, which is the shape §16.19 called safe and the second migration since v19's fold to keep
+it.
+
+**It exists because a bar cannot be read backwards.** The step rows bracket the work on the
+*calendar*, so the span between them carries whatever nights, weekends and shutdowns it crossed: 76
+hours of work reads 148 hours wide across a normal week. §6.2.1 balances a group by moving work
+between like machines — and a reader who opened a run to see what that did found two bars whose
+widths said more about the calendar than about the split. **The map could show the balance and the
+run could not**, which is a surface disagreeing with the model rather than with another surface.
+
+**The engine had the figure and threw it away.** `_serve` computed the work and added the changeover
+to it in one expression, keeping only the sum as occupancy. The two are held apart now and both are
+recorded, which is §16.18's argument for `changeover_seconds` reaching its other half: a run is the
+only place a rule can be checked against what it actually charged, and half a charge answers half the
+question.
+
+**Nothing is backfilled.** Deriving it for a stored run needs the batch, the availability and the
+rework as they stood, and a run joins to nothing (§7.10) — so a pre-v21 run says nothing and the
+hover card omits the line. **Null is not zero here, and the distinction is load-bearing**: a step
+whose part does not route through its station records zero work on purpose (§6.2.1), so a blank
+standing in for one would assert a routing the part does not have.
+
+**No stored run is invalidated.** No figure moves, no charge changes, and no metric is computed from
+the new column. v21 records something a run was already doing and had never been able to say.
+
+_Owed, and stated here rather than discovered later:_ **v21 has not met the real database.** v17
+through v20 each record the copy they were run against and the backup taken beside the live file;
+this one has neither yet, and §0's rule is that a migration nobody can cite a `db.open` line for is a
+migration that has not happened.
 
 ## 17. Done between M2 and M3
 

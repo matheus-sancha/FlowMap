@@ -238,6 +238,23 @@ void main() {
       reason: 'a pre-v20 run says nothing about its takt rather than guessing',
     );
 
+    // --- v21: what the work at a step cost -----------------------------------
+
+    // **Null, on every step this database already had**, and it has to stay
+    // that way: the work cannot be derived after the fact — it needs the batch,
+    // the availability and the rework as they stood, and a run joins to nothing
+    // (§7.10). A backfill here would be an invention wearing a run's authority.
+    //
+    // And null is not zero on this column. A step whose part does not route
+    // through its station records zero work on purpose (§6.2.1), so the check
+    // is for the *absence* of a value rather than for a small one.
+    final steps = await db.select(db.simulationRunSteps).get();
+    expect(
+      steps.where((s) => s.processSeconds != null),
+      isEmpty,
+      reason: 'a pre-v21 step says nothing about its work rather than guessing',
+    );
+
     // --- what no migration may cost -----------------------------------------
 
     // The demand and the stored runs are untouched: these steps rebuild
@@ -245,7 +262,6 @@ void main() {
     // destroyed the demand" is the one failure that would be silent — an empty
     // table reads like a fresh install.
     final orders = await db.select(db.demandOrders).get();
-    final steps = await db.select(db.simulationRunSteps).get();
     expect(orders, isNotEmpty, reason: 'the demand survived the migration');
     expect(runs, isNotEmpty, reason: 'the stored runs survived it too');
 

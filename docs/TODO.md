@@ -1,16 +1,18 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-17. This file is **only unstarted work**, and each item should be
+Working state as of 2026-08-18. This file is **only unstarted work**, and each item should be
 deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; `docs/HISTORY.md`
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **877 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v20**, migrated against a copy of the real database on 2026-08-17 (v19 met it at
-08:46 on 2026-08-16), and **none of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
-found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
-code-complete.** M4 is too, and the initial plan has no code left in it — §3.8 is deferred by
-decision and everything else in it has landed.
+Branch `m1-m2-foundation`, `flutter analyze` clean, **878 tests passing** (one of them `live`-tagged
+and skipped without a database). Schema is at **v21**, and **v21 has not met the real database** —
+v20 was migrated against a copy on 2026-08-17 and v19 met it at 08:46 on 2026-08-16, so the live file
+stands at v20 and §7.8 owes it the copy-first run every version since v17 has recorded. **None of
+§7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends found their columns already
+there, and §7.4 turned out to store nothing at all. **§7 is code-complete**, §7.8 included. M4 is
+too, and the initial plan has no code left in it — §3.8 is deferred by decision and everything else
+in it has landed.
 
 **Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
 stock called itself "a schema step (v20)" when the columns already existed, and §7.4 said "what is
@@ -1173,6 +1175,7 @@ distrust the next one that does.
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
+| **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete 2026-08-18, undriven, and v21 has not met the real database** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2012,6 +2015,65 @@ records about its takt), **§11.1**'s neighbour (the span caveat), **§12.1** (t
 - [ ] **Two runs of 11D, one at each takt**, told apart in the history picker by their takt, each
       carrying the change caveat — and the Gantt, occupation and queue indicators read against each
       other. That is the whole of how a takt change is studied under this round's decision.
+
+### 7.8 Reading a rebalance off a run — **written 2026-08-18, not driven**
+
+**Two commits after §7.7 closed**, both about the same thing from opposite ends: §7.4's balance was
+visible on the map and invisible everywhere else. `flutter analyze` clean, **878 tests**.
+
+- **The run was balancing against a stale plant.** `simRunInputProvider` watched the schedules, the
+  flow and the demand and **nothing of the workcenters, the pools, the membership or the types** — so
+  typing a type onto a station left the assembled input cached and Simulate re-ran the plant as it
+  stood before the edit. Harmless while a type was an icon on a box; load-bearing the moment a
+  balance group is formed on one. The map was right the whole time, because `flowViewProvider` has
+  always watched those four, so what this produced was **two surfaces reading one plant and
+  disagreeing about it**.
+
+  _Owed, and it is the reason this is worth writing down rather than deleting:_ **there is no test on
+  it.** The fix is a watch list, and a watch list is exactly the kind of thing that is correct on the
+  day it is written and silently short a year later — this defect *is* that failure. Nothing in the
+  suite builds a `ProviderContainer`, so pinning it means a first: a real in-memory database, the
+  provider read, a workcenter edited, and the input asserted to have moved. Worth doing before the
+  next thing that has to be watched, not after.
+
+- **Schema v21: what the work at a step cost.** One nullable column,
+  `simulation_run_steps.process_seconds`, and the hover card states it beside the committed span. A
+  step's rows bracket the work on the *calendar*, so 76 hours of work reads 148 hours wide across a
+  normal week — a station given a bigger share of its group's work and one that merely ran over a
+  weekend draw the same bar. That left §7.4's balance readable on the map and unreadable in the run
+  of it, which is the one place a planner looks to find out what a change did. Written up as
+  **§16.22**; the engine already had the figure and was folding it into occupancy before it could be
+  stored.
+
+  **Nothing is backfilled and null is not zero here.** A step whose part does not route through its
+  station records zero work on purpose (§7.7.1), so a pre-v21 run omits the card line rather than
+  showing a nought.
+
+#### What it owes
+
+- [ ] **v21 against the real database, on a copy first.** Every version since v17 records the copy it
+      was run against and the backup taken beside the live file; this one has neither. The live check
+      carries v21's claim now — that no stored step gained a work figure — so the run is the last
+      step, not the writing of it. Take the backup, name it here, and cite the `db.open` line.
+- [ ] **A regression test on the watch list**, per the entry above.
+
+#### Drive it
+
+- [ ] **The rebalance, seen in a run.** Célula 11D at each takt: the card's work figure on CEU30 and
+      CEU32 must show the split the map shows, and the committed span must be the longer of the two.
+      That is the whole point of the column and it is the one check that cannot pass by accident.
+- [ ] **A pre-v21 run from the history picker omits the line** rather than reading zero. There are 91
+      stored runs and every one is a fixture for this; it is the check whose failure would be silent,
+      because a zero looks like a measurement.
+- [ ] **Whether the card is too tall.** `_cardHeight` went 168 → 186 and the card is anchored to the
+      bar, so the bottom row and the right-hand edge are where it gets pushed back inside (§0's own
+      standing item on the hover card).
+- [ ] **Edit a workcenter's type and press Simulate without restarting.** The run must balance on the
+      type just typed. That is the defect above, seen from the user's side, and until the test exists
+      it is the only thing that checks it.
+- [ ] **es and pt** on the card's new label.
+
+---
 
 ---
 
