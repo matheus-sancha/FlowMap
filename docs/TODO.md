@@ -5,7 +5,7 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **878 tests passing** (one of them `live`-tagged
+Branch `m1-m2-foundation`, `flutter analyze` clean, **880 tests passing** (one of them `live`-tagged
 and skipped without a database). Schema is at **v21**, and **v21 has not met the real database** —
 v20 was migrated against a copy on 2026-08-17 and v19 met it at 08:46 on 2026-08-16, so the live file
 stands at v20 and §7.8 owes it the copy-first run every version since v17 has recorded. **None of
@@ -1175,7 +1175,7 @@ distrust the next one that does.
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
-| **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete 2026-08-18, undriven, and v21 has not met the real database** |
+| **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, undriven, and v21 has not met the real database** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2019,7 +2019,7 @@ records about its takt), **§11.1**'s neighbour (the span caveat), **§12.1** (t
 ### 7.8 Reading a rebalance off a run — **written 2026-08-18, not driven**
 
 **Two commits after §7.7 closed**, both about the same thing from opposite ends: §7.4's balance was
-visible on the map and invisible everywhere else. `flutter analyze` clean, **878 tests**.
+visible on the map and invisible everywhere else. `flutter analyze` clean, **880 tests**.
 
 - **The run was balancing against a stale plant.** `simRunInputProvider` watched the schedules, the
   flow and the demand and **nothing of the workcenters, the pools, the membership or the types** — so
@@ -2029,12 +2029,19 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **878
   always watched those four, so what this produced was **two surfaces reading one plant and
   disagreeing about it**.
 
-  _Owed, and it is the reason this is worth writing down rather than deleting:_ **there is no test on
-  it.** The fix is a watch list, and a watch list is exactly the kind of thing that is correct on the
-  day it is written and silently short a year later — this defect *is* that failure. Nothing in the
-  suite builds a `ProviderContainer`, so pinning it means a first: a real in-memory database, the
-  provider read, a workcenter edited, and the input asserted to have moved. Worth doing before the
-  next thing that has to be watched, not after.
+  ~~_Owed:_ **there is no test on it.**~~ **Written 2026-08-27**, and it is the first
+  `ProviderContainer` in the suite: `sim_run_input_test.dart` puts a real in-memory database under
+  the real providers, types two adjacent stations `Cladding` through the resources repository, and
+  asserts the assembled run picks up the group without a restart — then untypes one and asserts the
+  split goes away again. **Checked red against the bug**: with the four watch lines removed both
+  tests fail. A watch list is exactly the kind of thing that is correct the day it is written and
+  silently short a year later, which is what this defect was.
+
+  _Two things it had to learn that the next container test will not have to:_ the provider's **first
+  value is `SimRunInput.empty()`**, because the flagged studies arrive on a stream and readiness is
+  not blocked behind it — so a starting state has to be settled for exactly as the state under test
+  is. And an **unlistened provider is never recomputed**, so without a `container.listen` the test
+  would be asking a cache nobody reads whether it refreshed, and would pass either way.
 
 - **Schema v21: what the work at a step cost.** One nullable column,
   `simulation_run_steps.process_seconds`, and the hover card states it beside the committed span. A
@@ -2055,7 +2062,7 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **878
       was run against and the backup taken beside the live file; this one has neither. The live check
       carries v21's claim now — that no stored step gained a work figure — so the run is the last
       step, not the writing of it. Take the backup, name it here, and cite the `db.open` line.
-- [ ] **A regression test on the watch list**, per the entry above.
+- [x] ~~**A regression test on the watch list**~~ — done, per the entry above.
 
 #### Drive it
 
