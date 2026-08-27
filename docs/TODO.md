@@ -6,13 +6,14 @@ is the source of truth for *what already happened* — the finished rounds, the 
 migration timestamps and the backup filenames.
 
 Branch `m1-m2-foundation`, `flutter analyze` clean, **880 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v21**, and **v21 has not met the real database** —
-v20 was migrated against a copy on 2026-08-17 and v19 met it at 08:46 on 2026-08-16, so the live file
-stands at v20 and §7.8 owes it the copy-first run every version since v17 has recorded. **None of
-§7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends found their columns already
-there, and §7.4 turned out to store nothing at all. **§7 is code-complete**, §7.8 included. M4 is
-too, and the initial plan has no code left in it — §3.8 is deferred by decision and everything else
-in it has landed.
+and skipped without a database). Schema is at **v21**, and **the live database is at v21 too** —
+v20 met it at 21:59 and v21 at 22:34 on 2026-08-18, both under `dev` builds, both confirmed from
+`log.txt` rather than from anything written down at the time. Backed up and re-checked against a copy
+on 2026-08-27: `flowmap.sqlite.backup-v21-20260827-202158`, `integrity_check` ok, 250 orders, 98 runs
+and 100,463 run steps. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
+found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
+code-complete**, §7.8 included. M4 is too, and the initial plan has no code left in it — §3.8 is
+deferred by decision and everything else in it has landed.
 
 **Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
 stock called itself "a schema step (v20)" when the columns already existed, and §7.4 said "what is
@@ -1175,7 +1176,7 @@ distrust the next one that does.
 | **§7.5** | Following one order | three filters, a followed order — **written, not driven** |
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
-| **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, undriven, and v21 has not met the real database** |
+| **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, v21 has met the real database, undriven** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2016,7 +2017,7 @@ records about its takt), **§11.1**'s neighbour (the span caveat), **§12.1** (t
       carrying the change caveat — and the Gantt, occupation and queue indicators read against each
       other. That is the whole of how a takt change is studied under this round's decision.
 
-### 7.8 Reading a rebalance off a run — **written 2026-08-18, not driven**
+### 7.8 Reading a rebalance off a run — **written 2026-08-18, live at v21, not driven**
 
 **Two commits after §7.7 closed**, both about the same thing from opposite ends: §7.4's balance was
 visible on the map and invisible everywhere else. `flutter analyze` clean, **880 tests**.
@@ -2058,10 +2059,25 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **880
 
 #### What it owes
 
-- [ ] **v21 against the real database, on a copy first.** Every version since v17 records the copy it
-      was run against and the backup taken beside the live file; this one has neither. The live check
-      carries v21's claim now — that no stored step gained a work figure — so the run is the last
-      step, not the writing of it. Take the backup, name it here, and cite the `db.open` line.
+- [x] ~~**v21 against the real database, on a copy first.**~~ **Closed 2026-08-27, and the order was
+      wrong.** v21 met the live file on **2026-08-18 at 22:33:56** — `db.open schema 21 from 20`,
+      `dev` build — with a run of 3 studies, 250 orders and 2000 steps completing at 22:34:03. So the
+      column was written against real demand the evening it existed, and **no backup was taken**;
+      none had been since v18, which means v19, v20 and v21 all met the live file with the v18 copy
+      as the only way back.
+
+      Made good with the app closed: **`flowmap.sqlite.backup-v21-20260827-202158`** (74.5 MB) beside
+      the live file, and `live_db_check_test.dart` run with `--tags live` against a copy of it.
+      `user_version` 21, `integrity_check` ok, 39 flow nodes, 250 orders, **98 runs and 100,463 run
+      steps**, 0 of 39 nodes pinned, 1 of 98 runs carrying the work and 3 of 98 carrying v20's takt.
+
+      **The check failed the first time, on v20's assertion rather than v21's**, and that is the
+      finding worth keeping. *"No stored run claims a takt"* was true the moment v20 ran and false
+      the moment somebody pressed Simulate afterwards — the third time this file has asserted a fact
+      about an instant and had ordinary use falsify it (§16.21 records the first). Both are rewritten
+      against the **ordering** instead: every run that answers a new column is newer than every run
+      that does not, which a backfill breaks and use cannot. §15 carries the rule now so the next
+      migration does not rediscover it.
 - [x] ~~**A regression test on the watch list**~~ — done, per the entry above.
 
 #### Drive it

@@ -27,6 +27,51 @@ import 'package:flutter_test/flutter_test.dart';
 /// Each version's specific claims accumulate below rather than being replaced:
 /// they stay true, they are cheap, and they are the only place they are
 /// asserted against real data rather than a fixture.
+/// The durable form of **"the migration did not reach backwards"**.
+///
+/// A "nothing is backfilled" claim is a fact about the *moment the migration
+/// ran*, and asserting one directly has now broken this file twice: v17's
+/// *every zero-changeover node still has a null setup* stopped being true the
+/// first time somebody typed a setup, and v20's *no stored run claims a takt*
+/// the first time somebody pressed Simulate after it (§16.21). Both were true
+/// when written; neither said anything a fortnight later, and the second failed
+/// before v21's own claim below was ever reached.
+///
+/// What stays true is the **ordering**. A column the migration left alone is
+/// answered only by runs made after it existed, so every run that answers is
+/// newer than every run that does not. Ordinary use adds to the newer group and
+/// can never falsify that — where a backfill would have put an answer on the
+/// oldest run in the file.
+///
+/// Vacuous until the file holds some of each, which is honest: a database where
+/// nothing has run since the migration has nothing to say here. The counts are
+/// printed either way, so a reader can see which case they are looking at.
+void expectOnlyNewerRunsAnswer(
+  String what, {
+  required List<SimulationRun> runs,
+  required Set<String> answering,
+}) {
+  final answered = runs.where((r) => answering.contains(r.id)).toList();
+  final silent = runs.where((r) => !answering.contains(r.id)).toList();
+  // ignore: avoid_print
+  print('$what: ${answered.length} of ${runs.length} runs answer');
+  if (answered.isEmpty || silent.isEmpty) return;
+
+  final newestSilent = silent
+      .map((r) => r.createdAt)
+      .reduce((a, b) => a.isAfter(b) ? a : b);
+  final oldestAnswered = answered
+      .map((r) => r.createdAt)
+      .reduce((a, b) => a.isBefore(b) ? a : b);
+  expect(
+    newestSilent.isBefore(oldestAnswered),
+    isTrue,
+    reason:
+        '$what reached a run older than the newest run that says nothing, '
+        'which is what a backfill looks like from here',
+  );
+}
+
 void main() {
   test('the live database upgrades and keeps what it had', () async {
     final path = Platform.environment['FLOWMAP_LIVE_DB'];
@@ -216,43 +261,77 @@ void main() {
     // **Nothing is backfilled, and that is the whole of v20's claim.** Every
     // step keeps rebalancing on, because null in a disable flag is off (§7.7.4)
     // — so an upgraded database draws exactly the map it drew before.
+    //
+    // Asserted as *not uniform* rather than as *empty*: a pin is a user's act
+    // and this plant may well have one by now, where a backfill is the same
+    // value on every row. The count is printed so it is on the record either
+    // way.
+    final pinned = nodes.where((n) => n.balanceDisabled != null);
+    // ignore: avoid_print
+    print('pinned nodes: ${pinned.length} of ${nodes.length}');
     expect(
-      nodes.where((n) => n.balanceDisabled != null),
-      isEmpty,
+      pinned.length,
+      lessThan(nodes.length),
       reason: 'v20 must not pin anything the user did not pin',
     );
 
-    // And no stored run claims a takt it was never asked about. The schedule
-    // lives in the project and may say something different today, so reading it
-    // here would make every past run assert a cadence it never ran at (§7.10).
+    // And no run made *before* v20 claims a takt it was never asked about. The
+    // schedule lives in the project and may say something different today, so
+    // reading it here would make a past run assert a cadence it never ran at
+    // (§7.10).
+    //
+    // **This read `isEmpty` and failed**, on three runs made in the half hour
+    // after v20 landed — correct behaviour caught by a stale claim, which is
+    // the trap `expectOnlyNewerRunsAnswer` exists to close.
     final runStudies = await db.select(db.simulationRunStudies).get();
     expect(runStudies, isNotEmpty, reason: 'the run studies survived it');
-    expect(
-      runStudies.where(
-        (s) =>
-            s.taktValue != null ||
-            s.taktUnit != null ||
-            s.nextTaktChange != null,
-      ),
-      isEmpty,
-      reason: 'a pre-v20 run says nothing about its takt rather than guessing',
+    expectOnlyNewerRunsAnswer(
+      'the takt a run ran at (v20)',
+      runs: runs,
+      answering: {
+        for (final s in runStudies)
+          if (s.taktValue != null || s.taktUnit != null) s.runId,
+      },
     );
 
     // --- v21: what the work at a step cost -----------------------------------
 
-    // **Null, on every step this database already had**, and it has to stay
+    // **Null on every step made before the column existed**, and it has to stay
     // that way: the work cannot be derived after the fact — it needs the batch,
     // the availability and the rework as they stood, and a run joins to nothing
     // (§7.10). A backfill here would be an invention wearing a run's authority.
     //
-    // And null is not zero on this column. A step whose part does not route
-    // through its station records zero work on purpose (§6.2.1), so the check
-    // is for the *absence* of a value rather than for a small one.
+    // Null is not zero on this column either. A step whose part does not route
+    // through its station records zero work on purpose (§6.2.1), so what is
+    // asked is whether a value is *there*, never whether it is small.
+    //
+    // Written in the durable form from the start rather than as `isEmpty`,
+    // because v21 had already met this database and been run against before the
+    // check was written — so the stale form would have been born failing.
     final steps = await db.select(db.simulationRunSteps).get();
+    expectOnlyNewerRunsAnswer(
+      'what the work at a step cost (v21)',
+      runs: runs,
+      answering: {
+        for (final s in steps)
+          if (s.processSeconds != null) s.runId,
+      },
+    );
+
+    // And no run is a hybrid of two moments, which is the other half of the
+    // same rule: a run recorded its work throughout or it never did.
+    final hybrid = {
+      for (final run in runs)
+        if (steps.where((s) => s.runId == run.id).toList() case final own
+            when own.isNotEmpty &&
+                own.any((s) => s.processSeconds == null) &&
+                own.any((s) => s.processSeconds != null))
+          run.id,
+    };
     expect(
-      steps.where((s) => s.processSeconds != null),
+      hybrid,
       isEmpty,
-      reason: 'a pre-v21 step says nothing about its work rather than guessing',
+      reason: 'a run half-carrying its work is a run of two moments (§7.10)',
     );
 
     // --- what no migration may cost -----------------------------------------

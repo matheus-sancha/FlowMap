@@ -2688,6 +2688,14 @@ that feeds it would be the cheaper half done first.
 - **In-app explainability**: every derived figure expands to show its inputs and formula —
   `Occupation 112 % = 1 340 h required ÷ 1 196 h available`. This is what lets an engineer defend a
   result in a meeting, and what makes a wrong input findable in the field where no one is watching.
+- **A live-data check whose claims survive being used.** `live_db_check_test.dart` runs by hand
+  against a copy of the real database, and its per-version claims accumulate rather than being
+  replaced. The trap it keeps falling into is asserting a fact about *the moment a migration ran* —
+  "no stored run claims a takt", "every zero-changeover node still has a null setup" — which stops
+  being true the first time somebody uses the feature that migration shipped, and then fails as
+  though the schema were broken. Twice now (§16.21, §16.22). **The durable form is the ordering**:
+  every run that answers a new column is newer than every run that does not, which ordinary use can
+  only reinforce and which only a backfill can break.
 - **A provider container where the question is *when*, not *what*.** A repository test calls
   `assembleRun` and gets the right answer; it cannot say whether the app would have asked. The caches
   in between are hand-written watch lists, and a watch list is correct the day it is written and
@@ -3406,6 +3414,11 @@ things, and one flag that is off everywhere until somebody sets it.
 Met the real database on a copy: `user_version` 20, `integrity_check` ok, 39 flow nodes, 250 orders,
 91 runs and 86,463 run steps intact, 0 of 39 nodes pinned and 0 of 156 run studies claiming a takt.
 
+**And it met the live file the following evening** — `db.open schema 20 from 19` at 21:59:37 on
+2026-08-18, under a `dev` build, with a run of three studies immediately after it. That is recorded
+here late, from `log.txt`, because it was never written down at the time: this section said "on a
+copy" and stopped, and the copy is the rehearsal rather than the event.
+
 _And it found a stale assertion in `live_db_check_test.dart` rather than a defect in itself._ That
 file asserted every zero-changeover node still had a null setup — a fact about **the moment v17
 ran**, which stopped being a fact about the database the first time anybody used the feature v17
@@ -3442,10 +3455,21 @@ standing in for one would assert a routing the part does not have.
 **No stored run is invalidated.** No figure moves, no charge changes, and no metric is computed from
 the new column. v21 records something a run was already doing and had never been able to say.
 
-_Owed, and stated here rather than discovered later:_ **v21 has not met the real database.** v17
-through v20 each record the copy they were run against and the backup taken beside the live file;
-this one has neither yet, and §0's rule is that a migration nobody can cite a `db.open` line for is a
-migration that has not happened.
+**It met the real database within the hour, and the record of that is late.** `db.open schema 21
+from 20` at **22:33:56 on 2026-08-18** under a `dev` build, with a run of three studies, 250 orders
+and 2000 steps completing 7 seconds later — so the column was written by the engine against real
+demand the same evening it existed. What did *not* happen at the time is the rest of the ritual: **no
+backup was taken**, and none had been taken since v18, so v19, v20 and v21 all met the live file with
+the v18 copy as the only way back.
+
+**Made good on 2026-08-27**, with the app closed: `flowmap.sqlite.backup-v21-20260827-202158`
+(74.5 MB) beside the live file, and the live check run against a copy of it. `user_version` 21,
+`integrity_check` ok, 39 flow nodes, 250 orders, **98 runs and 100,463 run steps**, 1 of 98 runs
+carrying the work and 3 of 98 carrying v20's takt.
+
+_The order is worth naming rather than smoothing over._ §0's rule is a copy, then a backup, then the
+live file; what happened here was the live file first and the evidence gathered nine days later. It
+came out clean, and it came out clean the way an unbelted drive does.
 
 ## 17. Done between M2 and M3
 
