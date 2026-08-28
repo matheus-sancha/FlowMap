@@ -12,8 +12,8 @@ v20 met it at 21:59 and v21 at 22:34 on 2026-08-18, both under `dev` builds, bot
 on 2026-08-27: `flowmap.sqlite.backup-v21-20260827-202158`, `integrity_check` ok, 250 orders, 98 runs
 and 100,463 run steps. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
 found their columns already there, and §7.4 turned out to store nothing at all. **§7 was
-code-complete through §7.8; §7.9 reopens it** — the takt has never once reached a run, and the fix
-is an engine change and a v22. M4 is code-complete, and the initial plan has no code left in it —
+code-complete through §7.8; §7.9 reopens it** — the takt had never once reached a run. **Round one
+is written and undriven, 890 tests**; round two is v22 and four surfaces. M4 is code-complete, and the initial plan has no code left in it —
 §3.8 is deferred by decision and everything else in it has landed.
 
 **Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
@@ -1178,7 +1178,7 @@ distrust the next one that does.
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
 | **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, v21 has met the real database, undriven** |
-| **§7.9** | The takt belongs to the order | the takt has never reached a run — **settled by interview 2026-08-27, nothing written** |
+| **§7.9** | The takt belongs to the order | the takt had never reached a run — **round one written 2026-08-27 and undriven; round two unwritten** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2098,7 +2098,7 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **880
       it is the only thing that checks it.
 - [ ] **es and pt** on the card's new label.
 
-### 7.9 The takt belongs to the order — settled by interview 2026-08-27
+### 7.9 The takt belongs to the order — **round one written 2026-08-27, not driven**
 
 *Field: "the gantt chart shows the same process time for a part number on different takt times."*
 
@@ -2294,12 +2294,41 @@ cadence, so lead times, occupation and queue depths all shift. **The fourth time
 
 **Two rounds, driven between**, and the seam is natural rather than invented to obey §2.0:
 
-1. **The engine and assembly alone, with no schema.** Already drivable, because §7.8 landed
-   `process_seconds` last week: a run's Gantt will show the work either side of 1 April differing,
-   checkable against the map's own per-period split. If the answer is no, nothing about a schema or a
-   plan column is in the way of finding out why.
+1. ~~**The engine and assembly alone, with no schema.**~~ **Written 2026-08-27.** `flutter analyze`
+   clean, **890 tests**, no schema touched. What landed:
+
+   - `SimTakt` — a takt as a **figure**, `(value, unit)`, structural equality and the balance's key.
+     `SimTaktPeriod` — one stretch of the cadence with its interval already resolved against the pace
+     setter's productive day, so the engine is still handed durations and never a schedule to
+     interpret.
+   - `SimStep.balancedProcessTimes` is keyed `takt → part → duration`, filled at assembly for every
+     figure the line's schedule states. `processTimeFor` takes the takt; **asked without one it
+     answers the measurement**, which is what every caller with no order in hand is asking for.
+   - `SimStudy.taktPeriods`, with `taktAt`, `intervalAt`, `taktKeyAt` and `cadenceResumesAfter`.
+     **Empty means one unbounded period at `releaseInterval`** — exactly the old behaviour — so every
+     existing test still says what it said, and a caller that hands over no schedule gets what it
+     always got.
+   - The engine remembers the takt each order **opened** under and costs every one of its steps at
+     it. The slot walk reads the takt at each slot; a slot landing where no period covers opens
+     nothing and reschedules at the next period's start, or ends the study's cadence.
+   - The cold start resolves its own takt in **two passes** — walk from the need date, and re-walk
+     once if the start that produces sits under a different takt. No third, for §16.10's reason.
+   - The theoretical walk takes the order's takt, so its standard is built from the same split the
+     run charged it.
+
+   _One defect found while writing it, and it is the useful kind:_ the coverage check was first put
+   only where the **next** slot is booked, and an interval measured inside a period can carry a slot
+   past its end — so a slot still fired in a gap and released an order the line had no cadence for.
+   It is asked when the slot **fires** now. Three of the four new engine tests failed on it, which is
+   what they were for.
+
+   _And the repository test caught a fact rather than a bug:_ its fixture's demand is needed in late
+   August, so the study's first release lands in the **second** takt period. That is the shape of the
+   whole round — before it, the first period was unreachable by any run of that study.
+
 2. **v22 and the four surfaces** — the card's takt line, the plan column, the menu label, the stopped
-   -releases warning.
+   -releases warning. **Nothing written.** The engine records **why** a study stopped releasing
+   (`_cadenceEnded`); carrying it out of the result and onto the run is round two's first job.
 
 _Rejected: one round._ It moves the engine's core loop **and** rebuilds four surfaces, and a defect
 found at the end could not say which half moved the figure — §16.11 is the record of what that costs.
@@ -2330,12 +2359,16 @@ independent of each other and nothing is learned by separating them.
 - [ ] **The plan at fifteen columns**, on screen and in Excel — Float is the column most likely to
       have gone off the right edge (§12.6).
 
-**DESIGN.md this round:** **§6.2.1** (the split follows the order's takt, and what is keyed on),
-**§7.2** (the release interval is a schedule; no takt, no releases), **§7.10** (what a run records
-per order, and `release_seconds` redefined), **§7.7.2/§7.7.3** (the run's takt is its first release's;
-the caveat becomes a boundary), **§8.5.1** and **§12.6** (fourteen columns became fifteen), **§8.6**
-(the card names the takt), **§11.1**'s neighbour (releases stopped for want of a schedule), **§16.23**
-(schema v22), and **§8**'s §18.3 entry corrected — the decision stands, the reading of it did not.
+**DESIGN.md — round one's share is written**, ahead of the drive rather than after it, on §5's
+rule that a design file disagreeing with the tree is worse than one behind it: **§6.2.1** (which takt
+each side balances against, and what the split is keyed on), **§7.2** (rewritten — a takt period says
+how often orders open in it; no takt, no releases; why that is not an empty slot), **§7.10** (the
+study row's takt is its first release's), **§16.10** (what the second assembly pass still settles),
+and **§8**'s constraint 3 corrected — the decision stands, the reading of it did not.
+
+**Owed by round two:** **§7.7.2/§7.7.3**, **§8.5.1** and **§12.6** (fourteen columns became
+fifteen), **§8.6** (the card names the takt), **§11.1**'s neighbour (releases stopped for want of a
+schedule), and **§16.23** (schema v22).
 
 ---
 

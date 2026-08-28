@@ -712,9 +712,21 @@ assumed one. The per-station cells the demand table already holds *are* the meas
 sum *is* the group's work content. Nothing new is stored.
 
 **The map and the engine balance against different takts, and that is correct.** The map uses the
-viewed period's, the engine the run's (§18.3 keeps a run at one cadence). They call the same
-function — `takt_balance.dart`, pure and shared — so they can differ by their takt and never by their
-arithmetic. That file exists precisely because §7.6 is the record of what two copies of one rule cost.
+**viewed period's** and the engine uses **the one each order opened under** (§7.9). They call the
+same function — `takt_balance.dart`, pure and shared — so they can differ by their takt and never by
+their arithmetic. That file exists precisely because §7.6 is the record of what two copies of one
+rule cost.
+
+_This paragraph used to end "the engine the run's (§18.3 keeps a run at one cadence)", and that was
+the defect rather than the design._ A run has as many takts as its releases reach; the map shows one
+period at a time. The two agree exactly when the period being viewed is the one an order opened in,
+which is worth knowing before the map and a bar are read against each other.
+
+**The split is therefore resolved per takt, not per run.** `SimStep.balancedProcessTimes` is keyed
+`takt → part → duration`, filled at assembly for every figure the line's schedule states, and the
+engine looks up the takt the order carries. **Keyed by the figure**, so two adjacent periods both
+stating `4 days` are one key and not a change — the rule `TaktScheduleSpec.changeAfter` already
+applies to the map's own caption.
 
 **Where the two figures live.** `FlowStepView.processTime` is the *derived* share and
 `measuredProcessTime` is the observation. The derived figure lands in the field every consumer
@@ -897,10 +909,28 @@ which is the right answer to a different question: occupation is *per period*, a
 This one needs no period and cannot change under the run's own feet. Ties break by id, so two runs
 of the same study cannot disagree.
 
-The takt is resolved **once, at the run's start**, and a run keeps that one cadence throughout —
-§18.3 is settled by decision (§7.7), not left open: a run is a single-takt experiment, and a change
-that falls inside its span is a caveat the run and the map state (§7.7.2, §7.7.3) rather than
-something the engine acts on.
+**A takt period says how often orders open in it**, so the takt is resolved for every period the
+line states and the slot walk reads the one in force at each slot (§7.9). An order takes the takt it
+opened under and **keeps it the whole way down the plant** — a step it reaches in June is still worth
+what it was worth in March.
+
+**That is what §18.3 always meant, and this replaces a misreading of it.** *"Changing a takt mid-run
+is impractical"* forbids re-cadencing work **already in flight**, which nothing here does. It was
+read as *"a run has one takt"*, which is a different claim: it made every run resolve `taktOn` at the
+derived cold start and froze it, so a line stating 4 days to March and 5 from April ran the whole
+year at 4 and no run could reach the second period at all.
+
+**An instant no takt period covers has no cadence, and a line with no cadence opens nothing.** The
+study looks again at the start of the next period; where there is none, it stops releasing and its
+remaining orders surface as §7.8's *"N orders never completed"*. That is what
+`WorkcenterScheduleSpec` already does one level down — a station whose schedule has run out is
+closed, not still staffed as it last was — and it is why the takt is not carried forward instead:
+§9.2's rule is that forgiving is not guessing.
+
+**Such a slot is not an empty slot** (§18.5). An empty slot is one that came round and went unused;
+here the cadence is gone, so none came round. The check is made when the slot **fires** rather than
+only when the next one is booked, because an interval measured inside a period can carry a slot past
+its end.
 
 ### 7.3 Kanban — study-level CONWIP cap
 
@@ -1256,11 +1286,13 @@ something could not be answered without them:
   way — the studies narrow and their stations follow.
 - **Per study, since v20: the takt it ran at** — the value a human typed, its unit, the interval it
   resolved to against the pace setter's productive day, and the date of the next takt change falling
-  inside the run's span. A run is a single-takt experiment (§18.3), so the takt is its identity, and
-  the schedule it was read from lives in the project and may say something else tomorrow. The typed
-  figure and the resolved interval are both kept because neither survives the other once a schedule
-  moves: one is what a reader recognises in the history picker, the other is what actually spaced the
-  slots.
+  inside the run's span. **The takt at that study's first release**, since §7.9 made the takt the
+  order's rather than the run's — what a run spanning a change actually ran at is read off its
+  orders, and `next_takt_change` is the boundary it crossed rather than a caveat about one it
+  ignored. The schedule it was read from lives in the project and may say something else tomorrow.
+  The typed figure and the resolved interval are both kept because neither survives the other once a
+  schedule moves: one is what a reader recognises in the history picker, the other is what actually
+  spaced the first slots.
 
 _Rejected: backfilling a run stored before a column existed._ It would make one run a hybrid of two
 moments, which is the one thing the copy-in rule exists to prevent. A blank says "this run did not
@@ -3015,7 +3047,12 @@ Simulation tab (§12.1) is the first thing in the app that can start one.
   start a theoretical lead time before the first need date — which cannot be walked until the study
   has been assembled. So the first pass uses the need date, the plan it produces gives the real
   start, and the second resolves the cadence there. There is no third: chasing a fixed point would be
-  the mid-flight re-cadencing §18.3 rules out (§7.7), and a run keeps one cadence throughout.
+  the mid-flight re-cadencing §18.3 rules out (§7.7).
+
+  **What the second pass settles is smaller since §7.9**: the engine reads the takt at each slot from
+  the schedule it was handed, so a run spanning a change no longer depends on this pass to notice
+  one. What it still fixes is each station's productive day and the takt a study reports as its first
+  release's.
 - **Readiness is carried per study, and `canRun` requires all of them.** "A step has no workcenter"
   is not actionable until you know whose step it is, and a run the user asked for over three studies
   that quietly ran two would report a plant that was never contended for (§7.7).
@@ -3664,14 +3701,17 @@ it.
    semantic step. No shipping lead time is charged before the need-date comparison. (§8)
 2. **A workcenter may belong to several pools**, but a step targets exactly one workcenter or one
    pool. (§3.1, M1)
-3. ~~**Takt changes mid-flight**~~ — **settled by decision 2026-08-17 (§7.7): a run is a single-takt
-   experiment.** Changing a takt mid-run is impractical in reality — a line does not re-cadence
-   halfway through a batch — so the takt is resolved once at the run's start (§7.2) and a change that
-   falls inside a run's span is a **caveat the run and the map state**, not a mechanism the engine
-   acts on: the run header says which takt it ran at and when a change lands inside its span (§7.7.2,
-   §12.1), and the flow and summary captions say the same about the viewed period (§7.7.3). A takt
-   change is studied by running it twice and reading the Gantt, occupation and queue indicators
-   against each other. (§7.2, §7.7, M4)
+3. ~~**Takt changes mid-flight**~~ — **settled 2026-08-17 and restated 2026-08-27 (§7.7, §7.9): an
+   order is never re-cadenced in flight; successive orders take the takt in force when they open.**
+   Changing a takt for work already on the floor is impractical in reality — a line does not
+   re-cadence halfway through a batch — and that is the whole of the constraint. **It was written up
+   as "a run is a single-takt experiment", which is a different claim and was never the field's**:
+   under it the takt was resolved once at the derived cold start and frozen, so a line with two takt
+   periods ran entirely at the first and the second could not reach a run at all. An order now takes
+   the takt in force at its release and carries it to the last step (§7.2, §7.9). The captions stand
+   — the run header says what it ran at and the map says which period it is showing (§7.7.2, §7.7.3)
+   — and a takt change no longer has to be studied by running it twice, because one run crosses it.
+   (§7.2, §7.7, §7.9, M4)
 4. **Single user, single machine.** No concurrent access, no file locking, no sync. (§2, M1)
 5. **Empty slots are a reported metric**, not an error — count and dates listed in the simulation
    report. (§7.2, M4)
