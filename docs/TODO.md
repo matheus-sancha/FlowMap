@@ -11,9 +11,10 @@ v20 met it at 21:59 and v21 at 22:34 on 2026-08-18, both under `dev` builds, bot
 `log.txt` rather than from anything written down at the time. Backed up and re-checked against a copy
 on 2026-08-27: `flowmap.sqlite.backup-v21-20260827-202158`, `integrity_check` ok, 250 orders, 98 runs
 and 100,463 run steps. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
-found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
-code-complete**, §7.8 included. M4 is too, and the initial plan has no code left in it — §3.8 is
-deferred by decision and everything else in it has landed.
+found their columns already there, and §7.4 turned out to store nothing at all. **§7 was
+code-complete through §7.8; §7.9 reopens it** — the takt has never once reached a run, and the fix
+is an engine change and a v22. M4 is code-complete, and the initial plan has no code left in it —
+§3.8 is deferred by decision and everything else in it has landed.
 
 **Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
 stock called itself "a schema step (v20)" when the columns already existed, and §7.4 said "what is
@@ -1177,6 +1178,7 @@ distrust the next one that does.
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
 | **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, v21 has met the real database, undriven** |
+| **§7.9** | The takt belongs to the order | the takt has never reached a run — **settled by interview 2026-08-27, nothing written** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2096,7 +2098,244 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **880
       it is the only thing that checks it.
 - [ ] **es and pt** on the card's new label.
 
----
+### 7.9 The takt belongs to the order — settled by interview 2026-08-27
+
+*Field: "the gantt chart shows the same process time for a part number on different takt times."*
+
+**It does, and it always has.** Every run 11D has ever recorded ran at **4.0 days** — `53c99a93`,
+`6c022b76`, `d0f3c77f` on 2026-08-18 and `67f5d7f2` at 20:27 on 2026-08-27 — while the line's takt
+table has held **two** periods since 21:30 on 2026-08-16: `4 days` to 2026-03-31 and `5 days` from
+2026-04-01. **The second period has never been consulted by anything.**
+
+`sim_assembly.dart:176` reads `taktSchedule.taktOn(asOf)` once, where `asOf` is the **cold start** —
+a date §7.8 derives by walking a theoretical lead time back from the first need date, which for 11D
+lands on **2025-10-10**, three months before any order is due and squarely inside the 4-day period.
+The split is computed there and frozen onto `SimStep.balancedProcessTimes` for the whole run.
+
+**The map has been right the whole time**, because it balances against the viewed period's takt —
+which is exactly why the two surfaces disagree, and why this reads as "the rebalancing is broken"
+rather than as "the run is reading one date".
+
+```
+takt      4 days ─────────────────────┤ 1 Apr ├────────── 5 days ──────────►
+demand                2026-01-02 ████████████████████████████████ 2026-11-30
+releases            2025-10-10 ██████████████████████ 2026-07-14
+run reads the takt here ↑   nobody chose this date and nothing shows it
+```
+
+**Eight of eleven demand months sit under a takt no run can reach.** Moving the sample point to
+something sensible does not fix it either: the first need date is 2026-01-02, still inside the 4-day
+period, so the figures would not move at all.
+
+#### What a takt period actually says
+
+*Field: "the takt period defines the takt time of every order that will open on that period and the
+takt of the order start for the pacemaker."*
+
+**A takt belongs to the order, not to the run.** An order opened while 4 days is in force runs at 4
+days — its release slot and its work split alike — and **keeps them the whole way down the plant**,
+even if it is still in the shop in June. Orders opened from 1 April take 5 days. Successive orders
+differ; one order is never re-cadenced in flight.
+
+**§18.3 is not retired by this — it was misread.** *"Changing a takt mid-run is impractical"* is a
+statement about work **already in flight**, which stays true and is what this design honours. It was
+read as *"a run has one takt"*, which is a different claim and was never the field's. §8's entry is
+corrected rather than reopened.
+
+| | |
+|---|---|
+| **§7.9.1** | Which instant fixes an order's takt |
+| **§7.9.2** | What happens where no takt covers an instant |
+| **§7.9.3** | What a run stores, and what says it |
+| **§7.9.4** | The order, and what it invalidates |
+
+#### 7.9.1 The release instant, and the one circularity
+
+**An order's takt is the one in force at the instant it is released.** The two candidates put the
+boundary in very different places over the same 60 orders of 11D:
+
+| fixed by | before 1 Apr (4 d) | from 1 Apr (5 d) |
+|---|---|---|
+| **its release** — when it opens | **37** | **23** |
+| its need date — when it is due | 16 | 44 |
+
+Three reasons, in order of weight. It is what *"every order that will open on that period"* says — a
+takt is about how often you **start** work, not about when it is due. It is self-consistent with the
+slot walk, which must already read the takt at each slot instant to know when the next one comes, so
+the order released at that slot takes the same takt from the same read: **one rule, one instant, no
+second concept to keep aligned.** And need-date-based would build an order opened on 10 February to a
+5-day split while every order around it on the floor opens every 4 days — the cadence and the work
+content disagreeing about which plant the order is in.
+
+**The pacemaker keeps both its jobs, and the transition is not coded.** It still times the slot on
+its own calendar and gates the release on its lane (§7.2). From 1 April the slots simply come at the
+new interval; the pacemaker is still chewing through 4-day work for about one lead time, and that
+shows up because it is *queueing*, not because a rule moved. *Rejected: moving the clock to the first
+workcenter for the transition window.* It would make the interval jump twice for one takt change —
+once on 1 April and once on a date nobody could name in advance — and make `days` mean two different
+stations' days inside one run, which is §17.4's scar.
+
+**One circularity, broken where the repo already breaks it.** An order's release comes from the slot
+walk; the *first* order's release comes from `coldStartDate`, which walks back through
+`processTimeFor` — the balanced time — which needs a takt, which is read at the release. §16.10
+already assembles a run twice for exactly this shape: pass one walks from the need date, pass two
+re-reads the takt at the start it produced. **No third pass**, which is that section's own rule, and
+every order after the first is walked forward with no circularity at all.
+
+#### 7.9.2 No takt, no releases
+
+The takt was read once, so a gap or a cliff in the takt calendar could never reach a run. Read at
+every slot, it can now come back null.
+
+**A study with no takt in force does not open orders.** The next slot is scheduled at the **start of
+the next takt period**; where there is none, that study stops releasing and its remaining orders
+surface as §7.8's *"N orders never completed"*.
+
+**The precedent is already in the tree and it decided this against instinct.**
+`WorkcenterScheduleSpec.operatorsOn` returns `const []` for a date no period covers — a station whose
+schedule has run out is **closed**, and the `availability ?? 1` beside it says outright that it
+exists *"to keep this function total rather than to be relied on"*. A takt table that outlived its
+last row and went on opening orders every 4 days would be the one schedule in this app that does.
+
+_Rejected: holding the last takt forward._ It keeps every run that works today working, and it is a
+**guess about what the planner meant** — §9.2's rule is that forgiving is not guessing, which is why
+a bare `batch` column is refused rather than assumed to be a size.
+_Rejected: aborting the run._ §11 has consistently chosen warn-and-continue over block, and an abort
+throws away the part of the run that was perfectly well cadenced.
+
+**The cost is a behaviour change that will look like a bug**: a plant whose takt table stops at year
+end goes from *"all 60 orders released"* to *"12 orders never opened"*. That is revealing rather than
+regressing — those orders are being released today at a cadence with no schedule behind it — and it
+needs a release-note line.
+
+**So the run records why releases stopped.** One nullable field beside `abortReason`, stated in the
+run header: *"Célula 11D's takt schedule ends 2026-12-31; 12 orders were never opened."* §11.1's
+warning cannot cover this — it compares the run's **end** against `scheduleHorizon`, and a run that
+stops releasing early may well end *before* the horizon with the warning silent. And §11.1's own
+argument applies verbatim: a run that could not say this would drop its own caveat the moment the
+reader came back to it, which is exactly when they quote the figures.
+
+_Rejected: leaving it to "N orders never completed"._ That names the symptom and hides the cause, and
+the two it collapses — a jammed plant and a missing schedule row — want opposite responses. §7.7 is
+the record of what an unreadable caveat costs.
+
+**No empty slots are recorded during a gap**, and that follows from the rule rather than qualifying
+it: §18.5 counts empty slots against the cadence, and in a gap there is no cadence to count them at.
+The gap is a run-level fact instead.
+
+#### 7.9.3 What a run stores, and what says it
+
+**Schema v22: the takt value and unit an order opened under**, two nullable columns on
+`simulation_run_orders` — 5,330 rows across all 98 stored runs, ~250 per run, no table rebuilt, the
+shape §16.19 called safe.
+
+**v21 is the argument for it.** That column exists because a run could not say what the work at a
+step cost and §7.10 forbade deriving it, so it was copied in. The takt is now precisely **the reason**
+two orders of one part carry different work. Recording the effect and leaving the cause to be
+re-derived from a schedule that may have moved is the same defect one level up.
+
+_Rejected: a first-and-last pair on the study row._ Cheap, and it answers the header — and it cannot
+answer the question a planner actually asks when two bars of one part are different widths, which is
+*which takt built this one*, and that question is the whole point of the round.
+_Rejected: storing nothing and inferring from the change date._ §7.10's rule outright.
+
+**`release_seconds` on the study row is redefined, not duplicated.** It becomes *the interval at that
+study's first release*; the per-order value and unit are what a human reads, and the resolved seconds
+only ever mattered for reproducing the cadence, which the per-order takt now does. The study's
+`takt_value` / `takt_unit` mean the same thing — the takt at its first release — and
+`next_takt_change` stops being a caveat and becomes the boundary the run actually crossed.
+
+**Where it is read:**
+
+- **The hover card names the order's takt**, beside v21's work figure — `Work 95.2 h · Takt 5 days`.
+  It is the surface the question is asked on, and the card already carries the study, the project and
+  the description for that reason.
+- **The production plan gains a fifteenth column**, exported with the rest, so the boundary can be
+  sorted and sent. §12.6 records the plan pushing Float off the right edge at fourteen; this is the
+  column that has to earn its width.
+- **The runs-history menu folds a `DISTINCT` over the per-order takts** — `4 days`, `4 → 5 days`, and
+  `mixed` for anything that is not an ordered pair, so a run that went 4 → 5 → 4 says `mixed` rather
+  than lying about where it ended. `watchRuns` gains a second aggregate. _Rejected: denormalising
+  first/last/count onto the study row_ — `taktLabelForValues` exists **because** the menu and the run
+  header must not name a run two different ways, and a copy can only agree by being written
+  correctly where a query agrees by construction.
+- **The run header states the fact rather than hedging**: `Ran at 4 days to 1 Apr, then 5 days`.
+
+**A pre-v22 run says nothing per order**, which means *made before a run said this* — the meaning a
+blank has had on these tables since v12.
+
+#### 7.9.4 What it costs, the order, and what it invalidates
+
+**In the engine:** `SimStudy.releaseInterval` becomes a schedule rather than a `Duration`;
+`_nextSlot` reads the takt at `_now`; `SimStep` carries its split **keyed by `(value, unit)`** rather
+than one map, precomputed at assembly over the distinct takts the run can reach — two, for 11D.
+
+**Keyed by the figure, not by the period**, so two adjacent periods both stating `4 days` are one key
+and not a change — the same rule `TaktScheduleSpec.changeAfter` already applies to the map's caption.
+_Settled by recommendation and untested against the floor:_ if a planner ever means two periods of
+one figure to be genuinely different regimes, that key is wrong.
+
+**Not changed, and each for a stated reason:**
+
+- **The map.** It already balances per viewed period. It was right throughout.
+- **The queue stock.** `_stockAt` turns `pieces × takt` into days at the **run-start** takt and stays
+  there. The pile is an observation of the plant at the start, not a property of any order, and §5.5's
+  rule is never to overwrite an observation with a rule — one physical pile reporting three
+  durations because three orders passed it is worse than the small inconsistency of leaving it fixed.
+- **The theoretical lead time** uses the order's own takt — same figures, one source — but **barely
+  moves**, and that is worth knowing before somebody reads a flat efficiency as a bug. The balance
+  *conserves* a group's work content (76.1 + 117.9 = 194 = 95.2 + 98.8); it only moves it between
+  stations, and 11D's grouped stations share what converts work into elapsed time — CLAD06 and
+  CLAD25 both 84 % on one pattern, CEU30 and CEU32 both 83.2 %. What shifts is weekend alignment.
+
+**Every stored 11D run stops being comparable with new ones.** Releases after 1 April move to a 5-day
+cadence, so lead times, occupation and queue depths all shift. **The fourth time** — §2.12, §3.1 and
+§1 were the others — and it wants a release-note line rather than a silent discovery.
+
+**Two rounds, driven between**, and the seam is natural rather than invented to obey §2.0:
+
+1. **The engine and assembly alone, with no schema.** Already drivable, because §7.8 landed
+   `process_seconds` last week: a run's Gantt will show the work either side of 1 April differing,
+   checkable against the map's own per-period split. If the answer is no, nothing about a schema or a
+   plan column is in the way of finding out why.
+2. **v22 and the four surfaces** — the card's takt line, the plan column, the menu label, the stopped
+   -releases warning.
+
+_Rejected: one round._ It moves the engine's core loop **and** rebuilds four surfaces, and a defect
+found at the end could not say which half moved the figure — §16.11 is the record of what that costs.
+_Rejected: four commits driven apart._ The plan column, the menu label and the warning are
+independent of each other and nothing is learned by separating them.
+
+#### Drive round one
+
+- [ ] **11D across 1 April.** Two orders of one part, one released either side, must carry different
+      work on the hover card. For `P1000216567-13P01`: **76.1 / 117.9** at CLAD06 / CLAD25 before,
+      **95.2 / 98.8** after; **75.4 / 162.6** at CEU30 / CEU32 before, **94.3 / 143.7** after. The
+      after-April figures must equal what the map draws with its viewed period in H2.
+- [ ] **The cadence visibly changes** — releases every 75.4 h before, 94.3 h after, read off the
+      Gantt. This is the half a work figure cannot show.
+- [ ] **11B and 11C come out identical to `67f5d7f2`.** One takt period each, so nothing may move —
+      the cheapest proof the change is confined to lines that actually have a takt change.
+- [ ] **A part that empties a station.** `P7000109738P01` at 5 days gives CEU30 the pair's whole 87 h
+      and CEU32 **zero**. That is §6.2.1 working as specified and it must read as a finding on
+      screen, not as a bug.
+
+#### Drive round two
+
+- [ ] **The card's takt line against the plan's column**, on the same order, in all three languages.
+- [ ] **The menu tells two runs apart** — one at 4 days, one spanning to 5, sitting in the picker as
+      `4 days` and `4 → 5 days`.
+- [ ] **A takt table cut short on purpose**, so releases stop: the run header must name the study,
+      the date and how many orders never opened, and the Gantt must not merely look jammed.
+- [ ] **The plan at fifteen columns**, on screen and in Excel — Float is the column most likely to
+      have gone off the right edge (§12.6).
+
+**DESIGN.md this round:** **§6.2.1** (the split follows the order's takt, and what is keyed on),
+**§7.2** (the release interval is a schedule; no takt, no releases), **§7.10** (what a run records
+per order, and `release_seconds` redefined), **§7.7.2/§7.7.3** (the run's takt is its first release's;
+the caveat becomes a boundary), **§8.5.1** and **§12.6** (fourteen columns became fifteen), **§8.6**
+(the card names the takt), **§11.1**'s neighbour (releases stopped for want of a schedule), **§16.23**
+(schema v22), and **§8**'s §18.3 entry corrected — the decision stands, the reading of it did not.
 
 ---
 
@@ -2120,6 +2359,13 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **880
       twice and reading the Gantt, the occupation and the queue indicators against each other. What
       §7.7 owes is not a mechanism but three captions: the run must **say** which takt it ran at, and
       both the run and the map must say when a change falls inside the span they are showing.
+
+      **Corrected 2026-08-27 (§7.9): the decision stands and the sentence above misstates it.** *"A
+      run is a single-takt experiment"* was read out of *"changing a takt mid-run is impractical"*,
+      and the two are different claims. What is impractical is re-cadencing work **already in
+      flight**; an order keeps the takt it opened under all the way down the plant. Successive orders
+      take the takt in force when *they* open, which is what a takt period says and what the engine
+      has never done.
 - [ ] **§18.5 is still open**: empty slots as a reported metric. They are counted, dated, stored and
       shown; what is missing is a decision about whether a list of *which* slots is wanted, and
       whether an empty slot should ever be a warning.
