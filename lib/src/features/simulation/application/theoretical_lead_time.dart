@@ -78,6 +78,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
   required SimPart part,
   required int batchSize,
   required DateTime from,
+  SimTakt? takt,
   List<TheoreticalLeadTimeProblem>? problems,
 }) {
   void report(TheoreticalLeadTimeProblem problem) => problems?.add(problem);
@@ -101,7 +102,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
             return null;
           }
 
-          final perPiece = node.processTimeFor(part.id, part);
+          final perPiece = node.processTimeFor(part.id, part, takt: takt);
           if (perPiece == null) {
             report(TheoreticalLeadTimeProblem.noProcessTime);
             return null;
@@ -166,6 +167,7 @@ DateTime? coldStartDate({
   required SimPart part,
   required int batchSize,
   required DateTime needDate,
+  SimTakt? takt,
   List<TheoreticalLeadTimeProblem>? problems,
 }) {
   var cursor = needDate;
@@ -198,7 +200,7 @@ DateTime? coldStartDate({
             return null;
           }
 
-          final perPiece = node.processTimeFor(part.id, part);
+          final perPiece = node.processTimeFor(part.id, part, takt: takt);
           if (perPiece == null) {
             problems?.add(TheoreticalLeadTimeProblem.noProcessTime);
             return null;

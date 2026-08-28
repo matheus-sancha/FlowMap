@@ -167,7 +167,8 @@ void main() {
   Map<String, Duration> sharesOf(SimRunInput input) => {
     for (final study in input.studies)
       for (final step in study.steps)
-        step.candidates.single: ?step.balancedProcessTimes.values.firstOrNull,
+        step.candidates.single:
+            ?step.balancedProcessTimes.values.firstOrNull?.values.firstOrNull,
   };
 
   test('a workcenter typed after the run was assembled reaches it', () async {

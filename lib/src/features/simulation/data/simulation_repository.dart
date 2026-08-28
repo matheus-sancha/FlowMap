@@ -146,9 +146,15 @@ class SimulationRepository {
     };
 
     // A takt in days means productive days of a station (§6.1), so resolving
-    // one into a duration needs each station's own open time. Read at the
-    // run's start, once: §18.3 leaves mid-flight takt changes open, and a run
-    // keeps one cadence throughout.
+    // one into a duration needs each station's own open time.
+    //
+    // **Read at the run's start, once, and that is now the only thing here that
+    // is.** §7.9 made the *takt* the order's — every period the line states is
+    // resolved and the engine reads the one in force — but a station's own
+    // staffing is a second axis and this round did not touch it. A workcenter
+    // whose shift pattern changes in July still reports one productive day for
+    // the whole run, exactly as it always has, and the takt periods are
+    // resolved against that one figure.
     Map<String, Duration> productiveOn(DateTime asOf) => {
       for (final entry in workcenters.entries)
         entry.key:
@@ -225,14 +231,20 @@ class SimulationRepository {
       );
     }
 
-    // Assembled twice, deliberately. §7.2 resolves the takt at the run's
-    // start, and the run's start is the first order's need date minus its
-    // theoretical lead time (§7.8) — which cannot be walked until the study
-    // has been assembled. So the first pass uses the need date itself, the
-    // plan it produces gives the real start, and the second pass resolves the
-    // takt there. There is no third: chasing a fixed point is exactly the
-    // mid-flight takt change §18.3 has not settled, and a run keeps one
-    // cadence throughout.
+    // Assembled twice, deliberately, and it survives §7.9 with a smaller job.
+    // The run's start is the first order's need date minus its theoretical lead
+    // time (§7.8), which cannot be walked until the study has been assembled.
+    // So the first pass uses the need date itself and the plan it produces
+    // gives the real start.
+    //
+    // **What the second pass now settles is the staffing and the study's stated
+    // takt, not which cadence the run keeps.** The engine reads the takt at
+    // each slot from the schedule it was handed, so a run spanning a change no
+    // longer depends on this pass to notice. What it still fixes is
+    // `productiveOn` and the `taktValue` a study reports as its first
+    // release's. There is no third pass: chasing a fixed point across a takt
+    // boundary would let two takts argue over one order, which is the
+    // mid-flight re-cadencing §18.3 rules out.
     final first = assembleAt(null);
     if (!first.canRun) return first;
 

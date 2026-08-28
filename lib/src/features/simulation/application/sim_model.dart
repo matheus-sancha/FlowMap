@@ -59,6 +59,47 @@ class SimWorkcenter {
 
 }
 
+/// A takt as a **figure**, which is the identity a balance group is split
+/// against (DESIGN.md §7.9).
+///
+/// A record rather than a class so equality and hashing are structural: two
+/// periods both stating `4 days` are the same key, and a `Map<SimTakt, …>`
+/// needs no more than that. Which is also the rule
+/// `TaktScheduleSpec.changeAfter` applies — a period boundary is not a change
+/// if the number either side of it is the same.
+typedef SimTakt = ({double value, TaktUnit unit});
+
+/// One stretch of a line's cadence, with the takt already resolved against the
+/// pace setter's productive day (§7.9, §7.2).
+///
+/// **The engine is handed durations and never a schedule to interpret**, which
+/// is the same division [SimStudy.releaseInterval] drew when there was only one
+/// of these: what `days` means is a question about a station's calendar, and the
+/// assembler is where that is answered.
+class SimTaktPeriod {
+  const SimTaktPeriod({
+    required this.start,
+    required this.end,
+    required this.value,
+    required this.unit,
+    required this.interval,
+  });
+
+  /// First and last day the period covers, inclusive at both ends — the same
+  /// span `TaktPeriodSpec` states.
+  final DateTime start;
+  final DateTime end;
+
+  /// The figure a human typed, which is also the balance's key.
+  final double value;
+  final TaktUnit unit;
+
+  /// The gap between release slots here, on the pace setter's clock.
+  final Duration interval;
+
+  SimTakt get takt => (value: value, unit: unit);
+}
+
 /// A process step (§5.1) — and, since the queue re-model, the only kind of node
 /// the engine walks.
 ///
@@ -102,8 +143,8 @@ class SimStep {
   /// one, never a member standing in for it (§9).
   final String demandKey;
 
-  /// Part id → the share §7.4's balance gave this step, where it sits in a run
-  /// of adjacent like machines. Empty everywhere else.
+  /// Takt → part id → the share §7.4's balance gave this step, where it sits in
+  /// a run of adjacent like machines. Empty everywhere else.
   ///
   /// **Keyed by part and held on the step**, rather than folded into
   /// [SimPart.processTimes] before the engine sees them. Those are keyed by
@@ -111,17 +152,29 @@ class SimStep {
   /// two — a flow that visits one machine twice in a row would collide on the
   /// key and take one member's share for both.
   ///
-  /// Resolved at assembly because the split is against the takt in force
-  /// (§7.4), and the run has exactly one (§18.3).
-  final Map<String, Duration> balancedProcessTimes;
+  /// **And keyed by takt, because the split is against the takt in force and a
+  /// run no longer has one** (§7.9). An order takes the takt it opened under
+  /// and keeps it down the plant, so two orders of one part legitimately carry
+  /// different work — every distinct takt the study's schedule states is
+  /// resolved here at assembly and the engine looks up the order's.
+  ///
+  /// **By figure, not by period.** Two adjacent periods both stating `4 days`
+  /// are one key and not a change, which is the rule
+  /// `TaktScheduleSpec.changeAfter` already applies to the map's caption.
+  final Map<SimTakt, Map<String, Duration>> balancedProcessTimes;
 
-  /// What one piece of [partId] costs here: the balanced share where this step
-  /// is in a group, and the measured time otherwise.
+  /// What one piece of [partId] costs here **at [takt]**: the balanced share
+  /// where this step is in a group, and the measured time otherwise.
   ///
   /// The one place the choice is made, so the engine and the theoretical walk
   /// cannot disagree about which of the two figures a step is worth.
-  Duration? processTimeFor(String partId, SimPart? part) =>
-      balancedProcessTimes[partId] ?? part?.timeAt(demandKey);
+  ///
+  /// A null [takt] is a caller with no order in hand — the map's own reading is
+  /// elsewhere — and falls back to the measurement, which is what every step
+  /// outside a balance group is worth anyway.
+  Duration? processTimeFor(String partId, SimPart? part, {SimTakt? takt}) =>
+      (takt == null ? null : balancedProcessTimes[takt]?[partId]) ??
+      part?.timeAt(demandKey);
 
   /// The pool this step targets, or null where it names a single workcenter
   /// (§3.1). Carried so a finished run can record which pool each of its
@@ -159,7 +212,7 @@ class SimStep {
   /// A copy rather than a mutable field: a `SimStep` is handed to the engine,
   /// the theoretical walk and the run writer, and a value any of them could
   /// change is a value none of them can trust.
-  SimStep withBalance(Map<String, Duration> shares) => SimStep(
+  SimStep withBalance(Map<SimTakt, Map<String, Duration>> shares) => SimStep(
     id: id,
     position: position,
     queue: queue,
@@ -371,6 +424,7 @@ class SimStudy {
     required this.parts,
     required this.orders,
     required this.releaseInterval,
+    this.taktPeriods = const [],
     this.releaseCalendarId,
     this.taktValue,
     this.taktUnit,
@@ -419,29 +473,90 @@ class SimStudy {
   /// one clock (§17.4).
   final Duration startBuffer;
 
-  /// One takt — the gap between release slots (§7.2).
+  /// The gap between release slots **at this study's first release** (§7.2).
   ///
   /// Resolved by the caller, not here: a takt in days means productive days of
   /// a particular station (§6.1), and which station is the question §8.2 has
   /// already answered — the bottleneck sets the pace (§18.8). The engine is
   /// handed a duration and a clock to measure it on.
+  ///
+  /// **It is no longer the whole cadence** — [taktPeriods] is (§7.9). This
+  /// stays because it is what a run stores and what a reader is shown, and
+  /// because it is the interval an empty [taktPeriods] means throughout.
   final Duration releaseInterval;
 
-  /// The takt this study ran at, as it was typed (DESIGN.md §7.7.2).
+  /// The line's cadence over time, in start order, each period already resolved
+  /// (§7.9).
+  ///
+  /// **Empty means one unbounded period at [releaseInterval]**, which is what
+  /// every study was before a takt could vary inside a run — so a caller that
+  /// hands over no schedule gets exactly the old behaviour, and a test that
+  /// cares about nothing else need not build one.
+  ///
+  /// Non-empty, it is authoritative: an instant no period covers has **no
+  /// cadence**, and a study with no cadence does not open orders. That is what
+  /// `WorkcenterScheduleSpec` already does one level down, where a station whose
+  /// schedule has run out is closed rather than still staffed as it last was.
+  final List<SimTaktPeriod> taktPeriods;
+
+  /// The takt in force at [instant], or null where nothing covers it.
+  SimTaktPeriod? taktAt(DateTime instant) {
+    for (final period in taktPeriods) {
+      if (instant.isBefore(period.start)) continue;
+      if (instant.isAfter(period.end)) continue;
+      return period;
+    }
+    return null;
+  }
+
+  /// The gap to the next release slot at [instant] — the resolved takt there,
+  /// or [releaseInterval] where this study carries no schedule at all.
+  Duration? intervalAt(DateTime instant) =>
+      taktPeriods.isEmpty ? releaseInterval : taktAt(instant)?.interval;
+
+  /// The figure the balance is keyed on at [instant], or null where nothing
+  /// covers it (§7.9).
+  SimTakt? taktKeyAt(DateTime instant) => taktPeriods.isEmpty
+      ? (taktValue == null || taktUnit == null
+            ? null
+            : (value: taktValue!, unit: taktUnit!))
+      : taktAt(instant)?.takt;
+
+  /// When the cadence next resumes after [instant], or null where it never
+  /// does — the start of the first period beginning after it (§7.9).
+  ///
+  /// What a study does in a gap: it stops opening orders and looks again here.
+  /// Null is the end of the line's schedule, and the study stops for good.
+  DateTime? cadenceResumesAfter(DateTime instant) {
+    DateTime? soonest;
+    for (final period in taktPeriods) {
+      if (!period.start.isAfter(instant)) continue;
+      if (soonest == null || period.start.isBefore(soonest)) {
+        soonest = period.start;
+      }
+    }
+    return soonest;
+  }
+
+  /// The takt this study **first released at**, as it was typed (§7.7.2, §7.9).
   ///
   /// **[releaseInterval] is this same takt already resolved** against the pace
   /// setter's productive day; these two are the figure a human typed and reads.
   /// Neither can be recovered from the other once a schedule is edited, which is
   /// why a run stores both (§7.10).
+  ///
+  /// It stopped being *the run's* takt when the takt became the order's (§7.9);
+  /// what a run spanning a change ran at is read off its orders.
   final double? taktValue;
   final TaktUnit? taktUnit;
 
   /// When the line's takt next becomes a different figure after this study's
   /// start, or null if it never does (§7.7.3).
   ///
-  /// **A caveat, not a mechanism.** §18.3 is settled: a run keeps one cadence
-  /// throughout, so a change falling inside a run's span is something the run
-  /// has to *say* rather than something the engine acts on.
+  /// **The boundary the run crosses**, and no longer a caveat about one it
+  /// ignores: since §7.9 the engine acts on it — orders opened past it take the
+  /// new figure. §18.3 stands as it was always meant, which is that work already
+  /// in flight is never re-cadenced.
   final DateTime? nextTaktChange;
 
   /// Whose open time [releaseInterval] is measured in. Null puts the slots on

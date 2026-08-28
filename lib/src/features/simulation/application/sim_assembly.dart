@@ -257,16 +257,25 @@ SimStudy? assembleSimStudy({
   // part because the work content being split is a part's, and two parts of one
   // flow legitimately balance differently.
   //
-  // The takt in force is the run's, resolved at its start (§18.3), which is the
-  // one place this differs from the map: the map balances against the viewed
-  // period's takt. Both call the same function, so they can differ only by
-  // their takt and never by their arithmetic.
+  // **One split per distinct takt the line ever states** (§7.9), because an
+  // order takes the takt it opened under and a run spans as many as its
+  // releases reach. The map differs only in balancing against the *viewed*
+  // period's takt — both call the same function, so they can differ by their
+  // takt and never by their arithmetic.
+  //
+  // Every period, not only the ones this run reaches: the run's span is not
+  // known here, the set collapses by figure anyway, and a schedule of six
+  // periods stating two takts costs two splits.
   final balanced = _balanceSteps(
     simNodes,
     nodes: nodes,
     parts: parts,
     processTimes: processTimes,
-    takt: takt,
+    takts: {
+      (value: takt.value, unit: takt.unit),
+      for (final period in taktSchedule.periods)
+        (value: period.value, unit: period.unit),
+    },
     resources: resources,
   );
   if (balanced.isNotEmpty) {
@@ -341,14 +350,36 @@ SimStudy? assembleSimStudy({
     releaseInterval: takt.equivalentAt(
       resources.productivePerWorkingDay[paceSetter] ?? Duration.zero,
     ),
+    // **The whole cadence, not just the one in force at the start** (§7.9).
+    // Resolved here for the same reason the single interval was: `days` means
+    // productive days of the pace setter, and the engine is handed durations
+    // rather than a schedule to interpret.
+    //
+    // Against *one* productive day — the pace setter's at [asOf] — rather than
+    // re-reading its staffing period by period. That axis is unchanged by this
+    // round: `productivePerWorkingDay` has always been resolved once, and a
+    // station whose staffing changes mid-run already reports one figure here.
+    taktPeriods: [
+      for (final period in taktSchedule.periods)
+        SimTaktPeriod(
+          start: period.startDate,
+          end: period.endDate,
+          value: period.value,
+          unit: period.unit,
+          interval: period.equivalentAt(
+            resources.productivePerWorkingDay[paceSetter] ?? Duration.zero,
+          ),
+        ),
+    ],
     releaseCalendarId: paceSetter,
-    // The takt as it was typed, beside the interval it resolves to (§7.7.2).
-    // A run is a single-takt experiment (§18.3), so this is the parameter the
-    // whole thing turns on — and until v20 a stored run could not say it.
+    // The takt as it was typed, beside the interval it resolves to (§7.7.2) —
+    // **the one this study first releases at**, since §7.9 made the takt the
+    // order's rather than the run's. [asOf] is the study's start on the second
+    // assembly pass, which is where its first slot falls.
     taktValue: takt.value,
     taktUnit: takt.unit,
-    // And when it stops being that figure, so a run spanning the change can say
-    // so rather than leaving the reader to remember (§7.7.3, §11.1's rule).
+    // And when it stops being that figure — the boundary the run crosses now
+    // rather than one it ignores (§7.7.3, §7.9).
     nextTaktChange: taktSchedule.changeAfter(asOf)?.at,
     paceSetterNodeId: paceNode!.id,
     // Calendar days, which is what the column stores and what every surface
@@ -370,12 +401,12 @@ SimStudy? assembleSimStudy({
 /// is one target with one queue (§3.1), so "the first workcenter and the last of
 /// the same type in the sequence" names nothing inside it. Typed as null here,
 /// which is what keeps it out.
-Map<String, Map<String, Duration>> _balanceSteps(
+Map<String, Map<SimTakt, Map<String, Duration>>> _balanceSteps(
   List<SimStep> steps, {
   required List<FlowNode> nodes,
   required List<DemandPart> parts,
   required Map<String, Map<String, Duration>> processTimes,
-  required TaktPeriodSpec takt,
+  required Set<SimTakt> takts,
   required SimResourceContext resources,
 }) {
   // Pinned out of its group by the user (§7.7.4), by node id — the run has to
@@ -392,32 +423,36 @@ Map<String, Map<String, Duration>> _balanceSteps(
   ];
   if (types.every((t) => t == null)) return const {};
 
-  // One takt of each station's own capacity — the cap it fills to, and the same
-  // figure the map calls the step's flow-equivalent time (§6.1).
-  final takts = [
-    for (final step in steps)
-      resources.productivePerWorkingDay[step.candidates.firstOrNull] == null
-          ? null
-          : takt.equivalentAt(
-              resources.productivePerWorkingDay[step.candidates.first]!,
-            ),
-  ];
+  final shares = <String, Map<SimTakt, Map<String, Duration>>>{};
+  for (final takt in takts) {
+    // One takt of each station's own capacity — the cap it fills to, and the
+    // same figure the map calls the step's flow-equivalent time (§6.1).
+    final caps = [
+      for (final step in steps)
+        resources.productivePerWorkingDay[step.candidates.firstOrNull] == null
+            ? null
+            : taktUnitDuration(
+                takt.value,
+                takt.unit,
+                resources.productivePerWorkingDay[step.candidates.first]!,
+              ),
+    ];
 
-  final shares = <String, Map<String, Duration>>{};
-  for (final part in parts) {
-    final measured = processTimes[part.id] ?? const <String, Duration>{};
-    final derived = balancedProcessTimes([
-      for (var i = 0; i < steps.length; i++)
-        (
-          typeName: types[i],
-          measured: measured[steps[i].demandKey],
-          takt: takts[i],
-          pinned: pinned.contains(steps[i].id),
-        ),
-    ]);
-    derived.forEach((i, duration) {
-      (shares[steps[i].id] ??= {})[part.id] = duration;
-    });
+    for (final part in parts) {
+      final measured = processTimes[part.id] ?? const <String, Duration>{};
+      final derived = balancedProcessTimes([
+        for (var i = 0; i < steps.length; i++)
+          (
+            typeName: types[i],
+            measured: measured[steps[i].demandKey],
+            takt: caps[i],
+            pinned: pinned.contains(steps[i].id),
+          ),
+      ]);
+      derived.forEach((i, duration) {
+        ((shares[steps[i].id] ??= {})[takt] ??= {})[part.id] = duration;
+      });
+    }
   }
   return shares;
 }

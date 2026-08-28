@@ -292,6 +292,11 @@ Map<String, Duration> theoreticalLeadTimes({
       part: part,
       batchSize: order.batchSize,
       from: released,
+      // **The takt this order opened under** (§7.9), so its standard is built
+      // from the same work split the run charged it. Read off the release
+      // instant the engine recorded rather than carried on the outcome: it is
+      // the same lookup the engine made and cannot drift from it.
+      takt: study.taktKeyAt(released),
     );
     if (theoretical != null) walked[outcome.orderId] = theoretical.elapsed;
   }

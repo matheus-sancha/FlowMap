@@ -139,12 +139,23 @@ RunPlan planRun({
     final part = first == null ? null : study.parts[first.partId];
     if (first == null || part == null) continue;
 
-    final walked = coldStartDate(
+    // **Which takt to walk the first order back at** (§7.9) — and this is the
+    // one circularity the per-order takt leaves: the order takes the takt in
+    // force when it opens, and when it opens is what this walk is computing.
+    //
+    // Broken the way §16.10 already breaks the same shape one level up: walk
+    // from the need date, and if the start that produces sits under a different
+    // takt, walk once more from there. **No third pass** — chasing a fixed
+    // point across a boundary would let two takts argue over one order, which
+    // is the mid-flight re-cadencing §18.3 rules out.
+    var takt = study.taktKeyAt(first.needDate);
+    var walked = coldStartDate(
       nodes: study.nodes,
       workcenters: workcenters,
       part: part,
       batchSize: first.batchSize,
       needDate: first.needDate,
+      takt: takt,
     );
     if (walked == null) continue;
 
@@ -152,6 +163,20 @@ RunPlan planRun({
     // rather than inside the walk: the walk is the plan for one order and this
     // is a deliberate margin on top of it.
     var candidate = walked.subtract(study.startBuffer);
+
+    final atStart = study.taktKeyAt(candidate);
+    if (atStart != takt) {
+      takt = atStart;
+      final again = coldStartDate(
+        nodes: study.nodes,
+        workcenters: workcenters,
+        part: part,
+        batchSize: first.batchSize,
+        needDate: first.needDate,
+        takt: takt,
+      );
+      if (again != null) candidate = again.subtract(study.startBuffer);
+    }
 
     // **And never before the material lands.** Starting earlier buys nothing:
     // §7.2 gates every release on `material date ≤ slot`, so slots opened ahead
@@ -407,6 +432,24 @@ class _Engine {
   final Map<String, DateTime?> _released = {};
   final Map<String, DateTime?> _delivered = {};
 
+  /// The takt each order opened under (§7.9), kept from its release until its
+  /// last step is costed.
+  ///
+  /// **On the order, because that is what it is a property of.** An order takes
+  /// the takt in force when it opens and keeps it the whole way down the plant,
+  /// so a step reached in June is still worth what it was worth in March —
+  /// re-reading the schedule at the moment of service is the mid-flight
+  /// re-cadencing §18.3 rules out.
+  final Map<String, SimTakt?> _takt = {};
+
+  /// Why a study stopped opening orders before its sequence ran out, or absent
+  /// where it did not (§7.9.2).
+  ///
+  /// Only ever *"the line has no takt from here"*: every other reason a slot
+  /// goes unused spends the slot and comes round again, which is an empty slot
+  /// (§18.5). This one ends the cadence, so there is no next slot to record.
+  final Map<String, DateTime> _cadenceEnded = {};
+
   /// Orders currently in the flow, per study, for the CONWIP cap (§7.3).
   final Map<String, int> _open = {};
 
@@ -515,6 +558,25 @@ class _Engine {
     final head = _head[study.id]!;
     if (head >= study.orders.length) return;
 
+    // **A slot landing where the line has no takt opens nothing** (§7.9.2), and
+    // the check is here rather than only where the next slot is placed: an
+    // interval measured inside a period can carry the slot past its end, so the
+    // question has to be asked when the slot comes round rather than when it
+    // was booked.
+    //
+    // Not an empty slot either (§18.5). An empty slot is one that came round
+    // and went unused — the cadence was there and the order was not ready. Here
+    // there is no cadence, so there was never a slot to spend.
+    if (study.taktPeriods.isNotEmpty && study.taktAt(_now) == null) {
+      final resumes = study.cadenceResumesAfter(_now);
+      if (resumes == null) {
+        _cadenceEnded[study.id] = _now;
+      } else {
+        _schedule(resumes, _EventKind.slot, key: study.id);
+      }
+      return;
+    }
+
     final order = study.orders[head];
     final cap = study.wipCap;
     final material = order.materialDate;
@@ -553,6 +615,8 @@ class _Engine {
       _head[study.id] = head + 1;
       _open[study.id] = _open[study.id]! + 1;
       _released[order.id] = _now;
+      // **The takt it opened under, fixed here and never read again** (§7.9).
+      _takt[order.id] = study.taktKeyAt(_now);
       _schedule(_now, _EventKind.arrive, key: study.id, orderId: order.id, index: 0);
     }
 
@@ -560,17 +624,45 @@ class _Engine {
     // no skipping. Stop once the sequence is exhausted, so an idle plant does
     // not accumulate empty slots for orders that do not exist.
     if (_head[study.id]! < study.orders.length) {
-      _schedule(_nextSlot(study), _EventKind.slot, key: study.id);
+      final next = _nextSlot(study);
+      if (next == null) {
+        // **The line has no takt from here on, so it opens nothing** (§7.9.2).
+        // Not an empty slot: an empty slot is a slot that came round and went
+        // unused, and there is no cadence left to bring one round.
+        _cadenceEnded[study.id] = _now;
+      } else {
+        _schedule(next, _EventKind.slot, key: study.id);
+      }
     }
   }
 
-  DateTime _nextSlot(SimStudy study) {
+  /// When this study's next release slot falls, or **null where its cadence has
+  /// ended** (§7.9.2).
+  ///
+  /// The takt is read at the current instant rather than once at the start: a
+  /// takt period says how often orders open *in it*, so a run crossing 1 April
+  /// opens at one rate before and another after. An instant no period covers
+  /// has no cadence at all — the study looks again at the start of the next
+  /// period, and stops for good where there is none.
+  ///
+  /// **That is what a schedule running out already means one level down**,
+  /// where `WorkcenterScheduleSpec` leaves a station with no operators rather
+  /// than carrying its last staffing forward.
+  DateTime? _nextSlot(SimStudy study) {
+    final interval = study.intervalAt(_now);
+    if (interval == null) {
+      // In a gap, or past the end. Resume at the next period's first day if the
+      // line has one; the slot lands there rather than an interval past it,
+      // because the new cadence starts when the period does.
+      return study.cadenceResumesAfter(_now);
+    }
+
     final calendar = workcenters[study.releaseCalendarId]?.calendar;
-    if (calendar == null) return _now.add(study.releaseInterval);
+    if (calendar == null) return _now.add(interval);
     try {
-      return calendar.advance(_now, study.releaseInterval);
+      return calendar.advance(_now, interval);
     } on StateError {
-      return _now.add(study.releaseInterval);
+      return _now.add(interval);
     }
   }
 
@@ -660,6 +752,7 @@ class _Engine {
     final perPiece = step.processTimeFor(
       order.partId,
       study.parts[order.partId],
+      takt: _takt[order.id],
     );
     if (perPiece == null) {
       // A part with no time at a step it must visit is a blocking readiness

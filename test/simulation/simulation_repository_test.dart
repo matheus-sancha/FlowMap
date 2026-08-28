@@ -434,6 +434,72 @@ void main() {
     expect(input.studies.single.releaseInterval, const Duration(hours: 3));
   });
 
+  test('a line that changes takt reaches the run as both (§7.9)', () async {
+    // **The end-to-end claim of the round**, through the real assembly rather
+    // than a hand-built study: a takt period says how often orders open in it,
+    // so a line stating two of them hands the engine two cadences and the
+    // engine picks per release. Before this, `taktOn(runStart)` was read once
+    // and the second period could not reach a run at all.
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026),
+      endDate: DateTime(2026, 6, 30),
+      takt: 6,
+      unit: TaktUnit.hours,
+    );
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026, 7),
+      endDate: DateTime(2026, 12, 31),
+      takt: 12,
+      unit: TaktUnit.hours,
+    );
+    await seedStudy(name: 'Current state', line: lineId);
+
+    final input = await simulation.assembleRun(projectId);
+    final study = input.studies.single;
+
+    expect(study.taktPeriods, hasLength(2));
+    expect(study.taktAt(DateTime(2026, 3, 1))?.interval, const Duration(hours: 6));
+    expect(study.taktAt(DateTime(2026, 9, 1))?.interval, const Duration(hours: 12));
+
+    // And the study still reports one takt as its own — the one it first
+    // releases at (§7.7.2). That is what a run stores and what its header says;
+    // what it *ran* at is now read off its orders.
+    //
+    // **It is the second period's here**, and that is the fixture being useful
+    // rather than a stray: this demand is needed in late August, so the cold
+    // start lands past 1 July. Which is exactly the shape the round exists for
+    // — before it, the 6-hour period was unreachable by any run of this study,
+    // and now it is one instant's lookup away.
+    expect(study.taktValue, 12);
+    expect(study.releaseInterval, const Duration(hours: 12));
+  });
+
+  test('an instant no takt covers has no cadence at all (§7.9.2)', () async {
+    // The takt table stops at the end of June. A study whose releases would run
+    // past it does not carry a 6-hour cadence into July — it carries none, and
+    // the engine stops opening orders rather than inventing a rate the plant
+    // never stated.
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026),
+      endDate: DateTime(2026, 6, 30),
+      takt: 6,
+      unit: TaktUnit.hours,
+    );
+    await seedStudy(name: 'Current state', line: lineId);
+
+    final study = (await simulation.assembleRun(projectId)).studies.single;
+
+    expect(study.taktAt(DateTime(2026, 9, 1)), isNull);
+    expect(study.intervalAt(DateTime(2026, 9, 1)), isNull);
+    expect(study.cadenceResumesAfter(DateTime(2026, 9, 1)), isNull);
+  });
+
   group('the schedule horizon (§11.1)', () {
     test('is the last date every schedule is defined for', () async {
       await taktFor(lineId);

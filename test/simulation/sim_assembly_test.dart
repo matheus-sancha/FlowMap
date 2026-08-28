@@ -550,17 +550,52 @@ void main() {
       asOf: now,
     );
 
+    // The takt the fixture's schedule states, which is the key a balanced
+    // figure has to be asked for by since §7.9 — an order carries the takt it
+    // opened under, so a step cannot answer "what is this worth" without one.
+    const takt3h = (value: 3.0, unit: TaktUnit.hours);
+
     test('the first fills to takt and the last takes the remainder', () {
       final built = twoStations()!;
 
       // Four hours of cladding at a 3-hour takt: 3 on the first, 1 on the last.
       expect(
-        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        built.steps.first.processTimeFor('p1', built.parts['p1'], takt: takt3h),
         const Duration(hours: 3),
       );
       expect(
-        built.steps.last.processTimeFor('p1', built.parts['p1']),
+        built.steps.last.processTimeFor('p1', built.parts['p1'], takt: takt3h),
         const Duration(hours: 1),
+      );
+    });
+
+    test('asked without a takt, a step is worth what was measured', () {
+      // **Not a fallback nobody reaches** (§7.9): the map reads its own split
+      // elsewhere, and every caller here that has no order in hand — a step
+      // outside any group, a walk before a release instant exists — is asking
+      // what the plant measured. A share belongs to an order, and an order
+      // arrives with a takt.
+      final built = twoStations()!;
+
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 2),
+      );
+    });
+
+    test('a takt the line never states has no split', () {
+      // Keys are figures, so asking at 4 hours a line that only runs at 3 is
+      // asking about a plant that does not exist. The measurement stands rather
+      // than the nearest split being substituted for it.
+      final built = twoStations()!;
+
+      expect(
+        built.steps.first.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 4.0, unit: TaktUnit.hours),
+        ),
+        const Duration(hours: 2),
       );
     });
 
@@ -580,7 +615,7 @@ void main() {
 
       expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
       expect(
-        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        built.steps.first.processTimeFor('p1', built.parts['p1'], takt: takt3h),
         const Duration(hours: 2),
       );
     });
@@ -604,17 +639,17 @@ void main() {
       )!;
 
       expect(
-        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        built.steps.first.processTimeFor('p1', built.parts['p1'], takt: takt3h),
         const Duration(hours: 3),
       );
       // One hour of work fits inside a 3-hour takt, so the first takes it all
       // and the last takes nothing.
       expect(
-        built.steps.first.processTimeFor('p2', built.parts['p2']),
+        built.steps.first.processTimeFor('p2', built.parts['p2'], takt: takt3h),
         const Duration(hours: 1),
       );
       expect(
-        built.steps.last.processTimeFor('p2', built.parts['p2']),
+        built.steps.last.processTimeFor('p2', built.parts['p2'], takt: takt3h),
         Duration.zero,
       );
     });
@@ -664,6 +699,108 @@ void main() {
         built.steps.first.processTimeFor('p1', built.parts['p1']),
         const Duration(hours: 2),
       );
+    });
+
+    test('a line that changes takt carries a split for each (§7.9)', () {
+      // The round's whole point, at the assembly seam: a run spans as many
+      // takts as its releases reach, so the split is resolved for every figure
+      // the line states rather than for the one in force at the start.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+        parts: [part('p1', 'PN1')],
+        processTimes: const {
+          'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: TaktScheduleSpec([
+          TaktPeriodSpec(
+            startDate: DateTime(2026),
+            endDate: DateTime(2026, 6, 30),
+            value: 3,
+            unit: TaktUnit.hours,
+          ),
+          TaktPeriodSpec(
+            startDate: DateTime(2026, 7),
+            endDate: DateTime(2026, 12, 31),
+            value: 5,
+            unit: TaktUnit.hours,
+          ),
+        ]),
+        resources: resources(types: const {'W': 'Cladding', 'X': 'Cladding'}),
+        asOf: now,
+      )!;
+
+      // Four hours of work: 3 + 1 at the first takt, and all four on the first
+      // station at the second, where one takt is wider than the whole group.
+      expect(
+        built.steps.first.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 3.0, unit: TaktUnit.hours),
+        ),
+        const Duration(hours: 3),
+      );
+      expect(
+        built.steps.first.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 5.0, unit: TaktUnit.hours),
+        ),
+        const Duration(hours: 4),
+      );
+      expect(
+        built.steps.last.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 5.0, unit: TaktUnit.hours),
+        ),
+        Duration.zero,
+      );
+
+      // And the cadence itself is resolved period by period, which is what the
+      // engine walks instead of one interval.
+      expect(built.taktPeriods, hasLength(2));
+      expect(built.taktPeriods.first.interval, const Duration(hours: 3));
+      expect(built.taktPeriods.last.interval, const Duration(hours: 5));
+      expect(
+        built.taktAt(DateTime(2026, 8, 1))?.takt,
+        (value: 5.0, unit: TaktUnit.hours),
+      );
+    });
+
+    test('two periods stating one figure are one key, not a change', () {
+      // `TaktScheduleSpec.changeAfter` already decides that a boundary is not a
+      // change where the number either side is the same, and the split is keyed
+      // on the figure for that reason — so a schedule of two periods at 3 hours
+      // holds one split, not two identical ones.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+        parts: [part('p1', 'PN1')],
+        processTimes: const {
+          'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: TaktScheduleSpec([
+          TaktPeriodSpec(
+            startDate: DateTime(2026),
+            endDate: DateTime(2026, 6, 30),
+            value: 3,
+            unit: TaktUnit.hours,
+          ),
+          TaktPeriodSpec(
+            startDate: DateTime(2026, 7),
+            endDate: DateTime(2026, 12, 31),
+            value: 3,
+            unit: TaktUnit.hours,
+          ),
+        ]),
+        resources: resources(types: const {'W': 'Cladding', 'X': 'Cladding'}),
+        asOf: now,
+      )!;
+
+      expect(built.steps.first.balancedProcessTimes, hasLength(1));
     });
 
     test('a pool step is in no group', () {

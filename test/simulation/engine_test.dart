@@ -128,6 +128,7 @@ void main() {
     required Map<String, SimPart> parts,
     required List<SimOrder> orders,
     Duration release = const Duration(hours: 10),
+    List<SimTaktPeriod> taktPeriods = const [],
     String? releaseCalendarId,
     String? paceSetterNodeId,
     Duration startBuffer = Duration.zero,
@@ -141,6 +142,7 @@ void main() {
     parts: parts,
     orders: orders,
     releaseInterval: release,
+    taktPeriods: taktPeriods,
     releaseCalendarId: releaseCalendarId,
     paceSetterNodeId: paceSetterNodeId,
     startBuffer: startBuffer,
@@ -152,6 +154,182 @@ void main() {
       SimPart(id: id, partNumber: id, processTimes: times);
 
   final aug1 = DateTime(2026, 8, 1);
+
+  SimTaktPeriod taktPeriod(
+    DateTime from,
+    DateTime to,
+    double value,
+    Duration interval,
+  ) => SimTaktPeriod(
+    start: from,
+    end: to,
+    value: value,
+    unit: TaktUnit.hours,
+    interval: interval,
+  );
+
+  group('the takt belongs to the order (§7.9)', () {
+    // A line that opens an order every 4 hours until noon on 1 August and every
+    // 10 after it, over a station whose work is worth one figure at the first
+    // takt and another at the second. Nothing here is a balance group — the
+    // split arrives already resolved from the assembler — so what these pin is
+    // the engine's half: which takt each order is costed at, and when slots
+    // come round.
+    const early = (value: 4.0, unit: TaktUnit.hours);
+    const late = (value: 10.0, unit: TaktUnit.hours);
+
+    // The first period stops at 11:00 and the second opens at noon, so a slot
+    // placed four hours after 08:00 lands under the *new* takt. Written as two
+    // instants rather than one boundary because a period's end is inclusive,
+    // and a slot falling exactly on it is still the old cadence's.
+    final lastEarly = DateTime(2026, 8, 1, 11);
+    final firstLate = DateTime(2026, 8, 1, 12);
+
+    SimStep splitStep() => SimStep(
+      id: 'n0',
+      position: 0,
+      queue: SimQueue(targetId: 'W'),
+      title: 'W',
+      candidates: const ['W'],
+      demandKey: 'W',
+      balancedProcessTimes: {
+        early: const {'p1': Duration(hours: 6)},
+        late: const {'p1': Duration(hours: 3)},
+      },
+    );
+
+    test('an order costs what its own takt says, not the run start s', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1'), order(3, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, lastEarly, 4, const Duration(hours: 4)),
+              taktPeriod(
+                firstLate,
+                DateTime(2026, 12, 31),
+                10,
+                const Duration(hours: 10),
+              ),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // Released at 00:00, 04:00 and 08:00 under the 4-hour takt, then the
+      // cadence widens and the fourth opens at noon under the 10-hour one. The
+      // first three are worth six hours each and the last three — the same
+      // part, the same station, different work, which is exactly what the field
+      // could not get out of a run.
+      final byOrder = {
+        for (final row in result.steps) row.orderId: row.processSeconds,
+      };
+      expect(byOrder['o0'], const Duration(hours: 6).inSeconds);
+      expect(byOrder['o1'], const Duration(hours: 6).inSeconds);
+      expect(byOrder['o2'], const Duration(hours: 6).inSeconds);
+      expect(byOrder['o3'], const Duration(hours: 3).inSeconds);
+    });
+
+    test('an order keeps the takt it opened under all the way down', () {
+      // §18.3 as it was always meant: work already in flight is never
+      // re-cadenced. The third order opens at 08:00 under the 4-hour takt and
+      // queues behind the two before it, so it does not reach the station until
+      // the 10-hour takt is in force — and it is still worth six hours there,
+      // not the three the clock around it now says.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, lastEarly, 4, const Duration(hours: 4)),
+              taktPeriod(
+                firstLate,
+                DateTime(2026, 12, 31),
+                10,
+                const Duration(hours: 10),
+              ),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      final third = result.steps.firstWhere((row) => row.orderId == 'o2');
+      expect(third.processStart.isBefore(firstLate), isFalse);
+      expect(third.processSeconds, const Duration(hours: 6).inSeconds);
+    });
+
+    test('no takt from here on and the line opens nothing more', () {
+      // §7.9.2: an instant no period covers has no cadence, so there is no next
+      // slot to bring an order round — the same thing a workcenter whose
+      // schedule has run out already does, which is go dark rather than carry
+      // its last staffing forward.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, aug1.add(const Duration(hours: 5)), 4,
+                  const Duration(hours: 4)),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // Two slots fall inside the period — 00:00 and 04:00 — and the third
+      // comes round at 08:00, where the line has no takt at all.
+      expect(result.steps.map((row) => row.orderId), ['o0', 'o1']);
+      expect(result.undelivered.map((o) => o.orderId), contains('o2'));
+    });
+
+    test('a gap is waited out, not filled in', () {
+      // The cadence resumes at the next period's first instant rather than an
+      // interval past where it stopped: a new takt starts when its period does.
+      final resumes = DateTime(2026, 8, 3);
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, aug1.add(const Duration(hours: 2)), 4,
+                  const Duration(hours: 4)),
+              taktPeriod(resumes, DateTime(2026, 12, 31), 10,
+                  const Duration(hours: 10)),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      final second = result.steps.firstWhere((row) => row.orderId == 'o1');
+      expect(second.queueStart, resumes);
+      expect(result.undelivered, isEmpty);
+      // And it opened under the takt that resumed, not the one that lapsed.
+      expect(second.processSeconds, const Duration(hours: 3).inSeconds);
+    });
+  });
 
   group('a single station', () {
     test('runs the sequence in order, one order at a time', () {
