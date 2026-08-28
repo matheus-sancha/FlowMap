@@ -3,7 +3,7 @@ import '../features/simulation/application/sim_result.dart'
     show EmptySlotReason;
 import '../data/database/database.dart' show SimulationRunStudy;
 import '../features/simulation/data/simulation_runs_repository.dart'
-    show RunQueues;
+    show RunQueues, taktSequences;
 import '../l10n/generated/app_localizations.dart';
 
 /// Localized names for the takt units.
@@ -86,27 +86,52 @@ String? runTaktLabel(
   List<SimulationRunStudy> studies,
 ) => taktLabelForValues(l10n, [
   for (final study in studies)
-    if (study.taktValue case final value?) (value, study.taktUnit),
+    if (study.taktValue case final value?) [(value, study.taktUnit)],
 ]);
 
-/// The one takt a run's studies shared, `mixed` when they differed, or null when
-/// none was recorded (§7.7.2).
+/// What a run's studies ran at: one figure where they all held one, `a → b`
+/// where they all crossed the same change, `mixed` otherwise, and null where
+/// none was recorded (§7.7.2, §7.9).
 ///
-/// **Takes the raw `(value, unit-name)` pairs** rather than study rows, because
-/// the runs-history menu reads takt out of a lighter listing than the run header
-/// does — a menu that labels every row cannot afford to carry each run's full
-/// study snapshot. [runTaktLabel] is the same fold over the full rows, so the
-/// menu and the header it opens cannot name a run's takt two different ways.
+/// **Takes one ordered sequence per study** rather than study rows, because the
+/// runs-history menu reads takt out of a lighter listing than the run header
+/// does — a menu that labels every row cannot afford each run's full snapshot.
+/// Both build their sequences with [taktSequences], so the menu and the header
+/// it opens cannot name a run's takt two different ways.
+///
+/// **`mixed` is the answer to anything that is not one shared sequence of one or
+/// two figures.** Three regimes in a run, or two studies that disagree, do not
+/// fit a menu row — and a row that flattened them would claim a run was simpler
+/// than it was, which is the half-truth this whole round is about.
 String? taktLabelForValues(
   AppLocalizations l10n,
-  List<(double, String?)> taktsWithUnits,
+  List<List<(double, String?)>> sequences,
 ) {
-  if (taktsWithUnits.isEmpty) return null;
-  final distinct = taktsWithUnits.toSet();
-  if (distinct.length > 1) return l10n.simRunTaktMixed;
-  final (value, unit) = distinct.single;
-  final parsed = TaktUnit.values.where((u) => u.name == unit).firstOrNull;
-  return parsed == null ? null : taktLabel(l10n, value, parsed);
+  final present = [
+    for (final sequence in sequences)
+      if (sequence.isNotEmpty) sequence,
+  ];
+  if (present.isEmpty) return null;
+
+  final first = present.first;
+  final shared = present.every(
+    (sequence) =>
+        sequence.length == first.length &&
+        [
+          for (var i = 0; i < sequence.length; i++)
+            if (sequence[i] != first[i]) i,
+        ].isEmpty,
+  );
+  if (!shared || first.length > 2) return l10n.simRunTaktMixed;
+
+  final labels = [
+    for (final (value, unit) in first)
+      if (TaktUnit.values.where((u) => u.name == unit).firstOrNull
+          case final parsed?)
+        taktLabel(l10n, value, parsed),
+  ];
+  if (labels.length != first.length) return null;
+  return labels.length == 1 ? labels.single : '${labels.first} → ${labels.last}';
 }
 
 /// The abbreviation the footer band and the process boxes use.

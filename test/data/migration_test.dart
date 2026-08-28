@@ -1989,6 +1989,22 @@ void main() {
       contains('process_seconds'),
     );
 
+    // **And v22 on the same terms again** (§7.9): the takt each order opened
+    // under, and where a study's cadence ran out. Three nullable columns on two
+    // tables that predate them, so what is worth asserting is that they arrived
+    // on the old tables rather than that some row is null.
+    final orderColumns = await db
+        .customSelect('PRAGMA table_info(simulation_run_orders)')
+        .get();
+    expect(
+      orderColumns.map((row) => row.data['name']),
+      containsAll(['takt_value', 'takt_unit']),
+    );
+    expect(
+      columns.map((row) => row.data['name']),
+      contains('cadence_ended_at'),
+    );
+
     expect(
       await db.customSelect('PRAGMA user_version').getSingle().then(
         (row) => row.data.values.first,

@@ -334,6 +334,29 @@ void main() {
       reason: 'a run half-carrying its work is a run of two moments (§7.10)',
     );
 
+    // --- v22: the takt each order opened under -------------------------------
+
+    // Same shape as v21's claim and for the same reason: the takt cannot be
+    // derived for a stored order after the fact — it depends on a schedule the
+    // plant may have retuned — so a run made before the column says nothing,
+    // and only runs made after it answer.
+    final storedOrders = await db.select(db.simulationRunOrders).get();
+    expectOnlyNewerRunsAnswer(
+      'the takt an order opened under (v22)',
+      runs: runs,
+      answering: {
+        for (final o in storedOrders)
+          if (o.taktValue != null) o.runId,
+      },
+    );
+
+    // And no study claims a cadence that ran out on a database where every
+    // takt schedule covers its demand. Printed rather than asserted empty: the
+    // day one does not, this is a finding and not a regression.
+    final stalled = runStudies.where((s) => s.cadenceEndedAt != null);
+    // ignore: avoid_print
+    print('studies whose cadence ran out: ${stalled.length}');
+
     // --- what no migration may cost -----------------------------------------
 
     // The demand and the stored runs are untouched: these steps rebuild

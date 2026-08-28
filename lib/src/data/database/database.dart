@@ -74,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -825,6 +825,29 @@ class AppDatabase extends _$AppDatabase {
           m,
           simulationRunSteps,
           simulationRunSteps.processSeconds,
+        );
+      }
+
+      if (from < 22) {
+        // **The takt each order opened under, and where a cadence ran out**
+        // (§7.9). v21 recorded what the work at a step cost; this records why
+        // two orders of one part cost different amounts, which is that they
+        // opened under different takts. Recording an effect and leaving its
+        // cause to a schedule that may have moved is the drift §7.10 prevents.
+        //
+        // Three nullable columns on two tables that predate them — no rebuild,
+        // the shape §16.19 called safe.
+        //
+        // **Not backfilled**, for the reason every column since v17 has not
+        // been: a run made before this used one takt for everything, resolved
+        // at a date it no longer records, and writing today's schedule onto it
+        // would make it assert a cadence it never ran at.
+        await _ensureColumn(m, simulationRunOrders, simulationRunOrders.taktValue);
+        await _ensureColumn(m, simulationRunOrders, simulationRunOrders.taktUnit);
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.cadenceEndedAt,
         );
       }
 

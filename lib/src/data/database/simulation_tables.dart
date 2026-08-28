@@ -124,6 +124,20 @@ class SimulationRunStudies extends Table {
   /// spanning that date ran entirely at one of them.
   DateTimeColumn get nextTaktChange => dateTime().nullable()();
 
+  /// When this study's cadence ran out, or null where it did not (§7.9.2, v22).
+  ///
+  /// A line with no takt period covering an instant has no cadence, so it opens
+  /// nothing there — and a study whose takt table stops before its sequence
+  /// does leaves the rest of it unreleased. **Stored because the alternative is
+  /// reporting the symptom and hiding the cause**: orders that never opened
+  /// look exactly like a jammed plant, and a missing schedule row and a jam
+  /// want opposite responses.
+  ///
+  /// §11.1's warning cannot stand in for it — that compares the run's *end*
+  /// against the schedule horizon, and a run that stops releasing early may
+  /// well end before the horizon with the warning silent.
+  DateTimeColumn get cadenceEndedAt => dateTime().nullable()();
+
   IntColumn get priority => integer()();
   IntColumn get wipCap => integer().nullable()();
 
@@ -201,6 +215,29 @@ class SimulationRunOrders extends Table {
 
   /// When it finished its last semantic step (§18.1). Null if it never did.
   DateTimeColumn get delivered => dateTime().nullable()();
+
+  /// The takt this order **opened** under, as it was typed (§7.9, v22).
+  ///
+  /// **The cause, stored beside the effects.** An order's work at each step is
+  /// the balance's split against this figure, so two orders of one part
+  /// legitimately carry different work — and v21's `process_seconds` records
+  /// that difference while saying nothing about where it came from. Recording
+  /// an effect and leaving its cause to be re-derived from a schedule the plant
+  /// may have retuned is the drift §7.10 exists to prevent, one level up.
+  ///
+  /// Kept as the pair a human reads rather than the resolved interval: the
+  /// seconds only ever mattered for reproducing the cadence, and the study row
+  /// still carries those for its first release.
+  ///
+  /// Null on every run made before v22 — *made before a run said this* — and on
+  /// an order that never opened, which had no takt to take.
+  RealColumn get taktValue => real().nullable()();
+
+  /// [TaktUnit.name], the unit [taktValue] is in.
+  ///
+  /// Stored as a plain name rather than `textEnum` for §16.10's reason: a value
+  /// a later build knows and this one does not must not stop the run opening.
+  TextColumn get taktUnit => text().nullable()();
 
   /// §7.9's queue-free figure, walked from **this order's own release**.
   ///

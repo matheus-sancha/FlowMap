@@ -17,6 +17,7 @@
 /// than a second piece of state that could disagree with it.
 library;
 
+import '../../../data/database/enums.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -71,9 +72,9 @@ const _cardWidth = 300.0;
 
 /// Never exact — the card is `mainAxisSize.min` and a lane's lines are not a
 /// bar's — so it is the tallest the card gets. It grew by two lines when the
-/// project and the description joined it, and by one more when the work content
-/// did (v21).
-const _cardHeight = 186.0;
+/// project and the description joined it, by one more when the work content did
+/// (v21), and by one again when the takt that set that work joined it (v22).
+const _cardHeight = 204.0;
 
 /// The narrowest bar that can carry its own part number.
 const _labelledBarWidth = 46.0;
@@ -115,7 +116,7 @@ const ganttLabelsKey = ValueKey('gantt-labels');
 /// A class rather than a record so both fields are named at every use, and so
 /// the doc explaining why they are nullable has somewhere to live.
 class _OrderFacts {
-  const _OrderFacts({this.project, this.description});
+  const _OrderFacts({this.project, this.description, this.takt});
 
   /// The customer project this batch is for — `MANIFOLD`, `Global 23`.
   ///
@@ -130,6 +131,23 @@ class _OrderFacts {
   /// It identifies nothing: two parts legitimately share one, which is why it
   /// is a label on the card rather than anything the chart is keyed by.
   final String? description;
+
+  /// The takt this order **opened** under, already written (§7.9).
+  ///
+  /// **The cause of the figure above it.** Two bars of one part are different
+  /// widths because their orders opened under different takts and the balance
+  /// split the group's work differently for each — and the card is where that
+  /// question gets asked, because the reader is looking at *that bar* wondering
+  /// why it differs from the one above.
+  ///
+  /// Null on a run stored before v22, which held one takt throughout and says
+  /// so on its header instead.
+  ///
+  /// **The figure and its unit, not the words.** These are gathered in
+  /// `initState`, where no `AppLocalizations` exists yet — the card formats them
+  /// with `taktLabel` at paint time, which is also what keeps this the same
+  /// spelling the plan and the run header use.
+  final (double, TaktUnit)? takt;
 }
 
 class GanttView extends StatefulWidget {
@@ -212,19 +230,28 @@ class _GanttViewState extends State<GanttView> {
   /// has no answer and the card leaves the line out rather than showing a blank
   /// one. 11 % of the live database's orders genuinely have no project, which is
   /// the same absence and reads the same way.
-  Map<String, _OrderFacts> _readFacts() => {
+  Map<String, _OrderFacts> _readFacts() {
+    final facts = <String, _OrderFacts>{};
     // Orders only: a slot that produced nothing has no bar to caption (§8.5).
-    for (final entry in widget.slice.plan)
-      if (entry case ProductionPlanRow(
-        :final outcome,
-        :final customerProject,
-        :final partDescription,
-      ) when customerProject != null || partDescription != null)
-        outcome.orderId: _OrderFacts(
-          project: customerProject,
-          description: partDescription,
-        ),
-  };
+    for (final entry in widget.slice.plan) {
+      if (entry is! ProductionPlanRow) continue;
+      final takt =
+          entry.outcome.taktValue == null || entry.outcome.taktUnit == null
+          ? null
+          : (entry.outcome.taktValue!, entry.outcome.taktUnit!);
+      if (entry.customerProject == null &&
+          entry.partDescription == null &&
+          takt == null) {
+        continue;
+      }
+      facts[entry.outcome.orderId] = _OrderFacts(
+        project: entry.customerProject,
+        description: entry.partDescription,
+        takt: takt,
+      );
+    }
+    return facts;
+  }
 
   @override
   void didChangeDependencies() {
@@ -1167,6 +1194,16 @@ class _HoverCard extends StatelessWidget {
                       _CardValue(
                         label: l10n.simGanttProcess,
                         value: formatAdaptiveDuration(l10n, process),
+                      ),
+                    // **And what set it** (§7.9, v22). The work above is the
+                    // balance's split of the group against this figure, so two
+                    // bars of one part differing in width differ here first.
+                    // Omitted rather than dashed on a pre-v22 run: that run
+                    // held one takt throughout and its header says which.
+                    if (facts?.takt case final takt?)
+                      _CardValue(
+                        label: l10n.simGanttTakt,
+                        value: taktLabel(l10n, takt.$1, takt.$2),
                       ),
                     _CardValue(
                       label: l10n.simGanttWaited,

@@ -220,7 +220,42 @@ class _RunHeader extends StatelessWidget {
 
     final date = dateStyle.format(run.createdAt);
     final queues = runQueueLabel(l10n, run.queues);
-    final takt = runTaktLabel(l10n, run.studies);
+
+    // **What it ran at, read off the orders rather than the study rows**
+    // (§7.9). A study row carries the takt of its *first* release, which was
+    // the whole run's until an order took the takt in force when it opened —
+    // so a run that crossed 1 April reads `4 → 5 days` here and the study row
+    // would have said `4 days` and stopped.
+    //
+    // Falls back to the study rows where no order carries one, which is every
+    // run stored before v22: those really did hold one takt throughout.
+    final sequences = taktSequences([
+      for (final order in run.result.orders)
+        (
+          studyId: order.studyId,
+          at: order.released,
+          value: order.taktValue,
+          unit: order.taktUnit?.name,
+        ),
+    ]);
+    final takt = sequences.isEmpty
+        ? runTaktLabel(l10n, run.studies)
+        : taktLabelForValues(l10n, sequences);
+
+    // Studies whose cadence ran out before their sequence did (§7.9.2). Named
+    // rather than counted: a missing schedule row and a jammed plant produce
+    // the same unreleased orders and want opposite responses.
+    final stalled = [
+      for (final study in run.studies)
+        if (study.cadenceEndedAt case final at?)
+          (
+            name: study.name,
+            at: at,
+            unopened: run.result.orders
+                .where((o) => o.studyId == study.studyId && o.released == null)
+                .length,
+          ),
+    ];
     // Only where the change actually falls inside what this run covered. The
     // column records the schedule's next change after the run's start (§7.7.3),
     // and a change three years after the last order is not this run's caveat.
@@ -266,6 +301,26 @@ class _RunHeader extends StatelessWidget {
                 color: taktChange == null
                     ? theme.colorScheme.outline
                     : theme.colorScheme.tertiary,
+              ),
+            ),
+          ),
+        // **A study that stopped opening orders for want of a takt** (§7.9.2).
+        // §11.1's horizon warning cannot stand in for this: it compares the
+        // run's *end* against the horizon, and a run that stops releasing early
+        // may well end before it with the warning silent. In the tertiary
+        // colour, like the takt caveat, because it qualifies every figure
+        // beneath it.
+        for (final study in stalled)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.simRunCadenceEnded(
+                study.name,
+                dateStyle.format(study.at),
+                study.unopened,
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.tertiary,
               ),
             ),
           ),
@@ -485,6 +540,14 @@ class _PlanTable extends StatelessWidget {
           ResultColumn(label: l10n.demandMaterialDate, width: 130),
           ResultColumn(label: l10n.simPlanOrderStart, width: 120),
           ResultColumn(label: l10n.simPlanOrderEnd, width: 120),
+          // **What the order opened under** (§7.9), introducing the three
+          // figures it explains rather than sitting among the dates: an order's
+          // work at each station is the balance's split against this, so two
+          // rows of one part with different Theoretical LTs differ here first.
+          //
+          // Blank on a run stored before v22, which held one takt throughout
+          // and said so on its header instead.
+          ResultColumn(label: l10n.simPlanTakt, width: 110),
           // Theoretical first: it is the baseline, and the actual beside it
           // is read against it. The gap between the two is the queueing.
           ResultColumn(label: l10n.simPlanTheoreticalLeadTime, width: 130),
@@ -541,9 +604,18 @@ class _PlanTable extends StatelessWidget {
             7 => Text(date(row.materialDate)),
             8 => Text(date(row.orderStart)),
             9 => Text(date(row.delivery)),
-            10 => Text(_duration(l10n, row.theoreticalLeadTime)),
-            11 => Text(_duration(l10n, row.actualLeadTime)),
-            12 => Text(
+            10 => Text(
+              row.outcome.taktValue == null || row.outcome.taktUnit == null
+                  ? '—'
+                  : taktLabel(
+                      l10n,
+                      row.outcome.taktValue!,
+                      row.outcome.taktUnit!,
+                    ),
+            ),
+            11 => Text(_duration(l10n, row.theoreticalLeadTime)),
+            12 => Text(_duration(l10n, row.actualLeadTime)),
+            13 => Text(
               row.leadTimeEfficiency == null
                   ? '—'
                   : '${(row.leadTimeEfficiency! * 100).toStringAsFixed(0)}%',

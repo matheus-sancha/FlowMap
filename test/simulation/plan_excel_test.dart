@@ -23,6 +23,7 @@ void main() {
     runSheet: 'Run',
     unnamedStudy: 'Study',
     emptySlotReason: _reasonOf,
+    takt: _taktOf,
     generated: 'FlowMap 0.1.0-test · generated 8/8/2026 10:12',
     runLabel: '8/8/2026 · mixed',
     queueTypes: ['CLAD04: Earliest need date', 'MILL02: FIFO'],
@@ -37,6 +38,7 @@ void main() {
       'Material date',
       'Order start',
       'Order end',
+      'Takt',
       'Theoretical LT (d)',
       'Actual LT (d)',
       'Efficiency (%)',
@@ -267,14 +269,16 @@ void main() {
       ),
     );
 
-    test('the header is §8.5\'s fourteen columns', () {
+    test('the header is §8.5\'s fifteen columns', () {
       final headers = row(single(), 'Line', 0);
 
-      expect(headers, hasLength(14));
+      expect(headers, hasLength(15));
       expect(headers.first.toString(), 'Order');
       expect(headers.last.toString(), 'Float (d)');
       // The ratio carries `%` where its neighbours carry a unit of time (§8.7).
-      expect(headers[12].toString(), 'Efficiency (%)');
+      // The takt introduces the three figures it explains (§7.9).
+      expect(headers[10].toString(), 'Takt');
+      expect(headers[13].toString(), 'Efficiency (%)');
     });
 
     test('the order number is a number', () {
@@ -319,16 +323,16 @@ void main() {
       // — silently a day short, in a column meant to be averaged.
       final cells = row(single(), 'Line', 1);
 
-      expect(cells[10], const xl.DoubleCellValue(0.25)); // 6 h theoretical
-      expect(cells[11], const xl.DoubleCellValue(1.25)); // 30 h actual
-      expect(cells[13], isA<xl.DoubleCellValue>());
+      expect(cells[11], const xl.DoubleCellValue(0.25)); // 6 h theoretical
+      expect(cells[12], const xl.DoubleCellValue(1.25)); // 30 h actual
+      expect(cells[14], isA<xl.DoubleCellValue>());
     });
 
     test('efficiency is theoretical ÷ actual, as a number (§8.7)', () {
       // 6 h against 30 h — the order took five times the standard, so it
       // queued a great deal more than the standard allows for. **A number, not
       // a string**: the `%` is in the heading so the cell stays arithmetic.
-      final cell = row(single(), 'Line', 1)[12]!;
+      final cell = row(single(), 'Line', 1)[13]!;
 
       // Read the value rather than the type: the package narrows a whole
       // number to an int cell on the way back out, and what this column has to
@@ -340,7 +344,7 @@ void main() {
     test('float keeps its sign, because negative is late (§8)', () {
       // Need date 20 Aug 00:00, order end 4 Aug 12:30 — fifteen days and
       // eleven and a half hours in hand.
-      final float = row(single(), 'Line', 1)[13]! as xl.DoubleCellValue;
+      final float = row(single(), 'Line', 1)[14]! as xl.DoubleCellValue;
 
       expect(float.value, closeTo(15.479166, 0.000001));
     });
@@ -365,7 +369,7 @@ void main() {
       expect(cells[3], isNull);
       expect(cells[4], isNull);
       expect(cells[5], isNull);
-      expect(cells[10], isNull);
+      expect(cells[11], isNull);
       // And the columns the run *did* record are untouched by it.
       expect(cells[0], const xl.IntCellValue(1));
       expect(cells[1]!.toString(), 'PN1');
@@ -440,6 +444,8 @@ void main() {
 
 
 /// The three gates §7.2 checks, as the workbook names them.
+String _taktOf(double value, TaktUnit unit) => '$value ${unit.name}';
+
 String _reasonOf(EmptySlotReason reason) => switch (reason) {
   EmptySlotReason.awaitingMaterial => 'Awaiting material',
   EmptySlotReason.wipCap => 'WIP cap reached',

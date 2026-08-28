@@ -6,6 +6,8 @@
 /// rather than another run.
 library;
 
+import '../../../data/database/enums.dart';
+
 /// One order's visit to one step.
 class SimOrderStep {
   const SimOrderStep({
@@ -100,6 +102,8 @@ class SimOrderOutcome {
     required this.needDate,
     required this.released,
     required this.delivered,
+    this.taktValue,
+    this.taktUnit,
   });
 
   final String studyId;
@@ -107,6 +111,18 @@ class SimOrderOutcome {
   final int sequence;
   final String partId;
   final DateTime needDate;
+
+  /// The takt this order **opened** under, as it was typed (§7.9).
+  ///
+  /// **The cause of what every other figure here is the effect of.** Two orders
+  /// of one part carry different work because they opened under different
+  /// takts, and §7.10 forbids re-deriving that from a schedule the plant may
+  /// have retuned since — so it travels with the order, exactly as the part
+  /// number and the customer project do.
+  ///
+  /// Null where the order never opened, and on every run stored before v22.
+  final double? taktValue;
+  final TaktUnit? taktUnit;
 
   /// When it entered the flow, or null if it never did — the sequence ran out
   /// of slots before the guard stopped the run.
@@ -265,7 +281,20 @@ class SimRunResult {
     this.openLaneVisits = const [],
     this.scheduleHorizon,
     this.abort,
+    this.cadenceEndedByStudy = const {},
   });
+
+  /// Study id → when its cadence ran out, for the studies whose did (§7.9.2).
+  ///
+  /// A line with no takt in force opens nothing, so a study whose schedule
+  /// stops before its sequence does simply leaves the rest of it unreleased.
+  /// **Without this the run reports the symptom and hides the cause**: orders
+  /// that never opened look exactly like a jam, and the two want opposite
+  /// responses.
+  ///
+  /// Absent for every study that released its whole sequence, which is every
+  /// study on a plant whose takt table covers its demand.
+  final Map<String, DateTime> cadenceEndedByStudy;
 
   /// Cold start: the plant is empty here (§7.8).
   final DateTime start;

@@ -13,6 +13,7 @@
 /// screen cannot disagree about what the run did (§7.10).
 library;
 
+import '../../../data/database/enums.dart';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart' as xl;
@@ -44,6 +45,7 @@ class PlanExcelStrings {
     required this.queueTypes,
     required this.unnamedStudy,
     required this.emptySlotReason,
+    required this.takt,
   });
 
   /// The stamp sheet's own name.
@@ -70,6 +72,10 @@ class PlanExcelStrings {
   /// than a list, because the reasons are an enum and the file is built off the
   /// widget tree where `AppLocalizations` cannot be reached.
   final String Function(EmptySlotReason) emptySlotReason;
+
+  /// A takt written the way the screen writes it (§7.9) — the same
+  /// `taktLabel`, so the file and the table cannot spell one two ways.
+  final String Function(double, TaktUnit) takt;
 }
 
 /// Builds the workbook.
@@ -139,7 +145,7 @@ Uint8List buildPlanWorkbook({
       for (final header in strings.headers) xl.TextCellValue(header),
     ]);
     for (final row in entry.value) {
-      sheet.appendRow(_planRow(row, strings.emptySlotReason));
+      sheet.appendRow(_planRow(row, strings.emptySlotReason, strings.takt));
       _formatDates(sheet, sheet.maxRows - 1, dateStyle);
     }
   }
@@ -205,7 +211,11 @@ const _orderEndColumn = 9;
 /// someone reading; in a column about to be averaged it is text, and text in a
 /// number column is what turns a pivot into a mess. Blank means blank to a
 /// spreadsheet, which is the same statement in that language.
-List<xl.CellValue?> _planRow(PlanEntry entry, String Function(EmptySlotReason) reasonOf) {
+List<xl.CellValue?> _planRow(
+  PlanEntry entry,
+  String Function(EmptySlotReason) reasonOf,
+  String Function(double, TaktUnit) taktOf,
+) {
   // A slot carries a moment and a reason and nothing else, so its row is mostly
   // blank — which is the honest shape: there is no order to describe.
   if (entry is PlanEmptySlot) {
@@ -219,6 +229,7 @@ List<xl.CellValue?> _planRow(PlanEntry entry, String Function(EmptySlotReason) r
       null,
       null,
       _instant(entry.slotAt),
+      null,
       null,
       null,
       null,
@@ -241,6 +252,14 @@ List<xl.CellValue?> _planRow(PlanEntry entry, String Function(EmptySlotReason) r
   // agree about the moment; the file simply says more of it.
   _instant(row.orderStart),
   _instant(row.delivery),
+    // The takt it opened under, written as the words the screen shows rather
+    // than as a number and a unit in two cells (§7.9). It is a label here — the
+    // figures it explains are the arithmetic ones beside it.
+    row.outcome.taktValue == null || row.outcome.taktUnit == null
+        ? null
+        : xl.TextCellValue(
+            taktOf(row.outcome.taktValue!, row.outcome.taktUnit!),
+          ),
     _days(row.theoreticalLeadTime),
     _days(row.actualLeadTime),
     // A number the reader can average, like every other figure here — the `%`
@@ -330,6 +349,7 @@ Future<void> exportPlanExcel(
       runSheet: l10n.simExportRunSheet,
       unnamedStudy: l10n.study,
       emptySlotReason: (reason) => emptySlotReasonLabel(l10n, reason),
+      takt: (value, unit) => taktLabel(l10n, value, unit),
       generated: l10n.exportGenerated(
         kBuildLabel,
         timestamp.format(DateTime.now()),
@@ -359,6 +379,7 @@ Future<void> exportPlanExcel(
         l10n.demandMaterialDate,
         l10n.simPlanOrderStart,
         l10n.simPlanOrderEnd,
+        l10n.simPlanTakt,
         '${l10n.simPlanTheoreticalLeadTime} (${l10n.unitDaysShort})',
         '${l10n.simPlanActualLeadTime} (${l10n.unitDaysShort})',
         // A ratio, so it carries `%` where its neighbours carry a unit of time.

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
+import '../../../data/database/enums.dart';
 import '../application/run_metrics.dart';
 import '../application/sim_assembly.dart' show stationPools;
 import '../application/sim_model.dart';
@@ -70,7 +71,7 @@ class SimulationRunsRepository {
       // above is the ordering that comes out.
       final headers = <String, SimulationRun>{};
       final byRun = <String, List<({String name, DispatchRule rule})>>{};
-      final takts = <String, List<(double, String?)>>{};
+      final takts = <String, List<List<(double, String?)>>>{};
       // The two joins multiply: one row per (station × study), so a station or a
       // study is seen once per row of the other and has to be counted once.
       final seenStations = <String, Set<String>>{};
@@ -89,7 +90,10 @@ class SimulationRunsRepository {
         if (study != null &&
             (seenStudies[header.id] ??= {}).add(study.studyId)) {
           if (study.taktValue case final value?) {
-            (takts[header.id] ??= []).add((value, study.taktUnit));
+            // One takt, the whole way — which is what a study row can say, and
+            // what was true of every run before §7.9. `_withOrderTakts` below
+            // replaces it wherever the orders know better.
+            (takts[header.id] ??= []).add([(value, study.taktUnit)]);
           }
         }
       }
@@ -101,7 +105,70 @@ class SimulationRunsRepository {
             takts: takts[entry.key] ?? const [],
           ),
       ];
-    });
+    }).asyncMap(_withOrderTakts);
+  }
+
+  /// Replaces each listing's per-study takt with the sequence its **orders**
+  /// actually opened under (§7.9).
+  ///
+  /// **A second query rather than a third join.** The takt lives on the orders
+  /// now, and a run has hundreds of those against a handful of stations — a
+  /// third join would multiply the cartesian by the demand and make the menu's
+  /// query grow with the plant. Run in step with the listing instead: a run's
+  /// header row and its orders are written and deleted together, so the main
+  /// query fires whenever these change.
+  ///
+  /// **The menu and the run header then read the same rows**, which is the
+  /// whole reason `taktLabelForValues` exists — a label with its own copy of
+  /// the fact can only agree by being written correctly, where a query agrees
+  /// by construction (§7.9.3).
+  ///
+  /// A run stored before v22 has no takt on any order and keeps the single
+  /// figure its study rows carry, which is what it did in fact run at
+  /// throughout.
+  Future<List<RunListing>> _withOrderTakts(List<RunListing> listings) async {
+    if (listings.isEmpty) return listings;
+
+    final rows = await _db
+        .customSelect(
+          'SELECT run_id, study_id, takt_value, takt_unit, '
+          'MIN(released) AS first_release '
+          'FROM simulation_run_orders '
+          'WHERE takt_value IS NOT NULL AND run_id IN '
+          '(SELECT id FROM simulation_runs WHERE project_id = ?) '
+          'GROUP BY run_id, study_id, takt_value, takt_unit',
+          variables: [Variable<String>(listings.first.run.projectId)],
+          readsFrom: {_db.simulationRunOrders, _db.simulationRuns},
+        )
+        .get();
+
+    // Grouped per run and handed to the shared rule, so the ordering and the
+    // consecutive-distinct fold are written once (§7.9.3).
+    final byRun =
+        <
+          String,
+          List<({String studyId, DateTime? at, double? value, String? unit})>
+        >{};
+    for (final row in rows) {
+      (byRun[row.read<String>('run_id')] ??= []).add((
+        studyId: row.read<String>('study_id'),
+        at: row.read<DateTime?>('first_release'),
+        value: row.read<double>('takt_value'),
+        unit: row.read<String?>('takt_unit'),
+      ));
+    }
+
+    return [
+      for (final listing in listings)
+        if (byRun[listing.run.id] case final entries?)
+          (
+            run: listing.run,
+            queues: listing.queues,
+            takts: taktSequences(entries),
+          )
+        else
+          listing,
+    ];
   }
 
   Future<void> deleteRun(String runId) =>
@@ -188,17 +255,23 @@ class SimulationRunsRepository {
               runId: runId,
               studyId: study.id,
               name: study.name,
+              // The interval at this study's **first release** (§7.9). It was
+              // the whole run's cadence until an order took the takt in force
+              // when it opened; what a run spanning a change actually ran at is
+              // read off its orders now.
               releaseSeconds: study.releaseInterval.inSeconds,
               releaseCalendarId: Value(study.releaseCalendarId),
-              // The takt as typed, beside the interval it resolved to (§7.7.2).
-              // A run keeps one cadence throughout (§18.3), so this is what the
-              // whole experiment turns on — and the schedule it came from may be
-              // edited tomorrow, which is why it is copied rather than joined.
+              // The takt as typed, beside the interval it resolved to (§7.7.2)
+              // — the one it first released at, and the schedule it came from
+              // may be edited tomorrow, which is why it is copied not joined.
               taktValue: Value(study.taktValue),
               taktUnit: Value(study.taktUnit?.name),
-              // When it stops being that figure. The header shows the caveat
-              // only where this falls inside the run's own span (§7.7.3).
+              // When it stops being that figure — the boundary this run
+              // crossed, since §7.9 made the engine act on it (§7.7.3).
               nextTaktChange: Value(study.nextTaktChange),
+              // And where its cadence ran out, if it did (§7.9.2). Absent for
+              // every study that released its whole sequence.
+              cadenceEndedAt: Value(result.cadenceEndedByStudy[study.id]),
               // Copied in so a run can still say why it began where it did
               // after the study's buffer is changed (§7.10).
               startBufferDays: Value(study.startBuffer.inDays),
@@ -234,6 +307,12 @@ class SimulationRunsRepository {
               needDate: order.needDate,
               released: Value(order.released),
               delivered: Value(order.delivered),
+              // **The takt it opened under** (§7.9, v22) — the cause of which
+              // v21's `process_seconds` is the effect. Null where it never
+              // opened, which is the same blank as every other figure an
+              // unreleased order has nothing to say about.
+              taktValue: Value(order.taktValue),
+              taktUnit: Value(order.taktUnit?.name),
               theoreticalSeconds: Value(theoretical[order.orderId]?.inSeconds),
             ),
         ]);
@@ -441,6 +520,13 @@ class SimulationRunsRepository {
             needDate: row.needDate,
             released: row.released,
             delivered: row.delivered,
+            // The takt it opened under (§7.9, v22). Null on a run stored
+            // before it, which is *made before a run said this* — the plan's
+            // column and the hover card show nothing rather than guessing.
+            taktValue: row.taktValue,
+            taktUnit: row.taktUnit == null
+                ? null
+                : _parseOrNull(TaktUnit.values, row.taktUnit!),
           ),
       ],
       emptySlots: [
@@ -596,17 +682,66 @@ class SimulationRunsRepository {
       _parseOrNull(DispatchRule.values, queueType ?? runRule);
 }
 
-/// One line of the runs history: a run's header row, what it dispatched by, and
-/// the takt each of its studies ran at (§7.7.2).
+/// One ordered takt sequence per study, from whatever carries a takt and a
+/// moment (§7.9).
 ///
-/// **[takts] carries the raw `(value, unit-name)` pairs**, not the full study
-/// rows: the menu labels every run, so it reads the lightest thing that can name
-/// a takt. The distinct pairs collapse to one label or to `mixed` through
-/// `taktLabelForValues`, the same fold the run header uses.
+/// **The sequence, not the set.** A run that opened at 4 days and then at 5 is
+/// not the run that did the reverse, and a label saying `4 → 5 days` has to know
+/// which way round it went. Ordered by when each takt was first opened under;
+/// entries with no moment sort first, which is where an order that never
+/// released would sit if it carried a takt at all — it does not.
+///
+/// Shared by the runs-history menu and the run header, which read the same facts
+/// out of different shapes: aggregated rows in the repository, order outcomes in
+/// the view. The fold below then cannot name a run two ways because one of them
+/// grouped it differently.
+List<List<(double, String?)>> taktSequences(
+  Iterable<({String studyId, DateTime? at, double? value, String? unit})>
+  entries,
+) {
+  final byStudy = <String, List<(DateTime?, (double, String?))>>{};
+  for (final entry in entries) {
+    if (entry.value case final value?) {
+      (byStudy[entry.studyId] ??= []).add((entry.at, (value, entry.unit)));
+    }
+  }
+
+  return [
+    for (final found in byStudy.values)
+      [
+        for (final pair in (found
+              ..sort((a, b) {
+                if (a.$1 == null) return b.$1 == null ? 0 : -1;
+                if (b.$1 == null) return 1;
+                return a.$1!.compareTo(b.$1!);
+              })))
+          pair.$2,
+      ].fold<List<(double, String?)>>([], (seen, pair) {
+        // Distinct **consecutively**: a study that ran 4, then 5, then 4 again
+        // is three regimes and not two, and collapsing by value alone would
+        // report it as a single change it never made.
+        if (seen.isEmpty || seen.last != pair) seen.add(pair);
+        return seen;
+      }),
+  ];
+}
+
+/// One line of the runs history: a run's header row, what it dispatched by, and
+/// the takts each of its studies ran through (§7.7.2, §7.9).
+///
+/// **[takts] is one ordered sequence per study**, of raw `(value, unit-name)`
+/// pairs rather than full study rows: the menu labels every run, so it reads the
+/// lightest thing that can name a takt. Ordered by when each was first released
+/// under, because a run that went `4 → 5 days` is not the run that went
+/// `5 → 4`.
+///
+/// The sequences collapse to one label — a figure, a change, or `mixed` —
+/// through `taktLabelForValues`, the same fold the run header uses, so the menu
+/// and the header it opens cannot name a run two different ways.
 typedef RunListing = ({
   SimulationRun run,
   RunQueues queues,
-  List<(double, String?)> takts,
+  List<List<(double, String?)>> takts,
 });
 
 /// What each station of a run dispatched by, as the run recorded it (§7.3).

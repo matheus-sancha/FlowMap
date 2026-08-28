@@ -1587,6 +1587,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simPlanOrderEnd => 'Fim';
 
   @override
+  String get simPlanTakt => 'Takt';
+
+  @override
   String get simPlanTheoreticalLeadTime => 'LT teórico';
 
   @override
@@ -1631,6 +1634,9 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get simGanttCommitted => 'Comprometida';
+
+  @override
+  String get simGanttTakt => 'Takt';
 
   @override
   String get simGanttProcess => 'Tempo de processo';
@@ -1844,7 +1850,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String simRunTaktChanges(String date) {
-    return 'O takt muda em $date, dentro do período desta execução.';
+    return 'O takt mudou em $date, dentro desta simulação.';
   }
 
   @override
@@ -1853,5 +1859,10 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String flowTaktChanges(String from, String to, String date, String shown) {
     return 'Takt $from → $to em $date — mostrando $shown';
+  }
+
+  @override
+  String simRunCadenceEnded(String study, String date, int count) {
+    return '$study parou de abrir pedidos em $date: o calendário de takt termina aí e $count não abriram.';
   }
 }

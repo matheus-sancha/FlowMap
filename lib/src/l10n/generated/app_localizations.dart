@@ -2850,6 +2850,12 @@ abstract class AppLocalizations {
   /// **'Order end'**
   String get simPlanOrderEnd;
 
+  /// No description provided for @simPlanTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt'**
+  String get simPlanTakt;
+
   /// No description provided for @simPlanTheoreticalLeadTime.
   ///
   /// In en, this message translates to:
@@ -2927,6 +2933,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Committed'**
   String get simGanttCommitted;
+
+  /// No description provided for @simGanttTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt'**
+  String get simGanttTakt;
 
   /// No description provided for @simGanttProcess.
   ///
@@ -3249,7 +3261,7 @@ abstract class AppLocalizations {
   /// No description provided for @simRunTaktChanges.
   ///
   /// In en, this message translates to:
-  /// **'The takt changes on {date}, inside this run\'s span.'**
+  /// **'The takt changed on {date}, inside this run.'**
   String simRunTaktChanges(String date);
 
   /// No description provided for @simRunTaktMixed.
@@ -3263,6 +3275,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Takt {from} → {to} on {date} — showing {shown}'**
   String flowTaktChanges(String from, String to, String date, String shown);
+
+  /// No description provided for @simRunCadenceEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'{study} stopped opening orders on {date} — its takt schedule ends there, and {count} never opened.'**
+  String simRunCadenceEnded(String study, String date, int count);
 }
 
 class _AppLocalizationsDelegate

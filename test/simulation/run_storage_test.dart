@@ -667,7 +667,9 @@ void main() {
     final (:studies, :plant) = model();
     // The takt is on the study rows, so a study has to actually carry one for
     // the listing to name it — which is what tells two runs of one study apart
-    // in the menu (§7.7).
+    // in the menu (§7.7). This run's orders carry none, because the study was
+    // built with no `taktPeriods`, so the listing falls back to the study row —
+    // which is exactly what a run stored before v22 does (§7.9).
     final base = studies.single;
     final withTakt = SimStudy(
       id: base.id,
@@ -693,7 +695,133 @@ void main() {
     // The raw pair comes back through the join, deduped past the station
     // cartesian, ready for `taktLabelForValues` to fold to `4 days`.
     final listed = await runs.watchRuns(projectId).first;
-    expect(listed.single.takts, [(4.0, 'days')]);
+    expect(listed.single.takts, [
+      [(4.0, 'days')],
+    ]);
+  });
+
+  test('an order remembers the takt it opened under (§7.9, v22)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final base = studies.single;
+
+    // A line that opens every 6 hours for the first six hours of 1 August and
+    // every 12 after it, so this three-order sequence straddles the change and
+    // the orders either side of it carry different takts.
+    final changes = DateTime(2026, 8).add(const Duration(hours: 6));
+    final crossing = SimStudy(
+      id: base.id,
+      name: base.name,
+      nodes: base.nodes,
+      parts: base.parts,
+      orders: base.orders,
+      releaseInterval: const Duration(hours: 6),
+      releaseCalendarId: base.releaseCalendarId,
+      priority: base.priority,
+      wipCap: base.wipCap,
+      taktValue: 6,
+      taktUnit: TaktUnit.hours,
+      taktPeriods: [
+        SimTaktPeriod(
+          start: DateTime(2026, 8),
+          end: changes,
+          value: 6,
+          unit: TaktUnit.hours,
+          interval: const Duration(hours: 6),
+        ),
+        SimTaktPeriod(
+          start: changes.add(const Duration(hours: 1)),
+          end: DateTime(2026, 12, 31),
+          value: 12,
+          unit: TaktUnit.hours,
+          interval: const Duration(hours: 12),
+        ),
+      ],
+    );
+
+    final result = runSimulation(
+      studies: [crossing],
+      workcenters: plant,
+      start: DateTime(2026, 8),
+    );
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: [crossing],
+      workcenters: plant,
+    );
+
+    // **The cause travels with the order**, which is the whole of v22: the
+    // stored run can say why two orders of one part were charged different
+    // work without asking a schedule that may have moved (§7.10).
+    final stored = await runs.loadRun(runId);
+    final takts = {
+      for (final order in stored!.result.orders)
+        if (order.taktValue case final value?) (value, order.taktUnit),
+    };
+    expect(takts, {(6.0, TaktUnit.hours), (12.0, TaktUnit.hours)});
+
+    // And the menu folds them to the change the run crossed, in the order it
+    // crossed it — not to a set, which could not tell `6 → 12` from `12 → 6`.
+    final listed = await runs.watchRuns(projectId).first;
+    expect(listed.single.takts, [
+      [(6.0, 'hours'), (12.0, 'hours')],
+    ]);
+  });
+
+  test('a study says where its cadence ran out (§7.9.2, v22)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final base = studies.single;
+
+    // The takt table stops six hours in, so the line opens what it can and then
+    // stops — and the run has to say that rather than leaving orders that never
+    // opened looking like a jam.
+    final stopping = SimStudy(
+      id: base.id,
+      name: base.name,
+      nodes: base.nodes,
+      parts: base.parts,
+      orders: base.orders,
+      releaseInterval: const Duration(hours: 6),
+      releaseCalendarId: base.releaseCalendarId,
+      priority: base.priority,
+      wipCap: base.wipCap,
+      taktValue: 6,
+      taktUnit: TaktUnit.hours,
+      taktPeriods: [
+        SimTaktPeriod(
+          start: DateTime(2026, 8),
+          end: DateTime(2026, 8).add(const Duration(hours: 6)),
+          value: 6,
+          unit: TaktUnit.hours,
+          interval: const Duration(hours: 6),
+        ),
+      ],
+    );
+
+    final result = runSimulation(
+      studies: [stopping],
+      workcenters: plant,
+      start: DateTime(2026, 8),
+    );
+    expect(result.cadenceEndedByStudy, contains(base.id));
+
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: [stopping],
+      workcenters: plant,
+    );
+    final stored = await runs.loadRun(runId);
+
+    expect(stored!.studies.single.cadenceEndedAt, isNotNull);
+    // The count the header states is the orders that never opened, which is a
+    // fact about the run rather than a second stored number.
+    expect(
+      stored.result.orders.where((o) => o.released == null),
+      isNotEmpty,
+    );
   });
 
   test(

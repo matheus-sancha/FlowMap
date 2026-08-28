@@ -13227,6 +13227,18 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _cadenceEndedAtMeta = const VerificationMeta(
+    'cadenceEndedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> cadenceEndedAt =
+      GeneratedColumn<DateTime>(
+        'cadence_ended_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _priorityMeta = const VerificationMeta(
     'priority',
   );
@@ -13313,6 +13325,7 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     taktValue,
     taktUnit,
     nextTaktChange,
+    cadenceEndedAt,
     priority,
     wipCap,
     startBufferDays,
@@ -13395,6 +13408,15 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         nextTaktChange.isAcceptableOrUnknown(
           data['next_takt_change']!,
           _nextTaktChangeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cadence_ended_at')) {
+      context.handle(
+        _cadenceEndedAtMeta,
+        cadenceEndedAt.isAcceptableOrUnknown(
+          data['cadence_ended_at']!,
+          _cadenceEndedAtMeta,
         ),
       );
     }
@@ -13498,6 +13520,10 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         DriftSqlType.dateTime,
         data['${effectivePrefix}next_takt_change'],
       ),
+      cadenceEndedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cadence_ended_at'],
+      ),
       priority: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}priority'],
@@ -13584,6 +13610,20 @@ class SimulationRunStudy extends DataClass
   /// figures. Célula 11D's takt goes 4 d → 5 d on 1 April 2026, and a run
   /// spanning that date ran entirely at one of them.
   final DateTime? nextTaktChange;
+
+  /// When this study's cadence ran out, or null where it did not (§7.9.2, v22).
+  ///
+  /// A line with no takt period covering an instant has no cadence, so it opens
+  /// nothing there — and a study whose takt table stops before its sequence
+  /// does leaves the rest of it unreleased. **Stored because the alternative is
+  /// reporting the symptom and hiding the cause**: orders that never opened
+  /// look exactly like a jammed plant, and a missing schedule row and a jam
+  /// want opposite responses.
+  ///
+  /// §11.1's warning cannot stand in for it — that compares the run's *end*
+  /// against the schedule horizon, and a run that stops releasing early may
+  /// well end before the horizon with the warning silent.
+  final DateTime? cadenceEndedAt;
   final int priority;
   final int? wipCap;
 
@@ -13618,6 +13658,7 @@ class SimulationRunStudy extends DataClass
     this.taktValue,
     this.taktUnit,
     this.nextTaktChange,
+    this.cadenceEndedAt,
     required this.priority,
     this.wipCap,
     required this.startBufferDays,
@@ -13644,6 +13685,9 @@ class SimulationRunStudy extends DataClass
     }
     if (!nullToAbsent || nextTaktChange != null) {
       map['next_takt_change'] = Variable<DateTime>(nextTaktChange);
+    }
+    if (!nullToAbsent || cadenceEndedAt != null) {
+      map['cadence_ended_at'] = Variable<DateTime>(cadenceEndedAt);
     }
     map['priority'] = Variable<int>(priority);
     if (!nullToAbsent || wipCap != null) {
@@ -13683,6 +13727,9 @@ class SimulationRunStudy extends DataClass
       nextTaktChange: nextTaktChange == null && nullToAbsent
           ? const Value.absent()
           : Value(nextTaktChange),
+      cadenceEndedAt: cadenceEndedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cadenceEndedAt),
       priority: Value(priority),
       wipCap: wipCap == null && nullToAbsent
           ? const Value.absent()
@@ -13719,6 +13766,7 @@ class SimulationRunStudy extends DataClass
       taktValue: serializer.fromJson<double?>(json['taktValue']),
       taktUnit: serializer.fromJson<String?>(json['taktUnit']),
       nextTaktChange: serializer.fromJson<DateTime?>(json['nextTaktChange']),
+      cadenceEndedAt: serializer.fromJson<DateTime?>(json['cadenceEndedAt']),
       priority: serializer.fromJson<int>(json['priority']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
       startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
@@ -13744,6 +13792,7 @@ class SimulationRunStudy extends DataClass
       'taktValue': serializer.toJson<double?>(taktValue),
       'taktUnit': serializer.toJson<String?>(taktUnit),
       'nextTaktChange': serializer.toJson<DateTime?>(nextTaktChange),
+      'cadenceEndedAt': serializer.toJson<DateTime?>(cadenceEndedAt),
       'priority': serializer.toJson<int>(priority),
       'wipCap': serializer.toJson<int?>(wipCap),
       'startBufferDays': serializer.toJson<int>(startBufferDays),
@@ -13763,6 +13812,7 @@ class SimulationRunStudy extends DataClass
     Value<double?> taktValue = const Value.absent(),
     Value<String?> taktUnit = const Value.absent(),
     Value<DateTime?> nextTaktChange = const Value.absent(),
+    Value<DateTime?> cadenceEndedAt = const Value.absent(),
     int? priority,
     Value<int?> wipCap = const Value.absent(),
     int? startBufferDays,
@@ -13783,6 +13833,9 @@ class SimulationRunStudy extends DataClass
     nextTaktChange: nextTaktChange.present
         ? nextTaktChange.value
         : this.nextTaktChange,
+    cadenceEndedAt: cadenceEndedAt.present
+        ? cadenceEndedAt.value
+        : this.cadenceEndedAt,
     priority: priority ?? this.priority,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
     startBufferDays: startBufferDays ?? this.startBufferDays,
@@ -13815,6 +13868,9 @@ class SimulationRunStudy extends DataClass
       nextTaktChange: data.nextTaktChange.present
           ? data.nextTaktChange.value
           : this.nextTaktChange,
+      cadenceEndedAt: data.cadenceEndedAt.present
+          ? data.cadenceEndedAt.value
+          : this.cadenceEndedAt,
       priority: data.priority.present ? data.priority.value : this.priority,
       wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
       startBufferDays: data.startBufferDays.present
@@ -13846,6 +13902,7 @@ class SimulationRunStudy extends DataClass
           ..write('taktValue: $taktValue, ')
           ..write('taktUnit: $taktUnit, ')
           ..write('nextTaktChange: $nextTaktChange, ')
+          ..write('cadenceEndedAt: $cadenceEndedAt, ')
           ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
@@ -13867,6 +13924,7 @@ class SimulationRunStudy extends DataClass
     taktValue,
     taktUnit,
     nextTaktChange,
+    cadenceEndedAt,
     priority,
     wipCap,
     startBufferDays,
@@ -13887,6 +13945,7 @@ class SimulationRunStudy extends DataClass
           other.taktValue == this.taktValue &&
           other.taktUnit == this.taktUnit &&
           other.nextTaktChange == this.nextTaktChange &&
+          other.cadenceEndedAt == this.cadenceEndedAt &&
           other.priority == this.priority &&
           other.wipCap == this.wipCap &&
           other.startBufferDays == this.startBufferDays &&
@@ -13906,6 +13965,7 @@ class SimulationRunStudiesCompanion
   final Value<double?> taktValue;
   final Value<String?> taktUnit;
   final Value<DateTime?> nextTaktChange;
+  final Value<DateTime?> cadenceEndedAt;
   final Value<int> priority;
   final Value<int?> wipCap;
   final Value<int> startBufferDays;
@@ -13923,6 +13983,7 @@ class SimulationRunStudiesCompanion
     this.taktValue = const Value.absent(),
     this.taktUnit = const Value.absent(),
     this.nextTaktChange = const Value.absent(),
+    this.cadenceEndedAt = const Value.absent(),
     this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
@@ -13941,6 +14002,7 @@ class SimulationRunStudiesCompanion
     this.taktValue = const Value.absent(),
     this.taktUnit = const Value.absent(),
     this.nextTaktChange = const Value.absent(),
+    this.cadenceEndedAt = const Value.absent(),
     required int priority,
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
@@ -13963,6 +14025,7 @@ class SimulationRunStudiesCompanion
     Expression<double>? taktValue,
     Expression<String>? taktUnit,
     Expression<DateTime>? nextTaktChange,
+    Expression<DateTime>? cadenceEndedAt,
     Expression<int>? priority,
     Expression<int>? wipCap,
     Expression<int>? startBufferDays,
@@ -13981,6 +14044,7 @@ class SimulationRunStudiesCompanion
       if (taktValue != null) 'takt_value': taktValue,
       if (taktUnit != null) 'takt_unit': taktUnit,
       if (nextTaktChange != null) 'next_takt_change': nextTaktChange,
+      if (cadenceEndedAt != null) 'cadence_ended_at': cadenceEndedAt,
       if (priority != null) 'priority': priority,
       if (wipCap != null) 'wip_cap': wipCap,
       if (startBufferDays != null) 'start_buffer_days': startBufferDays,
@@ -14003,6 +14067,7 @@ class SimulationRunStudiesCompanion
     Value<double?>? taktValue,
     Value<String?>? taktUnit,
     Value<DateTime?>? nextTaktChange,
+    Value<DateTime?>? cadenceEndedAt,
     Value<int>? priority,
     Value<int?>? wipCap,
     Value<int>? startBufferDays,
@@ -14021,6 +14086,7 @@ class SimulationRunStudiesCompanion
       taktValue: taktValue ?? this.taktValue,
       taktUnit: taktUnit ?? this.taktUnit,
       nextTaktChange: nextTaktChange ?? this.nextTaktChange,
+      cadenceEndedAt: cadenceEndedAt ?? this.cadenceEndedAt,
       priority: priority ?? this.priority,
       wipCap: wipCap ?? this.wipCap,
       startBufferDays: startBufferDays ?? this.startBufferDays,
@@ -14058,6 +14124,9 @@ class SimulationRunStudiesCompanion
     }
     if (nextTaktChange.present) {
       map['next_takt_change'] = Variable<DateTime>(nextTaktChange.value);
+    }
+    if (cadenceEndedAt.present) {
+      map['cadence_ended_at'] = Variable<DateTime>(cadenceEndedAt.value);
     }
     if (priority.present) {
       map['priority'] = Variable<int>(priority.value);
@@ -14097,6 +14166,7 @@ class SimulationRunStudiesCompanion
           ..write('taktValue: $taktValue, ')
           ..write('taktUnit: $taktUnit, ')
           ..write('nextTaktChange: $nextTaktChange, ')
+          ..write('cadenceEndedAt: $cadenceEndedAt, ')
           ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
@@ -14269,6 +14339,28 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _taktValueMeta = const VerificationMeta(
+    'taktValue',
+  );
+  @override
+  late final GeneratedColumn<double> taktValue = GeneratedColumn<double>(
+    'takt_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _taktUnitMeta = const VerificationMeta(
+    'taktUnit',
+  );
+  @override
+  late final GeneratedColumn<String> taktUnit = GeneratedColumn<String>(
+    'takt_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _theoreticalSecondsMeta =
       const VerificationMeta('theoreticalSeconds');
   @override
@@ -14295,6 +14387,8 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
     needDate,
     released,
     delivered,
+    taktValue,
+    taktUnit,
     theoreticalSeconds,
   ];
   @override
@@ -14419,6 +14513,18 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
         delivered.isAcceptableOrUnknown(data['delivered']!, _deliveredMeta),
       );
     }
+    if (data.containsKey('takt_value')) {
+      context.handle(
+        _taktValueMeta,
+        taktValue.isAcceptableOrUnknown(data['takt_value']!, _taktValueMeta),
+      );
+    }
+    if (data.containsKey('takt_unit')) {
+      context.handle(
+        _taktUnitMeta,
+        taktUnit.isAcceptableOrUnknown(data['takt_unit']!, _taktUnitMeta),
+      );
+    }
     if (data.containsKey('theoretical_seconds')) {
       context.handle(
         _theoreticalSecondsMeta,
@@ -14493,6 +14599,14 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
         DriftSqlType.dateTime,
         data['${effectivePrefix}delivered'],
       ),
+      taktValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}takt_value'],
+      ),
+      taktUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}takt_unit'],
+      ),
       theoreticalSeconds: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}theoretical_seconds'],
@@ -14549,6 +14663,29 @@ class SimulationRunOrder extends DataClass
   /// When it finished its last semantic step (§18.1). Null if it never did.
   final DateTime? delivered;
 
+  /// The takt this order **opened** under, as it was typed (§7.9, v22).
+  ///
+  /// **The cause, stored beside the effects.** An order's work at each step is
+  /// the balance's split against this figure, so two orders of one part
+  /// legitimately carry different work — and v21's `process_seconds` records
+  /// that difference while saying nothing about where it came from. Recording
+  /// an effect and leaving its cause to be re-derived from a schedule the plant
+  /// may have retuned is the drift §7.10 exists to prevent, one level up.
+  ///
+  /// Kept as the pair a human reads rather than the resolved interval: the
+  /// seconds only ever mattered for reproducing the cadence, and the study row
+  /// still carries those for its first release.
+  ///
+  /// Null on every run made before v22 — *made before a run said this* — and on
+  /// an order that never opened, which had no takt to take.
+  final double? taktValue;
+
+  /// [TaktUnit.name], the unit [taktValue] is in.
+  ///
+  /// Stored as a plain name rather than `textEnum` for §16.10's reason: a value
+  /// a later build knows and this one does not must not stop the run opening.
+  final String? taktUnit;
+
   /// §7.9's queue-free figure, walked from **this order's own release**.
   ///
   /// Stored rather than recomputed on read, because the walk needs the plant
@@ -14571,6 +14708,8 @@ class SimulationRunOrder extends DataClass
     required this.needDate,
     this.released,
     this.delivered,
+    this.taktValue,
+    this.taktUnit,
     this.theoreticalSeconds,
   });
   @override
@@ -14603,6 +14742,12 @@ class SimulationRunOrder extends DataClass
     }
     if (!nullToAbsent || delivered != null) {
       map['delivered'] = Variable<DateTime>(delivered);
+    }
+    if (!nullToAbsent || taktValue != null) {
+      map['takt_value'] = Variable<double>(taktValue);
+    }
+    if (!nullToAbsent || taktUnit != null) {
+      map['takt_unit'] = Variable<String>(taktUnit);
     }
     if (!nullToAbsent || theoreticalSeconds != null) {
       map['theoretical_seconds'] = Variable<int>(theoreticalSeconds);
@@ -14640,6 +14785,12 @@ class SimulationRunOrder extends DataClass
       delivered: delivered == null && nullToAbsent
           ? const Value.absent()
           : Value(delivered),
+      taktValue: taktValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktValue),
+      taktUnit: taktUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktUnit),
       theoreticalSeconds: theoreticalSeconds == null && nullToAbsent
           ? const Value.absent()
           : Value(theoreticalSeconds),
@@ -14666,6 +14817,8 @@ class SimulationRunOrder extends DataClass
       needDate: serializer.fromJson<DateTime>(json['needDate']),
       released: serializer.fromJson<DateTime?>(json['released']),
       delivered: serializer.fromJson<DateTime?>(json['delivered']),
+      taktValue: serializer.fromJson<double?>(json['taktValue']),
+      taktUnit: serializer.fromJson<String?>(json['taktUnit']),
       theoreticalSeconds: serializer.fromJson<int?>(json['theoreticalSeconds']),
     );
   }
@@ -14687,6 +14840,8 @@ class SimulationRunOrder extends DataClass
       'needDate': serializer.toJson<DateTime>(needDate),
       'released': serializer.toJson<DateTime?>(released),
       'delivered': serializer.toJson<DateTime?>(delivered),
+      'taktValue': serializer.toJson<double?>(taktValue),
+      'taktUnit': serializer.toJson<String?>(taktUnit),
       'theoreticalSeconds': serializer.toJson<int?>(theoreticalSeconds),
     };
   }
@@ -14706,6 +14861,8 @@ class SimulationRunOrder extends DataClass
     DateTime? needDate,
     Value<DateTime?> released = const Value.absent(),
     Value<DateTime?> delivered = const Value.absent(),
+    Value<double?> taktValue = const Value.absent(),
+    Value<String?> taktUnit = const Value.absent(),
     Value<int?> theoreticalSeconds = const Value.absent(),
   }) => SimulationRunOrder(
     runId: runId ?? this.runId,
@@ -14726,6 +14883,8 @@ class SimulationRunOrder extends DataClass
     needDate: needDate ?? this.needDate,
     released: released.present ? released.value : this.released,
     delivered: delivered.present ? delivered.value : this.delivered,
+    taktValue: taktValue.present ? taktValue.value : this.taktValue,
+    taktUnit: taktUnit.present ? taktUnit.value : this.taktUnit,
     theoreticalSeconds: theoreticalSeconds.present
         ? theoreticalSeconds.value
         : this.theoreticalSeconds,
@@ -14756,6 +14915,8 @@ class SimulationRunOrder extends DataClass
       needDate: data.needDate.present ? data.needDate.value : this.needDate,
       released: data.released.present ? data.released.value : this.released,
       delivered: data.delivered.present ? data.delivered.value : this.delivered,
+      taktValue: data.taktValue.present ? data.taktValue.value : this.taktValue,
+      taktUnit: data.taktUnit.present ? data.taktUnit.value : this.taktUnit,
       theoreticalSeconds: data.theoreticalSeconds.present
           ? data.theoreticalSeconds.value
           : this.theoreticalSeconds,
@@ -14779,6 +14940,8 @@ class SimulationRunOrder extends DataClass
           ..write('needDate: $needDate, ')
           ..write('released: $released, ')
           ..write('delivered: $delivered, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
           ..write('theoreticalSeconds: $theoreticalSeconds')
           ..write(')'))
         .toString();
@@ -14800,6 +14963,8 @@ class SimulationRunOrder extends DataClass
     needDate,
     released,
     delivered,
+    taktValue,
+    taktUnit,
     theoreticalSeconds,
   );
   @override
@@ -14820,6 +14985,8 @@ class SimulationRunOrder extends DataClass
           other.needDate == this.needDate &&
           other.released == this.released &&
           other.delivered == this.delivered &&
+          other.taktValue == this.taktValue &&
+          other.taktUnit == this.taktUnit &&
           other.theoreticalSeconds == this.theoreticalSeconds);
 }
 
@@ -14838,6 +15005,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
   final Value<DateTime> needDate;
   final Value<DateTime?> released;
   final Value<DateTime?> delivered;
+  final Value<double?> taktValue;
+  final Value<String?> taktUnit;
   final Value<int?> theoreticalSeconds;
   final Value<int> rowid;
   const SimulationRunOrdersCompanion({
@@ -14855,6 +15024,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     this.needDate = const Value.absent(),
     this.released = const Value.absent(),
     this.delivered = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
     this.theoreticalSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -14873,6 +15044,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     required DateTime needDate,
     this.released = const Value.absent(),
     this.delivered = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
     this.theoreticalSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
@@ -14897,6 +15070,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     Expression<DateTime>? needDate,
     Expression<DateTime>? released,
     Expression<DateTime>? delivered,
+    Expression<double>? taktValue,
+    Expression<String>? taktUnit,
     Expression<int>? theoreticalSeconds,
     Expression<int>? rowid,
   }) {
@@ -14915,6 +15090,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
       if (needDate != null) 'need_date': needDate,
       if (released != null) 'released': released,
       if (delivered != null) 'delivered': delivered,
+      if (taktValue != null) 'takt_value': taktValue,
+      if (taktUnit != null) 'takt_unit': taktUnit,
       if (theoreticalSeconds != null) 'theoretical_seconds': theoreticalSeconds,
       if (rowid != null) 'rowid': rowid,
     });
@@ -14935,6 +15112,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     Value<DateTime>? needDate,
     Value<DateTime?>? released,
     Value<DateTime?>? delivered,
+    Value<double?>? taktValue,
+    Value<String?>? taktUnit,
     Value<int?>? theoreticalSeconds,
     Value<int>? rowid,
   }) {
@@ -14953,6 +15132,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
       needDate: needDate ?? this.needDate,
       released: released ?? this.released,
       delivered: delivered ?? this.delivered,
+      taktValue: taktValue ?? this.taktValue,
+      taktUnit: taktUnit ?? this.taktUnit,
       theoreticalSeconds: theoreticalSeconds ?? this.theoreticalSeconds,
       rowid: rowid ?? this.rowid,
     );
@@ -15003,6 +15184,12 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     if (delivered.present) {
       map['delivered'] = Variable<DateTime>(delivered.value);
     }
+    if (taktValue.present) {
+      map['takt_value'] = Variable<double>(taktValue.value);
+    }
+    if (taktUnit.present) {
+      map['takt_unit'] = Variable<String>(taktUnit.value);
+    }
     if (theoreticalSeconds.present) {
       map['theoretical_seconds'] = Variable<int>(theoreticalSeconds.value);
     }
@@ -15029,6 +15216,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
           ..write('needDate: $needDate, ')
           ..write('released: $released, ')
           ..write('delivered: $delivered, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
           ..write('theoreticalSeconds: $theoreticalSeconds, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -31472,6 +31661,7 @@ typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
       Value<double?> taktValue,
       Value<String?> taktUnit,
       Value<DateTime?> nextTaktChange,
+      Value<DateTime?> cadenceEndedAt,
       required int priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
@@ -31491,6 +31681,7 @@ typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
       Value<double?> taktValue,
       Value<String?> taktUnit,
       Value<DateTime?> nextTaktChange,
+      Value<DateTime?> cadenceEndedAt,
       Value<int> priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
@@ -31573,6 +31764,11 @@ class $$SimulationRunStudiesTableFilterComposer
 
   ColumnFilters<DateTime> get nextTaktChange => $composableBuilder(
     column: $table.nextTaktChange,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get cadenceEndedAt => $composableBuilder(
+    column: $table.cadenceEndedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -31679,6 +31875,11 @@ class $$SimulationRunStudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get cadenceEndedAt => $composableBuilder(
+    column: $table.cadenceEndedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get priority => $composableBuilder(
     column: $table.priority,
     builder: (column) => ColumnOrderings(column),
@@ -31771,6 +31972,11 @@ class $$SimulationRunStudiesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get nextTaktChange => $composableBuilder(
     column: $table.nextTaktChange,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get cadenceEndedAt => $composableBuilder(
+    column: $table.cadenceEndedAt,
     builder: (column) => column,
   );
 
@@ -31873,6 +32079,7 @@ class $$SimulationRunStudiesTableTableManager
                 Value<double?> taktValue = const Value.absent(),
                 Value<String?> taktUnit = const Value.absent(),
                 Value<DateTime?> nextTaktChange = const Value.absent(),
+                Value<DateTime?> cadenceEndedAt = const Value.absent(),
                 Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
@@ -31890,6 +32097,7 @@ class $$SimulationRunStudiesTableTableManager
                 taktValue: taktValue,
                 taktUnit: taktUnit,
                 nextTaktChange: nextTaktChange,
+                cadenceEndedAt: cadenceEndedAt,
                 priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
@@ -31909,6 +32117,7 @@ class $$SimulationRunStudiesTableTableManager
                 Value<double?> taktValue = const Value.absent(),
                 Value<String?> taktUnit = const Value.absent(),
                 Value<DateTime?> nextTaktChange = const Value.absent(),
+                Value<DateTime?> cadenceEndedAt = const Value.absent(),
                 required int priority,
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
@@ -31926,6 +32135,7 @@ class $$SimulationRunStudiesTableTableManager
                 taktValue: taktValue,
                 taktUnit: taktUnit,
                 nextTaktChange: nextTaktChange,
+                cadenceEndedAt: cadenceEndedAt,
                 priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
@@ -32020,6 +32230,8 @@ typedef $$SimulationRunOrdersTableCreateCompanionBuilder =
       required DateTime needDate,
       Value<DateTime?> released,
       Value<DateTime?> delivered,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
       Value<int?> theoreticalSeconds,
       Value<int> rowid,
     });
@@ -32039,6 +32251,8 @@ typedef $$SimulationRunOrdersTableUpdateCompanionBuilder =
       Value<DateTime> needDate,
       Value<DateTime?> released,
       Value<DateTime?> delivered,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
       Value<int?> theoreticalSeconds,
       Value<int> rowid,
     });
@@ -32148,6 +32362,16 @@ class $$SimulationRunOrdersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get theoreticalSeconds => $composableBuilder(
     column: $table.theoreticalSeconds,
     builder: (column) => ColumnFilters(column),
@@ -32251,6 +32475,16 @@ class $$SimulationRunOrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get theoreticalSeconds => $composableBuilder(
     column: $table.theoreticalSeconds,
     builder: (column) => ColumnOrderings(column),
@@ -32338,6 +32572,12 @@ class $$SimulationRunOrdersTableAnnotationComposer
   GeneratedColumn<DateTime> get delivered =>
       $composableBuilder(column: $table.delivered, builder: (column) => column);
 
+  GeneratedColumn<double> get taktValue =>
+      $composableBuilder(column: $table.taktValue, builder: (column) => column);
+
+  GeneratedColumn<String> get taktUnit =>
+      $composableBuilder(column: $table.taktUnit, builder: (column) => column);
+
   GeneratedColumn<int> get theoreticalSeconds => $composableBuilder(
     column: $table.theoreticalSeconds,
     builder: (column) => column,
@@ -32417,6 +32657,8 @@ class $$SimulationRunOrdersTableTableManager
                 Value<DateTime> needDate = const Value.absent(),
                 Value<DateTime?> released = const Value.absent(),
                 Value<DateTime?> delivered = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
                 Value<int?> theoreticalSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunOrdersCompanion(
@@ -32434,6 +32676,8 @@ class $$SimulationRunOrdersTableTableManager
                 needDate: needDate,
                 released: released,
                 delivered: delivered,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
                 theoreticalSeconds: theoreticalSeconds,
                 rowid: rowid,
               ),
@@ -32453,6 +32697,8 @@ class $$SimulationRunOrdersTableTableManager
                 required DateTime needDate,
                 Value<DateTime?> released = const Value.absent(),
                 Value<DateTime?> delivered = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
                 Value<int?> theoreticalSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunOrdersCompanion.insert(
@@ -32470,6 +32716,8 @@ class $$SimulationRunOrdersTableTableManager
                 needDate: needDate,
                 released: released,
                 delivered: delivered,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
                 theoreticalSeconds: theoreticalSeconds,
                 rowid: rowid,
               ),

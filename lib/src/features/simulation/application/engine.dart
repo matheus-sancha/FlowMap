@@ -1087,6 +1087,11 @@ class _Engine {
             needDate: order.needDate,
             released: _released[order.id],
             delivered: _delivered[order.id],
+            // The takt it opened under (§7.9), read off what the engine fixed
+            // at release rather than looked up again — the two could not differ,
+            // and only one of them is what the order was actually costed at.
+            taktValue: _takt[order.id]?.value,
+            taktUnit: _takt[order.id]?.unit,
           ),
         );
       }
@@ -1140,6 +1145,7 @@ class _Engine {
       steps: _rows,
       orders: outcomes,
       emptySlots: _empties,
+      cadenceEndedByStudy: Map.unmodifiable(_cadenceEnded),
       busyByWorkcenter: busy,
       openByWorkcenter: open,
       blockedByWorkcenter: blocked,
