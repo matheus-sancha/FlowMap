@@ -3586,6 +3586,10 @@ nodes, 250 orders, **100 runs and 104,463 run steps** intact, 0 of 100 runs answ
 — correct, since none has been made under it — and 0 studies recording a stopped cadence. Backed up
 first as `flowmap.sqlite.backup-v21-20260827-215250`.
 
+**And the live file itself the same evening**: `db.open schema 22 from 21` at **21:57:36 under
+`0.1.0-2026-08-27a`**, the build label and the line both in `log.txt` — the pair §0 says a stale
+link cannot produce.
+
 ## 17. Done between M2 and M3
 
 ### 17.1 A buffer's time now agrees with itself

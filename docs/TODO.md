@@ -2394,9 +2394,12 @@ those apart.
       have gone off the right edge (§12.6).
 - [ ] **The card at 204 px**, on the bottom row and at the right-hand edge, which are the two places
       it has to be pushed back inside. It has grown twice in ten days and nobody has looked at it.
-- [ ] **v22 against the live file itself.** It has met a copy and the live database is still at v21;
-      the app will migrate it on next open, and §0's rule is that the session header's `db.open` line
-      is the only claim a stale link cannot produce. Cite it here.
+- [x] ~~**v22 against the live file itself.**~~ **Done 2026-08-27 at 21:57:36** under
+      **`0.1.0-2026-08-27a`**: `db.open schema 22 from 21`, with the build label and the line both in
+      `log.txt` — which is the pair §0 says a stale link cannot produce. The Aug-3 exe rule held
+      again: `app.so` moved to 21:57:20 and `flowmap.exe` stayed at 16 August, so the label is what
+      says the Dart code is this one. Backed up first as
+      `flowmap.sqlite.backup-v21-20260827-215250`.
 
 **DESIGN.md — written, both rounds**, ahead of the drive rather than after it, on §5's rule that a
 design file disagreeing with the tree is worse than one behind it.
