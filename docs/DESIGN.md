@@ -976,6 +976,19 @@ menu stops at the one word.
   the same list of stations, so a menu row reading `FIFO` over a header reading `mixed` is not a
   state the code can reach — and the history query joins the stations in with the run list rather
   than asking per row.
+- **The takt on that row is the run's *sequence*, not its first figure** (§7.9). `taktSequences`
+  folds each study's orders into the takts it opened under, in order and distinct only where
+  consecutive; `taktLabelForValues` renders one shared sequence as `4 days` or `4 → 5 days`, and
+  anything else — three regimes, or two studies that disagree — as `mixed`. **Ordered, because
+  `4 → 5` and `5 → 4` are different runs** and a set could not tell them apart.
+
+  **The menu reads the orders, not a summary of them.** A first-and-last pair on the study row would
+  keep the menu's query trivial and give the label its own copy of the fact, which can only agree by
+  being written correctly where a query agrees by construction — the same argument that put one fold
+  behind `RunQueues`. It is a **second query rather than a third join**: the takt lives on the orders
+  now, and a run has hundreds of those against a handful of stations, so joining them would multiply
+  the cartesian by the demand. Run in step with the listing, since a run's header row and its orders
+  are written and deleted together.
 - **`simulation_runs.dispatch` stays on the schema and stops being written.** The 35 runs made before
   v19 really did dispatch the whole plant by one rule, and reading it as the fill-in for a station
   that recorded no type is the only thing it is still for. A v19 run writes it empty, which parses to
@@ -1467,8 +1480,16 @@ which gate is.
 ### 8.5.1 The columns
 
 `Order | Part Number | Description | Project | Batch Number | Batch Size | Need Date | Material
-Date | Order Start | Order End | Theoretical LT | Actual LT | Efficiency | Float`, a section of the
-Simulation tab's results.
+Date | Order Start | Order End | Takt | Theoretical LT | Actual LT | Efficiency | Float`, a section
+of the Simulation tab's results.
+
+**Takt introduces the three figures it explains, rather than sitting among the dates** (§7.9). An
+order's work at each station is the balance's split of its group against the takt it opened under, so
+two rows of one part with different Theoretical LTs differ *here* first — and a reader scanning for
+why finds the cause immediately left of the effects. It cost Float one more column of scroll, which
+§12.6 already names as the thing this table is closest to losing.
+
+**Blank on a run stored before v22**, which held one takt throughout and says which on its header.
 
 - **A reading of a stored run, not of the demand.** It reads `simulation_run_orders`, so its dates
   cannot disagree with the run that produced them and opening an earlier run from the history menu
@@ -1796,6 +1817,14 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   route through its station records zero work on purpose (§6.2.1), so a blank standing in for one
   would read as a routing the part does not have — §7.10's own rule that a blank means *this run did
   not record that*, arriving where the two readings are furthest apart.
+
+  **And under the work, the takt that set it** (§7.9, v22). Two bars of one part are different widths
+  because their orders opened under different takts and the balance split the group's work
+  differently for each — so the card carries the cause directly beneath the effect, which is where
+  the question is asked: the reader is looking at *that bar*, wondering why it is not the one above.
+  Read off the plan by order id, like the project and the description, because it belongs to the
+  order rather than to what it is standing in. Omitted rather than dashed on a pre-v22 run, which
+  held one takt throughout and says which on its header.
 
   It also names **the study, on a run that has more than one**. A part number identifies a part only
   inside its study (§16.15) and an order number is a position in *one* study's sequence, so on a
@@ -2144,9 +2173,20 @@ app cannot afford.
 ### 11.1 The tail past the last schedule period
 
 A gap *inside* the demand horizon (first to last need date) is a blocking error — a real data hole.
-Time *after* the last defined takt or workcenter schedule period carries the last period forward
-indefinitely, flagged as a run warning: *"12 orders finished after 31/12/2026 using the last defined
-schedule."*
+Time *after* the last defined workcenter schedule period carries forward, flagged as a run warning:
+*"12 orders finished after 31/12/2026 using the last defined schedule."*
+
+**The takt is the exception, and since §7.9 it does not carry forward at all.** A line with no takt
+period covering an instant has no cadence there, so it opens nothing: the study waits for the next
+period and stops for good where there is none. Carrying the last takt forward would be a guess about
+what the planner meant, which §9.2 forbids, and it would make the takt table the one schedule in this
+app that outlives its own last row.
+
+**That failure has its own record on the run**, because this warning cannot carry it:
+`simulation_run_studies.cadence_ended_at` (v22), stated in the header by study, with the date and how
+many orders never opened. The warning below compares the run's **end** against the horizon — and a
+run that stops releasing early may well end *before* the horizon with this silent, while a third of
+its sequence never opened.
 
 Without this, an overloaded plant becomes unsimulatable exactly when the simulation is most
 informative — and the user cannot know how far to extend their periods until they have run it.
@@ -2524,7 +2564,7 @@ vertical job everywhere (rows in the grid, the page on the Simulation tab), Flut
 axis only while Shift is held, mouse drag-to-scroll is off by default on desktop, and the one
 `Scrollbar` in the tree was given no controller, so it held no position to drag and faded in only
 *while* scrolling — which is the thing that could not be started. With fifteen workcenters on the
-parts grid, or fourteen columns on the production plan, the table simply read as cut off.
+parts grid, or fifteen columns on the production plan, the table simply read as cut off.
 
 - **The bar is always visible while there is something to reach, and it is draggable.** Both are
   stated rather than inherited: `thumbVisibility` needs a controller of its own, and Material makes a
@@ -2558,7 +2598,7 @@ parts grid, or fourteen columns on the production plan, the table simply read as
   helper. The plan has four adjacent date columns; a label over the wrong column is a misread, which
   is worse than a heading that scrolls away. The gutters are set to nothing so that
   `ResultColumn.width` describes the column it names — `DataTable`'s defaults would put 672 px of air
-  into a fourteen-column plan.
+  into a fifteen-column plan.
 - **The vertical bar sits outside the horizontal scroll view**, holding the inner controller. Nesting
   alone cannot pin both bars: inside, the vertical bar lands on the *table's* right edge, which on a
   wide table is off screen. The cost is that its track then spans the heading too, and Material's
@@ -2647,7 +2687,7 @@ All exports stamped with app version, project/study name and run timestamp.
 
 ### 13.1 The production plan, in Excel — as built
 
-`.xlsx`, one sheet per study, a header row, §8.5's fourteen columns, built from the same `StoredRun`
+`.xlsx`, one sheet per study, a header row, §8.5's fifteen columns, built from the same `StoredRun`
 the table renders — so the file and the screen cannot disagree about what the run did (§7.10). A
 planner merges it into their own system, which no PDF allows.
 
@@ -2655,7 +2695,7 @@ planner merges it into their own system, which no PDF allows.
   `9.1 d` sorts `1.2 d` after `10.4 d` and pivots into nothing, and being able to do arithmetic on
   the other side is the whole reason this is a spreadsheet rather than a printout. Need date and
   material date are dates with no time of day, because none was ever entered for them; Order Start
-  and Order End carry the instant, which is *more* than the table shows — fourteen columns leave no
+  and Order End carry the instant, which is *more* than the table shows — fifteen columns leave no
   room for a clock and a file has no such constraint, so the two agree about the moment and the file
   says more of it.
 - **And each of them carries a number format**, taken from §12.4's `DateStyle`. A typed cell with no
@@ -3507,6 +3547,44 @@ carrying the work and 3 of 98 carrying v20's takt.
 _The order is worth naming rather than smoothing over._ §0's rule is a copy, then a backup, then the
 live file; what happened here was the live file first and the evidence gathered nine days later. It
 came out clean, and it came out clean the way an unbelted drive does.
+
+### 16.23 Schema v22, the takt an order opened under
+
+**Three nullable columns on two tables that predate them** — `simulation_run_orders.takt_value` and
+`takt_unit`, and `simulation_run_studies.cadence_ended_at`. Nothing is rebuilt, which is the shape
+§16.19 called safe and the third migration since v19's fold to keep it.
+
+**It is v21's other half.** That column recorded what the work at a step cost; this records *why* two
+orders of one part cost different amounts, which is that they opened under different takts and the
+balance split their group differently for each (§7.9). Recording an effect and leaving its cause to
+be re-derived from a schedule the plant may have retuned is the drift §7.10 exists to prevent, one
+level up — and the cause is what a planner asks for the moment two bars of one part are different
+widths.
+
+**The pair a human reads, not the resolved interval.** The seconds only ever mattered for reproducing
+the cadence, and `simulation_run_studies.release_seconds` still carries those for the study's first
+release. What the order needs to carry is the figure that names its regime.
+
+**`cadence_ended_at` exists because §11.1's warning cannot reach this case.** A study whose takt table
+stops before its sequence does simply leaves the rest unreleased (§7.9.2) — and that warning compares
+the run's *end* against the schedule horizon, so a run that stops releasing early can end before the
+horizon with nothing said, while orders that never opened look exactly like a jammed plant. The count
+is not stored beside it: how many never opened is derivable from the orders, and keeping both would
+let the two describe different sets, which is the call §11.1 made for its own date.
+
+**Nothing is backfilled.** A run made before this used one takt for everything, resolved at a date it
+no longer records, so writing today's schedule onto it would make it assert a cadence it never ran
+at. A pre-v22 run's orders say nothing and its surfaces fall back to the study row, which is the
+takt it did in fact hold throughout.
+
+**No stored run is invalidated** by the migration itself. What *does* stop being comparable is any
+future run of a line whose takt changes inside it — §7.9 moved those releases onto the new cadence,
+and that is the round's own cost rather than this step's.
+
+Met a copy of the real database on 2026-08-27: `user_version` 22, `integrity_check` ok, 39 flow
+nodes, 250 orders, **100 runs and 104,463 run steps** intact, 0 of 100 runs answering the new column
+— correct, since none has been made under it — and 0 studies recording a stopped cadence. Backed up
+first as `flowmap.sqlite.backup-v21-20260827-215250`.
 
 ## 17. Done between M2 and M3
 

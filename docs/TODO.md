@@ -6,14 +6,14 @@ is the source of truth for *what already happened* — the finished rounds, the 
 migration timestamps and the backup filenames.
 
 Branch `m1-m2-foundation`, `flutter analyze` clean, **880 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v21**, and **the live database is at v21 too** —
-v20 met it at 21:59 and v21 at 22:34 on 2026-08-18, both under `dev` builds, both confirmed from
-`log.txt` rather than from anything written down at the time. Backed up and re-checked against a copy
-on 2026-08-27: `flowmap.sqlite.backup-v21-20260827-202158`, `integrity_check` ok, 250 orders, 98 runs
-and 100,463 run steps. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
-found their columns already there, and §7.4 turned out to store nothing at all. **§7 was
-code-complete through §7.8; §7.9 reopens it** — the takt had never once reached a run. **Round one
-is written and undriven, 890 tests**; round two is v22 and four surfaces. M4 is code-complete, and the initial plan has no code left in it —
+and skipped without a database). Schema is at **v22**; the live database is at **v21** and v22 has
+met a copy of it — `integrity_check` ok, 250 orders, 100 runs, 104,463 run steps, backed up first as
+`flowmap.sqlite.backup-v21-20260827-215250`. v20 met the live file at 21:59 and v21 at 22:34 on
+2026-08-18, both under `dev` builds, both confirmed from `log.txt` rather than from anything written
+down at the time. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
+found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
+code-complete again, §7.9 included** — the takt had never once reached a run and now does.
+**892 tests, and §7.9 has not been driven at all.** M4 is code-complete, and the initial plan has no code left in it —
 §3.8 is deferred by decision and everything else in it has landed.
 
 **Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
@@ -1178,7 +1178,7 @@ distrust the next one that does.
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
 | **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, v21 has met the real database, undriven** |
-| **§7.9** | The takt belongs to the order | the takt had never reached a run — **round one written 2026-08-27 and undriven; round two unwritten** |
+| **§7.9** | The takt belongs to the order | the takt had never reached a run — **code-complete 2026-08-27, v22 met a copy of the real database, undriven** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2098,7 +2098,7 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **880
       it is the only thing that checks it.
 - [ ] **es and pt** on the card's new label.
 
-### 7.9 The takt belongs to the order — **round one written 2026-08-27, not driven**
+### 7.9 The takt belongs to the order — **code-complete 2026-08-27, not driven**
 
 *Field: "the gantt chart shows the same process time for a part number on different takt times."*
 
@@ -2326,16 +2326,50 @@ cadence, so lead times, occupation and queue depths all shift. **The fourth time
    August, so the study's first release lands in the **second** takt period. That is the shape of the
    whole round — before it, the first period was unreachable by any run of that study.
 
-2. **v22 and the four surfaces** — the card's takt line, the plan column, the menu label, the stopped
-   -releases warning. **Nothing written.** The engine records **why** a study stopped releasing
-   (`_cadenceEnded`); carrying it out of the result and onto the run is round two's first job.
+2. ~~**v22 and the four surfaces.**~~ **Written 2026-08-27.** `flutter analyze` clean, **892 tests**.
+   Schema **v22**: `simulation_run_orders.takt_value` and `takt_unit`, and
+   `simulation_run_studies.cadence_ended_at`. Three nullable columns, no table rebuilt, written up as
+   **§16.23**. What landed:
+
+   - **The hover card names the order's takt under the work it explains.** `_cardHeight` 186 → 204.
+     Read off the plan by order id, like the project and the description — and held as the raw
+     `(value, unit)` rather than the words, because the facts are gathered in `initState` where no
+     `AppLocalizations` exists yet. That cost a round of red: formatting there threw
+     *"dependOnInheritedWidgetOfExactType was called before initState completed"* across 52 tests.
+   - **The plan takes a fifteenth column**, between Order end and Theoretical LT, and exports it as
+     the same words the screen shows. Float moves one column further right, which §12.6 already
+     names as this table's nearest cliff.
+   - **The menu folds what a run actually opened under** — `4 days`, `4 → 5 days`, or `mixed`.
+     `taktSequences` orders each study's takts by first release and collapses only *consecutive*
+     duplicates, so a run that went 4 → 5 → 4 reads `mixed` rather than claiming a change it never
+     made. A **second query rather than a third join**: the takt is on the orders now, and a run has
+     hundreds of those against a handful of stations.
+   - **A study that stopped opening orders says so by name**, with the date and how many never
+     opened, in the tertiary colour beside the takt line.
+
+   _Where the seam actually was:_ the fold lives in `simulation_runs_repository.dart` rather than in
+   `unit_labels.dart`, because `unit_labels` already imports the repository for `RunQueues` and the
+   reverse would be a cycle. The label itself stays in `unit_labels`, which is what has to be shared.
+
+   **v22 met a copy of the real database** the same evening: `user_version` 22, `integrity_check` ok,
+   250 orders, 100 runs, 104,463 run steps, **0 of 100 runs answering the new column** — correct,
+   since none has been made under it — and 0 studies recording a stopped cadence. Backed up first as
+   `flowmap.sqlite.backup-v21-20260827-215250`. The live file itself is still at v21.
 
 _Rejected: one round._ It moves the engine's core loop **and** rebuilds four surfaces, and a defect
 found at the end could not say which half moved the figure — §16.11 is the record of what that costs.
 _Rejected: four commits driven apart._ The plan column, the menu label and the warning are
 independent of each other and nothing is learned by separating them.
 
-#### Drive round one
+#### Drive it — **nothing below has been looked at**
+
+Both rounds are written, so the two lists below are one sitting. §2.0's rule was to drive between
+them and it was not kept: round two followed round one the same evening. **What that costs is
+stated rather than hidden** — a figure that comes out wrong on the Gantt cannot say whether the
+engine placed it there or the card is reading the wrong column, and the first list is what tells
+those apart.
+
+#### The engine
 
 - [ ] **11D across 1 April.** Two orders of one part, one released either side, must carry different
       work on the hover card. For `P1000216567-13P01`: **76.1 / 117.9** at CLAD06 / CLAD25 before,
@@ -2349,7 +2383,7 @@ independent of each other and nothing is learned by separating them.
       and CEU32 **zero**. That is §6.2.1 working as specified and it must read as a finding on
       screen, not as a bug.
 
-#### Drive round two
+#### The surfaces
 
 - [ ] **The card's takt line against the plan's column**, on the same order, in all three languages.
 - [ ] **The menu tells two runs apart** — one at 4 days, one spanning to 5, sitting in the picker as
@@ -2358,17 +2392,26 @@ independent of each other and nothing is learned by separating them.
       the date and how many orders never opened, and the Gantt must not merely look jammed.
 - [ ] **The plan at fifteen columns**, on screen and in Excel — Float is the column most likely to
       have gone off the right edge (§12.6).
+- [ ] **The card at 204 px**, on the bottom row and at the right-hand edge, which are the two places
+      it has to be pushed back inside. It has grown twice in ten days and nobody has looked at it.
+- [ ] **v22 against the live file itself.** It has met a copy and the live database is still at v21;
+      the app will migrate it on next open, and §0's rule is that the session header's `db.open` line
+      is the only claim a stale link cannot produce. Cite it here.
 
-**DESIGN.md — round one's share is written**, ahead of the drive rather than after it, on §5's
-rule that a design file disagreeing with the tree is worse than one behind it: **§6.2.1** (which takt
-each side balances against, and what the split is keyed on), **§7.2** (rewritten — a takt period says
-how often orders open in it; no takt, no releases; why that is not an empty slot), **§7.10** (the
-study row's takt is its first release's), **§16.10** (what the second assembly pass still settles),
-and **§8**'s constraint 3 corrected — the decision stands, the reading of it did not.
+**DESIGN.md — written, both rounds**, ahead of the drive rather than after it, on §5's rule that a
+design file disagreeing with the tree is worse than one behind it.
 
-**Owed by round two:** **§7.7.2/§7.7.3**, **§8.5.1** and **§12.6** (fourteen columns became
-fifteen), **§8.6** (the card names the takt), **§11.1**'s neighbour (releases stopped for want of a
-schedule), and **§16.23** (schema v22).
+_Round one:_ **§6.2.1** (which takt each side balances against, and what the split is keyed on),
+**§7.2** (rewritten — a takt period says how often orders open in it; no takt, no releases; why that
+is not an empty slot), **§7.10** (the study row's takt is its first release's), **§16.10** (what the
+second assembly pass still settles), and **§8**'s constraint 3 corrected — the decision stands, the
+reading of it did not.
+
+_Round two:_ **§7.3**'s label passage (a run is labelled with its takt *sequence*, and why the menu
+reads the orders rather than a summary), **§8.5.1** (fifteen columns, and why Takt introduces the
+three it explains), **§8.6** (the card names the takt under the work), **§11.1** (the takt is the one
+schedule that does **not** carry forward, and `cadence_ended_at` is why that needs its own record),
+**§12.6** and **§13.1** (fourteen became fifteen), and **§16.23** (schema v22).
 
 ---
 
