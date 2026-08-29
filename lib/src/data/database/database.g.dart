@@ -11552,16 +11552,17 @@ class $PartProcessTimesTable extends PartProcessTimes
       'REFERENCES demand_parts (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _targetIdMeta = const VerificationMeta(
-    'targetId',
-  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
   @override
-  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
-    'target_id',
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES flow_nodes (id) ON DELETE CASCADE',
+    ),
   );
   static const VerificationMeta _secondsMeta = const VerificationMeta(
     'seconds',
@@ -11575,7 +11576,7 @@ class $PartProcessTimesTable extends PartProcessTimes
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [partId, targetId, seconds];
+  List<GeneratedColumn> get $columns => [partId, nodeId, seconds];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -11596,13 +11597,13 @@ class $PartProcessTimesTable extends PartProcessTimes
     } else if (isInserting) {
       context.missing(_partIdMeta);
     }
-    if (data.containsKey('target_id')) {
+    if (data.containsKey('node_id')) {
       context.handle(
-        _targetIdMeta,
-        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_targetIdMeta);
+      context.missing(_nodeIdMeta);
     }
     if (data.containsKey('seconds')) {
       context.handle(
@@ -11616,7 +11617,7 @@ class $PartProcessTimesTable extends PartProcessTimes
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {partId, targetId};
+  Set<GeneratedColumn> get $primaryKey => {partId, nodeId};
   @override
   PartProcessTime map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -11625,9 +11626,9 @@ class $PartProcessTimesTable extends PartProcessTimes
         DriftSqlType.string,
         data['${effectivePrefix}part_id'],
       )!,
-      targetId: attachedDatabase.typeMapping.read(
+      nodeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}target_id'],
+        data['${effectivePrefix}node_id'],
       )!,
       seconds: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -11645,8 +11646,21 @@ class $PartProcessTimesTable extends PartProcessTimes
 class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   final String partId;
 
-  /// The workcenter or pool the step targets.
-  final String targetId;
+  /// The **flow node** whose step this time belongs to (§9).
+  ///
+  /// **Keyed by the step since v24, not by the station it points at.** It was
+  /// the target, and two steps aiming at one workcenter were then two columns
+  /// over one stored value — editing either edited both, and the engine charged
+  /// the same work on each pass. That was written down as right: *"the station
+  /// takes the same time per piece on both passes."* Driving §8.6 overturned
+  /// it. A routing goes back to a machine because the second pass is a
+  /// *different operation* — rough then finish, tack then final weld — and the
+  /// model could not say so.
+  ///
+  /// **A pool still shares, and the rule §3.1 cared about is untouched.** A
+  /// step targeting a pool is one step, so its members go on drawing one time:
+  /// *"a part has one process time at `CNC Lathes`, not four."*
+  final String nodeId;
 
   /// **Per piece**, in canonical seconds (§7.6, §12.4). An order of batch 10
   /// occupies its workcenter for ten times this, which is what makes batch size
@@ -11654,14 +11668,14 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   final int seconds;
   const PartProcessTime({
     required this.partId,
-    required this.targetId,
+    required this.nodeId,
     required this.seconds,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['part_id'] = Variable<String>(partId);
-    map['target_id'] = Variable<String>(targetId);
+    map['node_id'] = Variable<String>(nodeId);
     map['seconds'] = Variable<int>(seconds);
     return map;
   }
@@ -11669,7 +11683,7 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   PartProcessTimesCompanion toCompanion(bool nullToAbsent) {
     return PartProcessTimesCompanion(
       partId: Value(partId),
-      targetId: Value(targetId),
+      nodeId: Value(nodeId),
       seconds: Value(seconds),
     );
   }
@@ -11681,7 +11695,7 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PartProcessTime(
       partId: serializer.fromJson<String>(json['partId']),
-      targetId: serializer.fromJson<String>(json['targetId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
       seconds: serializer.fromJson<int>(json['seconds']),
     );
   }
@@ -11690,21 +11704,21 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'partId': serializer.toJson<String>(partId),
-      'targetId': serializer.toJson<String>(targetId),
+      'nodeId': serializer.toJson<String>(nodeId),
       'seconds': serializer.toJson<int>(seconds),
     };
   }
 
-  PartProcessTime copyWith({String? partId, String? targetId, int? seconds}) =>
+  PartProcessTime copyWith({String? partId, String? nodeId, int? seconds}) =>
       PartProcessTime(
         partId: partId ?? this.partId,
-        targetId: targetId ?? this.targetId,
+        nodeId: nodeId ?? this.nodeId,
         seconds: seconds ?? this.seconds,
       );
   PartProcessTime copyWithCompanion(PartProcessTimesCompanion data) {
     return PartProcessTime(
       partId: data.partId.present ? data.partId.value : this.partId,
-      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
       seconds: data.seconds.present ? data.seconds.value : this.seconds,
     );
   }
@@ -11713,51 +11727,51 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   String toString() {
     return (StringBuffer('PartProcessTime(')
           ..write('partId: $partId, ')
-          ..write('targetId: $targetId, ')
+          ..write('nodeId: $nodeId, ')
           ..write('seconds: $seconds')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(partId, targetId, seconds);
+  int get hashCode => Object.hash(partId, nodeId, seconds);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PartProcessTime &&
           other.partId == this.partId &&
-          other.targetId == this.targetId &&
+          other.nodeId == this.nodeId &&
           other.seconds == this.seconds);
 }
 
 class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
   final Value<String> partId;
-  final Value<String> targetId;
+  final Value<String> nodeId;
   final Value<int> seconds;
   final Value<int> rowid;
   const PartProcessTimesCompanion({
     this.partId = const Value.absent(),
-    this.targetId = const Value.absent(),
+    this.nodeId = const Value.absent(),
     this.seconds = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PartProcessTimesCompanion.insert({
     required String partId,
-    required String targetId,
+    required String nodeId,
     required int seconds,
     this.rowid = const Value.absent(),
   }) : partId = Value(partId),
-       targetId = Value(targetId),
+       nodeId = Value(nodeId),
        seconds = Value(seconds);
   static Insertable<PartProcessTime> custom({
     Expression<String>? partId,
-    Expression<String>? targetId,
+    Expression<String>? nodeId,
     Expression<int>? seconds,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (partId != null) 'part_id': partId,
-      if (targetId != null) 'target_id': targetId,
+      if (nodeId != null) 'node_id': nodeId,
       if (seconds != null) 'seconds': seconds,
       if (rowid != null) 'rowid': rowid,
     });
@@ -11765,13 +11779,13 @@ class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
 
   PartProcessTimesCompanion copyWith({
     Value<String>? partId,
-    Value<String>? targetId,
+    Value<String>? nodeId,
     Value<int>? seconds,
     Value<int>? rowid,
   }) {
     return PartProcessTimesCompanion(
       partId: partId ?? this.partId,
-      targetId: targetId ?? this.targetId,
+      nodeId: nodeId ?? this.nodeId,
       seconds: seconds ?? this.seconds,
       rowid: rowid ?? this.rowid,
     );
@@ -11783,8 +11797,8 @@ class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
     if (partId.present) {
       map['part_id'] = Variable<String>(partId.value);
     }
-    if (targetId.present) {
-      map['target_id'] = Variable<String>(targetId.value);
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
     }
     if (seconds.present) {
       map['seconds'] = Variable<int>(seconds.value);
@@ -11799,7 +11813,7 @@ class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
   String toString() {
     return (StringBuffer('PartProcessTimesCompanion(')
           ..write('partId: $partId, ')
-          ..write('targetId: $targetId, ')
+          ..write('nodeId: $nodeId, ')
           ..write('seconds: $seconds, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -17857,6 +17871,16 @@ class SimulationRunLaneVisit extends DataClass
   /// that says node while holding a workcenter is what made §8.6 invisible:
   /// the key built on it read as "one order queues once per step" and meant
   /// "one order queues once per station".
+  ///
+  /// **On a pre-v19 run this holds a flow node after all**, and the old name
+  /// was right for it. A lane *was* a node until §7.3 moved the queue onto the
+  /// station, so runs made before that recorded the inventory node's id here.
+  /// Observed on the live database at the v23 migration: **31 480 rows across
+  /// 37 runs, all made 2026-08-15 and 16**, against zero in every run since.
+  /// Nothing was rewritten — §7.10 forbids joining a finished run back to a
+  /// plant — so those rows say what they always said under a name that is now
+  /// wrong for them. It is the same shape as [stepNodeId]'s own caveat: an old
+  /// run answers what it can and is read with the build that made it in mind.
   final String targetId;
 
   /// The flow node this stay was waiting *for* (§8.6).
@@ -18419,6 +18443,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'demand_parts',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('part_process_times', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'flow_nodes',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('part_process_times', kind: UpdateKind.delete)],
@@ -28074,6 +28105,26 @@ final class $$FlowNodesTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<$PartProcessTimesTable, List<PartProcessTime>>
+  _partProcessTimesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.partProcessTimes,
+    aliasName: 'flow_nodes__id__part_process_times__node_id',
+  );
+
+  $$PartProcessTimesTableProcessedTableManager get partProcessTimesRefs {
+    final manager = $$PartProcessTimesTableTableManager(
+      $_db,
+      $_db.partProcessTimes,
+    ).filter((f) => f.nodeId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _partProcessTimesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$FlowNodesTableFilterComposer
@@ -28274,6 +28325,31 @@ class $$FlowNodesTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> partProcessTimesRefs(
+    Expression<bool> Function($$PartProcessTimesTableFilterComposer f) f,
+  ) {
+    final $$PartProcessTimesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.partProcessTimes,
+      getReferencedColumn: (t) => t.nodeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartProcessTimesTableFilterComposer(
+            $db: $db,
+            $table: $db.partProcessTimes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -28649,6 +28725,31 @@ class $$FlowNodesTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> partProcessTimesRefs<T extends Object>(
+    Expression<T> Function($$PartProcessTimesTableAnnotationComposer a) f,
+  ) {
+    final $$PartProcessTimesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.partProcessTimes,
+      getReferencedColumn: (t) => t.nodeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartProcessTimesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.partProcessTimes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$FlowNodesTableTableManager
@@ -28664,7 +28765,12 @@ class $$FlowNodesTableTableManager
           $$FlowNodesTableUpdateCompanionBuilder,
           (FlowNode, $$FlowNodesTableReferences),
           FlowNode,
-          PrefetchHooks Function({bool studyId, bool workcenterId, bool poolId})
+          PrefetchHooks Function({
+            bool studyId,
+            bool workcenterId,
+            bool poolId,
+            bool partProcessTimesRefs,
+          })
         > {
   $$FlowNodesTableTableManager(_$AppDatabase db, $FlowNodesTable table)
     : super(
@@ -28802,10 +28908,17 @@ class $$FlowNodesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({studyId = false, workcenterId = false, poolId = false}) {
+              ({
+                studyId = false,
+                workcenterId = false,
+                poolId = false,
+                partProcessTimesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
-                  explicitlyWatchedTables: [],
+                  explicitlyWatchedTables: [
+                    if (partProcessTimesRefs) db.partProcessTimes,
+                  ],
                   addJoins:
                       <
                         T extends TableManagerState<
@@ -28865,7 +28978,29 @@ class $$FlowNodesTableTableManager
                         return state;
                       },
                   getPrefetchedDataCallback: (items) async {
-                    return [];
+                    return [
+                      if (partProcessTimesRefs)
+                        await $_getPrefetchedData<
+                          FlowNode,
+                          $FlowNodesTable,
+                          PartProcessTime
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FlowNodesTableReferences
+                              ._partProcessTimesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FlowNodesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).partProcessTimesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.nodeId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
                 );
               },
@@ -28885,7 +29020,12 @@ typedef $$FlowNodesTableProcessedTableManager =
       $$FlowNodesTableUpdateCompanionBuilder,
       (FlowNode, $$FlowNodesTableReferences),
       FlowNode,
-      PrefetchHooks Function({bool studyId, bool workcenterId, bool poolId})
+      PrefetchHooks Function({
+        bool studyId,
+        bool workcenterId,
+        bool poolId,
+        bool partProcessTimesRefs,
+      })
     >;
 typedef $$FlowAnnotationsTableCreateCompanionBuilder =
     FlowAnnotationsCompanion Function({
@@ -29813,14 +29953,14 @@ typedef $$DemandPartsTableProcessedTableManager =
 typedef $$PartProcessTimesTableCreateCompanionBuilder =
     PartProcessTimesCompanion Function({
       required String partId,
-      required String targetId,
+      required String nodeId,
       required int seconds,
       Value<int> rowid,
     });
 typedef $$PartProcessTimesTableUpdateCompanionBuilder =
     PartProcessTimesCompanion Function({
       Value<String> partId,
-      Value<String> targetId,
+      Value<String> nodeId,
       Value<int> seconds,
       Value<int> rowid,
     });
@@ -29850,6 +29990,23 @@ final class $$PartProcessTimesTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static $FlowNodesTable _nodeIdTable(_$AppDatabase db) =>
+      db.flowNodes.createAlias('part_process_times__node_id__flow_nodes__id');
+
+  $$FlowNodesTableProcessedTableManager get nodeId {
+    final $_column = $_itemColumn<String>('node_id')!;
+
+    final manager = $$FlowNodesTableTableManager(
+      $_db,
+      $_db.flowNodes,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_nodeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 }
 
 class $$PartProcessTimesTableFilterComposer
@@ -29861,11 +30018,6 @@ class $$PartProcessTimesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get seconds => $composableBuilder(
     column: $table.seconds,
     builder: (column) => ColumnFilters(column),
@@ -29893,6 +30045,29 @@ class $$PartProcessTimesTableFilterComposer
     );
     return composer;
   }
+
+  $$FlowNodesTableFilterComposer get nodeId {
+    final $$FlowNodesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.flowNodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlowNodesTableFilterComposer(
+            $db: $db,
+            $table: $db.flowNodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartProcessTimesTableOrderingComposer
@@ -29904,11 +30079,6 @@ class $$PartProcessTimesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get seconds => $composableBuilder(
     column: $table.seconds,
     builder: (column) => ColumnOrderings(column),
@@ -29936,6 +30106,29 @@ class $$PartProcessTimesTableOrderingComposer
     );
     return composer;
   }
+
+  $$FlowNodesTableOrderingComposer get nodeId {
+    final $$FlowNodesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.flowNodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlowNodesTableOrderingComposer(
+            $db: $db,
+            $table: $db.flowNodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartProcessTimesTableAnnotationComposer
@@ -29947,9 +30140,6 @@ class $$PartProcessTimesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get targetId =>
-      $composableBuilder(column: $table.targetId, builder: (column) => column);
-
   GeneratedColumn<int> get seconds =>
       $composableBuilder(column: $table.seconds, builder: (column) => column);
 
@@ -29975,6 +30165,29 @@ class $$PartProcessTimesTableAnnotationComposer
     );
     return composer;
   }
+
+  $$FlowNodesTableAnnotationComposer get nodeId {
+    final $$FlowNodesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.flowNodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlowNodesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.flowNodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartProcessTimesTableTableManager
@@ -29990,7 +30203,7 @@ class $$PartProcessTimesTableTableManager
           $$PartProcessTimesTableUpdateCompanionBuilder,
           (PartProcessTime, $$PartProcessTimesTableReferences),
           PartProcessTime,
-          PrefetchHooks Function({bool partId})
+          PrefetchHooks Function({bool partId, bool nodeId})
         > {
   $$PartProcessTimesTableTableManager(
     _$AppDatabase db,
@@ -30008,24 +30221,24 @@ class $$PartProcessTimesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> partId = const Value.absent(),
-                Value<String> targetId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
                 Value<int> seconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PartProcessTimesCompanion(
                 partId: partId,
-                targetId: targetId,
+                nodeId: nodeId,
                 seconds: seconds,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String partId,
-                required String targetId,
+                required String nodeId,
                 required int seconds,
                 Value<int> rowid = const Value.absent(),
               }) => PartProcessTimesCompanion.insert(
                 partId: partId,
-                targetId: targetId,
+                nodeId: nodeId,
                 seconds: seconds,
                 rowid: rowid,
               ),
@@ -30037,7 +30250,7 @@ class $$PartProcessTimesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({partId = false}) {
+          prefetchHooksCallback: ({partId = false, nodeId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -30072,6 +30285,21 @@ class $$PartProcessTimesTableTableManager
                               )
                               as T;
                     }
+                    if (nodeId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.nodeId,
+                                referencedTable:
+                                    $$PartProcessTimesTableReferences
+                                        ._nodeIdTable(db),
+                                referencedColumn:
+                                    $$PartProcessTimesTableReferences
+                                        ._nodeIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
 
                     return state;
                   },
@@ -30096,7 +30324,7 @@ typedef $$PartProcessTimesTableProcessedTableManager =
       $$PartProcessTimesTableUpdateCompanionBuilder,
       (PartProcessTime, $$PartProcessTimesTableReferences),
       PartProcessTime,
-      PrefetchHooks Function({bool partId})
+      PrefetchHooks Function({bool partId, bool nodeId})
     >;
 typedef $$DemandOrdersTableCreateCompanionBuilder =
     DemandOrdersCompanion Function({

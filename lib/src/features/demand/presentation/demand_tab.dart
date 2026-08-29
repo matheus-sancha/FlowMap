@@ -257,9 +257,12 @@ class _PartsGrid extends ConsumerWidget {
     if (column == _totalColumn) {
       return formatDurationInput(table.totalFor(part.id));
     }
+    // **By the node, not the target** (§9). Passing the target compiles and
+    // returns null, so every cell would read blank and every part would show
+    // as uncosted — which is what this looked like before the key was fixed.
     final time = table.timeFor(
       part.id,
-      table.columns[column - firstStepColumn].targetId,
+      table.columns[column - firstStepColumn].nodeId,
     );
     // Blank, not `00:00:00` — a part that skips a step has no time here, and
     // the two must not look alike (§5.1).

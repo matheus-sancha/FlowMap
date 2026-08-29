@@ -487,8 +487,22 @@ class PartProcessTimes extends Table {
   TextColumn get partId =>
       text().references(DemandParts, #id, onDelete: KeyAction.cascade)();
 
-  /// The workcenter or pool the step targets.
-  TextColumn get targetId => text()();
+  /// The **flow node** whose step this time belongs to (§9).
+  ///
+  /// **Keyed by the step since v24, not by the station it points at.** It was
+  /// the target, and two steps aiming at one workcenter were then two columns
+  /// over one stored value — editing either edited both, and the engine charged
+  /// the same work on each pass. That was written down as right: *"the station
+  /// takes the same time per piece on both passes."* Driving §8.6 overturned
+  /// it. A routing goes back to a machine because the second pass is a
+  /// *different operation* — rough then finish, tack then final weld — and the
+  /// model could not say so.
+  ///
+  /// **A pool still shares, and the rule §3.1 cared about is untouched.** A
+  /// step targeting a pool is one step, so its members go on drawing one time:
+  /// *"a part has one process time at `CNC Lathes`, not four."*
+  TextColumn get nodeId =>
+      text().references(FlowNodes, #id, onDelete: KeyAction.cascade)();
 
   /// **Per piece**, in canonical seconds (§7.6, §12.4). An order of batch 10
   /// occupies its workcenter for ten times this, which is what makes batch size
@@ -496,7 +510,7 @@ class PartProcessTimes extends Table {
   IntColumn get seconds => integer()();
 
   @override
-  Set<Column<Object>> get primaryKey => {partId, targetId};
+  Set<Column<Object>> get primaryKey => {partId, nodeId};
 }
 
 /// One order in the sequence under study (DESIGN.md §7.2, §7.6).

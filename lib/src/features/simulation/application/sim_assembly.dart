@@ -198,7 +198,10 @@ SimStudy? assembleSimStudy({
               poolName: resources.poolNames[node.poolId],
             ),
             candidates: candidates,
-            demandKey: demandTargetOf(node)!,
+            // **The node, since §9** — a process time belongs to the step
+            // rather than to the station, so two steps on one workcenter cost
+            // what each of them was given.
+            demandKey: node.id,
             // **The queue of what this step targets**, shared with every other
             // step naming it. Absent means nobody has set one, which is an
             // uncapped FIFO — what a shop floor does, and what every lane was

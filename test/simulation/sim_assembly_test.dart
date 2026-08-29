@@ -30,7 +30,12 @@ void main() {
     int changeover = 0,
     bool? pinned,
   }) => FlowNode(
-    id: 'node-$position',
+    // **The station's own id, since §9.** A process time is keyed by the flow
+    // node now, so these fixtures would otherwise have to restate every
+    // `processTimes` map as node positions and stop reading as a routing.
+    // Giving the node the id of what it targets keeps them legible and keeps
+    // what they are about — assembly, takt and balance — in view.
+    id: workcenterId ?? poolId ?? 'node-$position',
     studyId: 'study-1',
     position: position,
     kind: FlowNodeKind.step,

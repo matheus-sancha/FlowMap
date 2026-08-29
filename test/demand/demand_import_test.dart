@@ -313,9 +313,9 @@ void main() {
       final plan = planPartsImport(rows: rows, table: table);
       expect(plan.parts.single.partNumber, 'PN1');
       expect(plan.parts.single.description, 'Housing');
-      expect(plan.times.map((t) => (t.targetId, t.time)), [
-        ('wc-1', const Duration(hours: 55)),
-        ('wc-2', const Duration(hours: 3)),
+      expect(plan.times.map((t) => (t.nodeId, t.time)), [
+        ('node-0', const Duration(hours: 55)),
+        ('node-1', const Duration(hours: 3)),
       ]);
     });
 
@@ -337,9 +337,9 @@ void main() {
       final plan = planPartsImport(rows: rows, table: table);
       // No PartWrite at all: the description was not mentioned, so it stands.
       expect(plan.parts, isEmpty);
-      expect(plan.times.single.targetId, 'wc-1');
+      expect(plan.times.single.nodeId, 'node-0');
       // And nothing asks TTAT to be cleared.
-      expect(plan.times.map((t) => t.targetId), isNot(contains('wc-2')));
+      expect(plan.times.map((t) => t.nodeId), isNot(contains('node-1')));
     });
 
     test('a blocked row contributes nothing', () {

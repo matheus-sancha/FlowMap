@@ -459,13 +459,16 @@ DemandPartsPlan planPartsImport({
     }
 
     for (var c = 0; c < table.columns.length; c++) {
-      final targetId = table.columns[c].targetId;
+      final column = table.columns[c];
       final raw = row.cell(firstStepColumn + c);
-      if (targetId == null || raw == null) continue;
+      // **Still gated on the target, and written against the node** (§9). An
+      // unbound step has nothing to run the work on, so its column stays
+      // read-only (§11) — but what a time is keyed by is the step itself.
+      if (column.targetId == null || raw == null) continue;
       final parsed = parseDurationInput(raw);
       if (parsed == null) continue;
       times.add(
-        PartTimeWrite(partKey: partKey, targetId: targetId, time: parsed),
+        PartTimeWrite(partKey: partKey, nodeId: column.nodeId, time: parsed),
       );
     }
   }

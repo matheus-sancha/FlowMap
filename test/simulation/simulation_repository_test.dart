@@ -113,21 +113,27 @@ void main() {
       name: name,
     );
     final steps = targets ?? [cladId, millId];
+    // **The ids the steps came back with**, because §9 keys a process time by
+    // the node rather than by the station it points at - and the foreign key
+    // refuses a workcenter id standing in for one.
+    final stepIds = <String>[];
     for (var i = 0; i < steps.length; i++) {
-      await studies.insertStep(
-        studyId: studyId,
-        atPosition: i,
-        workcenterId: steps[i],
+      stepIds.add(
+        await studies.insertStep(
+          studyId: studyId,
+          atPosition: i,
+          workcenterId: steps[i],
+        ),
       );
     }
     final partId = await demand.createPart(
       studyId: studyId,
       partNumber: 'PN1',
     );
-    for (final target in steps) {
+    for (final stepId in stepIds) {
       await demand.setProcessTime(
         partId: partId,
-        targetId: target,
+        nodeId: stepId,
         time: const Duration(hours: 2),
       );
     }
@@ -259,12 +265,18 @@ void main() {
       productionLineId: lineId,
       name: 'With the pool',
     );
-    await studies.insertStep(studyId: studyId, atPosition: 0, poolId: poolId);
+    final poolStep = await studies.insertStep(
+      studyId: studyId,
+      atPosition: 0,
+      poolId: poolId,
+    );
     final partId = await demand.createPart(studyId: studyId, partNumber: 'PN1');
-    // Keyed by the **pool**, never a member standing in for it (§9).
+    // **Keyed by the step, and the step targets the pool** — so the members
+    // still share one time, which is the rule §3.1 cared about and which §9
+    // left standing: a part has one process time at a pool, not one per lathe.
     await demand.setProcessTime(
       partId: partId,
-      targetId: poolId,
+      nodeId: poolStep,
       time: const Duration(hours: 2),
     );
     await demand.createOrder(
@@ -281,7 +293,12 @@ void main() {
     final step = input.studies.single.steps.single;
     expect(step.isPool, isTrue);
     expect(step.candidates, unorderedEquals([lathe1, lathe2]));
-    expect(step.demandKey, poolId);
+    // **The step, not the pool** (§9). What the members share is the step
+    // that targets them; the key is the node, and `poolId` is what that node
+    // points at — which is why a part still has one time here rather than one
+    // per lathe.
+    expect(step.demandKey, poolStep);
+    expect(step.poolId, poolId);
   });
 
   test('an unbound step blocks the run and names the study', () async {
@@ -409,7 +426,7 @@ void main() {
       productionLineId: lineId,
       name: 'Current state',
     );
-    await studies.insertStep(
+    final cladStep = await studies.insertStep(
       studyId: studyId,
       atPosition: 0,
       workcenterId: cladId,
@@ -419,7 +436,7 @@ void main() {
     // comfortably inside the earlier period rather than a few hours before it.
     await demand.setProcessTime(
       partId: partId,
-      targetId: cladId,
+      nodeId: cladStep,
       time: const Duration(hours: 400),
     );
     await demand.createOrder(

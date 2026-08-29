@@ -212,20 +212,34 @@ SummaryView buildSummary({
     final first = steps.first;
     final rework = first.rework ?? 0;
 
+    // **Summed over the visits, not multiplied by them** (§9). A stored time
+    // used to belong to the station, so one figure times the number of steps
+    // was the whole of a part's work here. Since v24 each visit carries its
+    // own, and a routing that goes back to a machine for a *different*
+    // operation — rough then finish — is exactly the case that made the
+    // multiplication wrong.
     var work = Duration.zero;
     var missing = 0;
     final seenWithoutTime = <String>{};
     for (final order in inPeriod) {
-      final stored = demand.times[order.partId]?[targetId];
-      if (stored == null) {
-        if (seenWithoutTime.add(order.partId)) missing++;
-        continue;
+      var orderWork = Duration.zero;
+      var costedEvery = true;
+      for (final step in steps) {
+        final stored = demand.times[order.partId]?[step.node.id];
+        if (stored == null) {
+          costedEvery = false;
+          continue;
+        }
+        orderWork +=
+            Duration(seconds: (stored.inSeconds * (1 + rework)).round()) *
+            order.batchSize;
       }
-      work +=
-          Duration(
-            seconds: (stored.inSeconds * (1 + rework)).round(),
-          ) *
-          (order.batchSize * steps.length);
+      // **A part is reported once if any of its visits is uncosted**, not only
+      // when all of them are: a second pass nobody has typed a time for is
+      // §11's blocking error just as much as a first, and the hours below are
+      // an understatement until it is filled in.
+      if (!costedEvery && seenWithoutTime.add(order.partId)) missing++;
+      work += orderWork;
     }
 
     // A changeover per visit, charged in full when the part differs from the
@@ -240,7 +254,10 @@ SummaryView buildSummary({
     var repeats = 0;
     String? previousPart;
     for (final order in orders) {
-      if (demand.times[order.partId]?[targetId] == null) continue;
+      // Does this order come here at all? Any costed visit says yes (§9).
+      if (steps.every((s) => demand.times[order.partId]?[s.node.id] == null)) {
+        continue;
+      }
       if (dueInPeriod(order)) {
         if (previousPart == order.partId) {
           repeats++;
@@ -320,7 +337,7 @@ DemandTaktView? _demandTakt({
     if (yardstick == 0) break;
     var work = 0.0;
     for (final column in demand.columns) {
-      final stored = demand.timeFor(order.partId, column.targetId);
+      final stored = demand.timeFor(order.partId, column.nodeId);
       if (stored != null) work += stored.inSeconds;
     }
     equivalents += work / yardstick * order.batchSize;

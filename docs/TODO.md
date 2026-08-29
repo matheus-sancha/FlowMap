@@ -2424,7 +2424,7 @@ is intermittent rather than fixed — nothing in §8 touched it.
 
 ---
 
-## 9. Round nine — a process time belongs to a step
+## 9. Round nine — a process time belongs to a step — **code-complete 2026-08-29, not driven**
 
 **Promoted out of §8 on 2026-08-29, before it was built.** It was found by driving §8.6 and started
 as §8.10; writing the schema showed it reaching the demand repository, study duplication, the MM3
@@ -2528,7 +2528,40 @@ Duration>>`, so a lookup by the wrong id compiles and returns null — a part si
 than a build failure. **Every site has to be visited deliberately**, and the readiness panel is the
 check that would notice: a part with no time at a step it must visit is a blocking error (§11).
 
-### 9.4 Drive it
+### 9.4 What landed
+
+**Code-complete 2026-08-29. `flutter analyze` clean, 940 passing** where there were 935.
+
+Everything §9.3 predicted it would reach, it reached — and **one thing it did not**, which is the
+entry worth reading:
+
+**`summary_view` was multiplying, not summing.** A target's work was `one stored time × the number
+of steps that point at it`, which is exactly right while the two visits share a value and exactly
+wrong the moment they can differ. It sums the visits now. **Nothing in the analyzer could have found
+it** and no test named it either — the fixture that caught it was a summary test whose two passes
+happened to be over one station, and it failed by reading zero rather than by reading wrong.
+
+**A part is reported uncosted if *any* of its visits has no time**, not only when all of them do. A
+second pass nobody has typed a figure for is §11's blocking error just as much as a first, and the
+hours are an understatement until it is filled in.
+
+**`Mm3Step` carries both ids and uses each for its own question**: the time is read by the node, the
+work is summed by the station. Two visits to one machine add up on its MM3 column rather than
+competing for it.
+
+**The compiler found seven files and missed four.** `demand_repository`, `studies_repository`,
+`PartTimeWrite`, `ProcessTimeEdit`, `demand_import`, `demand_paste` and `Mm3Step` all failed to
+build. `DemandTable`'s four call sites, `demand_tab`'s cell reader, `summary_view`'s aggregation and
+`mm3`'s two lookups did not — they take untyped map keys, so they compiled and returned null. **Every
+one of those four was found by a test failing, not by the analyzer**, which is what §9.3 warned and
+is the reason to keep that warning where it is.
+
+_Tests:_ four for the migration — the backfill, a station used twice becoming two cells at one value,
+the 8-row drop, and the new key holding two different figures. Plus `demand_repository_test` now
+builds real steps for its times to belong to, and the study-duplication test asserts the copy's times
+key by the **copy's** nodes rather than by two literals.
+
+### 9.5 Drive it
 
 - [ ] **A study with a station twice**, two different times typed, and the run charging each pass its
       own. Célula 11D was left in exactly that shape while this was investigated — **an extra CEU30

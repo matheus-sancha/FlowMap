@@ -20,6 +20,14 @@ void main() {
   late String workcenterA;
   late String workcenterB;
 
+  /// The flow steps those two workcenters are reached through.
+  ///
+  /// **A process time is keyed by the step since §9**, not by the station, so a
+  /// study with no flow has nowhere to hang one — and the foreign key says so
+  /// rather than letting a workcenter id stand in and look self-consistent.
+  late String stepA;
+  late String stepB;
+
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     resources = ResourcesRepository(db);
@@ -51,6 +59,16 @@ void main() {
       productionLineId: lineId,
       name: 'Current state',
     );
+    stepA = await studies.insertStep(
+      studyId: studyId,
+      atPosition: 0,
+      workcenterId: workcenterA,
+    );
+    stepB = await studies.insertStep(
+      studyId: studyId,
+      atPosition: 1,
+      workcenterId: workcenterB,
+    );
   });
 
   tearDown(() => db.close());
@@ -63,17 +81,17 @@ void main() {
       );
       await demand.setProcessTime(
         partId: partId,
-        targetId: workcenterA,
+        nodeId: stepA,
         time: const Duration(hours: 55),
       );
       expect(
         (await demand.watchProcessTimes(studyId).first)[partId],
-        {workcenterA: const Duration(hours: 55)},
+        {stepA: const Duration(hours: 55)},
       );
 
       await demand.setProcessTime(
         partId: partId,
-        targetId: workcenterA,
+        nodeId: stepA,
         time: null,
       );
 
@@ -92,19 +110,19 @@ void main() {
       await demand.setProcessTimes([
         ProcessTimeEdit(
           partId: partId,
-          targetId: workcenterA,
+          nodeId: stepA,
           time: const Duration(hours: 10),
         ),
         ProcessTimeEdit(
           partId: partId,
-          targetId: workcenterA,
+          nodeId: stepA,
           time: const Duration(hours: 12),
         ),
       ]);
 
       expect(
         (await demand.watchProcessTimes(studyId).first)[partId],
-        {workcenterA: const Duration(hours: 12)},
+        {stepA: const Duration(hours: 12)},
       );
     });
 
@@ -125,12 +143,12 @@ void main() {
       );
       await demand.setProcessTime(
         partId: mine,
-        targetId: workcenterA,
+        nodeId: stepA,
         time: const Duration(hours: 1),
       );
       await demand.setProcessTime(
         partId: theirs,
-        targetId: workcenterA,
+        nodeId: stepA,
         time: const Duration(hours: 2),
       );
 
@@ -228,12 +246,12 @@ void main() {
     await demand.setProcessTimes([
       ProcessTimeEdit(
         partId: pn1,
-        targetId: workcenterA,
+        nodeId: stepA,
         time: const Duration(hours: 55),
       ),
       ProcessTimeEdit(
         partId: pn1,
-        targetId: workcenterB,
+        nodeId: stepB,
         time: const Duration(hours: 3),
       ),
     ]);
@@ -255,9 +273,24 @@ void main() {
       reason: 'a scenario is re-sequenced without disturbing the original',
     );
 
-    expect((await demand.watchProcessTimes(copyId).first)[copiedParts.single.id], {
-      workcenterA: const Duration(hours: 55),
-      workcenterB: const Duration(hours: 3),
+    // **Keyed by the copy's own steps, not by the original's** (§9). This is
+    // the trap that made §9 a round rather than a rename: a process time
+    // belongs to a node, `duplicateStudy` gives every copied node a fresh id,
+    // and a copy that carried the source's ids would hang every time off the
+    // original study's steps. Nothing would fail to compile and nothing would
+    // throw — `watchProcessTimes` returns a map of untyped keys, so the copy
+    // would simply read uncosted and the readiness panel would name every part.
+    //
+    // Asserted against the copy's nodes rather than against two literals, so it
+    // says *whose* steps rather than only that the times survived.
+    final copiedNodes = await studies.loadNodes(copyId);
+    expect(copiedNodes.map((n) => n.id), isNot(contains(stepA)));
+
+    final copiedTimes =
+        (await demand.watchProcessTimes(copyId).first)[copiedParts.single.id]!;
+    expect(copiedTimes, {
+      copiedNodes[0].id: const Duration(hours: 55),
+      copiedNodes[1].id: const Duration(hours: 3),
     });
 
     final copiedOrders = await demand.loadOrders(copyId);
@@ -277,7 +310,7 @@ void main() {
     );
     await demand.setProcessTime(
       partId: partId,
-      targetId: workcenterA,
+      nodeId: stepA,
       time: const Duration(hours: 1),
     );
     await demand.createOrder(
@@ -382,7 +415,7 @@ void main() {
     );
     await demand.setProcessTime(
       partId: partId,
-      targetId: workcenterA,
+      nodeId: stepA,
       time: const Duration(hours: 5),
     );
     for (var i = 0; i < 3; i++) {

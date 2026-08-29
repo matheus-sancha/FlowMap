@@ -1076,6 +1076,15 @@ void main() {
           "VALUES ('part-c', 'study-1', 'PN5', '', $now, $now)",
         )
         ..execute(
+          // **A step for the times to belong to.** §9 keys a process time by
+          // its flow node, and the v24 migration joins through the part's own
+          // study to find one — a time whose target has no step is dropped,
+          // which would have taken both of these with it.
+          'INSERT INTO flow_nodes (id, study_id, position, kind, '
+          'workcenter_id, created_at, updated_at) '
+          "VALUES ('node-1', 'study-1', 0, 'step', 'wc-1', $now, $now)",
+        )
+        ..execute(
           'INSERT INTO part_process_times (part_id, target_id, seconds) '
           "VALUES ('part-a', 'wc-1', 14400)",
         )
@@ -2381,6 +2390,134 @@ void main() {
       );
       final rows = await db.select(db.simulationRunLaneVisits).get();
       expect(rows.where((r) => r.orderId == 'o0').length, 2);
+      await db.close();
+    });
+  });
+
+  group('v23 to v24: a process time belongs to a step (§9)', () {
+    /// Regresses `part_process_times` to its v23 shape and stamps the version,
+    /// so the v24 step runs against what it will actually meet.
+    ///
+    /// [steps] are `(nodeId, targetId)` pairs inserted into one study, and
+    /// [times] are `(partId, targetId)` rows in the old shape.
+    Future<File> v23With({
+      required List<(String, String)> steps,
+      required List<(String, String, int)> times,
+    }) async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement(
+        "INSERT INTO studies (id, project_id, production_cell_id, "
+        "production_line_id, name, created_at, updated_at) VALUES "
+        "('study-1', 'proj-1', 'cell-1', 'line-1', 'S', $now, $now)",
+      );
+      for (final (i, (nodeId, targetId)) in steps.indexed) {
+        await fresh.customStatement(
+          "INSERT INTO flow_nodes (id, study_id, position, kind, "
+          "workcenter_id, created_at, updated_at) VALUES "
+          "('$nodeId', 'study-1', $i, 'step', '$targetId', $now, $now)",
+        );
+      }
+      for (final (partId, _, _) in times.toSet()) {
+        await fresh.customStatement(
+          "INSERT OR IGNORE INTO demand_parts (id, study_id, part_number, "
+          "created_at, updated_at) VALUES "
+          "('$partId', 'study-1', '$partId', $now, $now)",
+        );
+      }
+      await fresh.close();
+
+      final raw = sqlite3.open(file.path)
+        ..execute('DROP TABLE part_process_times')
+        ..execute('''
+          CREATE TABLE part_process_times (
+            part_id TEXT NOT NULL REFERENCES demand_parts (id)
+              ON DELETE CASCADE,
+            target_id TEXT NOT NULL,
+            seconds INTEGER NOT NULL,
+            PRIMARY KEY (part_id, target_id))
+        ''');
+      for (final (partId, targetId, seconds) in times) {
+        raw.execute(
+          "INSERT INTO part_process_times VALUES "
+          "('$partId', '$targetId', $seconds)",
+        );
+      }
+      raw
+        ..execute('PRAGMA user_version = 23')
+        ..close();
+      return file;
+    }
+
+    test('a time follows its target onto the step that points there', () async {
+      final file = await v23With(
+        steps: [('node-1', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(rows.single.nodeId, 'node-1');
+      expect(rows.single.seconds, 7200);
+      await db.close();
+    });
+
+    test('a station used twice becomes two cells at the same value', () async {
+      // **What the round is for.** They start equal, so nothing about today's
+      // numbers changes — and they can now diverge, which is what a routing
+      // revisit means.
+      final file = await v23With(
+        steps: [('node-1', 'wc-1'), ('node-2', 'wc-2'), ('node-3', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200), ('part-a', 'wc-2', 3600)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(rows.length, 3, reason: 'two rows became three');
+      expect(
+        {for (final r in rows) r.nodeId: r.seconds},
+        {'node-1': 7200, 'node-3': 7200, 'node-2': 3600},
+      );
+      await db.close();
+    });
+
+    test('a time whose target has no step is dropped', () async {
+      // The only step in this file that removes anything. On the live database
+      // it was 8 rows of 279 — left behind when a step was deleted or
+      // repointed after somebody had typed a time, already drawn by no column
+      // and read by no run.
+      final file = await v23With(
+        steps: [('node-1', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200), ('part-a', 'wc-9', 999)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(rows.map((r) => r.nodeId), ['node-1']);
+      await db.close();
+    });
+
+    test('the new key admits what the old one could not hold', () async {
+      // Two visits, two different times — impossible under v23, where the two
+      // steps shared one row keyed by the station.
+      final file = await v23With(
+        steps: [('node-1', 'wc-1'), ('node-2', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      await db.customStatement(
+        "UPDATE part_process_times SET seconds = 1800 "
+        "WHERE node_id = 'node-2'",
+      );
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(
+        {for (final r in rows) r.nodeId: r.seconds},
+        {'node-1': 7200, 'node-2': 1800},
+        reason: 'the second pass is charged its own work',
+      );
       await db.close();
     });
   });

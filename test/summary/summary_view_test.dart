@@ -159,7 +159,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [
@@ -185,7 +185,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'TTAT': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [
@@ -221,7 +221,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [order('o0', 0, 'p1')],
@@ -244,7 +244,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 100)},
+            'p1': {'node-0': const Duration(hours: 100)},
           },
         ),
         orders: [order('o0', 0, 'p1')],
@@ -266,7 +266,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 1)},
+            'p1': {'node-0': const Duration(hours: 1)},
           },
         ),
         orders: [order('o0', 0, 'p1', batch: 10)],
@@ -285,7 +285,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [
@@ -321,8 +321,12 @@ void main() {
           ],
           times: {
             'p1': {
-              'CLAD04': const Duration(hours: 10),
-              'TTAT': const Duration(hours: 1),
+              // **Two passes, and since §9 they may cost different amounts.**
+              // Twelve and eight rather than ten twice, so the total could not
+              // come out right by doubling either one of them.
+              'node-0': const Duration(hours: 12),
+              'node-1': const Duration(hours: 1),
+              'node-2': const Duration(hours: 8),
             },
           },
         ),
@@ -331,7 +335,7 @@ void main() {
 
       final clad = summary.targets.firstWhere((t) => t.targetId == 'CLAD04');
       expect(clad.visits, 2);
-      // One machine, two passes: 20 hours against one set of 310.
+      // One machine, two passes, each charged its own work.
       expect(clad.work, const Duration(hours: 20));
       expect(summary.bottleneck?.title, 'CLAD04');
     });
@@ -353,8 +357,8 @@ void main() {
           ],
           times: {
             'p1': {
-              'OPEN': const Duration(hours: 10),
-              'SHUT': const Duration(hours: 10),
+              'node-0': const Duration(hours: 10),
+              'node-1': const Duration(hours: 10),
             },
           },
         ),
@@ -378,7 +382,7 @@ void main() {
           parts: [part('p1', 'PN1'), part('p2', 'PN2')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [order('o0', 0, 'p1'), order('o1', 1, 'p2')],
@@ -410,8 +414,8 @@ void main() {
           parts: [part('p1', 'PN1'), part('p2', 'PN2')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 1)},
-            'p2': {'CLAD04': const Duration(hours: 1)},
+            'p1': {'node-0': const Duration(hours: 1)},
+            'p2': {'node-0': const Duration(hours: 1)},
           },
         ),
         orders: [
@@ -458,8 +462,8 @@ void main() {
           parts: [part('p1', 'PN1'), part('p2', 'PN2')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 1)},
-            'p2': {'CLAD04': const Duration(hours: 1)},
+            'p1': {'node-0': const Duration(hours: 1)},
+            'p2': {'node-0': const Duration(hours: 1)},
           },
         ),
         orders: [
@@ -487,7 +491,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 310)},
+            'p1': {'node-0': const Duration(hours: 310)},
           },
         ),
         orders: [order('o0', 0, 'p1')],
@@ -514,8 +518,8 @@ void main() {
           times: {
             // The takt is one day = 10 productive hours here, so PN1 is worth
             // one equivalent and PN2 three.
-            'p1': {'CLAD04': const Duration(hours: 10)},
-            'p2': {'CLAD04': const Duration(hours: 30)},
+            'p1': {'node-0': const Duration(hours: 10)},
+            'p2': {'node-0': const Duration(hours: 30)},
           },
         ),
         orders: [order('o0', 0, 'p1'), order('o1', 1, 'p2')],
@@ -544,7 +548,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [order('o0', 0, 'p1', month: 9)],
@@ -618,7 +622,9 @@ void main() {
             ),
           ],
           times: {
-            'p1': {'pool-1': const Duration(hours: 310)},
+            // Keyed by the step, and the step targets the pool - so the two
+            // lathes still share one time (§3.1, §9).
+            'p1': {'node-0': const Duration(hours: 310)},
           },
         ),
         orders: [order('o0', 0, 'p1')],

@@ -78,14 +78,14 @@ void main() {
       expect(plan.parts.last.description, isNull);
 
       expect(
-        plan.times.map((t) => (t.partKey, t.targetId, t.time)),
+        plan.times.map((t) => (t.partKey, t.nodeId, t.time)),
         [
-          (partKeyOf('PN1'), 'wc-1', const Duration(hours: 55)),
-          (partKeyOf('PN1'), 'wc-2', const Duration(hours: 3)),
-          (partKeyOf('PN2'), 'wc-1', const Duration(hours: 8)),
+          (partKeyOf('PN1'), 'node-0', const Duration(hours: 55)),
+          (partKeyOf('PN1'), 'node-1', const Duration(hours: 3)),
+          (partKeyOf('PN2'), 'node-0', const Duration(hours: 8)),
           // Blank in the middle of a pasted row means "skips this step", and
           // says so explicitly rather than being dropped (§5.1).
-          (partKeyOf('PN2'), 'wc-2', null),
+          (partKeyOf('PN2'), 'node-1', null),
         ],
       );
     });
@@ -184,7 +184,7 @@ void main() {
         ],
       );
 
-      expect(plan.times.map((t) => t.targetId), ['wc-2']);
+      expect(plan.times.map((t) => t.nodeId), ['node-1']);
     });
 
     test('an emptied time cell clears it', () {
@@ -221,7 +221,7 @@ void main() {
         ],
       );
 
-      expect(plan.times.map((t) => t.targetId), ['wc-2']);
+      expect(plan.times.map((t) => t.nodeId), ['node-1']);
     });
 
     test('a block anchored past the last column stops at the edge', () {
@@ -236,8 +236,8 @@ void main() {
 
       // The second value falls on the read-only Total column and is dropped
       // rather than wrapping onto the next row.
-      expect(plan.times.map((t) => (t.targetId, t.time)), [
-        ('wc-2', const Duration(hours: 3)),
+      expect(plan.times.map((t) => (t.nodeId, t.time)), [
+        ('node-1', const Duration(hours: 3)),
       ]);
     });
   });

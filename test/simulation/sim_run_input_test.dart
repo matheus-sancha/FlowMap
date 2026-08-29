@@ -109,18 +109,23 @@ void main() {
       productionLineId: lineId,
       name: 'Current state',
     );
+    // The ids the steps came back with: §9 keys a process time by the node,
+    // and the foreign key refuses a workcenter id standing in for one.
+    final stepIds = <String>[];
     for (var i = 0; i < 2; i++) {
-      await studies.insertStep(
-        studyId: studyId,
-        atPosition: i,
-        workcenterId: [cladId, millId][i],
+      stepIds.add(
+        await studies.insertStep(
+          studyId: studyId,
+          atPosition: i,
+          workcenterId: [cladId, millId][i],
+        ),
       );
     }
     final partId = await demand.createPart(studyId: studyId, partNumber: 'PN1');
-    for (final target in [cladId, millId]) {
+    for (final stepId in stepIds) {
       await demand.setProcessTime(
         partId: partId,
-        targetId: target,
+        nodeId: stepId,
         time: const Duration(hours: 2),
       );
     }

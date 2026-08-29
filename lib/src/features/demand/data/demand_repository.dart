@@ -109,7 +109,7 @@ class DemandRepository {
     final times = <String, Map<String, Duration>>{};
     for (final row in rows) {
       final cell = row.readTable(_db.partProcessTimes);
-      (times[cell.partId] ??= {})[cell.targetId] = Duration(
+      (times[cell.partId] ??= {})[cell.nodeId] = Duration(
         seconds: cell.seconds,
       );
     }
@@ -124,12 +124,12 @@ class DemandRepository {
   /// number is the failure §11 exists to prevent.
   Future<void> setProcessTime({
     required String partId,
-    required String targetId,
+    required String nodeId,
     required Duration? time,
   }) async {
     if (time == null) {
       await (_db.delete(_db.partProcessTimes)..where(
-            (t) => t.partId.equals(partId) & t.targetId.equals(targetId),
+            (t) => t.partId.equals(partId) & t.nodeId.equals(nodeId),
           ))
           .go();
       return;
@@ -139,7 +139,7 @@ class DemandRepository {
         .insertOnConflictUpdate(
           PartProcessTimesCompanion.insert(
             partId: partId,
-            targetId: targetId,
+            nodeId: nodeId,
             seconds: time.inSeconds,
           ),
         );
@@ -152,7 +152,7 @@ class DemandRepository {
         for (final edit in edits) {
           await setProcessTime(
             partId: edit.partId,
-            targetId: edit.targetId,
+            nodeId: edit.nodeId,
             time: edit.time,
           );
         }
@@ -325,7 +325,7 @@ class DemandRepository {
             if (ids[cell.partKey] case final partId?)
               ProcessTimeEdit(
                 partId: partId,
-                targetId: cell.targetId,
+                nodeId: cell.nodeId,
                 time: cell.time,
               ),
         ]);
@@ -368,7 +368,17 @@ class DemandRepository {
   ///
   /// Lives here rather than in [StudiesRepository] so the demand tables stay
   /// behind one door; the caller runs it inside its own transaction.
+  /// [nodeIds] maps the source study's flow-node ids onto the copy's.
+  ///
+  /// **Required rather than optional, and this is the piece that made §9 a
+  /// round.** Since v24 a process time is keyed by the node it belongs to, so a
+  /// copy that reused the source's ids would hang every time off the *original*
+  /// study's steps: the duplicate would read entirely uncosted and the
+  /// readiness panel would name every part. Nothing would fail to compile and
+  /// nothing would throw — `DemandTable.times` is a map of untyped keys, so a
+  /// lookup by an id that is not there returns null.
   Future<void> copyDemandInto({
+    required Map<String, String> nodeIds,
     required String fromStudyId,
     required String toStudyId,
   }) async {
@@ -407,11 +417,14 @@ class DemandRepository {
     await _db.batch((b) {
       for (final row in times) {
         final cell = row.readTable(_db.partProcessTimes);
+        if (!nodeIds.containsKey(cell.nodeId)) continue;
         b.insert(
           _db.partProcessTimes,
           PartProcessTimesCompanion.insert(
             partId: idMap[cell.partId]!,
-            targetId: cell.targetId,
+            // A time whose node was not copied is dropped rather than guessed
+            // at — it cannot belong to a step the copy does not have.
+            nodeId: nodeIds[cell.nodeId]!,
             seconds: cell.seconds,
           ),
         );
@@ -462,12 +475,14 @@ String partKeyOf(String partNumber) => partNumber.trim().toLowerCase();
 class ProcessTimeEdit {
   const ProcessTimeEdit({
     required this.partId,
-    required this.targetId,
+    required this.nodeId,
     required this.time,
   });
 
   final String partId;
-  final String targetId;
+
+  /// The flow node the cell belongs to (§9), not the station it points at.
+  final String nodeId;
 
   /// Null clears the cell — "this part does not visit this step".
   final Duration? time;
@@ -504,7 +519,7 @@ class PartWrite {
 class PartTimeWrite {
   const PartTimeWrite({
     required this.partKey,
-    required this.targetId,
+    required this.nodeId,
     required this.time,
   });
 
@@ -512,7 +527,8 @@ class PartTimeWrite {
   /// block has no id until the write happens.
   final String partKey;
 
-  final String targetId;
+  /// The flow node the cell belongs to (§9), not the station it points at.
+  final String nodeId;
 
   /// Null clears the cell — the part does not visit that step (§5.1).
   final Duration? time;

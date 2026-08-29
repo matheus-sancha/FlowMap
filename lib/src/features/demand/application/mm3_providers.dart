@@ -39,6 +39,7 @@ final mm3StepsProvider = Provider.family<List<Mm3Step>, String>((ref, studyId) {
     for (final step in view.steps)
       if (demandTargetOf(step.node) case final targetId?)
         Mm3Step(
+          nodeId: step.node.id,
           targetId: targetId,
           equivalentProcessTime: step.equivalentProcessTime,
           rework: step.rework ?? 0,

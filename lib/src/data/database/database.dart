@@ -74,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -949,6 +949,60 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement(
               'ALTER TABLE simulation_run_lane_visits_v23 '
               'RENAME TO simulation_run_lane_visits',
+            );
+          });
+        }
+      }
+
+      if (from < 24) {
+        // **A process time belongs to a step, not to the station it points at**
+        // (§9). Found by driving §8.6: adding a second CEU30 to a flow gave two
+        // columns over one value, so editing either edited both and the engine
+        // charged identical work on each pass. §8.6 made a revisit storable and
+        // left it unable to say what the second visit costs.
+        //
+        // **Every step inherits its target's time**, so nothing changes until
+        // somebody edits one of them — today's numbers are the starting state,
+        // and a study that never revisits a station cannot tell this happened.
+        //
+        // **A time whose target has no step is dropped.** It cannot be keyed to
+        // a node that does not exist, and it was already unreachable: no column
+        // draws it and no run reads it. On the live database that was **8 rows
+        // of 279**, left behind when a step was deleted or repointed after
+        // somebody had typed a time. Said plainly because this is the only step
+        // in this file that removes anything.
+        if (await _hasColumn('part_process_times', 'target_id')) {
+          await m.database.transaction(() async {
+            await m.database.customStatement('''
+              CREATE TABLE part_process_times_v24 (
+                part_id TEXT NOT NULL REFERENCES demand_parts (id)
+                  ON DELETE CASCADE,
+                node_id TEXT NOT NULL REFERENCES flow_nodes (id)
+                  ON DELETE CASCADE,
+                seconds INTEGER NOT NULL,
+                PRIMARY KEY (part_id, node_id)
+              )
+            ''');
+
+            // **Joined through the part's own study**, which is what makes
+            // keying by node lose no sharing: `demand_parts` is study-scoped,
+            // so a time can only ever reach the steps of the flow it was typed
+            // against. Restricted to `kind = 'step'` because a queue or an
+            // inventory node targets nothing and would match on two nulls.
+            await m.database.customStatement('''
+              INSERT INTO part_process_times_v24 (part_id, node_id, seconds)
+              SELECT t.part_id, n.id, t.seconds
+                FROM part_process_times t
+                JOIN demand_parts p ON p.id = t.part_id
+                JOIN flow_nodes n ON n.study_id = p.study_id
+                 AND n.kind = 'step'
+                 AND COALESCE(n.pool_id, n.workcenter_id) = t.target_id
+            ''');
+
+            await m.database.customStatement('DROP TABLE part_process_times');
+            await m.database.customStatement(
+              'ALTER TABLE part_process_times_v24 '
+              'RENAME TO part_process_times',
             );
           });
         }

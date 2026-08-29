@@ -222,12 +222,18 @@ class StudiesRepository {
             );
 
         final nodes = await loadNodes(id);
+        // **Kept rather than generated inline**, because §9 keys a process
+        // time by its node: the demand copy below needs to know which new node
+        // each old one became, and a copy that reused the source's ids would
+        // hang every time off the original study's steps.
+        final nodeIds = {for (final node in nodes) node.id: newId()};
+
         await _db.batch((b) {
           for (final node in nodes) {
             b.insert(
               _db.flowNodes,
               FlowNodesCompanion.insert(
-                id: newId(),
+                id: nodeIds[node.id]!,
                 studyId: copyId,
                 position: node.position,
                 kind: node.kind,
@@ -284,7 +290,11 @@ class StudiesRepository {
         // re-sequenced against the same orders (§6.3, §10.1); one that arrived
         // empty would have to be re-imported before it could be compared with
         // the study it came from.
-        await _demand.copyDemandInto(fromStudyId: id, toStudyId: copyId);
+        await _demand.copyDemandInto(
+          fromStudyId: id,
+          toStudyId: copyId,
+          nodeIds: nodeIds,
+        );
 
         return copyId;
       });

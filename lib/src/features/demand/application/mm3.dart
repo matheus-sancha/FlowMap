@@ -109,11 +109,21 @@ class Mm3Bands {
 /// rework charged against a part's time there.
 class Mm3Step {
   const Mm3Step({
+    required this.nodeId,
     required this.targetId,
     required this.equivalentProcessTime,
     required this.rework,
   });
 
+  /// The flow node, and **what a process time is keyed by** (§9).
+  ///
+  /// Carried beside [targetId] rather than instead of it, because the two
+  /// answer different questions here: a time belongs to the step, and a chart
+  /// is scoped to the station. A flow that visits one workcenter twice has two
+  /// steps with their own times and one MM3 column.
+  final String nodeId;
+
+  /// The workcenter or pool, which is what [Mm3Scope] narrows to.
   final String targetId;
 
   /// `FE_pt` at this step — one takt of its own productive capacity (§6.1).
@@ -162,7 +172,7 @@ Mm3Series computeMm3({
     var visited = false;
     for (final step in inScope) {
       if (step.equivalentProcessTime == null) continue;
-      final stored = table.times[partId]?[step.targetId];
+      final stored = table.times[partId]?[step.nodeId];
       if (stored == null) continue;
       visited = true;
       work += stored.inSeconds * (1 + step.rework);
@@ -222,7 +232,10 @@ String? busiestTargetId({
   final work = <String, double>{};
   for (final order in orders) {
     for (final step in steps) {
-      final stored = table.times[order.partId]?[step.targetId];
+      // **Read by the step, summed by the station** (§9). The time belongs
+      // to the node; the busiest *workcenter* is what this is looking for, so
+      // two visits to one station add up on it rather than competing.
+      final stored = table.times[order.partId]?[step.nodeId];
       if (stored == null) continue;
       work[step.targetId] =
           (work[step.targetId] ?? 0) + stored.inSeconds * order.batchSize;
