@@ -5,10 +5,12 @@ deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; 
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **892 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v22 and so is the live database** —
-`db.open schema 22 from 21` at 21:57:36 on 2026-08-27 under **`0.1.0-2026-08-27a`**, against a copy
-first and with `flowmap.sqlite.backup-v21-20260827-215250` beside the live file. v20 and v21 met it
+Branch `m1-m2-foundation`, `flutter analyze` clean, **948 tests passing** (one of them `live`-tagged
+and skipped without a database). Schema is at **v24 and so is the live database** —
+`db.open schema 24 from 23` at 16:00:57 on 2026-08-29 under **`0.1.0-2026-08-29c`**, with
+`flowmap.sqlite.backup-v23-20260829-160002` taken 55 seconds before. _v22 was the state this header
+was written at: `db.open schema 22 from 21` at 21:57:36 on 2026-08-27 under `0.1.0-2026-08-27a`,
+against a copy first and with `flowmap.sqlite.backup-v21-20260827-215250` beside the live file._ v20 and v21 met it
 on 2026-08-18 under `dev` builds, recorded late from `log.txt` because nothing was written down at
 the time. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends found their
 columns already there, and §7.4 turned out to store nothing at all. **§7 is code-complete, §7.9
@@ -2669,25 +2671,124 @@ _Five tests_, including the two that carry the claim: a station filled to the ca
 one takt, at availability 1.00 **and** at 0.83. Plus one pinning that a station with no rework
 balances byte for byte as before.
 
+### 9.9 The map read its times by station — **fixed 2026-08-29**
+
+**Found by driving §9, and it is §9.3's own warning coming true in the one file §9.3 did not list.**
+*"When I select a part number in the flow view or anything other than the equivalent it says there
+is no process time for that part even if there is."* Every process box under **Single part** and
+**Weighted variants** showed a dash and raised `StepProblem.noProcessTime`, on studies whose demand
+grid was plainly showing the times.
+
+`flow_view.dart` looked its cells up by `node.poolId ?? node.workcenterId`. **§9.3 predicted exactly
+this failure** — *"a lookup by the wrong id compiles and returns null"* — listed the sites it would
+reach, and the flow map was not among them. Only `FlowDataSource.flowEquivalent` looked healthy, and
+only because it reads no demand at all.
+
+**`sim_assembly._paceSetter` had it too**, and silently: it summed each step's work by target id,
+found zero everywhere, and handed every study its first candidate step as pacemaker. No error, no
+dash — a cadence taken from the wrong place. It matters less than it looks on this plant because all
+three studies name their pacemaker, so `_chosenPaceSetter` wins and the derivation never runs; a
+study that leaves it unset was getting position order rather than work content.
+
+**The engine itself was correct throughout** — `demandKey: node.id` since the round landed — so no
+run ever charged the wrong figure. This was the map and the choice of pacemaker, not the work.
+
+_Why the suite said nothing:_ the flow fixtures keyed their `FlowDemandInput` by `'CLAD04'`,
+`'CEU30'`, `'SHORT'` — they encoded the old key, so they matched the old lookup and passed. Rekeyed
+to node ids; the pool test now asserts the step's own cell beats both the pool's key and a member's;
+and one new test covers the shape a station-keyed lookup cannot express at all — **one workcenter
+visited twice, 40 h on the first pass and 15 h on the second**.
+
+**That is the fourth time this pattern has bitten**, which is the count §9's own header asked to be
+watched for: §7.3's queue, §8.6's lane visit, §9's demand column, and now the map. The sweep it
+asked for is still owed.
+
+### 9.10 The release slot opened on the wrong clock — **§7.2 defect, fixed 2026-08-29**
+
+**Not §9's, but found by explaining a queue §9 made legible**, and the more expensive of the two.
+*"Why is CLAD06 forming a queue, because I'm not understanding why."*
+
+`releaseInterval` was resolved against the pace setter's **productive** day and then spent with
+`WorkingCalendar.advance`, which consumes **open** time. The two differ by exactly the availability,
+so every takt came round early by that factor:
+
+| | |
+|---|---|
+| release interval, 11D | 4 × TCN20's productive day = **271,564 s** → 3.33 working days |
+| CLAD06 filled to one takt | **326,399 s** of open clock → 4.00 working days |
+| deficit, every order | **54,835 s = 15 h 13 min** = `271,564 × (1/0.832 − 1)` |
+
+**Nothing absorbs it, because §7.4 fills the first station of a like-machine group to exactly one
+takt.** CLAD06 is critically loaded by construction, so the deficit had nowhere to go: 59 orders
+stacked it into a **55-day queue**, with CLAD06 at 100 % across its whole active window and CLAD17,
+last in its own group, at 22 %. The field found the same number from the other end — the 15 h
+between the first order's start and the second order's arrival — before the ratio was worked out.
+
+**§7.2 has always said a 3-day takt is three *working* days apart.** The open day is the figure that
+makes it so, and it is carried separately on `SimResourceContext` now rather than derived, because
+dividing by an availability the context does not hold is how the two came to be confused. Work
+content still reads the productive day: §6.1's equivalent, §9.8's balance cap, a setup given in days,
+and the pace setter derivation — a station's *busyness* is a question about work and not about the
+clock, and a new test pins that half.
+
+_The test that held the old behaviour was named_ **"a takt in days is that many productive days of
+the pace-setter"** _and passed a fixture whose open and productive days were equal_ — so the
+distinction it existed to pin could not be seen. It states both now.
+
+**Every stored run is invalidated, the sixth time**, and this one moves every delivery date rather
+than only the figures: releases come 20 % further apart. **Confirmed against the live plant** — the
+re-run matches.
+
+**Two things it does not fix**, and they are the reason CLAD06 is still worth a look:
+
+- **CLAD06 now sits at exactly ρ = 1.0**, not below it. The interval equals its per-order occupancy
+  to the second, so the queue stops growing and has no slack at all — one calendar exception or one
+  staffing change and it accumulates again.
+- **§7.4 concentrates the load on the *first* member of a group.** 11D needs 163 h of cladding per
+  order against 228.5 h across the three stations — the work fits comfortably; the fill order is what
+  pins CLAD06 at 100 % while CLAD17 idles. Worth an entry of its own if the field wants it levelled
+  rather than filled.
+
 ### 9.5 Drive it
 
-- [ ] **A balanced pair charged exactly one takt** (§9.8). CLAD06 should now fill to ~87.9 h and be
-      charged ~91.1 h — one four-day takt of open time — where it was charged 94.0 h. **The figure to
-      read is the run's, not the box's**: the box shows the derived share and the caption explains
-      the gap.
+**Four of these were closed against the stored run rather than the screen**, on 2026-08-29 — the kind
+of evidence §7.9 used and this file asked to see more of. Run `93994701`, made at 19:32 under the
+build carrying §9.9's fix. What is left needs a person and a screen.
+
+- [x] **A balanced station charged exactly one takt** (§9.8) — **verified to the second, on four
+      stations.** Every station the balance fills reads `326,399 s` against a four-day takt of open
+      time of `326,400 s`: CEU27 in 11B, CLAD06 and CEU30 in 11D. 11C is on a two-day takt and CEU21
+      reads `163,199 s` against `163,200 s`. **The overshoot §9.8 was written to remove is gone and
+      the residue is one second of rounding.**
+- [x] **v24 against the live database** — met it at **16:00:57 on 2026-08-29** under
+      **`0.1.0-2026-08-29c`**, `db.open schema 24 from 23`, with `flowmap.sqlite.backup-v23-20260829-160002`
+      taken 55 seconds before. **No row is orphaned by node id now**, which is the migration's own
+      postcondition and the thing worth checking rather than the drop count.
+- [x] **The row count, which did not land where §9.2 predicted** — 267 rows, not 286, and that is
+      not a defect. Every step's coverage accounts for it exactly: 11B 7 steps × 8 parts, 11C 8 × 10,
+      11D 131 cells over eleven steps. The prediction was measured before the flow it counted had
+      changed, and §9.7 then made a deleted cell a legitimate answer rather than a hole. **A
+      prediction taken against a moving plant expires**, which is the lesson rather than the number.
+- [x] **The readiness panel after the migration** — moot as written, and worth saying why. §9.7
+      settled that a blank is a skip, so a missing cell is no longer a fault to report; and §9.4
+      recorded that `isFullyCosted` and `missingCells` are used nowhere in `lib`. There is no panel
+      state left for this to be clean *in*.
 - [ ] **The balance caption on a station with rework**, in all three languages — the string is new
-      and carries four placeholders.
-- [ ] **A study with a station twice**, two different times typed, and the run charging each pass its
-      own. Célula 11D was left in exactly that shape while this was investigated — **an extra CEU30
-      at position 3** — and it must come out before any real run of 11D, or every figure for it is
-      wrong.
-- [ ] **A duplicated study**, whose process times point at its own nodes rather than at the original's.
-      The failure would be silent: the copy would read uncosted and the readiness panel would name
-      every part.
-- [ ] **The readiness panel after the migration** — clean on every study that did not revisit a
-      station, which is all three of them today.
-- [ ] **v24 against the live database**, with the build label and the `db.open` line, and a backup
-      first. It **drops 8 rows**.
+      and carries four placeholders. **Still owed; nothing in a stored run can answer it.**
+- [ ] **A study with a station twice, two different times typed** — **still unexercised, and the
+      leftover is still in place.** 11D carries an extra **CEU30 at position 4** with **zero stored
+      times and zero visits in the run**. Under §9.7 it is inert rather than wrong, but it is the
+      only thing making 11D's flow cyclic — `CEU30 → TCN20 → CEU30` is §9.6's whole subject — so it
+      is both the leftover to remove *and* the only revisit the plant currently has to test with.
+      **Decide which before deleting it**: take it out and §9.6's fix has nothing live to stand on;
+      leave it and 11D's map carries a step no part visits.
+- [ ] **A duplicated study**, whose process times point at its own nodes rather than at the
+      original's. The failure would be silent. **No study on the live plant has been duplicated since
+      the migration**, so there is nothing stored to read this off — it needs the app.
+- [ ] **Nine of 11C's ten parts store `00:00:00` at TCN20**, and one of 11D's eight at TCN20 does
+      too. Residue of §9.7's friction or a real routing — behaviourally identical since §8.1 skips a
+      zero, so nothing is wrong today, but **only the field can say which they meant** and a zero
+      that meant "I had to type something" is a trap for the next reader.
 
 ---
 
