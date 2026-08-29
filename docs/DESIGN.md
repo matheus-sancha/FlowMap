@@ -891,10 +891,20 @@ nothing upstream of it can be blocked on its behalf. Both are no-ops until someo
 
 The user's sequence is the thing under study — the app must not silently repair a bad one.
 
-**How fast slots come round, as built.** A takt in days means productive days of a station (§6.1),
-so a cadence needs one station's clock. The engine is handed a resolved interval and the id of the
-station whose open time it is measured in; slots then walk that calendar, so a 3-day takt is three
-*working* days apart rather than 72 hours.
+**How fast slots come round, as built.** A cadence needs one station's clock. The engine is handed a
+resolved interval and the id of the station whose open time it is measured in; slots then walk that
+calendar, so a 3-day takt is three *working* days apart rather than 72 hours.
+
+**Measured on the pace setter's open day, not its productive one.** §6.1's "a takt in days means
+productive days of a station" is about *work content* — what fits in a takt, which availability
+derates. When the next slot opens is a question about the clock, and the clock the engine walks is
+the open one. Resolving the cadence against the productive day made the two disagree by exactly the
+availability: on célula 11D a 4-day takt at 83.2 % came round every 3.33 working days instead of 4,
+releasing an order **15 h 13 min sooner than any station filled to that takt could take one**. Since
+§7.4 fills the first station of a like-machine group to exactly one takt, that station is critically
+loaded by construction and the deficit had nowhere to go — sixty orders stacked it into a 55-day
+queue at CLAD06 while the last station of its own group ran at 22 %. The two days are carried
+separately on the resource context so neither can stand in for the other.
 
 **Which station that is, as built.** The study may name its pacemaker; the default is the step whose
 work content across the whole demand is largest, ties broken by position (§4.4). It became a choice

@@ -112,6 +112,10 @@ void main() {
       'W': Duration(hours: 10),
       'X': Duration(hours: 10),
     },
+    /// The open day, which is what a release cadence is measured in (§7.2).
+    /// Defaults to the productive one so a test that does not care about the
+    /// distinction reads as it always did — the tests that do care state both.
+    Map<String, Duration>? open,
     Map<String, String> types = const {},
   }) => SimResourceContext(
     workcenterTypeNames: types,
@@ -124,6 +128,7 @@ void main() {
     poolNames: const {'pool-1': 'CNC Lathes'},
     poolMembers: pools,
     productivePerWorkingDay: productive,
+    openPerWorkingDay: open ?? productive,
     cellNames: const {'cell-1': 'Cell A'},
     lineNames: const {'line-1': 'Line 1'},
   );
@@ -185,9 +190,17 @@ void main() {
       expect(built!.releaseInterval, const Duration(hours: 4));
     });
 
-    test('a takt in days is that many productive days of the pace-setter', () {
-      // W carries far more work than X, so it sets the pace — and a day there
-      // is 10 productive hours (§6.1).
+    test('a takt in days is that many OPEN days of the pace-setter', () {
+      // W carries far more work than X, so it sets the pace. Its day is 12 open
+      // hours of which 10 are productive, and the cadence is the open figure:
+      // the engine spends this interval on `WorkingCalendar.advance`, which
+      // consumes open time, so a takt resolved against the productive day comes
+      // round *early* by exactly the availability.
+      //
+      // That is the defect this pins. On célula 11D a 4-day takt at 83.2 %
+      // released every 3.33 working days rather than 4 — an order every 15 h
+      // 13 min sooner than any station filled to one takt could take one, which
+      // stacked into a 55-day queue at the first cladding station.
       final built = assembleSimStudy(
         study: study,
         nodes: [
@@ -202,12 +215,48 @@ void main() {
         taktSchedule: taktOf(3, TaktUnit.days),
         resources: resources(
           productive: const {'W': Duration(hours: 10), 'X': Duration(hours: 4)},
+          open: const {'W': Duration(hours: 12), 'X': Duration(hours: 5)},
         ),
         asOf: now,
       );
 
       expect(built!.releaseCalendarId, 'W');
-      expect(built.releaseInterval, const Duration(hours: 30));
+      expect(built.releaseInterval, const Duration(hours: 36));
+      // And emphatically not 30, which is three *productive* days.
+      expect(built.releaseInterval, isNot(const Duration(hours: 30)));
+      // The whole schedule moves with it, not just the interval in force at
+      // the start (§7.9).
+      expect(
+        built.taktPeriods.map((p) => p.interval),
+        [const Duration(hours: 36)],
+      );
+    });
+
+    test('the pace setter is still chosen on productive work content', () {
+      // The two days answer different questions and only one of them moved.
+      // Which station is busiest is a question about work, so it reads the
+      // productive day; how often a slot opens is a question about the clock.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [
+          step(0, workcenterId: 'W'),
+          step(1, workcenterId: 'X'),
+        ],
+        parts: [part('p1', 'PN1')],
+        processTimes: {
+          'p1': {'W': const Duration(hours: 1), 'X': const Duration(hours: 9)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: taktOf(3, TaktUnit.days),
+        resources: resources(
+          productive: const {'W': Duration(hours: 10), 'X': Duration(hours: 4)},
+          open: const {'W': Duration(hours: 12), 'X': Duration(hours: 5)},
+        ),
+        asOf: now,
+      );
+
+      expect(built!.releaseCalendarId, 'X');
+      expect(built.releaseInterval, const Duration(hours: 15));
     });
 
     test('work content counts batch size, so the mix can move the pace', () {

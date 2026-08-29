@@ -106,6 +106,7 @@ class SimResourceContext {
     required this.poolNames,
     required this.poolMembers,
     required this.productivePerWorkingDay,
+    required this.openPerWorkingDay,
     this.rework = const {},
     this.queues = const {},
     this.cellNames = const {},
@@ -145,11 +146,30 @@ class SimResourceContext {
 
   /// `open × availability` for each workcenter, read at the run's start.
   ///
-  /// A takt in days means productive days of a station (§6.1), so resolving one
-  /// into a duration needs this. Read once rather than per slot: §18.3 leaves
-  /// mid-flight takt changes open, and the engine currently runs at one
-  /// cadence throughout.
+  /// **Work content, never a cadence.** A takt in days means productive days of
+  /// a station (§6.1), so the balance cap and the flow equivalent resolve
+  /// against this. How often a release slot comes round does not — see
+  /// [openPerWorkingDay], and §7.2 for why the two must not be swapped.
+  ///
+  /// Read once rather than per slot: §18.3 leaves mid-flight takt changes open,
+  /// and the engine currently runs at one cadence throughout.
   final Map<String, Duration> productivePerWorkingDay;
+
+  /// The ordinary open hours of each workcenter's working day — the same
+  /// figure as [productivePerWorkingDay] before availability is taken off.
+  ///
+  /// **What a release cadence is measured in** (§7.2). The engine walks the
+  /// pace setter's calendar with [WorkingCalendar.advance], which spends *open*
+  /// time, so an interval resolved against the productive day is spent short by
+  /// exactly the availability: on célula 11D a 4-day takt came round every 3.33
+  /// working days instead of 4, releasing an order 15 h 13 min sooner than any
+  /// station filled to that takt could take one. Sixty orders stacked that into
+  /// a 55-day queue at CLAD06.
+  ///
+  /// Carried beside the productive day rather than derived from it, because
+  /// dividing by an availability the context does not hold is how the two came
+  /// to be confused in the first place.
+  final Map<String, Duration> openPerWorkingDay;
 
   /// Fraction of work redone at each station (§4.4), by workcenter id.
   ///
@@ -359,18 +379,29 @@ SimStudy? assembleSimStudy({
           materialDate: order.materialDate,
         ),
     ],
+    // **The pace setter's open day, not its productive one** (§7.2).
+    //
+    // The engine spends this interval with `WorkingCalendar.advance`, which
+    // consumes open time, so a cadence resolved against the productive day is
+    // spent short by exactly the availability — a 4-day takt at 83.2 % came
+    // round every 3.33 working days. §7.2 has always said a 3-day takt is
+    // three *working* days apart; this is the figure that makes it so.
+    //
+    // Work content is the other question and still reads the productive day:
+    // §6.1's equivalent, §9.8's balance cap, a setup given in days. What a
+    // station can do in a takt is derated by availability; when the next slot
+    // opens is not.
     releaseInterval: takt.equivalentAt(
-      resources.productivePerWorkingDay[paceSetter] ?? Duration.zero,
+      resources.openPerWorkingDay[paceSetter] ?? Duration.zero,
     ),
     // **The whole cadence, not just the one in force at the start** (§7.9).
-    // Resolved here for the same reason the single interval was: `days` means
-    // productive days of the pace setter, and the engine is handed durations
-    // rather than a schedule to interpret.
+    // Resolved here for the same reason the single interval was: the engine is
+    // handed durations rather than a schedule to interpret.
     //
-    // Against *one* productive day — the pace setter's at [asOf] — rather than
+    // Against *one* working day — the pace setter's at [asOf] — rather than
     // re-reading its staffing period by period. That axis is unchanged by this
-    // round: `productivePerWorkingDay` has always been resolved once, and a
-    // station whose staffing changes mid-run already reports one figure here.
+    // round: the day has always been resolved once, and a station whose
+    // staffing changes mid-run already reports one figure here.
     taktPeriods: [
       for (final period in taktSchedule.periods)
         SimTaktPeriod(
@@ -379,7 +410,7 @@ SimStudy? assembleSimStudy({
           value: period.value,
           unit: period.unit,
           interval: period.equivalentAt(
-            resources.productivePerWorkingDay[paceSetter] ?? Duration.zero,
+            resources.openPerWorkingDay[paceSetter] ?? Duration.zero,
           ),
         ),
     ],

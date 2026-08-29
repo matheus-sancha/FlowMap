@@ -155,11 +155,20 @@ class SimulationRepository {
     // whose shift pattern changes in July still reports one productive day for
     // the whole run, exactly as it always has, and the takt periods are
     // resolved against that one figure.
-    Map<String, Duration> productiveOn(DateTime asOf) => {
+    Map<String, Duration> openOn(DateTime asOf) => {
       for (final entry in workcenters.entries)
+        entry.key: entry.value.calendar.openTimePerWorkingDay(asOf),
+    };
+
+    // **The same day, derated once.** Both figures come from the one call above
+    // so a station cannot report an open day the productive one disagrees with
+    // — which is the shape §7.2's cadence defect had.
+    Map<String, Duration> productiveOn(DateTime asOf) => {
+      for (final entry in openOn(asOf).entries)
         entry.key:
-            entry.value.calendar.openTimePerWorkingDay(asOf) *
-            (entry.value.schedule.lookup(asOf).period?.availability ?? 1),
+            entry.value *
+            (workcenters[entry.key]!.schedule.lookup(asOf).period?.availability ??
+                1),
     };
 
     final demand = <String, _StudyDemand>{};
@@ -201,6 +210,9 @@ class SimulationRepository {
             poolNames: {for (final pool in pools) pool.id: pool.name},
             poolMembers: poolMembers,
             productivePerWorkingDay: productiveOn(asOf),
+            // What a release slot is measured in (§7.2) — the open clock the
+            // engine actually walks, not the productive content of a takt.
+            openPerWorkingDay: openOn(asOf),
             // Read the same way and at the same instant as the productive day
             // above, so the cap and the charge cannot disagree (§9.8).
             rework: {
