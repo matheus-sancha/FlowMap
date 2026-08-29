@@ -2250,4 +2250,138 @@ void main() {
       expect(types.map((t) => t.name), contains('Machining'));
     },
   );
+
+  group('v22 to v23: a stay in a queue belongs to a step (§8.6)', () {
+    /// Puts an existing database back into v22's shape for this one table and
+    /// stamps the version, so the v23 step runs against what it will actually
+    /// meet.
+    ///
+    /// **Built by regressing the current schema rather than by hand.** Every
+    /// fixture above builds its era from scratch, which is right when the
+    /// migration reaches across many tables; this one touches exactly one, and
+    /// a hand-built v22 of the whole database would be four hundred lines that
+    /// could drift from the twenty-two steps above it.
+    Future<File> v22WithVisits({
+      required List<({String order, String lane, String? step})> visits,
+    }) async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+      // Create at the current version, then seed the rows the migration reads.
+      final fresh = AppDatabase(NativeDatabase(file));
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, project_id, dispatch, run_start, "
+        "run_end, guard, created_at) VALUES "
+        "('run-1', 'proj-1', 'fifo', 0, 1, 2, 3)",
+      );
+      for (final v in visits.where((v) => v.step != null)) {
+        await fresh.customStatement(
+          "INSERT INTO simulation_run_steps (run_id, study_id, order_id, "
+          "node_id, workcenter_id, queue_start, process_start, process_end, "
+          "changeover_incurred, lane_node_id) VALUES "
+          "('run-1', 'study-1', '${v.order}', '${v.step}', 'wc-1', "
+          "10, 20, 30, 0, '${v.lane}')",
+        );
+      }
+      await fresh.close();
+
+      // Now put the one table back the way v22 had it, rows and all.
+      final raw = sqlite3.open(file.path)
+        ..execute('DROP TABLE simulation_run_lane_visits')
+        ..execute('''
+          CREATE TABLE simulation_run_lane_visits (
+            run_id TEXT NOT NULL REFERENCES simulation_runs (id)
+              ON DELETE CASCADE,
+            study_id TEXT NOT NULL,
+            order_id TEXT NOT NULL,
+            node_id TEXT NOT NULL,
+            entered_at INTEGER NOT NULL,
+            left_at INTEGER NULL,
+            PRIMARY KEY (run_id, order_id, node_id))
+        ''');
+      for (final v in visits) {
+        raw.execute(
+          "INSERT INTO simulation_run_lane_visits VALUES "
+          "('run-1', 'study-1', '${v.order}', '${v.lane}', 10, 20)",
+        );
+      }
+      raw
+        ..execute('PRAGMA user_version = 22')
+        ..close();
+      return file;
+    }
+
+    test('a stay that produced a step is matched to it', () async {
+      final file = await v22WithVisits(
+        visits: [(order: 'o0', lane: 'wc-2', step: 'node-1')],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.length, 1);
+      expect(rows.single.targetId, 'wc-2', reason: 'node_id held the station');
+      expect(
+        rows.single.stepNodeId,
+        'node-1',
+        reason: 'backfilled from the step the writer derived it from',
+      );
+      expect(rows.single.enteredAt.millisecondsSinceEpoch, isNotNull);
+      await db.close();
+    });
+
+    test('a stay with no step keeps the station as its surrogate', () async {
+      // An order the guard caught still queueing produced no step, so there is
+      // nothing to name. v22's own key guaranteed at most one such row per
+      // order per station, so the target collides with nothing.
+      final file = await v22WithVisits(
+        visits: [(order: 'o9', lane: 'wc-2', step: null)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.length, 1, reason: 'the row is carried, not dropped');
+      expect(rows.single.stepNodeId, 'wc-2');
+      await db.close();
+    });
+
+    test('nothing is lost across a mixed table', () async {
+      final file = await v22WithVisits(
+        visits: [
+          (order: 'o0', lane: 'wc-1', step: 'node-0'),
+          (order: 'o0', lane: 'wc-2', step: 'node-1'),
+          (order: 'o1', lane: 'wc-1', step: 'node-0'),
+          (order: 'o9', lane: 'wc-2', step: null),
+        ],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.length, 4, reason: 'every v22 row survives the rebuild');
+      expect(
+        rows.map((r) => '${r.orderId}/${r.targetId}').toSet(),
+        {'o0/wc-1', 'o0/wc-2', 'o1/wc-1', 'o9/wc-2'},
+      );
+      await db.close();
+    });
+
+    test('the new key admits what the old one refused', () async {
+      // The defect itself, at the far end of a migration: once upgraded, the
+      // table takes two stays of one order in one station's queue — which is
+      // what a part going back for a second operation produces, and what v22
+      // rejected with a UNIQUE constraint after the run had been computed.
+      final file = await v22WithVisits(
+        visits: [(order: 'o0', lane: 'wc-2', step: 'node-1')],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      await db.customStatement(
+        "INSERT INTO simulation_run_lane_visits (run_id, study_id, order_id, "
+        "target_id, step_node_id, entered_at, left_at) VALUES "
+        "('run-1', 'study-1', 'o0', 'wc-2', 'node-2', 40, 50)",
+      );
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.where((r) => r.orderId == 'o0').length, 2);
+      await db.close();
+    });
+  });
 }

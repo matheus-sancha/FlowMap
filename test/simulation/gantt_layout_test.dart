@@ -1218,6 +1218,7 @@ void main() {
             studyId: 'study-1',
             orderId: 'o9',
             laneNodeId: 'lane-1',
+            stepNodeId: 'step-1',
             enteredAt: at(30),
           ),
         ],

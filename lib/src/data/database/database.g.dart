@@ -17676,10 +17676,23 @@ class $SimulationRunLaneVisitsTable extends SimulationRunLaneVisits
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
   @override
-  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
-    'node_id',
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stepNodeIdMeta = const VerificationMeta(
+    'stepNodeId',
+  );
+  @override
+  late final GeneratedColumn<String> stepNodeId = GeneratedColumn<String>(
+    'step_node_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -17710,7 +17723,8 @@ class $SimulationRunLaneVisitsTable extends SimulationRunLaneVisits
     runId,
     studyId,
     orderId,
-    nodeId,
+    targetId,
+    stepNodeId,
     enteredAt,
     leftAt,
   ];
@@ -17750,13 +17764,24 @@ class $SimulationRunLaneVisitsTable extends SimulationRunLaneVisits
     } else if (isInserting) {
       context.missing(_orderIdMeta);
     }
-    if (data.containsKey('node_id')) {
+    if (data.containsKey('target_id')) {
       context.handle(
-        _nodeIdMeta,
-        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_nodeIdMeta);
+      context.missing(_targetIdMeta);
+    }
+    if (data.containsKey('step_node_id')) {
+      context.handle(
+        _stepNodeIdMeta,
+        stepNodeId.isAcceptableOrUnknown(
+          data['step_node_id']!,
+          _stepNodeIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_stepNodeIdMeta);
     }
     if (data.containsKey('entered_at')) {
       context.handle(
@@ -17776,7 +17801,7 @@ class $SimulationRunLaneVisitsTable extends SimulationRunLaneVisits
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {runId, orderId, nodeId};
+  Set<GeneratedColumn> get $primaryKey => {runId, orderId, stepNodeId};
   @override
   SimulationRunLaneVisit map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -17793,9 +17818,13 @@ class $SimulationRunLaneVisitsTable extends SimulationRunLaneVisits
         DriftSqlType.string,
         data['${effectivePrefix}order_id'],
       )!,
-      nodeId: attachedDatabase.typeMapping.read(
+      targetId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}node_id'],
+        data['${effectivePrefix}target_id'],
+      )!,
+      stepNodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step_node_id'],
       )!,
       enteredAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -17819,7 +17848,37 @@ class SimulationRunLaneVisit extends DataClass
   final String runId;
   final String studyId;
   final String orderId;
-  final String nodeId;
+
+  /// The **workcenter or pool** whose queue this is (§7.3, §8.6).
+  ///
+  /// **Renamed from `node_id` at v23, which is what it never was.** §7.3 moved
+  /// the queue off the flow and onto the station — `engine.dart` writes
+  /// `waiting.lane.targetId` here — and the column name stayed behind. A name
+  /// that says node while holding a workcenter is what made §8.6 invisible:
+  /// the key built on it read as "one order queues once per step" and meant
+  /// "one order queues once per station".
+  final String targetId;
+
+  /// The flow node this stay was waiting *for* (§8.6).
+  ///
+  /// **This is what makes a visit unique, and [targetId] is not.** A part may
+  /// go back to a machine for a second operation — ordinary routing, which the
+  /// engine has always modelled — and both stays are then in one station's
+  /// queue. Keyed by the station, the second stay collided with the first and
+  /// the run was computed and then thrown away with a UNIQUE constraint the
+  /// screen reported only as "could not be completed".
+  ///
+  /// Keyed by the step, the two stays are two rows, which is what
+  /// [SimulationRunSteps] has always done with the identical key shape. That
+  /// table survived because it is keyed by *where in the flow*; this one is
+  /// the odd one out being brought into line.
+  ///
+  /// **On rows migrated from v22 it may hold a [targetId] instead.** A stay
+  /// that produced no step — an order the guard caught still queueing — has no
+  /// step to name, and the old key already guaranteed at most one such row per
+  /// order per station, so nothing collides and nothing is lost. It means a
+  /// pre-v23 run cannot say which step a stay belonged to, which is true.
+  final String stepNodeId;
 
   /// When the order took a place in the lane.
   final DateTime enteredAt;
@@ -17832,7 +17891,8 @@ class SimulationRunLaneVisit extends DataClass
     required this.runId,
     required this.studyId,
     required this.orderId,
-    required this.nodeId,
+    required this.targetId,
+    required this.stepNodeId,
     required this.enteredAt,
     this.leftAt,
   });
@@ -17842,7 +17902,8 @@ class SimulationRunLaneVisit extends DataClass
     map['run_id'] = Variable<String>(runId);
     map['study_id'] = Variable<String>(studyId);
     map['order_id'] = Variable<String>(orderId);
-    map['node_id'] = Variable<String>(nodeId);
+    map['target_id'] = Variable<String>(targetId);
+    map['step_node_id'] = Variable<String>(stepNodeId);
     map['entered_at'] = Variable<DateTime>(enteredAt);
     if (!nullToAbsent || leftAt != null) {
       map['left_at'] = Variable<DateTime>(leftAt);
@@ -17855,7 +17916,8 @@ class SimulationRunLaneVisit extends DataClass
       runId: Value(runId),
       studyId: Value(studyId),
       orderId: Value(orderId),
-      nodeId: Value(nodeId),
+      targetId: Value(targetId),
+      stepNodeId: Value(stepNodeId),
       enteredAt: Value(enteredAt),
       leftAt: leftAt == null && nullToAbsent
           ? const Value.absent()
@@ -17872,7 +17934,8 @@ class SimulationRunLaneVisit extends DataClass
       runId: serializer.fromJson<String>(json['runId']),
       studyId: serializer.fromJson<String>(json['studyId']),
       orderId: serializer.fromJson<String>(json['orderId']),
-      nodeId: serializer.fromJson<String>(json['nodeId']),
+      targetId: serializer.fromJson<String>(json['targetId']),
+      stepNodeId: serializer.fromJson<String>(json['stepNodeId']),
       enteredAt: serializer.fromJson<DateTime>(json['enteredAt']),
       leftAt: serializer.fromJson<DateTime?>(json['leftAt']),
     );
@@ -17884,7 +17947,8 @@ class SimulationRunLaneVisit extends DataClass
       'runId': serializer.toJson<String>(runId),
       'studyId': serializer.toJson<String>(studyId),
       'orderId': serializer.toJson<String>(orderId),
-      'nodeId': serializer.toJson<String>(nodeId),
+      'targetId': serializer.toJson<String>(targetId),
+      'stepNodeId': serializer.toJson<String>(stepNodeId),
       'enteredAt': serializer.toJson<DateTime>(enteredAt),
       'leftAt': serializer.toJson<DateTime?>(leftAt),
     };
@@ -17894,14 +17958,16 @@ class SimulationRunLaneVisit extends DataClass
     String? runId,
     String? studyId,
     String? orderId,
-    String? nodeId,
+    String? targetId,
+    String? stepNodeId,
     DateTime? enteredAt,
     Value<DateTime?> leftAt = const Value.absent(),
   }) => SimulationRunLaneVisit(
     runId: runId ?? this.runId,
     studyId: studyId ?? this.studyId,
     orderId: orderId ?? this.orderId,
-    nodeId: nodeId ?? this.nodeId,
+    targetId: targetId ?? this.targetId,
+    stepNodeId: stepNodeId ?? this.stepNodeId,
     enteredAt: enteredAt ?? this.enteredAt,
     leftAt: leftAt.present ? leftAt.value : this.leftAt,
   );
@@ -17912,7 +17978,10 @@ class SimulationRunLaneVisit extends DataClass
       runId: data.runId.present ? data.runId.value : this.runId,
       studyId: data.studyId.present ? data.studyId.value : this.studyId,
       orderId: data.orderId.present ? data.orderId.value : this.orderId,
-      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      stepNodeId: data.stepNodeId.present
+          ? data.stepNodeId.value
+          : this.stepNodeId,
       enteredAt: data.enteredAt.present ? data.enteredAt.value : this.enteredAt,
       leftAt: data.leftAt.present ? data.leftAt.value : this.leftAt,
     );
@@ -17924,7 +17993,8 @@ class SimulationRunLaneVisit extends DataClass
           ..write('runId: $runId, ')
           ..write('studyId: $studyId, ')
           ..write('orderId: $orderId, ')
-          ..write('nodeId: $nodeId, ')
+          ..write('targetId: $targetId, ')
+          ..write('stepNodeId: $stepNodeId, ')
           ..write('enteredAt: $enteredAt, ')
           ..write('leftAt: $leftAt')
           ..write(')'))
@@ -17932,8 +18002,15 @@ class SimulationRunLaneVisit extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runId, studyId, orderId, nodeId, enteredAt, leftAt);
+  int get hashCode => Object.hash(
+    runId,
+    studyId,
+    orderId,
+    targetId,
+    stepNodeId,
+    enteredAt,
+    leftAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -17941,7 +18018,8 @@ class SimulationRunLaneVisit extends DataClass
           other.runId == this.runId &&
           other.studyId == this.studyId &&
           other.orderId == this.orderId &&
-          other.nodeId == this.nodeId &&
+          other.targetId == this.targetId &&
+          other.stepNodeId == this.stepNodeId &&
           other.enteredAt == this.enteredAt &&
           other.leftAt == this.leftAt);
 }
@@ -17951,7 +18029,8 @@ class SimulationRunLaneVisitsCompanion
   final Value<String> runId;
   final Value<String> studyId;
   final Value<String> orderId;
-  final Value<String> nodeId;
+  final Value<String> targetId;
+  final Value<String> stepNodeId;
   final Value<DateTime> enteredAt;
   final Value<DateTime?> leftAt;
   final Value<int> rowid;
@@ -17959,7 +18038,8 @@ class SimulationRunLaneVisitsCompanion
     this.runId = const Value.absent(),
     this.studyId = const Value.absent(),
     this.orderId = const Value.absent(),
-    this.nodeId = const Value.absent(),
+    this.targetId = const Value.absent(),
+    this.stepNodeId = const Value.absent(),
     this.enteredAt = const Value.absent(),
     this.leftAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -17968,20 +18048,23 @@ class SimulationRunLaneVisitsCompanion
     required String runId,
     required String studyId,
     required String orderId,
-    required String nodeId,
+    required String targetId,
+    required String stepNodeId,
     required DateTime enteredAt,
     this.leftAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        studyId = Value(studyId),
        orderId = Value(orderId),
-       nodeId = Value(nodeId),
+       targetId = Value(targetId),
+       stepNodeId = Value(stepNodeId),
        enteredAt = Value(enteredAt);
   static Insertable<SimulationRunLaneVisit> custom({
     Expression<String>? runId,
     Expression<String>? studyId,
     Expression<String>? orderId,
-    Expression<String>? nodeId,
+    Expression<String>? targetId,
+    Expression<String>? stepNodeId,
     Expression<DateTime>? enteredAt,
     Expression<DateTime>? leftAt,
     Expression<int>? rowid,
@@ -17990,7 +18073,8 @@ class SimulationRunLaneVisitsCompanion
       if (runId != null) 'run_id': runId,
       if (studyId != null) 'study_id': studyId,
       if (orderId != null) 'order_id': orderId,
-      if (nodeId != null) 'node_id': nodeId,
+      if (targetId != null) 'target_id': targetId,
+      if (stepNodeId != null) 'step_node_id': stepNodeId,
       if (enteredAt != null) 'entered_at': enteredAt,
       if (leftAt != null) 'left_at': leftAt,
       if (rowid != null) 'rowid': rowid,
@@ -18001,7 +18085,8 @@ class SimulationRunLaneVisitsCompanion
     Value<String>? runId,
     Value<String>? studyId,
     Value<String>? orderId,
-    Value<String>? nodeId,
+    Value<String>? targetId,
+    Value<String>? stepNodeId,
     Value<DateTime>? enteredAt,
     Value<DateTime?>? leftAt,
     Value<int>? rowid,
@@ -18010,7 +18095,8 @@ class SimulationRunLaneVisitsCompanion
       runId: runId ?? this.runId,
       studyId: studyId ?? this.studyId,
       orderId: orderId ?? this.orderId,
-      nodeId: nodeId ?? this.nodeId,
+      targetId: targetId ?? this.targetId,
+      stepNodeId: stepNodeId ?? this.stepNodeId,
       enteredAt: enteredAt ?? this.enteredAt,
       leftAt: leftAt ?? this.leftAt,
       rowid: rowid ?? this.rowid,
@@ -18029,8 +18115,11 @@ class SimulationRunLaneVisitsCompanion
     if (orderId.present) {
       map['order_id'] = Variable<String>(orderId.value);
     }
-    if (nodeId.present) {
-      map['node_id'] = Variable<String>(nodeId.value);
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
+    if (stepNodeId.present) {
+      map['step_node_id'] = Variable<String>(stepNodeId.value);
     }
     if (enteredAt.present) {
       map['entered_at'] = Variable<DateTime>(enteredAt.value);
@@ -18050,7 +18139,8 @@ class SimulationRunLaneVisitsCompanion
           ..write('runId: $runId, ')
           ..write('studyId: $studyId, ')
           ..write('orderId: $orderId, ')
-          ..write('nodeId: $nodeId, ')
+          ..write('targetId: $targetId, ')
+          ..write('stepNodeId: $stepNodeId, ')
           ..write('enteredAt: $enteredAt, ')
           ..write('leftAt: $leftAt, ')
           ..write('rowid: $rowid')
@@ -34452,7 +34542,8 @@ typedef $$SimulationRunLaneVisitsTableCreateCompanionBuilder =
       required String runId,
       required String studyId,
       required String orderId,
-      required String nodeId,
+      required String targetId,
+      required String stepNodeId,
       required DateTime enteredAt,
       Value<DateTime?> leftAt,
       Value<int> rowid,
@@ -34462,7 +34553,8 @@ typedef $$SimulationRunLaneVisitsTableUpdateCompanionBuilder =
       Value<String> runId,
       Value<String> studyId,
       Value<String> orderId,
-      Value<String> nodeId,
+      Value<String> targetId,
+      Value<String> stepNodeId,
       Value<DateTime> enteredAt,
       Value<DateTime?> leftAt,
       Value<int> rowid,
@@ -34518,8 +34610,13 @@ class $$SimulationRunLaneVisitsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get nodeId => $composableBuilder(
-    column: $table.nodeId,
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stepNodeId => $composableBuilder(
+    column: $table.stepNodeId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -34576,8 +34673,13 @@ class $$SimulationRunLaneVisitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get nodeId => $composableBuilder(
-    column: $table.nodeId,
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stepNodeId => $composableBuilder(
+    column: $table.stepNodeId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -34630,8 +34732,13 @@ class $$SimulationRunLaneVisitsTableAnnotationComposer
   GeneratedColumn<String> get orderId =>
       $composableBuilder(column: $table.orderId, builder: (column) => column);
 
-  GeneratedColumn<String> get nodeId =>
-      $composableBuilder(column: $table.nodeId, builder: (column) => column);
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
+
+  GeneratedColumn<String> get stepNodeId => $composableBuilder(
+    column: $table.stepNodeId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get enteredAt =>
       $composableBuilder(column: $table.enteredAt, builder: (column) => column);
@@ -34705,7 +34812,8 @@ class $$SimulationRunLaneVisitsTableTableManager
                 Value<String> runId = const Value.absent(),
                 Value<String> studyId = const Value.absent(),
                 Value<String> orderId = const Value.absent(),
-                Value<String> nodeId = const Value.absent(),
+                Value<String> targetId = const Value.absent(),
+                Value<String> stepNodeId = const Value.absent(),
                 Value<DateTime> enteredAt = const Value.absent(),
                 Value<DateTime?> leftAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -34713,7 +34821,8 @@ class $$SimulationRunLaneVisitsTableTableManager
                 runId: runId,
                 studyId: studyId,
                 orderId: orderId,
-                nodeId: nodeId,
+                targetId: targetId,
+                stepNodeId: stepNodeId,
                 enteredAt: enteredAt,
                 leftAt: leftAt,
                 rowid: rowid,
@@ -34723,7 +34832,8 @@ class $$SimulationRunLaneVisitsTableTableManager
                 required String runId,
                 required String studyId,
                 required String orderId,
-                required String nodeId,
+                required String targetId,
+                required String stepNodeId,
                 required DateTime enteredAt,
                 Value<DateTime?> leftAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -34731,7 +34841,8 @@ class $$SimulationRunLaneVisitsTableTableManager
                 runId: runId,
                 studyId: studyId,
                 orderId: orderId,
-                nodeId: nodeId,
+                targetId: targetId,
+                stepNodeId: stepNodeId,
                 enteredAt: enteredAt,
                 leftAt: leftAt,
                 rowid: rowid,

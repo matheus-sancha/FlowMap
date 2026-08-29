@@ -245,12 +245,20 @@ class SimOpenLaneVisit {
     required this.studyId,
     required this.orderId,
     required this.laneNodeId,
+    required this.stepNodeId,
     required this.enteredAt,
   });
 
   final String studyId;
   final String orderId;
+
+  /// The workcenter or pool whose queue it is standing in (§7.3).
   final String laneNodeId;
+
+  /// The flow node it is waiting *for* (§8.6). Two stays of one order in one
+  /// station's queue are told apart by this and by nothing else.
+  final String stepNodeId;
+
   final DateTime enteredAt;
 }
 

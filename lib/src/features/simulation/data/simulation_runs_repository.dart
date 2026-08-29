@@ -424,7 +424,10 @@ class SimulationRunsRepository {
                 runId: runId,
                 studyId: step.studyId,
                 orderId: step.orderId,
-                nodeId: laneId,
+                targetId: laneId,
+                // The step already knows both, so the visit derived from it
+                // needs nothing the engine did not already say (§8.6).
+                stepNodeId: step.nodeId,
                 enteredAt: step.queueStart,
                 leftAt: Value(step.processStart),
               ),
@@ -435,7 +438,8 @@ class SimulationRunsRepository {
               runId: runId,
               studyId: open.studyId,
               orderId: open.orderId,
-              nodeId: open.laneNodeId,
+              targetId: open.laneNodeId,
+              stepNodeId: open.stepNodeId,
               enteredAt: open.enteredAt,
             ),
         ]);
@@ -572,7 +576,8 @@ class SimulationRunsRepository {
             SimOpenLaneVisit(
               studyId: row.studyId,
               orderId: row.orderId,
-              laneNodeId: row.nodeId,
+              laneNodeId: row.targetId,
+              stepNodeId: row.stepNodeId,
               enteredAt: row.enteredAt,
             ),
       ],

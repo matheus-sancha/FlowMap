@@ -175,6 +175,157 @@ void main() {
     return (studies: [study], plant: plant);
   }
 
+  group('a flow that visits one station twice (§8.6)', () {
+    /// One study, three steps, and the **middle and last both point at
+    /// `wc-2`** — a part going back to a machine for a second operation.
+    ({List<SimStudy> studies, Map<String, SimWorkcenter> plant}) revisiting() {
+      final plant = {
+        'wc-1': workcenter('wc-1', 'CLAD04'),
+        'wc-2': workcenter('wc-2', 'CEU32'),
+      };
+      final study = SimStudy(
+        id: 'study-1',
+        name: 'Revisits CEU32',
+        nodes: [
+          SimStep(
+            id: 'node-0',
+            position: 0,
+            title: 'Cladding',
+            candidates: const ['wc-1'],
+            demandKey: 'wc-1',
+            queue: SimQueue(targetId: 'wc-1'),
+          ),
+          SimStep(
+            id: 'node-1',
+            position: 1,
+            title: 'CEU32 first op',
+            candidates: const ['wc-2'],
+            demandKey: 'wc-2',
+            // **The same queue as node-2**, because §7.3 gives the queue to
+            // the station rather than to the step. That sharing is correct and
+            // is precisely what broke the save.
+            queue: SimQueue(targetId: 'wc-2'),
+          ),
+          SimStep(
+            id: 'node-2',
+            position: 2,
+            title: 'CEU32 second op',
+            candidates: const ['wc-2'],
+            demandKey: 'wc-2',
+            queue: SimQueue(targetId: 'wc-2'),
+          ),
+        ],
+        parts: {
+          'part-a': const SimPart(
+            id: 'part-a',
+            partNumber: 'PN1',
+            processTimes: {
+              'wc-1': Duration(hours: 2),
+              'wc-2': Duration(hours: 1),
+            },
+          ),
+        },
+        orders: [
+          SimOrder(
+            id: 'o0',
+            sequence: 0,
+            partId: 'part-a',
+            needDate: DateTime(2026, 8, 10),
+          ),
+          SimOrder(
+            id: 'o1',
+            sequence: 1,
+            partId: 'part-a',
+            needDate: DateTime(2026, 8, 11),
+          ),
+        ],
+        releaseInterval: const Duration(hours: 6),
+        releaseCalendarId: 'wc-1',
+      );
+      return (studies: [study], plant: plant);
+    }
+
+    test('the run stores at all, which is the whole defect', () async {
+      // Before §8.6 this threw `UNIQUE constraint failed:
+      // simulation_run_lane_visits.run_id, .order_id, .node_id` — the run
+      // computed and was then thrown away, and the screen said only that it
+      // could not be completed.
+      final projectId = await seedProject();
+      final (:studies, :plant) = revisiting();
+      final result = runSimulation(studies: studies, workcenters: plant);
+
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+      expect(runId, isNotEmpty);
+    });
+
+    test('both stays survive, told apart by the step they fed', () async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = revisiting();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final visits = await (db.select(
+        db.simulationRunLaneVisits,
+      )..where((v) => v.runId.equals(runId))).get();
+
+      final atCeu = visits.where((v) => v.targetId == 'wc-2').toList();
+      // Two orders, two visits each to the one station's queue.
+      expect(atCeu.length, 4);
+      expect(
+        atCeu.map((v) => v.stepNodeId).toSet(),
+        {'node-1', 'node-2'},
+        reason: 'the two stays name the two steps, not the one station',
+      );
+      for (final order in ['o0', 'o1']) {
+        expect(
+          atCeu.where((v) => v.orderId == order).length,
+          2,
+          reason: '$order queued at CEU32 twice and both are recorded',
+        );
+      }
+    });
+
+    test('the two stays are the two the engine actually had', () async {
+      // Not merely two rows: the second stay must start after the first ended,
+      // because between them the order was being worked rather than waiting.
+      // Folding them into one row would have satisfied the row count and drawn
+      // the order queueing through its own first operation.
+      final projectId = await seedProject();
+      final (:studies, :plant) = revisiting();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final rows = await (db.select(
+        db.simulationRunLaneVisits,
+      )..where((v) => v.runId.equals(runId))).get();
+      final visits = rows.where((v) => v.orderId == 'o0').toList();
+      final first = visits.firstWhere((v) => v.stepNodeId == 'node-1');
+      final second = visits.firstWhere((v) => v.stepNodeId == 'node-2');
+
+      expect(first.leftAt, isNotNull);
+      expect(
+        second.enteredAt.isBefore(first.leftAt!),
+        isFalse,
+        reason: 'the second stay begins no earlier than the first one ended',
+      );
+    });
+  });
+
   test('a step records the work it cost, not only the span (v21)', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();

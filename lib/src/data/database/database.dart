@@ -74,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -755,7 +755,10 @@ class AppDatabase extends _$AppDatabase {
             );
           }
 
-          Diag.event('v19.fold', '${nodes.length} nodes → ${folded.length} queues');
+          Diag.event(
+            'v19.fold',
+            '${nodes.length} nodes → ${folded.length} queues',
+          );
         }
 
         // **The inventory rows are kept and stop being read.** The same call
@@ -842,13 +845,113 @@ class AppDatabase extends _$AppDatabase {
         // been: a run made before this used one takt for everything, resolved
         // at a date it no longer records, and writing today's schedule onto it
         // would make it assert a cadence it never ran at.
-        await _ensureColumn(m, simulationRunOrders, simulationRunOrders.taktValue);
-        await _ensureColumn(m, simulationRunOrders, simulationRunOrders.taktUnit);
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.taktValue,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.taktUnit,
+        );
         await _ensureColumn(
           m,
           simulationRunStudies,
           simulationRunStudies.cadenceEndedAt,
         );
+      }
+
+      if (from < 23) {
+        // **A stay in a queue belongs to a step, not to a station** (§8.6).
+        //
+        // Found by driving: two steps of one study pointed at CEU32, the run
+        // computed 1775 steps in 1110 ms and then could not be stored —
+        // `UNIQUE constraint failed: simulation_run_lane_visits.run_id,
+        // .order_id, .node_id` — three times in four minutes. A part going back
+        // to a machine for a second operation is ordinary routing and the
+        // engine has always modelled it; only the save could not express it.
+        //
+        // **The first rebuild since v15.** Every migration since has been able
+        // to say "no rebuild, the shape §16.19 called safe" — a nullable column
+        // on a table that predates it. A primary key cannot be changed that
+        // way, so this one creates the table in its new shape, copies, and
+        // swaps. The old table is dropped last and inside the same
+        // transaction, so a failure leaves v22's table where it was.
+        //
+        // **`node_id` becomes `target_id`, which is what it always held.**
+        // `engine.dart` writes `waiting.lane.targetId` into it and has since
+        // §7.3 moved the queue onto the station. The name is what made this
+        // defect invisible for six rounds: a key on "node" read as one stay per
+        // step and meant one stay per station.
+        // **Only where the old shape is actually there.** A database coming
+        // from v19 or earlier had this table created by that step's
+        // `_ensureTable`, which builds from the *current* definition — so it
+        // arrives here already in the v23 shape with nothing to migrate. That
+        // is the same reason `_ensureColumn` tolerates a missing table:
+        // `from` says where the counter stopped, not what the file contains.
+        // Every column the copy reads, not just the renamed one. A database
+        // may carry a hand-rolled table of this name in a shape the app never
+        // shipped — `migration_test.dart`'s v16 fixture is one, with no
+        // `study_id` and `entered`/`left` rather than `entered_at`/`left_at`.
+        // The app could not read such a table before this migration and cannot
+        // after it; what matters is that v23 leaves it exactly as it found it
+        // rather than failing the whole upgrade on the way past.
+        if (await _hasColumn('simulation_run_lane_visits', 'node_id') &&
+            await _hasColumn('simulation_run_lane_visits', 'study_id') &&
+            await _hasColumn('simulation_run_lane_visits', 'entered_at')) {
+          await m.database.transaction(() async {
+            await m.database.customStatement('''
+            CREATE TABLE simulation_run_lane_visits_v23 (
+              run_id TEXT NOT NULL REFERENCES simulation_runs (id)
+                ON DELETE CASCADE,
+              study_id TEXT NOT NULL,
+              order_id TEXT NOT NULL,
+              target_id TEXT NOT NULL,
+              step_node_id TEXT NOT NULL,
+              entered_at INTEGER NOT NULL,
+              left_at INTEGER,
+              PRIMARY KEY (run_id, order_id, step_node_id)
+            )
+          ''');
+
+            // **Backfilled from the steps, and falling back to the target.** A
+            // stay that produced a step is matched to it on (run, order, lane),
+            // which is exactly the pair the writer derived it from — so a v22 row
+            // gets the step it was always about. A stay that produced *no* step
+            // is an order the guard caught still queueing; there is no step to
+            // name, and v22's own key guarantees at most one such row per order
+            // per station, so taking the target as its surrogate collides with
+            // nothing and loses nothing.
+            //
+            // Deriving rather than dropping, because §7.10's posture is that a
+            // stored run is read with the build that made it in mind rather than
+            // discarded when the model moves under it.
+            await m.database.customStatement('''
+            INSERT INTO simulation_run_lane_visits_v23
+              (run_id, study_id, order_id, target_id, step_node_id,
+               entered_at, left_at)
+            SELECT v.run_id, v.study_id, v.order_id, v.node_id,
+                   COALESCE(
+                     (SELECT s.node_id FROM simulation_run_steps s
+                       WHERE s.run_id = v.run_id
+                         AND s.order_id = v.order_id
+                         AND s.lane_node_id = v.node_id
+                       LIMIT 1),
+                     v.node_id),
+                   v.entered_at, v.left_at
+              FROM simulation_run_lane_visits v
+          ''');
+
+            await m.database.customStatement(
+              'DROP TABLE simulation_run_lane_visits',
+            );
+            await m.database.customStatement(
+              'ALTER TABLE simulation_run_lane_visits_v23 '
+              'RENAME TO simulation_run_lane_visits',
+            );
+          });
+        }
       }
 
       // Reference-data seeding runs outside every version guard, on every
@@ -878,11 +981,10 @@ class AppDatabase extends _$AppDatabase {
   // step that has already run must be a no-op rather than an error, or one
   // interrupted upgrade locks the user out of their own data for good.
 
-  Future<bool> _hasTable(String name) async =>
-      (await customSelect(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
-        variables: [Variable<String>(name)],
-      ).get()).isNotEmpty;
+  Future<bool> _hasTable(String name) async => (await customSelect(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    variables: [Variable<String>(name)],
+  ).get()).isNotEmpty;
 
   /// Interpolated rather than bound: `PRAGMA` takes no parameters, and every
   /// caller passes a table name written in this file.
@@ -932,9 +1034,7 @@ class AppDatabase extends _$AppDatabase {
     for (final type in blank) {
       final guess = guessWorkcenterIcon(type.name);
       if (guess == null) continue;
-      await (update(
-        workcenterTypes,
-      )..where((t) => t.id.equals(type.id))).write(
+      await (update(workcenterTypes)..where((t) => t.id.equals(type.id))).write(
         WorkcenterTypesCompanion(icon: Value(guess)),
       );
     }

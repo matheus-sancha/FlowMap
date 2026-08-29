@@ -1219,6 +1219,7 @@ class _Engine {
             studyId: waiting.study.id,
             orderId: waiting.order.id,
             laneNodeId: waiting.lane.targetId,
+            stepNodeId: waiting.step.id,
             enteredAt: waiting.since,
           ),
       ],

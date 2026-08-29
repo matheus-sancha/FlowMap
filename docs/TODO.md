@@ -93,7 +93,7 @@ bug fix can be checked against the screens that reported it before §6 moves tho
 | **§6** | The workspace | five tabs, one simulation, less chrome — **not driven** |
 | **§7** | The queue, the filter and the balance | from driving `0.1.0-2026-08-15g` |
 | **§8** | Round eight | the phantom visit, five surfaces, and a save that fails |
-| **§9** | Round nine | Project Settings, occupation over time, the float matrix |
+| **§9** | Round nine | Project Settings, occupation over time, the float matrix — **now v24** |
 | **§10** | Known gaps, deliberately left | |
 | **§11** | Deferred by decision | §3.8, the map that never runs |
 | **§12** | M5 | |
@@ -2143,7 +2143,7 @@ _This is why §0 ran before §8 rather than after._ The item it closes has been 
 worded *"the wiring from Simulate to banner to tab switch is only covered by pressing it."* Somebody
 pressed it.
 
-### 8.6 A flow that visits one station twice cannot be saved
+### 8.6 A flow that visits one station twice cannot be saved — **code-complete 2026-08-29, schema v23, not driven**
 
 **Found by driving, 2026-08-29, and found by accident** — a step was re-bound to the wrong station
 while putting §8.5's readiness check back, which left Célula 11D pointing at **CEU32 at both
@@ -2182,10 +2182,42 @@ reaching a surface nobody re-read when it landed. The queue stopped being a stud
 places went on asking it which study it belonged to. Worth a sweep for others."* This is one of the
 others, found sixteen days later by driving rather than by sweeping.
 
-_What it needs is a decision this round should not take without reading §7.3 again:_ either the key
-gains the step's position — a visit is per *step*, not per *station* — or a revisit is folded into
-one row with the second stay appended. The first is a schema change and is almost certainly right;
-the second loses information the Gantt draws. **Not designed here.**
+**Settled by interview 2026-08-29 and landed as schema v23: a visit is keyed by the step it fed.**
+
+The column called `node_id` never held a node. `engine.dart` writes `waiting.lane.targetId` into it
+and has done since §7.3 moved the queue onto the station — `b96fc7c7`, the id in the failing insert,
+is **CEU32**. So the key read as *"one order queues once per step"* and meant *"one order queues once
+per station"*, and the name is most of why it stayed invisible for six rounds.
+
+**The tell was the table next door.** `SimulationRunSteps` carries the identical key shape and
+survives, because it is keyed by *where in the flow*. Lane visits were the odd one out, and v23
+brings them into line: `node_id` becomes `target_id` (which is what it holds, and the Gantt still
+groups bands by it), a `step_node_id` arrives, and the key becomes
+`{run_id, order_id, step_node_id}`.
+
+**The writer needed nothing new.** A visit is derived from a step row, and a step already carries
+both ids. Only `SimOpenLaneVisit` — a stay the guard caught mid-flight, which produces no step —
+gained a field, filled from `waiting.step.id`.
+
+**The first table rebuild since v15.** Every migration since has been able to say *"no rebuild, the
+shape §16.19 called safe"*; a primary key cannot be changed that way. It creates, copies, drops and
+renames inside one transaction, so a failure leaves v22's table where it was. **Rows are backfilled
+from the steps** on `(run, order, lane)` — the pair the writer derived them from — and a stay with no
+step keeps the target as its surrogate, which collides with nothing because v22's own key already
+guaranteed one such row per order per station. It means a pre-v23 run cannot say which step a stay
+belonged to, which is true.
+
+**Guarded on the columns the copy reads, not on the version.** A database from v19 or earlier had
+this table created by that step's `_ensureTable`, which builds from the *current* definition — so it
+arrives at v23 already in the new shape with nothing to migrate. `from` says where the counter
+stopped, not what the file contains; the same lesson `_ensureColumn` was written for.
+
+**Seven tests.** Three in `run_storage_test.dart` — the run stores at all, both stays survive named
+by their steps, and the second stay begins no earlier than the first ended, which is what rules out
+folding them into one row. **All three fail against v22's key**, with the same UNIQUE constraint the
+drive hit. Four in `migration_test.dart` cover the backfill, the surrogate, a mixed table losing
+nothing, and the upgraded table accepting the second stay v22 refused. `flutter analyze` clean,
+**933 passing**.
 
 ### 8.7 The app has no language picker — **code-complete 2026-08-29, not driven**
 
@@ -2260,8 +2292,14 @@ by driving instead, in §8.8.
 - [ ] **A run that cannot start** — unbind a step — pressed anyway if the button allows it. The
       banner must say so rather than repeating the last run's percentage.
 - [ ] **A flow that visits one station twice**, which §8.6 is about. Point two steps of one study at
-      the same workcenter and run it: it must store, and the Gantt must draw both visits. The case
-      is one edit away and was reached by accident once already.
+      the same workcenter and run it: it must store, and **the Gantt must draw both visits** — the
+      half no test covers, since the chart groups lane bands by target and nobody has looked at what
+      two stays of one order in one band do to the stack. The case is one edit away and was reached
+      by accident once already.
+- [ ] **v23 against the live database itself**, with the build label and the `db.open schema 23 from
+      22` line both in `log.txt` — the pair §0 says a stale link cannot produce. **Back up first**:
+      this is the first migration since v15 that rebuilds a table rather than adding a column, and
+      the 105 stored runs go through it.
 - [ ] **The language switched in the app**, which §8.7 makes possible for the first time. **And it
       is the check that stands in for a test**: §8.7's widget tests copy `app.dart`'s wiring rather
       than mounting it, so nothing in the suite would notice `locale:` going missing. Then
@@ -2304,7 +2342,12 @@ place — a calendar is browsed, not filled in and dismissed.
 two come to disagree, which is the argument `station_cards.dart:31` already makes about the dialog
 §6.3 deleted.
 
-### 9.2 Schema v23 — what a run must store to be graphed
+### 9.2 Schema v24 — what a run must store to be graphed
+
+**v24 rather than v23**, settled by interview 2026-08-29: §8.6 needed a migration of its own and §8
+is driven before §9 moves the ground under it. Carrying §9's columns in §8's migration would have
+committed the live database to a design nothing had written yet — the shape this file already warns
+about twice, where an entry over-specified its own cost before the code around it was read.
 
 Three columns, one migration. Each is a copy-in, because §7.10 forbids joining a finished run back
 to a plant that may have been retuned since — the rule `processSeconds` already states in its own
@@ -2319,7 +2362,7 @@ doc: *"Recomputing it on read is not open to us."*
 The monthly open seconds also close, **for this metric only**, something `run_filter.dart:9` states
 as a standing limitation: *"a station's busy, open and blocked time keep describing the whole run."*
 
-Runs made before v23 graph nothing, the way pre-v18 runs group nothing.
+Runs made before v24 graph nothing, the way pre-v18 runs group nothing.
 
 ### 9.3 The occupation graph — demand against capacity
 
@@ -2415,7 +2458,7 @@ statement made readable — the plant that is green in January and red in April.
       the pivot's TOTAL row unchanged by the filter while the cells above it change.
 - [ ] **The pivot's column totals adding up** with every line in view, and deliberately **not**
       adding up under a filter. The one check here whose failure would be silent.
-- [ ] **A pre-v23 run opened from the history picker** offering no graph rather than an empty one,
+- [ ] **A pre-v24 run opened from the history picker** offering no graph rather than an empty one,
       and **a pre-§8.1 run not being graphed at all** — its phantom visits are in its lane visits.
 - [ ] **The float matrix's thresholds edited on Project Settings** and the colours moving, in a
       month with orders on both sides of a boundary. And the matrix at 24 columns, which is where
@@ -2427,7 +2470,7 @@ statement made readable — the plant that is green in January and red in April.
 
 **DESIGN.md this round:** §8.1 (the pivot, and why a type groups where a sum would not), §8.3
 (occupation gains a time axis and a stated bucket), §8.4, §11.1, §12.1 (Project Settings as a
-destination), §12.6, §16.24 (schema v23).
+destination), §12.6, §16.25 (schema v24).
 
 ---
 

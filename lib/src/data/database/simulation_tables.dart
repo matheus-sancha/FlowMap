@@ -513,7 +513,37 @@ class SimulationRunLaneVisits extends Table {
 
   TextColumn get studyId => text()();
   TextColumn get orderId => text()();
-  TextColumn get nodeId => text()();
+
+  /// The **workcenter or pool** whose queue this is (§7.3, §8.6).
+  ///
+  /// **Renamed from `node_id` at v23, which is what it never was.** §7.3 moved
+  /// the queue off the flow and onto the station — `engine.dart` writes
+  /// `waiting.lane.targetId` here — and the column name stayed behind. A name
+  /// that says node while holding a workcenter is what made §8.6 invisible:
+  /// the key built on it read as "one order queues once per step" and meant
+  /// "one order queues once per station".
+  TextColumn get targetId => text()();
+
+  /// The flow node this stay was waiting *for* (§8.6).
+  ///
+  /// **This is what makes a visit unique, and [targetId] is not.** A part may
+  /// go back to a machine for a second operation — ordinary routing, which the
+  /// engine has always modelled — and both stays are then in one station's
+  /// queue. Keyed by the station, the second stay collided with the first and
+  /// the run was computed and then thrown away with a UNIQUE constraint the
+  /// screen reported only as "could not be completed".
+  ///
+  /// Keyed by the step, the two stays are two rows, which is what
+  /// [SimulationRunSteps] has always done with the identical key shape. That
+  /// table survived because it is keyed by *where in the flow*; this one is
+  /// the odd one out being brought into line.
+  ///
+  /// **On rows migrated from v22 it may hold a [targetId] instead.** A stay
+  /// that produced no step — an order the guard caught still queueing — has no
+  /// step to name, and the old key already guaranteed at most one such row per
+  /// order per station, so nothing collides and nothing is lost. It means a
+  /// pre-v23 run cannot say which step a stay belonged to, which is true.
+  TextColumn get stepNodeId => text()();
 
   /// When the order took a place in the lane.
   DateTimeColumn get enteredAt => dateTime()();
@@ -524,5 +554,5 @@ class SimulationRunLaneVisits extends Table {
   DateTimeColumn get leftAt => dateTime().nullable()();
 
   @override
-  Set<Column<Object>> get primaryKey => {runId, orderId, nodeId};
+  Set<Column<Object>> get primaryKey => {runId, orderId, stepNodeId};
 }

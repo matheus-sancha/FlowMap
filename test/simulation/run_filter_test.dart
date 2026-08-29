@@ -378,6 +378,7 @@ void main() {
               studyId: 'b',
               laneNodeId: 'clad-pool',
               orderId: 'o2',
+              stepNodeId: 'step-clad',
               enteredAt: start,
             ),
           ],
