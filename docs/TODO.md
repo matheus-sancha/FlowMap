@@ -1,20 +1,20 @@
 # FlowMap — what is next
 
-Working state as of 2026-08-18. This file is **only unstarted work**, and each item should be
+Working state as of 2026-08-29. This file is **only unstarted work**, and each item should be
 deleted from it as it lands. `docs/DESIGN.md` is the source of truth for *why*; `docs/HISTORY.md`
 is the source of truth for *what already happened* — the finished rounds, the run identifiers, the
 migration timestamps and the backup filenames.
 
-Branch `m1-m2-foundation`, `flutter analyze` clean, **880 tests passing** (one of them `live`-tagged
-and skipped without a database). Schema is at **v22**; the live database is at **v21** and v22 has
-met a copy of it — `integrity_check` ok, 250 orders, 100 runs, 104,463 run steps, backed up first as
-`flowmap.sqlite.backup-v21-20260827-215250`. v20 met the live file at 21:59 and v21 at 22:34 on
-2026-08-18, both under `dev` builds, both confirmed from `log.txt` rather than from anything written
-down at the time. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends
-found their columns already there, and §7.4 turned out to store nothing at all. **§7 is
-code-complete again, §7.9 included** — the takt had never once reached a run and now does.
-**892 tests, and §7.9 has not been driven at all.** M4 is code-complete, and the initial plan has no code left in it —
-§3.8 is deferred by decision and everything else in it has landed.
+Branch `m1-m2-foundation`, `flutter analyze` clean, **892 tests passing** (one of them `live`-tagged
+and skipped without a database). Schema is at **v22 and so is the live database** —
+`db.open schema 22 from 21` at 21:57:36 on 2026-08-27 under **`0.1.0-2026-08-27a`**, against a copy
+first and with `flowmap.sqlite.backup-v21-20260827-215250` beside the live file. v20 and v21 met it
+on 2026-08-18 under `dev` builds, recorded late from `log.txt` because nothing was written down at
+the time. **None of §7.3's tail, §7.4 or §7.6 needed a migration** — the flow's two ends found their
+columns already there, and §7.4 turned out to store nothing at all. **§7 is code-complete, §7.9
+included**: the takt had never once reached a run and now belongs to the order that opens under it.
+M4 is code-complete, and the initial plan has no code left in it — §3.8 is deferred by decision and
+everything else in it has landed.
 
 **Two entries in a row over-specified their own cost**, which is worth watching for: §7.3's flow-ends
 stock called itself "a schema step (v20)" when the columns already existed, and §7.4 said "what is
@@ -22,20 +22,33 @@ stored is the group's measured total" when the sum of cells the demand table alr
 total. Both were written before the code around them was read.
 
 **The one thing to know before starting anything: almost nothing here has been looked at.** §5, §6,
-§7 and §7.6 are all code-complete and covered by tests, and **nothing in the suite renders a pixel**
-(§2.7). The last drive — `0.1.0-2026-08-16d`, half an hour of one person clicking — found **three
+§7.5 and §7.6 are code-complete and covered by tests, and **nothing in the suite renders a pixel**
+(§2.7). The drive of `0.1.0-2026-08-16d` — half an hour of one person clicking — found **three
 defects that 765 tests had nothing to say about**, all of them §7.3's re-model reaching a surface
 nobody re-read. That is the ratio to plan around: driving is not a formality after the work, it is
-where the defects are. §5.3, §7.5 and §7.6 are the three open drive lists.
+where the defects are. §5.3, §7.5, §7.6 and §7.9's surfaces are the open drive lists.
+
+**§7.9 is the exception and it is worth knowing why.** Its engine half was checked against the
+**stored run** rather than against the screen — the takts each order opened under, the work charged
+either side of the change, and which rows moved in the studies that share stations with it. That is
+a kind of evidence this repo had not used before, it is repeatable by anyone reading §7.9, and it
+caught one of my own drive-list expectations being wrong. **It says nothing about the four surfaces**
+(§7.9's second list), which remain reported-working and unitemised.
 
 **And §7.6 is the sharper version of the same lesson**, because it was found by reading rather than
 by clicking: Lead Time Efficiency had shipped **upside down**, and it survived because three sections
 of `DESIGN.md` described the reciprocal and all agreed with each other. **A suite that agrees with a
 wrong premise is not evidence.** §7.6 is the round that fixed it and the four things it reached.
 
-**Latest build is `0.1.0-2026-08-16e`.** Every stored run predates the v19 engine change, so
-replaying one from the history picker shows per-node lanes rather than one queue per target. **Only
-a fresh run exercises what §7.3 built.**
+**Latest build is `0.1.0-2026-08-27a`.** The history picker holds **104 runs**, and they are now
+three generations rather than one: ninety-odd made before v19 draw per-node lanes rather than one
+queue per target; those from 2026-08-18 carry a step's work but one takt for the whole run; and only
+`7669856d` and the three after it were made under §7.9, where the takt belongs to the order. **A
+stored run is read with the build that made it in mind**, which is what §7.10's copy-in rule is for.
+
+**And the plant itself changed during the last drive**: 11D's line no longer has a 5-day takt period
+— it was deleted after `7669856d`, which is why the three runs following it leave 23 orders unopened.
+**Anyone re-driving §7.9 has to put it back**: 4 days to 2026-03-31, 5 days from 2026-04-01.
 
 **§1–§4 have landed and are kept here rather than deleted**, against this file's own rule, because
 `HISTORY.md` stops at the 2026-08-11 feedback round and has not absorbed them yet. They are the only
