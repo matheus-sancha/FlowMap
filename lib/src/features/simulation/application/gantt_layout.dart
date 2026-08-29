@@ -844,11 +844,24 @@ const _unrouted = 1 << 30;
 /// Checked against the three studies' own flows on the live database: the index
 /// order broke two of them and this breaks none.
 ///
-/// **Cycles are expected, not guarded against.** Since §8.6 a routing may visit
-/// one station twice, which is a genuine cycle in the precedence graph. When
-/// nothing is left with no unmet predecessor, the best-placed survivor is taken
-/// and the walk continues — a revisited station lands at its *first* position,
-/// which is where a reader looks for it.
+/// **Cycles are removed before levelling, not tolerated during it** (§9.6).
+/// Since §8.6 a routing may visit one station twice, and that is a genuine
+/// cycle: on the real plant 11D runs `CEU30 → TCN20 → CEU30`, so each of the
+/// two comes before the other. Relaxing over a cyclic graph does not settle —
+/// it climbs until the pass cap and drags everything the cycle reaches up with
+/// it. Driven, that read as `END:36 TCN20:36 BAN11:37`, which is not an order
+/// at all; five routings came out wrong where the acyclic version had none.
+///
+/// So a depth-first walk drops the edges that close a cycle, and the levels are
+/// computed on what is left. One edge was dropped on the live plant, and 11B
+/// and 11C came out exactly right.
+///
+/// **Which visit a revisited station is drawn at is not decided here, and
+/// cannot be.** It gets one row; `CEU30 → TCN20 → CEU30` says it belongs both
+/// above and below, and no single position honours both. The walk settles it
+/// deterministically and the answer is stable for a given run, but it is a
+/// choice rather than a fact — listed in §11 so the field can say which visit
+/// it would rather read.
 ///
 /// **A depth, not an order — and the difference is what keeps the Queue table
 /// in the picture.** Stations with no routing relationship between them come
@@ -893,6 +906,46 @@ Map<String, int> routingRanks(SimRunResult result) {
     }
   }
 
+  // **The cycles come out first.** A depth-first walk keeps every edge except
+  // the ones pointing back at a station already open on the stack — those are
+  // exactly the edges that close a loop, and dropping them leaves a graph the
+  // levels below can settle on. Roots and neighbours are taken in id order, so
+  // one run always draws the same chart (§4.4).
+  const white = 0, grey = 1, black = 2;
+  final colour = {for (final station in stations) station: white};
+  final forward = <String, Set<String>>{};
+  final sorted = stations.toList()..sort();
+
+  for (final root in sorted) {
+    if (colour[root] != white) continue;
+    colour[root] = grey;
+    final stack = <(String, List<String>, int)>[
+      (root, (after[root] ?? const <String>{}).toList()..sort(), 0),
+    ];
+
+    while (stack.isNotEmpty) {
+      final (node, neighbours, index) = stack.removeLast();
+      if (index >= neighbours.length) {
+        colour[node] = black;
+        continue;
+      }
+      stack.add((node, neighbours, index + 1));
+
+      final next = neighbours[index];
+      // Grey means it is still open above us: this edge closes a cycle.
+      if (colour[next] == grey) continue;
+      (forward[node] ??= <String>{}).add(next);
+      if (colour[next] == white) {
+        colour[next] = grey;
+        stack.add((
+          next,
+          (after[next] ?? const <String>{}).toList()..sort(),
+          0,
+        ));
+      }
+    }
+  }
+
   // **How deep in the flow, not what order to draw** — the distinction the
   // first attempt at this got wrong. A topological *sequence* gives every
   // station a distinct number, which silently takes the decision away from the
@@ -901,15 +954,12 @@ Map<String, int> routingRanks(SimRunResult result) {
   // of them queued more. A *level* leaves them equal and says so.
   //
   // Longest path from any source: a station sits one below the deepest thing
-  // that feeds it. Relaxed to a fixed point rather than walked, because the
-  // graph is small and a revisit (§8.6) makes it cyclic — the pass count is
-  // capped at the number of stations, which is what stops a cycle climbing for
-  // ever. A cycle therefore settles at the depth of its longest acyclic
-  // approach, which is where a reader looks for it.
+  // that feeds it. Relaxed to a fixed point over the acyclic graph above, which
+  // is what makes the fixed point exist.
   final ranks = {for (final station in stations) station: 0};
   for (var pass = 0; pass <= stations.length; pass++) {
     var moved = false;
-    for (final entry in after.entries) {
+    for (final entry in forward.entries) {
       for (final downstream in entry.value) {
         if (ranks[downstream]! < ranks[entry.key]! + 1) {
           ranks[downstream] = ranks[entry.key]! + 1;

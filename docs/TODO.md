@@ -2561,6 +2561,27 @@ the 8-row drop, and the new key holding two different figures. Plus `demand_repo
 builds real steps for its times to belong to, and the study-duplication test asserts the copy's times
 key by the **copy's** nodes rather than by two literals.
 
+### 9.6 A revisit made the row order cyclic — **fixed 2026-08-29**
+
+**Found by driving §9**, and it is §8.9's own fix meeting the case §8.6 created. A revisit makes the
+precedence graph genuinely cyclic — 11D runs `CEU30 → TCN20 → CEU30`, so each comes before the
+other — and relaxing a longest path over a cycle does not settle. It climbed to the pass cap and took
+everything the loop reached with it: **`END:36  TCN20:36  BAN11:37`**, with five routings out of
+order where the acyclic version had none.
+
+§8.9's doc claimed *"a cycle settles at the depth of its longest acyclic approach"*. It did not; the
+code never removed the cycle. **A depth-first walk drops the edges that close one**, and the levels
+are computed on what is left — one edge dropped on the live plant, and 11B and 11C came out exactly
+right.
+
+**Which visit a revisited station is drawn at is a choice, not a fact.** It gets one row, and
+`CEU30 → TCN20 → CEU30` says it belongs both above and below. The walk settles it deterministically
+and stably, but no position honours both visits — **listed in §11 so the field can say which it would
+rather read.**
+
+_A test pins the part that is not a matter of taste:_ everything downstream of the loop keeps its
+order. It fails against the cyclic version.
+
 ### 9.5 Drive it
 
 - [ ] **A study with a station twice**, two different times typed, and the run charging each pass its
@@ -2771,6 +2792,11 @@ destination), §12.6, §16.26 (schema v25).
       the next plant that ties will read wrong for the same reason. What it needs is the study's own
       node sequence, which the run stores per step as `node_id` and which `routingRanks` does not
       look at.
+- [ ] **Which visit a revisited station is drawn at.** It gets one row, and a routing that runs
+      `CEU30 → TCN20 → CEU30` puts it both above and below TCN20 — no single position honours both
+      (§9.6). The walk settles it deterministically; nobody has said which reading a planner wants.
+      **The first visit is where §8.9 assumed a reader looks**, and that assumption has never been
+      put to anyone.
 - [ ] **§18.5 is still open**: empty slots as a reported metric. They are counted, dated, stored and
       shown; what is missing is a decision about whether a list of *which* slots is wanted, and
       whether an empty slot should ever be a warning.

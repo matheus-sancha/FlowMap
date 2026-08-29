@@ -323,6 +323,60 @@ void main() {
       );
     });
 
+    test('a revisit does not drag everything downstream of it away', () {
+      // **The defect the 2026-08-29 drive found in §8.9's own fix.** A revisit
+      // makes the precedence graph cyclic — W2 comes before W3 and W3 before
+      // W2 — and relaxing a longest path over a cycle does not settle: it
+      // climbs until the pass cap and takes everything the cycle reaches with
+      // it. On the real plant that read `END:36 TCN20:36 BAN11:37`, and five
+      // routings came out wrong where none had before.
+      //
+      // What this pins is that the stations *after* the loop still read in
+      // order. W4 and W5 are downstream of the whole thing and must stay that
+      // way however the two inside it are settled.
+      final chart = chartOf(
+        workcenterNames: const {
+          'W1': 'W1',
+          'W2': 'W2',
+          'W3': 'W3',
+          'W4': 'W4',
+          'W5': 'W5',
+        },
+        orders: [orderOf(orderId: 'o1', sequence: 0, partId: 'p1')],
+        steps: [
+          for (final (index, station)
+              in ['W1', 'W2', 'W3', 'W2', 'W4', 'W5'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: station,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+        ],
+      );
+
+      final drawn = chart.stations.map((r) => r.workcenterId).toList();
+      expect(drawn.length, 5, reason: 'a revisited station is still one row');
+      expect(
+        drawn.indexOf('W1'),
+        lessThan(drawn.indexOf('W4')),
+        reason: 'the acyclic part still reads downwards',
+      );
+      expect(
+        drawn.indexOf('W4'),
+        lessThan(drawn.indexOf('W5')),
+        reason: 'and everything past the loop keeps its order',
+      );
+      for (final station in ['W2', 'W3']) {
+        expect(
+          drawn.indexOf(station),
+          lessThan(drawn.indexOf('W4')),
+          reason: '$station is inside the loop and above what follows it',
+        );
+      }
+    });
+
     test('a station revisited by one routing does not stall the ordering', () {
       // §8.6 made a revisit storable, which makes the precedence graph cyclic:
       // W2 comes before W3 and W3 comes before W2. Nothing can satisfy both, so
