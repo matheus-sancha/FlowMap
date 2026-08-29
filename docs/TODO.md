@@ -2385,7 +2385,17 @@ is intermittent rather than fixed — nothing in §8 touched it.
       **every es/pt check §0 could not perform**: the four round-one dialogs, the Schedules paste,
       the takt line on card and plan, and the Excel export's date cells. That is a block of work
       §0 has been carrying since 2026-08-15 without being able to start it.
-- [ ] **A node dragged to the front, to the back, and dropped on itself.** And the arrows, the
+- [x] ~~**A node dragged to the front, to the back, and dropped on itself.**~~ **Working, reported
+      2026-08-29 under `0.1.0-2026-08-29b` — and reported as "a bit weird" before that, which was
+      not pursued.** The likely cause is on record so nobody has to rediscover it:
+      `pointerDragAnchorStrategy` with a centring offset makes the box jump to sit centred under the
+      cursor at pickup, so grabbing it near an edge teleports it before it starts following. The
+      default `childDragAnchorStrategy` would keep the grab point; the centring bought visibility of
+      the gap being aimed at, which the caret and the `+` highlight already give. **One line if it
+      grates again.**
+- [ ] **The arrows, the lead-time ladder and the PDF agreeing with a dragged order**, which is the
+      claim a derived layout makes and the half of §8.4 nobody has looked at.
+- [ ] _(original)_ **A node dragged to the front, to the back, and dropped on itself.** And the arrows, the
       lead-time ladder and the PDF all agreeing with the new order afterwards, which is the claim a
       derived layout makes.
 - [ ] **The snap reads as deliberate rather than as a jump.** The box does not stay where it is
