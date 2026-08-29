@@ -597,7 +597,7 @@ class _Engine {
           reason: EmptySlotReason.wipCap,
         ),
       );
-    } else if (_gateIsFull(study)) {
+    } else if (_gateIsFull(study, order, study.taktKeyAt(_now))) {
       // Nowhere to put it. Two lanes can say so, and both are places nothing
       // upstream can be blocked on behalf of: the lane at the head of the flow,
       // which has no station behind it, and the pacemaker's, which is where
@@ -691,8 +691,10 @@ class _Engine {
     return capacity == null || _queued(queue.targetId) < capacity;
   }
 
-  /// The first step of a study's flow, which is where a release lands.
-  int? _entry(SimStudy study) => _nextStep(study, 0);
+  /// The first step [order] lands on when it is released — not necessarily
+  /// node 0, since §8.1 skips the steps its part does not visit.
+  int? _entry(SimStudy study, SimOrder order, SimTakt? takt) =>
+      _nextStep(study, order, takt, 0);
 
   /// Whether a release has to be held back for want of room (§7.2, §5.5).
   ///
@@ -706,8 +708,9 @@ class _Engine {
   ///
   /// Both are no-ops on a lane with no capacity, which is every lane until
   /// someone types one.
-  bool _gateIsFull(SimStudy study) {
-    if (_entry(study) case final first? when !_hasRoom(study, first)) {
+  bool _gateIsFull(SimStudy study, SimOrder order, SimTakt? takt) {
+    if (_entry(study, order, takt) case final first?
+        when !_hasRoom(study, first)) {
       return true;
     }
     final pacemaker = _paceSetterIndex(study);
@@ -722,19 +725,51 @@ class _Engine {
     return index < 0 ? null : index;
   }
 
-  /// The next step an order at [from] must visit, or null when it has finished
-  /// the flow.
+  /// The next step [order] must visit from [from] on, or null when it has
+  /// finished the flow.
   ///
   /// Buffers still cost nothing to pass through (§2.12): what they cost is
   /// *room*, and that is charged by [_hasRoom] at the step they feed rather
   /// than as a delay here.
-  int? _nextStep(SimStudy study, int from) =>
-      from >= study.nodes.length ? null : from;
+  ///
+  /// **A step worth zero to this order is not a step it visits** (§8.1). Zero
+  /// is what a part's routing records where it does not go through a station —
+  /// `SimulationRunSteps.processSeconds`' own doc says so — and the engine used
+  /// to queue the order there anyway: it took a slot on the lane, occupied the
+  /// station for no time, and stored a step row. On a capped lane that slot is
+  /// one a real order needed, and on the Gantt those rows pushed every station
+  /// behind them one place later, which is how CEU32 came to be drawn above
+  /// CEU30 on a chart of a line that runs CEU30 first.
+  ///
+  /// **Judged under [takt], because zero-ness is not a property of the step.**
+  /// `processTimeFor` prefers `balancedProcessTimes[takt]` over the part's own
+  /// figure, and §7.4's rebalance is free to empty a station out of a routing
+  /// at one takt and fill it at another — §7.9 measured exactly that, CEU32 at
+  /// 0.0 h under a five-day takt and busy under four. So the takt an order
+  /// opened under decides which steps it has, and it is fixed for that order's
+  /// whole journey (§7.9).
+  ///
+  /// **A step with _no_ time at all is returned rather than skipped.** Null is
+  /// §11's blocking readiness error — the part is missing a figure it needs —
+  /// and [_admit] is where that is reported. Skipping it would turn a fault
+  /// the guard names into a silently shorter flow.
+  int? _nextStep(SimStudy study, SimOrder order, SimTakt? takt, int from) {
+    final part = study.parts[order.partId];
+    for (var index = from; index < study.nodes.length; index++) {
+      final perPiece = study.nodes[index].processTimeFor(
+        order.partId,
+        part,
+        takt: takt,
+      );
+      if (perPiece == null || perPiece > Duration.zero) return index;
+    }
+    return null;
+  }
 
   void _onArrive(_Event event) {
     final study = _studyById(event.key!);
     final order = _orders['${study.id}/${event.orderId}']!;
-    final index = _nextStep(study, event.index!);
+    final index = _nextStep(study, order, _takt[order.id], event.index!);
 
     if (index == null) {
       _deliver(study, order);
@@ -1028,7 +1063,12 @@ class _Engine {
   /// jam backwards up the line.
   void _tryUnload(_Server server, _Waiting waiting) {
     final study = waiting.study;
-    final next = _nextStep(study, waiting.nodeIndex + 1);
+    final next = _nextStep(
+      study,
+      waiting.order,
+      _takt[waiting.order.id],
+      waiting.nodeIndex + 1,
+    );
 
     // Nothing ahead: the flow is finished and the customer is an unlimited
     // sink, so the last station can never block. That is also why a linear

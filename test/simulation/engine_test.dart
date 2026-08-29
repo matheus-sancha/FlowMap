@@ -168,6 +168,200 @@ void main() {
     interval: interval,
   );
 
+  group('a step worth zero is not a step the order visits (§8.1)', () {
+    // Found by driving 0.1.0-2026-08-27a on 2026-08-29. Zero is what a routing
+    // records where a part does not go through a station — `processSeconds`'
+    // own doc says so — and the engine used to queue the order there anyway.
+    // Nothing in 892 tests said otherwise, which is why this group exists.
+
+    const early = (value: 4.0, unit: TaktUnit.hours);
+    const late = (value: 10.0, unit: TaktUnit.hours);
+    final lastEarly = DateTime(2026, 8, 1, 11);
+    final firstLate = DateTime(2026, 8, 1, 12);
+
+    test('no step row is stored for a station the part does not visit', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(1, ['B']),
+              step(2, ['C']),
+            ],
+            parts: {
+              // B is explicitly zero: the part goes A -> C and the routing says
+              // so by charging nothing in between.
+              'p1': part('p1', {
+                'A': const Duration(hours: 2),
+                'B': Duration.zero,
+                'C': const Duration(hours: 2),
+              }),
+            },
+            orders: [order(0, 'p1')],
+          ),
+        ],
+        workcenters: {
+          'A': workcenter('A'),
+          'B': workcenter('B'),
+          'C': workcenter('C'),
+        },
+        start: aug1,
+      );
+
+      expect(
+        result.steps.map((s) => s.workcenterId).toList(),
+        ['A', 'C'],
+        reason: 'B is worth nothing to this part, so it is not a visit',
+      );
+    });
+
+    test('a zero step does not hold a slot on a capped lane', () {
+      // The half of §8.1 that nothing on screen shows, and the reason it is an
+      // engine fix rather than a drawing one. B's lane holds one order. Both
+      // orders skip B, so neither should ever be in that lane and neither
+      // should wait for the other there.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(1, ['B'], capacity: 1),
+              step(2, ['C']),
+            ],
+            parts: {
+              'p1': part('p1', {
+                'A': const Duration(hours: 1),
+                'B': Duration.zero,
+                'C': const Duration(hours: 1),
+              }),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {
+          'A': workcenter('A'),
+          'B': workcenter('B'),
+          'C': workcenter('C'),
+        },
+        start: aug1,
+      );
+
+      expect(
+        result.steps.any((s) => s.workcenterId == 'B'),
+        isFalse,
+        reason: 'the capped lane in front of B was never entered',
+      );
+      expect(
+        result.steps.every((s) => s.blocked == Duration.zero),
+        isTrue,
+        reason: 'a phantom order in a capped lane is what manufactures blocking',
+      );
+      expect(result.orders.where((o) => o.delivered != null).length, 2);
+    });
+
+    test('a step with no time at all is still a readiness error, not a skip', () {
+      // The distinction §8.1 must not blur. Null is §11's blocking fault — the
+      // part is missing a figure it needs — and the order is meant to stop
+      // there so the guard can report it. Skipping it would turn a fault into
+      // a silently shorter flow that delivers and looks fine.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(1, ['B']),
+            ],
+            parts: {
+              // No entry for B at all, as against an entry of zero.
+              'p1': part('p1', {'A': const Duration(hours: 2)}),
+            },
+            orders: [order(0, 'p1')],
+          ),
+        ],
+        workcenters: {'A': workcenter('A'), 'B': workcenter('B')},
+        start: aug1,
+      );
+
+      expect(result.steps.map((s) => s.workcenterId), ['A']);
+      expect(
+        result.orders.single.delivered,
+        isNull,
+        reason: 'a part with no time at a step it must visit never completes',
+      );
+    });
+
+    test('which steps an order has follows the takt it opened under', () {
+      // Zero-ness is not a property of the step. §7.4's rebalance is free to
+      // empty a station out of a routing at one takt and fill it at another,
+      // and §7.9 measured exactly that on the real plant: CEU32 at 0.0 h under
+      // a five-day takt and busy under four. So two orders of one part, on one
+      // flow, legitimately visit different stations.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              SimStep(
+                id: 'n0',
+                position: 0,
+                queue: SimQueue(targetId: 'W'),
+                title: 'W',
+                candidates: const ['W'],
+                demandKey: 'W',
+                balancedProcessTimes: {
+                  early: const {'p1': Duration(hours: 6)},
+                  late: const {'p1': Duration.zero},
+                },
+              ),
+              step(1, ['X']),
+            ],
+            parts: {
+              'p1': part('p1', {
+                'W': const Duration(hours: 9),
+                'X': const Duration(hours: 1),
+              }),
+            },
+            // Four, so the last one opens at noon under the late takt —
+            // the first three go at 00:00, 04:00 and 08:00 while the early
+            // one is still in force.
+            orders: [
+              order(0, 'p1'),
+              order(1, 'p1'),
+              order(2, 'p1'),
+              order(3, 'p1'),
+            ],
+            taktPeriods: [
+              taktPeriod(aug1, lastEarly, 4, const Duration(hours: 4)),
+              taktPeriod(
+                firstLate,
+                DateTime(2026, 12, 31),
+                10,
+                const Duration(hours: 10),
+              ),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W'), 'X': workcenter('X')},
+        start: aug1,
+      );
+
+      final visited = <String, List<String>>{};
+      for (final row in result.steps) {
+        visited.putIfAbsent(row.orderId, () => []).add(row.workcenterId);
+      }
+      expect(
+        visited['o0'],
+        ['W', 'X'],
+        reason: 'opened under the early takt, where W is worth six hours',
+      );
+      expect(
+        visited['o3'],
+        ['X'],
+        reason: 'opened under the late takt, which empties W out of its routing',
+      );
+    });
+  });
+
   group('the takt belongs to the order (§7.9)', () {
     // A line that opens an order every 4 hours until noon on 1 August and every
     // 10 after it, over a station whose work is worth one figure at the first

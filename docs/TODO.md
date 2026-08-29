@@ -1931,7 +1931,7 @@ Settled by interview 2026-08-29, and **§8.5 was added by the drive on the same 
 only item here nobody asked for. §2.0's rule holds: the engine change and the four surfaces are one
 round because none of the surfaces reads a run.
 
-### 8.1 A zero-process step is not a visit
+### 8.1 A zero-process step is not a visit — **code-complete 2026-08-29, not driven**
 
 `engine.dart:757` treats a **null** process time as the blocking readiness error `DESIGN.md`
 §11 defines — the order is never admitted and the guard reports it. An explicit **zero** takes
@@ -1952,6 +1952,24 @@ being touched.
 **This invalidates every stored run**, which is the fourth time (§2.12, §3.1 and §1 were the others)
 and is why §0 comes first — those checks are only worth making while the engine still agrees with
 the numbers that raised them.
+
+**Landed 2026-08-29.** The skip lives in `_nextStep`, which is the one place that decides what an
+order visits next, so all three movement paths inherit it — the release's entry step, an arrival, and
+an unload. **`_nextStep` took the order and the takt to do it**, because zero-ness is not a property
+of a step: `processTimeFor` prefers `balancedProcessTimes[takt]` over the part's own figure, and
+§7.4's rebalance is free to empty a station out of a routing at one takt and fill it at another.
+§7.9 measured exactly that on the real plant. **The gate moved with it** — `_gateIsFull` now asks
+about the lane the order will actually enter rather than about node 0.
+
+**A step with no time at all is still returned rather than skipped.** Null is §11's blocking
+readiness error and `_admit` is where it is reported; skipping it would turn a fault the guard names
+into a silently shorter flow that delivers and looks fine.
+
+**Four tests, in `engine_test.dart` under its own group.** Three of them fail against the old
+engine — the missing step row, the phantom slot on a capped lane, and the routing following the
+takt. The fourth passes either way **on purpose**: it pins the null case as a readiness error, which
+is the behaviour this change must not alter. `flutter analyze` clean, **896 passing** where there
+were 892.
 
 **And the drive of 2026-08-29 found the symptom that had been missing.** This round was argued from
 lane-slot contamination, which nothing on screen shows. It also draws the plant in the wrong order:
