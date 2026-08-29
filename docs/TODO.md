@@ -50,6 +50,20 @@ stored run is read with the build that made it in mind**, which is what §7.10's
 — it was deleted after `7669856d`, which is why the three runs following it leave 23 orders unopened.
 **Anyone re-driving §7.9 has to put it back**: 4 days to 2026-03-31, 5 days from 2026-04-01.
 
+**Seven new items came out of the 2026-08-29 drive, and they are §8 and §9.** They are features
+rather than defects — with one exception, §8.1, which was reported as a surface complaint and
+turned out to be the engine letting an order queue at a station its part never visits. **The
+provenance is on record this time**: `log.txt`'s last session is 07:59:57 under
+`0.1.0-2026-08-27a` at `db.open schema 22 from 22`, and this file was written at 08:25, one
+minute after that session's last route. §5.3 is the entry that had to be un-ticked for lacking
+exactly that pair.
+
+**§0 gates §8, and the interview settled it that way deliberately.** §8.1 invalidates every
+stored run — the fourth time, after §2.12, §3.1 and §1 — and §0's own argument is that its
+checks are *"cheaper now than after §1, because after §1 the engine no longer produces the
+figures that raised the question"*. The same is true here. So the order is: clear §0, §5.3,
+§6.7 and §7.9's surfaces with no code at all, then §8, drive it, then §9, drive it.
+
 **§1–§4 have landed and are kept here rather than deleted**, against this file's own rule, because
 `HISTORY.md` stops at the 2026-08-11 feedback round and has not absorbed them yet. They are the only
 record of rounds one to four; moving them across is owed and is listed in §0.
@@ -81,9 +95,11 @@ are only worth making while the engine still agrees with the numbers that raised
 | **§5** | The pool and the lane | two bugs from the field — **written, not driven** |
 | **§6** | The workspace | five tabs, one simulation, less chrome — **not driven** |
 | **§7** | The queue, the filter and the balance | from driving `0.1.0-2026-08-15g` |
-| **§8** | Known gaps, deliberately left | |
-| **§9** | Deferred by decision | §3.8, the map that never runs |
-| **§10** | M5 | |
+| **§8** | Round eight | the engine’s phantom visit, and three surfaces |
+| **§9** | Round nine | Project Settings, occupation over time, the float matrix |
+| **§10** | Known gaps, deliberately left | |
+| **§11** | Deferred by decision | §3.8, the map that never runs |
+| **§12** | M5 | |
 
 ---
 
@@ -2473,7 +2489,259 @@ schedule that does **not** carry forward, and `cadence_ended_at` is why that nee
 
 ---
 
-## 8. Known gaps, deliberately left
+## 8. Round eight — the engine's phantom visit, and three surfaces
+
+**From driving `0.1.0-2026-08-27a` on 2026-08-29**, session 07:59:57, `db.open schema 22 from 22` —
+the same session that produced §7.9's engine confirmation and the field's *"now it works properly."*
+`log.txt` carries the build label and the `db.open` line, which is the pair §0 says a stale link
+cannot produce, and `TODO.md` was written at 08:25, one minute after the log's last route. **So this
+round has the provenance §5.3 was un-ticked for lacking.** What the log bounds is the *drive*, not
+the *items*: routes are logged and tabs are not, so `/studies/:id` being open four times says
+somebody was inside a study and says nothing about which tab.
+
+Settled by interview 2026-08-29. §2.0's rule holds — the engine change and the three surfaces are
+one round because none of the surfaces reads a run.
+
+### 8.1 A zero-process step is not a visit
+
+`engine.dart:757` treats a **null** process time as the blocking readiness error `DESIGN.md`
+§11 defines — the order is never admitted and the guard reports it. An explicit **zero** takes
+the other branch and is admitted normally: the order queues in the lane, holds a slot against
+`_queued(queue.targetId) < capacity`, is dispatched, occupies the station for zero seconds, and
+stores a step row.
+
+**That is a correctness defect and not a drawing one.** `SimulationRunSteps.processSeconds`' own
+doc says zero *"is what a step the part does not route through legitimately records"* — so a part
+that skips a station is currently made to stand in that station's queue. On a capped lane it holds a
+slot a real order needs, and §0's confounder run is the measurement of what a cap does when it
+binds: `676fb0e3` manufactured **216.4 d of blocking** and bought nothing. Phantom orders feed that.
+
+A zero-time step advances past the station instead. No lane visit, no step row, nothing to draw —
+and the Gantt's `if (bars == null) continue` at `gantt_layout.dart:544` then drops the row without
+being touched.
+
+**This invalidates every stored run**, which is the fourth time (§2.12, §3.1 and §1 were the others)
+and is why §0 comes first — those checks are only worth making while the engine still agrees with
+the numbers that raised them.
+
+_The case is real and already measured._ §7.9 found `P7000109738P01` at 5 days giving CEU30
+**108.4 h** and CEU32 **0.0** — §6.2.1's "the split can empty a station out of a part's routing", on
+the live database. §7.9 left open *"whether it reads as a finding rather than a bug on screen"*.
+**It reads as a bug, and this is the answer**: the finding stays in the run's figures, and the
+phantom visit stops happening.
+
+### 8.2 The workcenter card is as tall as its schedule
+
+`station_cards.dart:145` pins each card to `maxHeight: 320` and `data_grid.dart:302` puts the grid's
+body in `Expanded(ListView.builder)`, so two periods claim all 268 px under the 52 px header. The
+red bracket on the reported screenshot is that gap.
+
+The card grows to its content and **keeps the 320 px ceiling**. The cap's stated reason — a page
+carries one card per workcenter and *"a station's schedule is as long as the plant decides"* — only
+bites at eight rows or more, and above the cap the grid scrolls exactly as it does today.
+
+_Not taken:_ removing the cap. §6.3 already tried to end the nested scroll regions by replacing the
+cards with one grid, and lost when driven — but the scrolling was never the half that lost.
+
+### 8.3 The grid's headers centre
+
+`data_grid.dart:342` offers `end` for a numeric column and `start` for everything else, and never
+centre. Headers centre in all three grids — Demand, the workcenter schedules and Takt, 21 columns
+between them — and **cell values keep their own alignment**: `data_grid.dart:29`'s *"right-aligns
+the cell — times, quantities, dates read better that way"* is what lets a column of percentages be
+scanned, and centring the data would cost that.
+
+Reported against the workcenter screen only. Changed everywhere on the argument that three grids
+aligning their headers three ways is worse than three moving at once.
+
+### 8.4 Nodes drag along the spine
+
+Reordering is a relative `±1` move inside the step dialog today (`flow_node_editor.dart:152` →
+`studies_repository.dart:429`). A node becomes draggable: pick it up, an insertion caret opens
+between its neighbours, and the drop calls the same `moveNode(from, to)`.
+
+**The geometry stays derived.** `flow_layout.dart:3` — *"Derived from the node sequence, never
+stored… there is only one ordering, and this reads it"* — is what makes it impossible for the
+drawing, the lead-time ladder and the routing to disagree, and dropping a box does not buy it a
+coordinate. The box animates back onto the spine rather than jumping, so the snap reads as
+deliberate.
+
+_Not taken:_ free placement. That is the map that never runs, deferred by decision below
+(§11) — *"just for visual but in a more free"* — it is M5-sized, and it needs the second layout
+path that section costs out. A drag that reorders is not a down payment on it.
+
+### 8.5 Drive it
+
+- [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 already found. Its CEU32
+      row and the lane above it are gone, and CEU30 still reads **108.4 h** — the finding survives
+      in the figures while the phantom visit stops.
+- [ ] **A capped lane with a skipping part in it.** `FIFO CEU27` at 2, which is the configuration
+      §0's confounder ran. Blocking must fall or stay; if it rises, the skip is advancing an order
+      somewhere it should not.
+- [ ] **A fresh reference run, recorded with its label.** Every figure in `HISTORY.md` is now
+      incomparable with anything measured after this round, for the fourth time.
+- [ ] **The workcenter card at two periods and at twelve.** Short at two, 320 px and scrolling at
+      twelve, and the append row reachable in both.
+- [ ] **The headers, in all three grids and both themes.** Demand and Takt were not complained
+      about and move anyway — this is where that shows.
+- [ ] **A node dragged to the front, to the back, and dropped on itself.** And the arrows, the
+      lead-time ladder and the PDF all agreeing with the new order afterwards, which is the claim a
+      derived layout makes.
+
+---
+
+## 9. Round nine — Project Settings, and what a run says about load over time
+
+Settled by interview 2026-08-29. §9.1 comes first because §9.4's thresholds have nowhere else to
+live; §9.2 comes before §9.3 and §9.4 because neither can be built against a run that does not carry
+what they read. **Runs made before §8.1 must not be graphed** — they contain the phantom visits that
+round removes.
+
+### 9.1 Project Settings becomes a destination
+
+A project owns a name, a plant, a shift pattern, notes and its calendar exceptions — and after §9.4
+it owns the float thresholds too. **Every one of those is edited in a dialog launched from the
+Projects list** (`projects_screen.dart:235`), so there is no project-level surface inside the
+workspace at all, and the exceptions button sits at the bottom of the studies sidebar
+(`project_workspace_screen.dart:587`) because there was nowhere better to put it.
+
+A gear in the workspace app bar opens **Project Settings**: a destination and not a dialog, holding
+the fields, §9.4's thresholds, and Calendar Exceptions as a section. That mirrors §4.2's Study
+Settings one level up, and it keeps §12.1's reason for exceptions being a destination in the first
+place — a calendar is browsed, not filled in and dismissed.
+
+`_ProjectDialog` stays for **create** and loses **edit**. Two write paths into one table is how the
+two come to disagree, which is the argument `station_cards.dart:31` already makes about the dialog
+§6.3 deleted.
+
+### 9.2 Schema v23 — what a run must store to be graphed
+
+Three columns, one migration. Each is a copy-in, because §7.10 forbids joining a finished run back
+to a plant that may have been retuned since — the rule `processSeconds` already states in its own
+doc: *"Recomputing it on read is not open to us."*
+
+| column | table | why |
+|---|---|---|
+| work **before** rework | `SimulationRunSteps` | `processSeconds` is `per-piece × batch × (1 + rework) ÷ availability` — already fused, so rework cannot be its own segment without it |
+| open seconds **per month** | new, per run × station × month | only a whole-run `openSeconds` exists, so a monthly capacity line has no denominator |
+| workcenter type id and name | `SimulationRunWorkcenters` | `Workcenters.typeId` is in the plant and is not copied in, so §9.3's type filter and its pivot columns cannot be read off a run |
+
+The monthly open seconds also close, **for this metric only**, something `run_filter.dart:9` states
+as a standing limitation: *"a station's busy, open and blocked time keep describing the whole run."*
+
+Runs made before v23 graph nothing, the way pre-v18 runs group nothing.
+
+### 9.3 The occupation graph — demand against capacity
+
+Project-scoped, filtered by cell, line, workcenter type and workcenter, on top of the study and
+customer-project filters `RunFilter` already carries.
+
+- **x** — months, `Mmm/yyyy`. **y** — hours.
+- **bar**, stacked: process, rework, changeover. The three sum to `required`, which is what the
+  Summary's occupation is a ratio of — a bar omitting changeover would draw a station under its line
+  while the Summary read 96 %, and §7.6 is the record of what a surface agreeing with itself and
+  disagreeing with its own metric costs.
+- **line** — capacity, from §9.2's stored monthly open seconds.
+- **bucket** — `queueStart`, the month the work **arrived** at the step. Not `processStart`: work
+  the engine scheduled can never much exceed capacity, because it would not have been scheduled
+  otherwise, so bucketing by execution hides the overload that caused it. Five orders arriving with
+  500 h against a 400 h month is **125 %**, and the bar is meant to break the line.
+- `queueStart` is set when the order reaches the step, so an empty queue simply gives
+  `queueStart == processStart` and `wait == 0`. No special case.
+
+**A filter colours the bar; it never shrinks it.** BAN11 is shared by 11B, 11C and 11D. Filtered to
+Célula 11B its own demand is 300 h against 400 h — 75 %, under the line — while the three lines
+together ask 550 h. Demand outside the filter therefore stays in the stack as a fourth, neutral
+segment, so the bar total is always the station's true load and **an overload cannot be filtered
+away**. The capacity line does not move under a filter and is never pro-rated: a denominator
+computed from another line's demand is not a number the plant has.
+
+Unfiltered, the chart aggregates every matching station and carries a per-month count of how many
+individual stations are over. The sum answers a real question about plant hours and headcount, and
+the badge is what stops it being read as occupation — §8.1's ranking is where a bottleneck is found.
+
+**Beneath it, a pivot**, over the visible span rather than per month:
+
+```
+  Cell        Line        Cladding  Mach-HBM  Mach-TCN  Deburring   Total
+  ------------------------------------------------------------------------
+              Fluxo 11B      75%       60%       48%        31%       71%
+  Célula 11   Fluxo 11C      40%       28%       22%        19%       35%
+              Fluxo 11D      22%        —        18%        14%       18%
+  ------------------------------------------------------------------------
+  TOTAL                     137%       88%       88%        64%      119%
+```
+
+Rows are Cell → Line with the cell merged; columns are workcenter **type**, which is defensible in a
+way summing unlike stations is not — `takt_balance.dart` already treats *"workcenters of the same
+type in the sequence"* as one balanceable group. A cell holds **that line's own demand** over the
+type's full capacity, so with every line in view the column total is the sum of its cells.
+
+**The TOTAL row counts every line touching those stations, filtered out or not**, which is the same
+rule as the chart's neutral segment. Under a filter the column will therefore *not* equal the sum of
+the cells above it — that is the point rather than a defect, because it is the only place the
+contention still appears once a cell reads its own 75 %.
+
+### 9.4 The float matrix
+
+Float is one `Duration` per order today (`sim_result.dart:143`), slack against the need date,
+positive is early. The matrix is orders down, months across:
+
+```
+  Order #   jan/27   fev/27   mar/27   abr/27   mai/27   jun/27
+  -------------------------------------------------------------
+     1        17       53       53       56      -20       54
+     2        -1       26       29       -9       54       57
+     3        60      -16       40       55       36       11
+     4        40       13        8       51      -14       38
+     5       -15       -2       43       37       58       46
+     6        55       18                21       17        4
+     7        38                          12                -8
+```
+
+- **column** — the month of the order's **need date**. Not the delivered date: an order due in March
+  and shipped in April would change column between runs, and §12's run comparison is the one thing
+  that cannot survive that.
+- **row** — its rank among that month's orders by need date, earliest first. Not the demand
+  `sequence`, which `gantt_layout.dart` and §8.5's plan already use for a global 1-based order
+  number — the same `#3` would otherwise name two different orders.
+- **cell** — float in days. Blank where a month has fewer orders.
+- **colour** — red at or below the lower threshold, amber between, green at or above the upper.
+  Defaults `0` and `30` days, **set per project** on §9.1's screen.
+
+§0 is why this earns its place: on-time was **60/60 in all four** confounder runs because the 30-day
+start buffer swamped the differences, so *"on-time cannot currently discriminate between these
+configurations and lead time is doing all the work."* A month-by-month float matrix is that
+statement made readable — the plant that is green in January and red in April.
+
+### 9.5 Drive it
+
+- [ ] **The graph against the Summary tab**, on one station, one month. The bar's three segments
+      must total what the Summary calls `required`, and the ratio to the line must be the number the
+      Summary's occupation column shows for the same span. **This is the §7.6 check**, made
+      deliberately rather than discovered three sections later.
+- [ ] **A shared station, filtered and unfiltered.** BAN11 under no filter and under Célula 11B: the
+      capacity line in the same place both times, the neutral segment carrying the difference, and
+      the pivot's TOTAL row unchanged by the filter while the cells above it change.
+- [ ] **The pivot's column totals adding up** with every line in view, and deliberately **not**
+      adding up under a filter. The one check here whose failure would be silent.
+- [ ] **A pre-v23 run opened from the history picker** offering no graph rather than an empty one,
+      and **a pre-§8.1 run not being graphed at all** — its phantom visits are in its lane visits.
+- [ ] **The float matrix's thresholds edited on Project Settings** and the colours moving, in a
+      month with orders on both sides of a boundary. And the matrix at 24 columns, which is where
+      §12.6's right-edge problem shows up again.
+- [ ] **Exceptions reached through the gear**, and the sidebar button gone. Plus every field
+      `_ProjectDialog` used to edit, now edited here and only here.
+- [ ] **es and pt**, on the pivot's headers and the graph's legend — four segment names and three
+      threshold bands are the longest new strings since §3.4.
+
+**DESIGN.md this round:** §8.1 (the pivot, and why a type groups where a sum would not), §8.3
+(occupation gains a time axis and a stated bucket), §8.4, §11.1, §12.1 (Project Settings as a
+destination), §12.6, §16.24 (schema v23).
+
+---
+
+## 10. Known gaps, deliberately left
 
 - [ ] **§14's performance target is not met.** A 2000-order, 10-step run takes ~2.8 s against "well
       under a second". §16.9 has the measurements: the cost is local `DateTime` arithmetic on
@@ -2514,7 +2782,7 @@ schedule that does **not** carry forward, and `cadence_ended_at` is why that nee
 
 ---
 
-## 9. Deferred by decision — the map that never runs
+## 11. Deferred by decision — the map that never runs
 
 **§3.8, deferred 2026-08-11 and confirmed still deferred 2026-08-15.** Not dropped and not disagreed
 with — sequenced. The argument below stands as written and nothing about it needs revisiting when it
@@ -2545,7 +2813,7 @@ own round. §5.2 keeps it decorative until then.
 
 ---
 
-## 10. M5
+## 12. M5
 
 Reports (§13), run comparison, templates and binding (§10.2), the About screen, and the drop.
 
