@@ -34,6 +34,114 @@ void main() {
     });
   });
 
+  group('how tall the grid wants to be (§8.2)', () {
+    /// Mounts [rows] rows inside a box of exactly [height], and reports the
+    /// vertical scroll extent left over.
+    Future<double> overflowAt(
+      WidgetTester tester, {
+      required int rows,
+      required double height,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                height: height,
+                child: DataGrid(
+                  columns: const [DataGridColumn(title: 'Part')],
+                  rowCount: rows,
+                  valueAt: (row, column) => 'r$row',
+                  onCommit: (row, column, block) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final vertical = tester
+          .stateList<ScrollableState>(find.byType(Scrollable))
+          .where((s) => s.position.axis == Axis.vertical)
+          .toList();
+      expect(vertical, isNotEmpty, reason: 'the rows scroll vertically');
+      return vertical.first.position.maxScrollExtent;
+    }
+
+    testWidgets('at the height it asks for, nothing is left to scroll', (
+      tester,
+    ) async {
+      // The claim `heightFor` makes is that it is exact rather than an
+      // estimate, which is only true while the rows keep their declared
+      // `itemExtent`. Asserted against the widget rather than against the
+      // formula, so the day someone makes a row size itself this fails.
+      expect(await overflowAt(tester, rows: 4, height: DataGrid.heightFor(4)),
+          0.0);
+    });
+
+    testWidgets('one row short of it, exactly one row is left to scroll', (
+      tester,
+    ) async {
+      final short = DataGrid.heightFor(4) - (DataGrid.heightFor(5) -
+          DataGrid.heightFor(4));
+      expect(await overflowAt(tester, rows: 4, height: short),
+          closeTo(DataGrid.heightFor(5) - DataGrid.heightFor(4), 0.5));
+    });
+
+    test('it grows by one row at a time, and starts above zero', () {
+      final one = DataGrid.heightFor(1);
+      final two = DataGrid.heightFor(2);
+      expect(two - one, DataGrid.heightFor(3) - two);
+      expect(
+        DataGrid.heightFor(0),
+        greaterThan(0),
+        reason: 'a grid with no rows is still a heading and a rule',
+      );
+    });
+
+    test('two periods want far less than the card ceiling, twelve want more', () {
+      // §8.2's whole case, in one line. The 320 px ceiling is right for a long
+      // schedule and was 180 px of blank under a short one.
+      expect(DataGrid.heightFor(3), lessThan(320));
+      expect(DataGrid.heightFor(12), greaterThan(320));
+    });
+  });
+
+  group('the headings centre (§8.3)', () {
+    testWidgets('over a numeric column and a plain one alike', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DataGrid(
+              columns: const [
+                DataGridColumn(title: 'Operators'),
+                DataGridColumn(title: 'Availability', numeric: true),
+              ],
+              rowCount: 1,
+              valueAt: (row, column) => '',
+              onCommit: (row, column, block) {},
+            ),
+          ),
+        ),
+      );
+
+      for (final title in ['Operators', 'Availability']) {
+        final column = tester.widget<Column>(
+          find
+              .ancestor(of: find.text(title), matching: find.byType(Column))
+              .first,
+        );
+        expect(
+          column.crossAxisAlignment,
+          CrossAxisAlignment.center,
+          reason: '$title heading centres regardless of its cells',
+        );
+      }
+    });
+  });
+
   group('DataGrid', () {
     /// Mounts a two-column grid over a mutable model, as the demand tab does.
     Future<List<String>> pump(

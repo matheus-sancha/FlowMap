@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -138,11 +140,24 @@ class _WorkcenterCard extends ConsumerWidget {
             title: Text(workcenter.name),
           ),
           ScheduleIssuesBanner(issues: findSchedulePeriodIssues(schedule)),
-          // Bounded, because this card sits in a page carrying one per
-          // workcenter and a station's schedule is as long as the plant decides
-          // (§12.6). The grid scrolls inside it.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 320),
+          // **As tall as the schedule, and no taller** (§8.2). The ceiling
+          // stands and its reason stands with it: this card sits in a page
+          // carrying one per workcenter, and a station's schedule is as long as
+          // the plant decides (§12.6), so past the ceiling the grid scrolls
+          // inside it exactly as it always did.
+          //
+          // What changed is underneath. `DataGrid` puts its rows in an
+          // `Expanded`, so it filled whatever it was given — two periods in a
+          // 320 px box left 180 px of blank under them, which is what the field
+          // reported. A bound is not a size, and the grid could not tell the
+          // difference; it is told one now.
+          SizedBox(
+            height: math.min(
+              // One past the end: the blank row a period is added by typing
+              // into is a row the box has to be tall enough to show.
+              DataGrid.heightFor(periods.length + 1),
+              _scheduleGridMaxHeight,
+            ),
             child: _ScheduleGrid(
               project: project,
               workcenter: workcenter,
@@ -155,6 +170,10 @@ class _WorkcenterCard extends ConsumerWidget {
     );
   }
 }
+
+/// The tallest a station's schedule card grows before its grid scrolls
+/// (§8.2, §12.6).
+const _scheduleGridMaxHeight = 320.0;
 
 const _startColumn = 0;
 const _endColumn = 1;

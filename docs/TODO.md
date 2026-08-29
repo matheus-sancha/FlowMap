@@ -1995,7 +1995,7 @@ the live database. §7.9 left open *"whether it reads as a finding rather than a
 **It reads as a bug, and this is the answer**: the finding stays in the run's figures, and the
 phantom visit stops happening.
 
-### 8.2 The workcenter card is as tall as its schedule
+### 8.2 The workcenter card is as tall as its schedule — **code-complete 2026-08-29, not driven**
 
 `station_cards.dart:145` pins each card to `maxHeight: 320` and `data_grid.dart:302` puts the grid's
 body in `Expanded(ListView.builder)`, so two periods claim all 268 px under the 52 px header. The
@@ -2008,7 +2008,22 @@ bites at eight rows or more, and above the cap the grid scrolls exactly as it do
 _Not taken:_ removing the cap. §6.3 already tried to end the nested scroll regions by replacing the
 cards with one grid, and lost when driven — but the scrolling was never the half that lost.
 
-### 8.3 The grid's headers centre
+**Landed 2026-08-29, and the policy went to whoever owns the ceiling.** `DataGrid` gained
+`heightFor(rowCount)` — the heading, the rule, the rows at their declared `itemExtent`, and the
+scrollbar's gutter — and the card sizes itself to `min(heightFor(periods + 1), 320)`. The grid's own
+`Expanded` is untouched, so above the ceiling it scrolls exactly as before. **One past the end**,
+because the blank row a period is typed into is a row the box has to be tall enough to show.
+
+**The grid could not have decided this for itself**, which is why the arithmetic is public and the
+policy is not: a grid is handed a height and fills it, and only the caller that bound it can tell
+whether the bound is doing anything.
+
+**Four tests, and one of them earns its place.** *"At the height it asks for, nothing is left to
+scroll"* is asserted against the mounted widget's scroll extent rather than against the formula, so
+it fails the day a row stops being a fixed extent — which is the only thing that could make
+`heightFor` a lie.
+
+### 8.3 The grid's headers centre — **code-complete 2026-08-29, not driven**
 
 `data_grid.dart:342` offers `end` for a numeric column and `start` for everything else, and never
 centre. Headers centre in all three grids — Demand, the workcenter schedules and Takt, 21 columns
@@ -2018,6 +2033,11 @@ scanned, and centring the data would cost that.
 
 Reported against the workcenter screen only. Changed everywhere on the argument that three grids
 aligning their headers three ways is worse than three moving at once.
+
+**Landed 2026-08-29**, one line, with a test that fails against the old alignment on both a numeric
+column and a plain one. **`data_grid.dart:29`'s rule stands untouched**: the cells keep `end` and
+`start`, because a right edge is what lets a column of percentages be scanned and centring the data
+would have cost that. Only the headings moved.
 
 ### 8.4 Nodes drag along the spine
 

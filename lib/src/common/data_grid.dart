@@ -94,6 +94,25 @@ class DataGrid extends StatefulWidget {
 
   @override
   State<DataGrid> createState() => _DataGridState();
+
+  /// How tall this grid would be if nothing bounded it: the heading, the rule
+  /// under it, [rowCount] rows at their fixed extent, and the gutter the
+  /// horizontal scrollbar sits in.
+  ///
+  /// **Exact rather than an estimate**, because the rows are declared at a
+  /// fixed `itemExtent` — the same declaration that keeps the frozen and
+  /// scrolling panes' scroll extents identical.
+  ///
+  /// Public because a caller that bounds the grid is the only one that can
+  /// tell when its bound is doing nothing. A card pinned to 320 px around two
+  /// periods is 180 px of blank (§8.2), and the grid cannot know that: it is
+  /// hand a height and fills it. So the policy — grow to the content, stop at
+  /// a ceiling — belongs with whoever owns the ceiling.
+  static double heightFor(int rowCount) =>
+      _DataGridState._headerHeight +
+      1 +
+      rowCount * _DataGridState._rowHeight +
+      _DataGridState._barGutter;
 }
 
 class _DataGridState extends State<DataGrid> {
@@ -338,10 +357,13 @@ class _DataGridState extends State<DataGrid> {
               width: column.width,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
+                // **Headings centre, whatever the cells under them do**
+                // (§8.3). A heading names a column; it is not one of its
+                // values, so it does not have to share their alignment — and
+                // the cells keep theirs, because [DataGridColumn.numeric]'s
+                // right edge is what lets a column of percentages be scanned.
                 child: Column(
-                  crossAxisAlignment: column.numeric
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       column.title,
