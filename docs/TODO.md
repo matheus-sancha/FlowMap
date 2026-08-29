@@ -1178,7 +1178,7 @@ distrust the next one that does.
 | **§7.6** | The standard, the ratio, the warm-up | an inverted metric and what it reached — **written, not driven** |
 | **§7.7** | The takt a run ran at, and pinning a station | defect fixed, **v20 landed and met the real database**, the pin is built — **§7.7.2/§7.7.3 code-complete 2026-08-18, undriven** |
 | **§7.8** | Reading a rebalance off a run | a stale input, and **schema v21** — **code-complete, v21 has met the real database, undriven** |
-| **§7.9** | The takt belongs to the order | the takt had never reached a run — **code-complete 2026-08-27, v22 met a copy of the real database, undriven** |
+| **§7.9** | The takt belongs to the order | the takt had never reached a run — **code-complete, v22 live, engine driven 2026-08-29 and confirmed against the database** |
 
 **Driven between each**, and §7.1 first on purpose: a filter that does not filter makes every other
 observation suspect, and there are two undriven rounds stacked behind it already.
@@ -2098,7 +2098,7 @@ visible on the map and invisible everywhere else. `flutter analyze` clean, **880
       it is the only thing that checks it.
 - [ ] **es and pt** on the card's new label.
 
-### 7.9 The takt belongs to the order — **code-complete 2026-08-27, not driven**
+### 7.9 The takt belongs to the order — **code-complete 2026-08-27, engine driven 2026-08-29**
 
 *Field: "the gantt chart shows the same process time for a part number on different takt times."*
 
@@ -2361,35 +2361,77 @@ found at the end could not say which half moved the figure — §16.11 is the re
 _Rejected: four commits driven apart._ The plan column, the menu label and the warning are
 independent of each other and nothing is learned by separating them.
 
-#### Drive it — **nothing below has been looked at**
+#### Drive it — **the engine is driven and confirmed; the surfaces are reported, not itemised**
 
-Both rounds are written, so the two lists below are one sitting. §2.0's rule was to drive between
-them and it was not kept: round two followed round one the same evening. **What that costs is
-stated rather than hidden** — a figure that comes out wrong on the Gantt cannot say whether the
-engine placed it there or the card is reading the wrong column, and the first list is what tells
-those apart.
+Both rounds were written before either was driven. §2.0's rule was to drive between them and it was
+not kept — round two followed round one the same evening — so **what tells the two halves apart is
+that the engine list below was checked against the stored run rather than against the screen.**
 
-#### The engine
+**Driven 2026-08-29 under `0.1.0-2026-08-27a`**, session 07:59:57, `db.open schema 22 from 22`. The
+run that answers this list is **`7669856d`**, made at 08:00:03 — *"3 studies, 250 orders, 2000 steps
+in 1225 ms"*.
 
-- [ ] **11D across 1 April.** Two orders of one part, one released either side, must carry different
-      work on the hover card. For `P1000216567-13P01`: **76.1 / 117.9** at CLAD06 / CLAD25 before,
-      **95.2 / 98.8** after; **75.4 / 162.6** at CEU30 / CEU32 before, **94.3 / 143.7** after. The
-      after-April figures must equal what the map draws with its viewed period in H2.
-- [ ] **The cadence visibly changes** — releases every 75.4 h before, 94.3 h after, read off the
-      Gantt. This is the half a work figure cannot show.
-- [ ] **11B and 11C come out identical to `67f5d7f2`.** One takt period each, so nothing may move —
-      the cheapest proof the change is confined to lines that actually have a takt change.
-- [ ] **A part that empties a station.** `P7000109738P01` at 5 days gives CEU30 the pair's whole 87 h
-      and CEU32 **zero**. That is §6.2.1 working as specified and it must read as a finding on
-      screen, not as a bug.
+#### The engine — **confirmed against the stored run**
 
-#### The surfaces
+- [x] ~~**11D across 1 April.**~~ **Confirmed.** The run splits 11D's 60 orders **37 at 4 days and
+      23 at 5** — the exact split §7.9.1 predicted from the release dates. `P1000216567-13P01`, in
+      clock hours as the run charges them:
+
+      | | CLAD06 → CLAD25 | CEU30 → CEU32 |
+      |---|---|---|
+      | opened before 1 Apr | **94.0 → 145.5** | **94.0 → 202.6** |
+      | opened after | **117.5 → 122.0** | **117.5 → 179.1** |
+
+      Those are the predicted work figures derated by each station's own availability and rework
+      (76.1/117.9 and 95.2/98.8 at CLAD ×1.2345; 75.4/162.6 and 94.3/143.7 at CEU ×1.2464) — every
+      one of the eight to the decimal. **And it is a rebalance rather than a shuffle**: the cladding
+      pair goes from 94.0/145.5 at 4 days to 117.5/122.0 at 5, which is a line that was 1.55× out of
+      balance coming out level.
+- [x] ~~**The cadence visibly changes.**~~ **Confirmed.** Median wall-clock gap between releases
+      **127.4 h before the change and 147.6 h after**, over 37 and 22 gaps. Wall clock rather than
+      the 75.4 → 94.3 h of pace-setter time, because the gaps carry whatever weekends they crossed.
+- [x] ~~**11B and 11C come out identical to `67f5d7f2`.**~~ **This expectation was wrong, and the
+      drive is what showed it.** Their **work** is untouched — 0 of 420 and 0 of 1040 step rows
+      differ, and the totals are byte-identical — but their **timing moves**, and it has to: §7.7
+      builds one resource model of the plant and 11B, 11C and 11D share TTAT, BAN11, END and
+      Coating. Changing 11D's release cadence changes what those stations are contending with, which
+      is the whole thing a combined run exists to show.
+
+      _What the check should have said, and now does:_ **no work row outside the line with the takt
+      change may move.** That is the confined-blast-radius claim; "nothing may move" was a claim
+      about a plant with no shared stations, which this is not.
+- [x] ~~**A part that empties a station.**~~ **Confirmed in the run:** `P7000109738P01` at 5 days
+      gives CEU30 **108.4 h** and CEU32 **0.0** — §6.2.1's "the split can empty a station out of a
+      part's routing", on real data for the first time. **Whether it reads as a finding rather than
+      a bug on screen is still open** and is the one part of this item a database cannot answer.
+- [x] ~~**§7.9.2, exercised by accident and recorded.**~~ Not on the original list. The 5-day period
+      was **deleted** from the takt table after `7669856d`, so the three runs at 08:02, 08:03 and
+      08:04 met a line with no cadence from 1 April: each released **37 orders and left 23 unopened**,
+      `1793 steps` against `2000`, and `simulation_run_studies.cadence_ended_at` reads
+      **2026-04-01 19:07** for 11D and null for 11B and 11C. That is the whole of §7.9.2 — no takt,
+      no releases, and the run saying so — met on the real database rather than in a fixture.
+
+      **Still owed: whether the header's sentence is on screen and reads right.** The column is
+      right; nobody has confirmed the line above it.
+
+#### The surfaces — **reported working, not itemised**
+
+*Field, 2026-08-29: "now it works properly."* That covers the round, and §5.3 is the record of what
+ticking individual boxes on a verbal report costs — so what is ticked below is what a stored run can
+corroborate, and the rest stays open until somebody says which of them they looked at.
 
 - [ ] **The card's takt line against the plan's column**, on the same order, in all three languages.
-- [ ] **The menu tells two runs apart** — one at 4 days, one spanning to 5, sitting in the picker as
-      `4 days` and `4 → 5 days`.
+      The data behind both is confirmed — every released order in `7669856d` carries a takt — so what
+      is left is whether the two surfaces spell it the same way.
+- [x] ~~**The menu tells two runs apart.**~~ **The data is there and it is a sharper case than the
+      one asked for**: the picker now holds `7669856d` spanning **4 → 5 days** beside three runs at
+      **4 days** and ninety-odd pre-v22 runs, all made against one plant within four minutes.
+      **Whether the row renders that way is unconfirmed** — the fold is unit-tested and the query is
+      not what anyone looked at.
 - [ ] **A takt table cut short on purpose**, so releases stop: the run header must name the study,
       the date and how many orders never opened, and the Gantt must not merely look jammed.
+      **The run already exists** — `4c29fcc2` and the two before it — so this is now a matter of
+      opening one from the history picker and reading the header, not of contriving anything.
 - [ ] **The plan at fifteen columns**, on screen and in Excel — Float is the column most likely to
       have gone off the right edge (§12.6).
 - [ ] **The card at 204 px**, on the bottom row and at the right-hand edge, which are the two places
