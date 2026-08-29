@@ -749,10 +749,22 @@ class _Engine {
   /// opened under decides which steps it has, and it is fixed for that order's
   /// whole journey (§7.9).
   ///
-  /// **A step with _no_ time at all is returned rather than skipped.** Null is
-  /// §11's blocking readiness error — the part is missing a figure it needs —
-  /// and [_admit] is where that is reported. Skipping it would turn a fault
-  /// the guard names into a silently shorter flow.
+  /// **A blank is a zero, since §9.7.** It used to be returned rather than
+  /// skipped: null meant "the part is missing a figure it needs", [_admit]
+  /// declined to admit the order, and the order never completed at all.
+  ///
+  /// That was overturned by the field on 2026-08-29, after §9 gave a flow a
+  /// second visit to one station and left fifteen parts to be told, one cell
+  /// at a time, that they cost `00:00:00` there. *"If it is empty consider
+  /// 0."*
+  ///
+  /// **What it costs is on record rather than hidden**: a time nobody typed and
+  /// a step a part genuinely skips are now the same thing to the engine, so a
+  /// forgotten cell no longer stops the run — it quietly takes the station out
+  /// of that part's routing, and every figure downstream is short by whatever
+  /// should have been there. That was §11's *"one intolerable bug"* when the
+  /// distinction was drawn; the field has weighed the typing against it and
+  /// chosen. Listed in §11 so the trade is visible rather than inherited.
   int? _nextStep(SimStudy study, SimOrder order, SimTakt? takt, int from) {
     final part = study.parts[order.partId];
     for (var index = from; index < study.nodes.length; index++) {
@@ -761,7 +773,7 @@ class _Engine {
         part,
         takt: takt,
       );
-      if (perPiece == null || perPiece > Duration.zero) return index;
+      if (perPiece != null && perPiece > Duration.zero) return index;
     }
     return null;
   }
@@ -790,9 +802,10 @@ class _Engine {
       takt: _takt[order.id],
     );
     if (perPiece == null) {
-      // A part with no time at a step it must visit is a blocking readiness
-      // error (§11). The engine will not invent one; the order simply never
-      // completes and the guard reports it.
+      // **Unreachable through [_nextStep], which skips a blank as a zero
+      // (§9.7).** Kept as the guard it always was rather than removed: nothing
+      // else may call this with a step the part has no figure for, and a
+      // `null!` here would be a crash where this is a no-op.
       return;
     }
 

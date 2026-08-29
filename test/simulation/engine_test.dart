@@ -260,11 +260,18 @@ void main() {
       expect(result.orders.where((o) => o.delivered != null).length, 2);
     });
 
-    test('a step with no time at all is still a readiness error, not a skip', () {
-      // The distinction §8.1 must not blur. Null is §11's blocking fault — the
-      // part is missing a figure it needs — and the order is meant to stop
-      // there so the guard can report it. Skipping it would turn a fault into
-      // a silently shorter flow that delivers and looks fine.
+    test('a step with no time at all is skipped, exactly as a zero is', () {
+      // **This asserted the opposite until 2026-08-29**, and the change was the
+      // field's: a blank stopped the order dead so that a forgotten figure
+      // could not pass unnoticed. §9 then gave a flow a second visit to one
+      // station and left fifteen parts to be told, one cell at a time, that
+      // they cost `00:00:00` there — *"if it is empty consider 0"*.
+      //
+      // So a blank and a zero are one thing now, and the order delivers rather
+      // than vanishing. **What that costs is the point of keeping this test
+      // rather than deleting it**: a cell nobody typed and a station a part
+      // genuinely skips are indistinguishable, so the run below is shorter than
+      // its author may have meant and nothing says so.
       final result = runSimulation(
         studies: [
           study(
@@ -286,8 +293,8 @@ void main() {
       expect(result.steps.map((s) => s.workcenterId), ['A']);
       expect(
         result.orders.single.delivered,
-        isNull,
-        reason: 'a part with no time at a step it must visit never completes',
+        isNotNull,
+        reason: 'the order finishes the flow it does have',
       );
     });
 

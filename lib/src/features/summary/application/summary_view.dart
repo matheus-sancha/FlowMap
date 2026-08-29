@@ -58,10 +58,15 @@ class TargetOccupation {
   /// The crew the schedule buys per day: `1/1/1` is three.
   final int operatorsAllocated;
 
-  /// Parts due in the period with no process time at this station. Reported
-  /// rather than treated as zero: a part with no time at a step it must visit
-  /// is a blocking readiness error (§11), and until it is fixed the required
-  /// hours below are an understatement.
+  /// Parts due in the period with no process time at one of this station's
+  /// steps — which since §9.7 means **they do not go there**, not that
+  /// something is missing.
+  ///
+  /// **Kept as information rather than as a fault.** It said the required hours
+  /// below were an understatement until somebody filled the cell in; a blank is
+  /// a deliberate skip now, so what this counts is how much of the period's
+  /// demand routes past this station. It is still the figure that would show a
+  /// forgotten cell, and after §9.7 that is the only thing that would.
   final int partsWithoutTimes;
 
   Duration get required => work + changeoverTime;

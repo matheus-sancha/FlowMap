@@ -2582,6 +2582,38 @@ rather read.**
 _A test pins the part that is not a matter of taste:_ everything downstream of the loop keeps its
 order. It fails against the cyclic version.
 
+### 9.7 A blank process time is a zero — **settled by the field 2026-08-29**
+
+**Friction §9 caused, and the field's answer to it.** Giving 11D a second visit to CEU30 left fifteen
+parts with an empty cell there, and an empty cell stopped the order dead — so each had to be told, one
+at a time, that it cost `00:00:00`. *"In the demand process time it requires the workcenters with no
+time to be filled with 00:00:00. Correct that — if it is empty consider 0."*
+
+**What the two used to mean, and why it was drawn that way:**
+
+| | before | now |
+|---|---|---|
+| blank | `engine.dart:757` never admitted the order — it never completed, and the guard reported it | the part skips that station |
+| zero | §8.1 skips the station | unchanged |
+
+`demand_table.dart` stated the rule outright — *"a blank means 'not routed here' and costs nothing, a
+zero means 'takes no time' and is almost always a typo"* — and §11 called a part with no time at a
+step it must visit **the one intolerable bug**. That is what has been traded away, and it was put to
+the field in those terms before it was changed.
+
+**The cost, written down rather than discovered later: a forgotten cell is now indistinguishable from
+a deliberate skip.** The run completes, the station never sees the part, and every figure downstream
+is short by whatever should have been there. Nothing reports it. `TargetOccupation.partsWithoutTimes`
+is the only figure that would show it and it is now information rather than a fault — **it is worth
+knowing that it is the last thing standing between a mistyped flow and a plausible wrong answer.**
+
+_Narrower than it looked:_ `isFullyCosted` and `missingCells` are defined and used nowhere in `lib`,
+so the readiness panel never blocked on this. The engine's null branch was the whole of the
+enforcement, and one condition carried it.
+
+_The test that pinned the old rule is kept rather than deleted_, rewritten to pin the new one and to
+say in its own words what it costs.
+
 ### 9.5 Drive it
 
 - [ ] **A study with a station twice**, two different times typed, and the run charging each pass its
@@ -2792,6 +2824,11 @@ destination), §12.6, §16.26 (schema v25).
       the next plant that ties will read wrong for the same reason. What it needs is the study's own
       node sequence, which the run stores per step as `node_id` and which `routingRanks` does not
       look at.
+- [ ] **A forgotten process time is now invisible** (§9.7). A blank and a deliberate skip are one
+      thing to the engine since 2026-08-29, so a cell nobody typed takes a station out of a part's
+      routing and the run completes looking fine. The field weighed that against typing `00:00:00`
+      into fifteen cells and chose; **what has no answer yet is how a mistyped flow would ever be
+      caught.** `partsWithoutTimes` on the Summary is the only figure that shows it.
 - [ ] **Which visit a revisited station is drawn at.** It gets one row, and a routing that runs
       `CEU30 → TCN20 → CEU30` puts it both above and below TCN20 — no single position honours both
       (§9.6). The walk settles it deterministically; nobody has said which reading a planner wants.

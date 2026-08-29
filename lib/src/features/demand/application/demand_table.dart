@@ -84,9 +84,18 @@ class DemandTable {
 
   /// `partId → nodeId → per-piece time`, as the repository loads it (§9).
   ///
-  /// **A cell is absent, not zero, when a part skips a step** (§5.1). The whole
-  /// grid rests on that distinction: a blank means "not routed here" and costs
-  /// nothing, a zero means "takes no time" and is almost always a typo.
+  /// **A blank and a zero are the same thing since §9.7**, and both mean the
+  /// part does not go there.
+  ///
+  /// They were kept apart: a blank meant "not routed here" and a zero meant
+  /// "takes no time and is almost always a typo", and the engine refused to
+  /// admit an order with a blank at a step. The field overturned it on
+  /// 2026-08-29 — *"if it is empty consider 0"* — after §9 gave a flow a second
+  /// visit to one station and left fifteen cells to be filled with `00:00:00`
+  /// to say what a blank already said.
+  ///
+  /// The cost is that a forgotten cell now reads as a deliberate skip. Recorded
+  /// in §11.
   final Map<String, Map<String, Duration>> times;
 
   /// **Keyed by the node, not the target.** Passing a target id compiles and
