@@ -369,4 +369,112 @@ void main() {
       expect(balancedProcessTimes(const []), isEmpty);
     });
   });
+
+  group('the cap allows for rework (§9.8)', () {
+    // **The defect the field found by reading a Gantt**: the balance filled
+    // each station to one takt of its capacity using *measured* work, and the
+    // engine then charged `measured × (1 + rework) ÷ availability`. Availability
+    // cancels; rework does not — so a balanced station was over its takt by
+    // exactly `(1 + rework)`, every time, on every station with any.
+    //
+    // Measured on the live plant at two availabilities, 1.00 and 0.83, and the
+    // overshoot was 1.037 in both.
+
+    /// What the engine charges for [measured] at a station, in its open clock.
+    Duration charged(Duration measured, double rework, double availability) =>
+        Duration(
+          seconds: (measured.inSeconds * (1 + rework) / availability).round(),
+        );
+
+    test('a station filled to the cap is charged exactly one takt', () {
+      // CLAD06 as it stands: 22.78 h open a day, availability 1.00, rework
+      // 3.7 %, a four-day takt.
+      const openPerDay = Duration(minutes: 1367); // 22.78 h
+      const taktDays = 4;
+      const rework = 0.037;
+      const availability = 1.0;
+
+      final capacity = openPerDay * taktDays * availability;
+      final cap = contentThatFitsInOneTakt(capacity, rework);
+
+      // The whole claim, in one line: fill to the cap, pay the rework, and the
+      // station has used one takt of its open time and no more.
+      final used = charged(cap, rework, availability);
+      expect(used.inMinutes, closeTo((openPerDay * taktDays).inMinutes, 1));
+    });
+
+    test('and it holds at an availability that is not 1', () {
+      // CEU27 and CEU26 run at 0.83. If availability did not cancel, this
+      // would come out somewhere else entirely — which is why the fix divides
+      // by rework alone.
+      const openPerDay = Duration(minutes: 1367);
+      const taktDays = 4;
+      const rework = 0.037;
+      const availability = 0.83;
+
+      final capacity = Duration(
+        seconds: ((openPerDay * taktDays).inSeconds * availability).round(),
+      );
+      final cap = contentThatFitsInOneTakt(capacity, rework);
+
+      final used = charged(cap, rework, availability);
+      expect(used.inMinutes, closeTo((openPerDay * taktDays).inMinutes, 2));
+    });
+
+    test('the old cap was over by exactly the rework, and this shows it', () {
+      const capacity = Duration(hours: 100);
+      const rework = 0.037;
+
+      // What the balance used to fill to, charged:
+      final before = charged(capacity, rework, 1);
+      expect(before.inMinutes, closeTo(103.7 * 60, 1));
+
+      // And what it fills to now:
+      final after = charged(contentThatFitsInOneTakt(capacity, rework), rework, 1);
+      expect(after.inMinutes, closeTo(100 * 60, 1));
+    });
+
+    test('no rework leaves the cap exactly as it was', () {
+      // Every station without rework must balance byte for byte as before, or
+      // this round would move figures it has no business moving.
+      const capacity = Duration(hours: 100);
+      expect(contentThatFitsInOneTakt(capacity, 0), capacity);
+      expect(contentThatFitsInOneTakt(capacity, -1), capacity);
+    });
+
+    test('the group still fills the first and leaves the rest on the last', () {
+      // The rule itself is untouched — only the cap it fills to. Two cladding
+      // machines, 113 h measured between them, a cap of 91.1 h of capacity.
+      final capacity = const Duration(minutes: 5466); // 91.1 h
+      final cap = contentThatFitsInOneTakt(capacity, 0.037); // 87.8 h
+
+      final groups = balanceFlow([
+        (
+          typeName: 'Cladding',
+          measured: const Duration(minutes: 4620), // 77 h
+          takt: cap,
+          pinned: false,
+        ),
+        (
+          typeName: 'Cladding',
+          measured: const Duration(minutes: 2160), // 36 h
+          takt: cap,
+          pinned: false,
+        ),
+      ]);
+
+      final derived = groups.single.derived;
+      expect(derived[0], cap, reason: 'the first fills to the cap');
+      expect(
+        derived[0]! + derived[1]!,
+        const Duration(minutes: 4620 + 2160),
+        reason: 'and nothing is created or lost between them',
+      );
+      // The first is now charged exactly one takt rather than 3.7 % over it.
+      expect(
+        (derived[0]!.inSeconds * 1.037).round(),
+        closeTo(capacity.inSeconds, 60),
+      );
+    });
+  });
 }

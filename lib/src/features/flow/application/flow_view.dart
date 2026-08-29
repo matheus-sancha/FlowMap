@@ -951,10 +951,19 @@ FlowView buildFlowView({
       (
         typeName: step.typeName,
         measured: step.processTime,
-        // One takt of this station's own capacity — the cap it fills to. A step
-        // that states its own equivalent has said what a takt is worth at it,
-        // and that is the figure to fill to rather than the line's default.
-        takt: step.equivalentProcessTime,
+        // **What fits in one takt once rework is charged** (§9.8). A step that
+        // states its own equivalent has said what a takt is worth at it, and
+        // that is the figure to divide rather than the line's default.
+        //
+        // The equivalent itself is untouched: it is the yardstick MM3 divides
+        // *measured* times by, and [rework] says in its own doc that it is a
+        // loss on a part's work and never on the yardstick.
+        takt: step.equivalentProcessTime == null
+            ? null
+            : contentThatFitsInOneTakt(
+                step.equivalentProcessTime!,
+                step.rework ?? 0,
+              ),
         pinned: step.node.balanceDisabled ?? false,
       ),
   ];

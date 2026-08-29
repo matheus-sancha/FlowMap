@@ -34,8 +34,37 @@ typedef BalanceStep = ({
   /// is a station this part does not use.
   Duration? measured,
 
-  /// One takt of this station's own capacity — the cap it fills to. Null where
-  /// the takt or the station's schedule could not be resolved.
+  /// **How much measured content fits in one takt at this station** — the cap
+  /// it fills to. Null where the takt or the station's schedule could not be
+  /// resolved.
+  ///
+  /// **Not one takt of capacity, which is what this was until §9.8.** The
+  /// engine charges `measured × (1 + rework) ÷ availability` in the station's
+  /// open clock, so filling to `productive × takt` put every balanced station
+  /// over its takt by exactly `(1 + rework)`:
+  ///
+  ///     cap     = O·a·T                   filled with measured work
+  ///     charged = (O·a·T) × (1+r) ÷ a  =  O·T·(1+r)
+  ///     open in one takt               =  O·T
+  ///
+  /// **Availability cancels; rework does not.** Measured on the live plant at
+  /// two availabilities — CLAD06 at 1.00 and CEU27 at 0.83 — and the overshoot
+  /// was 1.037 in both, which is the rework and nothing else. Found by the
+  /// field reading a Gantt: *"the balancing should consider the rework,
+  /// otherwise the balancing will always be over the takt time."*
+  ///
+  /// So callers pass `productive × takt ÷ (1 + rework)` and a station filled to
+  /// it is charged exactly one takt. **Each member divides by its own rework**,
+  /// because each fills to its own cap and is charged at its own rate.
+  ///
+  /// **Changeover is deliberately not reserved.** Whether an order pays one is
+  /// sequence-dependent — it turns on the part before it at this station — and
+  /// the split is computed per part, per takt, with no sequence in view.
+  /// Reserving the full setup would over-reserve every repeat and under-fill
+  /// the first member for nothing; reserving none is exact whenever the part
+  /// does not change. On the plant this was found on, the only balanced member
+  /// carrying a setup carries **one minute**. Recorded so the omission is a
+  /// decision rather than the next thing somebody finds.
   Duration? takt,
 
   /// Pinned by the user (§7.7.4): this station keeps what was measured at it
@@ -127,6 +156,15 @@ class BalanceGroup {
 /// with no schedule and there is no cap to fill to, so the split would be an
 /// invention — the measured figures stand and the step's own readiness problem
 /// says why.
+/// One takt of capacity, as much of it as measured content can fill (§9.8).
+///
+/// Shared by the map and the engine for the reason the rest of this file is:
+/// the two resolve `capacity` differently and must not divide it differently.
+Duration contentThatFitsInOneTakt(Duration capacity, double rework) =>
+    rework <= 0
+    ? capacity
+    : Duration(seconds: (capacity.inSeconds / (1 + rework)).round());
+
 List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
   final groups = <BalanceGroup>[];
 

@@ -666,6 +666,9 @@ class _StepDialogState extends State<_StepDialog> {
                 standing: widget.existing?.standing,
                 stationName: _targetName,
                 typeName: widget.existing?.typeName,
+                filled: widget.existing?.processTime,
+                capacity: widget.existing?.equivalentProcessTime,
+                rework: widget.existing?.rework,
                 onChanged: (value) => setState(() => _rebalances = value),
               ),
               const SizedBox(height: 16),
@@ -924,6 +927,9 @@ class _RebalanceField extends StatelessWidget {
     required this.stationName,
     required this.typeName,
     required this.onChanged,
+    this.filled,
+    this.capacity,
+    this.rework,
   });
 
   final bool value;
@@ -937,12 +943,41 @@ class _RebalanceField extends StatelessWidget {
 
   final String stationName;
   final String? typeName;
+
+  /// What the balance filled this station to, what one takt of its capacity is,
+  /// and the rework between them (§9.8).
+  ///
+  /// **Carried so the caption can explain a gap the box cannot.** A balanced
+  /// station shows a derived share *below* its flow equivalent — 87.9 h against
+  /// 91.1 h on the plant this was found on — and that reads as the balance
+  /// stopping short. It is not: 87.9 h of content is charged 91.1 h once 3.7 %
+  /// rework is paid, which is exactly one takt. The box shows two figures and
+  /// the reason they differ is a sentence, so it goes here rather than becoming
+  /// a third row (§2.5, §6.4 each spent a round taking rows off that box).
+  final Duration? filled;
+  final Duration? capacity;
+  final double? rework;
+
   final ValueChanged<bool> onChanged;
+
+  /// `87.9 h`, which is how the process box writes a time of this size.
+  static String _hours(Duration d) =>
+      '${(d.inMinutes / 60).toStringAsFixed(1)} h';
 
   /// What to say under the switch, or null where the label already says it.
   String? _reason(AppLocalizations l10n) => switch (standing) {
     null => null,
-    BalanceStanding.balanced => l10n.stepRebalanceOn(typeName ?? ''),
+    BalanceStanding.balanced =>
+      // The plain sentence wherever there is no rework to explain — which is
+      // every station that balanced exactly as it always did.
+      (rework ?? 0) <= 0 || filled == null || capacity == null
+          ? l10n.stepRebalanceOn(typeName ?? '')
+          : l10n.stepRebalanceOnWithRework(
+              typeName ?? '',
+              _hours(filled!),
+              _hours(capacity!),
+              (rework! * 100).toStringAsFixed(1),
+            ),
     BalanceStanding.noType => l10n.stepRebalanceNoType(stationName),
     BalanceStanding.noWorkHere => l10n.stepRebalanceNoWork,
     BalanceStanding.noLikeNeighbour => l10n.stepRebalanceNoNeighbour(

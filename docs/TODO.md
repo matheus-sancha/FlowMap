@@ -2614,8 +2614,69 @@ enforcement, and one condition carried it.
 _The test that pinned the old rule is kept rather than deleted_, rewritten to pin the new one and to
 say in its own words what it costs.
 
+### 9.8 The balance cap allows for rework — **code-complete 2026-08-29, not driven**
+
+**Found by the field reading a Gantt**, while asking why an order sat four days in a station:
+*"the balancing should consider the rework and other times, otherwise the balancing will always be
+over the takt time."* It does, and it was.
+
+**The balance filled each station to one takt of its capacity using _measured_ work**, and the engine
+then charged `measured × (1 + rework) ÷ availability` in the station's open clock:
+
+    cap     = O·a·T                    what the balance filled to
+    charged = (O·a·T) × (1+r) ÷ a  =  O·T·(1+r)
+    open in one takt               =  O·T
+
+**Availability cancels; rework does not.** Every balanced station was over its takt by exactly
+`(1 + rework)` — not sometimes, always, on every station with any rework at all. Measured on the live
+plant at two availabilities, **CLAD06 at 1.00 and CEU27 at 0.83**, and the overshoot was 1.037 in
+both, which is the rework and nothing else.
+
+_On order #1 of 11D:_ the cap was 91.1 h, the derived share 90.6 h, and the run charged **94.0 h**
+against 91.1 h of open time in one four-day takt. The field's original ask was *"topping the first
+workcenter at the takt time"* — it was topped at the takt divided by 1.037.
+
+**The fix is one divisor at the two places the cap is built**, and `takt_balance.dart` itself is
+unchanged: callers pass `productive × takt ÷ (1 + rework)`, each member dividing by its own.
+
+**The flow equivalent is untouched, deliberately.** It is MM3's yardstick — `mm3.dart` divides
+*measured* part times by it — and the ladder's divisor, and `FlowStepView.rework` already says in its
+own doc that rework *"is a loss on the work a part requires, so it is applied to that part's process
+time and never to the yardstick."* Folding rework into it would shift every equivalence figure for a
+reason that has nothing to do with MM3. **Two figures 3.7 % apart that look alike**, and both docs now
+say why.
+
+**Changeover is deliberately not reserved.** Whether an order pays one is sequence-dependent and the
+split is computed per part, per takt, with no sequence in view. Reserving the full setup
+over-reserves every repeat; reserving none is exact whenever the part does not change. On this plant
+the only balanced member carrying a setup carries **one minute** — CEU26. Recorded so the omission is
+a decision rather than the next thing somebody finds.
+
+**What a reader sees:** the step dialog's balance caption, which already explains why a station is
+*not* rebalanced, now says what a balanced one filled to — *"Filled to 87.9 h of 91.1 h — 3.7 %
+rework means that much content uses one whole takt."* The process box is unchanged; §2.5 and §6.4
+each spent a round taking rows off it.
+
+**It moves work onto the last member of each group.** CLAD06 fills to 87.9 instead of 90.6, so CLAD25
+gains 2.7 h. That is correct — the overflow is real work and the last station is where §7.4 puts it —
+but it is worth knowing the fix loads the last machine rather than relieving it.
+
+**Every stored run is invalidated**, the fifth time. Landed inside §9 rather than as a round of its
+own because §9 has not been driven either, so there is no measured baseline to protect and the two
+cost one invalidation between them.
+
+_Five tests_, including the two that carry the claim: a station filled to the cap is charged exactly
+one takt, at availability 1.00 **and** at 0.83. Plus one pinning that a station with no rework
+balances byte for byte as before.
+
 ### 9.5 Drive it
 
+- [ ] **A balanced pair charged exactly one takt** (§9.8). CLAD06 should now fill to ~87.9 h and be
+      charged ~91.1 h — one four-day takt of open time — where it was charged 94.0 h. **The figure to
+      read is the run's, not the box's**: the box shows the derived share and the caption explains
+      the gap.
+- [ ] **The balance caption on a station with rework**, in all three languages — the string is new
+      and carries four placeholders.
 - [ ] **A study with a station twice**, two different times typed, and the run charging each pass its
       own. Célula 11D was left in exactly that shape while this was investigated — **an extra CEU30
       at position 3** — and it must come out before any real run of 11D, or every figure for it is

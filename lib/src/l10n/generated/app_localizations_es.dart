@@ -1876,4 +1876,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get languagePt => 'Português';
+
+  @override
+  String stepRebalanceOnWithRework(
+    String type,
+    String filled,
+    String capacity,
+    String rework,
+  ) {
+    return 'Comparte trabajo con las estaciones $type contiguas. Llenada hasta $filled de $capacity: con un $rework% de retrabajo, ese contenido ocupa un takt completo.';
+  }
 }

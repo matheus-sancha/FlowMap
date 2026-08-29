@@ -1031,5 +1031,22 @@
   "settingsLanguageHelp": "Which language the app is drawn in. Follow the system uses your Windows display language.",
   "languageEn": "English",
   "languageEs": "Español",
-  "languagePt": "Português"
+  "languagePt": "Português",
+  "stepRebalanceOnWithRework": "Sharing work with the adjacent {type} stations. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.",
+  "@stepRebalanceOnWithRework": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "filled": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      },
+      "rework": {
+        "type": "String"
+      }
+    }
+  }
 }

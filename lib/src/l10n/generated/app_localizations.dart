@@ -3305,6 +3305,17 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Português'**
   String get languagePt;
+
+  /// No description provided for @stepRebalanceOnWithRework.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} stations. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.'**
+  String stepRebalanceOnWithRework(
+    String type,
+    String filled,
+    String capacity,
+    String rework,
+  );
 }
 
 class _AppLocalizationsDelegate

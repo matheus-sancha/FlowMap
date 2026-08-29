@@ -894,5 +894,22 @@
   "settingsLanguageHelp": "Em que idioma a aplicação é apresentada. Seguir o sistema usa o idioma do Windows.",
   "languageEn": "English",
   "languageEs": "Español",
-  "languagePt": "Português"
+  "languagePt": "Português",
+  "stepRebalanceOnWithRework": "Partilha trabalho com as estações {type} adjacentes. Preenchida até {filled} de {capacity}: com {rework}% de retrabalho, esse conteúdo ocupa um takt inteiro.",
+  "@stepRebalanceOnWithRework": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "filled": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      },
+      "rework": {
+        "type": "String"
+      }
+    }
+  }
 }

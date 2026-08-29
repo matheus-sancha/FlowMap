@@ -201,6 +201,13 @@ class SimulationRepository {
             poolNames: {for (final pool in pools) pool.id: pool.name},
             poolMembers: poolMembers,
             productivePerWorkingDay: productiveOn(asOf),
+            // Read the same way and at the same instant as the productive day
+            // above, so the cap and the charge cannot disagree (§9.8).
+            rework: {
+              for (final entry in workcenters.entries)
+                entry.key:
+                    entry.value.schedule.lookup(asOf).period?.rework ?? 0,
+            },
             queues: queues,
             cellNames: cellNames,
             lineNames: lineNames,

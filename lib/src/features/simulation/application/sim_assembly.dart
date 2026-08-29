@@ -106,6 +106,7 @@ class SimResourceContext {
     required this.poolNames,
     required this.poolMembers,
     required this.productivePerWorkingDay,
+    this.rework = const {},
     this.queues = const {},
     this.cellNames = const {},
     this.lineNames = const {},
@@ -149,6 +150,14 @@ class SimResourceContext {
   /// mid-flight takt changes open, and the engine currently runs at one
   /// cadence throughout.
   final Map<String, Duration> productivePerWorkingDay;
+
+  /// Fraction of work redone at each station (§4.4), by workcenter id.
+  ///
+  /// **Carried for the balance cap and nothing else** (§9.8). The engine
+  /// charges rework off the workcenter's own schedule; this is the same figure,
+  /// here because `_balanceSteps` has to divide a takt of capacity by it and
+  /// has no schedule in view.
+  final Map<String, double> rework;
 }
 
 /// Builds one study's engine input.
@@ -428,16 +437,25 @@ Map<String, Map<SimTakt, Map<String, Duration>>> _balanceSteps(
 
   final shares = <String, Map<SimTakt, Map<String, Duration>>>{};
   for (final takt in takts) {
-    // One takt of each station's own capacity — the cap it fills to, and the
-    // same figure the map calls the step's flow-equivalent time (§6.1).
+    // **What fits in one takt once rework is charged** (§9.8) — one takt of the
+    // station's capacity, divided by its own rework.
+    //
+    // Not the flow equivalent, which is the same figure *before* that division
+    // and stays that way: it is MM3's yardstick and the ladder's divisor, and
+    // `FlowStepView.rework` says in its own doc that rework is a loss on a
+    // part's work and never on the yardstick. Two figures, 3.7 % apart on this
+    // plant, each answering its own question.
     final caps = [
       for (final step in steps)
         resources.productivePerWorkingDay[step.candidates.firstOrNull] == null
             ? null
-            : taktUnitDuration(
-                takt.value,
-                takt.unit,
-                resources.productivePerWorkingDay[step.candidates.first]!,
+            : contentThatFitsInOneTakt(
+                taktUnitDuration(
+                  takt.value,
+                  takt.unit,
+                  resources.productivePerWorkingDay[step.candidates.first]!,
+                ),
+                resources.rework[step.candidates.first] ?? 0,
               ),
     ];
 
