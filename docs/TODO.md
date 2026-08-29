@@ -2791,7 +2791,14 @@ sentence about it would go.
 
 **Four of these were closed against the stored run rather than the screen**, on 2026-08-29 — the kind
 of evidence §7.9 used and this file asked to see more of. Run `93994701`, made at 19:32 under the
-build carrying §9.9's fix. What is left needs a person and a screen.
+build carrying §9.9's fix. What is left needs a person and a screen, and is prepared on
+`docs/DRIVE-9.5-2026-08-29.md`.
+
+**They are verified, not driven, and the difference is §5.3's.** That run was made under a build
+carrying **no label** — `dev` in the session header, because the rebuild went out without
+`--dart-define=BUILD_LABEL`. The arithmetic below stands on its own; the *record* does not, by this
+file's own rule that a drive with no label is not a record that a drive happened. A labelled re-run
+under `0.1.0-2026-08-29e` supersedes it.
 
 - [x] **A balanced station charged exactly one takt** (§9.8) — **verified to the second, on four
       stations.** Every station the balance fills reads `326,399 s` against a four-day takt of open
