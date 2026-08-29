@@ -140,6 +140,27 @@ class InsertionPoint {
   final ({double x, double y}) center;
 }
 
+/// Where a step dragged from [from] lands when it is dropped in the gap
+/// [gap], in the terms `StudiesRepository.moveNode` takes — or **null when the
+/// drop changes nothing** (§8.4).
+///
+/// **The two indices count different things**, which is the whole reason this
+/// is a function rather than a subtraction at the call site. An
+/// [InsertionPoint.position] is a gap in the list *as drawn*: five steps have
+/// six gaps, and gap 5 is past the end. `moveNode`'s `to` is an index in the
+/// list *after the dragged step has been taken out of it*, because that is what
+/// `insert(to, removeAt(from))` means. So every gap to the right of the step
+/// being dragged is one place further left than it looks.
+///
+/// **Two gaps are no-ops and both have to be caught here.** The gap immediately
+/// before a step and the one immediately after it are where that step already
+/// is; dropping into either should leave the map alone rather than write a
+/// reorder that renumbers every node and touches the study for nothing.
+int? dropTarget({required int from, required int gap}) {
+  if (gap == from || gap == from + 1) return null;
+  return gap > from ? gap - 1 : gap;
+}
+
 /// One straight run of the spine, and what it is drawn as.
 class FlowConnection {
   const FlowConnection({

@@ -2039,7 +2039,7 @@ column and a plain one. **`data_grid.dart:29`'s rule stands untouched**: the cel
 `start`, because a right edge is what lets a column of percentages be scanned and centring the data
 would have cost that. Only the headings moved.
 
-### 8.4 Nodes drag along the spine
+### 8.4 Nodes drag along the spine — **code-complete 2026-08-29, not driven**
 
 Reordering is a relative `±1` move inside the step dialog today (`flow_node_editor.dart:152` →
 `studies_repository.dart:429`). A node becomes draggable: pick it up, an insertion caret opens
@@ -2054,6 +2054,33 @@ deliberate.
 _Not taken:_ free placement. That is the map that never runs, deferred by decision below
 (§11) — *"just for visual but in a more free"* — it is M5-sized, and it needs the second layout
 path that section costs out. A drag that reorders is not a down payment on it.
+
+**Landed 2026-08-29.** A `Draggable` on the step box, and the `+` at each gap became a `DragTarget`.
+
+**No drag handle, and none needed.** A `Draggable` claims the gesture where it starts, so the
+`InteractiveViewer` only ever sees drags that begin on empty canvas — dragging a box reorders it and
+dragging the canvas still pans, which is the split a reader expects without being told.
+
+**The `+` is the drop target, and deliberately not a wider band.** The gap already carries §7.3's
+queue, whose *whole channel* is a click target — a drop zone spread along the link would have taken
+those clicks, which is the kind of quiet regression §7.5's drive spent a round on. The affordance
+that already means *"something goes here"* is the one that accepts a step. It grows and fills while
+a step is over it, and dims on the two gaps the dragged step already sits between, so a target that
+would do nothing does not look live.
+
+**The box stays where it was while it is in the air.** A spine that closed up under the cursor would
+move every gap the reader is aiming at, including the one they set out for.
+
+**The arithmetic is the whole risk, so it is a pure function in the widget-free layout file.**
+`dropTarget(from:, gap:)` — an `InsertionPoint.position` is a gap in the list *as drawn* and
+`moveNode`'s `to` is an index in the list *after the step has been lifted out*, so every gap right of
+the dragged step is one place further left than it looks, and the two gaps either side of it are
+no-ops that must not write a reorder at all.
+
+**Thirteen tests, asserted against the order a reader is left with rather than against an index** —
+including an exhaustive pass over every step and every gap that checks the step lands between
+whatever the gap was between. Mutating the mapping to never subtract fails six of them. `flutter
+analyze` clean, **926 passing**.
 
 ### 8.5 The banner reports the press, not the provider
 
@@ -2244,6 +2271,12 @@ by driving instead, in §8.8.
 - [ ] **A node dragged to the front, to the back, and dropped on itself.** And the arrows, the
       lead-time ladder and the PDF all agreeing with the new order afterwards, which is the claim a
       derived layout makes.
+- [ ] **The snap reads as deliberate rather than as a jump.** The box does not stay where it is
+      dropped — it cannot, since §5.3 derives every position from the sequence — so what has to be
+      judged by eye is whether returning to the spine looks like the map settling or like the drag
+      being rejected. **The one part of §8.4 a test cannot answer.**
+- [ ] **A drag begun on a box reorders and a drag begun on canvas pans**, including a drag that
+      starts on a box and travels across empty canvas.
 
 ---
 

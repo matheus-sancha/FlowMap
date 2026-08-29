@@ -299,6 +299,10 @@ class _Canvas extends ConsumerStatefulWidget {
 }
 
 class _CanvasState extends ConsumerState<_Canvas> {
+  /// The position of the step currently being dragged, or null (§8.4). Held so
+  /// the gaps it cannot move to can say so while it is in the air.
+  int? _draggingFrom;
+
   /// Owned here rather than by the toolbar: the transform belongs to the
   /// viewport, and fit-to-screen needs the viewport's measured size.
   final _controller = TransformationController();
@@ -501,16 +505,65 @@ class _CanvasState extends ConsumerState<_Canvas> {
                 stock: stock,
               ),
             ),
+            // **Dragging a box reorders it; dragging the canvas still pans**
+            // (§8.4). A `Draggable` claims the gesture where it starts, so the
+            // `InteractiveViewer` above only sees the drags that begin on empty
+            // canvas — which is the split a reader expects and needs no handle
+            // to explain.
             for (final placed in layout.nodes)
               Positioned(
                 left: placed.rect.left,
                 top: placed.rect.top,
                 width: placed.rect.width,
                 height: placed.rect.height,
-                child: _StepBox(
-                  step: placed.view,
-                  study: study,
-                  layout: layout,
+                child: Draggable<int>(
+                  data: placed.view.node.position,
+                  dragAnchorStrategy: pointerDragAnchorStrategy,
+                  onDragStarted: () => setState(
+                    () => _draggingFrom = placed.view.node.position,
+                  ),
+                  onDraggableCanceled: (_, _) =>
+                      setState(() => _draggingFrom = null),
+                  onDragEnd: (_) => setState(() => _draggingFrom = null),
+                  // Under the cursor and a little smaller, so the gap it is
+                  // heading for stays visible past it.
+                  feedback: Transform.translate(
+                    offset: Offset(
+                      -placed.rect.width / 2,
+                      -placed.rect.height / 2,
+                    ),
+                    child: Opacity(
+                      opacity: 0.85,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: SizedBox(
+                          width: placed.rect.width,
+                          height: placed.rect.height,
+                          child: _StepBox(
+                            step: placed.view,
+                            study: study,
+                            layout: layout,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // **Left in place rather than removed.** A spine that closed
+                  // up under the cursor would move every gap the reader is
+                  // aiming at, including the one they set out for.
+                  childWhenDragging: Opacity(
+                    opacity: 0.3,
+                    child: _StepBox(
+                      step: placed.view,
+                      study: study,
+                      layout: layout,
+                    ),
+                  ),
+                  child: _StepBox(
+                    step: placed.view,
+                    study: study,
+                    layout: layout,
+                  ),
                 ),
               ),
             // The queue each link runs into (§7.3) — the stock standing there,
@@ -554,15 +607,51 @@ class _CanvasState extends ConsumerState<_Canvas> {
                 width: placed.rect.width + 80,
                 child: _EndStock(stock: placed.view, study: study),
               ),
+            // **The `+` is the drop target too**, and deliberately not a
+            // wider band: the gap already carries §7.3's queue, whose whole
+            // channel is a click target, and a drop zone spread across the
+            // link would have taken those clicks. The affordance that already
+            // means "something goes here" is the one that accepts a step.
             for (final insertion in layout.insertionPoints)
               Positioned(
                 left: insertion.center.x - 18,
                 top: insertion.center.y - 18,
                 width: 36,
                 height: 36,
-                child: _InsertButton(
-                  study: study,
-                  position: insertion.position,
+                child: DragTarget<int>(
+                  onWillAcceptWithDetails: (details) =>
+                      dropTarget(
+                        from: details.data,
+                        gap: insertion.position,
+                      ) !=
+                      null,
+                  onAcceptWithDetails: (details) {
+                    final to = dropTarget(
+                      from: details.data,
+                      gap: insertion.position,
+                    );
+                    if (to == null) return;
+                    ref
+                        .read(studiesRepositoryProvider)
+                        .moveNode(study.id, details.data, to);
+                  },
+                  builder: (context, candidate, _) => _InsertButton(
+                    study: study,
+                    position: insertion.position,
+                    // Grown and filled while a step is over it, so the gap the
+                    // drop will use says so before the mouse comes up.
+                    highlighted: candidate.isNotEmpty,
+                    // Dimmed on the two gaps this step already sits between:
+                    // they accept nothing, and a target that looks live and
+                    // does nothing is worse than one that looks spent.
+                    inert:
+                        _draggingFrom != null &&
+                        dropTarget(
+                              from: _draggingFrom!,
+                              gap: insertion.position,
+                            ) ==
+                            null,
+                  ),
                 ),
               ),
             // Centred over the rung it belongs to: a left-aligned label sits
@@ -1347,19 +1436,34 @@ class _ZoomControls extends StatelessWidget {
 
 /// The `+ Insert here` affordance between two nodes (DESIGN.md §5.3).
 class _InsertButton extends ConsumerWidget {
-  const _InsertButton({required this.study, required this.position});
+  const _InsertButton({
+    required this.study,
+    required this.position,
+    this.highlighted = false,
+    this.inert = false,
+  });
 
   final Study study;
   final int position;
 
+  /// A dragged step is over this gap and would land here (§8.4).
+  final bool highlighted;
+
+  /// A step is in the air and this gap is one of the two it already sits
+  /// between, so it would accept nothing (§8.4).
+  final bool inert;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
-    return Tooltip(
+    return Opacity(
+      opacity: inert ? 0.25 : 1,
+      child: Tooltip(
       message: l10n.flowInsertHere,
       child: Material(
-        color: Theme.of(context).colorScheme.primary,
+        color: highlighted ? scheme.tertiary : scheme.primary,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -1371,11 +1475,12 @@ class _InsertButton extends ConsumerWidget {
             queues: queues ?? const {},
           ),
           child: Icon(
-            Icons.add,
-            size: 18,
-            color: Theme.of(context).colorScheme.onPrimary,
+            highlighted ? Icons.arrow_downward : Icons.add,
+            size: highlighted ? 22 : 18,
+            color: highlighted ? scheme.onTertiary : scheme.onPrimary,
           ),
         ),
+      ),
       ),
     );
   }
