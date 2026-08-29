@@ -2331,15 +2331,26 @@ on the field report and the flow-violation count, not to agree with the code**; 
 what a suite that agrees with a wrong premise is worth. Two tests were added beside it: the deep/
 shallow tie in the shape the drive found it, and a revisited station not stalling the ordering.
 
-### 8.8 Drive it
+### 8.8 Drive it — **begun 2026-08-29 under `0.1.0-2026-08-29a` and `-29b`**
+
+**Two builds, because the drive changed the code.** `-29a` at 14:18:44 carried §8.1–§8.7 and
+`db.open schema 23 from 22` — the v23 migration meeting 112 real runs, recorded in §8.6. The drive of
+it found §8.9, which `-29b` fixes; session 14:48:41, `db.open schema 23 from 23`, two runs at 1645
+steps against the 1793 of the morning. **148 phantom steps gone** is §8.1 on the real plant.
+
+_And an incidental reading on §8.5:_ **two presses of Simulate produced two `sim.run` lines** in the
+14:48 session. It did not reproduce. Recorded because a defect that comes and goes is worth knowing
+is intermittent rather than fixed — nothing in §8 touched it.
 
 - [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 already found. Its CEU32
       row and the lane above it are gone, and CEU30 still reads **108.4 h** — the finding survives
       in the figures while the phantom visit stops.
-- [ ] **CEU30 above CEU32 on Célula 11D's chart**, which is the symptom the 2026-08-29 drive
-      reported and the one check here whose *before* is on record: as built they tie at rank 4 and
-      CEU32 wins on being busier. **Compare against a fresh run, not against `7669856d`** — that run
-      has the phantoms in it and will keep drawing them the old way.
+- [x] ~~**CEU30 above CEU32 on Célula 11D's chart.**~~ **Confirmed 2026-08-29 under
+      `0.1.0-2026-08-29b`**, on a fresh run — and it took two goes. §8.1 alone put CEU30 above
+      **TCN20**, which the field reported; §8.9 is the fix, and the ordering on the newest stored run
+      is now `TCN20 5 → CEU30 6 → CEU32 7 → BAN11 8` with **zero flow violations** against all three
+      studies' own flows. **Two orderings were wrong and one was reported** — BAN11 sat above CEU32
+      as well, and only replaying the run found it.
 - [ ] **A capped lane with a skipping part in it.** `FIFO CEU27` at 2, which is the configuration
       §0's confounder ran. Blocking must fall or stay; if it rises, the skip is advancing an order
       somewhere it should not.
@@ -2347,13 +2358,13 @@ shallow tie in the shape the drive found it, and a revisited station not stallin
       incomparable with anything measured after this round, for the fourth time.
 - [ ] **The workcenter card at two periods and at twelve.** Short at two, 320 px and scrolling at
       twelve, and the append row reachable in both.
-- [ ] **The headers *and the values*, in all three grids and both themes.** §8.3 first centred only
-      the headings; the drive asked for the values too and they are centred now, so what is left to
-      judge is whether a column of percentages is still scannable without its right edge — the
-      argument the first pass was made on and which driving overruled.
-- [ ] **TCN20 above CEU30, and CEU32 above BAN11**, on a **fresh** run of Célula 11D — §8.9. Both
-      were wrong before it and only one was reported. A stored run made before §8.1 still carries
-      the phantom steps and will keep drawing the old order, so this needs a run made now.
+- [x] ~~**The headers *and the values*.**~~ **Confirmed 2026-08-29 under `0.1.0-2026-08-29b`.**
+      §8.3 first centred only the headings, on the argument that a right edge is what lets a column
+      of percentages be scanned; driven, the split read as a misalignment and the field asked for
+      both. _Not separately reported: Demand and Takt, or the second theme_ — the grids that were
+      never complained about and moved anyway.
+- [x] ~~**TCN20 above CEU30, and CEU32 above BAN11**, on a fresh run of Célula 11D.~~ **Confirmed
+      2026-08-29**, and corroborated against the stored run rather than only on screen.
 - [ ] **Simulate pressed from each of the five study tabs**, and **`sim.run` counted in `log.txt`
       afterwards** — five presses, five lines, five new rows in `simulation_runs`. §8.5's defect was
       invisible on screen and obvious in the log, so the log is the check.
