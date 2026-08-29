@@ -93,10 +93,11 @@ bug fix can be checked against the screens that reported it before §6 moves tho
 | **§6** | The workspace | five tabs, one simulation, less chrome — **not driven** |
 | **§7** | The queue, the filter and the balance | from driving `0.1.0-2026-08-15g` |
 | **§8** | Round eight | the phantom visit, five surfaces, and a save that fails |
-| **§9** | Round nine | Project Settings, occupation over time, the float matrix — **now v24** |
-| **§10** | Known gaps, deliberately left | |
-| **§11** | Deferred by decision | §3.8, the map that never runs |
-| **§12** | M5 | |
+| **§9** | Round nine | a process time belongs to a step — **found by driving §8** |
+| **§10** | Round ten | Project Settings, occupation over time, the float matrix |
+| **§11** | Known gaps, deliberately left | |
+| **§12** | Deferred by decision | §3.8, the map that never runs |
+| **§13** | M5 | |
 
 ---
 
@@ -512,7 +513,7 @@ staffing across stations by reading down a column, and **a year of periods for t
 out of Excel in one block** — which §12.6 says is how they actually arrive.
 
 Costs a combined provider, since `workcenterScheduleProvider` is keyed per station, and a workcenter
-picker on the blank append row that §9.1's "type into the row past the end" rule needs.
+picker on the blank append row that §10.1's "type into the row past the end" rule needs.
 
 _Rejected: master/detail with a station list._ One scroll at a time and it scales to §14's forty
 stations — a third level of navigation inside a tab inside a workspace.
@@ -1652,7 +1653,7 @@ exists *"to keep this function total rather than to be relied on"*. A takt table
 last row and went on opening orders every 4 days would be the one schedule in this app that does.
 
 _Rejected: holding the last takt forward._ It keeps every run that works today working, and it is a
-**guess about what the planner meant** — §9.2's rule is that forgiving is not guessing, which is why
+**guess about what the planner meant** — §10.2's rule is that forgiving is not guessing, which is why
 a bare `batch` column is refused rather than assumed to be a size.
 _Rejected: aborting the run._ §11 has consistently chosen warn-and-continue over block, and an abort
 throws away the part of the run that was perfectly well cadenced.
@@ -2331,48 +2332,6 @@ on the field report and the flow-violation count, not to agree with the code**; 
 what a suite that agrees with a wrong premise is worth. Two tests were added beside it: the deep/
 shallow tie in the shape the drive found it, and a revisited station not stalling the ordering.
 
-### 8.10 A revisited station has one process time — **found 2026-08-29, undecided**
-
-**Found by driving §8.6**, which is the point of driving it: *"I tried adding a CEU30 before TCN20
-and the demand for each just copied the value for that CEU30 node, and it's linked. When I deleted
-the process time, it deleted from both nodes."*
-
-`demand_table.dart:43` keys a part's process time by the **target**:
-
-```dart
-String? demandTargetOf(FlowNode step) => step.poolId ?? step.workcenterId;
-```
-
-so two steps on one station are two columns over one stored value. Editing either edits both, and
-the engine reads the same figure for both visits — **a revisit is charged identical work on each
-pass**.
-
-**This is a stated decision rather than an oversight**, and the entry that states it is worth
-quoting because it is the thing to disagree with:
-
-> *"Two nodes may share a `targetId` — a part that visits the same station twice — and then they
-> are two columns over one stored value, which is right: the station takes the same time per piece
-> on both passes, and a total that counts it twice is counting two real visits."*
-
-**It is defensible and it is probably wrong.** It holds for a machine with one cycle time per part.
-It does not hold for the usual reason a routing goes back to a station — the second pass is a
-*different operation*: rough then finish, tack then final weld, first side then second. Those are
-the cases a planner draws a revisit to model, and the model cannot currently tell them apart.
-
-**§8.6's write-up was half right and this corrects it.** It said *"the engine already models it
-correctly and only the save could not express it."* True of dispatch and queueing, which is where I
-looked; false of the work, which is charged from a table keyed by station. **§8.6 made a revisit
-storable and left it unable to say what the second visit costs.**
-
-**And this is the third time one pattern has bitten.** §7.3 keyed the queue by station; §8.6's lane
-visit was keyed by station; the demand column is keyed by station. Every one was right while a flow
-was a spine of distinct stations, and every one breaks the first time a routing revisits one.
-**Worth a sweep for the fourth** — §7.5's drive asked for that sweep sixteen days before §8.6 found
-one by accident, and this is the next.
-
-_Not decided here._ The fork is whether a process time belongs to a *station* or to a *step*, which
-is a statement about the plant rather than about the code, and it is the field's to make.
-
 ### 8.8 Drive it — **begun 2026-08-29 under `0.1.0-2026-08-29a` and `-29b`**
 
 **Two builds, because the drive changed the code.** `-29a` at 14:18:44 carried §8.1–§8.7 and
@@ -2452,23 +2411,143 @@ is intermittent rather than fixed — nothing in §8 touched it.
 
 ---
 
-## 9. Round nine — Project Settings, and what a run says about load over time
+## 9. Round nine — a process time belongs to a step
 
-Settled by interview 2026-08-29. §9.1 comes first because §9.4's thresholds have nowhere else to
-live; §9.2 comes before §9.3 and §9.4 because neither can be built against a run that does not carry
+**Promoted out of §8 on 2026-08-29, before it was built.** It was found by driving §8.6 and started
+as §8.10; writing the schema showed it reaching the demand repository, study duplication, the MM3
+model, the summary and the assembler. **That is a round, and bolting it onto the tail of one already
+driven is what §6.7 warns against** — a fix checked through a screen that moved for another reason
+cannot say which of the two moved the figure. §8 stands as driven; this starts clean.
+
+**Found by driving §8.6**, which is the point of driving it: *"I tried adding a CEU30 before TCN20
+and the demand for each just copied the value for that CEU30 node, and it's linked. When I deleted
+the process time, it deleted from both nodes."*
+
+`demand_table.dart:43` keys a part's process time by the **target**:
+
+```dart
+String? demandTargetOf(FlowNode step) => step.poolId ?? step.workcenterId;
+```
+
+so two steps on one station are two columns over one stored value. Editing either edits both, and
+the engine reads the same figure for both visits — **a revisit is charged identical work on each
+pass**.
+
+**This is a stated decision rather than an oversight**, and the entry that states it is worth
+quoting because it is the thing to disagree with:
+
+> *"Two nodes may share a `targetId` — a part that visits the same station twice — and then they
+> are two columns over one stored value, which is right: the station takes the same time per piece
+> on both passes, and a total that counts it twice is counting two real visits."*
+
+**It is defensible and it is probably wrong.** It holds for a machine with one cycle time per part.
+It does not hold for the usual reason a routing goes back to a station — the second pass is a
+*different operation*: rough then finish, tack then final weld, first side then second. Those are
+the cases a planner draws a revisit to model, and the model cannot currently tell them apart.
+
+**§8.6's write-up was half right and this corrects it.** It said *"the engine already models it
+correctly and only the save could not express it."* True of dispatch and queueing, which is where I
+looked; false of the work, which is charged from a table keyed by station. **§8.6 made a revisit
+storable and left it unable to say what the second visit costs.**
+
+**And this is the third time one pattern has bitten.** §7.3 keyed the queue by station; §8.6's lane
+visit was keyed by station; the demand column is keyed by station. Every one was right while a flow
+was a spine of distinct stations, and every one breaks the first time a routing revisits one.
+**Worth a sweep for the fourth** — §7.5's drive asked for that sweep sixteen days before §8.6 found
+one by accident, and this is the next.
+
+_The fork was whether a process time belongs to a **station** or to a **step** — a statement about
+the plant rather than about the code, and the field's to make. It was made:_
+
+### 9.1 Settled by interview, 2026-08-29
+
+**A process time belongs to the step.** `part_process_times` is keyed by the flow node rather than by
+the target, so two steps aiming at one station are two independent cells and a revisit can say what
+its second pass costs.
+
+**A pool still shares**, and the rule §3.1 cared about is untouched: a step targeting a pool is one
+step, so its members go on drawing one time — *"a part has one process time at `CNC Lathes`, not
+four."*
+
+**Every step inherits its target's current time**, so today's numbers are the starting state and a
+study that never revisits a station cannot tell the change happened.
+
+### 9.2 Schema v24 — measured before it was written
+
+Written, driven against the live database's *counts*, and then reverted with the round. The figures
+below are from `flowmap.sqlite` on 2026-08-29 and are what the migration has to carry:
+
+| | |
+|---|---|
+| `part_process_times` rows | **279** |
+| reachable by a step | **271** |
+| **orphaned — target has no step in that part's study** | **8** |
+| rows after keying by node | **286** |
+
+**The 8 orphans are dropped, and that has to be said out loud**: a time keyed by a node needs a node,
+and these have none — left behind when a step was deleted or repointed after somebody typed a time.
+They are already unreachable, drawn by no column and read by no run, but this is the only migration
+in the file that removes anything.
+
+**The extra 15 rows are the fix working**: 271 → 286 because a target used twice splits into two
+cells, both starting at today's value.
+
+**The join must be through the part's own study and restricted to `kind = 'step'`.** `demand_parts`
+is study-scoped, so a time can only reach the steps of the flow it was typed against — which is what
+makes keying by node lose no sharing at all. A queue or inventory node targets nothing and would
+otherwise match on two nulls.
+
+### 9.3 What it reaches, which is why it is a round
+
+- **`demand_repository`** — `_toTimes`, `setProcessTime`, and `copyDemandInto`.
+- **`studies_repository`** — **the piece that made this a round.** Duplicating a study inserts its
+  nodes with `id: newId()` and keeps no old→new map, so copied process times would point at the
+  *source* study's nodes. The map has to be built there and threaded into `copyDemandInto`.
+- **`PartTimeWrite`**, and its two producers, `demand_import` and `demand_paste`.
+- **`DemandTable`** — four lookup sites. `totalFor` already sums over columns rather than stored
+  rows, so *"a station visited twice is paid for twice"* survives untouched.
+- **`Mm3Step`** — carries a `targetId` and no node id, so the MM3 model gains a field.
+- **`summary_view`** and **`sim_assembly`** — one site each; the assembler's `demandKey` becomes the
+  node id.
+
+**The compiler will not find most of these.** `DemandTable.times` is a `Map<String, Map<String,
+Duration>>`, so a lookup by the wrong id compiles and returns null — a part silently uncosted rather
+than a build failure. **Every site has to be visited deliberately**, and the readiness panel is the
+check that would notice: a part with no time at a step it must visit is a blocking error (§11).
+
+### 9.4 Drive it
+
+- [ ] **A study with a station twice**, two different times typed, and the run charging each pass its
+      own. Célula 11D was left in exactly that shape while this was investigated — **an extra CEU30
+      at position 3** — and it must come out before any real run of 11D, or every figure for it is
+      wrong.
+- [ ] **A duplicated study**, whose process times point at its own nodes rather than at the original's.
+      The failure would be silent: the copy would read uncosted and the readiness panel would name
+      every part.
+- [ ] **The readiness panel after the migration** — clean on every study that did not revisit a
+      station, which is all three of them today.
+- [ ] **v24 against the live database**, with the build label and the `db.open` line, and a backup
+      first. It **drops 8 rows**.
+
+---
+
+## 10. Round ten — Project Settings, and what a run says about load over time
+
+Settled by interview 2026-08-29. §10.1 comes first because §10.4's thresholds have nowhere else to
+live; §10.2 comes before §10.3 and §10.4 because neither can be built against a run that does not carry
 what they read. **Runs made before §8.1 must not be graphed** — they contain the phantom visits that
 round removes.
 
-### 9.1 Project Settings becomes a destination
+### 10.1 Project Settings becomes a destination
 
-A project owns a name, a plant, a shift pattern, notes and its calendar exceptions — and after §9.4
+A project owns a name, a plant, a shift pattern, notes and its calendar exceptions — and after §10.4
 it owns the float thresholds too. **Every one of those is edited in a dialog launched from the
 Projects list** (`projects_screen.dart:235`), so there is no project-level surface inside the
 workspace at all, and the exceptions button sits at the bottom of the studies sidebar
 (`project_workspace_screen.dart:587`) because there was nowhere better to put it.
 
 A gear in the workspace app bar opens **Project Settings**: a destination and not a dialog, holding
-the fields, §9.4's thresholds, and Calendar Exceptions as a section. That mirrors §4.2's Study
+the fields, §10.4's thresholds, and Calendar Exceptions as a section. That mirrors §4.2's Study
 Settings one level up, and it keeps §12.1's reason for exceptions being a destination in the first
 place — a calendar is browsed, not filled in and dismissed.
 
@@ -2476,9 +2555,9 @@ place — a calendar is browsed, not filled in and dismissed.
 two come to disagree, which is the argument `station_cards.dart:31` already makes about the dialog
 §6.3 deleted.
 
-### 9.2 Schema v24 — what a run must store to be graphed
+### 10.2 Schema v25 — what a run must store to be graphed
 
-**v24 rather than v23**, settled by interview 2026-08-29: §8.6 needed a migration of its own and §8
+**v25**, settled by interview 2026-08-29 and moved up once when §9 took v24: §8.6 needed a migration of its own and §8
 is driven before §9 moves the ground under it. Carrying §9's columns in §8's migration would have
 committed the live database to a design nothing had written yet — the shape this file already warns
 about twice, where an entry over-specified its own cost before the code around it was read.
@@ -2491,14 +2570,14 @@ doc: *"Recomputing it on read is not open to us."*
 |---|---|---|
 | work **before** rework | `SimulationRunSteps` | `processSeconds` is `per-piece × batch × (1 + rework) ÷ availability` — already fused, so rework cannot be its own segment without it |
 | open seconds **per month** | new, per run × station × month | only a whole-run `openSeconds` exists, so a monthly capacity line has no denominator |
-| workcenter type id and name | `SimulationRunWorkcenters` | `Workcenters.typeId` is in the plant and is not copied in, so §9.3's type filter and its pivot columns cannot be read off a run |
+| workcenter type id and name | `SimulationRunWorkcenters` | `Workcenters.typeId` is in the plant and is not copied in, so §10.3's type filter and its pivot columns cannot be read off a run |
 
 The monthly open seconds also close, **for this metric only**, something `run_filter.dart:9` states
 as a standing limitation: *"a station's busy, open and blocked time keep describing the whole run."*
 
-Runs made before v24 graph nothing, the way pre-v18 runs group nothing.
+Runs made before v25 graph nothing, the way pre-v18 runs group nothing.
 
-### 9.3 The occupation graph — demand against capacity
+### 10.3 The occupation graph — demand against capacity
 
 Project-scoped, filtered by cell, line, workcenter type and workcenter, on top of the study and
 customer-project filters `RunFilter` already carries.
@@ -2508,7 +2587,7 @@ customer-project filters `RunFilter` already carries.
   Summary's occupation is a ratio of — a bar omitting changeover would draw a station under its line
   while the Summary read 96 %, and §7.6 is the record of what a surface agreeing with itself and
   disagreeing with its own metric costs.
-- **line** — capacity, from §9.2's stored monthly open seconds.
+- **line** — capacity, from §10.2's stored monthly open seconds.
 - **bucket** — `queueStart`, the month the work **arrived** at the step. Not `processStart`: work
   the engine scheduled can never much exceed capacity, because it would not have been scheduled
   otherwise, so bucketing by execution hides the overload that caused it. Five orders arriving with
@@ -2549,7 +2628,7 @@ rule as the chart's neutral segment. Under a filter the column will therefore *n
 the cells above it — that is the point rather than a defect, because it is the only place the
 contention still appears once a cell reads its own 75 %.
 
-### 9.4 The float matrix
+### 10.4 The float matrix
 
 Float is one `Duration` per order today (`sim_result.dart:143`), slack against the need date,
 positive is early. The matrix is orders down, months across:
@@ -2574,14 +2653,14 @@ positive is early. The matrix is orders down, months across:
   number — the same `#3` would otherwise name two different orders.
 - **cell** — float in days. Blank where a month has fewer orders.
 - **colour** — red at or below the lower threshold, amber between, green at or above the upper.
-  Defaults `0` and `30` days, **set per project** on §9.1's screen.
+  Defaults `0` and `30` days, **set per project** on §10.1's screen.
 
 §0 is why this earns its place: on-time was **60/60 in all four** confounder runs because the 30-day
 start buffer swamped the differences, so *"on-time cannot currently discriminate between these
 configurations and lead time is doing all the work."* A month-by-month float matrix is that
 statement made readable — the plant that is green in January and red in April.
 
-### 9.5 Drive it
+### 10.5 Drive it
 
 - [ ] **The graph against the Summary tab**, on one station, one month. The bar's three segments
       must total what the Summary calls `required`, and the ratio to the line must be the number the
@@ -2592,7 +2671,7 @@ statement made readable — the plant that is green in January and red in April.
       the pivot's TOTAL row unchanged by the filter while the cells above it change.
 - [ ] **The pivot's column totals adding up** with every line in view, and deliberately **not**
       adding up under a filter. The one check here whose failure would be silent.
-- [ ] **A pre-v24 run opened from the history picker** offering no graph rather than an empty one,
+- [ ] **A pre-v25 run opened from the history picker** offering no graph rather than an empty one,
       and **a pre-§8.1 run not being graphed at all** — its phantom visits are in its lane visits.
 - [ ] **The float matrix's thresholds edited on Project Settings** and the colours moving, in a
       month with orders on both sides of a boundary. And the matrix at 24 columns, which is where
@@ -2604,11 +2683,11 @@ statement made readable — the plant that is green in January and red in April.
 
 **DESIGN.md this round:** §8.1 (the pivot, and why a type groups where a sum would not), §8.3
 (occupation gains a time axis and a stated bucket), §8.4, §11.1, §12.1 (Project Settings as a
-destination), §12.6, §16.25 (schema v24).
+destination), §12.6, §16.26 (schema v25).
 
 ---
 
-## 10. Known gaps, deliberately left
+## 11. Known gaps, deliberately left
 
 - [ ] **§14's performance target is not met.** A 2000-order, 10-step run takes ~2.8 s against "well
       under a second". §16.9 has the measurements: the cost is local `DateTime` arithmetic on
@@ -2660,7 +2739,7 @@ destination), §12.6, §16.25 (schema v24).
 
 ---
 
-## 11. Deferred by decision — the map that never runs
+## 12. Deferred by decision — the map that never runs
 
 **§3.8, deferred 2026-08-11 and confirmed still deferred 2026-08-15.** Not dropped and not disagreed
 with — sequenced. The argument below stands as written and nothing about it needs revisiting when it
@@ -2691,7 +2770,7 @@ own round. §5.2 keeps it decorative until then.
 
 ---
 
-## 12. M5
+## 13. M5
 
 Reports (§13), run comparison, templates and binding (§10.2), the About screen, and the drop.
 
