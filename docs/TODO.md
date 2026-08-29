@@ -2343,7 +2343,20 @@ _And an incidental reading on §8.5:_ **two presses of Simulate produced two `si
 14:48 session. It did not reproduce. Recorded because a defect that comes and goes is worth knowing
 is intermittent rather than fixed — nothing in §8 touched it.
 
-- [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 found — **but only under
+- [x] ~~**A part that skips a station.**~~ **Confirmed on the real plant 2026-08-29** under
+      `0.1.0-2026-08-29b`, run `770ca007`, once the five-day takt was put back:
+
+      | | CEU30 | CEU32 | steps |
+      |---|---|---|---|
+      | opened at 4 days | 94.0 h | 14.4 h | 9 |
+      | opened at 5 days | **108.4 h** | **absent** | **8** |
+
+      **108.4 h matches §7.9 to the decimal, and CEU32 is gone rather than zero.** §7.9 measured it
+      at 0.0 — a stored phantom step; it is now not queued, not dispatched and not stored, and the
+      order has eight steps where it had nine. The takt split came back with it: **37 orders at four
+      days, 23 at five, none unopened.**
+
+      _Original text:_ `P7000109738P01` is the case §7.9 found — **but only under
       the five-day takt**, and that period was deleted from 11D on 26 August and never put back. At
       four days it does 94.0 h at CEU30 and **14.4 h at CEU32**, so it visits both and correctly has
       both rows. _Driven 2026-08-29 and read as a defect on those figures, which was the check's
