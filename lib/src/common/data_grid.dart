@@ -26,7 +26,15 @@ class DataGridColumn {
   final String title;
   final double width;
 
-  /// Right-aligns the cell — times, quantities, dates read better that way.
+  /// Marks the column as holding a number.
+  ///
+  /// **Nothing reads it as of 2026-08-29.** It right-aligned the cell, and the
+  /// heading above it, until §8.3's drive centred both — so this is now set at
+  /// twelve call sites and consulted at none. Kept rather than deleted because
+  /// what each caller meant by it is real information about the column, and a
+  /// paste that wanted to know whether a cell should parse as a number would
+  /// ask exactly this. **Listed in §10 so it is removed or used rather than
+  /// quietly inherited.**
   final bool numeric;
 
   /// A column that can be read but not typed into: a derived total, or a step
@@ -357,11 +365,10 @@ class _DataGridState extends State<DataGrid> {
               width: column.width,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                // **Headings centre, whatever the cells under them do**
-                // (§8.3). A heading names a column; it is not one of its
-                // values, so it does not have to share their alignment — and
-                // the cells keep theirs, because [DataGridColumn.numeric]'s
-                // right edge is what lets a column of percentages be scanned.
+                // **Headings centre, and so do the cells under them**
+                // (§8.3). The first pass moved only the headings; the drive
+                // asked for the values too, and a column that agrees with
+                // itself is what it now is.
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -540,7 +547,15 @@ class _GridCellState extends State<_GridCell> {
           controller: _controller,
           focusNode: _focus,
           enabled: !widget.spec.readOnly,
-          textAlign: widget.spec.numeric ? TextAlign.end : TextAlign.start,
+          // **Centred, like the heading over it** (§8.3, revised on the
+          // 2026-08-29 drive). The first pass centred only the headings and
+          // kept `end` for numeric cells, on the argument that a right edge is
+          // what lets a column of percentages be scanned. Driven, the split
+          // read as a misalignment rather than as a convention — a centred
+          // heading over a right-aligned value looks like a mistake in a grid
+          // whose columns are narrow and whose values are short. The field
+          // asked for both, and driving beats reasoning (§2.0).
+          textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
             isDense: true,

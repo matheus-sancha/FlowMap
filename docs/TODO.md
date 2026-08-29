@@ -2286,6 +2286,51 @@ widget group proves a streamed choice moves every string in the tree.
 router needs the database. **Delete `locale:` from `app.dart` and those tests still pass.** Checked
 by driving instead, in §8.8.
 
+### 8.9 The Gantt reads the flow, not the load — **code-complete 2026-08-29, not driven**
+
+**Found by driving §8.1's own fix**, the same afternoon it landed: *"now CEU30 is above TCN20 which
+is incorrect."* 11D runs TCN20 at position 3 and CEU30 at 4.
+
+**This is §10's predicted gap arriving, and it took one drive.** §8.1 removed the tie between CEU30
+and CEU32 by deleting the phantom steps that caused it, and §10 recorded that the *tie-break*
+survived — *"the next plant that ties will read wrong for the same reason."* It did, twice: replaying
+the new run showed **CEU30 tied with TCN20 at rank 3, and BAN11 tied with CEU32 at 4**. The field
+spotted one; the data had both.
+
+**The cause was `min` over an index.** `routingRanks` took the earliest *position* a station reached
+in any order's step list, which only works while every routing is the same length. A part that skips
+two steps reaches its fourth station at index 1, so a station deep in one flow ties with a station
+early in another — and the tie fell through to the Queue table's busiest-first order, which is a
+statement about load standing in for a statement about sequence.
+
+_Measured against the three studies' own flows on the live database:_ **`min` broke two of them,
+`max` broke three, and a depth breaks none.**
+
+**What it is now: a longest-path depth over the precedence the run observed.** Within one order the
+steps are a sequence, so every consecutive pair says one station came before another — the only
+statement about the flow a stored run actually contains. A station sits one below the deepest thing
+that feeds it.
+
+**A depth rather than a sequence, and that distinction is the whole design.** A topological
+*sequence* numbers every station distinctly and would have silently taken the ordering of unrelated
+stations away from the Queue table. A depth leaves them tied and says so, and
+`buildGanttChart`'s existing clause hands a tie to the ranking exactly as it always did — which is
+why the test pinning that behaviour passes untouched. On the live plant the surviving ties are
+precisely the four cladding machines of one pool and the two CEU pairs that sit in parallel across
+studies.
+
+**Cyclic by design since §8.6.** A revisit makes W2 precede W3 and W3 precede W2; nothing can satisfy
+both. The relaxation is capped at the station count, so a cycle settles at the depth of its longest
+acyclic approach rather than climbing for ever.
+
+**One existing test changed its expectation, and that needs saying plainly.** *"A station shared by
+two studies takes its earliest position"* asserted `W1 W3 W2 W4` and its comment claimed the earliest
+position *"keeps both routings readable downwards"*. It does not — study 1 runs W1 → W2 → W3, and
+putting W3 above W2 makes that routing unreadable to buy nothing for study 2. **The expectation moved
+on the field report and the flow-violation count, not to agree with the code**; §7.6 is the record of
+what a suite that agrees with a wrong premise is worth. Two tests were added beside it: the deep/
+shallow tie in the shape the drive found it, and a revisited station not stalling the ordering.
+
 ### 8.8 Drive it
 
 - [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 already found. Its CEU32
@@ -2302,8 +2347,13 @@ by driving instead, in §8.8.
       incomparable with anything measured after this round, for the fourth time.
 - [ ] **The workcenter card at two periods and at twelve.** Short at two, 320 px and scrolling at
       twelve, and the append row reachable in both.
-- [ ] **The headers, in all three grids and both themes.** Demand and Takt were not complained
-      about and move anyway — this is where that shows.
+- [ ] **The headers *and the values*, in all three grids and both themes.** §8.3 first centred only
+      the headings; the drive asked for the values too and they are centred now, so what is left to
+      judge is whether a column of percentages is still scannable without its right edge — the
+      argument the first pass was made on and which driving overruled.
+- [ ] **TCN20 above CEU30, and CEU32 above BAN11**, on a **fresh** run of Célula 11D — §8.9. Both
+      were wrong before it and only one was reported. A stored run made before §8.1 still carries
+      the phantom steps and will keep drawing the old order, so this needs a run made now.
 - [ ] **Simulate pressed from each of the five study tabs**, and **`sim.run` counted in `log.txt`
       afterwards** — five presses, five lines, five new rows in `simulation_runs`. §8.5's defect was
       invisible on screen and obvious in the log, so the log is the check.
@@ -2519,7 +2569,9 @@ destination), §12.6, §16.25 (schema v24).
       flight**; an order keeps the takt it opened under all the way down the plant. Successive orders
       take the takt in force when *they* open, which is what a takt period says and what the engine
       has never done.
-- [ ] **A tie in `routingRanks` is broken by load, not by flow.** Two stations at one routing
+- [x] ~~**A tie in `routingRanks` is broken by load, not by flow.**~~ **Closed by §8.9 on
+      2026-08-29**, one drive after it was written. The prediction held exactly: *"the next plant
+      that ties will read wrong for the same reason."* Original text: Two stations at one routing
       position fall through to the Queue table's busiest-first ranking (`gantt_layout.dart`'s
       `groupQueue` clause). For a pool's like machines that is right — they are interchangeable. For
       two stations that genuinely sit at one position it is a statement about load standing in for a

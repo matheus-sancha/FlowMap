@@ -6,10 +6,12 @@
 /// forty chances to forget one — so it lives here, and a table either uses
 /// these two or visibly does not.
 ///
-/// **Only the read-only tables.** The editable [DataGrid] keeps its right-
-/// aligned numerics: you type into those cells and scan a column of process
-/// times for the one that is wrong, and a ragged left edge is what makes an
-/// outlier visible. `DataGridColumn.numeric` says so in its own doc comment.
+/// **Still only the read-only tables, but no longer for the original reason.**
+/// This said the editable [DataGrid] keeps its right-aligned numerics, because
+/// you type into those cells and a ragged left edge makes an outlier visible.
+/// §8.3's drive overruled that on 2026-08-29 and the grid centres its values
+/// too, so the whole app now agrees. What keeps this wrapper is Flutter rather
+/// than the app: `DataTable` still offers start or end and no third option.
 ///
 /// It works because `DataTable` sizes each column to its widest participant and
 /// then lays every cell out at that width, so a `Center` inside one expands to

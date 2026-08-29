@@ -222,15 +222,25 @@ void main() {
       expect(chart.stations.map((r) => r.workcenterId), ['W1', 'W2']);
     });
 
-    test('a station shared by two studies takes its earliest position', () {
+    test('a station shared by two studies sits below everything that feeds it', () {
       // §7.7 builds one model of the plant, so one line's third station and
-      // another's first are one row. It has to sit somewhere, and the earliest
-      // is what keeps both routings readable downwards.
+      // another's first are one row, and it has to sit somewhere.
       //
-      // Study 1 runs W1 → W2 → W3; study 2 runs W3 → W4. W3 is third in one
-      // routing and first in the other, so it rises to the top group rather
-      // than sitting below W2 — nothing queues, so within a group the ranking
-      // falls through to name order.
+      // **This expected `W1 W3 W2 W4` until 2026-08-29 and that was wrong.**
+      // The rule was "the earliest position any routing gives it", and the
+      // comment here claimed that kept both routings readable downwards. It
+      // does not: study 1 runs W1 → W2 → W3, and putting W3 above W2 makes
+      // *that* routing unreadable downwards to buy nothing for study 2.
+      //
+      // The field reported the same shape on the real plant — CEU30 drawn above
+      // TCN20 when 11D runs TCN20 first — and replaying the stored run showed
+      // the index rule breaking two of the three studies' flows where a depth
+      // rule breaks none. So the expectation moved, on evidence rather than to
+      // agree with the code: §7.6 is the record of what a suite that agrees
+      // with a wrong premise is worth.
+      //
+      // Study 1 runs W1 → W2 → W3; study 2 runs W3 → W4. Every edge is
+      // respected by one order and only one: W1, W2, W3, W4.
       final chart = chartOf(
         workcenterNames: const {'W1': 'W1', 'W2': 'W2', 'W3': 'W3', 'W4': 'W4'},
         orders: [
@@ -258,7 +268,89 @@ void main() {
         ],
       );
 
-      expect(chart.stations.map((r) => r.workcenterId), ['W1', 'W3', 'W2', 'W4']);
+      expect(chart.stations.map((r) => r.workcenterId), ['W1', 'W2', 'W3', 'W4']);
+    });
+
+    test('a station deep in one flow does not tie with a shallow one', () {
+      // The defect itself, in the shape the drive found it. Study 1 is four
+      // steps; study 2 is two, and its second station is study 1's fourth.
+      // Under the old index rule W4 reached index 1 in study 2 and tied with
+      // W2, and the tie fell to the Queue table's busiest-first order — a
+      // statement about load standing in for a statement about sequence.
+      final chart = chartOf(
+        workcenterNames: const {
+          'W1': 'W1',
+          'W2': 'W2',
+          'W3': 'W3',
+          'W4': 'W4',
+          'W9': 'W9',
+        },
+        orders: [
+          orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+          orderOf(orderId: 'o2', sequence: 0, partId: 'p2', studyId: 'study-2'),
+        ],
+        steps: [
+          for (final (index, station) in ['W1', 'W2', 'W3', 'W4'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: station,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+          for (final (index, station) in ['W9', 'W4'].indexed)
+            stepOf(
+              orderId: 'o2',
+              workcenterId: station,
+              queueStart: at(20 + index),
+              processStart: at(20 + index),
+              processEnd: at(21 + index),
+              studyId: 'study-2',
+            ),
+        ],
+      );
+
+      final drawn = chart.stations.map((r) => r.workcenterId).toList();
+      expect(
+        drawn.indexOf('W4'),
+        greaterThan(drawn.indexOf('W3')),
+        reason: 'W4 follows W3 in study 1 and must be drawn below it',
+      );
+      expect(
+        drawn.indexOf('W4'),
+        greaterThan(drawn.indexOf('W9')),
+        reason: 'W4 follows W9 in study 2 as well',
+      );
+    });
+
+    test('a station revisited by one routing does not stall the ordering', () {
+      // §8.6 made a revisit storable, which makes the precedence graph cyclic:
+      // W2 comes before W3 and W3 comes before W2. Nothing can satisfy both, so
+      // what is asserted is only that every station is placed and the acyclic
+      // part still reads down the page.
+      final chart = chartOf(
+        workcenterNames: const {'W1': 'W1', 'W2': 'W2', 'W3': 'W3'},
+        orders: [orderOf(orderId: 'o1', sequence: 0, partId: 'p1')],
+        steps: [
+          for (final (index, station) in ['W1', 'W2', 'W3', 'W2'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: station,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+        ],
+      );
+
+      final drawn = chart.stations.map((r) => r.workcenterId).toList();
+      expect(drawn.toSet(), {'W1', 'W2', 'W3'});
+      expect(drawn.length, 3, reason: 'a revisited station is still one row');
+      expect(
+        drawn.indexOf('W1'),
+        lessThan(drawn.indexOf('W2')),
+        reason: 'the acyclic part of the flow still reads downwards',
+      );
     });
 
     test('stations at one position keep the Queue table\'s order', () {

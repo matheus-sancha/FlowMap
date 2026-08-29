@@ -821,41 +821,106 @@ List<GanttLaneVisit> _stackVisits(
 /// A station nothing routed through, which sorts last.
 const _unrouted = 1 << 30;
 
-/// Where each station sits in the flow, as the run itself reveals it.
+/// Where each station sits down the page: the order the work happens in.
 ///
-/// **The run stores no node positions.** §7.10's rule is that a run joins to
-/// nothing, so `simulation_run_steps` keeps a node id and a workcenter id but
-/// not the order the flow put them in — and the flow it was made from may have
-/// been edited since. What the run *does* keep is every step of every order,
-/// and §5.1 makes a study's topology a linear spine: one order visits its
-/// stations in exactly the routing's order, so the order it visited them in is
-/// the routing. Sorted by [SimOrderStep.queueStart], which is when the order
-/// arrived rather than when it got served, so a station that made it wait does
-/// not float up the list.
+/// **A topological order over what the run observed, not an index into a step
+/// list** (§8.9). Within one order the steps are a sequence, so every
+/// consecutive pair says "this station came before that one"; those pairs are
+/// the only statement about the flow a stored run actually contains, and
+/// sorting the stations to respect all of them is what puts the chart in
+/// routing order.
 ///
-/// A station takes the **earliest** position it holds in any order's routing.
-/// It matters for a run spanning two studies, where one line's third station is
-/// another's first: there is one row for it either way (§7.7 builds one model
-/// of the plant), so the chart has to choose, and choosing the earliest keeps
-/// every routing readable top to bottom without any of them running backwards
-/// more than it has to.
+/// **What this replaces, and why it had to go.** It used to take the earliest
+/// *index* a station reached in any order's step list. That works only while
+/// every routing is the same length: a part that skips two steps reaches its
+/// fourth station at index 1, so a station deep in one flow ties with a station
+/// early in another. On the real plant it tied TCN20 with CEU30 and BAN11 with
+/// CEU32, and the tie fell through to the Queue table's busiest-first
+/// ranking — which is a statement about load standing in for a statement about
+/// sequence. §8.1 had just removed one such tie by deleting the phantom steps
+/// that caused it; the drive of `0.1.0-2026-08-29a` found the next two the same
+/// afternoon, which is the general defect the specific one was hiding.
+///
+/// Checked against the three studies' own flows on the live database: the index
+/// order broke two of them and this breaks none.
+///
+/// **Cycles are expected, not guarded against.** Since §8.6 a routing may visit
+/// one station twice, which is a genuine cycle in the precedence graph. When
+/// nothing is left with no unmet predecessor, the best-placed survivor is taken
+/// and the walk continues — a revisited station lands at its *first* position,
+/// which is where a reader looks for it.
+///
+/// **A depth, not an order — and the difference is what keeps the Queue table
+/// in the picture.** Stations with no routing relationship between them come
+/// out at the same depth and stay tied, so `buildGanttChart`'s existing clause
+/// still hands them to the ranking and the busier is drawn first. A
+/// topological *sequence* would have numbered them all distinctly and taken
+/// that decision away without anyone asking; on the live plant the ties that
+/// survive are exactly the four cladding machines of one pool and the two
+/// pairs of CEU stations that sit in parallel across studies.
+///
+/// Deterministic, as §4.4 requires: relaxation over a fixed graph reaches one
+/// fixed point regardless of iteration order.
 Map<String, int> routingRanks(SimRunResult result) {
   final byOrder = <String, List<SimOrderStep>>{};
   for (final step in result.steps) {
     byOrder.putIfAbsent(step.orderId, () => []).add(step);
   }
 
-  final earliest = <String, int>{};
+  final stations = <String>{};
+  final after = <String, Set<String>>{};
+
   for (final steps in byOrder.values) {
-    steps.sort((a, b) => a.queueStart.compareTo(b.queueStart));
-    for (var position = 0; position < steps.length; position++) {
-      final id = steps[position].workcenterId;
-      final known = earliest[id];
-      if (known == null || position < known) earliest[id] = position;
+    // `processStart` breaks a tie on `queueStart`, which §8.1 should have made
+    // impossible — a step that ends where it starts is no longer a visit — but
+    // a stored run made before it can still hold one, and an unstable sort here
+    // would draw such a run differently on each open.
+    steps.sort((a, b) {
+      final byQueue = a.queueStart.compareTo(b.queueStart);
+      if (byQueue != 0) return byQueue;
+      return a.processStart.compareTo(b.processStart);
+    });
+
+    for (var i = 0; i < steps.length; i++) {
+      stations.add(steps[i].workcenterId);
+      if (i + 1 >= steps.length) continue;
+      final from = steps[i].workcenterId;
+      final to = steps[i + 1].workcenterId;
+      // A station immediately following itself is a two-unit stay, not a
+      // precedence — and it would be a self-loop nothing could ever satisfy.
+      if (from == to) continue;
+      after.putIfAbsent(from, () => <String>{}).add(to);
     }
   }
 
-  return earliest;
+  // **How deep in the flow, not what order to draw** — the distinction the
+  // first attempt at this got wrong. A topological *sequence* gives every
+  // station a distinct number, which silently takes the decision away from the
+  // Queue table: two stations with no routing relationship between them would
+  // then be ordered by whatever the sort happened to yield rather than by which
+  // of them queued more. A *level* leaves them equal and says so.
+  //
+  // Longest path from any source: a station sits one below the deepest thing
+  // that feeds it. Relaxed to a fixed point rather than walked, because the
+  // graph is small and a revisit (§8.6) makes it cyclic — the pass count is
+  // capped at the number of stations, which is what stops a cycle climbing for
+  // ever. A cycle therefore settles at the depth of its longest acyclic
+  // approach, which is where a reader looks for it.
+  final ranks = {for (final station in stations) station: 0};
+  for (var pass = 0; pass <= stations.length; pass++) {
+    var moved = false;
+    for (final entry in after.entries) {
+      for (final downstream in entry.value) {
+        if (ranks[downstream]! < ranks[entry.key]! + 1) {
+          ranks[downstream] = ranks[entry.key]! + 1;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+
+  return ranks;
 }
 
 /// Something the pointer can be over: a station's bar or an order waiting in a
