@@ -2212,6 +2212,24 @@ this table created by that step's `_ensureTable`, which builds from the *current
 arrives at v23 already in the new shape with nothing to migrate. `from` says where the counter
 stopped, not what the file contains; the same lesson `_ensureColumn` was written for.
 
+**Driven against the live database 2026-08-29 at 14:18:44** under **`0.1.0-2026-08-29a`**:
+`db.open schema 23 from 22`, with the build label and the line both in `log.txt` — the pair §0 says
+a stale link cannot produce. Backed up first as `flowmap.sqlite.backup-v22-20260829-141742`. The Aug-3
+exe rule held again: `app.so` moved to 14:18 and `flowmap.exe` did not.
+
+**The rebuild carried everything.** 117 866 lane-visit rows before and after, **112 runs unchanged**,
+**zero duplicate keys**. 117 806 rows were backfilled from the step they were derived from and **60
+fell back to the target** — stays the guard caught mid-wait, which produced no step to name, exactly
+the case the column's doc describes.
+
+**And it turned up something the interview did not predict: 31 480 rows whose `target_id` is a flow
+node**, across **37 runs, all made 2026-08-15 and 16**. Those are pre-v19, from before §7.3 moved the
+queue off the flow — back then a lane *was* a node and `node_id` was the right name for it. Nothing
+was rewritten and nothing is wrong with the data; the rename is right from v19 on and those 37 runs
+now carry a node id under a column called `target_id`. Recorded on the column rather than fixed,
+because §7.10 forbids joining a finished run back to a plant, and it is the same shape as
+`step_node_id`'s own caveat. **Every run since has zero.**
+
 **Seven tests.** Three in `run_storage_test.dart` — the run stores at all, both stays survive named
 by their steps, and the second stay begins no earlier than the first ended, which is what rules out
 folding them into one row. **All three fail against v22's key**, with the same UNIQUE constraint the

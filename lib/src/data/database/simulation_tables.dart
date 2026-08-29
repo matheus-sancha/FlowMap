@@ -522,6 +522,16 @@ class SimulationRunLaneVisits extends Table {
   /// that says node while holding a workcenter is what made §8.6 invisible:
   /// the key built on it read as "one order queues once per step" and meant
   /// "one order queues once per station".
+  ///
+  /// **On a pre-v19 run this holds a flow node after all**, and the old name
+  /// was right for it. A lane *was* a node until §7.3 moved the queue onto the
+  /// station, so runs made before that recorded the inventory node's id here.
+  /// Observed on the live database at the v23 migration: **31 480 rows across
+  /// 37 runs, all made 2026-08-15 and 16**, against zero in every run since.
+  /// Nothing was rewritten — §7.10 forbids joining a finished run back to a
+  /// plant — so those rows say what they always said under a name that is now
+  /// wrong for them. It is the same shape as [stepNodeId]'s own caveat: an old
+  /// run answers what it can and is read with the build that made it in mind.
   TextColumn get targetId => text()();
 
   /// The flow node this stay was waiting *for* (§8.6).
