@@ -2749,6 +2749,44 @@ re-run matches.
   pins CLAD06 at 100 % while CLAD17 idles. Worth an entry of its own if the field wants it levelled
   rather than filled.
 
+### 9.11 The sweep for the fifth — **done 2026-08-29, nothing found**
+
+§9's header asked for it, §7.5's drive asked for it sixteen days earlier, and §9.9 was the fourth
+instance — so it was owed. **Every remaining place a value is keyed by target was read, and every one
+of them is asking a station-level question.** No fifth.
+
+| site | keyed by target because |
+|---|---|
+| `engine._queued`, `_hasRoom`, `SimQueue` | a floor space belongs to the station (§7.3, §5.5) |
+| `summary_view.occupationByTarget` | both visits load one machine; summed since §9.4 |
+| `gantt_layout.groupOf`, the row ranks | one row per station — §9.6 settled which visit it sits at |
+| `Mm3Step.targetId` | read by node, summed by station (§9.4) |
+| `theoreticalLeadTime`'s `counted` set | one stock charge per target however many steps feed it |
+| `_demandTakt`'s `firstWhere` | reads capacity and the working day, both station-level |
+
+**The write paths are all on node ids** — `demand_import`, `demand_paste`, `demand_tab`'s cell
+reader, and `studies_repository`, which builds the old→new node map §9.3 predicted it would need.
+
+_Two things the sweep turned up that are not defects and are worth knowing:_
+
+- **An import cannot fill both visits of a revisited station.** `guessMapping` matches by heading and
+  marks a source column taken, so a file carrying one `CEU30` column maps the first visit and leaves
+  the second **unmapped and listed for the user** — safe, nothing silently duplicated, but a revisit
+  is un-importable until its steps carry distinct labels. `flowStepTitle` prefers the step's own
+  label, so naming them *CEU30 rough* and *CEU30 finish* is the whole fix. **§9 made revisits
+  first-class and the import is the one surface that cannot yet express one**, which the field will
+  meet the first time it pastes a routing with a second pass.
+- **`TargetOccupation.title` takes the first visit's title**, so a Summary row for a station reached
+  by two differently-labelled steps is named after whichever comes first. Cosmetic, listed rather
+  than fixed.
+
+_And one figure that now answers a different question than its name suggests:_ the Summary's
+**configured takt** is resolved in productive hours, consistent with the `raw` and `adjusted` figures
+beside it, which are productive too. Since §9.10 that is no longer the interval the engine releases
+at — the two differ by the availability, and someone will compare them. The panel is a load
+comparison and is right as it stands; **the name is what will mislead**, and §10.1 is where a
+sentence about it would go.
+
 ### 9.5 Drive it
 
 **Four of these were closed against the stored run rather than the screen**, on 2026-08-29 — the kind
