@@ -2331,6 +2331,48 @@ on the field report and the flow-violation count, not to agree with the code**; 
 what a suite that agrees with a wrong premise is worth. Two tests were added beside it: the deep/
 shallow tie in the shape the drive found it, and a revisited station not stalling the ordering.
 
+### 8.10 A revisited station has one process time — **found 2026-08-29, undecided**
+
+**Found by driving §8.6**, which is the point of driving it: *"I tried adding a CEU30 before TCN20
+and the demand for each just copied the value for that CEU30 node, and it's linked. When I deleted
+the process time, it deleted from both nodes."*
+
+`demand_table.dart:43` keys a part's process time by the **target**:
+
+```dart
+String? demandTargetOf(FlowNode step) => step.poolId ?? step.workcenterId;
+```
+
+so two steps on one station are two columns over one stored value. Editing either edits both, and
+the engine reads the same figure for both visits — **a revisit is charged identical work on each
+pass**.
+
+**This is a stated decision rather than an oversight**, and the entry that states it is worth
+quoting because it is the thing to disagree with:
+
+> *"Two nodes may share a `targetId` — a part that visits the same station twice — and then they
+> are two columns over one stored value, which is right: the station takes the same time per piece
+> on both passes, and a total that counts it twice is counting two real visits."*
+
+**It is defensible and it is probably wrong.** It holds for a machine with one cycle time per part.
+It does not hold for the usual reason a routing goes back to a station — the second pass is a
+*different operation*: rough then finish, tack then final weld, first side then second. Those are
+the cases a planner draws a revisit to model, and the model cannot currently tell them apart.
+
+**§8.6's write-up was half right and this corrects it.** It said *"the engine already models it
+correctly and only the save could not express it."* True of dispatch and queueing, which is where I
+looked; false of the work, which is charged from a table keyed by station. **§8.6 made a revisit
+storable and left it unable to say what the second visit costs.**
+
+**And this is the third time one pattern has bitten.** §7.3 keyed the queue by station; §8.6's lane
+visit was keyed by station; the demand column is keyed by station. Every one was right while a flow
+was a spine of distinct stations, and every one breaks the first time a routing revisits one.
+**Worth a sweep for the fourth** — §7.5's drive asked for that sweep sixteen days before §8.6 found
+one by accident, and this is the next.
+
+_Not decided here._ The fork is whether a process time belongs to a *station* or to a *step*, which
+is a statement about the plant rather than about the code, and it is the field's to make.
+
 ### 8.8 Drive it — **begun 2026-08-29 under `0.1.0-2026-08-29a` and `-29b`**
 
 **Two builds, because the drive changed the code.** `-29a` at 14:18:44 carried §8.1–§8.7 and
@@ -2342,9 +2384,12 @@ _And an incidental reading on §8.5:_ **two presses of Simulate produced two `si
 14:48 session. It did not reproduce. Recorded because a defect that comes and goes is worth knowing
 is intermittent rather than fixed — nothing in §8 touched it.
 
-- [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 already found. Its CEU32
-      row and the lane above it are gone, and CEU30 still reads **108.4 h** — the finding survives
-      in the figures while the phantom visit stops.
+- [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 found — **but only under
+      the five-day takt**, and that period was deleted from 11D on 26 August and never put back. At
+      four days it does 94.0 h at CEU30 and **14.4 h at CEU32**, so it visits both and correctly has
+      both rows. _Driven 2026-08-29 and read as a defect on those figures, which was the check's
+      fault rather than the app's._ **Restore the five-day period first** — 4 days to 2026-03-31,
+      5 days from 2026-04-01 — or this check cannot pass.
 - [x] ~~**CEU30 above CEU32 on Célula 11D's chart.**~~ **Confirmed 2026-08-29 under
       `0.1.0-2026-08-29b`**, on a fresh run — and it took two goes. §8.1 alone put CEU30 above
       **TCN20**, which the field reported; §8.9 is the fix, and the ordering on the newest stored run
