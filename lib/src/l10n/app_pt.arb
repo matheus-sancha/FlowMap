@@ -1,14 +1,11 @@
 {
   "@@locale": "pt",
-
   "appTitle": "FlowMap",
-
   "navProjects": "Projetos",
   "navTemplates": "Modelos de estudo",
   "navResources": "Recursos",
   "navSettings": "Configurações",
   "navAbout": "Sobre",
-
   "actionAdd": "Adicionar",
   "actionEdit": "Editar",
   "actionDelete": "Excluir",
@@ -19,34 +16,27 @@
   "actionClose": "Fechar",
   "actionDuplicate": "Duplicar",
   "actionRename": "Renomear",
-
   "fieldName": "Nome",
   "fieldCode": "Código",
   "fieldType": "Tipo",
   "fieldNotes": "Observações",
   "fieldStart": "Início",
   "fieldEnd": "Fim",
-
   "validationRequired": "Obrigatório",
   "validationNameTaken": "Esse nome já está em uso aqui",
-
   "resourcesTitle": "Recursos",
   "resourcesEmpty": "Nenhuma planta ainda. Crie uma para começar a montar estudos.",
   "resourcesShowArchived": "Mostrar arquivados",
   "resourcesArchivedBadge": "Arquivado",
-
   "plant": "Planta",
   "plantNew": "Nova planta",
   "plantDeleteBlocked": "Esta planta possui células de produção. Arquive-a em vez de excluir.",
-
   "productionCell": "Célula de produção",
   "productionCells": "Células de produção",
   "productionCellNew": "Nova célula de produção",
-
   "productionLine": "Linha de produção",
   "productionLines": "Linhas de produção",
   "productionLineNew": "Nova linha de produção",
-
   "workcenter": "Centro de trabalho",
   "studyTabCapacity": "Capacidade",
   "exceptionsScope": "Aplica-se ao projeto inteiro — a todos os seus estudos.",
@@ -59,16 +49,26 @@
   "workcenterType": "Tipo de centro de trabalho",
   "workcenterTypes": "Tipos de centro de trabalho",
   "workcenterTypeNew": "Novo tipo de centro de trabalho",
-
   "workcenterLines": "Exibido sob estas linhas",
   "workcenterLinesHelp": "Apenas organizacional. Qualquer estudo de qualquer linha pode usar este centro de trabalho, marque o que marcar, e uma estação que atende duas linhas fica sob as duas.",
   "workcenterNoLines": "Esta planta ainda não tem linhas de produção.",
   "workcenterOnLines": "em {count} linhas",
-  "@workcenterOnLines": { "placeholders": { "count": { "type": "String" } } },
+  "@workcenterOnLines": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "workcenterRemoveFromLine": "Tirar de {line}",
-  "@workcenterRemoveFromLine": { "placeholders": { "line": { "type": "String" } } },
+  "@workcenterRemoveFromLine": {
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
   "workcenterDeleteBody": "Isto remove o centro de trabalho da planta, não só desta linha. Os horários vão junto.",
-
   "workcenterTypeIcon": "Ícone",
   "workcenterTypeIconHelp": "Os centros de trabalho deste tipo são desenhados com ele, na árvore e nos seletores.",
   "workcenterTypeNone": "Sem ícone",
@@ -95,13 +95,11 @@
   "iconMeasuring": "Medição",
   "iconPacking": "Embalagem",
   "iconStorage": "Armazém",
-
   "workcenterPool": "Pool de centros de trabalho",
   "workcenterPools": "Pools de centros de trabalho",
   "workcenterPoolNew": "Novo pool",
   "workcenterPoolMembers": "Membros",
   "workcenterPoolEmpty": "Um pool precisa de pelo menos um centro de trabalho.",
-
   "shiftPattern": "Padrão de turnos",
   "shiftPatterns": "Padrões de turnos",
   "shiftPatternNew": "Novo padrão de turnos",
@@ -112,7 +110,6 @@
   "shiftPatternShifts": "Turnos",
   "shiftPatternShiftNew": "Adicionar turno",
   "shiftPatternNoShifts": "Um padrão precisa de pelo menos um turno.",
-
   "shiftLabel": "Identificação",
   "shiftStart": "Início",
   "shiftEnd": "Fim",
@@ -120,7 +117,6 @@
   "shiftCrossesMidnight": "Vira o dia",
   "shiftDuration": "Duração líquida",
   "shiftOverlapWarning": "Este turno se sobrepõe a {other}.",
-
   "weekdayMon": "Seg",
   "weekdayTue": "Ter",
   "weekdayWed": "Qua",
@@ -128,24 +124,18 @@
   "weekdayFri": "Sex",
   "weekdaySat": "Sáb",
   "weekdaySun": "Dom",
-
   "confirmDeleteTitle": "Excluir {name}?",
   "confirmDeleteBody": "Isso não pode ser desfeito.",
   "confirmArchiveBody": "Permanece disponível para projetos que já o utilizam, mas fica oculto nas listas de seleção.",
-
   "aboutVersion": "Versão {version}",
   "aboutBuild": "Build {build}",
-
   "settingsTitle": "Configurações",
   "settingsLanguage": "Idioma",
-  "settingsLanguageSystem": "Sistema",
+  "settingsLanguageSystem": "Seguir o sistema",
   "settingsDateFormat": "Formato de data",
   "settingsDateFormatLocale": "Seguir o idioma",
-
   "comingSoon": "Em breve",
-
   "valueNone": "Nenhum",
-
   "workcenterAddExisting": "Adicionar existente",
   "workcenterAddExistingHelp": "Um centro de trabalho pertence à planta, então isso só muda onde ele aparece na árvore. Qualquer estudo de qualquer linha pode utilizá-lo de todo modo.",
   "workcenterNoneToAdd": "Todos os centros de trabalho desta planta já estão nesta linha.",
@@ -154,24 +144,20 @@
   "workcenterTypeUnset": "Sem tipo",
   "workcenterTypeDeleteBody": "Os centros de trabalho que usam este tipo continuam funcionando; o tipo deles é limpo.",
   "workcenterPoolNoCandidates": "Esta planta ainda não tem centros de trabalho.",
-
   "resourcesUnassigned": "Fora de linha",
   "resourcesUnassignedHelp": "Centros de trabalho que pertencem à planta mas não estão sob uma linha de produção.",
-
   "shiftPatternRotatingHelp": "Opera todos os dias. Os turnos são janelas de tempo, não equipes — quatro equipes revezando em duas janelas de 12 horas são dois turnos aqui, porque a capacidade vem das janelas cobertas.",
   "shiftPatternEveryDay": "Todos os dias",
   "shiftPatternNoWorkingDays": "Sem dias úteis",
   "shiftPatternOpenPerDay": "Aberto {duration}/dia",
   "shiftBreakMinutes": "Intervalo (min)",
   "shiftBreakOf": "Intervalo {duration}",
-
   "projectNew": "Novo projeto",
   "projectsEmpty": "Nenhum projeto ainda.",
   "projectMissing": "Esse projeto não existe mais.",
   "projectNeedsPlant": "Crie uma planta em Recursos antes de iniciar um projeto.",
   "projectPlantHelp": "Não pode ser alterada depois: todo estudo, programação e etapa de fluxo do projeto aponta para os centros de trabalho desta planta.",
   "projectDeleteBody": "Os estudos, programações e fluxos vão junto. Isso não pode ser desfeito.",
-
   "study": "Estudo",
   "studyNew": "Novo estudo",
   "studiesEmpty": "Nenhum estudo neste projeto ainda.",
@@ -181,7 +167,6 @@
   "studyDeleteBody": "O fluxo e as anotações vão junto. Isso não pode ser desfeito.",
   "studiesCollapse": "Ocultar a lista de estudos",
   "studiesExpand": "Mostrar a lista de estudos",
-
   "studyTabSettings": "Definições do estudo",
   "studyTabTakt": "Takt do fluxo",
   "studySettingsIdentity": "Identidade",
@@ -198,10 +183,8 @@
   "studyTabFlow": "Fluxo",
   "studyTabDemand": "Demanda",
   "studyTabSummary": "Resumo",
-
   "actionMoveUp": "Subir",
   "actionMoveDown": "Descer",
-
   "validationNotADuration": "Não é um tempo",
   "validationNotADate": "Não é uma data",
   "validationPositiveNumber": "Um número maior que zero",
@@ -209,14 +192,12 @@
   "validationNotAPercentage": "Uma percentagem entre 0 e 100",
   "validationPositiveWhole": "Um número inteiro maior que zero",
   "validationUnknownPart": "Nenhuma peça com esse número neste estudo",
-
   "stepProblemNoProcessTime": "Esta peça não tem tempo de processo aqui.",
   "stepEquivalence": "Equivalente",
   "flowNoParts": "Ainda não há peças",
   "footerEquivalence": "Equivalente",
   "footerEquivalenceHelp": "O tempo de processo desta peça em todo o fluxo dividido pelo do equivalente de fluxo. 1,13 significa que consome 1,13 takts da capacidade da linha.",
   "flowSourceNeedsDemand": "Precisa de pelo menos uma peça na aba Demanda",
-
   "mm3": "MM3",
   "mm3Column": "MM3",
   "mm3Scope": "Medido sobre",
@@ -225,11 +206,9 @@
   "mm3SmoothnessHelp": "O quanto a média móvel fica longe de 1,0 em média. 1,0 é um takt da capacidade do escopo por pedido, ou seja, uma sequência perfeitamente nivelada.",
   "mm3SlotLoad": "Carga do slot",
   "mm3SlotLoadHelp": "O equivalente da peça vezes o tamanho do lote — o que este slot de liberação custa ao fluxo. O MM3 faz a média disto, não do equivalente.",
-
   "mm3NoSequence": "Ainda não há pedidos na sequência.",
   "mm3NotMeasurable": "Nada a medir ainda: as peças desta sequência não têm tempos de processo neste escopo.",
   "mm3Help": "Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas. Reordene na aba Sequência e veja achatar.",
-
   "summaryOccupation": "Ocupação por centro de trabalho",
   "summaryDemandTakt": "Takt de demanda",
   "summaryRequired": "Necessário",
@@ -242,60 +221,196 @@
   "summaryWithinCapacity": "Dentro da capacidade deste período.",
   "summaryNoDemandTakt": "Ainda não há takt de demanda: é preciso uma estação com horas e pedidos com data neste período.",
   "summaryBottleneck": "Gargalo: {name} a {occupation}",
-  "@summaryBottleneck": { "placeholders": { "name": { "type": "String" }, "occupation": { "type": "String" } } },
+  "@summaryBottleneck": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "occupation": {
+        "type": "String"
+      }
+    }
+  },
   "summaryOrdersDue": "{count} pedidos no período",
-  "@summaryOrdersDue": { "placeholders": { "count": { "type": "String" } } },
+  "@summaryOrdersDue": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "summaryVisitsHelp": "O fluxo passa {count} vezes por esta estação, e cada visita a carrega.",
-  "@summaryVisitsHelp": { "placeholders": { "count": { "type": "String" } } },
+  "@summaryVisitsHelp": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "summaryMissingTimes": "{count} peças do período não têm tempo de processo aqui, então as horas necessárias estão subestimadas.",
-  "@summaryMissingTimes": { "placeholders": { "count": { "type": "String" } } },
+  "@summaryMissingTimes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "summaryRequiredHelp": "{work} de tempo de processo mais {changeovers} setups valendo {changeover}.",
-  "@summaryRequiredHelp": { "placeholders": { "work": { "type": "String" }, "changeovers": { "type": "String" }, "changeover": { "type": "String" } } },
+  "@summaryRequiredHelp": {
+    "placeholders": {
+      "work": {
+        "type": "String"
+      },
+      "changeovers": {
+        "type": "String"
+      },
+      "changeover": {
+        "type": "String"
+      }
+    }
+  },
   "summaryOccupationHelp": "{occupation} = {required} necessárias sobre {available} disponíveis.",
-  "@summaryOccupationHelp": { "placeholders": { "occupation": { "type": "String" }, "required": { "type": "String" }, "available": { "type": "String" } } },
+  "@summaryOccupationHelp": {
+    "placeholders": {
+      "occupation": {
+        "type": "String"
+      },
+      "required": {
+        "type": "String"
+      },
+      "available": {
+        "type": "String"
+      }
+    }
+  },
   "summaryPaceSetter": "Medido em {name}, a estação mais carregada, que tem {available} disponíveis neste período.",
-  "@summaryPaceSetter": { "placeholders": { "name": { "type": "String" }, "available": { "type": "String" } } },
+  "@summaryPaceSetter": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "available": {
+        "type": "String"
+      }
+    }
+  },
   "summaryTaktConfigured": "Takt configurado",
   "summaryTaktConfiguredHelp": "O takt para o qual esta linha está configurada, resolvido na estação que dita o ritmo.",
   "summaryTaktRaw": "Takt de demanda bruto",
   "summaryTaktRawHelp": "Tempo disponível sobre {orders} pedidos no período. O que um visitante espera.",
-  "@summaryTaktRawHelp": { "placeholders": { "orders": { "type": "String" } } },
+  "@summaryTaktRawHelp": {
+    "placeholders": {
+      "orders": {
+        "type": "String"
+      }
+    }
+  },
   "summaryTaktAdjusted": "Takt de demanda ajustado por equivalência",
   "summaryTaktAdjustedHelp": "Tempo disponível sobre {equivalents} equivalentes de peça no período. O que realmente importa com um mix variado: um pedido que vale dois takts conta em dobro.",
-  "@summaryTaktAdjustedHelp": { "placeholders": { "equivalents": { "type": "String" } } },
-
+  "@summaryTaktAdjustedHelp": {
+    "placeholders": {
+      "equivalents": {
+        "type": "String"
+      }
+    }
+  },
   "actionImport": "Importar",
   "importTitle": "Importar de {file}",
-  "@importTitle": { "placeholders": { "file": { "type": "String" } } },
+  "@importTitle": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
   "importSheet": "Planilha",
   "importMapping": "As colunas deles para as nossas",
   "importNotMapped": "Sem vínculo",
   "importColumnNumber": "Coluna {n}",
-  "@importColumnNumber": { "placeholders": { "n": { "type": "String" } } },
+  "@importColumnNumber": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
   "importUnmapped": "Nada encontrado para: {columns}. Esses valores vão ficar como estão.",
-  "@importUnmapped": { "placeholders": { "columns": { "type": "String" } } },
+  "@importUnmapped": {
+    "placeholders": {
+      "columns": {
+        "type": "String"
+      }
+    }
+  },
   "importPreview": "O que vai entrar",
   "importCountOk": "{count} linhas prontas",
-  "@importCountOk": { "placeholders": { "count": { "type": "String" } } },
+  "@importCountOk": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "importCountSkipped": "{count} ignoradas",
-  "@importCountSkipped": { "placeholders": { "count": { "type": "String" } } },
+  "@importCountSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "importCountWarned": "{count} para conferir",
-  "@importCountWarned": { "placeholders": { "count": { "type": "String" } } },
+  "@importCountWarned": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "importPreviewTruncated": "e mais {count} linhas",
-  "@importPreviewTruncated": { "placeholders": { "count": { "type": "String" } } },
+  "@importPreviewTruncated": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "importAccept": "Importar {count} linhas",
-  "@importAccept": { "placeholders": { "count": { "type": "String" } } },
+  "@importAccept": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "importDone": "{count} linhas importadas.",
-  "@importDone": { "placeholders": { "count": { "type": "String" } } },
+  "@importDone": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "importFailed": "Nada foi importado: {error}",
-  "@importFailed": { "placeholders": { "error": { "type": "String" } } },
+  "@importFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "importUnreadable": "Não foi possível ler o arquivo: {error}",
-  "@importUnreadable": { "placeholders": { "error": { "type": "String" } } },
+  "@importUnreadable": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "importEmpty": "Esse arquivo não tem linhas abaixo de uma linha de cabeçalho.",
   "importIssueMissingPart": "Sem número de peça",
   "importIssueDuplicatePart": "Esta peça aparece duas vezes no arquivo",
   "importIssueNeedBeforeMaterial": "Necessária antes de o material chegar",
-
   "fieldNote": "Observação",
   "exceptions": "Exceções de calendário",
   "exceptionNew": "Nova exceção",
@@ -309,12 +424,10 @@
   "exceptionOperatorsHelp": "Quem está em cada turno naquele dia. Um zero fecha o turno.",
   "exceptionDeleteTitle": "Excluir esta exceção?",
   "flowEndpointRename": "Renomear extremidade",
-
   "demandProject": "Projeto",
   "demandDeleteAll": "Excluir todos os pedidos",
   "demandDeleteAllBody": "Todos os pedidos da sequência vão embora. As peças e seus tempos de processo ficam.",
   "stepCycleTime": "T/C de takt",
-
   "demandParts": "Peças",
   "demandSequence": "Sequência",
   "demandPartNumber": "Número da peça",
@@ -333,7 +446,6 @@
   "demandNoSteps": "Este fluxo ainda não tem passos de processo, então não há contra o que custear uma peça.",
   "demandNeedsPart": "Adicione uma peça antes de adicionar pedidos.",
   "demandPartDeleteBody": "Os tempos de processo vão junto, e todos os pedidos dela saem da sequência.",
-
   "takt": "Takt",
   "taktUnit": "Unidade",
   "taktEmpty": "Nenhum takt definido para esta linha de produção ainda.",
@@ -341,7 +453,6 @@
   "taktPeriodDeleteTitle": "Excluir este período de takt?",
   "taktDaysHelp": "Dias são relativos à capacidade de cada centro de trabalho: um takt de 3 dias vale 68 h em uma estação aberta 22:40 por dia e 26:24 em uma aberta 8:48.",
   "taktLiteralHelp": "Resulta na mesma duração em todos os centros de trabalho.",
-
   "unitDays": "dias",
   "unitHours": "horas",
   "unitMinutes": "minutos",
@@ -350,7 +461,6 @@
   "unitHoursShort": "h",
   "unitMinutesShort": "min",
   "unitSecondsShort": "s",
-
   "schedulePeriodNew": "Novo período",
   "schedulePeriodDeleteTitle": "Excluir este período de programação?",
   "scheduleShifts": "Turnos",
@@ -365,12 +475,10 @@
   "occupation": "Ocupação",
   "workcentersTabEmpty": "Adicione etapas ao fluxo para programar seus centros de trabalho aqui.",
   "workcentersTabPattern": "Padrão de turnos: {shifts}",
-
   "scheduleIssueEmpty": "Nenhum período definido. Nada aqui pode ser calculado até existir pelo menos um.",
   "scheduleIssueOverlap": "Dois períodos cobrem {from} até {to}.",
   "scheduleIssueGap": "Nenhum período cobre {from} até {to}.",
   "scheduleIssueInverted": "Um período termina ({to}) antes de começar ({from}).",
-
   "periodPrevious": "Período anterior",
   "periodNext": "Próximo período",
   "periodMonth": "Mês",
@@ -434,14 +542,12 @@
   "stepProblemNoSchedule": "Nenhum período de programação cobre este mês.",
   "stepProblemEmptyPool": "Este pool não tem membros.",
   "stepPoolMembers": "Pool · {count} centros de trabalho",
-
   "inventoryModeQuantity": "Peças",
   "inventoryModeDuration": "Espera fixa",
   "inventoryPieces": "Peças em espera",
   "inventoryPiecesHelp": "Contadas como dias de estoque: peças × takt do período exibido.",
   "inventoryWait": "Espera",
   "inventoryWaitHelp": "Aqui um dia são 24 horas. Se essas horas passam no relógio ou apenas enquanto a planta opera é o botão abaixo.",
-
   "footerProcessTime": "Tempo de processo",
   "footerLeadTime": "Lead time (dias úteis)",
   "footerLeadTimeRunning": "Lead time (dias corridos)",
@@ -449,7 +555,6 @@
   "footerPce": "Eficiência de processo",
   "exportGenerated": "FlowMap {build} · gerado em {timestamp}",
   "exportSaved": "Salvo em {path}",
-
   "simFilterStudies": "Estudos",
   "simFilterCells": "Células",
   "simFilterLines": "Linhas",
@@ -462,7 +567,13 @@
   "simFilterOrdersHint": "ex.: 5, 12",
   "simFilterNoProject": "(sem projeto)",
   "simFilterOrdersEachStudy": "Os números de ordem se repetem em cada estudo — há {count} estudos à vista",
-  "@simFilterOrdersEachStudy": { "placeholders": { "count": { "type": "int" } } },
+  "@simFilterOrdersEachStudy": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simFilterClear": "Limpar filtros",
   "simWorkspace": "Simulação",
   "simStationsWholeRun": "Utilização e Bloqueado descrevem a corrida inteira — a corrida não guarda o que seria preciso para limitar o tempo aberto. As demais colunas seguem o filtro.",
@@ -474,7 +585,13 @@
   "dispatchEarliestDueDate": "Data de necessidade mais próxima",
   "dispatchShortestProcessing": "Menor tempo de processo",
   "simulationStudiesIn": "{count, plural, =0{Nenhum estudo selecionado} =1{1 estudo nesta execução} other{{count} estudos nesta execução}}",
-  "@simulationStudiesIn": { "placeholders": { "count": { "type": "int" } } },
+  "@simulationStudiesIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simulationNoStudies": "Nenhum estudo está selecionado para simular",
   "simulationNoStudiesHelp": "Marque um estudo na barra lateral. Vários estudos de uma mesma linha são cenários de uma só realidade, então uma execução leva no máximo um de cada.",
   "simulationNotReady": "Não está pronto para simular",
@@ -485,15 +602,39 @@
   "simulationNeverRun": "Ainda não há nenhuma execução",
   "simulationNeverRunHelp": "Simular executa todos os estudos selecionados contra um único modelo da planta, de modo que as ordens de uma linha realmente atrasam as de outra.",
   "simulationAbortHorizon": "A demanda excede a capacidade. {count} ordens nunca foram concluídas, e a execução foi abandonada em vez de seguir indefinidamente.",
-  "@simulationAbortHorizon": { "placeholders": { "count": { "type": "String" } } },
+  "@simulationAbortHorizon": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "simulationAbortNothingToRun": "Nada pôde começar: o calendário de todas as estações está fechado, ou nenhum estudo tinha uma primeira ordem custeável.",
   "simOnTimeDelivery": "Entregas no prazo",
   "simOnTimeOfOrders": "{onTime} de {orders} ordens no prazo",
-  "@simOnTimeOfOrders": { "placeholders": { "onTime": { "type": "String" }, "orders": { "type": "String" } } },
+  "@simOnTimeOfOrders": {
+    "placeholders": {
+      "onTime": {
+        "type": "String"
+      },
+      "orders": {
+        "type": "String"
+      }
+    }
+  },
   "simOnTimeHelp": "Contado sobre todas as ordens, não apenas as entregues: uma ordem que nunca saiu não está no prazo, diga o que disser a data de necessidade.",
   "simDelivered": "Entregues",
   "simDeliveredOf": "{delivered} de {orders}",
-  "@simDeliveredOf": { "placeholders": { "delivered": { "type": "String" }, "orders": { "type": "String" } } },
+  "@simDeliveredOf": {
+    "placeholders": {
+      "delivered": {
+        "type": "String"
+      },
+      "orders": {
+        "type": "String"
+      }
+    }
+  },
   "simAverageFloat": "Folga média",
   "simAverageFloatHelp": "Data de necessidade menos fim da ordem, na média das ordens que terminaram. Positivo é adiantado, com essa margem a favor; negativo é esse atraso. Uma ordem que nunca terminou não tem folga e fica de fora daqui; acima ela continua contando como atrasada.",
   "simAverageLeadTime": "Lead time médio",
@@ -520,10 +661,28 @@
   "simOnTime": "No prazo",
   "simNothingRanked": "Nenhuma estação executou nada.",
   "simRunSpan": "{start} → {end}",
-  "@simRunSpan": { "placeholders": { "start": { "type": "String" }, "end": { "type": "String" } } },
+  "@simRunSpan": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "simEarlierRuns": "Execuções anteriores",
   "simRunLabel": "{timestamp} · {rule}",
-  "@simRunLabel": { "placeholders": { "timestamp": { "type": "String" }, "rule": { "type": "String" } } },
+  "@simRunLabel": {
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      },
+      "rule": {
+        "type": "String"
+      }
+    }
+  },
   "simViewResults": "Ver resultados",
   "simulationRunFailed": "Não foi possível concluir a simulação",
   "simProductionPlan": "Plano de produção — ordens ao longo do tempo",
@@ -537,14 +696,29 @@
   "simPlanLeadTimeEfficiency": "Eficiência",
   "simRunQueuesMixed": "misto",
   "simRunQueueRow": "{name}: {rule}",
-  "@simRunQueueRow": { "placeholders": { "name": { "type": "String" }, "rule": { "type": "String" } } },
+  "@simRunQueueRow": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "rule": {
+        "type": "String"
+      }
+    }
+  },
   "simRunDeleteBody": "A execução e tudo o que ela registrou são apagados. Os estudos com que foi feita ficam intactos.",
   "simResultsView": "Resultados",
   "simGanttView": "Gantt",
   "simGanttEmpty": "Esta execução não registrou nenhum passo, então não há o que desenhar.",
   "simGanttGapHelp": "Uma linha por estação, uma barra por ordem, todos os estudos juntos: uma estação é compartilhada, então separar o gráfico por estudo a desenharia parada enquanto processava a ordem de outra linha. Uma barra é a estação comprometida com aquela ordem, incluindo as horas fechadas. Um vão é uma estação que não está processando: fechada ou sem material. Quanto desse vão estava sequer aberto é respondido na tabela de filas.",
   "simGanttOrder": "Ordem {number}",
-  "@simGanttOrder": { "placeholders": { "number": { "type": "String" } } },
+  "@simGanttOrder": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "simGanttProject": "Projeto",
   "simGanttCommitted": "Comprometida",
   "simGanttTakt": "Takt",
@@ -552,17 +726,31 @@
   "simGanttWaited": "Espera antes de começar",
   "simGanttChangeover": "Houve troca de referência para começá-la",
   "simScheduleTail": "{count, plural, =1{1 pedido terminou depois de {date} usando o último calendário definido} other{{count} pedidos terminaram depois de {date} usando o último calendário definido}}",
-  "@simScheduleTail": { "placeholders": { "count": { "type": "int" }, "date": { "type": "String" } } },
+  "@simScheduleTail": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "simScheduleTailHelp": "Os períodos de takt e de calendário dos centros de trabalho terminam nessa data, então a simulação prolongou o último para além dela. Não é um erro — uma simulação corre até o último pedido terminar — mas os números depois dessa data descrevem uma capacidade que ninguém definiu. Estenda os períodos e simule de novo para confirmá-los.",
   "settingsDisplay": "Apresentação",
-  "settingsDateFormat": "Formato de data",
   "settingsDateFormatHelp": "Como as datas são escritas e lidas em toda a aplicação, incluindo a exportação para Excel. Independente do idioma da interface. Datas ISO são sempre aceitas ao digitar, qualquer que seja o formato escolhido.",
   "dateFormatLocale": "Seguir o idioma do sistema",
   "dateFormatDayMonthYear": "Dia/mês/ano",
   "dateFormatMonthDayYear": "Mês/dia/ano",
   "dateFormatIso": "Ano-mês-dia (ISO)",
   "simGanttLaneHolds": "{count, plural, =1{A pista comporta 1 pedido} other{A pista comporta {count} pedidos}}",
-  "@simGanttLaneHolds": { "placeholders": { "count": { "type": "int" } } },
+  "@simGanttLaneHolds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simGanttLaneUncapped": "A pista não tem limite",
   "simGanttStillWaiting": "Ainda estava aqui ao terminar a simulação",
   "simGanttRowsStations": "Centros",
@@ -571,21 +759,39 @@
   "simGanttZoomIn": "Aproximar",
   "simGanttZoomOut": "Afastar",
   "simGanttFloored": "{count, plural, =1{1 barra desenhada mais larga do que é} other{{count} barras desenhadas mais largas do que são}}",
-  "@simGanttFloored": { "placeholders": { "count": { "type": "int" } } },
+  "@simGanttFloored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simGanttFlooredHelp": "Neste zoom esses passos são mais finos que um pixel, então são desenhados na largura mínima para continuarem visíveis. A posição é exata; a largura não. Ao aproximar, o aviso some.",
   "exportExcel": "Exportar para Excel",
   "simExportRunSheet": "Execução",
   "flowQueueEdit": "Definir a fila diante deste passo",
   "flowQueueTitle": "Fila diante de {target}",
-  "@flowQueueTitle": { "placeholders": { "target": { "type": "String" } } },
-  "flowQueueShared": "Uma fila por esta\u00e7\u00e3o: todos os passos que alimentam {target} esperam nesta, neste estudo e nos outros.",
-  "@flowQueueShared": { "placeholders": { "target": { "type": "String" } } },
+  "@flowQueueTitle": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "flowQueueShared": "Uma fila por estação: todos os passos que alimentam {target} esperam nesta, neste estudo e nos outros.",
+  "@flowQueueShared": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
   "flowQueueName": "Nome",
   "flowQueueType": "Tipo de fila",
-  "flowQueueTypeHelp": "Como a esta\u00e7\u00e3o seguinte escolhe a pr\u00f3xima ordem desta fila. Um empurre \u00e9 uma pilha \u00e0 qual ningu\u00e9m deu uma ordem; as quatro regras s\u00e3o canais, e o mapa desenha cada uma diferente.",
-  "flowQueueStock": "O que est\u00e1 aqui agora",
-  "queueTypePush": "Empurre \u2014 uma pilha, sem regra",
-  "queueTypeSupermarket": "Supermercado \u2014 ainda n\u00e3o",
+  "flowQueueTypeHelp": "Como a estação seguinte escolhe a próxima ordem desta fila. Um empurre é uma pilha à qual ninguém deu uma ordem; as quatro regras são canais, e o mapa desenha cada uma diferente.",
+  "flowQueueStock": "O que está aqui agora",
+  "queueTypePush": "Empurre — uma pilha, sem regra",
+  "queueTypeSupermarket": "Supermercado — ainda não",
   "flowBatchHelp": "Quantas peças cada caixa custa. Os tempos de processo são por peça, então uma ordem de dez ocupa a estação dez vezes mais — que é o que a simulação cobra. Deixe vazio para seguir as ordens que esta peça tem.",
   "validationNumber": "Digite um número",
   "validationAboveZero": "Digite um número maior que zero",
@@ -600,23 +806,93 @@
   "flowEndStockDays": "Dias de estoque",
   "stepBalancedMark": "⇄",
   "stepBalancedHelp": "Reequilibrado entre as estações de {type} vizinhas neste fluxo: cada uma enche até o seu takt e a última fica com o resto, então mudar o takt move a divisão sem nenhuma outra edição. Aqui foram medidos {measured}, e a tabela de demanda continua guardando esse valor.",
-  "@stepBalancedHelp": { "placeholders": { "type": { "type": "String" }, "measured": { "type": "String" } } },
+  "@stepBalancedHelp": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "measured": {
+        "type": "String"
+      }
+    }
+  },
   "stepRebalance": "Reequilibrar com máquinas vizinhas do mesmo tipo",
   "stepRebalanceHelp": "Estações do mesmo tipo lado a lado dividem o trabalho: cada uma enche até o seu takt e a última fica com o resto, então mudar o takt move a divisão sem nenhuma outra edição. Desligue para fixar esta estação no que foi medido nela.",
   "stepRebalanceNoType": "{name} não tem tipo de centro de trabalho, então nada diz que ela é igual às vizinhas.",
   "stepRebalanceNoNeighbour": "Nenhum passo vizinho compartilha o tipo {type}.",
   "stepRebalanceNoWork": "Esta peça não tem tempo aqui, então a estação não divide trabalho.",
   "stepRebalanceOn": "Dividindo trabalho com as estações {type} vizinhas.",
-  "@stepRebalanceNoType": { "placeholders": { "name": { "type": "String" } } },
-  "@stepRebalanceNoNeighbour": { "placeholders": { "type": { "type": "String" } } },
-  "@stepRebalanceOn": { "placeholders": { "type": { "type": "String" } } },
+  "@stepRebalanceNoType": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@stepRebalanceNoNeighbour": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "@stepRebalanceOn": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "simRunTakt": "Executado com {takt}",
   "simRunTaktChanges": "O takt mudou em {date}, dentro desta simulação.",
   "simRunTaktMixed": "misto",
   "flowTaktChanges": "Takt {from} → {to} em {date} — mostrando {shown}",
   "simRunCadenceEnded": "{study} parou de abrir pedidos em {date}: o calendário de takt termina aí e {count} não abriram.",
-  "@simRunCadenceEnded": { "placeholders": { "study": { "type": "String" }, "date": { "type": "String" }, "count": { "type": "int" } } },
-  "@simRunTakt": { "placeholders": { "takt": { "type": "String" } } },
-  "@simRunTaktChanges": { "placeholders": { "date": { "type": "String" } } },
-  "@flowTaktChanges": { "placeholders": { "from": { "type": "String" }, "to": { "type": "String" }, "date": { "type": "String" }, "shown": { "type": "String" } } }
+  "@simRunCadenceEnded": {
+    "placeholders": {
+      "study": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@simRunTakt": {
+    "placeholders": {
+      "takt": {
+        "type": "String"
+      }
+    }
+  },
+  "@simRunTaktChanges": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@flowTaktChanges": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "shown": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsLanguageHelp": "Em que idioma a aplicação é apresentada. Seguir o sistema usa o idioma do Windows.",
+  "languageEn": "English",
+  "languageEs": "Español",
+  "languagePt": "Português"
 }

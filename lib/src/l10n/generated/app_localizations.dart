@@ -805,7 +805,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLanguageSystem.
   ///
   /// In en, this message translates to:
-  /// **'System'**
+  /// **'Follow the system'**
   String get settingsLanguageSystem;
 
   /// No description provided for @settingsDateFormat.
@@ -3281,6 +3281,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{study} stopped opening orders on {date} — its takt schedule ends there, and {count} never opened.'**
   String simRunCadenceEnded(String study, String date, int count);
+
+  /// No description provided for @settingsLanguageHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Which language the app is drawn in. Follow the system uses your Windows display language.'**
+  String get settingsLanguageHelp;
+
+  /// No description provided for @languageEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEn;
+
+  /// No description provided for @languageEs.
+  ///
+  /// In en, this message translates to:
+  /// **'Español'**
+  String get languageEs;
+
+  /// No description provided for @languagePt.
+  ///
+  /// In en, this message translates to:
+  /// **'Português'**
+  String get languagePt;
 }
 
 class _AppLocalizationsDelegate

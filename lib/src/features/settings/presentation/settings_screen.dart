@@ -5,6 +5,7 @@
 /// control with its own help text — is what the next setting should follow.
 library;
 
+import '../../../common/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,6 +24,20 @@ class SettingsScreen extends ConsumerWidget {
     final setting = ref
         .watch(dateFormatSettingProvider)
         .maybeWhen(data: (s) => s, orElse: () => DateFormatSetting.locale);
+    final language = ref
+        .watch(languageSettingProvider)
+        .maybeWhen(data: (l) => l, orElse: () => AppLanguage.system);
+
+    // **A language names itself.** `Español` rather than `Spanish`, in every
+    // list and whatever the app is currently drawn in — because the person who
+    // needs this control is the one who cannot read the language it is
+    // currently showing.
+    String languageLabel(AppLanguage value) => switch (value) {
+      AppLanguage.system => l10n.settingsLanguageSystem,
+      AppLanguage.en => l10n.languageEn,
+      AppLanguage.es => l10n.languageEs,
+      AppLanguage.pt => l10n.languagePt,
+    };
 
     String label(DateFormatSetting value) => switch (value) {
       DateFormatSetting.locale => l10n.dateFormatLocale,
@@ -46,6 +61,59 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           Text(l10n.settingsDisplay, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
+          // **Above the date format**, because it decides what the date
+          // format's own labels are written in — and because a reader who
+          // opened Settings unable to read the screen needs this first.
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        l10n.settingsLanguage,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: l10n.settingsLanguageHelp,
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<AppLanguage>(
+                    initialValue: language,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final value in AppLanguage.values)
+                        DropdownMenuItem(
+                          value: value,
+                          child: Text(languageLabel(value)),
+                        ),
+                    ],
+                    onChanged: (chosen) {
+                      if (chosen == null) return;
+                      ref
+                          .read(settingsRepositoryProvider)
+                          .setLanguage(chosen);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             margin: EdgeInsets.zero,
             child: Padding(

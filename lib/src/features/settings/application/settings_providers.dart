@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../common/app_language.dart';
 import '../../../common/date_input.dart';
 import '../../../data/database/database_providers.dart';
 import '../data/settings_repository.dart';
@@ -21,6 +22,17 @@ SettingsRepository settingsRepository(Ref ref) =>
 /// the frame before the value arrives is not wrong, only not yet personal.
 final dateFormatSettingProvider = StreamProvider<DateFormatSetting>(
   (ref) => ref.watch(settingsRepositoryProvider).watchDateFormat(),
+);
+
+/// The stored language, defaulting to the platform before it has loaded.
+///
+/// **Never in a loading state to its readers**, on the same argument the date
+/// format makes and with more at stake: this decides which strings the whole
+/// tree is built from, and a spinner in place of the app for the one frame a
+/// key/value read takes would be worse than one frame in the language the
+/// platform would have chosen anyway — which is what the app did before §8.7.
+final languageSettingProvider = StreamProvider<AppLanguage>(
+  (ref) => ref.watch(settingsRepositoryProvider).watchLanguage(),
 );
 
 /// How this build should write and read dates: the setting, over the locale.

@@ -2160,7 +2160,7 @@ gains the step's position — a visit is per *step*, not per *station* — or a 
 one row with the second stay appended. The first is a schema change and is almost certainly right;
 the second loses information the Gantt draws. **Not designed here.**
 
-### 8.7 The app has no language picker
+### 8.7 The app has no language picker — **code-complete 2026-08-29, not driven**
 
 **Found by driving, 2026-08-29**, when the es and pt checks were reached and could not be started:
 *"i can't change the language."*
@@ -2184,6 +2184,30 @@ locale is only decided once `MaterialApp` has resolved it — so the seam this n
 
 _Not a translation job._ The three ARB files are complete and generated; this is the control that
 selects between them.
+
+**Landed 2026-08-29.** `AppLanguage` in `lib/src/common/app_language.dart`, stored under
+`display.language` beside the date format, streamed by `languageSettingProvider`, and handed to
+`MaterialApp` as `locale:`. **`AppLanguage.system` is the default and its `locale` is null**, which
+is not a fallback but the thing the app did before: `MaterialApp` already knows how to match the
+platform against `supportedLocales`, including the regions it does not carry, and a second answer
+computed here could only disagree with the first.
+
+**A language names itself.** `Español`, not `Spanish`, in every list and whatever the app is
+currently drawn in — the reader who needs this control is the one who cannot read the screen it is
+on. The three endonyms are identical in all three ARBs. `Follow the system` is a sentence rather
+than a name, so it *is* translated.
+
+**Twelve tests, and the seam is tested from both sides rather than through.** A live drift stream
+inside a widget tree does not come apart when the test ends — `tearDown`'s `db.close()` waits on a
+subscription the tree still holds, and every widget test after the first reports only that it "did
+not complete". That is why `simulation_tab_test.dart` overrides providers rather than driving a
+database, and this follows it: the repository group proves a choice is stored and streamed back, the
+widget group proves a streamed choice moves every string in the tree.
+
+**One gap, stated in the test file rather than papered over.** The widget group copies
+`FlowMapApp`'s two lines instead of mounting it, because mounting the app needs the router and the
+router needs the database. **Delete `locale:` from `app.dart` and those tests still pass.** Checked
+by driving instead, in §8.8.
 
 ### 8.8 Drive it
 
@@ -2211,7 +2235,9 @@ selects between them.
 - [ ] **A flow that visits one station twice**, which §8.6 is about. Point two steps of one study at
       the same workcenter and run it: it must store, and the Gantt must draw both visits. The case
       is one edit away and was reached by accident once already.
-- [ ] **The language switched in the app**, which §8.7 makes possible for the first time. Then
+- [ ] **The language switched in the app**, which §8.7 makes possible for the first time. **And it
+      is the check that stands in for a test**: §8.7's widget tests copy `app.dart`'s wiring rather
+      than mounting it, so nothing in the suite would notice `locale:` going missing. Then
       **every es/pt check §0 could not perform**: the four round-one dialogs, the Schedules paste,
       the takt line on card and plan, and the Excel export's date cells. That is a block of work
       §0 has been carrying since 2026-08-15 without being able to start it.

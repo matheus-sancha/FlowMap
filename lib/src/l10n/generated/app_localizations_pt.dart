@@ -383,7 +383,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsLanguage => 'Idioma';
 
   @override
-  String get settingsLanguageSystem => 'Sistema';
+  String get settingsLanguageSystem => 'Seguir o sistema';
 
   @override
   String get settingsDateFormat => 'Formato de data';
@@ -1865,4 +1865,17 @@ class AppLocalizationsPt extends AppLocalizations {
   String simRunCadenceEnded(String study, String date, int count) {
     return '$study parou de abrir pedidos em $date: o calendário de takt termina aí e $count não abriram.';
   }
+
+  @override
+  String get settingsLanguageHelp =>
+      'Em que idioma a aplicação é apresentada. Seguir o sistema usa o idioma do Windows.';
+
+  @override
+  String get languageEn => 'English';
+
+  @override
+  String get languageEs => 'Español';
+
+  @override
+  String get languagePt => 'Português';
 }
