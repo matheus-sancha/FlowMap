@@ -58,6 +58,13 @@ provenance is on record this time**: `log.txt`'s last session is 07:59:57 under
 minute after that session's last route. §5.3 is the entry that had to be un-ticked for lacking
 exactly that pair.
 
+**§0 was driven on 2026-08-29 and is all but closed** — 31 of 37 checks under
+`0.1.0-2026-08-27a`, session 10:09:31, recorded in `docs/DRIVE-2026-08-29.md`. **It found four
+defects**, three of which are now §8.5, §8.6 and §8.7 and none of which 892 tests had anything to
+say about; the fourth turned out to be §8.1 wearing a visible face. What is left is three es/pt
+checks **blocked** by §8.7, the Equivalent chip, and *"write down what grated"* — which is still the
+only item in this file that nobody but the field can close.
+
 **§0 gates §8, and the interview settled it that way deliberately.** §8.1 invalidates every
 stored run — the fourth time, after §2.12, §3.1 and §1 — and §0's own argument is that its
 checks are *"cheaper now than after §1, because after §1 the engine no longer produces the
@@ -85,7 +92,7 @@ bug fix can be checked against the screens that reported it before §6 moves tho
 | **§5** | The pool and the lane | two bugs from the field — **written, not driven** |
 | **§6** | The workspace | five tabs, one simulation, less chrome — **not driven** |
 | **§7** | The queue, the filter and the balance | from driving `0.1.0-2026-08-15g` |
-| **§8** | Round eight | the engine’s phantom visit, and three surfaces |
+| **§8** | Round eight | the phantom visit, five surfaces, and a save that fails |
 | **§9** | Round nine | Project Settings, occupation over time, the float matrix |
 | **§10** | Known gaps, deliberately left | |
 | **§11** | Deferred by decision | §3.8, the map that never runs |
@@ -150,18 +157,18 @@ claim a stale link cannot produce.
       _Left standing:_ on-time is 60/60 in all four runs because the 30-day start buffer swamps the
       differences, so **on-time cannot currently discriminate between these configurations** and
       lead time is doing all the work. A run at a smaller buffer would say more.
-- [ ] **The date format, set on Settings.** Check the demand grid re-parses what it renders after
+- [x] ~~**The date format, set on Settings.**~~ **Correct.** **Driven 2026-08-29** under `0.1.0-2026-08-27a`, session 10:09:31, `db.open schema 22 from 22`. Check the demand grid re-parses what it renders after
       the format changes — that is the pair §3.6 exists to keep together — and that the Gantt's axis
       still reads `Jan 14` rather than a numeric date. §3 makes both those tables grids too, so a
       parser that is wrong here is wrong in three more places afterwards.
-- [ ] **The plan in Excel, opened in Excel.** §13.1 is asserted by decoding the file back, which
+- [x] ~~**The plan in Excel, opened in Excel.**~~ **Good, reported as part of a group of five.** **Driven 2026-08-29** under `0.1.0-2026-08-27a`, session 10:09:31, `db.open schema 22 from 22`. _Original text:_ §13.1 is asserted by decoding the file back, which
       proves the cells are typed but says nothing about how Excel *renders* them: a date column
       whose default format is `45 872` and a duration reading `1.2500000000` are both technically
       correct and both unusable. Export the célula 11B plan, open it, check the dates read as the
       chosen format, that Order Start shows its time, and that sorting Float puts the late orders
       where a planner expects. In es and pt as well — a locale decides how Excel itself formats a
       date cell.
-- [ ] **The results banner.** That it pushes the tabs down rather than covering the Gantt's last
+- [~] **The results banner — driven, and it found §8.5.** **Driven 2026-08-29** under `0.1.0-2026-08-27a`, session 10:09:31, `db.open schema 22 from 22`. The banner pushes the tabs down and `View results` navigates, dismisses and lands with the right study filtered. **But pressing Simulate does not always run**, and the banner reports the last stored run's figure when it does not — §8.5. _Original text:_ That it pushes the tabs down rather than covering the Gantt's last
       row, that `View results` both navigates and dismisses, and that a failed run offers no
       `View results` but can still be closed. **The workspace screen has no test coverage at all**,
       so the wiring from Simulate to banner to tab switch is only covered by pressing it. §4 rebuilt
@@ -176,12 +183,12 @@ claim a stale link cannot produce.
       warning correctly stays silent** — the run ends two months inside the horizon. Making it fire
       on purpose, by shortening a takt period to before the run's end, has still not been done and
       is the only part of §11.1 never exercised against real data.
-- [ ] **The readiness panel against a real gap.** It has only ever been seen clean. Unbind a step or
+- [x] ~~**The readiness panel against a real gap.**~~ **Works.** **Driven 2026-08-29** under `0.1.0-2026-08-27a`, session 10:09:31, `db.open schema 22 from 22`. A step on Célula 11D set to **"None"** in the **"Workcenter or pool"** field greyed Simulate, the tooltip named the study, and the popover listed 11D. The oldest unexercised path in the app. _Original text:_ It has only ever been seen clean. Unbind a step or
       clear a takt period and check it names the study and disables Simulate. What is covered
       underneath it is `SimRunInput.canRun`, eight ways in `simulation_repository_test.dart`; what
       has never been seen is the wiring — a real edit, through the providers, to a non-empty problem
       list on screen.
-- [ ] **The Gantt's round-two geometry, in `0.1.0-2026-08-11c`.** The overlap fix changed every
+- [x] ~~**The Gantt's round-two geometry.**~~ **All of it, on `2f4c8db4` and `7669856d`.** **Driven 2026-08-29** under `0.1.0-2026-08-27a`, session 10:09:31, `db.open schema 22 from 22`. Axis, zoom to the dead stop, changeover stroke, frozen labels, hover card at both edges, the capped lane, the pool rows and both themes — the four needing a deliberate action were confirmed one at a time. **And it found the row-order defect** now written up in §8.1. _Original text:_ The overlap fix changed every
       band's height, so what was already looked at is worth a second glance rather than being taken
       as still true. Open `2f4c8db4`: `FIFO CEU27` is capped at 2 and the band should be visibly
       full while TTAT's 4.6 d of blocking sits in the row above it. **Nothing in the suite renders a
@@ -192,7 +199,7 @@ claim a stale link cannot produce.
       under it; the changeover stroke on a bar wide enough to carry it and its absence on one that
       is not; the frozen labels against a long station name; and the hover card at the right-hand
       edge and on the bottom row, the two places it has to be pushed back inside. Both themes.
-- [ ] **es and pt**, across the four round-one dialogs, which carry the longest help text in the
+- [!] **es and pt — BLOCKED, and now understood.** Not skipped: **the app has no language picker at all** (§8.7), so this was never performable. It has been carried as an open check since 2026-08-15. _Original text:_ across the four round-one dialogs, which carry the longest help text in the
       app. `El carril admite 2 pedidos` is the longest of §3.4's three strings.
 - [ ] **Confirm the Equivalent chip is already right.** `flow_view.dart:554` returns null unless the
       data source is a demand part — *"Null under `FlowDataSource.flowEquivalent`, where it is 1.0
@@ -1867,22 +1874,25 @@ in 1225 ms"*.
 ticking individual boxes on a verbal report costs — so what is ticked below is what a stored run can
 corroborate, and the rest stays open until somebody says which of them they looked at.
 
-- [ ] **The card's takt line against the plan's column**, on the same order, in all three languages.
-      The data behind both is confirmed — every released order in `7669856d` carries a takt — so what
-      is left is whether the two surfaces spell it the same way.
+- [x] ~~**The card's takt line against the plan's column**, on the same order, in all three
+      languages.~~ **Done 2026-08-29** under `0.1.0-2026-08-27a`. Reported good as part of a group of
+      five rather than itemised — see `DRIVE-2026-08-29.md` §5.
 - [x] ~~**The menu tells two runs apart.**~~ **The data is there and it is a sharper case than the
       one asked for**: the picker now holds `7669856d` spanning **4 → 5 days** beside three runs at
       **4 days** and ninety-odd pre-v22 runs, all made against one plant within four minutes.
-      **Whether the row renders that way is unconfirmed** — the fold is unit-tested and the query is
-      not what anyone looked at.
-- [ ] **A takt table cut short on purpose**, so releases stop: the run header must name the study,
-      the date and how many orders never opened, and the Gantt must not merely look jammed.
-      **The run already exists** — `4c29fcc2` and the two before it — so this is now a matter of
-      opening one from the history picker and reading the header, not of contriving anything.
-- [ ] **The plan at fifteen columns**, on screen and in Excel — Float is the column most likely to
-      have gone off the right edge (§12.6).
-- [ ] **The card at 204 px**, on the bottom row and at the right-hand edge, which are the two places
-      it has to be pushed back inside. It has grown twice in ten days and nobody has looked at it.
+      **Confirmed on screen 2026-08-29** under `0.1.0-2026-08-27a`, session 10:09:31 — the picker
+      shows `7669856d` as 4 → 5 days and the other three as 4 days. The fold was unit-tested; the
+      query was what nobody had looked at, and now somebody has.
+- [x] ~~**A takt table cut short on purpose**, so releases stop: the run header must name the study,
+      the date and how many orders never opened.~~ **Done 2026-08-29** under `0.1.0-2026-08-27a`,
+      session 10:09:31. `4c29fcc2` opened from the picker and **the header names the 23 orders that
+      never opened**. That closes the sentence §7.9's engine half explicitly could not answer —
+      *"the column is right; nobody has confirmed the line above it"* — and it needed no contriving,
+      because the run already existed.
+- [x] ~~**The plan at fifteen columns**, on screen and in Excel — Float is the column most likely
+      to have gone off the right edge (§12.6).~~ **Done 2026-08-29**, in the same group of five.
+- [x] ~~**The card at 204 px**, on the bottom row and at the right-hand edge.~~ **Done
+      2026-08-29**, in the same group of five. It had grown twice in ten days unlooked-at.
 - [x] ~~**v22 against the live file itself.**~~ **Done 2026-08-27 at 21:57:36** under
       **`0.1.0-2026-08-27a`**: `db.open schema 22 from 21`, with the build label and the line both in
       `log.txt` — which is the pair §0 says a stale link cannot produce. The Aug-3 exe rule held
@@ -1907,7 +1917,7 @@ schedule that does **not** carry forward, and `cadence_ended_at` is why that nee
 
 ---
 
-## 8. Round eight — the engine's phantom visit, and three surfaces
+## 8. Round eight — the phantom visit, five surfaces, and a save that fails
 
 **From driving `0.1.0-2026-08-27a` on 2026-08-29**, session 07:59:57, `db.open schema 22 from 22` —
 the same session that produced §7.9's engine confirmation and the field's *"now it works properly."*
@@ -1917,8 +1927,9 @@ round has the provenance §5.3 was un-ticked for lacking.** What the log bounds 
 the *items*: routes are logged and tabs are not, so `/studies/:id` being open four times says
 somebody was inside a study and says nothing about which tab.
 
-Settled by interview 2026-08-29. §2.0's rule holds — the engine change and the three surfaces are
-one round because none of the surfaces reads a run.
+Settled by interview 2026-08-29, and **§8.5 was added by the drive on the same day** — it is the
+only item here nobody asked for. §2.0's rule holds: the engine change and the four surfaces are one
+round because none of the surfaces reads a run.
 
 ### 8.1 A zero-process step is not a visit
 
@@ -1941,6 +1952,24 @@ being touched.
 **This invalidates every stored run**, which is the fourth time (§2.12, §3.1 and §1 were the others)
 and is why §0 comes first — those checks are only worth making while the engine still agrees with
 the numbers that raised them.
+
+**And the drive of 2026-08-29 found the symptom that had been missing.** This round was argued from
+lane-slot contamination, which nothing on screen shows. It also draws the plant in the wrong order:
+*"in Célula 11D the gantt y axis CEU32 is in front of CEU30, but this is not the flow order."*
+
+`routingRanks` (`gantt_layout.dart:842`) ranks a station by the earliest **index** it occupies in an
+order's step list, sorted by `queueStart` — and a zero-process step occupies an index while doing
+nothing, pushing everything behind it one place later. Replayed against `7669856d`: **CEU30 and
+CEU32 both rank 4** as built and tie, so the Queue table's busiest-first order breaks it and CEU32
+is drawn on top; with the zero-time steps gone **CEU30 ranks 3 and CEU32 ranks 4**, which is the
+flow. The run carries **160 zero-process steps in 2000**, and **71 orders have two steps sharing one
+`queueStart`** — a step that ends where it starts hands its successor the same instant.
+
+**A second thing the replay exposed, and this round does _not_ close it.** Even with the phantoms
+gone, two stations genuinely at one routing position still fall to the Queue table's busiest-first
+ranking, which is a statement about load rather than about flow. That is right for a pool's like
+machines — they *are* interchangeable — and wrong for two stations in sequence that happen to tie.
+§8.1 removes the tie in this case; it leaves the tie-break as it is. Listed in §10.
 
 _The case is real and already measured._ §7.9 found `P7000109738P01` at 5 days giving CEU30
 **108.4 h** and CEU32 **0.0** — §6.2.1's "the split can empty a station out of a part's routing", on
@@ -1988,11 +2017,145 @@ _Not taken:_ free placement. That is the map that never runs, deferred by decisi
 (§11) — *"just for visual but in a more free"* — it is M5-sized, and it needs the second layout
 path that section costs out. A drag that reorders is not a down payment on it.
 
-### 8.5 Drive it
+### 8.5 The banner reports the press, not the provider
+
+**Found by driving, 2026-08-29 under `0.1.0-2026-08-27a`, session 10:09:31.** Simulate was pressed
+from each of the five study tabs. **One run happened; four did nothing — and all five showed a green
+banner naming an on-time percentage.** The reporter had no way to know four of them were the
+previous run's figure.
+
+The evidence, gathered before the cause was looked for:
+
+| | |
+|---|---|
+| `sim.run` lines in the session | **1** — `10:11:38`, and the route before it is `/simulation`, not a study tab |
+| rows added to `simulation_runs` | **1** — `38f0f2d0`; the database went 104 → 105 |
+| route trail after it | `/studies/…` → `/simulation`, five times over, **no `sim.run` between any of them** |
+| could a run go unlogged? | **No.** One emit site, inside the one `run()`; `Diag` flushes every line (`flush: true`) |
+
+**The reporting defect is unconditional and does not depend on why the run was skipped.**
+`SimulationRunner` is `@riverpod` — auto-dispose — and its `build()` deliberately returns the last
+stored run, *"so opening the tab shows the run that was last made rather than an empty screen"*,
+which is most of what storing a run buys (§7.10). `_run()` then does this
+(`project_workspace_screen.dart:357`):
+
+```dart
+await ref.read(simulationRunnerProvider(project.id).notifier).run();
+final run = ref.read(simulationRunnerProvider(project.id));
+final metrics = run.value?.metrics;                 // the LAST STORED run
+final failed = run.hasError || metrics == null;     // false — metrics exist
+onFinished(( message: '…: ${(metrics.onTimeDelivery * 100).round()}%', failed: failed ));
+```
+
+**Nothing in that ties the metrics to the press.** `run()` returns silently when the run is not ready
+— `if (!assembled.canRun) return;` — leaving `state` exactly as it was, and the banner then reports
+that unchanged state as a success. "Ran and succeeded" and "did not run at all" are the same green
+banner with the same number in it.
+
+**The fix is that `_run` must compare identities, not read state.** `run()` returns `void`; it should
+return the id of the run it stored, or null when it stored nothing, and the banner should be built
+from that. A percentage with no run id behind it is a figure that cannot say which run it came from
+— the same class of defect as §7.6's Lead Time Efficiency, which agreed with three sections of
+`DESIGN.md` and was upside down.
+
+**Why four presses did nothing is still open, and the drive has already ruled out the obvious
+answer.** The first candidate was the silent guard — `if (!assembled.canRun) return;` — but the
+readiness check made later the same sitting shows **the button greys correctly when `canRun` is
+false**: a step set to "None" on 11D disabled Simulate, named the study in the tooltip and listed it
+in the popover. A grey button cannot be pressed, so the guard is not what four presses met.
+
+What remains: the family notifier being disposed across the study-tab → app-bar → navigation
+sequence, which is exactly when an auto-dispose provider goes; or `state` being overwritten by
+`build()` re-running on `projectRunsProvider` emitting, between the `await` and the `ref.read` two
+lines later. **Reproduce before fixing** — the route trail above is a recipe, and `log.txt` is the
+oracle, because the screen is what lied.
+
+**The reporting defect does not depend on any of that and should be fixed regardless.** Whatever
+stopped the run, `_run` could not tell — and would not have been able to tell if the run had failed
+for a reason nobody has thought of yet.
+
+_This is why §0 ran before §8 rather than after._ The item it closes has been open since 2026-08-15,
+worded *"the wiring from Simulate to banner to tab switch is only covered by pressing it."* Somebody
+pressed it.
+
+### 8.6 A flow that visits one station twice cannot be saved
+
+**Found by driving, 2026-08-29, and found by accident** — a step was re-bound to the wrong station
+while putting §8.5's readiness check back, which left Célula 11D pointing at **CEU32 at both
+position 4 and position 5**. That is a mis-configuration, and the app's response to it is the defect:
+
+```
+10:44:47 sim.run 3 studies, 250 orders, 1775 steps in 1110 ms
+10:44:47 ERROR provider simulationRunnerProvider: SqliteException(1555):
+         UNIQUE constraint failed: simulation_run_lane_visits.run_id,
+         .order_id, .node_id
+         INSERT INTO simulation_run_lane_visits VALUES
+           (e731efc0…, 1fc42625, 6db57ad3…, b96fc7c7…, 1762265827, 1762265827)
+```
+
+**The run computed and then could not be stored.** 1110 ms of work discarded, and all the screen said
+was that it could not be completed.
+
+**Reproduced three times in four minutes** — 10:43:26, 10:43:37 and 10:44:47 — always the same
+constraint, always after a successful compute. It is deterministic, and putting position 4 back to
+CEU30 cleared it immediately: 10:47:32 ran 1793 steps and stored with no error. **So the fixture for
+this is one dropdown change**, which is as cheap as a reproduction gets.
+
+The mechanism, off the schema rather than guessed: `project_queues` is keyed by **`target_id`** —
+§7.3's *"a queue belongs to a station, not to a flow"* — and the failing `node_id` **is not a flow
+node**, it is the lane's own id derived from the target. So two steps aimed at one station share one
+queue, the same order enters that queue twice, and the key `(run_id, study_id, order_id, node_id)`
+refuses the second visit. `entered_at == left_at == 1762265827` on the row that failed, which is
+§8.1's zero-duration visit turning up in a third place.
+
+**Revisiting a station is a real routing, not only a typo.** A part going back to the same machine
+for a second operation is ordinary manufacturing, and the engine already models it correctly — it is
+only persistence that cannot express it. So this is not closed by refusing the configuration.
+
+**And it is the pattern §7.5's drive predicted.** That entry ended *"all three are §7.3's re-model
+reaching a surface nobody re-read when it landed. The queue stopped being a study's in v19 and two
+places went on asking it which study it belonged to. Worth a sweep for others."* This is one of the
+others, found sixteen days later by driving rather than by sweeping.
+
+_What it needs is a decision this round should not take without reading §7.3 again:_ either the key
+gains the step's position — a visit is per *step*, not per *station* — or a revisit is folded into
+one row with the second stay appended. The first is a schema change and is almost certainly right;
+the second loses information the Gantt draws. **Not designed here.**
+
+### 8.7 The app has no language picker
+
+**Found by driving, 2026-08-29**, when the es and pt checks were reached and could not be started:
+*"i can't change the language."*
+
+`MaterialApp.router` (`app.dart:14`) sets `localizationsDelegates` and `supportedLocales` and **no
+`locale:`**, so the language is the platform's answer resolved against the supported list. The
+Settings screen offers the **date format** and nothing else. **es and pt are shipped, translated, and
+unreachable from inside the app** — reaching them means changing the Windows display language and
+restarting.
+
+**This is the reason every es/pt line in §0 has stayed open since 2026-08-15.** They were written as
+checks and they are not performable; §0's *"es and pt, across the four round-one dialogs"*, §6.7's
+*"the same paste in es and pt"*, §7.9's *"in all three languages"* and §12's Excel-locale item are
+all blocked by one missing control. Recorded as blocked rather than skipped, because nobody chose to
+skip them.
+
+**A picker on the Settings screen, beside the date format**, and the choice stored the way
+`dateFormatSettingProvider` stores its own. `DateStyleProvider` is already built *inside*
+`MaterialApp` for exactly this reason — its own comment says the scope needs the locale and the
+locale is only decided once `MaterialApp` has resolved it — so the seam this needs already exists.
+
+_Not a translation job._ The three ARB files are complete and generated; this is the control that
+selects between them.
+
+### 8.8 Drive it
 
 - [ ] **A part that skips a station.** `P7000109738P01` is the case §7.9 already found. Its CEU32
       row and the lane above it are gone, and CEU30 still reads **108.4 h** — the finding survives
       in the figures while the phantom visit stops.
+- [ ] **CEU30 above CEU32 on Célula 11D's chart**, which is the symptom the 2026-08-29 drive
+      reported and the one check here whose *before* is on record: as built they tie at rank 4 and
+      CEU32 wins on being busier. **Compare against a fresh run, not against `7669856d`** — that run
+      has the phantoms in it and will keep drawing them the old way.
 - [ ] **A capped lane with a skipping part in it.** `FIFO CEU27` at 2, which is the configuration
       §0's confounder ran. Blocking must fall or stay; if it rises, the skip is advancing an order
       somewhere it should not.
@@ -2002,6 +2165,18 @@ path that section costs out. A drag that reorders is not a down payment on it.
       twelve, and the append row reachable in both.
 - [ ] **The headers, in all three grids and both themes.** Demand and Takt were not complained
       about and move anyway — this is where that shows.
+- [ ] **Simulate pressed from each of the five study tabs**, and **`sim.run` counted in `log.txt`
+      afterwards** — five presses, five lines, five new rows in `simulation_runs`. §8.5's defect was
+      invisible on screen and obvious in the log, so the log is the check.
+- [ ] **A run that cannot start** — unbind a step — pressed anyway if the button allows it. The
+      banner must say so rather than repeating the last run's percentage.
+- [ ] **A flow that visits one station twice**, which §8.6 is about. Point two steps of one study at
+      the same workcenter and run it: it must store, and the Gantt must draw both visits. The case
+      is one edit away and was reached by accident once already.
+- [ ] **The language switched in the app**, which §8.7 makes possible for the first time. Then
+      **every es/pt check §0 could not perform**: the four round-one dialogs, the Schedules paste,
+      the takt line on card and plan, and the Excel export's date cells. That is a block of work
+      §0 has been carrying since 2026-08-15 without being able to start it.
 - [ ] **A node dragged to the front, to the back, and dropped on itself.** And the arrows, the
       lead-time ladder and the PDF all agreeing with the new order afterwards, which is the claim a
       derived layout makes.
@@ -2186,6 +2361,15 @@ destination), §12.6, §16.24 (schema v23).
       flight**; an order keeps the takt it opened under all the way down the plant. Successive orders
       take the takt in force when *they* open, which is what a takt period says and what the engine
       has never done.
+- [ ] **A tie in `routingRanks` is broken by load, not by flow.** Two stations at one routing
+      position fall through to the Queue table's busiest-first ranking (`gantt_layout.dart`'s
+      `groupQueue` clause). For a pool's like machines that is right — they are interchangeable. For
+      two stations that genuinely sit at one position it is a statement about load standing in for a
+      statement about sequence. Found by replaying §8.1's fix against `7669856d` on 2026-08-29;
+      **§8.1 removes the tie in the case that was reported and does not remove the tie-break**, so
+      the next plant that ties will read wrong for the same reason. What it needs is the study's own
+      node sequence, which the run stores per step as `node_id` and which `routingRanks` does not
+      look at.
 - [ ] **§18.5 is still open**: empty slots as a reported metric. They are counted, dated, stored and
       shown; what is missing is a decision about whether a list of *which* slots is wanted, and
       whether an empty slot should ever be a warning.
