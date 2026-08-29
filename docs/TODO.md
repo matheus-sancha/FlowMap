@@ -2746,8 +2746,8 @@ re-run matches.
   staffing change and it accumulates again.
 - **§7.4 concentrates the load on the *first* member of a group.** 11D needs 163 h of cladding per
   order against 228.5 h across the three stations — the work fits comfortably; the fill order is what
-  pins CLAD06 at 100 % while CLAD17 idles. Worth an entry of its own if the field wants it levelled
-  rather than filled.
+  pins CLAD06 at 100 % while CLAD17 idles. **Put to the field on 2026-08-29 with the numbers and
+  declined** — see §11's last entry. The 100 % is the plant, not a defect.
 
 ### 9.11 The sweep for the fifth — **done 2026-08-29, nothing found**
 
@@ -2999,6 +2999,26 @@ destination), §12.6, §16.26 (schema v25).
       means the read-only twin of `DataGrid`: a heading row over a `ListView.builder`, which is the
       structure the grid already uses. **§3 makes two more tables grids**, which narrows this rather
       than closing it.
+- [x] ~~**§7.4 fills the first member of a group and could level it instead.**~~ **Put to the field
+      on 2026-08-29 and declined — fill-first stands.** Found while explaining §9.10's queue: CLAD06
+      sits at exactly one takt on every order and so at 100 % occupation across its whole active
+      window, while CLAD17 — last in the same group — runs at 33 %. Levelling was costed against the
+      live plant and would have moved CLAD06 to 89 % and CLAD17 to 43 %, work conserved:
+
+      | | fill-first | levelled |
+      |---|---|---|
+      | CLAD06 | 4,407 h — **100 %** | 3,938 h — 89 % |
+      | CLAD25 | 3,926 h — 89 % | 3,938 h — 89 % |
+      | CLAD17 | 1,445 h — 33 % | 1,902 h — 43 % |
+
+      **The rule is a description of the plant, not a simplification of it**, and the field's original
+      words stand: *"topping the first workcenter at the takt time and leaving the rest, under or
+      over, to the last workcenter of the same type in the sequence."* Recorded here so the next
+      reader who notices a station pinned at 100 % finds the answer rather than the question — **it
+      is the model working, and CLAD17's 33 % is where the slack is meant to be.** The three
+      levelling variants that were costed (proportional to each member's capacity, equal split, and
+      keeping both behind a per-study setting) are not carried forward; if this is ever reopened they
+      are cheap to re-derive and the numbers above are the baseline to beat.
 - [x] ~~**§18.3 is still open**: takt changes mid-flight.~~ **Settled by decision 2026-08-17, not
       deferred again** (§7.7): *"changing a takt mid-run is impractical in reality"* — a line does not
       re-cadence halfway through a batch of work. **A run is a single-takt experiment**, resolved at
