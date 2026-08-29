@@ -104,7 +104,7 @@ class FlowDemandInput {
   /// definition (§6.1).
   final int batchSize;
 
-  /// `partId → step target → stored per-piece time`, exactly as typed. Rework
+  /// `partId → nodeId → stored per-piece time`, exactly as typed. Rework
   /// is applied here, not stored (§4.4).
   final Map<String, Map<String, Duration>> processTimes;
 
@@ -1354,16 +1354,18 @@ FlowQueueView? _buildQueue({
 /// A real part's process time at one step, with that station's rework charged
 /// against it (DESIGN.md §6.2).
 ///
-/// The demand table keys its cells by the **pool** where a step targets one,
-/// never by the member standing in for it on the map (§3.1, §9).
+/// **Keyed by the step, not by what it targets** (§9). Reading it by target id
+/// compiles and returns null on every box, so a flow that visits one station
+/// twice — and every flow that does not — reported the part uncosted while the
+/// grid was showing its times. A pool step still needs no special case: the
+/// step is one step whichever member stands in for it (§3.1).
 Duration? _demandProcessTime({
   required FlowNode node,
   required FlowDataSource dataSource,
   required FlowDemandInput demand,
   required double rework,
 }) {
-  final key = node.poolId ?? node.workcenterId;
-  if (key == null) return null;
+  final key = node.id;
 
   // **A whole order's work, in productive hours** (§7.6). This was one piece,
   // which is why a box read a tenth of what a run charged an order of ten.

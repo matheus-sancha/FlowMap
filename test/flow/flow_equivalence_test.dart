@@ -150,7 +150,7 @@ void main() {
         dataSource: FlowDataSource.singlePart,
         demand: FlowDemandInput(
           processTimes: const {
-            'p1': {'CLAD04': Duration(hours: 5)},
+            'p1': {'node-0': Duration(hours: 5)},
           },
           selectedPartId: 'p1',
           batchSize: batch,
@@ -227,7 +227,7 @@ void main() {
         dataSource: FlowDataSource.singlePart,
         demand: const FlowDemandInput(
           processTimes: {
-            'p1': {'CLAD04': Duration(hours: 10)},
+            'p1': {'node-0': Duration(hours: 10)},
           },
           selectedPartId: 'p1',
         ),
@@ -247,7 +247,7 @@ void main() {
         dataSource: FlowDataSource.singlePart,
         demand: const FlowDemandInput(
           processTimes: {
-            'p1': {'CLAD04': Duration(hours: 55)},
+            'p1': {'node-0': Duration(hours: 55)},
           },
           selectedPartId: 'p1',
         ),
@@ -288,7 +288,7 @@ void main() {
           dataSource: FlowDataSource.singlePart,
           demand: FlowDemandInput(
             processTimes: {
-              'p1': {'CLAD04': yardstick},
+              'p1': {'node-0': yardstick},
             },
             selectedPartId: 'p1',
           ),
@@ -317,8 +317,8 @@ void main() {
         demand: const FlowDemandInput(
           processTimes: {
             'p1': {
-              'SHORT': Duration(seconds: 190080),
-              'LONG': Duration(seconds: 244800),
+              'node-0': Duration(seconds: 190080),
+              'node-1': Duration(seconds: 244800),
             },
           },
           selectedPartId: 'p1',
@@ -344,7 +344,7 @@ void main() {
         dataSource: FlowDataSource.singlePart,
         demand: const FlowDemandInput(
           processTimes: {
-            'p1': {'CLAD04': Duration(hours: 55)},
+            'p1': {'node-0': Duration(hours: 55)},
           },
           selectedPartId: 'p1',
         ),
@@ -371,7 +371,40 @@ void main() {
       expect(view.steps.single.equivalence, isNull);
     });
 
-    test('a pool step reads the pool\'s cell, not a member\'s', () {
+    test('one station visited twice costs what each visit was given', () {
+      // The bug the whole of §9 was about, arriving on the map: the box read
+      // its cells by *workcenter*, so every part on every study reported
+      // `noProcessTime` while the grid was plainly showing the times. Two
+      // passes over one machine — rough then finish — is also the shape that
+      // cannot be expressed at all by a station-keyed lookup.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CLAD04'),
+          step(1, workcenterId: 'CLAD04'),
+        ],
+        contexts: {'CLAD04': context('CLAD04')},
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'node-0': Duration(hours: 40),
+              'node-1': Duration(hours: 15),
+              // What the map used to read, and must not.
+              'CLAD04': Duration(hours: 99),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 40),
+        const Duration(hours: 15),
+      ]);
+      expect(view.steps.every((s) => s.problems.isEmpty), isTrue);
+    });
+
+    test('a pool step reads its own cell, not the pool\'s or a member\'s', () {
       final view = build(
         nodes: [step(0, poolId: 'pool-1')],
         contexts: {'LAT01': context('LAT01'), 'LAT02': context('LAT02')},
@@ -391,8 +424,12 @@ void main() {
         demand: const FlowDemandInput(
           processTimes: {
             'p1': {
-              'pool-1': Duration(hours: 10),
-              // Deliberately different: a member's own key must not be read.
+              'node-0': Duration(hours: 10),
+              // Deliberately different: neither the pool nor the member
+              // standing in for it is a key any anymore. The time belongs to
+              // the step (§9), and a pool step is one step whichever of its
+              // machines ends up taking the piece (§3.1).
+              'pool-1': Duration(hours: 99),
               'LAT01': Duration(hours: 99),
             },
           },
@@ -422,8 +459,8 @@ void main() {
     test('weights by pieces due, not by order count', () {
       final view = weighted(
         times: {
-          'p1': {'CLAD04': const Duration(hours: 10)},
-          'p2': {'CLAD04': const Duration(hours: 20)},
+          'p1': {'node-0': const Duration(hours: 10)},
+          'p2': {'node-0': const Duration(hours: 20)},
         },
         // One order of ten pieces outweighs one of one, because process times
         // are per piece (§7.6).
@@ -439,9 +476,9 @@ void main() {
     test('a part that skips the step is out of the average entirely', () {
       final view = weighted(
         times: {
-          'p1': {'CLAD04': const Duration(hours: 10)},
+          'p1': {'node-0': const Duration(hours: 10)},
           // p2 never comes here.
-          'p2': {'TTAT': const Duration(hours: 20)},
+          'p2': {'node-1': const Duration(hours: 20)},
         },
         pieces: const {'p1': 1, 'p2': 99},
       );
@@ -454,7 +491,7 @@ void main() {
     test('no pieces due in the period is a dash, not a zero', () {
       final view = weighted(
         times: {
-          'p1': {'CLAD04': const Duration(hours: 10)},
+          'p1': {'node-0': const Duration(hours: 10)},
         },
         pieces: const {},
       );
@@ -466,7 +503,7 @@ void main() {
     test('rework is charged once, on the weighted result', () {
       final view = weighted(
         times: {
-          'p1': {'CLAD04': const Duration(hours: 10)},
+          'p1': {'node-0': const Duration(hours: 10)},
         },
         pieces: const {'p1': 1},
         rework: 0.037,

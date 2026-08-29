@@ -1492,8 +1492,8 @@ void main() {
       demand: FlowDemandInput(
         processTimes: {
           'p1': {
-            for (var i = 0; i < 3; i++)
-              ['CLAD07', 'CLAD08', 'CLAD09'][i]: Duration(hours: measured[i]),
+            // Keyed by the step, not the station it aims at (§9).
+            for (var i = 0; i < 3; i++) 'node-$i': Duration(hours: measured[i]),
           },
         },
         selectedPartId: 'p1',
@@ -1561,8 +1561,8 @@ void main() {
         demand: const FlowDemandInput(
           processTimes: {
             'p1': {
-              'CLAD07': Duration(hours: 40),
-              'CLAD08': Duration(hours: 40),
+              'node-0': Duration(hours: 40),
+              'node-1': Duration(hours: 40),
             },
           },
           selectedPartId: 'p1',
@@ -1638,7 +1638,7 @@ void main() {
         dataSource: FlowDataSource.singlePart,
         demand: const FlowDemandInput(
           processTimes: {
-            'p1': {'CEU30': Duration.zero, 'CEU32': Duration(hours: 146)},
+            'p1': {'node-0': Duration.zero, 'node-1': Duration(hours: 146)},
           },
           selectedPartId: 'p1',
         ),
@@ -1666,8 +1666,8 @@ void main() {
         demand: const FlowDemandInput(
           processTimes: {
             'p1': {
-              'CEU30': Duration(hours: 71),
-              'CEU32': Duration(hours: 167),
+              'node-0': Duration(hours: 71),
+              'node-1': Duration(hours: 167),
             },
           },
           selectedPartId: 'p1',
@@ -1705,7 +1705,7 @@ void main() {
         dataSource: FlowDataSource.singlePart,
         demand: const FlowDemandInput(
           processTimes: {
-            'p1': {'CEU32': Duration(hours: 146)},
+            'p1': {'node-1': Duration(hours: 146)},
           },
           selectedPartId: 'p1',
         ),
@@ -1734,9 +1734,9 @@ void main() {
         demand: const FlowDemandInput(
           processTimes: {
             'p1': {
-              'CLAD07': Duration(hours: 90),
-              'TTAT': Duration(hours: 10),
-              'CLAD08': Duration(hours: 90),
+              'node-0': Duration(hours: 90),
+              'node-1': Duration(hours: 10),
+              'node-2': Duration(hours: 90),
             },
           },
           selectedPartId: 'p1',

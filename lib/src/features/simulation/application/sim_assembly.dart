@@ -524,11 +524,11 @@ FlowNode? _paceSetter({
     if (_firstCandidate(node, resources) == null) continue;
     fallback ??= node;
 
-    final key = demandTargetOf(node);
-    if (key == null) continue;
+    // **By the node, since §9.** Read by target this found no time at all and
+    // every study fell back to its first step.
     var total = 0;
     for (final order in orders) {
-      final stored = processTimes[order.partId]?[key];
+      final stored = processTimes[order.partId]?[node.id];
       if (stored != null) total += stored.inSeconds * order.batchSize;
     }
     work[node] = (work[node] ?? 0) + total;
