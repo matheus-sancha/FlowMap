@@ -1,7 +1,8 @@
 # FlowMap — what has already happened
 
 Split out of `docs/TODO.md` on 2026-08-15, so that file could become a plan again rather than an
-archive with a plan on the end of it. **Nothing here has been rewritten.** The rounds below are
+archive with a plan on the end of it. **§5 was moved across on 2026-08-29** for the same reason, and
+closed the last of `TODO.md`'s §0. **Nothing here has been rewritten.** The rounds below are
 verbatim, including the reasoning that was wrong at the time and the note saying so — that is what
 they are for.
 
@@ -11,10 +12,11 @@ timestamps, backup filenames, and the figures each round was read against. §2.0
 evidence was lost once already and a rebuild was nearly done a third time; keep appending to it
 after every drop rather than trusting memory.
 
-Read a figure in here against the engine of its own date. Three changes have invalidated every
-stored run as they landed — §2.12 (buffers stopped charging their wait), §3.1 (the dispatch rule
-moved onto the lane), and the setup arithmetic in the round that follows this file — so a number
-below describes the model as it stood, not as it stands.
+Read a figure in here against the engine of its own date. **Four changes have invalidated every
+stored run as they landed** — §2.12 (buffers stopped charging their wait), §3.1 (the dispatch rule
+moved onto the lane), §5's round one (availability came off setup, and cold start started paying
+one), and `TODO.md`'s §8.1, which stops an order queueing at a station its part never visits. So a
+number below describes the model as it stood, not as it stands.
 
 ---
 
@@ -1477,3 +1479,604 @@ here; what is still owed stayed behind in the plan.
       `simulation_runs.schedule_horizon`, written up as §16.17 and §11.1. **The migration met the
       real database on 2026-08-15** and the column is there on all 35 stored runs, all null. What
       has never happened is a run *writing* one; that check stayed in the plan.
+
+---
+
+## 5. Rounds one to four, 2026-08-15 — moved out of the plan
+
+_Moved here 2026-08-29, closing the last item in `docs/TODO.md`'s §0._ These four rounds landed
+on 2026-08-15 and were recorded nowhere else, which is why they sat in `TODO.md` in defiance of
+its own contract that it holds **only unstarted work**. Until they moved, that file was carrying
+two jobs and neither file could be trusted to answer *what already happened*.
+
+**Verbatim, and their numbering is `TODO.md`'s rather than this file's.** They are demoted one
+heading level to nest here and are otherwise untouched — so §1.7, §2.7, §3.6 and the rest still
+resolve for the entries elsewhere that name them, and §10's known gaps still point at §1.7's node
+notes and §2.7's "nothing in the suite renders a pixel". That is this file's standing rule: the
+reasoning stays as it was written, including where it was wrong and the note saying so.
+
+**They came out of driving the build, and they were about the map rather than the engine.** The
+pull was towards using FlowMap as a thing you draw a value stream in and read numbers off — so the
+work is the process box's fields, the figures under the map, how fast the input tables can be
+typed into, and where the simulation lives now that it is no longer the point of every screen.
+Settled by interview on 2026-08-15 before any of it was written.
+
+**Round one invalidated every stored run.** Availability came off setup and cold start started
+paying one, so no figure recorded above it is comparable with anything measured after. That was
+the third such change, after §2.12 and §3.1 — and the reason `TODO.md`'s §0 comes before the round
+that follows it.
+
+---
+
+### 1. Schema v17, and what a changeover is — round one
+
+The schema lands once and the rest sits on top of it (§2.0). One migration carries all of it.
+
+**Every stored run is invalidated by §1.2 and §1.3.** Re-run célula 11B before reading any figure
+against anything, and do it after §0 rather than before.
+
+#### 1.1 Setup and teardown replace changeover
+
+*"Replace in the process step the changeover to setup time, and charge % of the setup considered
+when the previous order was the same."*
+
+One field becomes three, and **§7.6's standing rejection is answered rather than overridden**. That
+rejection was of *"a separate batch-independent setup component alongside changeover"*, on the
+grounds that it adds a second time field per step **and a rule for how setup and changeover
+interact**. This design has no such rule: setup and teardown are two halves of one changeover,
+charged together, governed by one test and one percentage.
+
+- **Setup** — rigging the station for the order. Value + unit.
+- **Teardown** — stripping it afterwards. Value + unit. **Named `Teardown`, not `Breakdown`**,
+  deliberately: in a plant "breakdown" means the machine failed, and §4.4's Availability *is* the
+  breakdown-maintenance figure and is drawn on the same process box. Two fields on one box, one
+  meaning failure and one meaning strip-down, both called breakdown-something, is a wrong number
+  waiting to happen. es `Desmontaje`, pt `Desmontagem` — the pairing the floor already says.
+- **Same part %** — how much of the changeover is still paid when the previous order was the same
+  part. **Default 0 %, which reproduces today's behaviour exactly**, so nothing changes until
+  something is changed and no stored study shifts under its user.
+
+**Teardown is charged with the next setup, not at the end of the order.** Setup looks backwards and
+the engine already knows what it needs — `_Server.lastPartId`. Teardown looks *forwards*, and at the
+moment an order finishes the engine has not yet picked the next one. So the server **remembers the
+teardown it owes** and pays `teardown + setup` as one changeover when the next order arrives, which
+is what a changeover physically is. One rule, one percentage, no clairvoyance:
+
+```
+charge = previous part == this part ? (teardown_owed + setup) × samePart%
+                                    : (teardown_owed + setup)
+```
+
+**The last order at a station never pays its teardown**, and that is correct rather than an
+omission: nothing waits on it, so it changes no figure that anyone reads.
+
+**Stored per flow step, three columns on `flow_nodes`.** Per step rather than per workcenter for
+§6.1.1's reason — it is this line's use of the station, and a duplicated study must be re-tunable
+without disturbing the original — and because §1.3 already learned that a setting on a station
+shared by two studies is one nobody can reason about locally.
+
+_Rejected: teardown charged after every order regardless of what follows._ Right if the time were
+really a clean-out that happens whatever comes next, and it needs no pending state on the server.
+But it makes teardown not the opposite of setup: setup would be free on a repeat while teardown was
+not, and ten identical orders would pay ten teardowns.
+_Rejected: a second percentage for teardown._ More faithful — a strip-down and a rig-up need not
+survive a repeat by the same fraction — but the two are always charged together under one rule, so
+two percentages nobody has figures for would always move as one.
+
+#### 1.2 `days` means a productive day, and availability comes off setup
+
+The unit picker is where this gets a trap in it. `engine.dart:812` charges
+`changeover × (1 / availability)` — availability derates setup as well as process time, deliberately,
+*"which is what makes this the same arithmetic as the Summary's occupation seen from the other end
+(§8.4)."* And §6.1 requires availability be applied **exactly once**, since *"derating the open
+hours as well would count the loss twice."*
+
+Meanwhile the dialog two fields above will already contain a `days`: Process Specific Takt's, which
+means that station's **productive** day (§6.1.1). Two meanings of `days` in one dialog is §17.4's
+scar — *"one kind of day per screen"* — arriving in the one place it has never been.
+
+So: **`days` in Setup and Teardown means the same productive day it means in Process Specific
+Takt**, and the `× 1/availability` **comes off setup**. One kind of day in the dialog, one
+application of the loss.
+
+```
+ABC, 3 shifts, 74 %  → productive day = 16.77 h
+  Setup 1 day  = 16.77 h      Setup 90 min = 90 min  (was 121.6)
+```
+
+**The cost is real and visible: every stored run's figures move.** A release-note line, and §0's
+verification has to be finished before this lands or it cannot be finished at all.
+
+_Rejected: `days` means the station's open day, derate kept._ No engine change and no stored run
+moves. But Setup's day (22:40) and Process Specific Takt's day (16:46) would sit two fields apart
+meaning different things, which is the defect §17.4 exists to record.
+_Rejected: `days` is a literal 24 h._ No day to define and no derate question — but two days of
+setup on a one-shift station becomes six working days of occupancy, and §6.1 already ruled that
+`1 day = 24 h calendar` makes a figure say nothing about capacity.
+
+#### 1.3 Cold start pays a setup
+
+`engine.dart:796` returns zero when `lastPartId` is null, on the reading that the plant is handed
+over already set for what it is about to run. An empty station at the start of a run is set up for
+nothing, so **the first order pays in full** — and the rule collapses to one sentence with no
+special case: *no previous order counts as not the same part.*
+
+One extra setup per station per run, so runs get marginally longer. On the same commit as §1.2, so
+it is one re-run rather than two.
+
+#### 1.4 The run records the changeover it charged
+
+`simulation_run_steps` stores `changeoverIncurred`, a **bool**, and §2.7 already recorded that as a
+limitation: *"the engine folds the setup into `occupancy` and never records it, so a reader
+measuring that prefix against the axis would be measuring an invention."* Under §1.1 the bool gets
+weaker still — a repeat charged at 30 % is neither incurred nor not incurred.
+
+**One nullable `changeover_seconds`**, written with what was actually charged; `incurred` becomes
+`> 0`. The Gantt's hover card then states a figure rather than a yes, a partial charge is legible,
+and the changeover stroke gains a true width if it is ever wanted. Null on all existing runs, which
+means *made before this column existed* — the meaning a blank has had on these tables since v12.
+
+Without it, the one place a user could check that the new setup / teardown / percentage rule did
+what they meant is the run, and the run could not tell them. That is §1.5 and §2.3's
+stored-by-someone-read-by-nobody defect arriving from the other direction.
+
+_Rejected: separate setup and teardown columns._ The two are always charged together under one rule
+and one percentage, so they would sit in fixed proportion — two columns that can never disagree are
+one column and a multiplication.
+
+#### 1.5 The run carries its studies' cell and line
+
+§4.4's combined view filters by cell and production line, and **the run cannot answer that today**.
+`Studies` carries `productionCellId` and `productionLineId`; `SimulationRunStudies` copies neither,
+and §7.10 forbids joining to the live study.
+
+**Four nullable columns on `simulation_run_studies`** — cell id and name, line id and name — copied
+in at save time, exactly as v12 copied `customer_project` and v13 `part_description`. Blank on all
+35 existing runs. Purely additive with no `TableMigration` trap: nothing rebuilds that table.
+
+**Worth knowing before it is built: a cell or line filter is a *study* filter one level up.**
+Workcenters belong to a **plant**, not to a cell or a line, so stations cannot be filtered that way
+at all. The filter narrows which studies are in view, and the stations follow from them.
+
+#### 1.6 The migration, and what it needs
+
+Schema **v17**, one migration, written up as §16.18:
+
+| Table | Columns |
+|---|---|
+| `flow_nodes` | setup value + unit, teardown value + unit, same-part % — all nullable |
+| `simulation_run_steps` | `changeover_seconds`, nullable |
+| `simulation_run_studies` | cell id + name, line id + name — all nullable |
+
+- A **v16 → v17 fixture** in `test/data/migration_test.dart`, with the stored changeover populated
+  so the step proves it survives — §2.1's lesson, that a fixture full of nulls passes whether or not
+  the table was rebuilt.
+- The half-upgraded-database path from §16.11 re-checked.
+- `_ensureColumn` asks whether the table exists first (§3.1's finding) — every column here lands on
+  a table that predates it, but the v13 fixture is the case that broke last time.
+- `duplicateStudy` must copy the three new node fields. §2.6b found it silently dropping
+  `batch_number` and had been since §1.4 added it; the same test shape catches this.
+- **The live check before it meets real data**: `test/data/live_db_check_test.dart`, by hand, with
+  `--tags live` and `FLOWMAP_LIVE_DB` pointing at a **copy**. It asserts `db.schemaVersion` rather
+  than a literal, so it survives its own migration; add v17's specific claims to it rather than
+  replacing v16's.
+
+#### 1.7 Drive it — **done 2026-08-15**
+
+Landed in two commits, driven in Release `0.1.0-2026-08-15c`. 676 tests, `flutter analyze` clean.
+
+**The v16 → v17 migration has met the real database** — `db.open schema 17 from 16` at 11:53:44
+under that label. Driven against a **copy first**: the copy was upgraded by
+`test/data/live_db_check_test.dart` with `--tags live` before Release was allowed near the file, and
+a backup was taken beside the live one as `flowmap.sqlite.backup-v16-20260815-115254`.
+`user_version` 17, `integrity_check` ok, 60 orders and 37 runs intact. The live check now carries
+v17's claims alongside v16's rather than replacing them, which is what that file is for.
+
+**No node on this database has ever had a changeover typed into it** — all 17 are zero — and that
+turned the re-run into a sharp test rather than a formality. With nothing to charge, both of v17's
+behaviour changes multiply zero: the derate removal turns `0 ÷ 0.74` into `0`, and cold start pays a
+setup in full, in full being nothing. So the re-run should have been **bit-identical** to the last
+v16 run, and it was:
+
+| | `a17b77ed` v17 | `ab587589` v16 |
+|---|---|---|
+| avg lead time | 34.1 d | 34.1 d |
+| delivered / on time | 60 / 60 | 60 / 60 |
+| blocked | 0.0 d | 0.0 d |
+| empty slots | 13 | 13 |
+
+Compared row by row rather than on the headline: **all 420 steps and all 60 orders are identical**,
+including every timestamp. That is §1.1's "default 0 % reproduces today's behaviour exactly"
+observed on real data instead of asserted in a fixture.
+
+**So the claim that v17 invalidates every stored run needs qualifying, and this is where it is
+qualified.** It is true of the arithmetic and the design notes are right to say so — a 90-minute
+setup at 74 % moved from 121.6 minutes to 90. It is **not** true of *this* database, where the
+arithmetic that changed only ever multiplied zero. Célula 11B's figures stay comparable across v17,
+and the first run that will not be comparable is the first run made after a setup is typed — which
+is §2.1's work.
+
+**`changeover_seconds` is written, and null still means what it means.** The v17 run states `0` on
+every step; the 35 runs before it read null. That distinction is the whole reason §1.4 stored a
+number rather than deriving one, and it is now visible in the file rather than only in a test.
+
+_Still owed from this round:_ the Summary read against the run. It could not be checked here for the
+same reason the re-run was identical — with no changeover anywhere, §8.4's changeover term is zero
+on both sides, so the two agree trivially. **It becomes a real check the moment a setup is typed**,
+which is §2.7's drive step.
+
+#### 1.7b Drive it — the original list
+
+- Re-run célula 11B and record the run id here. Every figure in `HISTORY.md` is now stale.
+- Give one step a setup and a teardown, run, and read `changeover_seconds` back through the hover
+  card. Then set the same-part % to 100 and confirm batching stops buying anything — that is the
+  cheapest proof the rule is wired the way it reads.
+- Check the Summary's occupation against the run: §1.2 removed a derate, so occupation and
+  utilization should have moved *together*, and a disagreement means the two ends of §8.4's
+  arithmetic have come apart.
+- The v16 → v17 migration against the real database, against a **copy first**. Take a backup beside
+  the live file and name it here.
+
+**DESIGN.md this round:** **§4.4** (availability applied once, and to what), **§5.4** (the process
+box's fields), **§7.6** (rewritten — setup, teardown, the same-part rule, cold start), **§7.10**
+(what a run stores), **§8.6** (the hover card states a figure), **§16.18** (schema v17, new).
+
+---
+
+### 2. The flow surface — round two
+
+Nothing here touches the engine or the schema. It is what is under the map and what is typed into a
+box.
+
+#### 2.1 The step dialog
+
+Field order, as asked, with the changeover pair grouped:
+
+```
+Workcenter / pool   [ CEU27          ▾ ]
+Label               [                  ]
+Process takt        [ 1    ][ days   ▾ ]
+─ Changeover ──────────────────────────
+  Setup             [ 90   ][ min    ▾ ]
+  Teardown          [ 30   ][ min    ▾ ]
+  Same part         [ 0    ] %
+    ↳ 0 % — a repeat pays no changeover
+Notes               [                  ]
+```
+
+**The percentage appears only once setup or teardown is non-zero.** That is what "optional for the
+user" buys: a step with no changeover shows five fields, as it does today, and the dialog already
+scrolls on the app's 700 px minimum height. Helper text states the rule in one sentence, and the
+`days` note from §6.1.1 now covers three fields rather than one.
+
+**Target moves to the top and Label follows it**, which is the order asked for and also the order
+they are read in — what this step *is*, then what it is called, then what it costs.
+
+#### 2.2 Working days and running days
+
+*"Lead Time Running Days and Lead Time Working Days values are wrong. Lead Time (running days) =
+1.4 × Lead Time (working days)."*
+
+**The defect is real but it is not arithmetic — it is that the two figures are computed by
+different methods and only one of them is a day.**
+
+- `Lead time` (`flow_view.dart:518`) is Σ of each node's **ladder days**, where a day is that
+  station's *productive* day (§6.1) — 16.77 h at ABC three shifts / 74 %, ~7 h at a one-shift
+  station — then divided by a **derived** divisor chosen to make the total agree with the rungs
+  above it (§17.4). Six of those is not six days on anyone's calendar.
+- `N running days` (`flow_view.dart:660`) is a real calendar walk, inclusive of both ends, weekends
+  and closed time included (§17.2).
+
+The 1.4 is **7 ÷ 5**. It is what you get when "working days" means *days the plant was open* and the
+plant runs a five-day week — which is what a planner means and is not what the number is.
+
+**So working days becomes a second reading of the same walk.** Both figures come out of
+`_walkCalendar`: running days is every day it spans; working days is only the days the plant was
+open. The 1.4 then **falls out** of a five-day week rather than being imposed, and reads 1.0 on a
+seven-day plant and higher across a shutdown — all of which a fixed factor gets wrong.
+
+**A day is a working day when at least one workcenter the flow uses is open on it.** The union, not
+a representative station: it reads as *a day the line could make progress*, it needs no station to
+be nominated, and it is stable when a step is re-bound. A Saturday one station works counts; a
+Sunday nobody works does not.
+
+Two consequences worth stating rather than discovering:
+
+- **A flow containing one seven-day station reports running ≈ working**, and the two figures
+  converge. That is true, and it will look like the feature is broken until somebody reads this
+  paragraph.
+- **The walk starts at the first day of the viewed period** (§17.2), which may itself be closed. It
+  counts as a running day always — the count is inclusive of both ends — and as a working day only
+  if the union is open on it.
+
+_Rejected: imposing running = 1.4 × working._ §17.2 already says the gap between the figures *is*
+the closed time, *"which no ratio could produce"* — and a factor would make a holiday shutdown
+invisible in the one figure whose whole job is to show elapsed reality.
+
+#### 2.3 The summary bar carries seven figures
+
+```
+Takt   Process time   Lead time   Working days   Running days        Equivalent   PCE
+3 d    6.0 d          9.0 d       8 d            11 d · Aug 13, 2026  1.13         67 %
+```
+
+- **The ladder `Lead time` stays**, which is one more than the list asked for and is the right
+  answer: PCE is `process ÷ lead` computed off the ladder, and without its denominator on screen a
+  reader dividing the two visible day-counts gets a different number from the one printed beside
+  them. `6.0 ÷ 9.0 = 67 %` stays checkable, and §17.4's rule — the footer is the sum of the rungs
+  drawn above it — survives intact.
+- **Only the ladder figure keeps the name `Lead time`.** The two walk figures are named by their
+  unit alone: `Working days`, `Running days`. Three chips prefixed *Lead time* would differ only in
+  the part that gets clipped on a bar that scrolls. es and pt already ship the idiom — `días
+  corridos` / `dias corridos` — so it is `Días hábiles` / `Dias úteis` beside them.
+- **The end date rides on `Running days`**, which is how it is drawn today (`11 running days · Aug
+  13, 2026`). Nothing is lost and no chip is added for it.
+- **`Equivalent` is unchanged** and is already hidden under Flow equivalent — see §0's last check.
+
+#### 2.4 `Timeline` becomes `Part`
+
+`app_en.arb:411` has `"flowDataSource": "Timeline"`, which labels the picker choosing between the
+flow equivalent, one part, and all variants weighted by the demand mix. It is simply the wrong word
+and always has been.
+
+**`Part` is the accurate one, not a convenient approximation.** §6.1 defines the flow equivalent as
+*"a **dummy part** whose process time at each step equals one takt of that workcenter's own
+capacity"* — so all three options are parts: one real, one synthetic, one weighted blend. Three
+languages, one key.
+
+#### 2.5 The help text comes down
+
+Field feedback, 2026-08-15: *"dial back with the explaining text for each feature. It's too much,
+when needed add a mouse hover tooltip instead."*
+
+**The app already has two conventions and this unifies them.** `_Metric` in the flow footer wraps
+its whole chip in a bare `Tooltip` with no visual affordance; form fields carry always-visible
+`helperText` with `helperMaxLines: 2–3`. There are **18 `helperText` sites** against **74 `*Help`
+strings** in the ARB, so most help is already hover-only — it is the dialogs that are heavy, and
+`flow_node_editor.dart` alone has **8**. §2.1 was about to add three more fields to that exact
+dialog, which is why this lands in the same round rather than after it.
+
+**Split by what the text does, rather than moving all of it:**
+
+- **Help that restates its label is deleted, not moved.** It was never earning the space, and moving
+  it to a tooltip only hides the fact.
+- **Help that carries a definition a wrong answer depends on keeps an affordance** — a small info
+  icon beside the field, tooltip on hover. That is: what `days` means on a step (§6.1.1's productive
+  day, and §17.4 is the scar that makes it non-optional), what the same-part percentage does, that a
+  lane's rule is shared across every study in the project.
+
+_Rejected: all of it to bare tooltips, matching `_Metric`._ One convention everywhere and maximum
+quiet — but with no affordance nobody hovers, so the definitions would be gone rather than moved,
+and `days` would be discoverable only by accident.
+_Rejected: deleting the lot._ It forces every label to stand alone, which is a real discipline. But
+a label cannot make `days` unambiguous, and §17.4 records what that costs.
+
+**Sweep the whole tree in one commit**, not field-by-field as each dialog is touched: the point is a
+consistent amount of noise, and a half-swept app is louder than either end state.
+
+#### 2.6 The date format becomes a dropdown
+
+Field feedback, same session. `settings_screen.dart:79` renders four `RadioListTile`s, each with the
+format as its title and today's date in that format as its subtitle — which is most of the screen for
+one setting with four values.
+
+**A `DropdownButtonFormField`, with the sample carried into each item** — `DD/MM/YYYY —
+15/08/2026` — so the preview that made the radio list worth reading survives the collapse, including
+in the closed state where it describes the current choice. `settingsDateFormatHelp` becomes an
+info-icon tooltip under §2.5's rule: it defines what `Locale` means, which the label does not.
+
+#### 2.7 Drive it
+
+The bar, in all three languages, against a real flow: that `Working days` is below `Running days`
+and both are plausible against the map; that a flow crossing a weekend shows the gap; that `Lead
+time` still divides into `Process time` to give the PCE printed beside it. The step dialog with and
+without a changeover, so the revealed percentage is seen appearing and going away.
+
+**DESIGN.md this round:** **§5.4** (the box's fields, again — the dialog's order), **§6.1**
+(what each day means, and which figure uses which), **§17.2** (running days gains its companion),
+**§17.4** (amended: the footer sums the rungs *and* states two calendar counts that do not),
+**§12.4** (the date setting's control, and a units line if the walk's figures need one), and a new
+**§12.7** stating the help convention — deleted where it restates, an info icon where it defines —
+so the next dialog does not have to rediscover it.
+
+---
+
+### 3. The input tables — round three
+
+*"The Takt, Workcenters, Demand input table are only editable when opening the edit window, can we
+make them editable in the table. Trying to reduce clicks here."*
+
+**Demand is already inline** — both its grids are `DataGrid` — so this is Takt and Workcenters.
+
+**The cost is low, and it is low for a reason already in the repo.** `data_grid.dart`'s opening
+comment: *"One text field per cell, keyboard navigation, and multi-cell TSV paste from Excel. Every
+column is text, **deliberately**: a dropdown or a date picker in a column would make that column
+unpasteable, and pasting a block out of the planner's spreadsheet is the way this data actually
+arrives. What a cell means is decided by the parser the caller supplies."* Freezing, scrollbars,
+keyboard navigation and per-keystroke validation all already exist. Takt is four text columns and a
+parser; workcenter schedules are six.
+
+**And it buys more than it was asked for: paste a block of periods straight out of Excel**, which
+cuts more clicks than inline editing does.
+
+#### 3.1 Both tables become grids, and both dialogs go
+
+- A new period is **a blank row appended at the bottom**, the way the sequence grid works. Delete
+  stays a row action.
+- **The edit dialogs are removed entirely.** Keeping one would leave two write paths into one
+  table, which is how the two halves of a rule drift apart.
+- **Overlaps and gaps stay non-blocking.** `ScheduleIssuesBanner`, fed by `findSchedulePeriodIssues`,
+  is **already on both tabs** — the guard exists and the dialog was duplicating it. §11's readiness
+  already blocks Simulate on a real gap, which is the check that matters.
+- The `Shifts` column on the workcenter table is derived by counting (§4.2) and stays `readOnly`,
+  which `DataGridColumn` already supports.
+
+#### 3.2 What a cell accepts
+
+**Forgiving in, canonical out.** A cell takes anything unambiguous and redisplays it canonically
+once committed, so a block pasted from a spreadsheet written in any of the three languages lands and
+the table still reads consistently afterwards. Unparseable text stays on screen as an error rather
+than being dropped, which is what `DataGrid` already does.
+
+| Column | Accepts | Shows |
+|---|---|---|
+| Takt unit | `days` `d` `días` `dias` `hours` `h` `horas` `min` `m` `s`, case-insensitive | the unit in the user's language |
+| Availability, Rework | `74%` `74` `0.74` | `74 %` |
+| Start, End | the user's §3.6 format, and ISO | the user's §3.6 format |
+| Operators per shift | the `1/1/1` codec, as now | `1/1/1` |
+
+**§9.2's rule holds: forgiving is not guessing.** Anything genuinely ambiguous is refused and left
+on screen as an error, exactly as a bare `batch` column is refused by the import rather than assumed
+to be a size.
+
+#### 3.3 Drive it
+
+Paste a block of takt periods out of Excel. Type a date in the wrong format and check the error is
+on the cell rather than silent. Create a gap and check the banner says so without blocking. In es
+and pt, since the unit parser is the one thing here that is language-shaped.
+
+**DESIGN.md this round:** **§9.1** (the grid is no longer only the demand tables), **§12.5** (two
+fewer read-only tables — and the takt table was the one deliberately stretching to fill, so that
+paragraph needs revisiting rather than deleting), **§12.6**, and the schedules sections that
+currently describe a dialog.
+
+---
+
+### 4. The tabs, and where simulation lives — round four
+
+#### 4.1 Seven study tabs
+
+`Flow · Study Settings · Flow Takt · Workcenters · Demand · Summary · Simulation`
+
+`Takt` becomes `Flow Takt`, `Study Settings` is new (§4.2), and `Simulation` stops being the
+project-level tab and becomes this study's slice (§4.3).
+
+#### 4.2 Study Settings
+
+Everything about the study, in one place, and **the `Run settings` dialog goes** — two ways to set
+one field is how they come to disagree.
+
+```
+─ Identity ──────────────────────────
+  Name             Célula 11B
+  Cell / Line      Cell 3 / Line B
+
+─ In simulation ─────────────────────
+  Include in runs  ■
+  Pacemaker        CEU27   (derived: CLAD08)
+  Start buffer     30  days
+  WIP cap          —          ← first time reachable
+  Priority         1          ← first time reachable
+```
+
+**`wipCap` and `priority` are reached at last.** Both are stored, both are read by the engine, and
+§17.5 has listed them as reachable-from-nothing since M3; §3.3b said outright *"they belong in the
+same dialog and were left for the round that needs them."* This is that round, and it closes two
+§17.5 entries. §7.3's CONWIP behaviour meets a user for the first time here, so it wants driving
+rather than assuming.
+
+It is also the obvious home for §9's map-only flag when that lands.
+
+#### 4.3 The Simulation tab becomes the study's slice
+
+**One run, filtered — never a run of the study alone.** §7.7 builds one resource model of the plant
+and lets line A's orders delay line B's, so a solo run is a different and always-optimistic answer
+to a differently-worded question. Two runs of one study reporting two lead times, with nothing on
+screen saying which is which, is the confusion this avoids.
+
+The tab shows this study's orders, its production plan, its share of the Gantt and its own metrics,
+all read out of the same `StoredRun` the combined view reads — so the two cannot disagree about a
+number. **It costs no engine work**: `summariseRun` already carries `studyId` on orders, steps and
+part metrics.
+
+_Rejected: a `Run this study alone` action alongside._ It answers a real question, but run history
+would then hold two kinds of run and every comparison would have to check which kind it was looking
+at — a cost M5's run comparison would inherit.
+
+#### 4.4 The simulation workspace
+
+*"Simulation button below the New study button. Opens a new visualization with the combined
+simulation results, with filters for the studies, cells, production lines and period."*
+
+**A sidebar destination.** The studies sidebar gains a `Simulation` entry under New study; selecting
+it swaps the study workspace for a full-width simulation workspace — filters, metrics, the plan, the
+Gantt and a prominent Run button. Deep-linkable through go_router like every other route (§12.1),
+because a filtered view and a run's history are both things worth sending someone a link to.
+
+**Simulate stays on the project app bar as well**, same provider and same disabled reason. §12.1's
+argument survives: a run spans studies and starting one must not require navigating somewhere first
+— which is the complaint §1.8 moved the button to the app bar to fix. Two entry points, one action.
+
+**The filters:**
+
+- **Studies** — free. `studyId` is on orders, steps, lanes and part metrics already.
+- **Cell, Production line** — needs §1.5's four columns. A study filter one level up, since
+  workcenters belong to a plant rather than to a cell or line.
+- **Period** — filters **orders**, by **need date**.
+
+**Why need date.** It is the only one of the three candidate dates that is never null, so an order
+the run never completed still appears in its period instead of vanishing — and §7.8's abort case,
+*"N orders never completed"*, is exactly what a planner filters to find. It is also the date OTD and
+float are already defined against, so the filter and the metrics agree by construction. Filtering by
+`delivered` would drop every failure and make the filtered view systematically optimistic in the
+runs most worth looking at.
+
+**Station utilisation does not follow the period filter, and the card says so.** The denominator is
+`openSeconds`, stored as a run total, and rebuilding open time for a sub-window needs each station's
+calendar — which §7.10 deliberately does not store, and which is the exact cost that got §3.5
+dropped in round two. Order-level figures recompute cleanly because every order carries its own
+dates; utilisation and blocked time keep reporting the whole run, labelled.
+
+```
+Period  2026-Q3        Studies ▾2   Cell ▾all
+
+  Orders            18 of 60      ← filtered
+  On time           44 %          ← filtered
+  Avg lead time     31.1 d        ← filtered
+  ─────────────────────────────────────────
+  CEU27  util 86 %  blocked 4.6 d  ⚠ whole run
+```
+
+_Left open, and the day it is wanted is the day §3.5 comes back:_ snapshotting each station's shift
+pattern, staffing and exceptions into the run would make utilisation follow the filter honestly —
+and would make closed-time shading on the Gantt possible at the same time. §3.5 records the design
+in full; only the wanting was ever missing.
+
+#### 4.5 The Gantt filters its rows
+
+Field feedback, 2026-08-15: *"a filter for the Gantt chart so the user can select to only show
+workcenter or workcenters + inventory."*
+
+§3.4 gives célula 11B **14 rows** — seven stations interleaved with seven lanes — and the lane rows
+are exactly what is in the way when the chart is being read as a flow rather than as a queue.
+
+**A two-state toggle beside the zoom cluster**: `Stations` / `Stations + lanes`, defaulting to both,
+so today's chart is unchanged until something is changed. Held in the view's state the way zoom is —
+it survives switching to Results and back, and resets on restart, which is what a view control
+should do rather than a stored preference.
+
+**One parameter to `buildGanttChart`**, so `barAt`, the hover card and the floored-bar count all
+follow for free. That is the whole argument for `gantt_layout.dart` being pure and widget-free
+(§2.7) arriving a third time — nothing in the view decides a position, so nothing in the view has to
+learn about a hidden row.
+
+It applies in both the study tab's Gantt and §4.4's workspace, since they are the same widget.
+
+_Rejected: a per-row filter menu with a checkbox per station and lane._ It answers this and also
+"just show me CEU27 and TTAT", which is the question a forty-station plant asks. More UI than the ask,
+and it needs a way to state what is currently hidden or a reader misreads a chart with rows silently
+missing. Worth revisiting at §14 scale.
+_Rejected: remembering the toggle across sessions._ §3.6's `app_settings` makes it nearly free, but a
+stored setting that silently hides rows is a chart lying to whoever opens the app next.
+
+#### 4.6 Drive it
+
+The workspace screen **has no test coverage at all** (§3.7), and this round rebuilds it — so
+everything here is only covered by pressing it. Specifically: that the study tab's figures equal the
+combined view's for the same study; that a period filter changes the order counts and leaves
+utilisation labelled and whole; that a cell filter on a pre-v17 run shows blanks rather than
+dropping every study; that Simulate works from both places and reports the same disabled reason.
+
+**DESIGN.md this round:** **§8.6** (the Gantt's row filter), **§12.1** (rewritten — seven tabs, the sidebar destination, two triggers
+for one run), **§7.3** and **§7.7** (the cap and the priority are reachable, and what a study's
+slice is), **§7.10** (the cell and line the run carries), **§10.1**, **§17.5** (two entries closed).
