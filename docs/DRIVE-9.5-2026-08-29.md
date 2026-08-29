@@ -57,9 +57,19 @@ position 4 is dealt with in check 2.
 
 > **The plant moved twice while this was written.** CLAD06, CLAD17 and CLAD25 were edited between
 > 19:25 and 19:29, and **CEU32's availability was set to 1.000 at 20:09:10** — every other station on
-> the plant is 0.832 or 0.840. All figures below are computed *after* that edit. **If a caption
+> the plant is 0.832 or 0.840. All figures below are computed *after* those edits. **If a caption
 > disagrees, check `workcenter_schedule_periods.updated_at` before suspecting the code**; that is the
 > cheaper of the two explanations and it has already been the right one once today.
+>
+> **CEU32 at 1.000 is a deliberate experiment, confirmed by the field, and may go back to 0.832.**
+> Only its *capacity* moves with it — `open × availability × takt`, so **90.7 h at 1.000 and 75.4 h
+> at 0.832**. The `filled` figure is unchanged either way, because CEU32 is the last member of its
+> group and takes the remainder rather than a fill: what it holds is set by CEU30's cap, and CEU30
+> was not edited. Both values are given at the row that needs them.
+>
+> _It is also the station the experiment is about._ CEU32 carried the largest queue in run
+> `93994701` — a median wait of 1,855 h against CLAD06's 667 — at 94.4 % utilisation over the whole
+> run, and it is the one station whose availability was the obvious lever.
 
 ---
 
@@ -82,6 +92,7 @@ is checkable against the two figures directly above it** without leaving the scr
 | | CLAD25 | Filled to **73.5 h** of **76.2 h** — 3.7 % |
 | | CLAD17 | Filled to **57.1 h** of **76.2 h** — 3.7 % |
 | | CEU30 | Filled to **72.8 h** of **75.4 h** — 3.7 % |
+| | CEU32 | Filled to **165.2 h** of **90.7 h** at availability 1.000, or **of 75.4 h** at 0.832 — see the check below |
 | P1000220321-06P01 | CLAD17 | Filled to **60.1 h** of **76.2 h** — 3.7 % |
 | P1000228848-02P01 | CLAD17 | Filled to **76.1 h** of **76.2 h** — 3.7 % |
 
@@ -96,7 +107,8 @@ the whole claim §9.8 makes, said in words.
       separator**: the figures are formatted by `_hours`, which writes a point in every locale.
 - [ ] **pt** — *"Preenchida até 73,5 h de 76,2 h: com 3,7 % de retrabalho…"*, same caveat.
 - [ ] **The last member of a group, which is the one this sentence was not written for.** On
-      P1000216567-13P01 CEU32 is predicted to read **"Filled to 165.2 h of 90.7 h"** — the remainder,
+      P1000216567-13P01 CEU32 is predicted to read **"Filled to 165.2 h of 90.7 h"** (or *of 75.4 h*
+      if its availability has gone back to 0.832) — the remainder,
       not a fill. The sentence then claims that 165.2 h *"uses one whole takt"*, which is false: it is
       two takts and a bit, and it is the group being over capacity rather than a station being full.
       **Read it on screen and decide what it should say instead** — §7.4 is explicit that the last
