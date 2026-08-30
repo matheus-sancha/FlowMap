@@ -142,40 +142,51 @@ void main() {
     }
   });
 
-  test('neighbouring hues stay apart under colour-blind vision', () {
-    // **The test that had to be rewritten.** Its predecessor required 35° of HSL
-    // hue angle and passed a palette whose gold and lime were ΔE 1.6 apart to a
-    // deuteranope. Hue angle is not a perceptual distance; OKLab ΔE is.
+  test('every pair of hues stays apart under colour-blind vision', () {
+    // **Rewritten a second time, and this is the version that bites** (#12).
     //
-    // Adjacent pairs rather than all pairs, which is the floor this palette is
-    // built to and is legal only because identity is never carried by colour
-    // alone here — the bar label, the legend and the hover card each name the
-    // part. Assignment order is therefore load-bearing: re-ordering
-    // `partPalette` moves which pairs this measures.
-    for (var i = 0; i < partPalette.length - 1; i++) {
-      final a = partPalette[i].fill;
-      final b = partPalette[i + 1].fill;
-      for (final kind in cvd.keys) {
-        expect(
-          deltaE(a, b, kind),
-          greaterThanOrEqualTo(8.0),
-          reason: 'partPalette[$i] and partPalette[${i + 1}] under $kind',
-        );
+    // The first required 35° of HSL hue angle and passed a palette whose gold
+    // and lime were ΔE 1.6 apart to a deuteranope — hue angle is not a
+    // perceptual distance. The second fixed that but measured only *adjacent*
+    // pairs, on the argument that identity is never colour-alone here, and so
+    // passed a palette with a ΔE 0.5 pair sitting at slots 2 and 4.
+    //
+    // **All pairs, because any two parts can be compared**: the Gantt
+    // interleaves orders of many parts as thin bars, and the per-part table
+    // lists them together. Adjacent-pairs is `dataviz`'s mode for a stack, where
+    // only neighbours touch. That is not this chart.
+    //
+    // A happy consequence: the assignment order stops being load-bearing. The
+    // all-pairs pairlist does not depend on it, so `partPalette` can be
+    // re-ordered for readability without moving what this measures.
+    for (var i = 0; i < partPalette.length; i++) {
+      for (var j = i + 1; j < partPalette.length; j++) {
+        final a = partPalette[i].fill;
+        final b = partPalette[j].fill;
+        for (final kind in cvd.keys) {
+          expect(
+            deltaE(a, b, kind),
+            greaterThanOrEqualTo(8.0),
+            reason: 'partPalette[$i] and partPalette[$j] under $kind',
+          );
+        }
       }
     }
   });
 
-  test('neighbouring hues stay apart under ordinary vision too', () {
+  test('every pair of hues stays apart under ordinary vision too', () {
     // The colour-blind floor protects dichromat readers; this protects everyone
     // else. A pair can clear the simulated gate and still be two shades of the
-    // same colour to someone with full colour vision — which is what ΔE 8.7
-    // between the old gold and lime was.
-    for (var i = 0; i < partPalette.length - 1; i++) {
-      expect(
-        deltaE(partPalette[i].fill, partPalette[i + 1].fill),
-        greaterThanOrEqualTo(15.0),
-        reason: 'partPalette[$i] and partPalette[${i + 1}] under normal vision',
-      );
+    // same colour to someone with full colour vision — which is what the
+    // previous set's olive and green were, at ΔE 8.0 against a floor of 15.
+    for (var i = 0; i < partPalette.length; i++) {
+      for (var j = i + 1; j < partPalette.length; j++) {
+        expect(
+          deltaE(partPalette[i].fill, partPalette[j].fill),
+          greaterThanOrEqualTo(15.0),
+          reason: 'partPalette[$i] and partPalette[$j] under normal vision',
+        );
+      }
     }
   });
 
