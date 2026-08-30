@@ -21,9 +21,9 @@ of a drive; it is not a record that a drive happened.*
 flutter build windows --release --dart-define=BUILD_LABEL=0.1.0-2026-08-29e
 ```
 
-**Already done** — `flowmap.exe` and `data/app.so` at 2026-08-29, built from `c3cad3d`. The running
-instance is still the unlabelled one, so **restart the app before driving** and confirm the header
-reads `build 0.1.0-2026-08-29e`.
+**Done twice.** `0.1.0-2026-08-29e` from `c3cad3d` carried check 1, and its session header at
+20:55:51 is the record. **Check 1's finding was then fixed**, so checks 2 and 3 are driven under
+`0.1.0-2026-08-29f` from `97688c1` — restart the app and confirm the header reads that.
 
 _This also qualifies something already written into `TODO.md` §9.5._ The four items closed there were
 closed by arithmetic on run `93994701`, which is sound as arithmetic — the numbers are what they are
@@ -102,11 +102,17 @@ CEU30 differs from the cladding stations because its availability is 0.832 again
 **The check that makes the sentence true:** `filled × 1.037 ≈ capacity` on every row above. That is
 the whole claim §9.8 makes, said in words.
 
-- [ ] **en** — one station, sentence correct, figures match the two rows above it.
-- [ ] **es** — *"Llenada hasta 73,5 h de 76,2 h: con un 3,7 % de retrabajo…"*. **Watch the decimal
-      separator**: the figures are formatted by `_hours`, which writes a point in every locale.
-- [ ] **pt** — *"Preenchida até 73,5 h de 76,2 h: com 3,7 % de retrabalho…"*, same caveat.
-- [ ] **The last member of a group, which is the one this sentence was not written for.** On
+- [x] **en** — driven 2026-08-29 under `0.1.0-2026-08-29e`. **The captions match the figures
+      predicted above**, on the stations that fill to their takt.
+- [x] **es** — as above.
+- [x] **pt** — as above.
+- [x] **The last member of a group, which is the one this sentence was not written for.**
+      **Confirmed and fixed, 2026-08-29** — `BalanceStanding.balancedRemainder`, two new captions in
+      three languages, five tests. The prediction below is what it read before the fix; it now says
+      *"They fill to their takt and this one takes what is left — 165.2 h, past the 90.7 h one takt
+      holds. The group needs more than its stations have."* **Worth re-reading once on screen**, in
+      all three languages, since the fix was written from the prediction rather than from the pixel.
+      The original finding, kept: On
       P1000216567-13P01 CEU32 is predicted to read **"Filled to 165.2 h of 90.7 h"** (or *of 75.4 h*
       if its availability has gone back to 0.832) — the remainder,
       not a fill. The sentence then claims that 165.2 h *"uses one whole takt"*, which is false: it is
