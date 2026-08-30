@@ -95,7 +95,7 @@ bug fix can be checked against the screens that reported it before §6 moves tho
 | **§6** | The workspace | five tabs, one simulation, less chrome — **not driven** |
 | **§7** | The queue, the filter and the balance | from driving `0.1.0-2026-08-15g` |
 | **§8** | Round eight | the phantom visit, five surfaces, and a save that fails |
-| **§9** | Round nine | a process time belongs to a step — **found by driving §8** |
+| **§9** | Round nine | a process time belongs to a step — **driven and closed; §10 is next** |
 | **§10** | Round ten | Project Settings, occupation over time, the float matrix |
 | **§11** | Known gaps, deliberately left | |
 | **§12** | Deferred by decision | §3.8, the map that never runs |
@@ -2426,7 +2426,7 @@ is intermittent rather than fixed — nothing in §8 touched it.
 
 ---
 
-## 9. Round nine — a process time belongs to a step — **code-complete 2026-08-29, not driven**
+## 9. Round nine — a process time belongs to a step — **driven and closed 2026-08-29**
 
 **Promoted out of §8 on 2026-08-29, before it was built.** It was found by driving §8.6 and started
 as §8.10; writing the schema showed it reaching the demand repository, study duplication, the MM3
@@ -2616,7 +2616,7 @@ enforcement, and one condition carried it.
 _The test that pinned the old rule is kept rather than deleted_, rewritten to pin the new one and to
 say in its own words what it costs.
 
-### 9.8 The balance cap allows for rework — **code-complete 2026-08-29, not driven**
+### 9.8 The balance cap allows for rework — **driven 2026-08-29, verified to the second**
 
 **Found by the field reading a Gantt**, while asking why an order sat four days in a station:
 *"the balancing should consider the rework and other times, otherwise the balancing will always be
@@ -2787,53 +2787,86 @@ at — the two differ by the availability, and someone will compare them. The pa
 comparison and is right as it stands; **the name is what will mislead**, and §10.1 is where a
 sentence about it would go.
 
-### 9.5 Drive it
+### 9.5 Driven — **closed 2026-08-29**
 
-**Four of these were closed against the stored run rather than the screen**, on 2026-08-29 — the kind
-of evidence §7.9 used and this file asked to see more of. Run `93994701`, made at 19:32 under the
-build carrying §9.9's fix. What is left needs a person and a screen, and is prepared on
-`docs/DRIVE-9.5-2026-08-29.md`.
+Under **`0.1.0-2026-08-29e`** (session 20:55:51) for the caption, and **`0.1.0-2026-08-29f`** (session
+21:06:27) for the rest. `docs/DRIVE-9.5-2026-08-29.md` held the prepared figures and is deleted with
+this entry, as it said it would be.
 
-**They are verified, not driven, and the difference is §5.3's.** That run was made under a build
-carrying **no label** — `dev` in the session header, because the rebuild went out without
-`--dart-define=BUILD_LABEL`. The arithmetic below stands on its own; the *record* does not, by this
-file's own rule that a drive with no label is not a record that a drive happened. A labelled re-run
-under `0.1.0-2026-08-29e` supersedes it.
+**It found one defect and it was in the words, not the arithmetic** — §9.12. Everything the round
+actually computes came out right first time, on three studies and 2,411 steps.
 
-- [x] **A balanced station charged exactly one takt** (§9.8) — **verified to the second, on four
-      stations.** Every station the balance fills reads `326,399 s` against a four-day takt of open
-      time of `326,400 s`: CEU27 in 11B, CLAD06 and CEU30 in 11D. 11C is on a two-day takt and CEU21
-      reads `163,199 s` against `163,200 s`. **The overshoot §9.8 was written to remove is gone and
-      the residue is one second of rounding.**
-- [x] **v24 against the live database** — met it at **16:00:57 on 2026-08-29** under
-      **`0.1.0-2026-08-29c`**, `db.open schema 24 from 23`, with `flowmap.sqlite.backup-v23-20260829-160002`
-      taken 55 seconds before. **No row is orphaned by node id now**, which is the migration's own
-      postcondition and the thing worth checking rather than the drop count.
-- [x] **The row count, which did not land where §9.2 predicted** — 267 rows, not 286, and that is
-      not a defect. Every step's coverage accounts for it exactly: 11B 7 steps × 8 parts, 11C 8 × 10,
-      11D 131 cells over eleven steps. The prediction was measured before the flow it counted had
-      changed, and §9.7 then made a deleted cell a legitimate answer rather than a hole. **A
-      prediction taken against a moving plant expires**, which is the lesson rather than the number.
-- [x] **The readiness panel after the migration** — moot as written, and worth saying why. §9.7
-      settled that a blank is a skip, so a missing cell is no longer a fault to report; and §9.4
-      recorded that `isFullyCosted` and `missingCells` are used nowhere in `lib`. There is no panel
-      state left for this to be clean *in*.
-- [ ] **The balance caption on a station with rework**, in all three languages — the string is new
-      and carries four placeholders. **Still owed; nothing in a stored run can answer it.**
-- [ ] **A study with a station twice, two different times typed** — **still unexercised, and the
-      leftover is still in place.** 11D carries an extra **CEU30 at position 4** with **zero stored
-      times and zero visits in the run**. Under §9.7 it is inert rather than wrong, but it is the
-      only thing making 11D's flow cyclic — `CEU30 → TCN20 → CEU30` is §9.6's whole subject — so it
-      is both the leftover to remove *and* the only revisit the plant currently has to test with.
-      **Decide which before deleting it**: take it out and §9.6's fix has nothing live to stand on;
-      leave it and 11D's map carries a step no part visits.
-- [ ] **A duplicated study**, whose process times point at its own nodes rather than at the
-      original's. The failure would be silent. **No study on the live plant has been duplicated since
-      the migration**, so there is nothing stored to read this off — it needs the app.
-- [ ] **Nine of 11C's ten parts store `00:00:00` at TCN20**, and one of 11D's eight at TCN20 does
-      too. Residue of §9.7's friction or a real routing — behaviourally identical since §8.1 skips a
-      zero, so nothing is wrong today, but **only the field can say which they meant** and a zero
-      that meant "I had to type something" is a trap for the next reader.
+- [x] **A balanced station is charged exactly one takt.** Verified to the second on four stations
+      across two takts, in runs both before and after the flow was corrected: `326,399 s` against a
+      four-day takt of open time of `326,400 s` at CEU27, CLAD06 and CEU30, and `163,199 s` against
+      11C's two-day `163,200 s` at CEU21. **§9.8's overshoot is gone and one second of rounding is
+      what is left.**
+- [x] **The balance caption, in all three languages** — matched the predicted text on every station
+      that fills to its takt. The station that does *not* fill is §9.12.
+- [x] **A study with a station twice, two different times, each pass charged its own.** 11D was
+      duplicated, its two CEU30 steps given distinct labels and **8.00 h** and **70.00 h**, and the
+      engine charged **9.97 h** and **90.65 h** — `8.00 × 1.037 ÷ 0.832` exactly, and one takt of open
+      time for the second, which is balanced against CEU32. **The two columns are independent in the
+      grid and the two passes are independent in the run**, which is the whole of §9 answered on the
+      shape the field reported it from.
+- [x] **The row order stays settled with a cycle in the flow** (§9.6). `Test → TCN20 → CEU30` ranks
+      `5 → 6 → 7`, and everything downstream keeps its order — BAN11 9, END 10, Coating 11. Against
+      the cyclic version §9.6 recorded `END:36 TCN20:36 BAN11:37`.
+- [x] **A duplicated study's times point at its own nodes** — §9.3's *"piece that made this a round"*,
+      whose failure would have been silent. **132 of 132 resolve to the copy, 0 to the original, 0 to
+      no node**, and the original still holds its own 131 with none pointing at the copy.
+- [x] **11D is clean** — ten steps, one CEU30, 55 visits, and its figures moved by nothing, because
+      the step it lost was one no part was costed at.
+- [x] **v24 against the live database** — 16:00:57 under `0.1.0-2026-08-29c`, `db.open schema 24 from
+      23`, backup `flowmap.sqlite.backup-v23-20260829-160002` 55 seconds before. No row is orphaned
+      by node id.
+- [x] **§9.2's row-count prediction did not land** — 267, not 286 — and every step's coverage accounts
+      for it. The prediction was measured before the flow it counted had changed, and §9.7 then made a
+      deleted cell a legitimate answer rather than a hole. **A prediction taken against a moving plant
+      expires.**
+- [x] **The readiness panel** — moot as written. §9.7 made a blank a skip, and §9.4 recorded that
+      `isFullyCosted` and `missingCells` are used nowhere in `lib`. There is no panel state left for
+      this to be clean in.
+
+**Two of these were closed twice**, and the second time is the one that counts: the first pass was
+arithmetic on a run made under a build logging `build dev`, which by §5.3's rule is not a record that
+a drive happened. Both were re-read under a labelled build.
+
+**The engine half was checked against a copy of the live database rather than the screen**, by
+`test/simulation/live_revisit_check_test.dart` — `live`-tagged, skipped without `FLOWMAP_LIVE_DB`,
+and kept. It **finds the revisit by shape rather than by name**, so it goes on answering after the
+scratch duplicate is deleted and skips honestly on a database with no revisit in it. That is the
+durable form `live_db_check_test.dart` learned across two broken assertions, applied on the first
+try this time.
+
+_Left open deliberately:_ nine of 11C's ten parts store `00:00:00` at TCN20, and one of 11D's eight
+does. Behaviourally identical to a blank since §8.1 skips a zero, so nothing is wrong today — but
+**only the field can say whether those are routings or residue of §9.7's friction**, and a zero that
+meant *"I had to type something"* is a trap for the next reader.
+
+### 9.12 The last member of a group was told it filled to a takt — **fixed 2026-08-29**
+
+**The one defect driving §9.5 found**, and it was in the sentence rather than in the split. A station
+the balance fills holds exactly one takt once rework is paid, which is what §9.8's caption says. **The
+last member holds the remainder**, and §7.4 is explicit that it is *"the one allowed to be under or
+over"* — so on a group over capacity the caption claimed that two-and-a-bit takts of content used
+one. Read on CEU32 at **`Filled to 165.2 h of 90.7 h`**.
+
+`BalanceStanding` gains `balancedRemainder`, set from the same walk that makes the split for the
+reason `balanceStandings` already gives — a caption worked out separately from the figure beside it
+can disagree with it. **The last member that actually takes a share** is the one that gets it, so a
+station sitting out on a zero (§7.7.1) does not become the remainder taker.
+
+Two captions in three languages, one for a remainder inside a takt and one for a remainder past it.
+The second says the thing worth telling a planner: **the group needs more than its stations have.**
+Over is judged on the *charged* content — `filled × (1 + rework)` against one takt — because rework is
+what the station pays on top, and comparing the raw figures would call a station over that is not.
+
+_Five tests, three of them driving the dialog itself_ — which is where this was found and where the
+suite had never been. **The predicted-then-fixed order is worth noting**: the drive sheet named the
+figures this would read before anyone opened the screen, so the finding arrived as a confirmation
+rather than a surprise. It is also why the fix was written from a prediction rather than from the
+pixel, and **the caption is worth one more look on screen in all three languages.**
 
 ---
 
