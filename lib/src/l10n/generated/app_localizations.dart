@@ -3316,6 +3316,22 @@ abstract class AppLocalizations {
     String capacity,
     String rework,
   );
+
+  /// No description provided for @stepRebalanceRemainder.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.'**
+  String stepRebalanceRemainder(String type, String filled, String capacity);
+
+  /// No description provided for @stepRebalanceRemainderOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its stations have.'**
+  String stepRebalanceRemainderOver(
+    String type,
+    String filled,
+    String capacity,
+  );
 }
 
 class _AppLocalizationsDelegate

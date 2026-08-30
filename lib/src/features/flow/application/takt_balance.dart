@@ -83,8 +83,23 @@ typedef BalanceStep = ({
 /// Ordered by how much the reader can do about it: the first three are facts
 /// about the plant or the part, the fourth is the user's own decision.
 enum BalanceStanding {
-  /// Taking a derived share of its group.
+  /// Taking a derived share of its group, filled to its own takt.
   balanced,
+
+  /// The last member of its group: taking **what the others leave** rather than
+  /// filling to a takt of its own.
+  ///
+  /// **Parted from [balanced] because the sentence beside them is not the
+  /// same.** A filled station holds exactly one takt once rework is paid, which
+  /// is what its caption says; the last one holds the remainder and is
+  /// *"allowed to be under or over"* — so on a group over capacity the caption
+  /// written for a fill claimed that two-and-a-bit takts of content used one.
+  /// Found by driving §9.5 on CEU32, which read `Filled to 165.2 h of 90.7 h`.
+  ///
+  /// The split itself is untouched. This says only which of the two sentences
+  /// the step has earned, and it is derived from the walk that made the split
+  /// for the reason [balanceStandings] gives.
+  balancedRemainder,
 
   /// The workcenter has no type, so nothing says it is like its neighbours.
   noType,
@@ -252,12 +267,22 @@ Map<int, Duration> balancedProcessTimes(List<BalanceStep> steps) => {
 /// it would be worse than no caption, and this round exists because a caveat
 /// nobody could read cost an evening.
 Map<int, BalanceStanding> balanceStandings(List<BalanceStep> steps) {
-  final balanced = balancedProcessTimes(steps);
+  // Walked as groups rather than flattened, because which member is *last* is
+  // the one thing the flattened map cannot say — and it is the difference
+  // between the two balanced standings.
+  final balanced = <int, BalanceStanding>{};
+  for (final group in balanceFlow(steps)) {
+    for (final i in group.indices) {
+      balanced[i] = i == group.indices.last
+          ? BalanceStanding.balancedRemainder
+          : BalanceStanding.balanced;
+    }
+  }
   final standings = <int, BalanceStanding>{};
 
   for (var i = 0; i < steps.length; i++) {
-    if (balanced.containsKey(i)) {
-      standings[i] = BalanceStanding.balanced;
+    if (balanced[i] case final standing?) {
+      standings[i] = standing;
       continue;
     }
     final step = steps[i];

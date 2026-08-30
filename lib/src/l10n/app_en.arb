@@ -1048,5 +1048,33 @@
         "type": "String"
       }
     }
+  },
+  "stepRebalanceRemainder": "Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.",
+  "@stepRebalanceRemainder": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "filled": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      }
+    }
+  },
+  "stepRebalanceRemainderOver": "Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its stations have.",
+  "@stepRebalanceRemainderOver": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "filled": {
+        "type": "String"
+      },
+      "capacity": {
+        "type": "String"
+      }
+    }
   }
 }

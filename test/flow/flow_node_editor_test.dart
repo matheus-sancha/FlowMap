@@ -5,6 +5,7 @@ import 'package:flowmap/src/features/flow/data/flow_queues_repository.dart';
 import 'package:flowmap/src/features/studies/application/studies_providers.dart';
 import 'package:flowmap/src/features/studies/data/studies_repository.dart';
 import 'package:flowmap/src/features/flow/application/flow_view.dart';
+import 'package:flowmap/src/features/flow/application/takt_balance.dart';
 import 'package:flowmap/src/features/flow/presentation/flow_node_editor.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -167,6 +168,146 @@ void main() {
         ),
       ],
     );
+
+    /// The caption under the rebalance switch, which is the surface §9.5 drove
+    /// and the one place the two balanced standings are told apart.
+    FlowStepView balancedStep({
+      required BalanceStanding standing,
+      required Duration processTime,
+      required Duration equivalent,
+      double rework = 0.037,
+    }) => FlowStepView(
+      FlowNode(
+        id: 'node-1',
+        studyId: 'study-1',
+        position: 0,
+        kind: FlowNodeKind.step,
+        workcenterId: 'wc-1',
+        changeoverSeconds: 0,
+        inventoryUsesWorkingTime: false,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      title: 'CEU32',
+      typeName: 'Machining - HBM',
+      poolMemberCount: null,
+      dataSource: FlowDataSource.singlePart,
+      processTime: processTime,
+      // Different from the derived share, which is what makes it balanced.
+      measuredProcessTime: const Duration(hours: 1),
+      equivalentProcessTime: equivalent,
+      standing: standing,
+      changeover: Duration.zero,
+      openPerWorkingDay: const Duration(hours: 22, minutes: 40),
+      productivePerWorkingDay: const Duration(hours: 19, minutes: 2),
+      openInPeriod: const Duration(hours: 476),
+      capacityInPeriod: const Duration(hours: 352),
+      operatorsAllocated: 3,
+      operatorsPerShift: const [1, 1, 1],
+      availability: 0.84,
+      rework: rework,
+      problems: const [],
+    );
+
+    /// The caption under the rebalance switch — the surface §9.5 drove, and
+    /// the one place the two balanced standings are told apart.
+    group('the rebalance caption (§9.5)', () {
+      testWidgets('the last member of a group is not told it filled to a takt', (
+        tester,
+      ) async {
+        // **The §9.5 finding, on the figures it was found with.** CEU32 took
+        // 165.2 h of remainder against a takt of 90.7 h and the caption written
+        // for a fill said that much content *"uses one whole takt"*. It is two
+        // takts and a bit, and the group is over capacity — which is the thing
+        // worth telling a planner and the opposite of what it said.
+        await openStep(
+          tester,
+          step: balancedStep(
+            standing: BalanceStanding.balancedRemainder,
+            processTime: const Duration(hours: 165, minutes: 12),
+            equivalent: const Duration(hours: 90, minutes: 42),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+        expect(
+          find.text(
+            l10n.stepRebalanceRemainderOver(
+              'Machining - HBM',
+              '165.2 h',
+              '90.7 h',
+            ),
+          ),
+          findsOneWidget,
+        );
+        // And emphatically not the sentence that would claim it fits.
+        expect(
+          find.text(
+            l10n.stepRebalanceOnWithRework(
+              'Machining - HBM',
+              '165.2 h',
+              '90.7 h',
+              '3.7',
+            ),
+          ),
+          findsNothing,
+        );
+      });
+
+      testWidgets('a remainder inside one takt says so without alarm', (
+        tester,
+      ) async {
+        // The other half of §7.4's "under or over": a group with slack leaves its
+        // last station short of a takt, and that is not a warning about anything.
+        // 57.1 h charged at 3.7 % is 59.2 h, inside 76.2 h.
+        await openStep(
+          tester,
+          step: balancedStep(
+            standing: BalanceStanding.balancedRemainder,
+            processTime: const Duration(hours: 57, minutes: 6),
+            equivalent: const Duration(hours: 76, minutes: 12),
+          ),
+        );
+
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        expect(
+          find.text(
+            l10n.stepRebalanceRemainder('Machining - HBM', '57.1 h', '76.2 h'),
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('a station that did fill to its takt still says so', (
+        tester,
+      ) async {
+        // The sentence §9.8 added is unchanged for the stations it was written
+        // for — this round parts the two, it does not replace one with the other.
+        await openStep(
+          tester,
+          step: balancedStep(
+            standing: BalanceStanding.balanced,
+            processTime: const Duration(hours: 73, minutes: 30),
+            equivalent: const Duration(hours: 76, minutes: 12),
+          ),
+        );
+
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        expect(
+          find.text(
+            l10n.stepRebalanceOnWithRework(
+              'Machining - HBM',
+              '73.5 h',
+              '76.2 h',
+              '3.7',
+            ),
+          ),
+          findsOneWidget,
+        );
+      });
+    });
 
     testWidgets('a bound step carries its target\'s queue, and says it is '
         'shared', (tester) async {

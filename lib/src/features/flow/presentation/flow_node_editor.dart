@@ -978,6 +978,24 @@ class _RebalanceField extends StatelessWidget {
               _hours(capacity!),
               (rework! * 100).toStringAsFixed(1),
             ),
+    // **The last member holds the remainder, not a fill**, so the sentence
+    // above would be false of it: it says the content shown uses one whole
+    // takt, and the remainder is *"allowed to be under or over"* (§7.4). Read
+    // on CEU32 while driving §9.5, where it claimed 165.2 h used one takt of
+    // 90.7 h.
+    BalanceStanding.balancedRemainder =>
+      filled == null || capacity == null
+          ? l10n.stepRebalanceOn(typeName ?? '')
+          // Over when the *charged* content passes a takt, not the measured
+          // content: rework is what the station pays on top, and comparing the
+          // two raw figures would call a station over that is not.
+          : (filled!.inSeconds * (1 + (rework ?? 0)) > capacity!.inSeconds
+                ? l10n.stepRebalanceRemainderOver
+                : l10n.stepRebalanceRemainder)(
+              typeName ?? '',
+              _hours(filled!),
+              _hours(capacity!),
+            ),
     BalanceStanding.noType => l10n.stepRebalanceNoType(stationName),
     BalanceStanding.noWorkHere => l10n.stepRebalanceNoWork,
     BalanceStanding.noLikeNeighbour => l10n.stepRebalanceNoNeighbour(
@@ -997,6 +1015,7 @@ class _RebalanceField extends StatelessWidget {
     final canApply =
         standing == null ||
         standing == BalanceStanding.balanced ||
+        standing == BalanceStanding.balancedRemainder ||
         standing == BalanceStanding.pinned;
     final reason = _reason(l10n);
 

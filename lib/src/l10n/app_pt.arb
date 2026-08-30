@@ -911,5 +911,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "stepRebalanceRemainder": "Partilha trabalho com as estações {type} adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: {filled}, dentro das {capacity} que cabem num takt.",
+  "stepRebalanceRemainderOver": "Partilha trabalho com as estações {type} adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: {filled}, acima das {capacity} que cabem num takt. O grupo precisa de mais do que as suas estações têm."
 }

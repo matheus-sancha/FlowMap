@@ -911,5 +911,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "stepRebalanceRemainder": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, dentro de las {capacity} que cabe en un takt.",
+  "stepRebalanceRemainderOver": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, por encima de las {capacity} que cabe en un takt. El grupo necesita más de lo que tienen sus estaciones."
 }

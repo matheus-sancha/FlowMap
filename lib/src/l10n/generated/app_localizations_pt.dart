@@ -1888,4 +1888,18 @@ class AppLocalizationsPt extends AppLocalizations {
   ) {
     return 'Partilha trabalho com as estações $type adjacentes. Preenchida até $filled de $capacity: com $rework% de retrabalho, esse conteúdo ocupa um takt inteiro.';
   }
+
+  @override
+  String stepRebalanceRemainder(String type, String filled, String capacity) {
+    return 'Partilha trabalho com as estações $type adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: $filled, dentro das $capacity que cabem num takt.';
+  }
+
+  @override
+  String stepRebalanceRemainderOver(
+    String type,
+    String filled,
+    String capacity,
+  ) {
+    return 'Partilha trabalho com as estações $type adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: $filled, acima das $capacity que cabem num takt. O grupo precisa de mais do que as suas estações têm.';
+  }
 }

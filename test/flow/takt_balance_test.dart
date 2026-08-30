@@ -312,11 +312,44 @@ void main() {
       ]);
 
       expect(standings[0], BalanceStanding.balanced);
-      expect(standings[1], BalanceStanding.balanced);
+      // The last member that takes a share holds the remainder rather than a
+      // fill, and says so — the two earn different sentences (§9.5).
+      expect(standings[1], BalanceStanding.balancedRemainder);
       expect(standings[2], BalanceStanding.pinned);
       expect(standings[3], BalanceStanding.noWorkHere);
       expect(standings[4], BalanceStanding.noType);
       expect(standings[5], BalanceStanding.noLikeNeighbour);
+    });
+
+    test('only the last member of a group holds the remainder', () {
+      // Three that all take a share: two fill to their own takt and the third
+      // takes what is left. The caption written for a fill is false of the
+      // third — on CEU32 it claimed 165.2 h of content used one takt of
+      // 90.7 h — so the standing has to tell them apart (§9.5).
+      final standings = balanceStandings([
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 30),
+      ]);
+
+      expect(standings[0], BalanceStanding.balanced);
+      expect(standings[1], BalanceStanding.balanced);
+      expect(standings[2], BalanceStanding.balancedRemainder);
+    });
+
+    test('a station sitting out does not become the remainder taker', () {
+      // The last *member*, not the last step of the type-run. A zero is out of
+      // the pot entirely (§7.7.1), so the remainder falls on the last station
+      // that actually has work.
+      final standings = balanceStandings([
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 30),
+        step('Cladding', measured: 0),
+      ]);
+
+      expect(standings[0], BalanceStanding.balanced);
+      expect(standings[1], BalanceStanding.balancedRemainder);
+      expect(standings[2], BalanceStanding.noWorkHere);
     });
 
     test('a lone station of its type says so', () {

@@ -1886,4 +1886,18 @@ class AppLocalizationsEs extends AppLocalizations {
   ) {
     return 'Comparte trabajo con las estaciones $type contiguas. Llenada hasta $filled de $capacity: con un $rework% de retrabajo, ese contenido ocupa un takt completo.';
   }
+
+  @override
+  String stepRebalanceRemainder(String type, String filled, String capacity) {
+    return 'Comparte trabajo con las estaciones $type contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: $filled, dentro de las $capacity que cabe en un takt.';
+  }
+
+  @override
+  String stepRebalanceRemainderOver(
+    String type,
+    String filled,
+    String capacity,
+  ) {
+    return 'Comparte trabajo con las estaciones $type contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: $filled, por encima de las $capacity que cabe en un takt. El grupo necesita más de lo que tienen sus estaciones.';
+  }
 }

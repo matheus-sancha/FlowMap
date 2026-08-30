@@ -700,6 +700,21 @@ worth more clock at a three-shift station than at a one-shift one. The last is t
 be under or over: under when the group has slack, over when it is the bottleneck — and either way the
 overflow is visible at the end of the run rather than smeared across it where nobody would see it.
 
+**So the last member reports a standing of its own, and reads a sentence of its own.** It holds a
+remainder rather than a fill, and the caption written for a fill says the content shown *"uses one
+whole takt"* — true of every station that filled, false of the one that did not. Driving §9.5 read it
+on CEU32 at `Filled to 165.2 h of 90.7 h`, which is two takts and a bit. The split is untouched;
+what changed is that `balanceStandings` now says which of the two a station earned, and the over case
+says the thing worth telling a planner: **the group needs more than its stations have.** Over is
+judged on the *charged* content — `filled × (1 + rework)` against one takt — because rework is what the
+station pays on top, and comparing the raw figures would call a station over that is not.
+
+**Levelling the group instead was put to the field on 2026-08-29 and declined.** Filling the first
+member pins it at 100 % occupation by construction, which on célula 11D left CLAD06 at 100 % across
+its whole active window while CLAD17 ran at 33 %; levelling would have read 89 % and 43 %. **The rule
+is a description of how the cell runs**, not a simplification of it, and the field's words above
+stand. `TODO.md` §11 carries the numbers it was judged on.
+
 **The split is derived, never written.** What is stored is what was measured at each station, exactly
 as before; the group's work content is the sum of those, and the split is computed against the takt in
 force. Change the takt and the balance follows with no action, which is the whole ask. It is also

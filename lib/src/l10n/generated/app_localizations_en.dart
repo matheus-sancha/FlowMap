@@ -1868,4 +1868,18 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return 'Sharing work with the adjacent $type stations. Filled to $filled of $capacity — $rework% rework means that much content uses one whole takt.';
   }
+
+  @override
+  String stepRebalanceRemainder(String type, String filled, String capacity) {
+    return 'Sharing work with the adjacent $type stations. They fill to their takt and this one takes what is left — $filled, inside the $capacity one takt holds.';
+  }
+
+  @override
+  String stepRebalanceRemainderOver(
+    String type,
+    String filled,
+    String capacity,
+  ) {
+    return 'Sharing work with the adjacent $type stations. They fill to their takt and this one takes what is left — $filled, past the $capacity one takt holds. The group needs more than its stations have.';
+  }
 }
