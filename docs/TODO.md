@@ -37,7 +37,7 @@ first. Nothing here restates a decision — it points at the one place each live
 
 | # | Phase | Schema | Ticket |
 |---|---|---|---|
-| 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) |
+| 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **built, drive owed** |
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) |
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
@@ -72,8 +72,17 @@ A queue was only ever keyed by its target, so it does not need a name of its own
 name, only 2 of 25 steps carry a label and both spell one pool differently, and no spine revisits a
 target. **Stored runs survive untouched.**
 
-**Evidence owed:** a live-database check — the 15 names and the 2 labels gone, every caption
-derived — plus one drive of the flow map's process boxes, which is where the caption is read.
+**Evidence — the live-database check is done** (`2f0e4c2`). The migration ran against a copy of
+the real 149 MB database: it upgraded to v27, `PRAGMA integrity_check` returned `ok`, both columns
+are gone, and **all 15 queues and all 25 steps survived** with 250 orders, 147 runs and 189,623
+step rows untouched. Seven of the fifteen are untyped, exactly the seven #5 predicted, and every
+caption derives — including `FIFO · CLAD Pool - Célula 11B/C`, the pool whose own name contains a
+hyphen and is why the separator is a middot. `live_db_check_test.dart` carries the assertions.
+
+**Still owed: one drive of the flow map's process boxes**, which is where the caption is read and
+what the suite cannot see. Look for: the seven lanes that used to print `FIFO CEU27` over a push
+arrow now reading `Queue · CEU27`; the pool's caption ellipsising rather than wrapping; and the
+step dialog's single queue section, whose heading is the caption the box will draw.
 
 ---
 

@@ -342,7 +342,8 @@ class GanttLaneRow extends GanttBand {
 
   final String laneNodeId;
 
-  /// `FIFO CEU27`, or a stand-in when the buffer was never labelled.
+  /// `FIFO · CEU27` — derived from the lane's rule and the station it feeds
+  /// since v27, or, on a run stored before then, the name that was typed.
   @override
   final String name;
 
@@ -437,10 +438,27 @@ class GanttChart {
 /// readings of the same stored run — but a bar that cannot be labelled is a bar
 /// nothing can be said about, and drawing it anonymously would be worse than
 /// leaving the row a little short.
+/// What a lane band is called, given the lane the run stored (#5, v27).
+///
+/// **A callback, because the caption is localized and this file is pure.** Since
+/// v27 a new run stores no lane name: the caption is `<type> · <target>`, both
+/// halves of which the run already copies in — the lane's `rule` and the
+/// station's name — so it is derived at render and reads in the reader's own
+/// language. Runs stored before v27 carry the name that was typed, and the
+/// default below draws it.
+typedef GanttLaneCaption = String Function(SimLane lane);
+
+/// The fallback: what the run stored, or a stand-in where nothing was.
+///
+/// Kept so `buildGanttChart` still has one argument in a test and in any caller
+/// that predates v27's caption.
+String _storedLaneName(SimLane lane) => lane.name ?? _unnamedLane;
+
 GanttChart buildGanttChart({
   required SimRunResult result,
   required RunMetrics metrics,
   bool includeLanes = true,
+  GanttLaneCaption laneCaption = _storedLaneName,
 }) {
   final parts = <GanttPart>[
     for (var i = 0; i < metrics.parts.length; i++)
@@ -592,6 +610,7 @@ GanttChart buildGanttChart({
           partsById: partsById,
           ordersById: ordersById,
           groupOf: groupOf,
+          laneCaption: laneCaption,
           poolNameOf: {
             for (final station in metrics.workcenters)
               if (station.poolId != null && station.poolName != null)
@@ -665,6 +684,7 @@ Map<String, List<GanttLaneRow>> _laneRows({
   required Map<String, GanttPart> partsById,
   required Map<String, SimOrderOutcome> ordersById,
   required Map<String, String> groupOf,
+  required GanttLaneCaption laneCaption,
   required Map<String, String> poolNameOf,
 }) {
   if (result.lanes.isEmpty) return const {};
@@ -744,7 +764,7 @@ Map<String, List<GanttLaneRow>> _laneRows({
     rows.putIfAbsent(entry.value, () => []).add(
       GanttLaneRow(
         laneNodeId: lane.nodeId,
-        name: lane.name ?? _unnamedLane,
+        name: laneCaption(lane),
         poolName: poolNameOf[entry.value],
         capacity: lane.capacity,
         depth: depth,

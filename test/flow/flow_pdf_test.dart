@@ -156,6 +156,7 @@ void main() {
       view: viewWith([step(0), step(1)], queues: stocked),
       strings: strings,
       formatDuration: _Format().call,
+      queueCaption: _caption,
     );
 
     expect(bytes, isNotEmpty);
@@ -172,11 +173,13 @@ void main() {
       view: viewWith([step(0, notes: 'Operator waits for the crane')]),
       strings: strings,
       formatDuration: _Format().call,
+      queueCaption: _caption,
     );
     final without = await buildFlowPdf(
       view: viewWith([step(0)]),
       strings: strings,
       formatDuration: _Format().call,
+      queueCaption: _caption,
     );
 
     expect(withNotes, isNotEmpty);
@@ -190,6 +193,7 @@ void main() {
       view: viewWith(const []),
       strings: strings,
       formatDuration: _Format().call,
+      queueCaption: _caption,
     );
     expect(bytes, isNotEmpty);
   });
@@ -214,6 +218,7 @@ void main() {
       view: view,
       strings: strings,
       formatDuration: _Format().call,
+      queueCaption: _caption,
     );
     expect(bytes, isNotEmpty);
   });
@@ -226,6 +231,7 @@ void main() {
         view: view,
         strings: strings,
         formatDuration: format.call,
+        queueCaption: _caption,
       );
 
       final rung = view.nodes.single;
@@ -249,6 +255,7 @@ void main() {
         view: view,
         strings: strings,
         formatDuration: format.call,
+        queueCaption: _caption,
       );
 
       final wait = view.queues.single;
@@ -268,6 +275,7 @@ void main() {
         view: view,
         strings: strings,
         formatDuration: format.call,
+        queueCaption: _caption,
       );
 
       // Measured against the box beside each, the way every other rung is
@@ -298,6 +306,7 @@ void main() {
         view: viewWith([step(0)]),
         strings: strings,
         formatDuration: bare.call,
+        queueCaption: _caption,
       );
 
       final counted = _Format();
@@ -305,6 +314,7 @@ void main() {
         view: viewWith([step(0)], inbound: 2, outbound: 1),
         strings: strings,
         formatDuration: counted.call,
+        queueCaption: _caption,
       );
 
       expect(counted.calls, hasLength(bare.calls.length + 4));
@@ -317,6 +327,7 @@ void main() {
         view: view,
         strings: strings,
         formatDuration: format.call,
+        queueCaption: _caption,
       );
 
       expect(view.leadTimeInDays, closeTo(2, 1e-9));
@@ -330,3 +341,16 @@ void main() {
     });
   });
 }
+
+
+/// The caption the app derives, spelled out here so the page under test says
+/// what the screen says (#5, v27). A test has no `AppLocalizations`, so the
+/// short type names are written literally — which is also what keeps this a
+/// check on the *page* rather than on the l10n bundle.
+String _caption(FlowQueueView queue) => switch (queue.rule) {
+  null => 'Queue · ${queue.targetName}',
+  DispatchRule.fifo => 'FIFO · ${queue.targetName}',
+  DispatchRule.lifo => 'LIFO · ${queue.targetName}',
+  DispatchRule.earliestDueDate => 'EDD · ${queue.targetName}',
+  DispatchRule.shortestProcessing => 'SPT · ${queue.targetName}',
+};

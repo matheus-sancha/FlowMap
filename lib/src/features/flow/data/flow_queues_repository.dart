@@ -38,13 +38,13 @@ class FlowQueuesRepository {
   ///
   /// **Every field is passed on every call**, and null means "unset" rather
   /// than "leave alone". The editor is a dialog over the whole queue — the
-  /// name, the discipline, the capacity and what is standing there — so a
-  /// partial write would be a second way to reach one row, and §12.6 is the
-  /// record of what two write paths into one row cost.
+  /// discipline, the capacity and what is standing there — so a partial write
+  /// would be a second way to reach one row, and §12.6 is the record of what two
+  /// write paths into one row cost. (The name went in v27: a queue is an aspect
+  /// of its target and its caption is derived, so there is nothing to write.)
   Future<void> saveQueue({
     required String projectId,
     required String targetId,
-    String? name,
     DispatchRule? rule,
     int? capacity,
     InventoryMode? stockMode,
@@ -59,7 +59,6 @@ class FlowQueuesRepository {
           ProjectQueuesCompanion.insert(
             projectId: projectId,
             targetId: targetId,
-            name: Value(name),
             rule: Value(rule),
             capacity: Value(capacity),
             stockMode: Value(stockMode),
@@ -75,7 +74,6 @@ class FlowQueuesRepository {
           // on every edit.
           onConflict: DoUpdate(
             (_) => ProjectQueuesCompanion(
-              name: Value(name),
               rule: Value(rule),
               capacity: Value(capacity),
               stockMode: Value(stockMode),

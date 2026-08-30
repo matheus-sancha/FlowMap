@@ -222,7 +222,6 @@ SimStudy? assembleSimStudy({
             id: node.id,
             position: node.position,
             title: flowStepTitle(
-              node,
               workcenterName: resources.workcenterNames[node.workcenterId],
               poolName: resources.poolNames[node.poolId],
             ),

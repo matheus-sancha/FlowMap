@@ -54,7 +54,6 @@ Future<void> showInsertNodeMenu(
         balanceDisabled: draft.balanceDisabled,
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
-        label: draft.label,
         notes: draft.notes,
       );
   await _saveQueue(ref, projectId: study.projectId, draft: draft);
@@ -62,13 +61,13 @@ Future<void> showInsertNodeMenu(
 
 /// Writes the step's queue, and only when the dialog says it changed.
 ///
-/// **A step's dialog is opened to change a label far more often than to change a
-/// queue**, and the row it would write is shared by every study whose flow
-/// reaches that target (§7.3) — five of them on the real database. Writing on
-/// every save would let one study revert another's capacity by renaming a step,
-/// without either of them seeing it happen. So `_StepDraft.queue` is null unless
-/// a queue field actually differs from what the dialog loaded, and a target
-/// nobody has described keeps no row at all.
+/// **A step's dialog is opened to change its notes or its times far more often
+/// than to change a queue**, and the row it would write is shared by every study
+/// whose flow reaches that target (§7.3) — five of them on the real database.
+/// Writing on every save would let one study revert another's capacity without
+/// either of them seeing it happen. So `_StepDraft.queue` is null unless a queue
+/// field actually differs from what the dialog loaded, and a target nobody has
+/// described keeps no row at all.
 Future<void> _saveQueue(
   WidgetRef ref, {
   required String projectId,
@@ -83,7 +82,6 @@ Future<void> _saveQueue(
       .saveQueue(
         projectId: projectId,
         targetId: targetId,
-        name: queue.name,
         rule: queue.rule,
         capacity: queue.capacity,
         stockMode: queue.stockMode,
@@ -144,7 +142,6 @@ Future<void> showStepEditor(
         balanceDisabled: draft.balanceDisabled,
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
-        label: draft.label,
         notes: draft.notes,
       );
       await _saveQueue(ref, projectId: study.projectId, draft: draft);
@@ -197,7 +194,6 @@ class _StepDraft implements _StepResult {
     this.balanceDisabled,
     this.equivalentValue,
     this.equivalentUnit,
-    this.label,
     this.notes,
     this.queue,
   });
@@ -228,8 +224,6 @@ class _StepDraft implements _StepResult {
   final double? equivalentValue;
   final TaktUnit? equivalentUnit;
 
-  final String? label;
-
 
   /// What a current-state walk found here — a problem, an opportunity, a
   /// question to come back to (§5.4). Free text, on the node, affecting no
@@ -249,7 +243,6 @@ class _StepDraft implements _StepResult {
 /// path into a row two studies read (§12.6).
 class _QueueDraft {
   const _QueueDraft({
-    this.name,
     this.rule,
     this.capacity,
     this.stockMode,
@@ -258,11 +251,8 @@ class _QueueDraft {
     this.stockUnit,
   });
 
-  /// `FIFO CEU27` — what the floor calls this space.
-  final String? name;
-
-  /// How the station ahead picks out of it, or null for a push: material piles
-  /// up and nobody has decided in what order it comes off (§7.3).
+  /// How the station ahead picks out of it, or null for an untyped queue:
+  /// material piles up and nobody has decided in what order it comes off (§7.3).
   final DispatchRule? rule;
 
   /// Orders that fit, or null for unlimited.
@@ -278,12 +268,11 @@ class _QueueDraft {
   final DurationUnit? stockUnit;
 
   /// **Compared by value**, because that comparison is the rule: the dialog
-  /// keeps what it loaded and writes nothing when the two are equal, so a label
-  /// edit cannot rewrite a row two studies share (§12.6).
+  /// keeps what it loaded and writes nothing when the two are equal, so editing
+  /// a step cannot rewrite a queue row two studies share (§12.6).
   @override
   bool operator ==(Object other) =>
       other is _QueueDraft &&
-      other.name == name &&
       other.rule == rule &&
       other.capacity == capacity &&
       other.stockMode == stockMode &&
@@ -293,7 +282,6 @@ class _QueueDraft {
 
   @override
   int get hashCode => Object.hash(
-    name,
     rule,
     capacity,
     stockMode,
@@ -364,9 +352,6 @@ class _StepDialogState extends State<_StepDialog> {
   /// §7.7.4's pin, held as the positive question the checkbox asks. Null in
   /// storage means off, so a step that has never been asked reads as on.
   late bool _rebalances = !(widget.existing?.node.balanceDisabled ?? false);
-  late final TextEditingController _label = TextEditingController(
-    text: widget.existing?.node.label ?? '',
-  );
   late final TextEditingController _notes = TextEditingController(
     text: widget.existing?.node.notes ?? '',
   );
@@ -377,11 +362,10 @@ class _StepDialogState extends State<_StepDialog> {
   // moves, so the heading and the row that Save writes are always the same
   // station. The controllers are rebuilt in place rather than recreated: a
   // `TextEditingController` outlives the value it is showing.
-  final TextEditingController _queueName = TextEditingController();
   final TextEditingController _queueCapacity = TextEditingController();
   final TextEditingController _stockQuantity = TextEditingController();
   final TextEditingController _stockWait = TextEditingController();
-  _QueueType _queueType = _QueueType.push;
+  _QueueType _queueType = _QueueType.queue;
   InventoryMode _stockMode = InventoryMode.quantity;
   DurationUnit _stockUnit = DurationUnit.hours;
 
@@ -491,7 +475,6 @@ class _StepDialogState extends State<_StepDialog> {
   void _loadQueue() {
     final row = widget.queues[_targetId];
     _queueType = _QueueType.of(row?.rule);
-    _queueName.text = row?.name ?? '';
     _queueCapacity.text = row?.capacity?.toString() ?? '';
     _stockMode = row?.stockMode ?? InventoryMode.quantity;
     _stockQuantity.text = '${row?.stockQuantity ?? 0}';
@@ -504,10 +487,8 @@ class _StepDialogState extends State<_StepDialog> {
 
   /// The queue section as it stands, ready to be stored or compared.
   _QueueDraft _queueDraft() {
-    final name = _queueName.text.trim();
     final isDuration = _stockMode == InventoryMode.duration;
     return _QueueDraft(
-      name: name.isEmpty ? null : name,
       rule: _queueType.rule,
       capacity: _queueCapacityValue,
       stockMode: _stockMode,
@@ -575,9 +556,7 @@ class _StepDialogState extends State<_StepDialog> {
     _teardown.dispose();
     _samePart.dispose();
     _equivalent.dispose();
-    _label.dispose();
     _notes.dispose();
-    _queueName.dispose();
     _queueCapacity.dispose();
     _stockQuantity.dispose();
     _stockWait.dispose();
@@ -631,14 +610,10 @@ class _StepDialogState extends State<_StepDialog> {
                 }),
               ),
               const SizedBox(height: 12),
-              // Label second: what this step *is*, then what it is called, then
-              // what it costs. The order the field asked for, and the order they
-              // are read in.
-              TextField(
-                controller: _label,
-                decoration: InputDecoration(labelText: l10n.flowNodeLabel),
-              ),
-              const SizedBox(height: 12),
+              // **No Label field** (#5, v27). What this step *is* was the
+              // station above; what it costs is below. The caption in between
+              // let a box be called something its station was not, and was only
+              // ever used to shorten a target name that did not fit.
               _ValueAndUnit(
                 controller: _equivalent,
                 unit: _equivalentUnit,
@@ -716,7 +691,15 @@ class _StepDialogState extends State<_StepDialog> {
               // that names no station, and nothing to key a row by.
               if (_targetId != null) ...[
                 const SizedBox(height: 16),
-                _FieldGroup(label: l10n.flowQueueTitle(_targetName)),
+                // **Headed by the caption the map will draw** (#5, v27), so the
+                // dialog and the box cannot disagree about what this queue is
+                // called — and so choosing a type visibly renames it.
+                _FieldGroup(
+                  label: flowQueueCaption(
+                    queueTypeShortLabel(l10n, _queueType.rule),
+                    _targetName,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 // **Said, not left to be discovered.** One queue per station is
                 // the whole correction §7.3 made, and a planner editing this
@@ -738,12 +721,6 @@ class _StepDialogState extends State<_StepDialog> {
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: _queueName,
-                  decoration: InputDecoration(labelText: l10n.flowQueueName),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 12),
-                TextField(
                   controller: _queueCapacity,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
@@ -762,7 +739,22 @@ class _StepDialogState extends State<_StepDialog> {
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 16),
-                _FieldGroup(label: l10n.flowQueueStock),
+                // **One section, not two** (#5, v27). The discipline and the
+                // stock were never two rows — `project_queues` has held both
+                // since v19 — and a second heading was what made them look like
+                // two things. §16.16's correction survives untouched: an
+                // observation must not be read as a rule, and it lives in this
+                // label and the help text on the fields, which is where it was
+                // actually put.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.flowQueueStock,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 SegmentedButton<InventoryMode>(
                   segments: [
@@ -848,7 +840,6 @@ class _StepDialogState extends State<_StepDialog> {
                   _stockInvalid
               ? null
               : () {
-                  final label = _label.text.trim();
                   final notes = _notes.text.trim();
                   final equivalent = _equivalentValue;
                   final queue = _targetId == null ? null : _queueDraft();
@@ -882,7 +873,6 @@ class _StepDialogState extends State<_StepDialog> {
                       equivalentUnit: equivalent == null
                           ? null
                           : _equivalentUnit,
-                      label: label.isEmpty ? null : label,
                       // Emptying the box clears the note rather than storing a
                       // blank one, so "no findings here" and "a finding that
                       // happens to be empty" stay the same thing.
@@ -1194,7 +1184,12 @@ class _NodeActionsRow extends StatelessWidget {
 /// matches its value, so two entries sharing `null` throws at mount — which is
 /// what the test that opens this dialog found.
 enum _QueueType {
-  push(null),
+  /// **Renamed from `push` in v27** (#5). The dropdown says what the lane *is*;
+  /// `FlowConnectionKind.push` and the striped VSM arrow keep the word, because
+  /// §5.2's symbols say how material *moves* into a lane and push is the
+  /// standard VSM word for that. The same null still draws a *pull* arrow when
+  /// the study has a WIP cap.
+  queue(null),
   fifo(DispatchRule.fifo),
   lifo(DispatchRule.lifo),
   earliestDueDate(DispatchRule.earliestDueDate),
@@ -1206,11 +1201,11 @@ enum _QueueType {
   /// What is stored, or null for the two that store nothing.
   final DispatchRule? rule;
 
-  /// Null is a push rather than a supermarket: an unset row is a pile nobody
-  /// has described, and the one entry that cannot be chosen can never be what
-  /// was stored.
+  /// Null is an untyped queue rather than a supermarket: an unset row is a line
+  /// nobody has given a rule to, and the one entry that cannot be chosen can
+  /// never be what was stored.
   static _QueueType of(DispatchRule? rule) => switch (rule) {
-    null => _QueueType.push,
+    null => _QueueType.queue,
     DispatchRule.fifo => _QueueType.fifo,
     DispatchRule.lifo => _QueueType.lifo,
     DispatchRule.earliestDueDate => _QueueType.earliestDueDate,
@@ -1263,7 +1258,7 @@ class _QueueTypeField extends StatelessWidget {
             enabled: type != _QueueType.supermarket,
             child: Text(
               switch (type) {
-                _QueueType.push => l10n.queueTypePush,
+                _QueueType.queue => l10n.queueTypeQueue,
                 _QueueType.supermarket => l10n.queueTypeSupermarket,
                 _ => dispatchRuleLabel(l10n, type.rule!),
               },

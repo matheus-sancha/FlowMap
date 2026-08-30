@@ -45,6 +45,41 @@ String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
       DispatchRule.shortestProcessing => l10n.dispatchShortestProcessing,
     };
 
+/// The same rule, short enough to caption a 140 pt process box (#5, v27).
+///
+/// **A second name rather than a shorter first one.** [dispatchRuleLabel] is
+/// read in a dropdown, where a reader is *choosing* a rule and needs to know
+/// what it does — `Earliest need date` earns its width there. `flowQueueCaption`
+/// is read on the map, where a reader already set the rule and needs reminding
+/// which one; `Earliest need date · CLAD07` ellipsises away the part that
+/// identifies it, which is the caption's only job.
+///
+/// **EDD and SPT are untranslated, like FIFO and LIFO already are.** All three
+/// ARB files carry those two verbatim, so the four rules read as one set of
+/// scheduling acronyms and the caption is the same width in every language.
+/// They are the standard names in the scheduling literature. The two types that
+/// are *not* acronyms — the untyped lane and the supermarket — do translate.
+String dispatchRuleShortLabel(AppLocalizations l10n, DispatchRule rule) =>
+    switch (rule) {
+      DispatchRule.fifo => l10n.queueShortFifo,
+      DispatchRule.lifo => l10n.queueShortLifo,
+      DispatchRule.earliestDueDate => l10n.queueShortEarliestDueDate,
+      DispatchRule.shortestProcessing => l10n.queueShortShortestProcessing,
+    };
+
+/// What a *queue* is called, which is a rule or the absence of one.
+///
+/// **Null is `Queue`, not FIFO.** §5.5 is explicit that an unset rule is not the
+/// same statement as FIFO even though the engine runs it that way — choosing
+/// FIFO in the editor *is* the statement that the lane is sequenced, and nobody
+/// made it on 7 of the live database's 15 queues. Those seven are *named*
+/// `FIFO …` and have `rule = null`; the name was stale text from before the
+/// column existed, and the map already drew them with a push arrow while
+/// printing `FIFO CEU27` over it. Dropping the name resolves that disagreement
+/// in favour of what is stored.
+String queueTypeShortLabel(AppLocalizations l10n, DispatchRule? rule) =>
+    rule == null ? l10n.queueShortQueue : dispatchRuleShortLabel(l10n, rule);
+
 /// Why a release slot produced nothing (DESIGN.md §7.2).
 ///
 /// The three gates §7.2 checks, named rather than counted: *which* one held the

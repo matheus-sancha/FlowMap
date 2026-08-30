@@ -429,7 +429,11 @@ class SimulationRunsRepository {
               runId: runId,
               studyId: entry.value.study.id,
               nodeId: entry.key,
-              name: Value(entry.value.node.queue.name),
+              // **Null since v27** (#5). The 147 runs stored before it keep the
+              // caption they were saved with and draw it; a run stored now
+              // derives one from `rule` and the station's name, both of which
+              // this table and `simulation_run_workcenters` already carry.
+              name: const Value(null),
               position: entry.value.node.position,
               rule: Value(entry.value.node.queue.rule.name),
               capacity: Value(entry.value.node.queue.capacity),
@@ -603,6 +607,9 @@ class SimulationRunsRepository {
             nodeId: row.nodeId,
             position: row.position,
             name: row.name,
+            rule: row.rule == null
+                ? null
+                : DispatchRule.values.asNameMap()[row.rule!],
             capacity: row.capacity,
           ),
       ],

@@ -1254,7 +1254,11 @@ class _Engine {
             studyId: entry.value.study.id,
             nodeId: entry.key,
             position: entry.value.node.position,
-            name: entry.value.node.queue.name,
+            // **No name since v27** (#5): the caption is `<type> · <target>`
+            // and both halves are already on the run, so it is derived at
+            // render and reads in the reader's language rather than being
+            // frozen in whoever's ran it.
+            rule: entry.value.node.queue.rule,
             capacity: entry.value.node.queue.capacity,
           ),
       ],

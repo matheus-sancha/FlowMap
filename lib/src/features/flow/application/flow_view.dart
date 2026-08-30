@@ -136,22 +136,49 @@ enum StepProblem {
   noProcessTime,
 }
 
-/// What a process box is labelled: the step's own label if it has one, else the
-/// workcenter's or the pool's name (DESIGN.md §5.4).
+/// What a process box is labelled: its station (DESIGN.md §5.4).
 ///
-/// Shared with the demand grid, whose columns *are* these boxes — so a step
-/// renamed on the map renames its column, and the two can never disagree about
-/// which step is which.
-String flowStepTitle(
-  FlowNode step, {
+/// **A box is its station, and it takes one name** (#5, v27). The step's own
+/// `label` used to win over this and is gone: only 2 of the live database's 25
+/// steps carried one, both on the *same* step in two studies, spelling one pool
+/// `Clad Pool` and `CLAD Pool`. That is the identical failure §16.20's fold
+/// caught between `FIFO BAN` and `FIFO BAN11` — the label was not naming a
+/// visit, it was working around a target name too long for a 140 pt box.
+///
+/// _Rejected: keeping it to tell two visits to one station apart._ §16.22 is
+/// the argument for it — a routing goes back to a machine because the second
+/// pass is a different operation. But **no spine in the live database revisits
+/// a target**, and `PartProcessTimes` is keyed by `nodeId`, so two passes keep
+/// two columns of data whatever they are captioned; only the *heading* would
+/// repeat. The day a real routing doubles back is the day to derive a
+/// disambiguator from the revisit — `CLAD07 (2)` — rather than type one.
+///
+/// Shared with the demand grid, whose columns *are* these boxes, so the two can
+/// never disagree about which step is which.
+String flowStepTitle({
   required String? workcenterName,
   required String? poolName,
 }) {
-  final label = step.label;
-  if (label != null && label.isNotEmpty) return label;
-  final name = step.poolId != null ? poolName : workcenterName;
+  final name = poolName ?? workcenterName;
   return (name == null || name.isEmpty) ? '—' : name;
 }
+
+/// What the queue in front of a target is called — derived, never typed
+/// (#5, v27).
+///
+/// **`<type> · <target>`**: `FIFO · CLAD07`, and `Queue · CEU27` for a lane
+/// nobody has given a discipline. The type is the only new information the line
+/// carries; the target is named with its own name, never a mangled one.
+///
+/// **A middot rather than the hyphen the ticket wrote**, because the app's one
+/// pool is named `CLAD Pool - Célula 11B/C` and `FIFO - CLAD Pool - Célula
+/// 11B/C` is three dash-separated segments with nothing to say which dash is
+/// the app's. The middot is already this app's qualifier separator — the Gantt
+/// writes `CLAD Pool · CLAD04` for a pooled row and its legend `part · study`.
+String flowQueueCaption(String type, String? targetName) =>
+    (targetName == null || targetName.isEmpty)
+    ? type
+    : '$type · $targetName';
 
 /// How the material flow between two boxes is drawn (DESIGN.md §5.2, §7.3).
 ///
@@ -243,7 +270,6 @@ class FlowQueueView {
     required this.targetId,
     required this.targetName,
     required this.wait,
-    this.name,
     this.rule,
     this.capacity,
     this.quantity,
@@ -256,16 +282,17 @@ class FlowQueueView {
   /// under, and what the editor writes back to.
   final String targetId;
 
-  /// `CLAD04` or `CAL Pool` — the station's own name, not the step's label.
+  /// `CLAD04` or `CAL Pool` — the station's own name.
   ///
   /// The editor names the target and says the queue is shared by every step
-  /// that feeds it (§7.3), and a step's label is what *this* study calls its
-  /// visit; the other study's step may call it something else, and both wait in
-  /// the same line.
+  /// that feeds it (§7.3). Since v27 it is also the *only* name in play: a
+  /// step's label is gone, so both studies reaching CLAD07 caption their box and
+  /// their queue from this.
+  ///
+  /// **The caption is derived from it and the type**, never stored — see
+  /// [flowQueueCaption]. The queue's own `name` column went with the label
+  /// (#5): all 15 in the live database were `FIFO ` plus a mangled form of this.
   final String targetName;
-
-  /// `FIFO CEU27` — what the shop floor calls this floor space.
-  final String? name;
 
   /// The discipline someone set, or null for an uncontrolled pile. Null is not
   /// the same as FIFO here even though the engine treats it so: see
@@ -1075,7 +1102,6 @@ FlowStepView _buildStep({
   }
 
   final title = flowStepTitle(
-    node,
     workcenterName: workcenterName,
     poolName: poolName,
   );
@@ -1334,7 +1360,6 @@ FlowQueueView? _buildQueue({
   return FlowQueueView(
     targetId: targetId,
     targetName: targetName,
-    name: row?.name,
     rule: row?.rule,
     capacity: row?.capacity,
     wait: mode == InventoryMode.quantity

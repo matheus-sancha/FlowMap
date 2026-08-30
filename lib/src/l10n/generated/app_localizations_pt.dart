@@ -1769,13 +1769,31 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get flowQueueTypeHelp =>
-      'Como a estação seguinte escolhe a próxima ordem desta fila. Um empurre é uma pilha à qual ninguém deu uma ordem; as quatro regras são canais, e o mapa desenha cada uma diferente.';
+      'Como a estação seguinte escolhe a próxima ordem desta fila. Uma fila sem tipo é uma fila à qual ninguém deu uma regra; as quatro regras são disciplinas, e o mapa desenha cada uma diferente. A legenda da fila no mapa é este tipo e a estação diante da qual ela está.';
 
   @override
   String get flowQueueStock => 'O que está aqui agora';
 
   @override
-  String get queueTypePush => 'Empurre — uma pilha, sem regra';
+  String get queueTypeQueue => 'Fila — uma fila, sem regra';
+
+  @override
+  String get queueShortFifo => 'FIFO';
+
+  @override
+  String get queueShortLifo => 'LIFO';
+
+  @override
+  String get queueShortEarliestDueDate => 'EDD';
+
+  @override
+  String get queueShortShortestProcessing => 'SPT';
+
+  @override
+  String get queueShortQueue => 'Fila';
+
+  @override
+  String get queueShortSupermarket => 'Supermercado';
 
   @override
   String get queueTypeSupermarket => 'Supermercado — ainda não';

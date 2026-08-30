@@ -126,7 +126,6 @@ class SimulationRepository {
       )..where((q) => q.projectId.equals(project.id))).get())
         row.targetId: SimQueue(
           targetId: row.targetId,
-          name: row.name,
           rule: row.rule ?? DispatchRule.fifo,
           capacity: row.capacity,
           // Raw, for the assembler to resolve against each study's takt.

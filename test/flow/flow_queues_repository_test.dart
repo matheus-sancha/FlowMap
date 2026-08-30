@@ -46,7 +46,6 @@ void main() {
     await queues.saveQueue(
       projectId: projectId,
       targetId: 'wc-1',
-      name: 'FIFO CEU27',
       rule: DispatchRule.lifo,
       capacity: 2,
       stockMode: InventoryMode.duration,
@@ -55,8 +54,7 @@ void main() {
     );
 
     final row = await read('wc-1');
-    expect(row!.name, 'FIFO CEU27');
-    expect(row.rule, DispatchRule.lifo);
+    expect(row!.rule, DispatchRule.lifo);
     expect(row.capacity, 2);
     expect(row.stockMode, InventoryMode.duration);
     expect(row.stockSeconds, 48 * 3600);
@@ -69,13 +67,11 @@ void main() {
     await queues.saveQueue(
       projectId: projectId,
       targetId: 'wc-1',
-      name: 'FIFO CEU27',
       rule: DispatchRule.fifo,
     );
     await queues.saveQueue(
       projectId: projectId,
       targetId: 'wc-1',
-      name: 'FIFO CEU27',
       rule: DispatchRule.earliestDueDate,
     );
 

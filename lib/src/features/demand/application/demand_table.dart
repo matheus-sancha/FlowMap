@@ -64,7 +64,6 @@ List<DemandColumn> demandColumnsOf({
         nodeId: node.id,
         targetId: demandTargetOf(node),
         title: flowStepTitle(
-          node,
           workcenterName: workcenterNames[node.workcenterId],
           poolName: poolNames[node.poolId],
         ),

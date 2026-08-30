@@ -94,12 +94,12 @@ void main() {
       await studies.insertStep(
         studyId: studyId,
         atPosition: 1,
-        label: 'Wedged in',
+        notes: 'Wedged in',
       );
 
       final nodes = await studies.loadNodes(studyId);
       expect(nodes.map((n) => n.position), [0, 1, 2]);
-      expect(nodes.map((n) => n.label), [null, 'Wedged in', null]);
+      expect(nodes.map((n) => n.notes), [null, 'Wedged in', null]);
       expect(nodes.last.workcenterId, workcenterB);
     });
 
@@ -112,47 +112,47 @@ void main() {
 
     test('deleting closes the gap', () async {
       for (var i = 0; i < 4; i++) {
-        await studies.insertStep(studyId: studyId, atPosition: i, label: 'S$i');
+        await studies.insertStep(studyId: studyId, atPosition: i, notes: 'S$i');
       }
       final nodes = await studies.loadNodes(studyId);
       await studies.deleteNode(studyId, nodes[1].id);
 
       final after = await studies.loadNodes(studyId);
       expect(after.map((n) => n.position), [0, 1, 2]);
-      expect(after.map((n) => n.label), ['S0', 'S2', 'S3']);
+      expect(after.map((n) => n.notes), ['S0', 'S2', 'S3']);
     });
 
     test('moving a node forward keeps everything else in order', () async {
       for (var i = 0; i < 4; i++) {
-        await studies.insertStep(studyId: studyId, atPosition: i, label: 'S$i');
+        await studies.insertStep(studyId: studyId, atPosition: i, notes: 'S$i');
       }
 
       await studies.moveNode(studyId, 0, 2);
 
       final after = await studies.loadNodes(studyId);
-      expect(after.map((n) => n.label), ['S1', 'S2', 'S0', 'S3']);
+      expect(after.map((n) => n.notes), ['S1', 'S2', 'S0', 'S3']);
       expect(after.map((n) => n.position), [0, 1, 2, 3]);
     });
 
     test('moving a node backward keeps everything else in order', () async {
       for (var i = 0; i < 4; i++) {
-        await studies.insertStep(studyId: studyId, atPosition: i, label: 'S$i');
+        await studies.insertStep(studyId: studyId, atPosition: i, notes: 'S$i');
       }
 
       await studies.moveNode(studyId, 3, 0);
 
       final after = await studies.loadNodes(studyId);
-      expect(after.map((n) => n.label), ['S3', 'S0', 'S1', 'S2']);
+      expect(after.map((n) => n.notes), ['S3', 'S0', 'S1', 'S2']);
       expect(after.map((n) => n.position), [0, 1, 2, 3]);
     });
 
     test('moving to the same place changes nothing', () async {
       for (var i = 0; i < 3; i++) {
-        await studies.insertStep(studyId: studyId, atPosition: i, label: 'S$i');
+        await studies.insertStep(studyId: studyId, atPosition: i, notes: 'S$i');
       }
       await studies.moveNode(studyId, 1, 1);
       final after = await studies.loadNodes(studyId);
-      expect(after.map((n) => n.label), ['S0', 'S1', 'S2']);
+      expect(after.map((n) => n.notes), ['S0', 'S1', 'S2']);
     });
 
     test('a step equivalent round-trips, value and unit together', () async {
@@ -420,7 +420,7 @@ void main() {
 
     test('editing the copy does not touch the original', () async {
       final source = await newStudy();
-      await studies.insertStep(studyId: source, atPosition: 0, label: 'Step');
+      await studies.insertStep(studyId: source, atPosition: 0, notes: 'Step');
       final copyId = await studies.duplicateStudy(
         source,
         newName: 'Scenario B',

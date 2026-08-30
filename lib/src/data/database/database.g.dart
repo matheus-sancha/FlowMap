@@ -7295,15 +7295,6 @@ class $ProjectQueuesTable extends ProjectQueues
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   @override
   late final GeneratedColumnWithTypeConverter<DispatchRule?, String> rule =
       GeneratedColumn<String>(
@@ -7390,7 +7381,6 @@ class $ProjectQueuesTable extends ProjectQueues
   List<GeneratedColumn> get $columns => [
     projectId,
     targetId,
-    name,
     rule,
     capacity,
     stockMode,
@@ -7427,12 +7417,6 @@ class $ProjectQueuesTable extends ProjectQueues
       );
     } else if (isInserting) {
       context.missing(_targetIdMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
     }
     if (data.containsKey('capacity')) {
       context.handle(
@@ -7491,10 +7475,6 @@ class $ProjectQueuesTable extends ProjectQueues
         DriftSqlType.string,
         data['${effectivePrefix}target_id'],
       )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      ),
       rule: $ProjectQueuesTable.$converterrulen.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -7559,14 +7539,20 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
   final String projectId;
 
   /// The workcenter or pool the queue sits in front of.
-  final String targetId;
-
-  /// `FIFO CEU27` — what the shop floor calls this floor space.
   ///
-  /// One name per target, which is the whole point. The v19 fold found the two
-  /// studies calling one of them `FIFO BAN` and `FIFO BAN11`; §16.20 records
-  /// which won and where the other went.
-  final String? name;
+  /// **It is also the whole of the queue's identity.** A queue is an aspect of
+  /// a dispatch target, not a thing: it cannot exist without one, its primary
+  /// key *is* one, and the only thing that ever made it look like an entity was
+  /// a nullable `name` nobody wanted to type. That column went in v27 (#5) and
+  /// the caption is derived — see `flowQueueCaption`. The live database's 15
+  /// names were all `FIFO ` plus a mangled target name, which is the evidence
+  /// the name was never identity.
+  ///
+  /// The invariant, so it stops being rediscovered: **one queue per dispatch
+  /// target, not per workcenter.** A target is a workcenter *or* a pool, so a
+  /// machine reached directly by one study and through a pool by another
+  /// genuinely has two lines in front of it, and that is correct.
+  final String targetId;
 
   /// How the next order is chosen (§7.4).
   ///
@@ -7599,7 +7585,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
   const ProjectQueue({
     required this.projectId,
     required this.targetId,
-    this.name,
     this.rule,
     this.capacity,
     this.stockMode,
@@ -7614,9 +7599,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
     final map = <String, Expression>{};
     map['project_id'] = Variable<String>(projectId);
     map['target_id'] = Variable<String>(targetId);
-    if (!nullToAbsent || name != null) {
-      map['name'] = Variable<String>(name);
-    }
     if (!nullToAbsent || rule != null) {
       map['rule'] = Variable<String>(
         $ProjectQueuesTable.$converterrulen.toSql(rule),
@@ -7650,7 +7632,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
     return ProjectQueuesCompanion(
       projectId: Value(projectId),
       targetId: Value(targetId),
-      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
       rule: rule == null && nullToAbsent ? const Value.absent() : Value(rule),
       capacity: capacity == null && nullToAbsent
           ? const Value.absent()
@@ -7680,7 +7661,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
     return ProjectQueue(
       projectId: serializer.fromJson<String>(json['projectId']),
       targetId: serializer.fromJson<String>(json['targetId']),
-      name: serializer.fromJson<String?>(json['name']),
       rule: $ProjectQueuesTable.$converterrulen.fromJson(
         serializer.fromJson<String?>(json['rule']),
       ),
@@ -7703,7 +7683,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
     return <String, dynamic>{
       'projectId': serializer.toJson<String>(projectId),
       'targetId': serializer.toJson<String>(targetId),
-      'name': serializer.toJson<String?>(name),
       'rule': serializer.toJson<String?>(
         $ProjectQueuesTable.$converterrulen.toJson(rule),
       ),
@@ -7724,7 +7703,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
   ProjectQueue copyWith({
     String? projectId,
     String? targetId,
-    Value<String?> name = const Value.absent(),
     Value<DispatchRule?> rule = const Value.absent(),
     Value<int?> capacity = const Value.absent(),
     Value<InventoryMode?> stockMode = const Value.absent(),
@@ -7736,7 +7714,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
   }) => ProjectQueue(
     projectId: projectId ?? this.projectId,
     targetId: targetId ?? this.targetId,
-    name: name.present ? name.value : this.name,
     rule: rule.present ? rule.value : this.rule,
     capacity: capacity.present ? capacity.value : this.capacity,
     stockMode: stockMode.present ? stockMode.value : this.stockMode,
@@ -7752,7 +7729,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
     return ProjectQueue(
       projectId: data.projectId.present ? data.projectId.value : this.projectId,
       targetId: data.targetId.present ? data.targetId.value : this.targetId,
-      name: data.name.present ? data.name.value : this.name,
       rule: data.rule.present ? data.rule.value : this.rule,
       capacity: data.capacity.present ? data.capacity.value : this.capacity,
       stockMode: data.stockMode.present ? data.stockMode.value : this.stockMode,
@@ -7773,7 +7749,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
     return (StringBuffer('ProjectQueue(')
           ..write('projectId: $projectId, ')
           ..write('targetId: $targetId, ')
-          ..write('name: $name, ')
           ..write('rule: $rule, ')
           ..write('capacity: $capacity, ')
           ..write('stockMode: $stockMode, ')
@@ -7790,7 +7765,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
   int get hashCode => Object.hash(
     projectId,
     targetId,
-    name,
     rule,
     capacity,
     stockMode,
@@ -7806,7 +7780,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
       (other is ProjectQueue &&
           other.projectId == this.projectId &&
           other.targetId == this.targetId &&
-          other.name == this.name &&
           other.rule == this.rule &&
           other.capacity == this.capacity &&
           other.stockMode == this.stockMode &&
@@ -7820,7 +7793,6 @@ class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
 class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
   final Value<String> projectId;
   final Value<String> targetId;
-  final Value<String?> name;
   final Value<DispatchRule?> rule;
   final Value<int?> capacity;
   final Value<InventoryMode?> stockMode;
@@ -7833,7 +7805,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
   const ProjectQueuesCompanion({
     this.projectId = const Value.absent(),
     this.targetId = const Value.absent(),
-    this.name = const Value.absent(),
     this.rule = const Value.absent(),
     this.capacity = const Value.absent(),
     this.stockMode = const Value.absent(),
@@ -7847,7 +7818,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
   ProjectQueuesCompanion.insert({
     required String projectId,
     required String targetId,
-    this.name = const Value.absent(),
     this.rule = const Value.absent(),
     this.capacity = const Value.absent(),
     this.stockMode = const Value.absent(),
@@ -7864,7 +7834,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
   static Insertable<ProjectQueue> custom({
     Expression<String>? projectId,
     Expression<String>? targetId,
-    Expression<String>? name,
     Expression<String>? rule,
     Expression<int>? capacity,
     Expression<String>? stockMode,
@@ -7878,7 +7847,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
     return RawValuesInsertable({
       if (projectId != null) 'project_id': projectId,
       if (targetId != null) 'target_id': targetId,
-      if (name != null) 'name': name,
       if (rule != null) 'rule': rule,
       if (capacity != null) 'capacity': capacity,
       if (stockMode != null) 'stock_mode': stockMode,
@@ -7894,7 +7862,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
   ProjectQueuesCompanion copyWith({
     Value<String>? projectId,
     Value<String>? targetId,
-    Value<String?>? name,
     Value<DispatchRule?>? rule,
     Value<int?>? capacity,
     Value<InventoryMode?>? stockMode,
@@ -7908,7 +7875,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
     return ProjectQueuesCompanion(
       projectId: projectId ?? this.projectId,
       targetId: targetId ?? this.targetId,
-      name: name ?? this.name,
       rule: rule ?? this.rule,
       capacity: capacity ?? this.capacity,
       stockMode: stockMode ?? this.stockMode,
@@ -7929,9 +7895,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
     }
     if (targetId.present) {
       map['target_id'] = Variable<String>(targetId.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
     }
     if (rule.present) {
       map['rule'] = Variable<String>(
@@ -7974,7 +7937,6 @@ class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
     return (StringBuffer('ProjectQueuesCompanion(')
           ..write('projectId: $projectId, ')
           ..write('targetId: $targetId, ')
-          ..write('name: $name, ')
           ..write('rule: $rule, ')
           ..write('capacity: $capacity, ')
           ..write('stockMode: $stockMode, ')
@@ -9304,15 +9266,6 @@ class $FlowNodesTable extends FlowNodes
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _labelMeta = const VerificationMeta('label');
-  @override
-  late final GeneratedColumn<String> label = GeneratedColumn<String>(
-    'label',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -9368,7 +9321,6 @@ class $FlowNodesTable extends FlowNodes
     inventoryUsesWorkingTime,
     laneRule,
     laneCapacity,
-    label,
     notes,
     createdAt,
     updatedAt,
@@ -9508,12 +9460,6 @@ class $FlowNodesTable extends FlowNodes
         ),
       );
     }
-    if (data.containsKey('label')) {
-      context.handle(
-        _labelMeta,
-        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
-      );
-    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -9650,10 +9596,6 @@ class $FlowNodesTable extends FlowNodes
       laneCapacity: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}lane_capacity'],
-      ),
-      label: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}label'],
       ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -9850,7 +9792,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// spine has no way to express. Null keeps a lane unbounded, which is what
   /// every node did before this column existed.
   final int? laneCapacity;
-  final String? label;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9877,7 +9818,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     required this.inventoryUsesWorkingTime,
     this.laneRule,
     this.laneCapacity,
-    this.label,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -9957,9 +9897,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     if (!nullToAbsent || laneCapacity != null) {
       map['lane_capacity'] = Variable<int>(laneCapacity);
     }
-    if (!nullToAbsent || label != null) {
-      map['label'] = Variable<String>(label);
-    }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -10024,9 +9961,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       laneCapacity: laneCapacity == null && nullToAbsent
           ? const Value.absent()
           : Value(laneCapacity),
-      label: label == null && nullToAbsent
-          ? const Value.absent()
-          : Value(label),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -10079,7 +10013,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
         serializer.fromJson<String?>(json['laneRule']),
       ),
       laneCapacity: serializer.fromJson<int?>(json['laneCapacity']),
-      label: serializer.fromJson<String?>(json['label']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -10127,7 +10060,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
         $FlowNodesTable.$converterlaneRulen.toJson(laneRule),
       ),
       'laneCapacity': serializer.toJson<int?>(laneCapacity),
-      'label': serializer.toJson<String?>(label),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -10157,7 +10089,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     bool? inventoryUsesWorkingTime,
     Value<DispatchRule?> laneRule = const Value.absent(),
     Value<int?> laneCapacity = const Value.absent(),
-    Value<String?> label = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -10203,7 +10134,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
         inventoryUsesWorkingTime ?? this.inventoryUsesWorkingTime,
     laneRule: laneRule.present ? laneRule.value : this.laneRule,
     laneCapacity: laneCapacity.present ? laneCapacity.value : this.laneCapacity,
-    label: label.present ? label.value : this.label,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -10262,7 +10192,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       laneCapacity: data.laneCapacity.present
           ? data.laneCapacity.value
           : this.laneCapacity,
-      label: data.label.present ? data.label.value : this.label,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -10294,7 +10223,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ..write('inventoryUsesWorkingTime: $inventoryUsesWorkingTime, ')
           ..write('laneRule: $laneRule, ')
           ..write('laneCapacity: $laneCapacity, ')
-          ..write('label: $label, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -10326,7 +10254,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     inventoryUsesWorkingTime,
     laneRule,
     laneCapacity,
-    label,
     notes,
     createdAt,
     updatedAt,
@@ -10357,7 +10284,6 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           other.inventoryUsesWorkingTime == this.inventoryUsesWorkingTime &&
           other.laneRule == this.laneRule &&
           other.laneCapacity == this.laneCapacity &&
-          other.label == this.label &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -10386,7 +10312,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
   final Value<bool> inventoryUsesWorkingTime;
   final Value<DispatchRule?> laneRule;
   final Value<int?> laneCapacity;
-  final Value<String?> label;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -10414,7 +10339,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.inventoryUsesWorkingTime = const Value.absent(),
     this.laneRule = const Value.absent(),
     this.laneCapacity = const Value.absent(),
-    this.label = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -10443,7 +10367,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.inventoryUsesWorkingTime = const Value.absent(),
     this.laneRule = const Value.absent(),
     this.laneCapacity = const Value.absent(),
-    this.label = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -10477,7 +10400,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Expression<bool>? inventoryUsesWorkingTime,
     Expression<String>? laneRule,
     Expression<int>? laneCapacity,
-    Expression<String>? label,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -10507,7 +10429,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
         'inventory_uses_working_time': inventoryUsesWorkingTime,
       if (laneRule != null) 'lane_rule': laneRule,
       if (laneCapacity != null) 'lane_capacity': laneCapacity,
-      if (label != null) 'label': label,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -10538,7 +10459,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Value<bool>? inventoryUsesWorkingTime,
     Value<DispatchRule?>? laneRule,
     Value<int?>? laneCapacity,
-    Value<String?>? label,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -10568,7 +10488,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
           inventoryUsesWorkingTime ?? this.inventoryUsesWorkingTime,
       laneRule: laneRule ?? this.laneRule,
       laneCapacity: laneCapacity ?? this.laneCapacity,
-      label: label ?? this.label,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -10661,9 +10580,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     if (laneCapacity.present) {
       map['lane_capacity'] = Variable<int>(laneCapacity.value);
     }
-    if (label.present) {
-      map['label'] = Variable<String>(label.value);
-    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -10704,7 +10620,6 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
           ..write('inventoryUsesWorkingTime: $inventoryUsesWorkingTime, ')
           ..write('laneRule: $laneRule, ')
           ..write('laneCapacity: $laneCapacity, ')
-          ..write('label: $label, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -27148,7 +27063,6 @@ typedef $$ProjectQueuesTableCreateCompanionBuilder =
     ProjectQueuesCompanion Function({
       required String projectId,
       required String targetId,
-      Value<String?> name,
       Value<DispatchRule?> rule,
       Value<int?> capacity,
       Value<InventoryMode?> stockMode,
@@ -27163,7 +27077,6 @@ typedef $$ProjectQueuesTableUpdateCompanionBuilder =
     ProjectQueuesCompanion Function({
       Value<String> projectId,
       Value<String> targetId,
-      Value<String?> name,
       Value<DispatchRule?> rule,
       Value<int?> capacity,
       Value<InventoryMode?> stockMode,
@@ -27212,11 +27125,6 @@ class $$ProjectQueuesTableFilterComposer
   });
   ColumnFilters<String> get targetId => $composableBuilder(
     column: $table.targetId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -27301,11 +27209,6 @@ class $$ProjectQueuesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get rule => $composableBuilder(
     column: $table.rule,
     builder: (column) => ColumnOrderings(column),
@@ -27381,9 +27284,6 @@ class $$ProjectQueuesTableAnnotationComposer
   });
   GeneratedColumn<String> get targetId =>
       $composableBuilder(column: $table.targetId, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<DispatchRule?, String> get rule =>
       $composableBuilder(column: $table.rule, builder: (column) => column);
@@ -27467,7 +27367,6 @@ class $$ProjectQueuesTableTableManager
               ({
                 Value<String> projectId = const Value.absent(),
                 Value<String> targetId = const Value.absent(),
-                Value<String?> name = const Value.absent(),
                 Value<DispatchRule?> rule = const Value.absent(),
                 Value<int?> capacity = const Value.absent(),
                 Value<InventoryMode?> stockMode = const Value.absent(),
@@ -27480,7 +27379,6 @@ class $$ProjectQueuesTableTableManager
               }) => ProjectQueuesCompanion(
                 projectId: projectId,
                 targetId: targetId,
-                name: name,
                 rule: rule,
                 capacity: capacity,
                 stockMode: stockMode,
@@ -27495,7 +27393,6 @@ class $$ProjectQueuesTableTableManager
               ({
                 required String projectId,
                 required String targetId,
-                Value<String?> name = const Value.absent(),
                 Value<DispatchRule?> rule = const Value.absent(),
                 Value<int?> capacity = const Value.absent(),
                 Value<InventoryMode?> stockMode = const Value.absent(),
@@ -27508,7 +27405,6 @@ class $$ProjectQueuesTableTableManager
               }) => ProjectQueuesCompanion.insert(
                 projectId: projectId,
                 targetId: targetId,
-                name: name,
                 rule: rule,
                 capacity: capacity,
                 stockMode: stockMode,
@@ -28732,7 +28628,6 @@ typedef $$FlowNodesTableCreateCompanionBuilder =
       Value<bool> inventoryUsesWorkingTime,
       Value<DispatchRule?> laneRule,
       Value<int?> laneCapacity,
-      Value<String?> label,
       Value<String?> notes,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -28762,7 +28657,6 @@ typedef $$FlowNodesTableUpdateCompanionBuilder =
       Value<bool> inventoryUsesWorkingTime,
       Value<DispatchRule?> laneRule,
       Value<int?> laneCapacity,
-      Value<String?> label,
       Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -28954,11 +28848,6 @@ class $$FlowNodesTableFilterComposer
 
   ColumnFilters<int> get laneCapacity => $composableBuilder(
     column: $table.laneCapacity,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get label => $composableBuilder(
-    column: $table.label,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -29176,11 +29065,6 @@ class $$FlowNodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get label => $composableBuilder(
-    column: $table.label,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -29364,9 +29248,6 @@ class $$FlowNodesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get label =>
-      $composableBuilder(column: $table.label, builder: (column) => column);
-
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -29526,7 +29407,6 @@ class $$FlowNodesTableTableManager
                 Value<bool> inventoryUsesWorkingTime = const Value.absent(),
                 Value<DispatchRule?> laneRule = const Value.absent(),
                 Value<int?> laneCapacity = const Value.absent(),
-                Value<String?> label = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -29554,7 +29434,6 @@ class $$FlowNodesTableTableManager
                 inventoryUsesWorkingTime: inventoryUsesWorkingTime,
                 laneRule: laneRule,
                 laneCapacity: laneCapacity,
-                label: label,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -29584,7 +29463,6 @@ class $$FlowNodesTableTableManager
                 Value<bool> inventoryUsesWorkingTime = const Value.absent(),
                 Value<DispatchRule?> laneRule = const Value.absent(),
                 Value<int?> laneCapacity = const Value.absent(),
-                Value<String?> label = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -29612,7 +29490,6 @@ class $$FlowNodesTableTableManager
                 inventoryUsesWorkingTime: inventoryUsesWorkingTime,
                 laneRule: laneRule,
                 laneCapacity: laneCapacity,
-                label: label,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

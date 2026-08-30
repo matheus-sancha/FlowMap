@@ -1322,20 +1322,28 @@ class _QueueNode extends ConsumerWidget {
                       ),
                 style: theme.textTheme.bodySmall,
               ),
-            // `FIFO CEU27` — what the floor calls this space. Kept even on a
-            // queue with nothing in it, because a named floor space is a thing
-            // the reader is looking for and the name is the only permanent mark
-            // an empty queue has.
-            if (queue.name?.isNotEmpty ?? false)
-              Text(
-                queue.name!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            // `FIFO · CEU27` — derived from the type and the station, never
+            // typed (#5, v27). Drawn on every queue, including an empty one:
+            // the caption is the only permanent mark a queue with nothing in it
+            // has, and it is now always available because an unset rule is
+            // `Queue` rather than nothing.
+            //
+            // **This is where the seven stale names showed.** Those queues were
+            // called `FIFO CEU27` with `rule = null`, so the map printed FIFO
+            // over a push arrow. They now read `Queue · CEU27` over the arrow
+            // they already drew.
+            Text(
+              flowQueueCaption(
+                queueTypeShortLabel(l10n, queue.rule),
+                queue.targetName,
               ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

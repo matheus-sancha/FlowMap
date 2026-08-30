@@ -97,7 +97,7 @@ void main() {
     // The carry-over: every rule that had a lane in front of its target should
     // now be on that lane, and the two superseded tables should be gone.
     final lanes = await db.customSelect('''
-      SELECT n.label, n.lane_rule, n.lane_capacity, n.position, s.name AS study
+      SELECT n.lane_rule, n.lane_capacity, n.position, s.name AS study
       FROM flow_nodes n
       JOIN studies s ON s.id = n.study_id
       WHERE n.kind = 'inventory'
@@ -109,8 +109,9 @@ void main() {
     for (final row in lanes) {
       // ignore: avoid_print
       print(
+        // The label went in v27 (#5), so these print by position now — which
+        // is all this listing was ever using it for.
         '${row.read<String>('study')} #${row.read<int>('position')} '
-        '${row.readNullable<String>('label') ?? '(unnamed)'} '
         'rule=${row.readNullable<String>('lane_rule') ?? '-'} '
         'cap=${row.readNullable<int>('lane_capacity') ?? '-'}',
       );
@@ -373,5 +374,37 @@ void main() {
     print('runs: ${runs.length}');
     // ignore: avoid_print
     print('run steps: ${steps.length}');
+
+    // --- v27: a queue is an aspect, and a box is its station (#5) -----------
+
+    // Both columns are gone. Asked of the database rather than inferred from
+    // the row class, because it is the *table* the step had to change and this
+    // is the only place it meets the real one.
+    Future<bool> hasColumn(String table, String column) async =>
+        (await db.customSelect('PRAGMA table_info($table)').get()).any(
+          (row) => row.read<String>('name') == column,
+        );
+    expect(await hasColumn('project_queues', 'name'), isFalse);
+    expect(await hasColumn('flow_nodes', 'label'), isFalse);
+
+    // **And the rows survived.** 15 queues and 25 steps on this database when
+    // the phase was written — asserted as non-empty rather than as those
+    // numbers, which is the lesson at the top of this file: a literal count
+    // goes stale the first time somebody adds a step.
+    final queues = await db.select(db.projectQueues).get();
+    expect(queues, isNotEmpty, reason: 'dropping a column kept every row');
+    expect(nodes, isNotEmpty, reason: 'and so did every flow node');
+
+    // Every queue can be captioned, which is what replaced the name: the
+    // caption is `<type> · <target>`, and the type is derivable for every row
+    // because an unset rule is `Queue` rather than nothing. All 15 names on
+    // this database were `FIFO ` plus a mangled target name and 7 of them sat
+    // on a row with no rule at all — those now read `Queue · …` over the push
+    // arrow they already drew.
+    // ignore: avoid_print
+    print(
+      'queues: ${queues.length} '
+      '(${queues.where((q) => q.rule == null).length} untyped)',
+    );
   });
 }

@@ -1767,13 +1767,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get flowQueueTypeHelp =>
-      'Cómo elige la estación siguiente la próxima orden de esta cola. Un empuje es un montón al que nadie ha dado un orden; las cuatro reglas son canales, y el mapa dibuja cada una distinta.';
+      'Cómo elige la estación siguiente la próxima orden de esta cola. Una cola sin tipo es una fila a la que nadie ha dado una regla; las cuatro reglas son disciplinas, y el mapa dibuja cada una distinta. El rótulo de la cola en el mapa es este tipo y la estación ante la que está.';
 
   @override
   String get flowQueueStock => 'Lo que hay ahora';
 
   @override
-  String get queueTypePush => 'Empuje — un montón, sin regla';
+  String get queueTypeQueue => 'Cola — una fila, sin regla';
+
+  @override
+  String get queueShortFifo => 'FIFO';
+
+  @override
+  String get queueShortLifo => 'LIFO';
+
+  @override
+  String get queueShortEarliestDueDate => 'EDD';
+
+  @override
+  String get queueShortShortestProcessing => 'SPT';
+
+  @override
+  String get queueShortQueue => 'Cola';
+
+  @override
+  String get queueShortSupermarket => 'Supermercado';
 
   @override
   String get queueTypeSupermarket => 'Supermercado — todavía no';

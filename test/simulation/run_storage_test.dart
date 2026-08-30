@@ -548,7 +548,7 @@ void main() {
           title: 'CEU27',
           candidates: ['wc-2'],
           demandKey: 'wc-2',
-          queue: SimQueue(targetId: 'wc-2', name: 'FIFO CEU27', capacity: 1),
+          queue: SimQueue(targetId: 'wc-2', capacity: 1),
         ),
       ],
       parts: {
@@ -592,7 +592,13 @@ void main() {
     // identified by what it feeds rather than by a node of its own.
     expect(stored.result.lanes.map((l) => l.nodeId), ['wc-1', 'wc-2']);
     final lane = stored.result.lanes.firstWhere((l) => l.nodeId == 'wc-2');
-    expect(lane.name, 'FIFO CEU27');
+    // **No stored name since v27** (#5): the caption is `<type> · <target>` and
+    // both halves are already on the run, so it is derived at render and reads
+    // in the reader's own language rather than frozen in whoever ran it. The
+    // rule is what the caption is derived *from*, so that is what has to
+    // survive storage.
+    expect(lane.name, isNull);
+    expect(lane.rule, DispatchRule.fifo);
     expect(lane.position, 2);
     expect(lane.capacity, 1);
 

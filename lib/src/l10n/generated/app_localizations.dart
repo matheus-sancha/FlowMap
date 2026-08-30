@@ -3129,7 +3129,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowQueueTypeHelp.
   ///
   /// In en, this message translates to:
-  /// **'How the station ahead picks the next order out of this queue. A push is a pile nobody has given an order to; the four rules are channels, and the map draws each one differently.'**
+  /// **'How the station ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue\'s caption on the map is this type and the station it stands in front of.'**
   String get flowQueueTypeHelp;
 
   /// No description provided for @flowQueueStock.
@@ -3138,11 +3138,47 @@ abstract class AppLocalizations {
   /// **'What is standing here now'**
   String get flowQueueStock;
 
-  /// No description provided for @queueTypePush.
+  /// No description provided for @queueTypeQueue.
   ///
   /// In en, this message translates to:
-  /// **'Push — a pile, no rule'**
-  String get queueTypePush;
+  /// **'Queue — a line, no rule'**
+  String get queueTypeQueue;
+
+  /// No description provided for @queueShortFifo.
+  ///
+  /// In en, this message translates to:
+  /// **'FIFO'**
+  String get queueShortFifo;
+
+  /// No description provided for @queueShortLifo.
+  ///
+  /// In en, this message translates to:
+  /// **'LIFO'**
+  String get queueShortLifo;
+
+  /// No description provided for @queueShortEarliestDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'EDD'**
+  String get queueShortEarliestDueDate;
+
+  /// No description provided for @queueShortShortestProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'SPT'**
+  String get queueShortShortestProcessing;
+
+  /// No description provided for @queueShortQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get queueShortQueue;
+
+  /// No description provided for @queueShortSupermarket.
+  ///
+  /// In en, this message translates to:
+  /// **'Supermarket'**
+  String get queueShortSupermarket;
 
   /// No description provided for @queueTypeSupermarket.
   ///

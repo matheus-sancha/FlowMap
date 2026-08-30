@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -641,13 +641,25 @@ class AppDatabase extends _$AppDatabase {
         ).get()).isNotEmpty;
 
         if (!alreadyFolded) {
+          // **`label` is asked for rather than assumed** (v27). This step reads
+          // the column v27 drops, which is safe on every real upgrade path —
+          // nothing rebuilds `flow_nodes` between here and there, so a v18
+          // database still has it when this runs. The path that does not have
+          // it is the synthetic one: a database old enough for the `from < 2`
+          // step to *create* `flow_nodes` gets it from the current Dart
+          // definition, which no longer names the column. Such a database has
+          // no nodes to fold, but SQLite resolves a column at prepare time, so
+          // an unguarded `inv.label` would fail before it found that out.
+          final foldLabel = await _hasColumn('flow_nodes', 'label')
+              ? 'inv.label'
+              : 'NULL';
           // Ordered so the fold is reproducible: study, then position down the
           // spine. `study_id` is a uuid, so this is arbitrary but stable —
           // which is all determinism needs.
           final nodes = await customSelect('''
             SELECT inv.study_id      AS study_id,
                    inv.position      AS position,
-                   inv.label         AS label,
+                   $foldLabel        AS label,
                    inv.lane_rule     AS lane_rule,
                    inv.lane_capacity AS lane_capacity,
                    inv.inventory_mode     AS mode,
@@ -733,17 +745,27 @@ class AppDatabase extends _$AppDatabase {
             }
           }
 
+          // **`name` is written only if the column is there** (v27), the same
+          // question the fold's own SELECT asks above and for the same reason:
+          // this step writes a column a later step drops, which is fine on
+          // every real upgrade path and not fine on a `project_queues` built
+          // fresh from today's Dart definition. The fold's name-picking still
+          // runs — `Diag.event` still reports what it discarded — it simply has
+          // nowhere to put the winner on a table that has moved past it.
+          final foldsName = await _hasColumn('project_queues', 'name');
           for (final entry in folded.entries) {
             final parts = entry.key.split('|');
             await customInsert(
-              'INSERT INTO project_queues (project_id, target_id, name, rule, '
+              'INSERT INTO project_queues (project_id, target_id, '
+              '${foldsName ? 'name, ' : ''}rule, '
               'capacity, stock_mode, stock_quantity, stock_seconds, '
               'stock_unit, created_at, updated_at) '
-              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'VALUES (?, ?, ${foldsName ? '?, ' : ''}?, ?, ?, ?, ?, ?, ?, ?)',
               variables: [
                 Variable<String>(parts[0]),
                 Variable<String>(parts[1]),
-                Variable<String>(entry.value['name'] as String?),
+                if (foldsName)
+                  Variable<String>(entry.value['name'] as String?),
                 Variable<String>(entry.value['rule'] as String?),
                 Variable<int>(entry.value['capacity'] as int?),
                 Variable<String>(entry.value['mode'] as String?),
@@ -1057,6 +1079,55 @@ class AppDatabase extends _$AppDatabase {
         // one. Nothing about any stored run changes.
         await _ensureColumn(m, projects, projects.floatRedDays);
         await _ensureColumn(m, projects, projects.floatGreenDays);
+      }
+
+      if (from < 27) {
+        // **A queue is an aspect of its target, and a box is its station**
+        // (#5). Two names go: the queue's, which was never identity, and the
+        // step's label, which let a box be captioned something its station was
+        // not called.
+        //
+        // **`DROP COLUMN` rather than the v3 rebuild.** SQLite has supported
+        // it since 3.35 and neither column is indexed or part of a key, so the
+        // whole copy is unnecessary here — and a copy is not free of risk:
+        // `TableMigration` reaches for every column the *current* Dart
+        // definition names, which is the trap the v3 step's comment is about.
+        // Dropping one column by name cannot reach for a column the table in
+        // front of it does not have.
+        //
+        // **Every dropped value is logged first**, as §16.20's fold logged what
+        // it discarded. All 15 of the live database's queue names are `FIFO `
+        // plus a mangled target name and all 2 step labels are one pool spelled
+        // two ways, so nothing here is information — but `FIFO CEU 21` is
+        // recoverable from the diagnostics if anyone asks, and that costs one
+        // line.
+        if (await _hasColumn('project_queues', 'name')) {
+          for (final row in await customSelect(
+            'SELECT target_id, name FROM project_queues '
+            'WHERE name IS NOT NULL AND name <> \'\'',
+          ).get()) {
+            Diag.event(
+              'v27.dropped',
+              'queue name ${row.read<String>('name')} '
+                  'on target ${row.read<String>('target_id')}',
+            );
+          }
+          await customStatement('ALTER TABLE project_queues DROP COLUMN name');
+        }
+
+        if (await _hasColumn('flow_nodes', 'label')) {
+          for (final row in await customSelect(
+            'SELECT id, label FROM flow_nodes '
+            'WHERE label IS NOT NULL AND label <> \'\'',
+          ).get()) {
+            Diag.event(
+              'v27.dropped',
+              'step label ${row.read<String>('label')} '
+                  'on node ${row.read<String>('id')}',
+            );
+          }
+          await customStatement('ALTER TABLE flow_nodes DROP COLUMN label');
+        }
       }
 
       // Reference-data seeding runs outside every version guard, on every

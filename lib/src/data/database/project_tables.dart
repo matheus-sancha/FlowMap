@@ -441,7 +441,13 @@ class FlowNodes extends Table {
   /// every node did before this column existed.
   IntColumn get laneCapacity => integer().nullable()();
 
-  TextColumn get label => text().nullable()();
+  // **`label` went in v27** (#5). It overrode the target's name on the process
+  // box, the demand grid's column headings and the Gantt's step title — so a
+  // box could be captioned something its station was not called. Only 2 of the
+  // live database's 25 steps carried one, and both were the *same* step in two
+  // studies spelling one pool two ways (`Clad Pool`, `CLAD Pool`): it was not
+  // naming a visit, it was working around a target name too long for the box.
+  // A box is its station. See `flowStepTitle`.
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -674,14 +680,20 @@ class ProjectQueues extends Table {
       text().references(Projects, #id, onDelete: KeyAction.cascade)();
 
   /// The workcenter or pool the queue sits in front of.
-  TextColumn get targetId => text()();
-
-  /// `FIFO CEU27` — what the shop floor calls this floor space.
   ///
-  /// One name per target, which is the whole point. The v19 fold found the two
-  /// studies calling one of them `FIFO BAN` and `FIFO BAN11`; §16.20 records
-  /// which won and where the other went.
-  TextColumn get name => text().nullable()();
+  /// **It is also the whole of the queue's identity.** A queue is an aspect of
+  /// a dispatch target, not a thing: it cannot exist without one, its primary
+  /// key *is* one, and the only thing that ever made it look like an entity was
+  /// a nullable `name` nobody wanted to type. That column went in v27 (#5) and
+  /// the caption is derived — see `flowQueueCaption`. The live database's 15
+  /// names were all `FIFO ` plus a mangled target name, which is the evidence
+  /// the name was never identity.
+  ///
+  /// The invariant, so it stops being rediscovered: **one queue per dispatch
+  /// target, not per workcenter.** A target is a workcenter *or* a pool, so a
+  /// machine reached directly by one study and through a pool by another
+  /// genuinely has two lines in front of it, and that is correct.
+  TextColumn get targetId => text()();
 
   /// How the next order is chosen (§7.4).
   ///

@@ -319,7 +319,6 @@ class SimStep {
 class SimQueue {
   const SimQueue({
     required this.targetId,
-    this.name,
     this.rule = DispatchRule.fifo,
     this.capacity,
     this.stockMode,
@@ -342,11 +341,6 @@ class SimQueue {
   /// The workcenter or pool this queue stands in front of. Two steps sharing a
   /// target share this id, and that identity is the whole point.
   final String targetId;
-
-  /// `FIFO CEU27` — a passenger the engine never reads, like
-  /// [SimPart.partNumber]: it rides along so the run can copy it in at save
-  /// time (§7.10).
-  final String? name;
 
   /// How the station chooses what to take next (§7.4).
   ///

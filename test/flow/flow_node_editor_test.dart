@@ -38,7 +38,6 @@ void main() {
   /// A stored queue in front of [target].
   ProjectQueue queueRow(
     String target, {
-    String? name,
     DispatchRule? rule,
     int? capacity,
     InventoryMode mode = InventoryMode.duration,
@@ -48,7 +47,6 @@ void main() {
   }) => ProjectQueue(
     projectId: 'project-1',
     targetId: target,
-    name: name,
     rule: rule,
     capacity: capacity,
     stockMode: mode,
@@ -315,15 +313,17 @@ void main() {
         tester,
         step: boundStep(),
         queues: [
-          queueRow('wc-1', name: 'FIFO CLAD04', rule: DispatchRule.lifo,
-              capacity: 3),
+          queueRow('wc-1', rule: DispatchRule.lifo, capacity: 3),
         ],
       );
 
       expect(tester.takeException(), isNull);
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
-      expect(find.text(l10n.flowQueueTitle('CLAD04')), findsOneWidget);
+      // **The heading is the caption the map will draw** (#5, v27), so the
+      // dialog and the process box cannot disagree about what this queue is
+      // called — and choosing a type visibly renames it.
+      expect(find.text('LIFO · CLAD04'), findsOneWidget);
       // Said out loud, because a planner editing this from inside one study has
       // to know the other study's orders stand in the same line.
       expect(find.text(l10n.flowQueueShared('CLAD04')), findsOneWidget);
@@ -334,7 +334,9 @@ void main() {
         find.text(dispatchRuleLabel(l10n, DispatchRule.lifo)),
         findsOneWidget,
       );
-      expect(find.widgetWithText(TextField, 'FIFO CLAD04'), findsOneWidget);
+      // **No Name field**: the queue's name went with the label in v27, and
+      // all 15 in the live database were `FIFO ` plus a mangled target name.
+      expect(find.text(l10n.flowQueueName), findsNothing);
       expect(find.widgetWithText(TextField, '3'), findsOneWidget);
     });
 
@@ -359,7 +361,7 @@ void main() {
       // study wrote, and is shown rather than overwritten.
       await openStep(
         tester,
-        queues: [queueRow('wc-1', name: 'FIFO CLAD04', capacity: 4)],
+        queues: [queueRow('wc-1', capacity: 4)],
       );
 
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
@@ -370,8 +372,8 @@ void main() {
       await tester.tap(find.text('CLAD04').last);
       await tester.pumpAndSettle();
 
-      expect(find.text(l10n.flowQueueTitle('CLAD04')), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'FIFO CLAD04'), findsOneWidget);
+      // An untyped lane captions as `Queue`, not FIFO (§5.5).
+      expect(find.text('Queue · CLAD04'), findsOneWidget);
       expect(find.widgetWithText(TextField, '4'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -384,7 +386,10 @@ void main() {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       // The distinction §5.2 rests on: "nobody has decided" is not the same
       // state as "someone chose FIFO", and only the second draws a channel.
-      expect(find.text(l10n.queueTypePush), findsOneWidget);
+      // The entry is called *Queue* since v27 (#5) — the dropdown says what the
+      // lane is, while `FlowConnectionKind.push` and the striped VSM arrow keep
+      // the word for how material moves into it.
+      expect(find.text(l10n.queueTypeQueue), findsOneWidget);
       expect(find.text(l10n.laneCapacity), findsOneWidget);
     });
 
@@ -396,9 +401,9 @@ void main() {
       // is private to the dialog. Scrolled to first: the step dialog carries
       // the whole queue below the changeover now, so the picker starts below
       // the fold on an 800 px test surface.
-      await tester.ensureVisible(find.text(l10n.queueTypePush));
+      await tester.ensureVisible(find.text(l10n.queueTypeQueue));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.queueTypePush));
+      await tester.tap(find.text(l10n.queueTypeQueue));
       await tester.pumpAndSettle();
 
       // Listed rather than omitted, so a reader looking for it finds out why it
@@ -459,12 +464,18 @@ void main() {
       expect(find.widgetWithText(TextField, '5'), findsOneWidget);
     });
 
-    testWidgets('saving a label leaves the shared queue alone', (tester) async {
+    testWidgets('saving a step edit leaves the shared queue alone', (
+      tester,
+    ) async {
       // **The rule the two studies depend on.** They share five targets on the
-      // real database, and a step dialog is opened to change a label far more
-      // often than to retune a floor space — so a save that always wrote the
-      // queue would let one study revert the other's capacity without either of
-      // them seeing it (§7.3, §12.6).
+      // real database, and a step dialog is opened to change its notes or its
+      // times far more often than to retune a floor space — so a save that
+      // always wrote the queue would let one study revert the other's capacity
+      // without either of them seeing it (§7.3, §12.6).
+      //
+      // Edited through the notes field since v27 (#5): the step's own label is
+      // gone, and notes is the other free-text field a reader opens the dialog
+      // to change.
       final writes = _RecordingQueues();
 
       await pumpHost(
@@ -494,14 +505,14 @@ void main() {
       );
 
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      // The step's own label, found by the field it is labelled with rather
-      // than by position — the dialog has several text fields now.
+      // Found by the field it is labelled with rather than by position — the
+      // dialog has several text fields.
       await tester.enterText(
         find.ancestor(
-          of: find.text(l10n.flowNodeLabel),
+          of: find.text(l10n.flowNodeNotes),
           matching: find.byType(TextField),
         ),
-        'Renamed',
+        'A finding from the walk',
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text(l10n.actionSave));
@@ -539,9 +550,9 @@ void main() {
       );
 
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      await tester.ensureVisible(find.text(l10n.queueTypePush));
+      await tester.ensureVisible(find.text(l10n.queueTypeQueue));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.queueTypePush));
+      await tester.tap(find.text(l10n.queueTypeQueue));
       await tester.pumpAndSettle();
       await tester.tap(find.text(dispatchRuleLabel(l10n, DispatchRule.lifo)));
       await tester.pumpAndSettle();

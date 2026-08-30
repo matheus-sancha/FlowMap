@@ -219,6 +219,7 @@ class SimLane {
     required this.nodeId,
     required this.position,
     this.name,
+    this.rule,
     this.capacity,
   });
 
@@ -249,6 +250,16 @@ class SimLane {
 
   /// `FIFO CEU27`, or null when the buffer was never labelled.
   final String? name;
+
+  /// The discipline in force on this lane, by name — copied in like everything
+  /// else on a stored run (§7.10).
+  ///
+  /// **Read, since v27.** It was written from the first and never read back;
+  /// the lane's caption is now derived from it and the station it feeds, so a
+  /// run made in one language reads in the reader's. Null on a run stored before
+  /// the column existed, and null for a lane nobody gave a rule to — which is an
+  /// untyped queue, not FIFO (§5.5).
+  final DispatchRule? rule;
 
   /// Orders it could hold, or null for unlimited — in which case §8.6 takes the
   /// row's depth from how full it actually got.

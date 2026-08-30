@@ -1938,19 +1938,18 @@ void main() {
     // fourth — the one feeding no step — lands on none.
     expect(queues.map((q) => q.targetId), ['wc-ban', 'wc-solo']);
 
-    // **First study wins the name.** `a-study` sorts first, so `FIFO BAN` is
-    // the one kept and `FIFO BAN11` is not.
+    // **A later node fills what the first left blank.** `a` set no rule and no
+    // capacity, so `b`'s survive.
+    //
+    // *The name half of this rule is no longer observable*: v27 dropped
+    // `project_queues.name`, and this database is opened at the current
+    // version, so the fold's "first study wins the name" — `FIFO BAN` over
+    // `FIFO BAN11` — is gone by the time the row can be read. The fold still
+    // does it, and still logs what it discarded; what is asserted here is the
+    // half that survives into the schema.
     final ban = queues.first;
-    expect(ban.name, 'FIFO BAN');
-
-    // **And a later node fills what the first left blank.** `a` set no rule and
-    // no capacity, so `b`'s survive rather than being lost to the name it did
-    // not win.
     expect(ban.rule, DispatchRule.shortestProcessing);
     expect(ban.capacity, 3);
-
-    // The unshared one folds with everything it had.
-    expect(queues.last.name, 'FIFO TCN');
 
     // **The inventory rows are still there.** They stop being read; they are
     // not deleted, because they are the recovery path for `FIFO BAN11`.
@@ -2100,10 +2099,10 @@ void main() {
 
     final first = AppDatabase(NativeDatabase(file));
     await first.select(first.projectQueues).get();
-    // The user renames the queue after the upgrade.
-    await first.customStatement(
-      "UPDATE project_queues SET name = 'Renamed by hand'",
-    );
+    // The user edits the queue after the upgrade. **Capacity rather than the
+    // name**, which v27 dropped — the point of the test is that a replayed fold
+    // must not overwrite an edit, and any surviving column proves it.
+    await first.customStatement('UPDATE project_queues SET capacity = 42');
     await first.close();
 
     // Wind the counter back, as an interrupted upgrade leaves it.
@@ -2117,8 +2116,8 @@ void main() {
 
     expect(queues, hasLength(1));
     expect(
-      queues.single.name,
-      'Renamed by hand',
+      queues.single.capacity,
+      42,
       reason: 'the fold ran once; a replay must not undo an edit',
     );
   });
@@ -2645,6 +2644,94 @@ void main() {
       expect(project.floatGreenDays, 30);
       expect(project.name, 'Old', reason: 'the row is otherwise untouched');
       await db.close();
+    });
+  });
+
+  group('v26 to v27: a queue is an aspect, and a box is its station (#5)', () {
+    /// A v26 database with both columns present and filled, so the step can
+    /// actually be exercised rather than skipped.
+    Future<File> v26() async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "created_at, updated_at) VALUES "
+        "('proj-1', 'P', 'plant-1', 'pattern-1', $now, $now)",
+      );
+      await fresh.customStatement(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'S', $now, $now)",
+      );
+      await fresh.close();
+
+      // Put the two columns back, exactly as a v26 database has them, and fill
+      // each with the shape the live database actually holds.
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE project_queues ADD COLUMN name TEXT')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN label TEXT')
+        ..execute(
+          'INSERT INTO project_queues (project_id, target_id, name, rule, '
+          'capacity, created_at, updated_at) VALUES '
+          "('proj-1', 'wc-1', 'FIFO CEU 21', 'fifo', 3, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO flow_nodes (id, study_id, position, kind, '
+          'workcenter_id, label, changeover_seconds, created_at, updated_at) '
+          "VALUES ('n1', 'study-1', 0, 'step', 'wc-1', 'CLAD Pool', 0, "
+          '$now, $now)',
+        )
+        ..execute('PRAGMA user_version = 26')
+        ..close();
+      return file;
+    }
+
+    test('both columns go, and every other value survives', () async {
+      final db = AppDatabase(NativeDatabase(await v26()));
+      addTearDown(db.close);
+
+      // The rows are kept; only the two names are dropped. A queue was never
+      // identity — its key is its target — so nothing here is lost that the
+      // caption cannot derive.
+      final queue = await db.select(db.projectQueues).getSingle();
+      expect(queue.targetId, 'wc-1');
+      expect(queue.rule, DispatchRule.fifo);
+      expect(queue.capacity, 3);
+
+      final node = await db.select(db.flowNodes).getSingle();
+      expect(node.id, 'n1');
+      expect(node.workcenterId, 'wc-1');
+      expect(node.position, 0);
+
+      // Asked of the database rather than inferred from the row class, because
+      // it is the *table* the migration had to rebuild.
+      Future<bool> hasColumn(String table, String column) async =>
+          (await db.customSelect('PRAGMA table_info($table)').get()).any(
+            (row) => row.read<String>('name') == column,
+          );
+      expect(await hasColumn('project_queues', 'name'), isFalse);
+      expect(await hasColumn('flow_nodes', 'label'), isFalse);
+    });
+
+    test('running it twice is a no-op, as an interrupted upgrade replays', () async {
+      final file = await v26();
+      final first = AppDatabase(NativeDatabase(file));
+      await first.select(first.projectQueues).get();
+      await first.close();
+
+      // Wind the counter back, as an interrupted upgrade leaves it. The step
+      // asks the database what it has rather than trusting `from`, so it finds
+      // the columns already gone and does nothing.
+      sqlite3.open(file.path)
+        ..execute('PRAGMA user_version = 26')
+        ..close();
+
+      final second = AppDatabase(NativeDatabase(file));
+      addTearDown(second.close);
+      expect(await second.select(second.projectQueues).get(), hasLength(1));
+      expect(await second.select(second.flowNodes).get(), hasLength(1));
     });
   });
 

@@ -33,6 +33,7 @@ import '../../../common/horizontal_scroll.dart';
 import '../../../common/part_palette.dart';
 import '../../../common/unit_labels.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../flow/application/flow_view.dart' show flowQueueCaption;
 import '../application/gantt_layout.dart';
 import '../application/run_filter.dart';
 import '../data/simulation_runs_repository.dart';
@@ -221,9 +222,23 @@ class _GanttViewState extends State<GanttView> {
   @override
   void initState() {
     super.initState();
-    _chart = _buildChart();
     _facts = _readFacts();
   }
+
+  /// **The chart is built here rather than in `initState`** (#5, v27).
+  ///
+  /// Since v27 a lane's caption is derived and therefore localized, and
+  /// `AppLocalizations.of` cannot be reached from `initState` — the same reason
+  /// `_OrderFacts` carries a takt's figure and unit rather than its words.
+  /// `didChangeDependencies` runs immediately after `initState` and before the
+  /// first build, so nothing is drawn from an unbuilt chart.
+  ///
+  /// It also runs again when the locale changes, which is exactly right: the
+  /// lane bands re-caption into the new language. The chart is a pure function
+  /// of the slice, so rebuilding it costs a fit and nothing else — the cached
+  /// layout goes with it, because a band's label is measured into the frozen
+  /// column's width.
+
 
   /// **Nullable all the way down, and never invented.** `customer_project`
   /// arrived in v12 and `part_description` in v13, so a run stored before either
@@ -256,6 +271,18 @@ class _GanttViewState extends State<GanttView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // **The chart is built here rather than in `initState`** (#5, v27). A
+    // lane's caption is derived and therefore localized, and
+    // `AppLocalizations.of` cannot be reached from `initState` — the same
+    // reason `_OrderFacts` carries a takt's figure and unit rather than its
+    // words. This runs immediately after `initState` and before the first
+    // build, so nothing is ever drawn from an unbuilt chart.
+    //
+    // It runs again when the locale changes, which is exactly right: the lane
+    // bands re-caption into the new language. The chart is a pure function of
+    // the slice, so rebuilding costs a fit and nothing else.
+    _chart = _buildChart();
+    _cached = null;
     // The theme is what the measurement is made in, so it is remade when the
     // theme changes as well as when the chart does.
     _measureLabels();
@@ -300,11 +327,41 @@ class _GanttViewState extends State<GanttView> {
   /// next.
   bool _showLanes = true;
 
-  GanttChart _buildChart() => buildGanttChart(
-    result: widget.slice.result,
-    metrics: widget.slice.metrics,
-    includeLanes: _showLanes,
-  );
+  GanttChart _buildChart() {
+    // **The lane caption is composed here, where the locale is** (#5, v27). A
+    // run stored since v27 keeps no lane name: `<type> · <target>` is derived
+    // from the rule and the station the run already copied in, so one stored run
+    // reads `Queue · CEU27` in English and `Fila · CEU27` in Portuguese. A run
+    // stored before v27 carries the name someone typed, and that is drawn as it
+    // always was — it is what the map said when the run happened (§7.10).
+    final l10n = AppLocalizations.of(context);
+    final targetNames = {
+      for (final station in widget.slice.metrics.workcenters) ...{
+        station.workcenterId: station.name,
+        if (station.poolId != null && station.poolName != null)
+          station.poolId!: station.poolName!,
+      },
+    };
+    final rules = {
+      for (final lane in widget.slice.result.lanes) lane.nodeId: lane.rule,
+    };
+
+    return buildGanttChart(
+      result: widget.slice.result,
+      metrics: widget.slice.metrics,
+      includeLanes: _showLanes,
+      laneCaption: (lane) {
+        final stored = lane.name;
+        if (stored != null && stored.isNotEmpty) return stored;
+        return flowQueueCaption(
+          queueTypeShortLabel(l10n, rules[lane.nodeId]),
+          // The lane is keyed by the queue's *target*, so this names the
+          // station or the pool the line stands in front of.
+          targetNames[lane.nodeId],
+        );
+      },
+    );
+  }
 
   /// The layout at [scale], remembered so that scrolling does not re-measure
   /// every bar in the run on every frame. A cache of a pure function of state

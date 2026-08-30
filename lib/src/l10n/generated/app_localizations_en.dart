@@ -1749,13 +1749,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flowQueueTypeHelp =>
-      'How the station ahead picks the next order out of this queue. A push is a pile nobody has given an order to; the four rules are channels, and the map draws each one differently.';
+      'How the station ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue\'s caption on the map is this type and the station it stands in front of.';
 
   @override
   String get flowQueueStock => 'What is standing here now';
 
   @override
-  String get queueTypePush => 'Push — a pile, no rule';
+  String get queueTypeQueue => 'Queue — a line, no rule';
+
+  @override
+  String get queueShortFifo => 'FIFO';
+
+  @override
+  String get queueShortLifo => 'LIFO';
+
+  @override
+  String get queueShortEarliestDueDate => 'EDD';
+
+  @override
+  String get queueShortShortestProcessing => 'SPT';
+
+  @override
+  String get queueShortQueue => 'Queue';
+
+  @override
+  String get queueShortSupermarket => 'Supermarket';
 
   @override
   String get queueTypeSupermarket => 'Supermarket — not yet';

@@ -79,7 +79,6 @@ void main() {
     bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
-    String? label,
   }) => FlowNode(
     id: 'node-$position',
     studyId: 'study-1',
@@ -92,7 +91,6 @@ void main() {
     equivalentValue: equivalentValue,
     equivalentUnit: equivalentUnit,
     inventoryUsesWorkingTime: false,
-    label: label,
     createdAt: now,
     updatedAt: now,
   );
@@ -103,7 +101,6 @@ void main() {
   /// re-model: two steps feeding CLAD04 read this one row.
   ProjectQueue queue(
     String targetId, {
-    String? name,
     DispatchRule? rule,
     int? capacity,
     InventoryMode mode = InventoryMode.quantity,
@@ -113,7 +110,6 @@ void main() {
   }) => ProjectQueue(
     projectId: 'project-1',
     targetId: targetId,
-    name: name,
     rule: rule,
     capacity: capacity,
     stockMode: mode,
@@ -711,12 +707,15 @@ void main() {
         members: const {
           'POOL': ['A', 'B'],
         },
-        queues: [queue('POOL', name: 'FIFO CAL', rule: DispatchRule.fifo)],
+        queues: [queue('POOL', rule: DispatchRule.fifo)],
       );
 
       expect(view.queues.single.targetId, 'POOL');
-      expect(view.queues.single.name, 'FIFO CAL');
+      // **The pool's own name, which the caption is derived from** (#5, v27).
+      // The queue used to carry `FIFO CAL`, typed by hand and free to disagree
+      // with the pool it stood in front of; there is now one name in play.
       expect(view.queues.single.targetName, 'CAL Pool');
+      expect(view.queues.single.rule, DispatchRule.fifo);
     });
 
     test('the inventory nodes a v18 database still holds are not drawn', () {

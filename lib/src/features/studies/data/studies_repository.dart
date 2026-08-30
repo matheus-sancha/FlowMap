@@ -256,7 +256,6 @@ class StudiesRepository {
                 inventorySeconds: Value(node.inventorySeconds),
                 inventoryUnit: Value(node.inventoryUnit),
                 inventoryUsesWorkingTime: Value(node.inventoryUsesWorkingTime),
-                label: Value(node.label),
                 notes: Value(node.notes),
                 createdAt: now,
                 updatedAt: now,
@@ -331,7 +330,6 @@ class StudiesRepository {
     bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
-    String? label,
     String? notes,
   }) => _insertNode(
     studyId: studyId,
@@ -351,7 +349,6 @@ class StudiesRepository {
       balanceDisabled: Value(balanceDisabled),
       equivalentValue: Value(equivalentValue),
       equivalentUnit: Value(equivalentUnit),
-      label: Value(label),
       notes: Value(notes),
       createdAt: now,
       updatedAt: now,
@@ -402,7 +399,6 @@ class StudiesRepository {
     bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
-    String? label,
     String? notes,
   }) async {
     await (_db.update(_db.flowNodes)..where((n) => n.id.equals(nodeId))).write(
@@ -417,7 +413,6 @@ class StudiesRepository {
         balanceDisabled: Value(balanceDisabled),
         equivalentValue: Value(equivalentValue),
         equivalentUnit: Value(equivalentUnit),
-        label: Value(label),
         notes: Value(notes),
         updatedAt: Value(DateTime.now()),
       ),

@@ -24,6 +24,14 @@ import 'period_label.dart';
 typedef FlowDurationFormat =
     String Function(Duration duration, {Duration? workingDay});
 
+/// What the queue in front of a step is called — `FIFO · CLAD07` (#5, v27).
+///
+/// **A callback, like [FlowDurationFormat] beside it**, for the same reason:
+/// the caption is derived from a localized type name, and `FlowQueueView` lives
+/// in `application/` where there is no `AppLocalizations` to reach. The screen
+/// and the page therefore caption a queue identically by construction.
+typedef FlowQueueCaption = String Function(FlowQueueView queue);
+
 /// The strings the PDF needs, captured before the export goes async.
 ///
 /// `AppLocalizations` is read from a `BuildContext`, and the document is built
@@ -138,6 +146,10 @@ Future<void> exportFlowPdf(
     strings: strings,
     formatDuration: (duration, {workingDay}) =>
         formatAdaptiveDuration(l10n, duration, workingDay: workingDay),
+    queueCaption: (queue) => flowQueueCaption(
+      queueTypeShortLabel(l10n, queue.rule),
+      queue.targetName,
+    ),
   );
 
   final location = await getSaveLocation(
@@ -167,6 +179,7 @@ Future<Uint8List> buildFlowPdf({
   required FlowView view,
   required FlowPdfStrings strings,
   required FlowDurationFormat formatDuration,
+  required FlowQueueCaption queueCaption,
 }) async {
   final document = pw.Document(title: strings.title);
 
@@ -215,6 +228,7 @@ Future<Uint8List> buildFlowPdf({
                   ),
                   queue: node.queue,
                   formatDuration: formatDuration,
+                  queueCaption: queueCaption,
                 ),
                 _stepBox(node, strings, formatDuration),
               ],
@@ -222,6 +236,7 @@ Future<Uint8List> buildFlowPdf({
               _arrow(
                 connectionKindInto(null, hasWipCap: view.study.wipCap != null),
                 formatDuration: formatDuration,
+                queueCaption: queueCaption,
               ),
               _endpoint(
                 strings.customer,
@@ -307,6 +322,7 @@ pw.Widget _arrow(
   FlowConnectionKind kind, {
   FlowQueueView? queue,
   required FlowDurationFormat formatDuration,
+  required FlowQueueCaption queueCaption,
 }) => pw.Container(
   width: queue?.hasStock ?? false ? 64 : 28,
   height: 40,
@@ -330,9 +346,13 @@ pw.Widget _arrow(
           style: const pw.TextStyle(fontSize: 7),
         ),
       ],
-      if (queue?.name?.isNotEmpty ?? false)
+      // **Derived, and drawn on every queue** (#5, v27). It used to print only
+      // where someone had typed a name, so 7 of the live map's 15 queues showed
+      // nothing at all. The type is always known — an unset rule is `Queue` —
+      // so the caption is always there to print.
+      if (queue != null)
         pw.Text(
-          queue!.name!,
+          queueCaption(queue),
           style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
         ),
     ],
