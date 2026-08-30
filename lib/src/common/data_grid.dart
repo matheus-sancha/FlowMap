@@ -502,6 +502,29 @@ class _GridCellState extends State<_GridCell> {
 
   /// Writes the cell through, unless it cannot be read.
   ///
+  /// Whether Left has no caret left to move, and so should leave the cell.
+  ///
+  /// **A range selection is never at an edge**, in either direction: Left with
+  /// `1250` selected collapses the selection the way every text field does, and
+  /// a cell that jumped away instead would make selecting a value the one thing
+  /// you cannot then arrow out of.
+  ///
+  /// An offset of -1 is a field that has focus but has never placed a caret —
+  /// which is exactly the freshly-arrived-at cell — and that counts as both
+  /// edges, so arrowing across an untouched row does not stall on every cell.
+  bool get _caretAtStart {
+    final selection = _controller.selection;
+    if (!selection.isCollapsed) return false;
+    return selection.baseOffset <= 0;
+  }
+
+  bool get _caretAtEnd {
+    final selection = _controller.selection;
+    if (!selection.isCollapsed) return false;
+    final offset = selection.baseOffset;
+    return offset < 0 || offset >= _controller.text.length;
+  }
+
   /// An unreadable cell keeps its text and its error rather than snapping back
   /// to the stored value: the user typed something, and hiding it leaves them
   /// with no idea what was rejected.
@@ -523,6 +546,18 @@ class _GridCellState extends State<_GridCell> {
         // Handled here rather than through the traversal policy: inside a text
         // field the arrow keys belong to the caret, so Enter moves down and Tab
         // moves across — the two a spreadsheet user already presses.
+        //
+        // **The arrows now move too, but only once the caret cannot** (#10).
+        // The rule above is still true and is what shapes this: Left in the
+        // middle of `1250` moves the caret and Left again at offset 0 moves to
+        // the previous cell, so nothing is taken away from editing and there is
+        // no mode to be in. Up and Down have no caret to move in a single-line
+        // field, so they always change row.
+        //
+        // *Rejected: the true spreadsheet model* — arrows always move, typing
+        // or F2 enters an edit mode. It is what Excel does and this data arrives
+        // by pasting out of Excel, but it means cells stop being always-live
+        // fields and the grid grows a selected-versus-editing state to show.
         onKeyEvent: (node, event) {
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
           final shift = HardwareKeyboard.instance.isShiftPressed;
@@ -535,6 +570,24 @@ class _GridCellState extends State<_GridCell> {
             case LogicalKeyboardKey.tab:
               _commit();
               widget.onMove(0, shift ? -1 : 1);
+              return KeyEventResult.handled;
+            case LogicalKeyboardKey.arrowUp:
+              _commit();
+              widget.onMove(-1, 0);
+              return KeyEventResult.handled;
+            case LogicalKeyboardKey.arrowDown:
+              _commit();
+              widget.onMove(1, 0);
+              return KeyEventResult.handled;
+            case LogicalKeyboardKey.arrowLeft:
+              if (!_caretAtStart) return KeyEventResult.ignored;
+              _commit();
+              widget.onMove(0, -1);
+              return KeyEventResult.handled;
+            case LogicalKeyboardKey.arrowRight:
+              if (!_caretAtEnd) return KeyEventResult.ignored;
+              _commit();
+              widget.onMove(0, 1);
               return KeyEventResult.handled;
             case LogicalKeyboardKey.escape:
               _controller.text = widget.value;

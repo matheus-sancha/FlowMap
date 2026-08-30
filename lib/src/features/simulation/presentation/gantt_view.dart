@@ -558,7 +558,10 @@ class _Chart extends StatelessWidget {
                               if (!identical(hit, hovered)) onHover(hit);
                             },
                             onExit: (_) => onHover(null),
-                            child: _CtrlScroll(
+                            child: _DragPan(
+                              across: across,
+                              down: down,
+                              child: _CtrlScroll(
                               onZoom: onCtrlScroll,
                               // **Inside the scroll views, like the ctrl-scroll
                               // above it**, so the position it reports is in the
@@ -566,8 +569,18 @@ class _Chart extends StatelessWidget {
                               // no scroll offset has to be subtracted back out.
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onTapDown: (details) =>
-                                    onSelect(barAt(layout, details.localPosition)),
+                                // **Not while space is held**, which is the one
+                                // gesture that reaches this detector and does
+                                // not mean "select": a space-drag starts with a
+                                // pointer-down like any other, and without this
+                                // beginning a pan would select whatever bar the
+                                // grab started on. Read at the moment of the
+                                // event rather than held as state, so there is
+                                // no second copy of "is space down" to disagree
+                                // with [_DragPan]'s.
+                                onTapDown: (details) => _panModifierHeld
+                                    ? null
+                                    : onSelect(barAt(layout, details.localPosition)),
                                 child: CustomPaint(
                                 key: ganttCanvasKey,
                                 painter: GanttPainter(
@@ -590,6 +603,7 @@ class _Chart extends StatelessWidget {
                                 ),
                                 ),
                               ),
+                            ),
                             ),
                           ),
                         ),
@@ -672,6 +686,124 @@ class _CtrlScroll extends StatelessWidget {
     },
     child: child,
   );
+}
+
+/// Whether the modifier that turns a drag into a pan is down right now.
+///
+/// Space rather than a plain left-drag, decided by #10. §12.6's rule — *a wide
+/// thing must scroll and say so* — is why the scrollbars stay and why the drag
+/// drives their offsets rather than a transform of its own; reserving plain
+/// left-drag is what leaves room for a marquee or a time brush later without
+/// having to take panning back off it first.
+bool get _panModifierHeld =>
+    HardwareKeyboard.instance.logicalKeysPressed.contains(
+      LogicalKeyboardKey.space,
+    );
+
+/// Drag the chart to move it, without the window position becoming a second
+/// piece of state (#10).
+///
+/// **It drives the two `ScrollController`s rather than a transform**, so the
+/// scroll offset stays the single source of truth for where the window is —
+/// which is what `gantt_layout.dart`'s ticks, zoom bounds and hit testing are
+/// all derived from. The bars keep saying how much run is off each edge, so
+/// §12.6's objection to drag-to-pan does not apply: this is a second way to
+/// move the same offset, not a replacement for the first.
+///
+/// Middle-button always pans; left-button pans only while space is held. Both
+/// go through `Listener` rather than a `GestureDetector`, because a pan must
+/// not enter the arena against the tap that selects an order.
+class _DragPan extends StatefulWidget {
+  const _DragPan({
+    required this.across,
+    required this.down,
+    required this.child,
+  });
+
+  final ScrollController across;
+  final ScrollController down;
+  final Widget child;
+
+  @override
+  State<_DragPan> createState() => _DragPanState();
+}
+
+class _DragPanState extends State<_DragPan> {
+  /// The pointer currently panning, so a second button pressed mid-drag cannot
+  /// start a second pan against the same controllers.
+  int? _pointer;
+  Offset _last = Offset.zero;
+
+  /// Mirrored into state only to choose the cursor — every decision that acts
+  /// on the modifier reads [_panModifierHeld] live.
+  bool _modifier = false;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    super.dispose();
+  }
+
+  /// Never handles the event — it only watches for space going up or down, and
+  /// swallowing it would take the key away from anything else that wants it.
+  bool _onKey(KeyEvent event) {
+    final held = _panModifierHeld;
+    if (held != _modifier && mounted) setState(() => _modifier = held);
+    return false;
+  }
+
+  void _scrollBy(ScrollController controller, double delta) {
+    if (!controller.hasClients || delta == 0) return;
+    final position = controller.position;
+    controller.jumpTo(
+      (position.pixels - delta).clamp(0.0, position.maxScrollExtent),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: _pointer != null
+        ? SystemMouseCursors.grabbing
+        : _modifier
+        ? SystemMouseCursors.grab
+        : MouseCursor.defer,
+    child: Listener(
+      onPointerDown: (event) {
+        if (_pointer != null) return;
+        final middle = event.buttons & kMiddleMouseButton != 0;
+        final spaceLeft =
+            event.buttons & kPrimaryMouseButton != 0 && _panModifierHeld;
+        if (!middle && !spaceLeft) return;
+        setState(() {
+          _pointer = event.pointer;
+          _last = event.position;
+        });
+      },
+      onPointerMove: (event) {
+        if (event.pointer != _pointer) return;
+        final delta = event.position - _last;
+        _last = event.position;
+        // Dragging the content left moves the window right, which is what
+        // grabbing a chart and pulling it means everywhere else.
+        _scrollBy(widget.across, delta.dx);
+        _scrollBy(widget.down, delta.dy);
+      },
+      onPointerUp: (event) => _release(event.pointer),
+      onPointerCancel: (event) => _release(event.pointer),
+      child: widget.child,
+    ),
+  );
+
+  void _release(int pointer) {
+    if (pointer != _pointer) return;
+    setState(() => _pointer = null);
+  }
 }
 
 /// The pool a band is qualified by, or null where it stands on its own name.

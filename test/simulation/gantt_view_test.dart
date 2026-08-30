@@ -953,4 +953,108 @@ void main() {
       expect(prefix.fontStyle, name.fontStyle);
     });
   });
+
+  /// Dragging the chart to move it (#10).
+  ///
+  /// **Asserted through the scroll offset**, which is the point of the design:
+  /// the drag drives the same controller the scrollbar does, so there is one
+  /// answer to "where is the window" and a test can read it without rendering
+  /// anything. What a grab *feels* like is a drive.
+  group('dragging the chart pans it (#10)', () {
+    ScrollController acrossIn(WidgetTester tester) => tester
+        .widgetList<Scrollable>(find.byType(Scrollable))
+        .firstWhere((s) => s.axisDirection == AxisDirection.right)
+        .controller!;
+
+    String? selectedIn(WidgetTester tester) =>
+        (tester.widget<CustomPaint>(find.byKey(ganttCanvasKey)).painter
+                as GanttPainter)
+            .selected;
+
+    /// Zooms in so there is something to pan. At the fit the chart is exactly
+    /// its pane, `maxScrollExtent` is zero, and a pan that did nothing would
+    /// pass a test that asserts nothing.
+    Future<void> zoomIn(WidgetTester tester) async {
+      await tester.tap(_zoomIn);
+      await tester.pumpAndSettle();
+      await tester.tap(_zoomIn);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the middle button pans, and the scrollbar still governs', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+      await zoomIn(tester);
+      final across = acrossIn(tester);
+      expect(
+        across.position.maxScrollExtent,
+        greaterThan(0),
+        reason: 'nothing to pan means nothing under test',
+      );
+      final before = across.offset;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(ganttCanvasKey)),
+        kind: PointerDeviceKind.mouse,
+        buttons: kMiddleMouseButton,
+      );
+      await gesture.moveBy(const Offset(-120, 0));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Pulling the content left moves the window right.
+      expect(across.offset, greaterThan(before));
+      // §12.6's rule survives: the offset is still what says where the window
+      // is, so the bar still has something true to draw.
+      expect(across.position.maxScrollExtent, greaterThan(0));
+    });
+
+    testWidgets('space and the left button pan without following an order', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+      await zoomIn(tester);
+      final across = acrossIn(tester);
+      final before = across.offset;
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+      addTearDown(() => tester.sendKeyUpEvent(LogicalKeyboardKey.space));
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(ganttCanvasKey)),
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(-120, 0));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(across.offset, greaterThan(before));
+      // The grab landed on the canvas like any other press. Without the guard
+      // in `onTapDown` it would have followed whatever bar it started on.
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('a plain left drag does nothing, which keeps it free', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+      await zoomIn(tester);
+      final across = acrossIn(tester);
+      final before = across.offset;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(ganttCanvasKey)),
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(-120, 0));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(across.offset, before);
+    });
+  });
 }

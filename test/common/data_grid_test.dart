@@ -232,6 +232,126 @@ void main() {
     });
   });
 
+  // #10's rule: the arrows belong to the caret until it has nowhere left to go,
+  // and only then do they leave the cell. Asserted as a property — which cell
+  // holds focus, and where the caret sits — so it renders nothing and still
+  // catches the case a drive would have to hunt for.
+  group('DataGrid arrow keys', () {
+    Future<List<TextField>> pump(WidgetTester tester) async {
+      final model = [
+        ['PN1', '55:00:00'],
+        ['PN2', '8:00:00'],
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DataGrid(
+              columns: const [
+                DataGridColumn(title: 'Part'),
+                DataGridColumn(title: 'CLAD04'),
+              ],
+              rowCount: model.length,
+              valueAt: (row, column) => model[row][column],
+              onCommit: (row, column, block) {},
+            ),
+          ),
+        ),
+      );
+      return tester.widgetList<TextField>(find.byType(TextField)).toList();
+    }
+
+    /// Which cell holds focus, in reading order, or -1 if none does.
+    int focused(WidgetTester tester) {
+      final fields = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .toList();
+      for (var i = 0; i < fields.length; i++) {
+        if (fields[i].focusNode?.hasFocus ?? false) return i;
+      }
+      return -1;
+    }
+
+    Future<void> focus(WidgetTester tester, int cell) async {
+      await tester.tap(find.byType(TextField).at(cell));
+      await tester.pumpAndSettle();
+    }
+
+    void caretAt(List<TextField> fields, int cell, int offset) =>
+        fields[cell].controller!.selection = TextSelection.collapsed(
+          offset: offset,
+        );
+
+    testWidgets('down and up always change row, caret or no caret', (
+      tester,
+    ) async {
+      final fields = await pump(tester);
+      await focus(tester, 0);
+      // Mid-word: a single-line field has no caret to move vertically, so the
+      // row changes regardless.
+      caretAt(fields, 0, 1);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 2);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 0);
+    });
+
+    testWidgets('right leaves the cell only once the caret is at the end', (
+      tester,
+    ) async {
+      final fields = await pump(tester);
+      await focus(tester, 0);
+
+      caretAt(fields, 0, 1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 0, reason: 'the caret still had somewhere to go');
+
+      caretAt(fields, 0, 'PN1'.length);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+    });
+
+    testWidgets('left leaves the cell only from offset zero', (tester) async {
+      final fields = await pump(tester);
+      await focus(tester, 1);
+
+      caretAt(fields, 1, 3);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+
+      caretAt(fields, 1, 0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 0);
+    });
+
+    testWidgets('a selected value is at neither edge', (tester) async {
+      final fields = await pump(tester);
+      await focus(tester, 1);
+      // Select the whole value. Left here collapses the selection, as it does
+      // in every other text field; a cell that jumped away instead would make
+      // a selected value the one thing you cannot arrow out of.
+      fields[1].controller!.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 8,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+    });
+  });
+
   group('DataGrid with a frozen column', () {
     // Wide enough that the scrolling pane genuinely overflows a laptop window,
     // which is the case the freezing exists for.

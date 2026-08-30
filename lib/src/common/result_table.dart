@@ -23,8 +23,12 @@
 /// The breathing room belongs *inside* the declared width, where it can be seen.
 ///
 /// **Not the Takt table.** It fits, and §12.5 deliberately stretches it to fill
-/// its card — declared widths would end that stretch for no gain. It keeps
-/// `centredColumn` / `centredCell` from `centred_table.dart`.
+/// its card — declared widths would end that stretch for no gain. It is a
+/// [DataGrid] rather than a table at all now, which is what finally killed
+/// `centred_table.dart`: that file wrapped `DataColumn` and `DataCell` in a
+/// `Center` for the Takt table's sake, this pane centres its own cells through
+/// [ResultColumn.centred], and by the time #10 counted the callers it had none
+/// outside its own test. Centring lives here and in [DataGrid], nowhere else.
 ///
 /// **Not lazy.** A `DataTable` builds every row, so a §14-scale 2000-order plan
 /// constructs 2000 rows to show seven of them. That was true before this pane
