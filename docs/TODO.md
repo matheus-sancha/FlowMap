@@ -42,7 +42,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
-| 6 | Part identity | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **open** |
+| — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -187,19 +187,17 @@ units, and a project whose thresholds have been changed from the defaults.
 
 ---
 
-#### Phase 6 — Part identity
+#### Phase 6 — Part identity · **there isn't one**
 
-**Not yet written.** [#12](https://github.com/matheus-sancha/FlowMap/issues/12) is open, and its
-resolution is what fills this in.
+It was named here as a slot [#12](https://github.com/matheus-sancha/FlowMap/issues/12) would fill
+in. #12 resolved by **disproving its own premise** — eight mutually-distinguishable colours do
+exist under FlowMap's constraints, so no encoding had to change — and the whole of it was small
+enough to execute inside the ticket (`2cb0126`). Nothing is left to phase.
 
-It blocks nothing: the Gantt draws today with the palette #8 landed, and phases 1 to 5 proceed
-while it is open. It is in the plan rather than left out because it is inside the destination —
-#8 explicitly moved the categorical half of the palette to #12 after driving found that
-adjacent-pair separation does not survive contact with a real Gantt, so shipping v2.0 without it
-would ship the tokens work half-finished.
-
-It lands **after** phase 5 rather than inside it: it touches `part_palette.dart` and the Gantt's
-legend, and phase 5 is already editing `gantt_view.dart` for the station filter.
+The one thing a later phase inherits is a *rule*, not a task: **a hue changed in
+`part_palette.dart` is re-validated, never eyeballed.** Headroom over the floors is 0.7 and 1.6 ΔE,
+and `part_palette_test` now measures all pairs — which is what would have caught both of the
+palettes it has replaced.
 
 ---
 
@@ -214,6 +212,7 @@ answer is unambiguous is executed rather than planned.
 | `8daf2a8` | [#8](https://github.com/matheus-sancha/FlowMap/issues/8) — the seed off green to blueprint blue `#1F5C8B`, status colours and the occupation ramp chosen explicitly, space/radius/motion scales named. Two palette defects fixed that two tests had agreed were fine. |
 | `3d82715` | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — the Delivery Float was painting the band named *green* in the brand's blue; a real legend in three locales; `fill:` on the overview tables; optional sorting on `resultTable`. |
 | `9264a90` | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — the arrows leave a cell only once the caret cannot; the Gantt pans on middle-drag or space+drag; `centred_table.dart` deleted, having had zero callers. |
+| `2cb0126` | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — eight all-pairs part colours, which the ticket had recorded as infeasible; `part_palette_test` switched from adjacent to all pairs, and checked against the palette it replaces. |
 
 ### Standing constraints
 
