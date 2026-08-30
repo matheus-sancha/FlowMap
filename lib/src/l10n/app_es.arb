@@ -916,5 +916,19 @@
     }
   },
   "stepRebalanceRemainder": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, dentro de las {capacity} que cabe en un takt.",
-  "stepRebalanceRemainderOver": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, por encima de las {capacity} que cabe en un takt. El grupo necesita más de lo que tienen sus estaciones."
+  "stepRebalanceRemainderOver": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, por encima de las {capacity} que cabe en un takt. El grupo necesita más de lo que tienen sus estaciones.",
+  "occupationView": "Ocupación",
+  "occupationType": "Tipo",
+  "occupationStation": "Estación",
+  "occupationProcess": "Proceso",
+  "occupationRework": "Retrabajo",
+  "occupationChangeover": "Cambio",
+  "occupationOutsideFilter": "Fuera del filtro",
+  "occupationStations": "{count} estaciones agregadas",
+  "occupationPivotTitle": "Por línea y tipo de centro de trabajo",
+  "occupationPivotHelp": "Cada celda es la demanda propia de esa línea sobre la capacidad total del tipo. La fila TOTAL cuenta todas las líneas que tocan esas estaciones, filtradas o no, así que con un filtro no coincidirá con las celdas de arriba.",
+  "occupationCell": "Célula",
+  "occupationLine": "Línea",
+  "occupationTotal": "TOTAL",
+  "occupationUngraphable": "Esta simulación se hizo antes de que la app registrara cuánto valía un mes de una estación, así que no se puede graficar. Vuelve a simular para obtener el gráfico."
 }

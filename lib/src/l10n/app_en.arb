@@ -1079,5 +1079,26 @@
         "type": "String"
       }
     }
-  }
+  },
+  "occupationView": "Occupation",
+  "occupationType": "Type",
+  "occupationStation": "Station",
+  "occupationProcess": "Process",
+  "occupationRework": "Rework",
+  "occupationChangeover": "Changeover",
+  "occupationOutsideFilter": "Outside the filter",
+  "occupationStations": "{count} stations aggregated",
+  "@occupationStations": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "occupationPivotTitle": "By line and workcenter type",
+  "occupationPivotHelp": "Each cell is that line's own demand over the type's full capacity. The TOTAL row counts every line touching those stations, filtered out or not — so under a filter it will not equal the cells above it.",
+  "occupationCell": "Cell",
+  "occupationLine": "Line",
+  "occupationTotal": "TOTAL",
+  "occupationUngraphable": "This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart."
 }

@@ -1892,4 +1892,50 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return 'Sharing work with the adjacent $type stations. They fill to their takt and this one takes what is left — $filled, past the $capacity one takt holds. The group needs more than its stations have.';
   }
+
+  @override
+  String get occupationView => 'Occupation';
+
+  @override
+  String get occupationType => 'Type';
+
+  @override
+  String get occupationStation => 'Station';
+
+  @override
+  String get occupationProcess => 'Process';
+
+  @override
+  String get occupationRework => 'Rework';
+
+  @override
+  String get occupationChangeover => 'Changeover';
+
+  @override
+  String get occupationOutsideFilter => 'Outside the filter';
+
+  @override
+  String occupationStations(String count) {
+    return '$count stations aggregated';
+  }
+
+  @override
+  String get occupationPivotTitle => 'By line and workcenter type';
+
+  @override
+  String get occupationPivotHelp =>
+      'Each cell is that line\'s own demand over the type\'s full capacity. The TOTAL row counts every line touching those stations, filtered out or not — so under a filter it will not equal the cells above it.';
+
+  @override
+  String get occupationCell => 'Cell';
+
+  @override
+  String get occupationLine => 'Line';
+
+  @override
+  String get occupationTotal => 'TOTAL';
+
+  @override
+  String get occupationUngraphable =>
+      'This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.';
 }

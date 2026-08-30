@@ -3350,6 +3350,90 @@ abstract class AppLocalizations {
     String filled,
     String capacity,
   );
+
+  /// No description provided for @occupationView.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupation'**
+  String get occupationView;
+
+  /// No description provided for @occupationType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get occupationType;
+
+  /// No description provided for @occupationStation.
+  ///
+  /// In en, this message translates to:
+  /// **'Station'**
+  String get occupationStation;
+
+  /// No description provided for @occupationProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get occupationProcess;
+
+  /// No description provided for @occupationRework.
+  ///
+  /// In en, this message translates to:
+  /// **'Rework'**
+  String get occupationRework;
+
+  /// No description provided for @occupationChangeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Changeover'**
+  String get occupationChangeover;
+
+  /// No description provided for @occupationOutsideFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the filter'**
+  String get occupationOutsideFilter;
+
+  /// No description provided for @occupationStations.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stations aggregated'**
+  String occupationStations(String count);
+
+  /// No description provided for @occupationPivotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'By line and workcenter type'**
+  String get occupationPivotTitle;
+
+  /// No description provided for @occupationPivotHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Each cell is that line\'s own demand over the type\'s full capacity. The TOTAL row counts every line touching those stations, filtered out or not — so under a filter it will not equal the cells above it.'**
+  String get occupationPivotHelp;
+
+  /// No description provided for @occupationCell.
+  ///
+  /// In en, this message translates to:
+  /// **'Cell'**
+  String get occupationCell;
+
+  /// No description provided for @occupationLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get occupationLine;
+
+  /// No description provided for @occupationTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'TOTAL'**
+  String get occupationTotal;
+
+  /// No description provided for @occupationUngraphable.
+  ///
+  /// In en, this message translates to:
+  /// **'This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.'**
+  String get occupationUngraphable;
 }
 
 class _AppLocalizationsDelegate

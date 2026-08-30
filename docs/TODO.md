@@ -2971,56 +2971,53 @@ round turns on: the months sum to the run they were cut from, and every month of
 
 **Not driven.** Nothing reads any of this yet; §10.3 is what makes it visible.
 
-### 10.3 The occupation graph — demand against capacity
+### 10.3 The occupation graph — **code-complete 2026-08-29, not driven**
 
-Project-scoped, filtered by cell, line, workcenter type and workcenter, on top of the study and
-customer-project filters `RunFilter` already carries.
+**A third view of the run, not a destination of its own.** It joined the Results and the Gantt behind
+the same segmented control because it reads the same `FilteredRun` they do — and §12.1's rule is that
+two surfaces reading one run through one filter cannot disagree about a number. A destination would
+have had to re-derive the slice and could.
 
-- **x** — months, `Mmm/yyyy`. **y** — hours.
-- **bar**, stacked: process, rework, changeover. The three sum to `required`, which is what the
-  Summary's occupation is a ratio of — a bar omitting changeover would draw a station under its line
-  while the Summary read 96 %, and §7.6 is the record of what a surface agreeing with itself and
-  disagreeing with its own metric costs.
-- **line** — capacity, from §10.2's stored monthly open seconds.
-- **bucket** — `queueStart`, the month the work **arrived** at the step. Not `processStart`: work
-  the engine scheduled can never much exceed capacity, because it would not have been scheduled
-  otherwise, so bucketing by execution hides the overload that caused it. Five orders arriving with
-  500 h against a 400 h month is **125 %**, and the bar is meant to break the line.
-- `queueStart` is set when the order reaches the step, so an empty queue simply gives
-  `queueStart == processStart` and `wait == 0`. No special case.
+**Drawn rather than charted**, for the reason `mm3_view.dart` gives: the figure is a run of stacked
+rectangles and one polyline, and a charting dependency would be a package to keep current for that.
 
-**A filter colours the bar; it never shrinks it.** BAN11 is shared by 11B, 11C and 11D. Filtered to
-Célula 11B its own demand is 300 h against 400 h — 75 %, under the line — while the three lines
-together ask 550 h. Demand outside the filter therefore stays in the stack as a fourth, neutral
-segment, so the bar total is always the station's true load and **an overload cannot be filtered
-away**. The capacity line does not move under a filter and is never pro-rated: a denominator
-computed from another line's demand is not a number the plant has.
+- **x** — months, `Mmm/yy`, 64 px each so a two-year run scrolls rather than shrinking to stripes.
+- **bar**, stacked from the floor in the order the work is charged: process, rework, changeover, then
+  what the filter is not showing.
+- **line** — capacity, drawn **per column rather than as one polyline**. It is a step function: a
+  month with a shutdown genuinely has less capacity than the one before, and a sloping line between
+  two months would claim a capacity neither had.
+- **scale** — the tallest bar *or* the line, whichever is higher. Fitted to the bars alone, a quiet
+  month would push the capacity line off the top and make an under-loaded plant look overloaded.
+- **bucket** — `queueStart`, the month the work arrived. Bucketing by execution hides the overload
+  that caused the queue, because work the engine scheduled can never much exceed capacity.
+- **badge** — how many stations are individually over, drawn only where there are any. A badge on
+  every column is noise on a plant that is coping.
 
-Unfiltered, the chart aggregates every matching station and carries a per-month count of how many
-individual stations are over. The sum answers a real question about plant hours and headcount, and
-the badge is what stops it being read as occupation — §8.1's ranking is where a bottleneck is found.
+**Two filters, because they narrow different things.** `RunFilter` chooses whose demand is
+*coloured* and never touches a station (§7.10: its cells and lines are a study filter one level up).
+`OccupationStations` chooses which stations are *drawn at all*. The station pickers therefore sit
+above this chart rather than in the workspace's shared filter bar, where they would have offered the
+tables and the Gantt a control that did nothing to them.
 
-**Beneath it, a pivot**, over the visible span rather than per month:
+**A filter colours the bar; it never shrinks it.** Demand from excluded orders stays as a fourth,
+quiet segment, so the total is always the station's true load and an overload cannot be filtered
+away. One test pins all of it at once: the coloured part shrinks, the neutral segment takes up
+exactly the difference, and the total, the capacity and the ratio are untouched.
 
-```
-  Cell        Line        Cladding  Mach-HBM  Mach-TCN  Deburring   Total
-  ------------------------------------------------------------------------
-              Fluxo 11B      75%       60%       48%        31%       71%
-  Célula 11   Fluxo 11C      40%       28%       22%        19%       35%
-              Fluxo 11D      22%        —        18%        14%       18%
-  ------------------------------------------------------------------------
-  TOTAL                     137%       88%       88%        64%      119%
-```
+**The pivot** is workcenter types across and lines down, the cell name written once per run of rows.
+A cell is that line's own demand over the type's **full** capacity, so with every line in view a
+column's cells sum to its total — and the TOTAL row counts every line touching those stations,
+filtered out or not. Under a filter it will therefore not equal the cells above it, which is the
+point: it is the only place the contention still appears once a cell reads its own comfortable share.
 
-Rows are Cell → Line with the cell merged; columns are workcenter **type**, which is defensible in a
-way summing unlike stations is not — `takt_balance.dart` already treats *"workcenters of the same
-type in the sequence"* as one balanceable group. A cell holds **that line's own demand** over the
-type's full capacity, so with every line in view the column total is the sum of its cells.
+**A pre-v25 run says why it has no chart** rather than drawing an empty one, and the view-switch test
+asserts that sentence — the fixture's run is exactly such a run.
 
-**The TOTAL row counts every line touching those stations, filtered out or not**, which is the same
-rule as the chart's neutral segment. Under a filter the column will therefore *not* equal the sum of
-the cells above it — that is the point rather than a defect, because it is the only place the
-contention still appears once a cell reads its own 75 %.
+_Nine model tests and one widget test._ The model is pure and free of Drift, so what a bar means is a
+unit test; the fixture is two lines sharing a station, which is the shape every rule here is about.
+
+**Not driven.** §10.5's checks are unchanged and none of them has been made.
 
 ### 10.4 The float matrix
 

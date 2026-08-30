@@ -1912,4 +1912,50 @@ class AppLocalizationsPt extends AppLocalizations {
   ) {
     return 'Partilha trabalho com as estações $type adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: $filled, acima das $capacity que cabem num takt. O grupo precisa de mais do que as suas estações têm.';
   }
+
+  @override
+  String get occupationView => 'Ocupação';
+
+  @override
+  String get occupationType => 'Tipo';
+
+  @override
+  String get occupationStation => 'Estação';
+
+  @override
+  String get occupationProcess => 'Processo';
+
+  @override
+  String get occupationRework => 'Retrabalho';
+
+  @override
+  String get occupationChangeover => 'Setup';
+
+  @override
+  String get occupationOutsideFilter => 'Fora do filtro';
+
+  @override
+  String occupationStations(String count) {
+    return '$count estações agregadas';
+  }
+
+  @override
+  String get occupationPivotTitle => 'Por linha e tipo de centro de trabalho';
+
+  @override
+  String get occupationPivotHelp =>
+      'Cada célula é a procura da própria linha sobre a capacidade total do tipo. A linha TOTAL conta todas as linhas que tocam essas estações, filtradas ou não, por isso com um filtro não corresponderá às células acima.';
+
+  @override
+  String get occupationCell => 'Célula';
+
+  @override
+  String get occupationLine => 'Linha';
+
+  @override
+  String get occupationTotal => 'TOTAL';
+
+  @override
+  String get occupationUngraphable =>
+      'Esta simulação foi feita antes de a app registar quanto valia um mês de uma estação, por isso não pode ser desenhada. Volte a simular para obter o gráfico.';
 }

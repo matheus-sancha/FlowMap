@@ -916,5 +916,19 @@
     }
   },
   "stepRebalanceRemainder": "Partilha trabalho com as estações {type} adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: {filled}, dentro das {capacity} que cabem num takt.",
-  "stepRebalanceRemainderOver": "Partilha trabalho com as estações {type} adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: {filled}, acima das {capacity} que cabem num takt. O grupo precisa de mais do que as suas estações têm."
+  "stepRebalanceRemainderOver": "Partilha trabalho com as estações {type} adjacentes. Elas enchem até ao seu takt e esta fica com o que sobra: {filled}, acima das {capacity} que cabem num takt. O grupo precisa de mais do que as suas estações têm.",
+  "occupationView": "Ocupação",
+  "occupationType": "Tipo",
+  "occupationStation": "Estação",
+  "occupationProcess": "Processo",
+  "occupationRework": "Retrabalho",
+  "occupationChangeover": "Setup",
+  "occupationOutsideFilter": "Fora do filtro",
+  "occupationStations": "{count} estações agregadas",
+  "occupationPivotTitle": "Por linha e tipo de centro de trabalho",
+  "occupationPivotHelp": "Cada célula é a procura da própria linha sobre a capacidade total do tipo. A linha TOTAL conta todas as linhas que tocam essas estações, filtradas ou não, por isso com um filtro não corresponderá às células acima.",
+  "occupationCell": "Célula",
+  "occupationLine": "Linha",
+  "occupationTotal": "TOTAL",
+  "occupationUngraphable": "Esta simulação foi feita antes de a app registar quanto valia um mês de uma estação, por isso não pode ser desenhada. Volte a simular para obter o gráfico."
 }

@@ -628,7 +628,7 @@ void main() {
     expect(find.text('Wing 7'), findsNothing);
   });
 
-  testWidgets('the run switches between two views of itself (§8.6)', (
+  testWidgets('the run switches between three views of itself (§8.6, §10.3)', (
     tester,
   ) async {
     await pump(
@@ -668,6 +668,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Production plan — orders over time'), findsOne);
+
+    // And the third, added by §10.3. This fixture's run carries no monthly
+    // capacity — which is every run made before v25 — so the view says why
+    // rather than drawing an empty chart.
+    await tester.tap(find.text('Occupation'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Production plan — orders over time'), findsNothing);
+    expect(
+      find.textContaining('cannot be graphed'),
+      findsOne,
+      reason: 'a pre-v25 run says why it has no chart',
+    );
   });
 
   testWidgets('an aborted run says why rather than just reading badly', (

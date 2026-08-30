@@ -14,6 +14,7 @@ import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
 import 'gantt_view.dart';
+import 'occupation_view.dart';
 import 'plan_excel.dart';
 
 /// The project's stored runs: open an earlier one, or delete one (§7.10).
@@ -92,7 +93,11 @@ class RunsMenu extends ConsumerWidget {
 }
 
 /// Which of the two views of a run is showing.
-enum _RunView { results, gantt }
+/// **Three views of one run, not three screens.** The occupation graph joined
+/// them rather than becoming a destination of its own because it reads the same
+/// `FilteredRun` the tables and the Gantt do — and §12.1's rule is that two
+/// surfaces reading one run through one filter cannot disagree about a number.
+enum _RunView { results, gantt, occupation }
 
 /// Everything §8 asks a run to report, in two views of it.
 ///
@@ -174,6 +179,11 @@ class _ResultsState extends State<RunResults> {
                       label: Text(l10n.simGanttView),
                       icon: const Icon(Icons.view_timeline_outlined),
                     ),
+                    ButtonSegment(
+                      value: _RunView.occupation,
+                      label: Text(l10n.occupationView),
+                      icon: const Icon(Icons.bar_chart_outlined),
+                    ),
                   ],
                   selected: {_view},
                   showSelectedIcon: false,
@@ -198,6 +208,7 @@ class _ResultsState extends State<RunResults> {
                 ),
               ),
               GanttView(slice: slice),
+              OccupationView(slice: slice),
             ],
           ),
         ),
