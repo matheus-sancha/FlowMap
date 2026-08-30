@@ -521,7 +521,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studySettingsIdentity => 'Identity';
 
   @override
-  String get studySettingsInRuns => 'In simulation';
+  String get studySettingsInRuns => 'Simulation settings';
 
   @override
   String get studyName => 'Name';
@@ -530,7 +530,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get studyLine => 'Production line';
 
   @override
-  String get studyIncludeInRuns => 'Include in runs';
+  String get studyIncludeInRuns => 'Include in simulation';
 
   @override
   String get studyIncludeInRunsHelp =>
@@ -1557,7 +1557,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get simViewResults => 'View results';
+  String get simViewResults => 'Simulation results';
 
   @override
   String get simulationRunFailed => 'The run could not be completed';

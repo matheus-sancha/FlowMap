@@ -173,10 +173,10 @@
   "studyTabSettings": "Definições do estudo",
   "studyTabTakt": "Takt do fluxo",
   "studySettingsIdentity": "Identidade",
-  "studySettingsInRuns": "Na simulação",
+  "studySettingsInRuns": "Configurações de simulação",
   "studyName": "Nome",
   "studyLine": "Linha de produção",
-  "studyIncludeInRuns": "Incluir nas corridas",
+  "studyIncludeInRuns": "Incluir na simulação",
   "studyIncludeInRunsHelp": "Uma corrida toma todos os estudos incluídos ao mesmo tempo, disputando a mesma fábrica.",
   "studyWipCap": "Limite de WIP",
   "studyWipCapUnlimited": "Sem limite",
@@ -686,7 +686,7 @@
       }
     }
   },
-  "simViewResults": "Ver resultados",
+  "simViewResults": "Resultados da simulação",
   "simulationRunFailed": "Não foi possível concluir a simulação",
   "simProductionPlan": "Plano de produção — ordens ao longo do tempo",
   "simProductionPlanHelp": "O que esta simulação diz que cada ordem faz. As linhas seguem a ordem da sequência, que é também a ordem de liberação: o motor libera sempre a partir do início da sequência e nunca a reordena. Colunas em branco são de uma simulação anterior ao registro delas.",

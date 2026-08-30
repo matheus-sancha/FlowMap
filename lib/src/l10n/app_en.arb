@@ -218,10 +218,10 @@
   "studyTabSettings": "Study Settings",
   "studyTabTakt": "Flow Takt",
   "studySettingsIdentity": "Identity",
-  "studySettingsInRuns": "In simulation",
+  "studySettingsInRuns": "Simulation settings",
   "studyName": "Name",
   "studyLine": "Production line",
-  "studyIncludeInRuns": "Include in runs",
+  "studyIncludeInRuns": "Include in simulation",
   "studyIncludeInRunsHelp": "A run takes every included study at once, contending for the same plant.",
   "studyWipCap": "WIP cap",
   "studyWipCapUnlimited": "Unlimited",
@@ -823,7 +823,7 @@
       }
     }
   },
-  "simViewResults": "View results",
+  "simViewResults": "Simulation results",
   "simulationRunFailed": "The run could not be completed",
   "simProductionPlan": "Production plan — orders over time",
   "simProductionPlanHelp": "What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.",

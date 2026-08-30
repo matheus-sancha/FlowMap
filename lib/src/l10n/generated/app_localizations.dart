@@ -1057,7 +1057,7 @@ abstract class AppLocalizations {
   /// No description provided for @studySettingsInRuns.
   ///
   /// In en, this message translates to:
-  /// **'In simulation'**
+  /// **'Simulation settings'**
   String get studySettingsInRuns;
 
   /// No description provided for @studyName.
@@ -1075,7 +1075,7 @@ abstract class AppLocalizations {
   /// No description provided for @studyIncludeInRuns.
   ///
   /// In en, this message translates to:
-  /// **'Include in runs'**
+  /// **'Include in simulation'**
   String get studyIncludeInRuns;
 
   /// No description provided for @studyIncludeInRunsHelp.
@@ -2829,7 +2829,7 @@ abstract class AppLocalizations {
   /// No description provided for @simViewResults.
   ///
   /// In en, this message translates to:
-  /// **'View results'**
+  /// **'Simulation results'**
   String get simViewResults;
 
   /// No description provided for @simulationRunFailed.

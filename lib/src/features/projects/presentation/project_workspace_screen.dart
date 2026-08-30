@@ -564,7 +564,7 @@ class _StudiesSidebar extends ConsumerWidget {
         ),
         const Divider(height: 1),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -576,21 +576,11 @@ class _StudiesSidebar extends ConsumerWidget {
             ),
           ),
         ),
-        // Under New study, and a destination rather than a button: a run spans
-        // studies (§7.7), so it sits beside them rather than inside one, and
-        // selecting it replaces the tabs entirely (§12.1).
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: () =>
-                  context.go('/projects/${project.id}/simulation'),
-              icon: const Icon(Icons.insights_outlined),
-              label: Text(l10n.simWorkspace),
-            ),
-          ),
-        ),
+        // **The Simulation destination is gone from here** (v2.0). It sat under
+        // New study as the unfiltered way into the run, and put a second way to
+        // the results a few hundred pixels from the strip's own one. The run is
+        // reached from where it is read: Simulation results on the tab strip,
+        // and the banner a finished run raises.
         // **The exceptions button is gone from here** (§10.1). It sat at the
         // bottom of this sidebar because there was nowhere better — there is
         // now, and the calendar is a section of Project Settings rather than a

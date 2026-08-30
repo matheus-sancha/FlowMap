@@ -173,10 +173,10 @@
   "studyTabSettings": "Ajustes del estudio",
   "studyTabTakt": "Takt del flujo",
   "studySettingsIdentity": "Identidad",
-  "studySettingsInRuns": "En la simulación",
+  "studySettingsInRuns": "Ajustes de simulación",
   "studyName": "Nombre",
   "studyLine": "Línea de producción",
-  "studyIncludeInRuns": "Incluir en las corridas",
+  "studyIncludeInRuns": "Incluir en la simulación",
   "studyIncludeInRunsHelp": "Una corrida toma todos los estudios incluidos a la vez, compitiendo por la misma planta.",
   "studyWipCap": "Límite de WIP",
   "studyWipCapUnlimited": "Sin límite",
@@ -686,7 +686,7 @@
       }
     }
   },
-  "simViewResults": "Ver resultados",
+  "simViewResults": "Resultados de simulación",
   "simulationRunFailed": "No se pudo completar la simulación",
   "simProductionPlan": "Plan de producción — órdenes en el tiempo",
   "simProductionPlanHelp": "Lo que esta simulación dice que hace cada orden. Las filas van en orden de secuencia, que es también el orden de liberación: el motor libera siempre desde la cabeza de la secuencia y nunca la reordena. Las columnas vacías son de una simulación anterior a que FlowMap las registrara.",
