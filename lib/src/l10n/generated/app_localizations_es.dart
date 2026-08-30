@@ -135,6 +135,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navExceptions => 'Excepciones';
 
   @override
+  String get projectSettings => 'Ajustes del proyecto';
+
+  @override
+  String get projectSettingsIdentity => 'Identidad';
+
+  @override
+  String get projectPatternHelp =>
+      'El patrón de turnos del que cada centro de trabajo de este proyecto lee sus horas abiertas. Cambiarlo recalcula el horario de todas las estaciones, y toda cifra derivada de ellas.';
+
+  @override
   String get calendarExceptions => 'Excepciones';
 
   @override

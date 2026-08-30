@@ -46,16 +46,28 @@ GoRouter router(Ref ref) {
                           studyId: state.pathParameters['studyId'],
                         ),
                       ),
-                      // The project's own calendar, out of the study it was
-                      // never about (§4.3, §12.1). A destination rather than a
-                      // tab, for the same reason the run is one: it spans every
-                      // study in the project.
+                      // Everything about the project that is not one of its
+                      // studies — its fields, and the calendar that was never
+                      // the study's (§4.3, §12.1). A destination rather than a
+                      // dialog, for the same reason the run is one: it spans
+                      // every study in the project, and a calendar is browsed
+                      // rather than filled in and dismissed.
                       GoRoute(
-                        path: 'exceptions',
+                        path: 'settings',
                         builder: (context, state) => ProjectWorkspaceScreen(
                           projectId: state.pathParameters['projectId']!,
-                          showExceptions: true,
+                          showSettings: true,
                         ),
+                      ),
+                      // **Redirected rather than deleted.** The window reopens
+                      // where it was left (§12.1), so a session closed on the
+                      // exceptions route would otherwise open on a 404 after
+                      // an update — and the calendar is one section down.
+                      GoRoute(
+                        path: 'exceptions',
+                        redirect: (context, state) =>
+                            '/projects/${state.pathParameters['projectId']}'
+                            '/settings',
                       ),
                       // The **only** place a run is read (§12.1), and a place
                       // rather than an overlay, so it is linkable and the

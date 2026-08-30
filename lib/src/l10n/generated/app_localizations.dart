@@ -346,6 +346,24 @@ abstract class AppLocalizations {
   /// **'Exceptions'**
   String get navExceptions;
 
+  /// No description provided for @projectSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Project settings'**
+  String get projectSettings;
+
+  /// No description provided for @projectSettingsIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get projectSettingsIdentity;
+
+  /// No description provided for @projectPatternHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every station, and every figure derived from one.'**
+  String get projectPatternHelp;
+
   /// No description provided for @calendarExceptions.
   ///
   /// In en, this message translates to:

@@ -12,7 +12,7 @@ import '../../flow/presentation/period_control.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
 import '../../schedules/presentation/capacity_tab.dart';
-import '../../schedules/presentation/exceptions_screen.dart';
+import 'project_settings_screen.dart';
 import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
 import '../../simulation/presentation/simulation_tab.dart';
@@ -37,7 +37,7 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
     required this.projectId,
     this.studyId,
     this.showSimulation = false,
-    this.showExceptions = false,
+    this.showSettings = false,
     this.simulationStudyId,
   });
 
@@ -53,7 +53,7 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   /// A destination rather than a tab, for the same reason the run is one: an
   /// exception is stored per project and applies to every study in it, so it
   /// was never one study's to edit.
-  final bool showExceptions;
+  final bool showSettings;
 
   /// The study to pre-select in the run's filter, from `?study=`.
   ///
@@ -164,6 +164,16 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               ],
             ),
             actions: [
+              // The project's own settings, on the project's own chrome. A
+              // gear rather than a labelled button: it is the one action here
+              // that is not about running anything, and §12.1 puts what spans
+              // studies on this bar rather than inside one of six tabs.
+              IconButton(
+                tooltip: l10n.projectSettings,
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () =>
+                    context.go('/projects/${project.id}/settings'),
+              ),
               // A run spans studies and belongs to the project (§7.7), so its
               // trigger belongs on the project's chrome rather than inside one
               // of six tabs.
@@ -216,8 +226,8 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
               ),
               const VerticalDivider(width: 1),
               Expanded(
-                child: widget.showExceptions
-                    ? ExceptionsScreen(project: project)
+                child: widget.showSettings
+                    ? ProjectSettingsScreen(project: project)
                     : widget.showSimulation
                     ? SimulationWorkspace(
                         project: project,
@@ -581,21 +591,10 @@ class _StudiesSidebar extends ConsumerWidget {
             ),
           ),
         ),
-        // Beside the run, and for the same reason it is here rather than on a
-        // tab: an exception is stored per project and closes the plant for
-        // every study in it (§4.3, §12.1).
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () =>
-                  context.go('/projects/${project.id}/exceptions'),
-              icon: const Icon(Icons.event_busy_outlined),
-              label: Text(l10n.navExceptions),
-            ),
-          ),
-        ),
+        // **The exceptions button is gone from here** (§10.1). It sat at the
+        // bottom of this sidebar because there was nowhere better — there is
+        // now, and the calendar is a section of Project Settings rather than a
+        // destination competing with the run for the same strip of chrome.
       ],
     );
   }

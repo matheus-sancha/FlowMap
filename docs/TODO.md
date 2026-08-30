@@ -2877,22 +2877,50 @@ live; §10.2 comes before §10.3 and §10.4 because neither can be built against
 what they read. **Runs made before §8.1 must not be graphed** — they contain the phantom visits that
 round removes.
 
-### 10.1 Project Settings becomes a destination
-
-A project owns a name, a plant, a shift pattern, notes and its calendar exceptions — and after §10.4
-it owns the float thresholds too. **Every one of those is edited in a dialog launched from the
-Projects list** (`projects_screen.dart:235`), so there is no project-level surface inside the
-workspace at all, and the exceptions button sits at the bottom of the studies sidebar
-(`project_workspace_screen.dart:587`) because there was nowhere better to put it.
+### 10.1 Project Settings becomes a destination — **code-complete 2026-08-29, not driven**
 
 A gear in the workspace app bar opens **Project Settings**: a destination and not a dialog, holding
-the fields, §10.4's thresholds, and Calendar Exceptions as a section. That mirrors §4.2's Study
-Settings one level up, and it keeps §12.1's reason for exceptions being a destination in the first
-place — a calendar is browsed, not filled in and dismissed.
+the project's fields, §10.4's thresholds when they exist, and Calendar Exceptions as a section. That
+mirrors §4.2's Study Settings one level up, and it keeps §12.1's reason for exceptions being a
+destination in the first place — a calendar is browsed, not filled in and dismissed, and it is
+browsed here.
 
-`_ProjectDialog` stays for **create** and loses **edit**. Two write paths into one table is how the
-two come to disagree, which is the argument `station_cards.dart:31` already makes about the dialog
-§6.3 deleted.
+**This entry over-specified nothing and under-specified the prize**, which is the opposite of the
+mistake this file warns about twice. It said a project's fields are *"edited in a dialog launched
+from the Projects list"*. Reading the code first says less than that and worse:
+
+| field | before | now |
+|---|---|---|
+| name | `Rename` on the Projects row menu, via `promptForName` | edited here, and still on the row menu |
+| plant | create only, and correctly so | shown, read-only |
+| shift pattern | **reachable from nothing** | edited here |
+| notes | **reachable from nothing** | edited here |
+
+`_ProjectDialog` is **create-only already** and needed no change: the edit path it was supposed to
+lose was never in it. What the round actually closes is two stored fields that `updateProject` has
+always written and no screen has ever set — **the same shape as §17.5's `wipCap` and `priority`**,
+which Study Settings closed for the same reason. Changing the shift pattern re-times every station in
+the project, and until now the only way to try that was to create a second project.
+
+**The exceptions route redirects rather than 404s.** The window reopens where it was left (§12.1), so
+a session closed on `/exceptions` after an update would otherwise open on nothing; it lands on
+`/settings`, one section down. `ExceptionsScreen` is deleted — it was a heading over
+`CalendarExceptionsView`, and that view is what the section mounts. The sidebar's exceptions button
+is gone with it: it sat at the bottom of the studies list because there was nowhere better, and there
+is now.
+
+_One defect, found by its own test:_ the duplicate-name guard read `projectsListProvider` with
+`ref.read` inside the commit. **A lazily-initialised `StreamProvider` nobody is listening to answers
+`AsyncLoading`**, so the guard saw an empty list, let a duplicate through to the unique constraint,
+and threw inside an async callback — where the user sees the field revert and nothing else. The list
+is watched in `build` and the taken names are passed down. **This is the second time in two rounds
+that a lookup compiled, returned nothing, and failed silently** (§9.9 was the first); the difference
+is that this one had a test written for it before it was run.
+
+_Six tests_, including the two the round is for — the pattern can be set, and the notes commit on
+blur with an emptied field meaning null rather than `''`.
+
+**Not driven.** The gear, the redirect, and the three languages are unchecked.
 
 ### 10.2 Schema v25 — what a run must store to be graphed
 
