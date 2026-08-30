@@ -29,6 +29,8 @@ class SimWorkcenter {
     required this.calendar,
     required this.schedule,
     this.units = 1,
+    this.typeId,
+    this.typeName,
   });
 
   final String id;
@@ -57,6 +59,18 @@ class SimWorkcenter {
   /// where the staffing changes (§4.2).
   final WorkcenterScheduleSpec schedule;
 
+  /// The workcenter's type, carried so a finished run can be filtered and
+  /// pivoted by it without joining back to the plant (§7.10, §10.2).
+  ///
+  /// The engine reads neither — §7.4 forms its balance groups on the type *name*
+  /// out of `SimResourceContext`, before a run exists. These are here to be
+  /// copied into the stored run, which is the only thing that needs them and the
+  /// only thing a retyped station would otherwise silently rewrite.
+  ///
+  /// Null on a station whose type was never set, which the plant allows and
+  /// §7.4 already reads as *"nothing says it is like its neighbours"*.
+  final String? typeId;
+  final String? typeName;
 }
 
 /// A takt as a **figure**, which is the identity a balance group is split

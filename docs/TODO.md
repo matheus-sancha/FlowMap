@@ -2922,27 +2922,54 @@ blur with an emptied field meaning null rather than `''`.
 
 **Not driven.** The gear, the redirect, and the three languages are unchecked.
 
-### 10.2 Schema v25 — what a run must store to be graphed
+### 10.2 Schema v25 — **code-complete 2026-08-29, met a copy of the live database, not driven**
 
-**v25**, settled by interview 2026-08-29 and moved up once when §9 took v24: §8.6 needed a migration of its own and §8
-is driven before §9 moves the ground under it. Carrying §9's columns in §8's migration would have
-committed the live database to a design nothing had written yet — the shape this file already warns
-about twice, where an entry over-specified its own cost before the code around it was read.
+Three copy-ins, one migration, **no rebuild** — two nullable columns on tables that predate them and
+one new table, which is §16.19's safe shape and what every migration since v15 but v23 has managed.
+Each is a copy-in because §7.10 forbids joining a finished run back to a plant that may have been
+retuned since — the rule `processSeconds` already states in its own doc: *"Recomputing it on read is
+not open to us."*
 
-Three columns, one migration. Each is a copy-in, because §7.10 forbids joining a finished run back
-to a plant that may have been retuned since — the rule `processSeconds` already states in its own
-doc: *"Recomputing it on read is not open to us."*
-
-| column | table | why |
+| what | where | why it could not be derived |
 |---|---|---|
-| work **before** rework | `SimulationRunSteps` | `processSeconds` is `per-piece × batch × (1 + rework) ÷ availability` — already fused, so rework cannot be its own segment without it |
-| open seconds **per month** | new, per run × station × month | only a whole-run `openSeconds` exists, so a monthly capacity line has no denominator |
-| workcenter type id and name | `SimulationRunWorkcenters` | `Workcenters.typeId` is in the plant and is not copied in, so §10.3's type filter and its pivot columns cannot be read off a run |
+| `processSecondsBeforeRework` | `SimulationRunSteps` | `processSeconds` is `work × (1 + r)` and `r` lives on a schedule the plant may retune, so the two cannot be unfused |
+| `SimulationRunWorkcenterMonths` | new, run × station × month | only a whole-run `openSeconds` existed, so a monthly capacity line had no denominator |
+| `typeId`, `typeName` | `SimulationRunWorkcenters` | `Workcenters.typeId` is in the plant, so §10.3's filter and its pivot columns could not be read off a run at all |
 
-The monthly open seconds also close, **for this metric only**, something `run_filter.dart:9` states
-as a standing limitation: *"a station's busy, open and blocked time keep describing the whole run."*
+**The months are one walk, not a second opinion.** They come out of the same
+`calendar.openTimeBetween` loop the whole-run figure does and **sum back to it exactly**, which a
+test asserts per station — a capacity line that did not add back to utilization's denominator would
+be §7.6's failure over again. They are **clipped to the run at both ends**, so a run beginning on the
+20th states January's real capacity rather than the whole month's, and a month a station was closed
+for is stored as **zero rather than left out**: *closed* and *not in this run* are different answers
+and §10.3 draws them differently.
 
-Runs made before v25 graph nothing, the way pre-v18 runs group nothing.
+**Rework is computed a second time rather than divided back out.** `work ÷ (1 + r)` and
+`perPiece × batch ÷ availability` differ by a rounding, and a stacked bar whose segments do not sum
+to the whole is the §7.6 defect again. A station with no rework therefore reads a **true zero**, not
+a rounding of one — which is the distinction the column exists to keep, since null means *nobody
+recorded it*.
+
+**Nothing is backfilled, deliberately.** There is nothing to recover a pre-v25 figure from, and
+inventing one out of today's schedules would draw a 2025 capacity line from a plant retuned in 2026.
+A wrong line is worse than no graph, so §10.3 offers none on a pre-v25 run — the way pre-v18 runs
+group nothing.
+
+_Met a copy of the live database on 2026-08-29_, which is the check §9.2 wished it had taken:
+
+| | |
+|---|---|
+| `user_version` | 24 → **25**, `integrity_check` **ok** |
+| runs, run steps | **144** and **184,010**, unchanged |
+| `process_seconds` still set | **85,547** steps, unchanged |
+| `part_process_times` | **399**, untouched |
+| backfilled | **0 of 184,010** steps, **0 of 1,851** stations — as designed |
+
+_Eight tests:_ three on the migration — the columns and the table arrive, the run it found is left
+exactly as it was, and a second open is a no-op — and five on the storage, including the two the
+round turns on: the months sum to the run they were cut from, and every month of the span has a row.
+
+**Not driven.** Nothing reads any of this yet; §10.3 is what makes it visible.
 
 ### 10.3 The occupation graph — demand against capacity
 

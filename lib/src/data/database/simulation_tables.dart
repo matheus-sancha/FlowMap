@@ -318,6 +318,21 @@ class SimulationRunSteps extends Table {
   /// route through legitimately records.
   IntColumn get processSeconds => integer().nullable()();
 
+  /// The same work with **rework not yet charged** — `per-piece × batch ÷
+  /// availability` (§10.2).
+  ///
+  /// **Stored rather than derived, because [processSeconds] has already fused
+  /// them.** `process × (1 + r)` cannot be undone without `r`, and `r` lives on
+  /// a workcenter schedule the plant is free to retune — which §7.10 forbids
+  /// joining a finished run back to. Two figures side by side, and their
+  /// difference is what rework cost: the middle segment of §10.3's stacked bar,
+  /// which is the only reason the column exists.
+  ///
+  /// Null on every run made before v25, which is *made before a run said this*
+  /// rather than "no rework" — that is zero, and a station with none records it
+  /// honestly as `processSeconds == processSecondsBeforeRework`.
+  IntColumn get processSecondsBeforeRework => integer().nullable()();
+
   /// The lane the order waited in before this step, or null when the step had
   /// none and it queued at the station itself (§5.5).
   ///
@@ -455,6 +470,24 @@ class SimulationRunWorkcenters extends Table {
   TextColumn get queueType => text().nullable()();
   IntColumn get queueCapacity => integer().nullable()();
 
+  /// The workcenter's type, copied in (§10.2).
+  ///
+  /// **`Workcenters.typeId` is in the plant and a run has never carried it**, so
+  /// §10.3's type filter and the columns of its pivot could not be read off a
+  /// stored run at all — and joining back to find out is exactly what §7.10
+  /// forbids, because a station retyped since would silently re-column every
+  /// run in the picker.
+  ///
+  /// The **name** travels beside the id for the reason [poolName] does: a type
+  /// deleted since still named this station when it ran, and a pivot headed by
+  /// a uuid is not a pivot anyone can read.
+  ///
+  /// Both null on a run made before v25, and on a station whose type was never
+  /// set — which is a real state the plant allows and §7.4 already treats as
+  /// *"nothing says it is like its neighbours"*.
+  TextColumn get typeId => text().nullable()();
+  TextColumn get typeName => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {runId, workcenterId};
 }
@@ -565,4 +598,41 @@ class SimulationRunLaneVisits extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {runId, orderId, stepNodeId};
+}
+
+/// How much open time one station had in one **month** of a run (§10.2).
+///
+/// **A run has only ever known its whole-span open time**, which
+/// `run_filter.dart` states as a standing limitation: *"a station's busy, open
+/// and blocked time keep describing the whole run."* §10.3 draws a capacity
+/// line per month, and one number spanning eighteen months is no denominator
+/// for any of them — so this closes that limitation for this metric and leaves
+/// it open for the others.
+///
+/// **A copy-in like every other figure a run keeps saying** (§7.10). The open
+/// hours of a month are the shift pattern, the staffing and the calendar
+/// exceptions as they stood; recomputing them on read would redraw a finished
+/// run's capacity line the first time somebody adds a shutdown.
+///
+/// Rows exist only for months the run actually spans, and only for stations it
+/// reached. A month a station was closed for the whole of is stored as zero
+/// rather than left out — *closed* and *not in this run* are different answers
+/// and the graph draws them differently.
+class SimulationRunWorkcenterMonths extends Table {
+  TextColumn get runId =>
+      text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
+  TextColumn get workcenterId => text()();
+
+  /// The first instant of the month, local — the same key §10.3 buckets
+  /// `queueStart` into, so a bar and its line cannot land in different columns.
+  DateTimeColumn get month => dateTime()();
+
+  /// Open seconds in that month, **already multiplied by the station's units**,
+  /// exactly as `openSeconds` is on the whole-run row. A two-unit station has
+  /// twice the capacity and one clock, and the two figures must agree about
+  /// which of those they are stating.
+  IntColumn get openSeconds => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {runId, workcenterId, month};
 }

@@ -331,6 +331,11 @@ class SimulationRunsRepository {
               changeoverIncurred: Value(step.changeoverIncurred),
               changeoverSeconds: Value(step.changeoverSeconds),
               processSeconds: Value(step.processSeconds),
+              // The same work before rework, so §10.3 can draw the two as
+              // separate segments of one bar (§10.2).
+              processSecondsBeforeRework: Value(
+                step.processSecondsBeforeRework,
+              ),
               // The lane it was pulled out of, and how long the station then
               // stood holding it (§5.5). Both are read back below, and a column
               // written by nobody is the failure §1.5 found once already.
@@ -379,7 +384,26 @@ class SimulationRunsRepository {
               poolName: Value(pools[entry.key]?.name),
               queueType: Value(queues[entry.key]?.rule.name),
               queueCapacity: Value(queues[entry.key]?.capacity),
+              // Copied in for the same reason the pool name is: a station
+              // retyped afterwards would otherwise re-column every stored run
+              // in the picker (§7.10, §10.2).
+              typeId: Value(workcenters[entry.key]?.typeId),
+              typeName: Value(workcenters[entry.key]?.typeName),
             ),
+        ]);
+
+        // A row per station per month of the run (§10.2). Written from the
+        // same walk that produced the whole-run figure above, so the months sum
+        // to it rather than being a second opinion about the same calendar.
+        b.insertAll(_db.simulationRunWorkcenterMonths, [
+          for (final entry in result.openByWorkcenterMonth.entries)
+            for (final month in entry.value.entries)
+              SimulationRunWorkcenterMonthsCompanion.insert(
+                runId: runId,
+                workcenterId: entry.key,
+                month: month.key,
+                openSeconds: month.value.inSeconds,
+              ),
         ]);
 
         // Every lane in the flow, whether or not anything queued in it (§5.5).
@@ -510,6 +534,7 @@ class SimulationRunsRepository {
             changeoverIncurred: row.changeoverIncurred,
             changeoverSeconds: row.changeoverSeconds,
             processSeconds: row.processSeconds,
+            processSecondsBeforeRework: row.processSecondsBeforeRework,
             laneNodeId: row.laneNodeId,
             blocked: Duration(seconds: row.blockedSeconds),
           ),

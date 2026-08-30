@@ -2521,4 +2521,96 @@ void main() {
       await db.close();
     });
   });
+  group('v24 to v25: what a run must carry to be graphed (§10.2)', () {
+    /// A v24 database holding one stored run, with the three things v25 adds
+    /// absent — which is exactly what a real one arrives with.
+    Future<File> v24WithARun() async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, project_id, dispatch, run_start, "
+        "run_end, guard, created_at) VALUES "
+        "('run-1', 'proj-1', '', $now, $now, $now, $now)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_run_steps (run_id, study_id, order_id, "
+        "node_id, workcenter_id, queue_start, process_start, process_end, "
+        "process_seconds) VALUES "
+        "('run-1', 'study-1', 'order-1', 'node-1', 'wc-1', $now, $now, $now, "
+        "3737)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_run_workcenters (run_id, workcenter_id, name, "
+        "busy_seconds, open_seconds) VALUES "
+        "('run-1', 'wc-1', 'CLAD06', 100, 200)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE simulation_run_steps '
+            'DROP COLUMN process_seconds_before_rework')
+        ..execute('ALTER TABLE simulation_run_workcenters DROP COLUMN type_id')
+        ..execute(
+          'ALTER TABLE simulation_run_workcenters DROP COLUMN type_name',
+        )
+        ..execute('DROP TABLE simulation_run_workcenter_months')
+        ..execute('PRAGMA user_version = 24')
+        ..close();
+      return file;
+    }
+
+    test('the two columns and the table arrive, and no rebuild is needed',
+        () async {
+      final file = await v24WithARun();
+
+      final db = AppDatabase(NativeDatabase(file));
+      // Opening it runs the migration; the assertion is that all three landed.
+      final step = await db.select(db.simulationRunSteps).getSingle();
+      final station = await db.select(db.simulationRunWorkcenters).getSingle();
+      final months = await db.select(db.simulationRunWorkcenterMonths).get();
+
+      expect(step.processSecondsBeforeRework, isNull);
+      expect(station.typeId, isNull);
+      expect(station.typeName, isNull);
+      expect(months, isEmpty);
+      await db.close();
+    });
+
+    test('the run it found is left exactly as it was', () async {
+      // **No backfill, deliberately** (§10.2). `process_seconds` is
+      // `work × (1 + rework)` with the rework gone, so there is nothing to
+      // recover it from — and inventing a figure out of today's schedules would
+      // draw a 2025 capacity line from a plant retuned in 2026. A run that
+      // cannot be graphed says so by holding nulls.
+      final file = await v24WithARun();
+
+      final db = AppDatabase(NativeDatabase(file));
+      final step = await db.select(db.simulationRunSteps).getSingle();
+
+      expect(step.processSeconds, 3737, reason: 'the old figure is untouched');
+      expect(step.workcenterId, 'wc-1');
+      await db.close();
+    });
+
+    test('a second open is a no-op', () async {
+      // The rule at the top of `onUpgrade`: a migration is not atomic, so every
+      // step has to tolerate having already run.
+      final file = await v24WithARun();
+
+      final first = AppDatabase(NativeDatabase(file));
+      await first.select(first.simulationRunSteps).get();
+      await first.close();
+
+      final second = AppDatabase(NativeDatabase(file));
+      final version = await second
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(version.read<int>('user_version'), second.schemaVersion);
+      expect(await second.select(second.simulationRunSteps).get(), hasLength(1));
+      await second.close();
+    });
+  });
+
 }

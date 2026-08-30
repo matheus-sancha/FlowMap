@@ -15368,6 +15368,17 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _processSecondsBeforeReworkMeta =
+      const VerificationMeta('processSecondsBeforeRework');
+  @override
+  late final GeneratedColumn<int> processSecondsBeforeRework =
+      GeneratedColumn<int>(
+        'process_seconds_before_rework',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _laneNodeIdMeta = const VerificationMeta(
     'laneNodeId',
   );
@@ -15404,6 +15415,7 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     changeoverIncurred,
     changeoverSeconds,
     processSeconds,
+    processSecondsBeforeRework,
     laneNodeId,
     blockedSeconds,
   ];
@@ -15516,6 +15528,15 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         ),
       );
     }
+    if (data.containsKey('process_seconds_before_rework')) {
+      context.handle(
+        _processSecondsBeforeReworkMeta,
+        processSecondsBeforeRework.isAcceptableOrUnknown(
+          data['process_seconds_before_rework']!,
+          _processSecondsBeforeReworkMeta,
+        ),
+      );
+    }
     if (data.containsKey('lane_node_id')) {
       context.handle(
         _laneNodeIdMeta,
@@ -15586,6 +15607,10 @@ class $SimulationRunStepsTable extends SimulationRunSteps
       processSeconds: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}process_seconds'],
+      ),
+      processSecondsBeforeRework: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}process_seconds_before_rework'],
       ),
       laneNodeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -15663,6 +15688,21 @@ class SimulationRunStep extends DataClass
   /// route through legitimately records.
   final int? processSeconds;
 
+  /// The same work with **rework not yet charged** — `per-piece × batch ÷
+  /// availability` (§10.2).
+  ///
+  /// **Stored rather than derived, because [processSeconds] has already fused
+  /// them.** `process × (1 + r)` cannot be undone without `r`, and `r` lives on
+  /// a workcenter schedule the plant is free to retune — which §7.10 forbids
+  /// joining a finished run back to. Two figures side by side, and their
+  /// difference is what rework cost: the middle segment of §10.3's stacked bar,
+  /// which is the only reason the column exists.
+  ///
+  /// Null on every run made before v25, which is *made before a run said this*
+  /// rather than "no rework" — that is zero, and a station with none records it
+  /// honestly as `processSeconds == processSecondsBeforeRework`.
+  final int? processSecondsBeforeRework;
+
   /// The lane the order waited in before this step, or null when the step had
   /// none and it queued at the station itself (§5.5).
   ///
@@ -15697,6 +15737,7 @@ class SimulationRunStep extends DataClass
     required this.changeoverIncurred,
     this.changeoverSeconds,
     this.processSeconds,
+    this.processSecondsBeforeRework,
     this.laneNodeId,
     required this.blockedSeconds,
   });
@@ -15717,6 +15758,11 @@ class SimulationRunStep extends DataClass
     }
     if (!nullToAbsent || processSeconds != null) {
       map['process_seconds'] = Variable<int>(processSeconds);
+    }
+    if (!nullToAbsent || processSecondsBeforeRework != null) {
+      map['process_seconds_before_rework'] = Variable<int>(
+        processSecondsBeforeRework,
+      );
     }
     if (!nullToAbsent || laneNodeId != null) {
       map['lane_node_id'] = Variable<String>(laneNodeId);
@@ -15742,6 +15788,10 @@ class SimulationRunStep extends DataClass
       processSeconds: processSeconds == null && nullToAbsent
           ? const Value.absent()
           : Value(processSeconds),
+      processSecondsBeforeRework:
+          processSecondsBeforeRework == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processSecondsBeforeRework),
       laneNodeId: laneNodeId == null && nullToAbsent
           ? const Value.absent()
           : Value(laneNodeId),
@@ -15766,6 +15816,9 @@ class SimulationRunStep extends DataClass
       changeoverIncurred: serializer.fromJson<bool>(json['changeoverIncurred']),
       changeoverSeconds: serializer.fromJson<int?>(json['changeoverSeconds']),
       processSeconds: serializer.fromJson<int?>(json['processSeconds']),
+      processSecondsBeforeRework: serializer.fromJson<int?>(
+        json['processSecondsBeforeRework'],
+      ),
       laneNodeId: serializer.fromJson<String?>(json['laneNodeId']),
       blockedSeconds: serializer.fromJson<int>(json['blockedSeconds']),
     );
@@ -15785,6 +15838,9 @@ class SimulationRunStep extends DataClass
       'changeoverIncurred': serializer.toJson<bool>(changeoverIncurred),
       'changeoverSeconds': serializer.toJson<int?>(changeoverSeconds),
       'processSeconds': serializer.toJson<int?>(processSeconds),
+      'processSecondsBeforeRework': serializer.toJson<int?>(
+        processSecondsBeforeRework,
+      ),
       'laneNodeId': serializer.toJson<String?>(laneNodeId),
       'blockedSeconds': serializer.toJson<int>(blockedSeconds),
     };
@@ -15802,6 +15858,7 @@ class SimulationRunStep extends DataClass
     bool? changeoverIncurred,
     Value<int?> changeoverSeconds = const Value.absent(),
     Value<int?> processSeconds = const Value.absent(),
+    Value<int?> processSecondsBeforeRework = const Value.absent(),
     Value<String?> laneNodeId = const Value.absent(),
     int? blockedSeconds,
   }) => SimulationRunStep(
@@ -15820,6 +15877,9 @@ class SimulationRunStep extends DataClass
     processSeconds: processSeconds.present
         ? processSeconds.value
         : this.processSeconds,
+    processSecondsBeforeRework: processSecondsBeforeRework.present
+        ? processSecondsBeforeRework.value
+        : this.processSecondsBeforeRework,
     laneNodeId: laneNodeId.present ? laneNodeId.value : this.laneNodeId,
     blockedSeconds: blockedSeconds ?? this.blockedSeconds,
   );
@@ -15850,6 +15910,9 @@ class SimulationRunStep extends DataClass
       processSeconds: data.processSeconds.present
           ? data.processSeconds.value
           : this.processSeconds,
+      processSecondsBeforeRework: data.processSecondsBeforeRework.present
+          ? data.processSecondsBeforeRework.value
+          : this.processSecondsBeforeRework,
       laneNodeId: data.laneNodeId.present
           ? data.laneNodeId.value
           : this.laneNodeId,
@@ -15873,6 +15936,7 @@ class SimulationRunStep extends DataClass
           ..write('changeoverIncurred: $changeoverIncurred, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
           ..write('processSeconds: $processSeconds, ')
+          ..write('processSecondsBeforeRework: $processSecondsBeforeRework, ')
           ..write('laneNodeId: $laneNodeId, ')
           ..write('blockedSeconds: $blockedSeconds')
           ..write(')'))
@@ -15892,6 +15956,7 @@ class SimulationRunStep extends DataClass
     changeoverIncurred,
     changeoverSeconds,
     processSeconds,
+    processSecondsBeforeRework,
     laneNodeId,
     blockedSeconds,
   );
@@ -15910,6 +15975,7 @@ class SimulationRunStep extends DataClass
           other.changeoverIncurred == this.changeoverIncurred &&
           other.changeoverSeconds == this.changeoverSeconds &&
           other.processSeconds == this.processSeconds &&
+          other.processSecondsBeforeRework == this.processSecondsBeforeRework &&
           other.laneNodeId == this.laneNodeId &&
           other.blockedSeconds == this.blockedSeconds);
 }
@@ -15926,6 +15992,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
   final Value<bool> changeoverIncurred;
   final Value<int?> changeoverSeconds;
   final Value<int?> processSeconds;
+  final Value<int?> processSecondsBeforeRework;
   final Value<String?> laneNodeId;
   final Value<int> blockedSeconds;
   final Value<int> rowid;
@@ -15941,6 +16008,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     this.changeoverIncurred = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
     this.processSeconds = const Value.absent(),
+    this.processSecondsBeforeRework = const Value.absent(),
     this.laneNodeId = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -15957,6 +16025,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     this.changeoverIncurred = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
     this.processSeconds = const Value.absent(),
+    this.processSecondsBeforeRework = const Value.absent(),
     this.laneNodeId = const Value.absent(),
     this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -15980,6 +16049,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Expression<bool>? changeoverIncurred,
     Expression<int>? changeoverSeconds,
     Expression<int>? processSeconds,
+    Expression<int>? processSecondsBeforeRework,
     Expression<String>? laneNodeId,
     Expression<int>? blockedSeconds,
     Expression<int>? rowid,
@@ -15996,6 +16066,8 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       if (changeoverIncurred != null) 'changeover_incurred': changeoverIncurred,
       if (changeoverSeconds != null) 'changeover_seconds': changeoverSeconds,
       if (processSeconds != null) 'process_seconds': processSeconds,
+      if (processSecondsBeforeRework != null)
+        'process_seconds_before_rework': processSecondsBeforeRework,
       if (laneNodeId != null) 'lane_node_id': laneNodeId,
       if (blockedSeconds != null) 'blocked_seconds': blockedSeconds,
       if (rowid != null) 'rowid': rowid,
@@ -16014,6 +16086,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Value<bool>? changeoverIncurred,
     Value<int?>? changeoverSeconds,
     Value<int?>? processSeconds,
+    Value<int?>? processSecondsBeforeRework,
     Value<String?>? laneNodeId,
     Value<int>? blockedSeconds,
     Value<int>? rowid,
@@ -16030,6 +16103,8 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
       changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
       processSeconds: processSeconds ?? this.processSeconds,
+      processSecondsBeforeRework:
+          processSecondsBeforeRework ?? this.processSecondsBeforeRework,
       laneNodeId: laneNodeId ?? this.laneNodeId,
       blockedSeconds: blockedSeconds ?? this.blockedSeconds,
       rowid: rowid ?? this.rowid,
@@ -16072,6 +16147,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     if (processSeconds.present) {
       map['process_seconds'] = Variable<int>(processSeconds.value);
     }
+    if (processSecondsBeforeRework.present) {
+      map['process_seconds_before_rework'] = Variable<int>(
+        processSecondsBeforeRework.value,
+      );
+    }
     if (laneNodeId.present) {
       map['lane_node_id'] = Variable<String>(laneNodeId.value);
     }
@@ -16098,6 +16178,7 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
           ..write('changeoverIncurred: $changeoverIncurred, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
           ..write('processSeconds: $processSeconds, ')
+          ..write('processSecondsBeforeRework: $processSecondsBeforeRework, ')
           ..write('laneNodeId: $laneNodeId, ')
           ..write('blockedSeconds: $blockedSeconds, ')
           ..write('rowid: $rowid')
@@ -16548,6 +16629,26 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _typeIdMeta = const VerificationMeta('typeId');
+  @override
+  late final GeneratedColumn<String> typeId = GeneratedColumn<String>(
+    'type_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeNameMeta = const VerificationMeta(
+    'typeName',
+  );
+  @override
+  late final GeneratedColumn<String> typeName = GeneratedColumn<String>(
+    'type_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -16561,6 +16662,8 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     poolName,
     queueType,
     queueCapacity,
+    typeId,
+    typeName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -16665,6 +16768,18 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
         ),
       );
     }
+    if (data.containsKey('type_id')) {
+      context.handle(
+        _typeIdMeta,
+        typeId.isAcceptableOrUnknown(data['type_id']!, _typeIdMeta),
+      );
+    }
+    if (data.containsKey('type_name')) {
+      context.handle(
+        _typeNameMeta,
+        typeName.isAcceptableOrUnknown(data['type_name']!, _typeNameMeta),
+      );
+    }
     return context;
   }
 
@@ -16720,6 +16835,14 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
       queueCapacity: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}queue_capacity'],
+      ),
+      typeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type_id'],
+      ),
+      typeName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type_name'],
       ),
     );
   }
@@ -16806,6 +16929,24 @@ class SimulationRunWorkcenter extends DataClass
   /// read. The repository parses, and falls back.
   final String? queueType;
   final int? queueCapacity;
+
+  /// The workcenter's type, copied in (§10.2).
+  ///
+  /// **`Workcenters.typeId` is in the plant and a run has never carried it**, so
+  /// §10.3's type filter and the columns of its pivot could not be read off a
+  /// stored run at all — and joining back to find out is exactly what §7.10
+  /// forbids, because a station retyped since would silently re-column every
+  /// run in the picker.
+  ///
+  /// The **name** travels beside the id for the reason [poolName] does: a type
+  /// deleted since still named this station when it ran, and a pivot headed by
+  /// a uuid is not a pivot anyone can read.
+  ///
+  /// Both null on a run made before v25, and on a station whose type was never
+  /// set — which is a real state the plant allows and §7.4 already treats as
+  /// *"nothing says it is like its neighbours"*.
+  final String? typeId;
+  final String? typeName;
   const SimulationRunWorkcenter({
     required this.runId,
     required this.workcenterId,
@@ -16818,6 +16959,8 @@ class SimulationRunWorkcenter extends DataClass
     this.poolName,
     this.queueType,
     this.queueCapacity,
+    this.typeId,
+    this.typeName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -16840,6 +16983,12 @@ class SimulationRunWorkcenter extends DataClass
     }
     if (!nullToAbsent || queueCapacity != null) {
       map['queue_capacity'] = Variable<int>(queueCapacity);
+    }
+    if (!nullToAbsent || typeId != null) {
+      map['type_id'] = Variable<String>(typeId);
+    }
+    if (!nullToAbsent || typeName != null) {
+      map['type_name'] = Variable<String>(typeName);
     }
     return map;
   }
@@ -16865,6 +17014,12 @@ class SimulationRunWorkcenter extends DataClass
       queueCapacity: queueCapacity == null && nullToAbsent
           ? const Value.absent()
           : Value(queueCapacity),
+      typeId: typeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(typeId),
+      typeName: typeName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(typeName),
     );
   }
 
@@ -16885,6 +17040,8 @@ class SimulationRunWorkcenter extends DataClass
       poolName: serializer.fromJson<String?>(json['poolName']),
       queueType: serializer.fromJson<String?>(json['queueType']),
       queueCapacity: serializer.fromJson<int?>(json['queueCapacity']),
+      typeId: serializer.fromJson<String?>(json['typeId']),
+      typeName: serializer.fromJson<String?>(json['typeName']),
     );
   }
   @override
@@ -16902,6 +17059,8 @@ class SimulationRunWorkcenter extends DataClass
       'poolName': serializer.toJson<String?>(poolName),
       'queueType': serializer.toJson<String?>(queueType),
       'queueCapacity': serializer.toJson<int?>(queueCapacity),
+      'typeId': serializer.toJson<String?>(typeId),
+      'typeName': serializer.toJson<String?>(typeName),
     };
   }
 
@@ -16917,6 +17076,8 @@ class SimulationRunWorkcenter extends DataClass
     Value<String?> poolName = const Value.absent(),
     Value<String?> queueType = const Value.absent(),
     Value<int?> queueCapacity = const Value.absent(),
+    Value<String?> typeId = const Value.absent(),
+    Value<String?> typeName = const Value.absent(),
   }) => SimulationRunWorkcenter(
     runId: runId ?? this.runId,
     workcenterId: workcenterId ?? this.workcenterId,
@@ -16931,6 +17092,8 @@ class SimulationRunWorkcenter extends DataClass
     queueCapacity: queueCapacity.present
         ? queueCapacity.value
         : this.queueCapacity,
+    typeId: typeId.present ? typeId.value : this.typeId,
+    typeName: typeName.present ? typeName.value : this.typeName,
   );
   SimulationRunWorkcenter copyWithCompanion(
     SimulationRunWorkcentersCompanion data,
@@ -16957,6 +17120,8 @@ class SimulationRunWorkcenter extends DataClass
       queueCapacity: data.queueCapacity.present
           ? data.queueCapacity.value
           : this.queueCapacity,
+      typeId: data.typeId.present ? data.typeId.value : this.typeId,
+      typeName: data.typeName.present ? data.typeName.value : this.typeName,
     );
   }
 
@@ -16973,7 +17138,9 @@ class SimulationRunWorkcenter extends DataClass
           ..write('poolId: $poolId, ')
           ..write('poolName: $poolName, ')
           ..write('queueType: $queueType, ')
-          ..write('queueCapacity: $queueCapacity')
+          ..write('queueCapacity: $queueCapacity, ')
+          ..write('typeId: $typeId, ')
+          ..write('typeName: $typeName')
           ..write(')'))
         .toString();
   }
@@ -16991,6 +17158,8 @@ class SimulationRunWorkcenter extends DataClass
     poolName,
     queueType,
     queueCapacity,
+    typeId,
+    typeName,
   );
   @override
   bool operator ==(Object other) =>
@@ -17006,7 +17175,9 @@ class SimulationRunWorkcenter extends DataClass
           other.poolId == this.poolId &&
           other.poolName == this.poolName &&
           other.queueType == this.queueType &&
-          other.queueCapacity == this.queueCapacity);
+          other.queueCapacity == this.queueCapacity &&
+          other.typeId == this.typeId &&
+          other.typeName == this.typeName);
 }
 
 class SimulationRunWorkcentersCompanion
@@ -17022,6 +17193,8 @@ class SimulationRunWorkcentersCompanion
   final Value<String?> poolName;
   final Value<String?> queueType;
   final Value<int?> queueCapacity;
+  final Value<String?> typeId;
+  final Value<String?> typeName;
   final Value<int> rowid;
   const SimulationRunWorkcentersCompanion({
     this.runId = const Value.absent(),
@@ -17035,6 +17208,8 @@ class SimulationRunWorkcentersCompanion
     this.poolName = const Value.absent(),
     this.queueType = const Value.absent(),
     this.queueCapacity = const Value.absent(),
+    this.typeId = const Value.absent(),
+    this.typeName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunWorkcentersCompanion.insert({
@@ -17049,6 +17224,8 @@ class SimulationRunWorkcentersCompanion
     this.poolName = const Value.absent(),
     this.queueType = const Value.absent(),
     this.queueCapacity = const Value.absent(),
+    this.typeId = const Value.absent(),
+    this.typeName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        workcenterId = Value(workcenterId),
@@ -17067,6 +17244,8 @@ class SimulationRunWorkcentersCompanion
     Expression<String>? poolName,
     Expression<String>? queueType,
     Expression<int>? queueCapacity,
+    Expression<String>? typeId,
+    Expression<String>? typeName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -17081,6 +17260,8 @@ class SimulationRunWorkcentersCompanion
       if (poolName != null) 'pool_name': poolName,
       if (queueType != null) 'queue_type': queueType,
       if (queueCapacity != null) 'queue_capacity': queueCapacity,
+      if (typeId != null) 'type_id': typeId,
+      if (typeName != null) 'type_name': typeName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -17097,6 +17278,8 @@ class SimulationRunWorkcentersCompanion
     Value<String?>? poolName,
     Value<String?>? queueType,
     Value<int?>? queueCapacity,
+    Value<String?>? typeId,
+    Value<String?>? typeName,
     Value<int>? rowid,
   }) {
     return SimulationRunWorkcentersCompanion(
@@ -17111,6 +17294,8 @@ class SimulationRunWorkcentersCompanion
       poolName: poolName ?? this.poolName,
       queueType: queueType ?? this.queueType,
       queueCapacity: queueCapacity ?? this.queueCapacity,
+      typeId: typeId ?? this.typeId,
+      typeName: typeName ?? this.typeName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -17151,6 +17336,12 @@ class SimulationRunWorkcentersCompanion
     if (queueCapacity.present) {
       map['queue_capacity'] = Variable<int>(queueCapacity.value);
     }
+    if (typeId.present) {
+      map['type_id'] = Variable<String>(typeId.value);
+    }
+    if (typeName.present) {
+      map['type_name'] = Variable<String>(typeName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -17171,6 +17362,8 @@ class SimulationRunWorkcentersCompanion
           ..write('poolName: $poolName, ')
           ..write('queueType: $queueType, ')
           ..write('queueCapacity: $queueCapacity, ')
+          ..write('typeId: $typeId, ')
+          ..write('typeName: $typeName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -18173,6 +18366,354 @@ class SimulationRunLaneVisitsCompanion
   }
 }
 
+class $SimulationRunWorkcenterMonthsTable extends SimulationRunWorkcenterMonths
+    with
+        TableInfo<
+          $SimulationRunWorkcenterMonthsTable,
+          SimulationRunWorkcenterMonth
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunWorkcenterMonthsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _workcenterIdMeta = const VerificationMeta(
+    'workcenterId',
+  );
+  @override
+  late final GeneratedColumn<String> workcenterId = GeneratedColumn<String>(
+    'workcenter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<DateTime> month = GeneratedColumn<DateTime>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openSecondsMeta = const VerificationMeta(
+    'openSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> openSeconds = GeneratedColumn<int>(
+    'open_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    workcenterId,
+    month,
+    openSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_workcenter_months';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunWorkcenterMonth> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('workcenter_id')) {
+      context.handle(
+        _workcenterIdMeta,
+        workcenterId.isAcceptableOrUnknown(
+          data['workcenter_id']!,
+          _workcenterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workcenterIdMeta);
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('open_seconds')) {
+      context.handle(
+        _openSecondsMeta,
+        openSeconds.isAcceptableOrUnknown(
+          data['open_seconds']!,
+          _openSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openSecondsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, workcenterId, month};
+  @override
+  SimulationRunWorkcenterMonth map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunWorkcenterMonth(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      workcenterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workcenter_id'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}month'],
+      )!,
+      openSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}open_seconds'],
+      )!,
+    );
+  }
+
+  @override
+  $SimulationRunWorkcenterMonthsTable createAlias(String alias) {
+    return $SimulationRunWorkcenterMonthsTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunWorkcenterMonth extends DataClass
+    implements Insertable<SimulationRunWorkcenterMonth> {
+  final String runId;
+  final String workcenterId;
+
+  /// The first instant of the month, local — the same key §10.3 buckets
+  /// `queueStart` into, so a bar and its line cannot land in different columns.
+  final DateTime month;
+
+  /// Open seconds in that month, **already multiplied by the station's units**,
+  /// exactly as `openSeconds` is on the whole-run row. A two-unit station has
+  /// twice the capacity and one clock, and the two figures must agree about
+  /// which of those they are stating.
+  final int openSeconds;
+  const SimulationRunWorkcenterMonth({
+    required this.runId,
+    required this.workcenterId,
+    required this.month,
+    required this.openSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['workcenter_id'] = Variable<String>(workcenterId);
+    map['month'] = Variable<DateTime>(month);
+    map['open_seconds'] = Variable<int>(openSeconds);
+    return map;
+  }
+
+  SimulationRunWorkcenterMonthsCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunWorkcenterMonthsCompanion(
+      runId: Value(runId),
+      workcenterId: Value(workcenterId),
+      month: Value(month),
+      openSeconds: Value(openSeconds),
+    );
+  }
+
+  factory SimulationRunWorkcenterMonth.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunWorkcenterMonth(
+      runId: serializer.fromJson<String>(json['runId']),
+      workcenterId: serializer.fromJson<String>(json['workcenterId']),
+      month: serializer.fromJson<DateTime>(json['month']),
+      openSeconds: serializer.fromJson<int>(json['openSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'workcenterId': serializer.toJson<String>(workcenterId),
+      'month': serializer.toJson<DateTime>(month),
+      'openSeconds': serializer.toJson<int>(openSeconds),
+    };
+  }
+
+  SimulationRunWorkcenterMonth copyWith({
+    String? runId,
+    String? workcenterId,
+    DateTime? month,
+    int? openSeconds,
+  }) => SimulationRunWorkcenterMonth(
+    runId: runId ?? this.runId,
+    workcenterId: workcenterId ?? this.workcenterId,
+    month: month ?? this.month,
+    openSeconds: openSeconds ?? this.openSeconds,
+  );
+  SimulationRunWorkcenterMonth copyWithCompanion(
+    SimulationRunWorkcenterMonthsCompanion data,
+  ) {
+    return SimulationRunWorkcenterMonth(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      workcenterId: data.workcenterId.present
+          ? data.workcenterId.value
+          : this.workcenterId,
+      month: data.month.present ? data.month.value : this.month,
+      openSeconds: data.openSeconds.present
+          ? data.openSeconds.value
+          : this.openSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunWorkcenterMonth(')
+          ..write('runId: $runId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('month: $month, ')
+          ..write('openSeconds: $openSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(runId, workcenterId, month, openSeconds);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunWorkcenterMonth &&
+          other.runId == this.runId &&
+          other.workcenterId == this.workcenterId &&
+          other.month == this.month &&
+          other.openSeconds == this.openSeconds);
+}
+
+class SimulationRunWorkcenterMonthsCompanion
+    extends UpdateCompanion<SimulationRunWorkcenterMonth> {
+  final Value<String> runId;
+  final Value<String> workcenterId;
+  final Value<DateTime> month;
+  final Value<int> openSeconds;
+  final Value<int> rowid;
+  const SimulationRunWorkcenterMonthsCompanion({
+    this.runId = const Value.absent(),
+    this.workcenterId = const Value.absent(),
+    this.month = const Value.absent(),
+    this.openSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunWorkcenterMonthsCompanion.insert({
+    required String runId,
+    required String workcenterId,
+    required DateTime month,
+    required int openSeconds,
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       workcenterId = Value(workcenterId),
+       month = Value(month),
+       openSeconds = Value(openSeconds);
+  static Insertable<SimulationRunWorkcenterMonth> custom({
+    Expression<String>? runId,
+    Expression<String>? workcenterId,
+    Expression<DateTime>? month,
+    Expression<int>? openSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (workcenterId != null) 'workcenter_id': workcenterId,
+      if (month != null) 'month': month,
+      if (openSeconds != null) 'open_seconds': openSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunWorkcenterMonthsCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? workcenterId,
+    Value<DateTime>? month,
+    Value<int>? openSeconds,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunWorkcenterMonthsCompanion(
+      runId: runId ?? this.runId,
+      workcenterId: workcenterId ?? this.workcenterId,
+      month: month ?? this.month,
+      openSeconds: openSeconds ?? this.openSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (workcenterId.present) {
+      map['workcenter_id'] = Variable<String>(workcenterId.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<DateTime>(month.value);
+    }
+    if (openSeconds.present) {
+      map['open_seconds'] = Variable<int>(openSeconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunWorkcenterMonthsCompanion(')
+          ..write('runId: $runId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('month: $month, ')
+          ..write('openSeconds: $openSeconds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -18230,6 +18771,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $SimulationRunLanesTable(this);
   late final $SimulationRunLaneVisitsTable simulationRunLaneVisits =
       $SimulationRunLaneVisitsTable(this);
+  late final $SimulationRunWorkcenterMonthsTable simulationRunWorkcenterMonths =
+      $SimulationRunWorkcenterMonthsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -18265,6 +18808,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     simulationRunWorkcenters,
     simulationRunLanes,
     simulationRunLaneVisits,
+    simulationRunWorkcenterMonths,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -18528,6 +19072,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [
         TableUpdate('simulation_run_lane_visits', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate(
+          'simulation_run_workcenter_months',
+          kind: UpdateKind.delete,
+        ),
       ],
     ),
   ]);
@@ -31066,6 +31622,32 @@ final class $$SimulationRunsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $SimulationRunWorkcenterMonthsTable,
+    List<SimulationRunWorkcenterMonth>
+  >
+  _simulationRunWorkcenterMonthsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunWorkcenterMonths,
+        aliasName:
+            'simulation_runs__id__simulation_run_workcenter_months__run_id',
+      );
+
+  $$SimulationRunWorkcenterMonthsTableProcessedTableManager
+  get simulationRunWorkcenterMonthsRefs {
+    final manager = $$SimulationRunWorkcenterMonthsTableTableManager(
+      $_db,
+      $_db.simulationRunWorkcenterMonths,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunWorkcenterMonthsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SimulationRunsTableFilterComposer
@@ -31310,6 +31892,35 @@ class $$SimulationRunsTableFilterComposer
               }) => $$SimulationRunLaneVisitsTableFilterComposer(
                 $db: $db,
                 $table: $db.simulationRunLaneVisits,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunWorkcenterMonthsRefs(
+    Expression<bool> Function(
+      $$SimulationRunWorkcenterMonthsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$SimulationRunWorkcenterMonthsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunWorkcenterMonths,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunWorkcenterMonthsTableFilterComposer(
+                $db: $db,
+                $table: $db.simulationRunWorkcenterMonths,
                 $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
                 joinBuilder: joinBuilder,
                 $removeJoinBuilderFromRootComposer:
@@ -31637,6 +32248,35 @@ class $$SimulationRunsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> simulationRunWorkcenterMonthsRefs<T extends Object>(
+    Expression<T> Function(
+      $$SimulationRunWorkcenterMonthsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$SimulationRunWorkcenterMonthsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunWorkcenterMonths,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunWorkcenterMonthsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunWorkcenterMonths,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$SimulationRunsTableTableManager
@@ -31661,6 +32301,7 @@ class $$SimulationRunsTableTableManager
             bool simulationRunWorkcentersRefs,
             bool simulationRunLanesRefs,
             bool simulationRunLaneVisitsRefs,
+            bool simulationRunWorkcenterMonthsRefs,
           })
         > {
   $$SimulationRunsTableTableManager(
@@ -31742,6 +32383,7 @@ class $$SimulationRunsTableTableManager
                 simulationRunWorkcentersRefs = false,
                 simulationRunLanesRefs = false,
                 simulationRunLaneVisitsRefs = false,
+                simulationRunWorkcenterMonthsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -31754,6 +32396,8 @@ class $$SimulationRunsTableTableManager
                       db.simulationRunWorkcenters,
                     if (simulationRunLanesRefs) db.simulationRunLanes,
                     if (simulationRunLaneVisitsRefs) db.simulationRunLaneVisits,
+                    if (simulationRunWorkcenterMonthsRefs)
+                      db.simulationRunWorkcenterMonths,
                   ],
                   addJoins:
                       <
@@ -31938,6 +32582,27 @@ class $$SimulationRunsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (simulationRunWorkcenterMonthsRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunWorkcenterMonth
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunWorkcenterMonthsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunWorkcenterMonthsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -31967,6 +32632,7 @@ typedef $$SimulationRunsTableProcessedTableManager =
         bool simulationRunWorkcentersRefs,
         bool simulationRunLanesRefs,
         bool simulationRunLaneVisitsRefs,
+        bool simulationRunWorkcenterMonthsRefs,
       })
     >;
 typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
@@ -33121,6 +33787,7 @@ typedef $$SimulationRunStepsTableCreateCompanionBuilder =
       Value<bool> changeoverIncurred,
       Value<int?> changeoverSeconds,
       Value<int?> processSeconds,
+      Value<int?> processSecondsBeforeRework,
       Value<String?> laneNodeId,
       Value<int> blockedSeconds,
       Value<int> rowid,
@@ -33138,6 +33805,7 @@ typedef $$SimulationRunStepsTableUpdateCompanionBuilder =
       Value<bool> changeoverIncurred,
       Value<int?> changeoverSeconds,
       Value<int?> processSeconds,
+      Value<int?> processSecondsBeforeRework,
       Value<String?> laneNodeId,
       Value<int> blockedSeconds,
       Value<int> rowid,
@@ -33230,6 +33898,11 @@ class $$SimulationRunStepsTableFilterComposer
 
   ColumnFilters<int> get processSeconds => $composableBuilder(
     column: $table.processSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get processSecondsBeforeRework => $composableBuilder(
+    column: $table.processSecondsBeforeRework,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -33326,6 +33999,11 @@ class $$SimulationRunStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get processSecondsBeforeRework => $composableBuilder(
+    column: $table.processSecondsBeforeRework,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get laneNodeId => $composableBuilder(
     column: $table.laneNodeId,
     builder: (column) => ColumnOrderings(column),
@@ -33413,6 +34091,11 @@ class $$SimulationRunStepsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get processSecondsBeforeRework => $composableBuilder(
+    column: $table.processSecondsBeforeRework,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get laneNodeId => $composableBuilder(
     column: $table.laneNodeId,
     builder: (column) => column,
@@ -33491,6 +34174,7 @@ class $$SimulationRunStepsTableTableManager
                 Value<bool> changeoverIncurred = const Value.absent(),
                 Value<int?> changeoverSeconds = const Value.absent(),
                 Value<int?> processSeconds = const Value.absent(),
+                Value<int?> processSecondsBeforeRework = const Value.absent(),
                 Value<String?> laneNodeId = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -33506,6 +34190,7 @@ class $$SimulationRunStepsTableTableManager
                 changeoverIncurred: changeoverIncurred,
                 changeoverSeconds: changeoverSeconds,
                 processSeconds: processSeconds,
+                processSecondsBeforeRework: processSecondsBeforeRework,
                 laneNodeId: laneNodeId,
                 blockedSeconds: blockedSeconds,
                 rowid: rowid,
@@ -33523,6 +34208,7 @@ class $$SimulationRunStepsTableTableManager
                 Value<bool> changeoverIncurred = const Value.absent(),
                 Value<int?> changeoverSeconds = const Value.absent(),
                 Value<int?> processSeconds = const Value.absent(),
+                Value<int?> processSecondsBeforeRework = const Value.absent(),
                 Value<String?> laneNodeId = const Value.absent(),
                 Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -33538,6 +34224,7 @@ class $$SimulationRunStepsTableTableManager
                 changeoverIncurred: changeoverIncurred,
                 changeoverSeconds: changeoverSeconds,
                 processSeconds: processSeconds,
+                processSecondsBeforeRework: processSecondsBeforeRework,
                 laneNodeId: laneNodeId,
                 blockedSeconds: blockedSeconds,
                 rowid: rowid,
@@ -33944,6 +34631,8 @@ typedef $$SimulationRunWorkcentersTableCreateCompanionBuilder =
       Value<String?> poolName,
       Value<String?> queueType,
       Value<int?> queueCapacity,
+      Value<String?> typeId,
+      Value<String?> typeName,
       Value<int> rowid,
     });
 typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
@@ -33959,6 +34648,8 @@ typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
       Value<String?> poolName,
       Value<String?> queueType,
       Value<int?> queueCapacity,
+      Value<String?> typeId,
+      Value<String?> typeName,
       Value<int> rowid,
     });
 
@@ -34052,6 +34743,16 @@ class $$SimulationRunWorkcentersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get typeId => $composableBuilder(
+    column: $table.typeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get typeName => $composableBuilder(
+    column: $table.typeName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SimulationRunsTableFilterComposer get runId {
     final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -34135,6 +34836,16 @@ class $$SimulationRunWorkcentersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get typeId => $composableBuilder(
+    column: $table.typeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get typeName => $composableBuilder(
+    column: $table.typeName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SimulationRunsTableOrderingComposer get runId {
     final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -34207,6 +34918,12 @@ class $$SimulationRunWorkcentersTableAnnotationComposer
     column: $table.queueCapacity,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get typeId =>
+      $composableBuilder(column: $table.typeId, builder: (column) => column);
+
+  GeneratedColumn<String> get typeName =>
+      $composableBuilder(column: $table.typeName, builder: (column) => column);
 
   $$SimulationRunsTableAnnotationComposer get runId {
     final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
@@ -34282,6 +34999,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 Value<String?> poolName = const Value.absent(),
                 Value<String?> queueType = const Value.absent(),
                 Value<int?> queueCapacity = const Value.absent(),
+                Value<String?> typeId = const Value.absent(),
+                Value<String?> typeName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion(
                 runId: runId,
@@ -34295,6 +35014,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 poolName: poolName,
                 queueType: queueType,
                 queueCapacity: queueCapacity,
+                typeId: typeId,
+                typeName: typeName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -34310,6 +35031,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 Value<String?> poolName = const Value.absent(),
                 Value<String?> queueType = const Value.absent(),
                 Value<int?> queueCapacity = const Value.absent(),
+                Value<String?> typeId = const Value.absent(),
+                Value<String?> typeName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion.insert(
                 runId: runId,
@@ -34323,6 +35046,8 @@ class $$SimulationRunWorkcentersTableTableManager
                 poolName: poolName,
                 queueType: queueType,
                 queueCapacity: queueCapacity,
+                typeId: typeId,
+                typeName: typeName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -35144,6 +35869,338 @@ typedef $$SimulationRunLaneVisitsTableProcessedTableManager =
       SimulationRunLaneVisit,
       PrefetchHooks Function({bool runId})
     >;
+typedef $$SimulationRunWorkcenterMonthsTableCreateCompanionBuilder =
+    SimulationRunWorkcenterMonthsCompanion Function({
+      required String runId,
+      required String workcenterId,
+      required DateTime month,
+      required int openSeconds,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunWorkcenterMonthsTableUpdateCompanionBuilder =
+    SimulationRunWorkcenterMonthsCompanion Function({
+      Value<String> runId,
+      Value<String> workcenterId,
+      Value<DateTime> month,
+      Value<int> openSeconds,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunWorkcenterMonthsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunWorkcenterMonthsTable,
+          SimulationRunWorkcenterMonth
+        > {
+  $$SimulationRunWorkcenterMonthsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) =>
+      db.simulationRuns.createAlias(
+        'simulation_run_workcenter_months__run_id__simulation_runs__id',
+      );
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcenterMonthsTable> {
+  $$SimulationRunWorkcenterMonthsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcenterMonthsTable> {
+  $$SimulationRunWorkcenterMonthsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcenterMonthsTable> {
+  $$SimulationRunWorkcenterMonthsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => column,
+  );
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunWorkcenterMonthsTable,
+          SimulationRunWorkcenterMonth,
+          $$SimulationRunWorkcenterMonthsTableFilterComposer,
+          $$SimulationRunWorkcenterMonthsTableOrderingComposer,
+          $$SimulationRunWorkcenterMonthsTableAnnotationComposer,
+          $$SimulationRunWorkcenterMonthsTableCreateCompanionBuilder,
+          $$SimulationRunWorkcenterMonthsTableUpdateCompanionBuilder,
+          (
+            SimulationRunWorkcenterMonth,
+            $$SimulationRunWorkcenterMonthsTableReferences,
+          ),
+          SimulationRunWorkcenterMonth,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunWorkcenterMonthsTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunWorkcenterMonthsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunWorkcenterMonthsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SimulationRunWorkcenterMonthsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunWorkcenterMonthsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> workcenterId = const Value.absent(),
+                Value<DateTime> month = const Value.absent(),
+                Value<int> openSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunWorkcenterMonthsCompanion(
+                runId: runId,
+                workcenterId: workcenterId,
+                month: month,
+                openSeconds: openSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String workcenterId,
+                required DateTime month,
+                required int openSeconds,
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunWorkcenterMonthsCompanion.insert(
+                runId: runId,
+                workcenterId: workcenterId,
+                month: month,
+                openSeconds: openSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunWorkcenterMonthsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunWorkcenterMonthsTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunWorkcenterMonthsTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunWorkcenterMonthsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunWorkcenterMonthsTable,
+      SimulationRunWorkcenterMonth,
+      $$SimulationRunWorkcenterMonthsTableFilterComposer,
+      $$SimulationRunWorkcenterMonthsTableOrderingComposer,
+      $$SimulationRunWorkcenterMonthsTableAnnotationComposer,
+      $$SimulationRunWorkcenterMonthsTableCreateCompanionBuilder,
+      $$SimulationRunWorkcenterMonthsTableUpdateCompanionBuilder,
+      (
+        SimulationRunWorkcenterMonth,
+        $$SimulationRunWorkcenterMonthsTableReferences,
+      ),
+      SimulationRunWorkcenterMonth,
+      PrefetchHooks Function({bool runId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -35219,5 +36276,11 @@ class $AppDatabaseManager {
       $$SimulationRunLaneVisitsTableTableManager(
         _db,
         _db.simulationRunLaneVisits,
+      );
+  $$SimulationRunWorkcenterMonthsTableTableManager
+  get simulationRunWorkcenterMonths =>
+      $$SimulationRunWorkcenterMonthsTableTableManager(
+        _db,
+        _db.simulationRunWorkcenterMonths,
       );
 }

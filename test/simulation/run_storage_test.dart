@@ -72,14 +72,20 @@ void main() {
     ],
   );
 
-  SimWorkcenter workcenter(String id, String name) {
+  SimWorkcenter workcenter(
+    String id,
+    String name, {
+    double rework = 0,
+    String? typeId,
+    String? typeName,
+  }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
         startDate: DateTime(2020),
         endDate: DateTime(2030),
         operatorsPerShift: const [1],
         availability: 1,
-        rework: 0,
+        rework: rework,
       ),
     ]);
     return SimWorkcenter(
@@ -87,6 +93,8 @@ void main() {
       name: name,
       calendar: WorkingCalendar.scheduled(pattern: always, staffing: schedule),
       schedule: schedule,
+      typeId: typeId,
+      typeName: typeName,
     );
   }
 
@@ -359,6 +367,159 @@ void main() {
     // worth keeping apart (§7.6).
     final clad = steps.firstWhere((s) => s.workcenterId == 'wc-1');
     expect(clad.changeoverSeconds, greaterThan(0));
+  });
+
+  group('what a run carries so it can be graphed (§10.2, v25)', () {
+    test('rework is stored as its own figure, not fused into the work',
+        () async {
+      // **The column exists because the subtraction cannot be undone.**
+      // `process_seconds` is `work × (1 + r)`, and `r` lives on a schedule the
+      // plant is free to retune — which §7.10 forbids reading back. So the run
+      // states both and their difference is what rework cost.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final withRework = {
+        for (final entry in plant.entries)
+          entry.key: workcenter(entry.key, entry.value.name, rework: 0.1),
+      };
+      final result = runSimulation(studies: studies, workcenters: withRework);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: withRework,
+      );
+
+      final steps = (await runs.loadRun(runId))!.result.steps;
+      expect(steps, isNotEmpty);
+      for (final step in steps) {
+        expect(step.processSecondsBeforeRework, isNotNull);
+        // 10 % rework on top, so the fused figure is the larger of the two and
+        // their difference is a tenth of the smaller.
+        expect(step.processSeconds, greaterThan(step.processSecondsBeforeRework!));
+        expect(
+          step.reworkTime!.inSeconds,
+          closeTo(step.processSecondsBeforeRework! * 0.1, 1),
+        );
+      }
+    });
+
+    test('a station with no rework reads a true zero, not a rounding',
+        () async {
+      // The distinction the column has to keep: *no rework* and *nobody
+      // recorded it* are different answers, and only the second is null.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final steps = (await runs.loadRun(runId))!.result.steps;
+      expect(steps.every((s) => s.reworkTime == Duration.zero), isTrue);
+      expect(steps.every((s) => s.processSecondsBeforeRework != null), isTrue);
+    });
+
+    test('a station carries its own type into the run', () async {
+      // Copied in for the reason the pool name is: a station retyped afterwards
+      // must not re-column a run already in the picker (§7.10).
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final typed = {
+        for (final entry in plant.entries)
+          entry.key: workcenter(
+            entry.key,
+            entry.value.name,
+            typeId: 'type-clad',
+            typeName: 'Cladding',
+          ),
+      };
+      final result = runSimulation(studies: studies, workcenters: typed);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: typed,
+      );
+
+      final rows = await (db.select(
+        db.simulationRunWorkcenters,
+      )..where((w) => w.runId.equals(runId))).get();
+      expect(rows, isNotEmpty);
+      expect(rows.every((r) => r.typeId == 'type-clad'), isTrue);
+      expect(rows.every((r) => r.typeName == 'Cladding'), isTrue);
+    });
+
+    test('the months sum to the whole-run open time they were cut from',
+        () async {
+      // **One walk, two figures.** The monthly rows are not a second opinion
+      // about the calendar — they are the same span cut up, and a capacity line
+      // that did not add back to the utilization denominator would be the §7.6
+      // failure again.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final stations = await (db.select(
+        db.simulationRunWorkcenters,
+      )..where((w) => w.runId.equals(runId))).get();
+      final months = await (db.select(
+        db.simulationRunWorkcenterMonths,
+      )..where((m) => m.runId.equals(runId))).get();
+
+      expect(months, isNotEmpty, reason: 'a run spans at least one month');
+      for (final station in stations) {
+        final mine = months.where((m) => m.workcenterId == station.workcenterId);
+        expect(mine, isNotEmpty);
+        expect(
+          mine.fold(0, (sum, m) => sum + m.openSeconds),
+          station.openSeconds,
+          reason: '${station.name}: the months are the run, cut up',
+        );
+      }
+    });
+
+    test('every month of the span has a row, including a closed one', () async {
+      // *Closed* and *not in this run* are different answers and §10.3 draws
+      // them differently, so a month with no open time is a zero rather than a
+      // missing row.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final months = await (db.select(
+        db.simulationRunWorkcenterMonths,
+      )..where((m) => m.runId.equals(runId))).get();
+
+      final spanned = <DateTime>{};
+      for (var month = DateTime(result.start.year, result.start.month);
+          month.isBefore(result.end);
+          month = DateTime(month.year, month.month + 1)) {
+        spanned.add(month);
+      }
+      for (final station in plant.keys) {
+        expect(
+          months.where((m) => m.workcenterId == station).map((m) => m.month).toSet(),
+          spanned,
+          reason: 'every month the run spans has a row for $station',
+        );
+      }
+    });
   });
 
   test('the lanes survive storage, so the chart can draw them', () async {

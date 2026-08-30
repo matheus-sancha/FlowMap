@@ -21,6 +21,7 @@ class SimOrderStep {
     required this.changeoverIncurred,
     this.changeoverSeconds,
     this.processSeconds,
+    this.processSecondsBeforeRework,
     this.laneNodeId,
     this.blocked = Duration.zero,
   });
@@ -59,9 +60,29 @@ class SimOrderStep {
   /// visible. Null on a run read back from before v21.
   final int? processSeconds;
 
+  /// The same work **before rework is charged** — `per-piece × batch ÷
+  /// availability` (§10.2).
+  ///
+  /// Carried beside [processSeconds] rather than derived from it: the two are
+  /// fused by a rework fraction that lives on a schedule the plant may retune,
+  /// and §7.10 forbids reading it back. Their difference is what rework cost,
+  /// which is the middle segment of §10.3's bar.
+  ///
+  /// Null on a run read back from before v25.
+  final int? processSecondsBeforeRework;
+
   /// [processSeconds] as a duration, or null where the run never recorded it.
   Duration? get process =>
       processSeconds == null ? null : Duration(seconds: processSeconds!);
+
+  /// What rework cost at this step, or null where either figure is missing.
+  ///
+  /// **Subtracted rather than multiplied out**, so a station with no rework
+  /// reads a true zero rather than a rounding of one.
+  Duration? get reworkTime =>
+      processSeconds == null || processSecondsBeforeRework == null
+      ? null
+      : Duration(seconds: processSeconds! - processSecondsBeforeRework!);
 
   /// The lane the order waited in before this step, or null when the step has
   /// none and the order queued at the station itself (§5.5).
@@ -284,6 +305,7 @@ class SimRunResult {
     required this.emptySlots,
     required this.busyByWorkcenter,
     required this.openByWorkcenter,
+    this.openByWorkcenterMonth = const {},
     this.blockedByWorkcenter = const {},
     this.lanes = const [],
     this.openLaneVisits = const [],
@@ -324,6 +346,22 @@ class SimRunResult {
   /// utilization is measured against, and the thing that makes it different
   /// from occupation.
   final Map<String, Duration> openByWorkcenter;
+
+  /// The same open time **cut into the months the run spans** — workcenter id →
+  /// first instant of the month → open seconds, units already multiplied in
+  /// (§10.2).
+  ///
+  /// **One figure spanning eighteen months is no denominator for any of them**,
+  /// which is `run_filter.dart`'s standing limitation said from the capacity
+  /// side: §10.3 draws a capacity line per month and [openByWorkcenter] cannot
+  /// answer it. Both are kept — the whole-run figure is what utilization is
+  /// measured against and this is what a monthly bar is drawn under, and they
+  /// sum to each other by construction.
+  ///
+  /// Empty on a result assembled before v25 and on one whose calendars could
+  /// not be walked, which is the same empty a station with no schedule already
+  /// reports as `Duration.zero` above.
+  final Map<String, Map<DateTime, Duration>> openByWorkcenterMonth;
 
   /// Time each workcenter spent holding a finished order it could not put down,
   /// because the lane ahead was full (§5.5).

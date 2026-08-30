@@ -58,6 +58,7 @@ const _seededAtKey = 'reference_data.seeded_at';
     SimulationRunWorkcenters,
     SimulationRunLanes,
     SimulationRunLaneVisits,
+    SimulationRunWorkcenterMonths,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -74,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1006,6 +1007,43 @@ class AppDatabase extends _$AppDatabase {
             );
           });
         }
+      }
+
+      if (from < 25) {
+        // **What a run must carry to be graphed over time** (§10.2). Three
+        // copy-ins, and every one of them is a figure the plant would answer
+        // differently tomorrow — which is the whole of §7.10's rule that a
+        // finished run is never joined back to a plant that may have been
+        // retuned since.
+        //
+        // **No rebuild.** Two nullable columns on tables that predate them and
+        // one new table, which is §16.19's safe shape and what every migration
+        // since v15 but v23 has been able to say.
+        //
+        // **Nothing is backfilled, and that is the point.** A run made before
+        // v25 cannot say what its rework cost or what a month of it was worth,
+        // because the figures were never fused into anything recoverable —
+        // `process_seconds` is `work × (1 + r)` with `r` gone. Inventing them
+        // from today's schedules would draw a capacity line for 2025 out of a
+        // plant retuned in 2026, and a wrong line is worse than no graph.
+        // §10.3 offers no graph on a pre-v25 run, the way pre-v18 runs group
+        // nothing.
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.processSecondsBeforeRework,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.typeId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.typeName,
+        );
+        await _ensureTable(m, simulationRunWorkcenterMonths);
       }
 
       // Reference-data seeding runs outside every version guard, on every

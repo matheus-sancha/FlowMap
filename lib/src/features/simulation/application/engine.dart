@@ -1006,6 +1006,14 @@ class _Engine {
       availability: availability,
       rework: schedule.reworkOn(_now),
     );
+    // The same work with rework left off (§10.2). Computed rather than divided
+    // back out of `work`: the two differ by a rounding otherwise, and a stacked
+    // bar whose segments do not sum to the whole is the §7.6 failure again.
+    final workBeforeRework = effectiveProcessTime(
+      processTimePerPiece: waiting.perPiece,
+      batchSize: waiting.order.batchSize,
+      availability: availability,
+    );
     final occupancy = work + changeover;
 
     final DateTime end;
@@ -1043,6 +1051,7 @@ class _Engine {
         // percentage is neither incurred nor not, and this is the only place the
         // new rule can be checked against what it did.
         changeoverSeconds: changeover.inSeconds,
+        processSecondsBeforeRework: workBeforeRework.inSeconds,
         // And what the work itself cost, which is the half §7.4 moves and the
         // one an elapsed span cannot be read back into (v21).
         processSeconds: work.inSeconds,
@@ -1159,6 +1168,12 @@ class _Engine {
     // Asked once per station rather than once per server — the calendar walk is
     // the expensive part (§16.9) and every unit of a station shares one.
     final open = <String, Duration>{};
+    // The same walk cut into months (§10.2). **Clipped to the run at both
+    // ends**, so the first and last months state the capacity the run actually
+    // had rather than the whole calendar month's — a run beginning on the 20th
+    // did not have January's hours and a line drawn as though it did would put
+    // every bar in that column under it.
+    final openByMonth = <String, Map<DateTime, Duration>>{};
     for (final entry in workcenters.entries) {
       final units = entry.value.units < 1 ? 1 : entry.value.units;
       try {
@@ -1167,6 +1182,24 @@ class _Engine {
       } on StateError {
         open[entry.key] = Duration.zero;
       }
+      final months = <DateTime, Duration>{};
+      for (var month = DateTime(start.year, start.month);
+          month.isBefore(_now);
+          month = DateTime(month.year, month.month + 1)) {
+        final next = DateTime(month.year, month.month + 1);
+        final from = month.isBefore(start) ? start : month;
+        final to = next.isAfter(_now) ? _now : next;
+        if (!to.isAfter(from)) continue;
+        try {
+          months[month] = entry.value.calendar.openTimeBetween(from, to) * units;
+        } on StateError {
+          // A station with no staffed shift in that month has no open time in
+          // it, which is a real answer and is drawn as a floor rather than as a
+          // gap (§10.2).
+          months[month] = Duration.zero;
+        }
+      }
+      openByMonth[entry.key] = months;
     }
 
     // Busy time summed back across a station's units, so everything downstream
@@ -1201,6 +1234,7 @@ class _Engine {
       cadenceEndedByStudy: Map.unmodifiable(_cadenceEnded),
       busyByWorkcenter: busy,
       openByWorkcenter: open,
+      openByWorkcenterMonth: openByMonth,
       blockedByWorkcenter: blocked,
       // Every lane the run walked, so §8.6 can place a row for one that never
       // held anything — an empty lane between two busy stations is a fact

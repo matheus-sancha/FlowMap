@@ -71,6 +71,15 @@ class SimulationRepository {
         )..where((w) => w.plantId.equals(project.plantId))).get();
     final byId = {for (final row in workcenterRows) row.id: row};
 
+    // Read before the loop below so a station can carry its own type into the
+    // run (§10.2). By id *and* by name: the balance compares two stations by
+    // name (§7.4) and §10.3's pivot columns need an identity a rename cannot
+    // move, so the run keeps both.
+    final typeNames = {
+      for (final type in await _db.select(_db.workcenterTypes).get())
+        type.id: type.name,
+    };
+
     final workcenters = <String, SimWorkcenter>{};
     for (final id in needed) {
       final row = byId[id];
@@ -86,6 +95,8 @@ class SimulationRepository {
         calendar: calendar,
         schedule: await _schedules.loadWorkcenterSchedule(projectId, id),
         units: row.parallelCapacity,
+        typeId: row.typeId,
+        typeName: typeNames[row.typeId],
       );
     }
 
@@ -93,10 +104,6 @@ class SimulationRepository {
     // on. By name rather than by id because the balance compares two stations
     // and a name is what a reader would compare them by — and because the type
     // rows are a handful, so the join is one query for the whole plant.
-    final typeNames = {
-      for (final type in await _db.select(_db.workcenterTypes).get())
-        type.id: type.name,
-    };
     final workcenterTypeNames = {
       for (final row in workcenterRows) row.id: ?typeNames[row.typeId],
     };
