@@ -3434,6 +3434,77 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.'**
   String get occupationUngraphable;
+
+  /// No description provided for @projectSettingsFloat.
+  ///
+  /// In en, this message translates to:
+  /// **'Float thresholds'**
+  String get projectSettingsFloat;
+
+  /// No description provided for @projectSettingsFloatHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the float matrix turns red and green. Between the two is amber.'**
+  String get projectSettingsFloatHelp;
+
+  /// No description provided for @projectFloatRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red at or below (days)'**
+  String get projectFloatRed;
+
+  /// No description provided for @projectFloatGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green at or above (days)'**
+  String get projectFloatGreen;
+
+  /// No description provided for @projectFloatRedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An order with this much slack or less is drawn red. Zero means an order delivered exactly on its need date has none left.'**
+  String get projectFloatRedHelp;
+
+  /// No description provided for @projectFloatGreenHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An order with at least this much slack is drawn green.'**
+  String get projectFloatGreenHelp;
+
+  /// No description provided for @floatMatrixTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Float by month'**
+  String get floatMatrixTitle;
+
+  /// No description provided for @floatMatrixHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns are the month of the order\'s need date, rows its rank in that month by need date. Cells are slack in days — positive is early.'**
+  String get floatMatrixHelp;
+
+  /// No description provided for @floatMatrixUndelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Never delivered'**
+  String get floatMatrixUndelivered;
+
+  /// No description provided for @floatMatrixTally.
+  ///
+  /// In en, this message translates to:
+  /// **'{red} red · {amber} amber · {green} green · {undelivered} never delivered'**
+  String floatMatrixTally(
+    String red,
+    String amber,
+    String green,
+    String undelivered,
+  );
+
+  /// No description provided for @floatMatrixEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders in this slice have a need date to place.'**
+  String get floatMatrixEmpty;
 }
 
 class _AppLocalizationsDelegate

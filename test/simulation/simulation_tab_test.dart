@@ -36,7 +36,9 @@ void main() {
     shiftPatternId: 'pattern-1',
     createdAt: now,
     updatedAt: now,
-  );
+      floatRedDays: 0,
+      floatGreenDays: 30,
+    );
 
   SimRunInput input({
     required List<StudyReadiness> readiness,

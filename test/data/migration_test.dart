@@ -2613,4 +2613,39 @@ void main() {
     });
   });
 
+  group('v25 to v26: where the float matrix turns red (§10.4)', () {
+    test('every project gets the defaults, and nothing else moves', () async {
+      // **Not a backfill in §10.2's sense.** These are thresholds for *reading*
+      // a figure rather than a record of what the plant was, so a default is
+      // the right answer where an invented capacity would not be. Nothing about
+      // any stored run changes.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "created_at, updated_at) VALUES "
+        "('proj-1', 'Old', 'plant-1', 'pattern-1', $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE projects DROP COLUMN float_red_days')
+        ..execute('ALTER TABLE projects DROP COLUMN float_green_days')
+        ..execute('PRAGMA user_version = 25')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      final project = await (db.select(
+        db.projects,
+      )..where((p) => p.id.equals('proj-1'))).getSingle();
+
+      expect(project.floatRedDays, 0);
+      expect(project.floatGreenDays, 30);
+      expect(project.name, 'Old', reason: 'the row is otherwise untouched');
+      await db.close();
+    });
+  });
+
 }

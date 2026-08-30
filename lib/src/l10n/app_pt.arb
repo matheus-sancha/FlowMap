@@ -930,5 +930,16 @@
   "occupationCell": "Célula",
   "occupationLine": "Linha",
   "occupationTotal": "TOTAL",
-  "occupationUngraphable": "Esta simulação foi feita antes de a app registar quanto valia um mês de uma estação, por isso não pode ser desenhada. Volte a simular para obter o gráfico."
+  "occupationUngraphable": "Esta simulação foi feita antes de a app registar quanto valia um mês de uma estação, por isso não pode ser desenhada. Volte a simular para obter o gráfico.",
+  "projectSettingsFloat": "Limiares de folga",
+  "projectSettingsFloatHelp": "Onde a matriz de folga fica vermelha e verde. Entre as duas, âmbar.",
+  "projectFloatRed": "Vermelho em ou abaixo de (dias)",
+  "projectFloatGreen": "Verde em ou acima de (dias)",
+  "projectFloatRedHelp": "Uma encomenda com esta folga ou menos é desenhada a vermelho. Zero significa que uma encomenda entregue na própria data não tem nenhuma.",
+  "projectFloatGreenHelp": "Uma encomenda com pelo menos esta folga é desenhada a verde.",
+  "floatMatrixTitle": "Folga por mês",
+  "floatMatrixHelp": "As colunas são o mês da data de necessidade da encomenda; as linhas, a sua ordem nesse mês por data. As células são folga em dias — positivo é adiantado.",
+  "floatMatrixUndelivered": "Nunca entregue",
+  "floatMatrixTally": "{red} vermelhas · {amber} âmbar · {green} verdes · {undelivered} nunca entregues",
+  "floatMatrixEmpty": "Nenhuma encomenda deste corte tem data de necessidade para situar."
 }

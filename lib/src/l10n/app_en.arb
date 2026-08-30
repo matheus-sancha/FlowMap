@@ -1100,5 +1100,32 @@
   "occupationCell": "Cell",
   "occupationLine": "Line",
   "occupationTotal": "TOTAL",
-  "occupationUngraphable": "This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart."
+  "occupationUngraphable": "This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.",
+  "projectSettingsFloat": "Float thresholds",
+  "projectSettingsFloatHelp": "Where the float matrix turns red and green. Between the two is amber.",
+  "projectFloatRed": "Red at or below (days)",
+  "projectFloatGreen": "Green at or above (days)",
+  "projectFloatRedHelp": "An order with this much slack or less is drawn red. Zero means an order delivered exactly on its need date has none left.",
+  "projectFloatGreenHelp": "An order with at least this much slack is drawn green.",
+  "floatMatrixTitle": "Float by month",
+  "floatMatrixHelp": "Columns are the month of the order's need date, rows its rank in that month by need date. Cells are slack in days — positive is early.",
+  "floatMatrixUndelivered": "Never delivered",
+  "floatMatrixTally": "{red} red · {amber} amber · {green} green · {undelivered} never delivered",
+  "@floatMatrixTally": {
+    "placeholders": {
+      "red": {
+        "type": "String"
+      },
+      "amber": {
+        "type": "String"
+      },
+      "green": {
+        "type": "String"
+      },
+      "undelivered": {
+        "type": "String"
+      }
+    }
+  },
+  "floatMatrixEmpty": "No orders in this slice have a need date to place."
 }

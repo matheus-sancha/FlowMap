@@ -97,6 +97,29 @@ class ProjectSettingsScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
+        Text(l10n.projectSettingsFloat, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          l10n.projectSettingsFloatHelp,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(child: _FloatField(project: project, red: true)),
+                const SizedBox(width: 16),
+                Expanded(child: _FloatField(project: project, red: false)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
         Text(l10n.calendarExceptions, style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
@@ -301,6 +324,80 @@ class _NotesFieldState extends ConsumerState<_NotesField> {
   }
 }
 
+/// One of §10.4's two thresholds, in days.
+///
+/// **Committed on blur like every other field here**, and refused rather than
+/// stored where it is not a number or would cross its partner: a red threshold
+/// above the green one leaves nothing amber and every cell in two bands at once,
+/// which is a state the matrix cannot draw and the reader cannot see they asked
+/// for.
+class _FloatField extends ConsumerStatefulWidget {
+  const _FloatField({required this.project, required this.red});
+
+  final Project project;
+  final bool red;
+
+  @override
+  ConsumerState<_FloatField> createState() => _FloatFieldState();
+}
+
+class _FloatFieldState extends ConsumerState<_FloatField> {
+  late final _controller = TextEditingController(text: '$_stored');
+  late final FocusNode _focus = FocusNode()
+    ..addListener(() {
+      if (!_focus.hasFocus) _commit();
+    });
+
+  int get _stored =>
+      widget.red ? widget.project.floatRedDays : widget.project.floatGreenDays;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final typed = int.tryParse(_controller.text.trim());
+    final other = widget.red
+        ? widget.project.floatGreenDays
+        : widget.project.floatRedDays;
+    final crosses = typed != null && (widget.red ? typed > other : typed < other);
+
+    if (typed == null || crosses) {
+      setState(() => _controller.text = '$_stored');
+      return;
+    }
+    if (typed == _stored) return;
+    _write(
+      ref,
+      widget.project,
+      floatRedDays: widget.red ? typed : null,
+      floatGreenDays: widget.red ? null : typed,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return TextField(
+      key: Key(widget.red ? 'floatRed' : 'floatGreen'),
+      controller: _controller,
+      focusNode: _focus,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: widget.red ? l10n.projectFloatRed : l10n.projectFloatGreen,
+        suffixIcon: helpIcon(
+          context,
+          widget.red ? l10n.projectFloatRedHelp : l10n.projectFloatGreenHelp,
+        ),
+      ),
+      onSubmitted: (_) => _commit(),
+    );
+  }
+}
+
 /// One write path into `projects`, so two fields cannot disagree about the
 /// third — the argument `station_cards.dart` already makes about the dialog
 /// §6.3 deleted.
@@ -315,6 +412,8 @@ void _write(
   String? shiftPatternId,
   String? notes,
   bool notesGiven = false,
+  int? floatRedDays,
+  int? floatGreenDays,
 }) => ref
     .read(projectsRepositoryProvider)
     .updateProject(
@@ -322,4 +421,6 @@ void _write(
       name: name ?? project.name,
       shiftPatternId: shiftPatternId ?? project.shiftPatternId,
       notes: notesGiven ? notes : project.notes,
+      floatRedDays: floatRedDays ?? project.floatRedDays,
+      floatGreenDays: floatGreenDays ?? project.floatGreenDays,
     );

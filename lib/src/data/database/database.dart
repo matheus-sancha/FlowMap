@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1044,6 +1044,19 @@ class AppDatabase extends _$AppDatabase {
           simulationRunWorkcenters.typeName,
         );
         await _ensureTable(m, simulationRunWorkcenterMonths);
+      }
+
+      if (from < 26) {
+        // **Where the float matrix turns red and green** (§10.4), per project.
+        //
+        // Two nullable-shaped columns with defaults on a table that predates
+        // them — §16.19's safe shape, no rebuild. Every existing project gets
+        // `0` and `30`, which is not a backfill in §10.2's sense: these are
+        // thresholds for *reading* a figure rather than a record of what the
+        // plant was, so a default is the right answer rather than an invented
+        // one. Nothing about any stored run changes.
+        await _ensureColumn(m, projects, projects.floatRedDays);
+        await _ensureColumn(m, projects, projects.floatGreenDays);
       }
 
       // Reference-data seeding runs outside every version guard, on every

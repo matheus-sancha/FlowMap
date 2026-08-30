@@ -1958,4 +1958,49 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get occupationUngraphable =>
       'Esta simulação foi feita antes de a app registar quanto valia um mês de uma estação, por isso não pode ser desenhada. Volte a simular para obter o gráfico.';
+
+  @override
+  String get projectSettingsFloat => 'Limiares de folga';
+
+  @override
+  String get projectSettingsFloatHelp =>
+      'Onde a matriz de folga fica vermelha e verde. Entre as duas, âmbar.';
+
+  @override
+  String get projectFloatRed => 'Vermelho em ou abaixo de (dias)';
+
+  @override
+  String get projectFloatGreen => 'Verde em ou acima de (dias)';
+
+  @override
+  String get projectFloatRedHelp =>
+      'Uma encomenda com esta folga ou menos é desenhada a vermelho. Zero significa que uma encomenda entregue na própria data não tem nenhuma.';
+
+  @override
+  String get projectFloatGreenHelp =>
+      'Uma encomenda com pelo menos esta folga é desenhada a verde.';
+
+  @override
+  String get floatMatrixTitle => 'Folga por mês';
+
+  @override
+  String get floatMatrixHelp =>
+      'As colunas são o mês da data de necessidade da encomenda; as linhas, a sua ordem nesse mês por data. As células são folga em dias — positivo é adiantado.';
+
+  @override
+  String get floatMatrixUndelivered => 'Nunca entregue';
+
+  @override
+  String floatMatrixTally(
+    String red,
+    String amber,
+    String green,
+    String undelivered,
+  ) {
+    return '$red vermelhas · $amber âmbar · $green verdes · $undelivered nunca entregues';
+  }
+
+  @override
+  String get floatMatrixEmpty =>
+      'Nenhuma encomenda deste corte tem data de necessidade para situar.';
 }

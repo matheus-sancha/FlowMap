@@ -3019,37 +3019,50 @@ unit test; the fixture is two lines sharing a station, which is the shape every 
 
 **Not driven.** §10.5's checks are unchanged and none of them has been made.
 
-### 10.4 The float matrix
+### 10.4 The float matrix — **code-complete 2026-08-29, schema v26, met a copy of the live database, not driven**
 
-Float is one `Duration` per order today (`sim_result.dart:143`), slack against the need date,
-positive is early. The matrix is orders down, months across:
-
-```
-  Order #   jan/27   fev/27   mar/27   abr/27   mai/27   jun/27
-  -------------------------------------------------------------
-     1        17       53       53       56      -20       54
-     2        -1       26       29       -9       54       57
-     3        60      -16       40       55       36       11
-     4        40       13        8       51      -14       38
-     5       -15       -2       43       37       58       46
-     6        55       18                21       17        4
-     7        38                          12                -8
-```
+Float is one `Duration` per order (`sim_result.dart`), slack against the need date, positive is early.
+The matrix is orders down, months across, coloured by the project's own thresholds.
 
 - **column** — the month of the order's **need date**. Not the delivered date: an order due in March
   and shipped in April would change column between runs, and §12's run comparison is the one thing
   that cannot survive that.
-- **row** — its rank among that month's orders by need date, earliest first. Not the demand
-  `sequence`, which `gantt_layout.dart` and §8.5's plan already use for a global 1-based order
-  number — the same `#3` would otherwise name two different orders.
-- **cell** — float in days. Blank where a month has fewer orders.
+- **row** — its rank among that month's orders by need date, earliest first, ties broken by the
+  demand `sequence` so two runs of one study do not swap rows. **Not** the sequence itself, which
+  `gantt_layout.dart` and §8.5's plan already use for a global order number — the same `#3` would
+  otherwise name two different orders on two screens.
+- **cell** — float in days, **blank** where a month has fewer orders. A zero would read as an order
+  delivered exactly on its need date, which is the one figure the red band exists to catch.
 - **colour** — red at or below the lower threshold, amber between, green at or above the upper.
-  Defaults `0` and `30` days, **set per project** on §10.1's screen.
 
-§0 is why this earns its place: on-time was **60/60 in all four** confounder runs because the 30-day
-start buffer swamped the differences, so *"on-time cannot currently discriminate between these
-configurations and lead time is doing all the work."* A month-by-month float matrix is that
-statement made readable — the plant that is green in January and red in April.
+**An order that never delivered is its own band, not red.** Late by a month and never finished are
+different findings, and colouring them alike would hide the second inside the first — a run that
+aborted on the guard (§7.8) would read as a plant that is merely behind.
+
+**Schema v26**, two integer columns on `projects` with defaults `0` and `30`. Zero because an order
+delivered on its need date has no slack left, and thirty because §7.8's start buffer is thirty days on
+this plant. **Not a backfill in §10.2's sense**: these are thresholds for *reading* a figure rather
+than a record of what the plant was, so a default is the right answer where an invented capacity
+would not be — and a migration test asserts every existing project gets them with nothing else moving.
+
+**A crossed pair is refused rather than stored.** A red threshold above the green one leaves nothing
+amber and puts every cell in two bands at once, which is a state the matrix cannot draw and the
+reader cannot see they asked for. `updateProject` takes the two as **absent when omitted**, so the
+Projects list's Rename does not quietly write them back to their defaults.
+
+**It sits beneath the production plan**, because it is that table's own Float column read a second
+way — and §0 is why it earns its place: on-time was **60/60 in all four** confounder runs because the
+thirty-day start buffer swamped the differences, so *"on-time cannot currently discriminate between
+these configurations and lead time is doing all the work."* This is that statement made readable, and
+it belongs beside the figures it qualifies rather than behind a fourth segment nobody would press.
+
+_Met a copy of the live database on 2026-08-29:_ 25 → 26, `integrity_check` ok, `VSM 2026 Q1` at
+`0` and `30`, 144 runs untouched.
+
+_Nine model tests and three on the screen_, including the two guards: a crossed pair is refused and
+so is something that is not a number.
+
+**Not driven.**
 
 ### 10.5 Drive it
 

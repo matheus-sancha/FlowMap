@@ -930,5 +930,16 @@
   "occupationCell": "Célula",
   "occupationLine": "Línea",
   "occupationTotal": "TOTAL",
-  "occupationUngraphable": "Esta simulación se hizo antes de que la app registrara cuánto valía un mes de una estación, así que no se puede graficar. Vuelve a simular para obtener el gráfico."
+  "occupationUngraphable": "Esta simulación se hizo antes de que la app registrara cuánto valía un mes de una estación, así que no se puede graficar. Vuelve a simular para obtener el gráfico.",
+  "projectSettingsFloat": "Umbrales de holgura",
+  "projectSettingsFloatHelp": "Dónde la matriz de holgura se pone roja y verde. Entre las dos, ámbar.",
+  "projectFloatRed": "Rojo en o por debajo de (días)",
+  "projectFloatGreen": "Verde en o por encima de (días)",
+  "projectFloatRedHelp": "Un pedido con esta holgura o menos se dibuja en rojo. Cero significa que un pedido entregado justo en su fecha no tiene ninguna.",
+  "projectFloatGreenHelp": "Un pedido con al menos esta holgura se dibuja en verde.",
+  "floatMatrixTitle": "Holgura por mes",
+  "floatMatrixHelp": "Las columnas son el mes de la fecha de necesidad del pedido; las filas, su orden dentro de ese mes por fecha. Las celdas son holgura en días: positivo es adelantado.",
+  "floatMatrixUndelivered": "Nunca entregado",
+  "floatMatrixTally": "{red} rojos · {amber} ámbar · {green} verdes · {undelivered} nunca entregados",
+  "floatMatrixEmpty": "Ningún pedido de este corte tiene fecha de necesidad que situar."
 }

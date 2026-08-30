@@ -1956,4 +1956,49 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get occupationUngraphable =>
       'Esta simulación se hizo antes de que la app registrara cuánto valía un mes de una estación, así que no se puede graficar. Vuelve a simular para obtener el gráfico.';
+
+  @override
+  String get projectSettingsFloat => 'Umbrales de holgura';
+
+  @override
+  String get projectSettingsFloatHelp =>
+      'Dónde la matriz de holgura se pone roja y verde. Entre las dos, ámbar.';
+
+  @override
+  String get projectFloatRed => 'Rojo en o por debajo de (días)';
+
+  @override
+  String get projectFloatGreen => 'Verde en o por encima de (días)';
+
+  @override
+  String get projectFloatRedHelp =>
+      'Un pedido con esta holgura o menos se dibuja en rojo. Cero significa que un pedido entregado justo en su fecha no tiene ninguna.';
+
+  @override
+  String get projectFloatGreenHelp =>
+      'Un pedido con al menos esta holgura se dibuja en verde.';
+
+  @override
+  String get floatMatrixTitle => 'Holgura por mes';
+
+  @override
+  String get floatMatrixHelp =>
+      'Las columnas son el mes de la fecha de necesidad del pedido; las filas, su orden dentro de ese mes por fecha. Las celdas son holgura en días: positivo es adelantado.';
+
+  @override
+  String get floatMatrixUndelivered => 'Nunca entregado';
+
+  @override
+  String floatMatrixTally(
+    String red,
+    String amber,
+    String green,
+    String undelivered,
+  ) {
+    return '$red rojos · $amber ámbar · $green verdes · $undelivered nunca entregados';
+  }
+
+  @override
+  String get floatMatrixEmpty =>
+      'Ningún pedido de este corte tiene fecha de necesidad que situar.';
 }

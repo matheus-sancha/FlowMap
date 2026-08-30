@@ -32,7 +32,9 @@ void main() {
     notes: notes,
     createdAt: now,
     updatedAt: now,
-  );
+      floatRedDays: 0,
+      floatGreenDays: 30,
+    );
 
   final plants = [
     Plant(id: 'plant-1', name: 'Taubaté', createdAt: now, updatedAt: now),
@@ -61,7 +63,8 @@ void main() {
   /// The one call the screen makes into the repository, recorded rather than
   /// executed — every field writes through `_write`, so a single spy says
   /// which of them wrote and with what.
-  final writes = <({String name, String patternId, String? notes})>[];
+  final writes =
+      <({String name, String patternId, String? notes, int? red, int? green})>[];
 
   Future<void> pump(
     WidgetTester tester, {
@@ -111,6 +114,15 @@ void main() {
     // The identity fields and the calendar on one screen, which is the whole
     // of §10.1: the exceptions destination is a section here now.
     expect(find.text(l10n.projectSettingsIdentity), findsOne);
+    // §10.4's thresholds sit between them, which is what pushed the calendar
+    // below the fold — so it is scrolled to rather than assumed on screen. A
+    // `ListView` builds lazily and "not built yet" is not "not there".
+    expect(find.text(l10n.projectSettingsFloat), findsOne);
+    await tester.scrollUntilVisible(
+      find.text(l10n.exceptionsScope),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text(l10n.calendarExceptions), findsOne);
     expect(find.text(l10n.exceptionsScope), findsOne);
   });
@@ -178,7 +190,9 @@ void main() {
           shiftPatternId: 'pattern-abc',
           createdAt: now,
           updatedAt: now,
-        ),
+      floatRedDays: 0,
+      floatGreenDays: 30,
+    ),
       ],
     );
 
@@ -195,6 +209,53 @@ void main() {
     // And the field is put back rather than left disagreeing with what is
     // stored.
     expect(_nameText(tester), 'Fábrica 11');
+  });
+
+  testWidgets('a float threshold is written, and read back in days', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    await tester.enterText(find.byKey(const Key('floatGreen')), '45');
+    await tester.tap(find.byKey(const Key('floatRed')));
+    await tester.pumpAndSettle();
+
+    expect(writes, hasLength(1));
+    expect(writes.single.green, 45);
+    // And it carried the other threshold through untouched, which is what one
+    // write path into a whole-row update has to do.
+    expect(writes.single.red, 0);
+  });
+
+  testWidgets('a red threshold above the green one is refused', (tester) async {
+    // A crossed pair leaves nothing amber and puts every cell in two bands at
+    // once — a state the matrix cannot draw and the reader cannot see they
+    // asked for.
+    await pump(tester);
+
+    await tester.enterText(find.byKey(const Key('floatRed')), '99');
+    await tester.tap(find.byKey(const Key('floatGreen')));
+    await tester.pumpAndSettle();
+
+    expect(writes, isEmpty);
+    // Put back rather than left disagreeing with what is stored.
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('floatRed')))
+          .controller!
+          .text,
+      '0',
+    );
+  });
+
+  testWidgets('something that is not a number is refused too', (tester) async {
+    await pump(tester);
+
+    await tester.enterText(find.byKey(const Key('floatGreen')), 'soon');
+    await tester.tap(find.byKey(const Key('floatRed')));
+    await tester.pumpAndSettle();
+
+    expect(writes, isEmpty);
   });
 
   testWidgets('an emptied name is refused too', (tester) async {
@@ -219,7 +280,8 @@ String _nameText(WidgetTester tester) =>
 class _SpyProjectsRepository implements ProjectsRepository {
   _SpyProjectsRepository(this.writes);
 
-  final List<({String name, String patternId, String? notes})> writes;
+  final List<({String name, String patternId, String? notes, int? red, int? green})>
+  writes;
 
   @override
   Future<void> updateProject(
@@ -227,7 +289,15 @@ class _SpyProjectsRepository implements ProjectsRepository {
     required String name,
     required String shiftPatternId,
     String? notes,
-  }) async => writes.add((name: name, patternId: shiftPatternId, notes: notes));
+    int? floatRedDays,
+    int? floatGreenDays,
+  }) async => writes.add((
+    name: name,
+    patternId: shiftPatternId,
+    notes: notes,
+    red: floatRedDays,
+    green: floatGreenDays,
+  ));
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

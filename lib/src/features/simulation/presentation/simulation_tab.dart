@@ -13,6 +13,8 @@ import '../application/sim_assembly.dart';
 import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
+import '../../../data/database/database.dart';
+import 'float_matrix_table.dart';
 import 'gantt_view.dart';
 import 'occupation_view.dart';
 import 'plan_excel.dart';
@@ -120,7 +122,15 @@ enum _RunView { results, gantt, occupation }
 /// `?study=` on the workspace's route, so the guarantee is now structural
 /// rather than maintained (§12.1).
 class RunResults extends StatefulWidget {
-  const RunResults({super.key, required this.slice, required this.projectName});
+  const RunResults({
+    super.key,
+    required this.slice,
+    required this.projectName,
+    required this.project,
+  });
+
+  /// The project whose float thresholds colour §10.4's matrix.
+  final Project project;
 
   /// The run as this view of it reads (§12.1).
   final FilteredRun slice;
@@ -205,6 +215,7 @@ class _ResultsState extends State<RunResults> {
                 child: _ResultTables(
                   slice: slice,
                   projectName: widget.projectName,
+                  project: widget.project,
                 ),
               ),
               GanttView(slice: slice),
@@ -363,10 +374,17 @@ class _RunHeader extends StatelessWidget {
 
 /// The metrics card and the four tables — what the Results view is.
 class _ResultTables extends StatelessWidget {
-  const _ResultTables({required this.slice, required this.projectName});
+  const _ResultTables({
+    required this.slice,
+    required this.projectName,
+    required this.project,
+  });
 
   final FilteredRun slice;
   final String projectName;
+
+  /// Carried for §10.4's thresholds, which are the project's own (§10.1).
+  final Project project;
 
   StoredRun get run => slice.run;
 
@@ -462,6 +480,23 @@ class _ResultTables extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _ProductionPlan(slice: slice),
+        const SizedBox(height: 24),
+        // **Beneath the plan, because it is the plan's own Float column read a
+        // second way** (§10.4). §0 found on-time delivery unable to tell four
+        // configurations apart — 60/60 in all of them — because a thirty-day
+        // start buffer swamped the differences; this is that statement made
+        // readable, and it belongs beside the figures it qualifies rather than
+        // behind a fourth segment nobody would press.
+        Text(l10n.floatMatrixTitle, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          l10n.floatMatrixHelp,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        FloatMatrixTable(slice: slice, project: project),
       ],
     );
   }

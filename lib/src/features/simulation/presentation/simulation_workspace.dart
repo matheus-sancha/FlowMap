@@ -153,6 +153,7 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
             AsyncValue(value: final run!) => RunResults(
               slice: filterRun(run, _filter),
               projectName: widget.project.name,
+              project: widget.project,
             ),
           },
         ),

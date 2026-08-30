@@ -29,6 +29,28 @@ class Projects extends Table {
       text().references(ShiftPatterns, #id, onDelete: KeyAction.restrict)();
 
   TextColumn get notes => text().nullable()();
+
+  /// Where the float matrix turns red and where it turns green, in **days**
+  /// (§10.4).
+  ///
+  /// At or below [floatRedDays] is red, at or above [floatGreenDays] is green,
+  /// and between them is amber. Defaults `0` and `30`: zero because an order
+  /// delivered on its need date has no slack left and is the thing a planner is
+  /// scanning for, and thirty because §7.8's start buffer is thirty days on this
+  /// plant and a month of room is what "comfortable" has meant in every
+  /// conversation about it.
+  ///
+  /// **Per project rather than global**, because what counts as comfortable is a
+  /// property of the business a project models — and because §10.1 gave a
+  /// project a screen to hold them, which is the whole reason that entry came
+  /// first.
+  ///
+  /// Stored as plain integers with defaults rather than nullable: there is no
+  /// meaningful *unset* here — a matrix has to colour every cell somehow, and a
+  /// null would only be a second spelling of the default.
+  IntColumn get floatRedDays => integer().withDefault(const Constant(0))();
+  IntColumn get floatGreenDays => integer().withDefault(const Constant(30))();
+
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

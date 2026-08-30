@@ -1938,4 +1938,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get occupationUngraphable =>
       'This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.';
+
+  @override
+  String get projectSettingsFloat => 'Float thresholds';
+
+  @override
+  String get projectSettingsFloatHelp =>
+      'Where the float matrix turns red and green. Between the two is amber.';
+
+  @override
+  String get projectFloatRed => 'Red at or below (days)';
+
+  @override
+  String get projectFloatGreen => 'Green at or above (days)';
+
+  @override
+  String get projectFloatRedHelp =>
+      'An order with this much slack or less is drawn red. Zero means an order delivered exactly on its need date has none left.';
+
+  @override
+  String get projectFloatGreenHelp =>
+      'An order with at least this much slack is drawn green.';
+
+  @override
+  String get floatMatrixTitle => 'Float by month';
+
+  @override
+  String get floatMatrixHelp =>
+      'Columns are the month of the order\'s need date, rows its rank in that month by need date. Cells are slack in days — positive is early.';
+
+  @override
+  String get floatMatrixUndelivered => 'Never delivered';
+
+  @override
+  String floatMatrixTally(
+    String red,
+    String amber,
+    String green,
+    String undelivered,
+  ) {
+    return '$red red · $amber amber · $green green · $undelivered never delivered';
+  }
+
+  @override
+  String get floatMatrixEmpty =>
+      'No orders in this slice have a need date to place.';
 }
