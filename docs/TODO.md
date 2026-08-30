@@ -72,7 +72,7 @@ A queue was only ever keyed by its target, so it does not need a name of its own
 name, only 2 of 25 steps carry a label and both spell one pool differently, and no spine revisits a
 target. **Stored runs survive untouched.**
 
-**Evidence — the live-database check is done** (`2f0e4c2`). The migration ran against a copy of
+**Evidence — the live-database check is done** (`19813d6`). The migration ran against a copy of
 the real 149 MB database: it upgraded to v27, `PRAGMA integrity_check` returned `ok`, both columns
 are gone, and **all 15 queues and all 25 steps survived** with 250 orders, 147 runs and 189,623
 step rows untouched. Seven of the fifteen are untyped, exactly the seven #5 predicted, and every
