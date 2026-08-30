@@ -3505,6 +3505,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No orders in this slice have a need date to place.'**
   String get floatMatrixEmpty;
+
+  /// No description provided for @floatLegendRed.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d or less'**
+  String floatLegendRed(String days);
+
+  /// No description provided for @floatLegendAmber.
+  ///
+  /// In en, this message translates to:
+  /// **'Between {red} d and {green} d'**
+  String floatLegendAmber(String red, String green);
+
+  /// No description provided for @floatLegendGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d or more'**
+  String floatLegendGreen(String days);
 }
 
 class _AppLocalizationsDelegate

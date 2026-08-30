@@ -2001,4 +2001,19 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get floatMatrixEmpty =>
       'Ningún pedido de este corte tiene fecha de necesidad que situar.';
+
+  @override
+  String floatLegendRed(String days) {
+    return '$days d o menos';
+  }
+
+  @override
+  String floatLegendAmber(String red, String green) {
+    return 'Entre $red d y $green d';
+  }
+
+  @override
+  String floatLegendGreen(String days) {
+    return '$days d o más';
+  }
 }

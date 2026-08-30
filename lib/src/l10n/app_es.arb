@@ -941,5 +941,32 @@
   "floatMatrixHelp": "Las columnas son el mes de la fecha de necesidad del pedido; las filas, su orden dentro de ese mes por fecha. Las celdas son holgura en días: positivo es adelantado.",
   "floatMatrixUndelivered": "Nunca entregado",
   "floatMatrixTally": "{red} rojos · {amber} ámbar · {green} verdes · {undelivered} nunca entregados",
-  "floatMatrixEmpty": "Ningún pedido de este corte tiene fecha de necesidad que situar."
+  "floatMatrixEmpty": "Ningún pedido de este corte tiene fecha de necesidad que situar.",
+  "floatLegendRed": "{days} d o menos",
+  "@floatLegendRed": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "floatLegendAmber": "Entre {red} d y {green} d",
+  "@floatLegendAmber": {
+    "placeholders": {
+      "red": {
+        "type": "String"
+      },
+      "green": {
+        "type": "String"
+      }
+    }
+  },
+  "floatLegendGreen": "{days} d o más",
+  "@floatLegendGreen": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  }
 }

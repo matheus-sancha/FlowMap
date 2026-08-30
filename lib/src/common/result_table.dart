@@ -85,6 +85,9 @@ Widget resultTable({
   required Widget Function(int row, int column) cellAt,
   double? maxHeight = resultTableMaxHeight,
   bool fill = false,
+  int? sortColumn,
+  bool sortAscending = true,
+  void Function(int column)? onSort,
 }) => _ResultTable(
   key: key,
   columns: columns,
@@ -92,6 +95,9 @@ Widget resultTable({
   cellAt: cellAt,
   maxHeight: maxHeight,
   fill: fill,
+  sortColumn: sortColumn,
+  sortAscending: sortAscending,
+  onSort: onSort,
 );
 
 class _ResultTable extends StatefulWidget {
@@ -102,6 +108,9 @@ class _ResultTable extends StatefulWidget {
     required this.cellAt,
     required this.maxHeight,
     required this.fill,
+    required this.sortColumn,
+    required this.sortAscending,
+    required this.onSort,
   });
 
   final List<ResultColumn> columns;
@@ -124,6 +133,16 @@ class _ResultTable extends StatefulWidget {
   /// less room than the widths ask for, they are kept as declared and the table
   /// scrolls — so this is a way of using space, never of losing legibility.
   final bool fill;
+
+  /// Which column the rows are ordered by, or null for a table that does not
+  /// sort. **Presentation only**: the caller does the ordering and hands over
+  /// rows already in it, so a table cannot claim an order its rows are not in.
+  final int? sortColumn;
+  final bool sortAscending;
+
+  /// Called with the column the reader pressed. Null leaves the heading inert,
+  /// which is what every table did before this existed.
+  final void Function(int column)? onSort;
 
   @override
   State<_ResultTable> createState() => _ResultTableState();
@@ -181,13 +200,13 @@ class _ResultTableState extends State<_ResultTable> {
             // column would otherwise run past the heading row's height and
             // overflow, and a label that overflows is one nobody can read
             // anyway.
-            Text(
-              widget.columns[i].label,
-              textAlign: widget.columns[i].centred
-                  ? TextAlign.center
-                  : TextAlign.start,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            _HeadingLabel(
+              column: widget.columns[i],
+              sorted: widget.sortColumn == i,
+              ascending: widget.sortAscending,
+              onSort: widget.onSort == null
+                  ? null
+                  : () => widget.onSort!(i),
             ),
           ),
         ),
@@ -290,6 +309,64 @@ class _ResultTableState extends State<_ResultTable> {
               notification.metrics.axis == Axis.vertical,
           child: MediaQuery(data: media, child: pane),
         ),
+      ),
+    );
+  }
+}
+
+/// A heading label, with a sort arrow when the table sorts.
+///
+/// **The arrow is inside the declared width**, like everything else in this
+/// table — a heading that grew to fit an arrow would stop agreeing with the
+/// body column beneath it, which is the one thing the two-table layout exists
+/// to prevent.
+class _HeadingLabel extends StatelessWidget {
+  const _HeadingLabel({
+    required this.column,
+    required this.sorted,
+    required this.ascending,
+    required this.onSort,
+  });
+
+  final ResultColumn column;
+  final bool sorted;
+  final bool ascending;
+  final VoidCallback? onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = Text(
+      column.label,
+      textAlign: column.centred ? TextAlign.center : TextAlign.start,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (onSort == null) return label;
+
+    return InkWell(
+      onTap: onSort,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: column.centred
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
+        children: [
+          Flexible(child: label),
+          // Reserved whether or not this column is the sorted one, so pressing
+          // a heading does not shuffle the labels either side of it.
+          SizedBox(
+            width: 18,
+            child: sorted
+                ? Icon(
+                    ascending ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
+          ),
+        ],
       ),
     );
   }

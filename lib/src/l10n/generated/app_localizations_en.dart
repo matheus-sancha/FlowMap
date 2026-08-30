@@ -1983,4 +1983,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get floatMatrixEmpty =>
       'No orders in this slice have a need date to place.';
+
+  @override
+  String floatLegendRed(String days) {
+    return '$days d or less';
+  }
+
+  @override
+  String floatLegendAmber(String red, String green) {
+    return 'Between $red d and $green d';
+  }
+
+  @override
+  String floatLegendGreen(String days) {
+    return '$days d or more';
+  }
 }

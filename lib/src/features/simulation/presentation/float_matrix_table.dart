@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
+import '../../../app/tokens.dart';
 import '../../../common/horizontal_scroll.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -52,17 +53,14 @@ class FloatMatrixTable extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.floatMatrixTally(
-            '${tally[FloatBand.red]}',
-            '${tally[FloatBand.amber]}',
-            '${tally[FloatBand.green]}',
-            '${tally[FloatBand.undelivered]}',
-          ),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
+        // **A legend, not a tally** (v2.0). The line here read
+        // `3 red · 5 amber · 12 green` in the body colour — it named the
+        // colours in words while showing none of them, and it never said what
+        // the bands actually are. The thresholds are the project's own
+        // (§10.4), so a reader cannot know that `amber` means 1-29 days
+        // without being told. Each entry now carries its own swatch, the
+        // threshold that defines it and its count.
+        _Legend(project: project, tally: tally),
         const SizedBox(height: 8),
         HorizontalScroll(
           child: DataTable(
@@ -113,14 +111,24 @@ class _Cell extends StatelessWidget {
     // than zero, which would read as an order delivered exactly on its date.
     if (value == null) return const SizedBox.shrink();
 
-    final scheme = theme.colorScheme;
+    // **The chosen status set, not the generated scheme** (v2.0). These four
+    // read `errorContainer`, `tertiaryContainer` and `primaryContainer` until
+    // now — which is exactly the coupling `tokens.dart` says was removed: with
+    // the seed moved off green to a blueprint blue, `primaryContainer` is
+    // *blue*, so the band named `green` was drawing the brand's accent and the
+    // matrix no longer said what it meant. `FlowStatus` is picked rather than
+    // derived, so re-seeding the chrome cannot move a delivery cell again.
+    final status = FlowStatus.of(context);
     final (Color background, Color foreground) = switch (value.band) {
-      FloatBand.red => (scheme.errorContainer, scheme.onErrorContainer),
-      FloatBand.amber => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-      FloatBand.green => (scheme.primaryContainer, scheme.onPrimaryContainer),
+      FloatBand.red => (status.critical.fill, status.critical.ink),
+      FloatBand.amber => (status.warning.fill, status.warning.ink),
+      FloatBand.green => (status.good.fill, status.good.ink),
       // **Not red.** Late by a month and never finished are different findings,
       // and colouring them alike hides the second inside the first.
-      FloatBand.undelivered => (scheme.surfaceContainerHighest, scheme.outline),
+      FloatBand.undelivered => (
+        status.undelivered.fill,
+        status.undelivered.ink,
+      ),
     };
 
     return Tooltip(
@@ -139,6 +147,80 @@ class _Cell extends StatelessWidget {
           style: theme.textTheme.bodySmall?.copyWith(color: foreground),
         ),
       ),
+    );
+  }
+}
+
+/// What the four bands mean, in the project's own thresholds (DESIGN.md §10.4).
+class _Legend extends StatelessWidget {
+  const _Legend({required this.project, required this.tally});
+
+  final Project project;
+  final Map<FloatBand, int> tally;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final status = FlowStatus.of(context);
+
+    final entries = <(StatusColour, String, int)>[
+      (
+        status.critical,
+        l10n.floatLegendRed('${project.floatRedDays}'),
+        tally[FloatBand.red] ?? 0,
+      ),
+      (
+        status.warning,
+        l10n.floatLegendAmber(
+          '${project.floatRedDays}',
+          '${project.floatGreenDays}',
+        ),
+        tally[FloatBand.amber] ?? 0,
+      ),
+      (
+        status.good,
+        l10n.floatLegendGreen('${project.floatGreenDays}'),
+        tally[FloatBand.green] ?? 0,
+      ),
+      (
+        status.undelivered,
+        l10n.floatMatrixUndelivered,
+        tally[FloatBand.undelivered] ?? 0,
+      ),
+    ];
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final (colour, label, count) in entries)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The swatch is the fill a cell actually uses, so the legend
+              // cannot drift from the matrix beside it.
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: colour.fill,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(label, style: theme.textTheme.bodySmall),
+              const SizedBox(width: 6),
+              Text(
+                '$count',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

@@ -1127,5 +1127,32 @@
       }
     }
   },
-  "floatMatrixEmpty": "No orders in this slice have a need date to place."
+  "floatMatrixEmpty": "No orders in this slice have a need date to place.",
+  "floatLegendRed": "{days} d or less",
+  "@floatLegendRed": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "floatLegendAmber": "Between {red} d and {green} d",
+  "@floatLegendAmber": {
+    "placeholders": {
+      "red": {
+        "type": "String"
+      },
+      "green": {
+        "type": "String"
+      }
+    }
+  },
+  "floatLegendGreen": "{days} d or more",
+  "@floatLegendGreen": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  }
 }

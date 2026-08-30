@@ -961,6 +961,10 @@ class _QueueTable extends StatelessWidget {
 
     return Card(
       child: resultTable(
+        // The overview pairs Queue and Share side by side (#7), so these
+        // take the width they are given rather than leaving half a pane
+        // blank. `fill` never narrows a column below its declared width.
+        fill: true,
         columns: [
           // Wider than it was, for the pool a station ran in (§3.1).
           ResultColumn(label: l10n.workcenter, width: 210),
@@ -1012,6 +1016,10 @@ class _ShareTable extends StatelessWidget {
 
     return Card(
       child: resultTable(
+        // The overview pairs Queue and Share side by side (#7), so these
+        // take the width they are given rather than leaving half a pane
+        // blank. `fill` never narrows a column below its declared width.
+        fill: true,
         columns: [
           ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.simContributed, width: 160),
@@ -1067,6 +1075,10 @@ class _PartsTable extends StatelessWidget {
 
     return Card(
       child: resultTable(
+        // The overview pairs Queue and Share side by side (#7), so these
+        // take the width they are given rather than leaving half a pane
+        // blank. `fill` never narrows a column below its declared width.
+        fill: true,
         columns: [
           // Wider than the other tables' part number column by the width of
           // the swatch and its gap, so the number itself has the room it had

@@ -941,5 +941,32 @@
   "floatMatrixHelp": "As colunas são o mês da data de necessidade da encomenda; as linhas, a sua ordem nesse mês por data. As células são folga em dias — positivo é adiantado.",
   "floatMatrixUndelivered": "Nunca entregue",
   "floatMatrixTally": "{red} vermelhas · {amber} âmbar · {green} verdes · {undelivered} nunca entregues",
-  "floatMatrixEmpty": "Nenhuma encomenda deste corte tem data de necessidade para situar."
+  "floatMatrixEmpty": "Nenhuma encomenda deste corte tem data de necessidade para situar.",
+  "floatLegendRed": "{days} d ou menos",
+  "@floatLegendRed": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "floatLegendAmber": "Entre {red} d e {green} d",
+  "@floatLegendAmber": {
+    "placeholders": {
+      "red": {
+        "type": "String"
+      },
+      "green": {
+        "type": "String"
+      }
+    }
+  },
+  "floatLegendGreen": "{days} d ou mais",
+  "@floatLegendGreen": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  }
 }
