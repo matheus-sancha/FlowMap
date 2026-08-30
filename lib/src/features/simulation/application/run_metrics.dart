@@ -64,6 +64,8 @@ class WorkcenterRunMetrics {
     required this.visits,
     required this.changeovers,
     required this.contributedTime,
+    this.typeId,
+    this.typeName,
     this.blocked = Duration.zero,
     this.poolId,
     this.poolName,
@@ -82,6 +84,14 @@ class WorkcenterRunMetrics {
   /// why it is standing on its own.
   final String? poolId;
   final String? poolName;
+
+  /// The workcenter's type as the run copied it in (§10.2), or null on a run
+  /// made before v25 and on a station whose type was never set.
+  ///
+  /// **Read back rather than re-derived**, for the reason the pool is: a station
+  /// retyped since would otherwise re-column every run in the picker (§7.10).
+  final String? typeId;
+  final String? typeName;
 
   /// Open time spent running (§8.3's utilization numerator).
   final Duration busy;
@@ -313,11 +323,15 @@ Map<String, Duration> theoreticalLeadTimes({
 /// [computeRunMetrics], so what a run reports cannot drift from what it
 /// reported when it was made.
 RunMetrics summariseRun({
+  /// Workcenter id → its type, as the run recorded it. Empty on a run made
+  /// before v25, which is what makes §10.3 offer no pivot rather than one with
+  /// a single unnamed column.
   required SimRunResult result,
   required Map<String, String> partNumbers,
   required Map<String, String> workcenterNames,
   required Map<String, Duration> theoreticalByOrder,
   Map<String, StationPool> pools = const {},
+  Map<String, ({String id, String name})> types = const {},
 }) {
   var floatTotal = Duration.zero;
   var leadTotal = Duration.zero;
@@ -423,6 +437,8 @@ RunMetrics summariseRun({
             blocked: result.blockedByWorkcenter[entry.key] ?? Duration.zero,
             poolId: pools[entry.key]?.id,
             poolName: pools[entry.key]?.name,
+            typeId: types[entry.key]?.id,
+            typeName: types[entry.key]?.name,
           ),
       ]..sort((a, b) {
         final queue = b.queueTime.compareTo(a.queueTime);

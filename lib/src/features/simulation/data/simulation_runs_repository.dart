@@ -500,6 +500,11 @@ class SimulationRunsRepository {
       _db.simulationRunWorkcenters,
     )..where((w) => w.runId.equals(runId))).get();
     final byOrderId = {for (final row in orders) row.orderId: row};
+    // Empty on every run made before v25, which is what makes §10.3 offer no
+    // graph rather than an empty one.
+    final stationMonths = await (_db.select(
+      _db.simulationRunWorkcenterMonths,
+    )..where((m) => m.runId.equals(runId))).get();
     final lanes = await (_db.select(
       _db.simulationRunLanes,
     )..where((l) => l.runId.equals(runId))).get();
@@ -577,6 +582,15 @@ class SimulationRunsRepository {
       openByWorkcenter: {
         for (final row in stations)
           row.workcenterId: Duration(seconds: row.openSeconds),
+      },
+      openByWorkcenterMonth: {
+        for (final row in stationMonths)
+          row.workcenterId: {
+            for (final month in stationMonths.where(
+              (m) => m.workcenterId == row.workcenterId,
+            ))
+              month.month: Duration(seconds: month.openSeconds),
+          },
       },
       blockedByWorkcenter: {
         for (final row in stations)
@@ -678,6 +692,15 @@ class SimulationRunsRepository {
                 id: row.poolId,
                 name: row.poolName!,
               ),
+        },
+        // The type the run copied in (§10.2), for the same reason as the pool
+        // above: a station retyped since must not re-column a stored run.
+        // Absent on every row written before v25 and on a station that has no
+        // type, which the plant allows.
+        types: {
+          for (final row in stations)
+            if (row.typeId != null && row.typeName != null)
+              row.workcenterId: (id: row.typeId!, name: row.typeName!),
         },
         theoreticalByOrder: {
           for (final row in orders)
