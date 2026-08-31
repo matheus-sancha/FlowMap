@@ -2263,7 +2263,19 @@ more than being strict about how you got there. `workspace_tabs.dart` holds both
 
 **A bare `/studies/:s` and a bare `/simulation` redirect to their first tab** rather than rendering
 a sixth thing — and the simulation redirect carries `?study=` across, or arriving from a study would
-drop the filter on the way in. Every link written before phase 3 still works, which is why the
+drop the filter on the way in.
+
+**Both redirects are guarded on the bare path, and the guard is load-bearing.** A route-level
+redirect in `go_router` fires for the route's own **sub-routes** as well as for the route itself, so
+an unguarded one here caught `/studies/:s/settings` on its way past and sent it back to `/flow` —
+every tab in the app changed the URL and snapped back within the frame. `state.uri.path != bare`
+returns null, which lets a child match through untouched.
+
+*The way it went unnoticed is worth recording too.* §15's breadcrumbs log
+`routeInformationProvider.value`, which is the location **asked for** rather than the one resolved —
+so the drive's route trace showed five results tabs being reached while one was ever shown. **A log
+of intentions is not a log of outcomes.** `router_redirect_test.dart` asserts the rendered body
+rather than the location, because the location was the one thing that looked right. Every link written before phase 3 still works, which is why the
 sidebar's study link is left pointing at the bare location: it lands on Flow, which is the reset
 `_StudyTabs.didUpdateWidget` used to arrange by hand.
 

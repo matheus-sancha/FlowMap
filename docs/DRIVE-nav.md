@@ -48,6 +48,27 @@ what was actually reached is objective, and it is this:
 22:09:02  /projects/<p>/simulation/float
 ```
 
+> **Corrected 2026-08-30, after the field reported "the tabs of study and simulation are not
+> working".** Everything below this line about what the log *establishes* was wrong, and the way it
+> was wrong is worth more than the entry it replaces.
+>
+> **The tabs were dead.** `/studies/:s` and `/simulation` each carried a redirect so a bare location
+> resolves to its first tab — and **a route-level redirect fires for the route's own sub-routes as
+> well as for itself**, so both of them caught every child on the way past. `/studies/:s/settings`
+> was sent back to `/flow`; all five results tabs back to `/overview`. Every tab in the app changed
+> the URL and snapped back within the frame.
+>
+> **And this sheet read that as success.** §15's breadcrumbs log
+> `routeInformationProvider.value` — the location that was *asked for*, not the one that resolved —
+> so a trace showing five results tabs was recording five requests and one arrival. The lesson is
+> narrow and worth keeping: *a log of intentions is not a log of outcomes*, and this file leaned its
+> whole conclusion on one without noticing which it was.
+>
+> Fixed by guarding both redirects on the bare path (`state.uri.path != bare` returns null).
+> `test/app/router_redirect_test.dart` holds it down, and asserts the unguarded shape fails so the
+> reason for the guard is on the record. It checks the **body**, not just the location — checking
+> the location alone is exactly what this sheet did.
+
 That the log reads like this **is itself the phase's headline claim passing.** Before phase 3 the
 five results views shared one location and the five study tabs shared another, so a session spent
 entirely inside the run wrote `route /projects/<p>/simulation` once and said nothing further. Every
@@ -55,9 +76,10 @@ line above is a screen that had no URL yesterday.
 
 ### Established
 
-- **All five results locations, reached and rendered.** `overview`, `plan`, `gantt`, `occupation`,
-  `float` — each appears, and the reader moved between them repeatedly rather than passing through
-  once. The five-tab strip works and each tab draws.
+- **All five results locations, requested** — `overview`, `plan`, `gantt`, `occupation`, `float`.
+  *Requested, not reached*: see the correction above. What this line originally claimed — "and
+  rendered", "each tab draws" — the log could never have said, and was false when it was written.
+  The strip's taps do fire and each does write its own location, which is the half that was real.
 - **The mode switch, both ways.** `simulation/overview` → `studies/<s>/flow` → `simulation/overview`
   at 22:08:42–43 is the switch being used in one direction and back.
 - **A study location resolves to a tab.** `studies/<s>/flow` is what the log holds; `go_router`

@@ -203,10 +203,15 @@ correct for the group, which §5.3 is the standing warning about; **but this is 
 group answer a log can sharpen.** §15's route breadcrumbs record every location, and the whole phase
 is about locations, so what was actually reached is objective for once.
 
-**Established:** all five results locations reached and re-reached — `overview`, `plan`, `gantt`,
-`occupation`, `float` — the mode switch used in both directions, and a study location resolving to
-its Flow tab. *That the log reads that way is the headline claim passing*: yesterday a session spent
-entirely inside the run wrote one line and said nothing further.
+**Corrected after the field reported the tabs dead.** Both redirects were catching their own
+sub-routes — a route-level redirect fires for children as well as for itself — so every study tab
+bounced to `/flow` and all five results tabs to `/overview`. **The drive read that as success**,
+because §15 logs the location *asked for* rather than the one resolved: five requests, one arrival.
+Fixed by guarding on the bare path; `test/app/router_redirect_test.dart` asserts the body changed,
+not just the location, and asserts the unguarded shape fails so the guard's reason is recorded.
+
+**What the drive did establish:** every tab's tap fires and writes its own location, and the mode
+switch was used in both directions. What it did not, and could not: that anything rendered.
 
 **Not established, and named rather than assumed:** four of the five study tabs were never opened,
 so **the period control being hidden rather than greyed was not seen** — it is only observable on

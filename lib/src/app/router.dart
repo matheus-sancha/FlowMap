@@ -49,10 +49,25 @@ GoRouter router(Ref ref) {
                         // sixth thing. The `RunBanner`, the sidebar and every
                         // stored location from before #7 point here, and all of
                         // them keep working.
-                        redirect: (context, state) =>
-                            '/projects/${state.pathParameters['projectId']}'
-                            '/studies/${state.pathParameters['studyId']}'
-                            '/${StudyTab.flow.slug}',
+                        //
+                        // **Guarded on the bare path, and this was a defect.**
+                        // A route-level redirect fires for the route's *own*
+                        // sub-routes as well as for itself, so an unguarded one
+                        // here caught `/studies/:s/settings` on its way past and
+                        // sent it back to `/flow` — every study tab bounced to
+                        // the first one. The URL changed and snapped back, which
+                        // is why §15's breadcrumbs recorded five tabs being
+                        // *asked for* while one was ever shown: the log holds
+                        // the requested location, not the resolved one.
+                        redirect: (context, state) {
+                          final bare =
+                              '/projects/'
+                              '${state.pathParameters['projectId']}'
+                              '/studies/'
+                              '${state.pathParameters['studyId']}';
+                          if (state.uri.path != bare) return null;
+                          return '$bare/${StudyTab.flow.slug}';
+                        },
                         routes: [
                           GoRoute(
                             path: ':tab',
@@ -112,11 +127,18 @@ GoRouter router(Ref ref) {
                         // same shape a bare study takes — and **`?study=` is
                         // carried across**, or arriving from a study would drop
                         // the filter on the way in.
+                        // Guarded on the bare path for the reason the study
+                        // redirect above is: unguarded, this caught all five
+                        // results tabs on the way past and sent every one of
+                        // them back to the overview.
                         redirect: (context, state) {
-                          final study = state.uri.queryParameters['study'];
-                          return '/projects/'
+                          final bare =
+                              '/projects/'
                               '${state.pathParameters['projectId']}'
-                              '/simulation/${SimulationTab.overview.slug}'
+                              '/simulation';
+                          if (state.uri.path != bare) return null;
+                          final study = state.uri.queryParameters['study'];
+                          return '$bare/${SimulationTab.overview.slug}'
                               '${study == null ? '' : '?study=$study'}';
                         },
                         routes: [
