@@ -1916,37 +1916,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get occupationStation => 'Estação';
 
   @override
-  String get occupationProcess => 'Processo';
-
-  @override
-  String get occupationRework => 'Retrabalho';
-
-  @override
-  String get occupationChangeover => 'Setup';
-
-  @override
-  String get occupationOutsideFilter => 'Fora do filtro';
-
-  @override
-  String occupationStations(String count) {
-    return '$count estações agregadas';
-  }
-
-  @override
-  String get occupationPivotTitle => 'Por linha e tipo de centro de trabalho';
-
-  @override
-  String get occupationPivotHelp =>
-      'Cada célula é a procura da própria linha sobre a capacidade total do tipo. A linha TOTAL conta todas as linhas que tocam essas estações, filtradas ou não, por isso com um filtro não corresponderá às células acima.';
-
-  @override
   String get occupationCell => 'Célula';
 
   @override
   String get occupationLine => 'Linha';
-
-  @override
-  String get occupationTotal => 'TOTAL';
 
   @override
   String get occupationUngraphable =>
@@ -2051,5 +2024,47 @@ class AppLocalizationsPt extends AppLocalizations {
       one: '1 estudo não está pronto para simular',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get occupationByWorkcenter => 'Por centro de trabalho';
+
+  @override
+  String get occupationByLine => 'Por linha';
+
+  @override
+  String get occupationUnitPercent => '%';
+
+  @override
+  String get occupationUnitHours => 'Horas';
+
+  @override
+  String get occupationUnitGap => 'Diferença';
+
+  @override
+  String get occupationPlant => 'PLANTA';
+
+  @override
+  String get occupationWorkcenter => 'Centro de trabalho';
+
+  @override
+  String get occupationAmberAbove => 'Âmbar acima de';
+
+  @override
+  String get occupationRedAbove => 'Vermelho acima de';
+
+  @override
+  String get occupationBands =>
+      'Onde a grelha de ocupação passa a âmbar e a vermelho. Um centro a que se pedem mais horas do que tem abertas está excedido por definição; a banda âmbar é a margem que resta para a troca que o próximo pedido traz.';
+
+  @override
+  String occupationCellHelp(
+    Object asked,
+    Object name,
+    Object month,
+    Object open,
+    Object share,
+  ) {
+    return '$asked h pedidas a $name em $month, face a $open h abertas. $share h estão no seu filtro.';
   }
 }

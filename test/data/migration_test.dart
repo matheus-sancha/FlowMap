@@ -2816,4 +2816,40 @@ void main() {
     });
   });
 
+  group('v28 to v29: where the Occupation grid bands (#9)', () {
+    test('every project gets the defaults, and nothing else moves', () async {
+      // v26's shape one section down the same settings card, so this is v26's
+      // test one section down too: two columns with defaults on a table that
+      // predates them, no rebuild.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "float_red_days, float_green_days, created_at, updated_at) VALUES "
+        "('proj-1', 'P', 'plant-1', 'pattern-1', 3, 21, $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE projects DROP COLUMN occupation_amber_pct')
+        ..execute('ALTER TABLE projects DROP COLUMN occupation_red_pct')
+        ..execute('PRAGMA user_version = 28')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final project = await db.select(db.projects).getSingle();
+      expect(project.occupationAmberPct, 85);
+      expect(project.occupationRedPct, 100);
+      // **And the float thresholds beside them are untouched.** The two pairs
+      // share a card and a migration number apiece; a step that reset the
+      // neighbour it sits next to is the failure worth checking for.
+      expect(project.floatRedDays, 3);
+      expect(project.floatGreenDays, 21);
+    });
+  });
+
 }

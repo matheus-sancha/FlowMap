@@ -40,6 +40,8 @@ void main() {
     updatedAt: now,
     floatRedDays: 0,
     floatGreenDays: 30,
+    occupationAmberPct: 85,
+    occupationRedPct: 100,
   );
 
   SimRunInput input({

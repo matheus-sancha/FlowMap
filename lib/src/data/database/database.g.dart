@@ -4847,6 +4847,29 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
     requiredDuringInsert: false,
     defaultValue: const Constant(30),
   );
+  static const VerificationMeta _occupationAmberPctMeta =
+      const VerificationMeta('occupationAmberPct');
+  @override
+  late final GeneratedColumn<int> occupationAmberPct = GeneratedColumn<int>(
+    'occupation_amber_pct',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(85),
+  );
+  static const VerificationMeta _occupationRedPctMeta = const VerificationMeta(
+    'occupationRedPct',
+  );
+  @override
+  late final GeneratedColumn<int> occupationRedPct = GeneratedColumn<int>(
+    'occupation_red_pct',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(100),
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -4889,6 +4912,8 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
     notes,
     floatRedDays,
     floatGreenDays,
+    occupationAmberPct,
+    occupationRedPct,
     archivedAt,
     createdAt,
     updatedAt,
@@ -4961,6 +4986,24 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
         ),
       );
     }
+    if (data.containsKey('occupation_amber_pct')) {
+      context.handle(
+        _occupationAmberPctMeta,
+        occupationAmberPct.isAcceptableOrUnknown(
+          data['occupation_amber_pct']!,
+          _occupationAmberPctMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occupation_red_pct')) {
+      context.handle(
+        _occupationRedPctMeta,
+        occupationRedPct.isAcceptableOrUnknown(
+          data['occupation_red_pct']!,
+          _occupationRedPctMeta,
+        ),
+      );
+    }
     if (data.containsKey('archived_at')) {
       context.handle(
         _archivedAtMeta,
@@ -5024,6 +5067,14 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
         DriftSqlType.int,
         data['${effectivePrefix}float_green_days'],
       )!,
+      occupationAmberPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}occupation_amber_pct'],
+      )!,
+      occupationRedPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}occupation_red_pct'],
+      )!,
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -5080,6 +5131,27 @@ class Project extends DataClass implements Insertable<Project> {
   /// null would only be a second spelling of the default.
   final int floatRedDays;
   final int floatGreenDays;
+
+  /// Where the Occupation grid turns amber and where it turns red, in **per
+  /// cent** (#9, v29).
+  ///
+  /// Above [occupationAmberPct] is amber, above [occupationRedPct] is red;
+  /// at or below the amber threshold is good. Defaults 85 and 100 — 100 because
+  /// a station asked for more than it has open is over by definition, and 85
+  /// because a month that close has no room for the changeover the next order
+  /// brings.
+  ///
+  /// **The float matrix's own shape, deliberately** (§10.4): two integers on
+  /// the project, plain rather than nullable, sitting on the same settings card.
+  /// A grid has to colour every cell somehow, so a null would only be a second
+  /// spelling of the default — and the two surfaces reading the same shape is
+  /// what lets one settings section serve both.
+  ///
+  /// *Rejected: a third `idle below` threshold.* CLAD17 sat at 0–67 % for a
+  /// whole year and owning a machine nobody loads is a real finding — but it is
+  /// a fourth colour and a third setting for a question this view was not asked.
+  final int occupationAmberPct;
+  final int occupationRedPct;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -5091,6 +5163,8 @@ class Project extends DataClass implements Insertable<Project> {
     this.notes,
     required this.floatRedDays,
     required this.floatGreenDays,
+    required this.occupationAmberPct,
+    required this.occupationRedPct,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -5107,6 +5181,8 @@ class Project extends DataClass implements Insertable<Project> {
     }
     map['float_red_days'] = Variable<int>(floatRedDays);
     map['float_green_days'] = Variable<int>(floatGreenDays);
+    map['occupation_amber_pct'] = Variable<int>(occupationAmberPct);
+    map['occupation_red_pct'] = Variable<int>(occupationRedPct);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -5126,6 +5202,8 @@ class Project extends DataClass implements Insertable<Project> {
           : Value(notes),
       floatRedDays: Value(floatRedDays),
       floatGreenDays: Value(floatGreenDays),
+      occupationAmberPct: Value(occupationAmberPct),
+      occupationRedPct: Value(occupationRedPct),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -5147,6 +5225,8 @@ class Project extends DataClass implements Insertable<Project> {
       notes: serializer.fromJson<String?>(json['notes']),
       floatRedDays: serializer.fromJson<int>(json['floatRedDays']),
       floatGreenDays: serializer.fromJson<int>(json['floatGreenDays']),
+      occupationAmberPct: serializer.fromJson<int>(json['occupationAmberPct']),
+      occupationRedPct: serializer.fromJson<int>(json['occupationRedPct']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -5163,6 +5243,8 @@ class Project extends DataClass implements Insertable<Project> {
       'notes': serializer.toJson<String?>(notes),
       'floatRedDays': serializer.toJson<int>(floatRedDays),
       'floatGreenDays': serializer.toJson<int>(floatGreenDays),
+      'occupationAmberPct': serializer.toJson<int>(occupationAmberPct),
+      'occupationRedPct': serializer.toJson<int>(occupationRedPct),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -5177,6 +5259,8 @@ class Project extends DataClass implements Insertable<Project> {
     Value<String?> notes = const Value.absent(),
     int? floatRedDays,
     int? floatGreenDays,
+    int? occupationAmberPct,
+    int? occupationRedPct,
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -5188,6 +5272,8 @@ class Project extends DataClass implements Insertable<Project> {
     notes: notes.present ? notes.value : this.notes,
     floatRedDays: floatRedDays ?? this.floatRedDays,
     floatGreenDays: floatGreenDays ?? this.floatGreenDays,
+    occupationAmberPct: occupationAmberPct ?? this.occupationAmberPct,
+    occupationRedPct: occupationRedPct ?? this.occupationRedPct,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -5207,6 +5293,12 @@ class Project extends DataClass implements Insertable<Project> {
       floatGreenDays: data.floatGreenDays.present
           ? data.floatGreenDays.value
           : this.floatGreenDays,
+      occupationAmberPct: data.occupationAmberPct.present
+          ? data.occupationAmberPct.value
+          : this.occupationAmberPct,
+      occupationRedPct: data.occupationRedPct.present
+          ? data.occupationRedPct.value
+          : this.occupationRedPct,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -5225,6 +5317,8 @@ class Project extends DataClass implements Insertable<Project> {
           ..write('notes: $notes, ')
           ..write('floatRedDays: $floatRedDays, ')
           ..write('floatGreenDays: $floatGreenDays, ')
+          ..write('occupationAmberPct: $occupationAmberPct, ')
+          ..write('occupationRedPct: $occupationRedPct, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -5241,6 +5335,8 @@ class Project extends DataClass implements Insertable<Project> {
     notes,
     floatRedDays,
     floatGreenDays,
+    occupationAmberPct,
+    occupationRedPct,
     archivedAt,
     createdAt,
     updatedAt,
@@ -5256,6 +5352,8 @@ class Project extends DataClass implements Insertable<Project> {
           other.notes == this.notes &&
           other.floatRedDays == this.floatRedDays &&
           other.floatGreenDays == this.floatGreenDays &&
+          other.occupationAmberPct == this.occupationAmberPct &&
+          other.occupationRedPct == this.occupationRedPct &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -5269,6 +5367,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
   final Value<String?> notes;
   final Value<int> floatRedDays;
   final Value<int> floatGreenDays;
+  final Value<int> occupationAmberPct;
+  final Value<int> occupationRedPct;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -5281,6 +5381,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     this.notes = const Value.absent(),
     this.floatRedDays = const Value.absent(),
     this.floatGreenDays = const Value.absent(),
+    this.occupationAmberPct = const Value.absent(),
+    this.occupationRedPct = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -5294,6 +5396,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     this.notes = const Value.absent(),
     this.floatRedDays = const Value.absent(),
     this.floatGreenDays = const Value.absent(),
+    this.occupationAmberPct = const Value.absent(),
+    this.occupationRedPct = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -5312,6 +5416,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     Expression<String>? notes,
     Expression<int>? floatRedDays,
     Expression<int>? floatGreenDays,
+    Expression<int>? occupationAmberPct,
+    Expression<int>? occupationRedPct,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -5325,6 +5431,9 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       if (notes != null) 'notes': notes,
       if (floatRedDays != null) 'float_red_days': floatRedDays,
       if (floatGreenDays != null) 'float_green_days': floatGreenDays,
+      if (occupationAmberPct != null)
+        'occupation_amber_pct': occupationAmberPct,
+      if (occupationRedPct != null) 'occupation_red_pct': occupationRedPct,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -5340,6 +5449,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     Value<String?>? notes,
     Value<int>? floatRedDays,
     Value<int>? floatGreenDays,
+    Value<int>? occupationAmberPct,
+    Value<int>? occupationRedPct,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -5353,6 +5464,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       notes: notes ?? this.notes,
       floatRedDays: floatRedDays ?? this.floatRedDays,
       floatGreenDays: floatGreenDays ?? this.floatGreenDays,
+      occupationAmberPct: occupationAmberPct ?? this.occupationAmberPct,
+      occupationRedPct: occupationRedPct ?? this.occupationRedPct,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -5384,6 +5497,12 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     if (floatGreenDays.present) {
       map['float_green_days'] = Variable<int>(floatGreenDays.value);
     }
+    if (occupationAmberPct.present) {
+      map['occupation_amber_pct'] = Variable<int>(occupationAmberPct.value);
+    }
+    if (occupationRedPct.present) {
+      map['occupation_red_pct'] = Variable<int>(occupationRedPct.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -5409,6 +5528,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
           ..write('notes: $notes, ')
           ..write('floatRedDays: $floatRedDays, ')
           ..write('floatGreenDays: $floatGreenDays, ')
+          ..write('occupationAmberPct: $occupationAmberPct, ')
+          ..write('occupationRedPct: $occupationRedPct, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -24441,6 +24562,8 @@ typedef $$ProjectsTableCreateCompanionBuilder =
       Value<String?> notes,
       Value<int> floatRedDays,
       Value<int> floatGreenDays,
+      Value<int> occupationAmberPct,
+      Value<int> occupationRedPct,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -24455,6 +24578,8 @@ typedef $$ProjectsTableUpdateCompanionBuilder =
       Value<String?> notes,
       Value<int> floatRedDays,
       Value<int> floatGreenDays,
+      Value<int> occupationAmberPct,
+      Value<int> occupationRedPct,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -24651,6 +24776,16 @@ class $$ProjectsTableFilterComposer
 
   ColumnFilters<int> get floatGreenDays => $composableBuilder(
     column: $table.floatGreenDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get occupationAmberPct => $composableBuilder(
+    column: $table.occupationAmberPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get occupationRedPct => $composableBuilder(
+    column: $table.occupationRedPct,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24902,6 +25037,16 @@ class $$ProjectsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get occupationAmberPct => $composableBuilder(
+    column: $table.occupationAmberPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get occupationRedPct => $composableBuilder(
+    column: $table.occupationRedPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -24989,6 +25134,16 @@ class $$ProjectsTableAnnotationComposer
 
   GeneratedColumn<int> get floatGreenDays => $composableBuilder(
     column: $table.floatGreenDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get occupationAmberPct => $composableBuilder(
+    column: $table.occupationAmberPct,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get occupationRedPct => $composableBuilder(
+    column: $table.occupationRedPct,
     builder: (column) => column,
   );
 
@@ -25247,6 +25402,8 @@ class $$ProjectsTableTableManager
                 Value<String?> notes = const Value.absent(),
                 Value<int> floatRedDays = const Value.absent(),
                 Value<int> floatGreenDays = const Value.absent(),
+                Value<int> occupationAmberPct = const Value.absent(),
+                Value<int> occupationRedPct = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -25259,6 +25416,8 @@ class $$ProjectsTableTableManager
                 notes: notes,
                 floatRedDays: floatRedDays,
                 floatGreenDays: floatGreenDays,
+                occupationAmberPct: occupationAmberPct,
+                occupationRedPct: occupationRedPct,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -25273,6 +25432,8 @@ class $$ProjectsTableTableManager
                 Value<String?> notes = const Value.absent(),
                 Value<int> floatRedDays = const Value.absent(),
                 Value<int> floatGreenDays = const Value.absent(),
+                Value<int> occupationAmberPct = const Value.absent(),
+                Value<int> occupationRedPct = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -25285,6 +25446,8 @@ class $$ProjectsTableTableManager
                 notes: notes,
                 floatRedDays: floatRedDays,
                 floatGreenDays: floatGreenDays,
+                occupationAmberPct: occupationAmberPct,
+                occupationRedPct: occupationRedPct,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

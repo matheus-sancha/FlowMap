@@ -1914,37 +1914,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get occupationStation => 'Estación';
 
   @override
-  String get occupationProcess => 'Proceso';
-
-  @override
-  String get occupationRework => 'Retrabajo';
-
-  @override
-  String get occupationChangeover => 'Cambio';
-
-  @override
-  String get occupationOutsideFilter => 'Fuera del filtro';
-
-  @override
-  String occupationStations(String count) {
-    return '$count estaciones agregadas';
-  }
-
-  @override
-  String get occupationPivotTitle => 'Por línea y tipo de centro de trabajo';
-
-  @override
-  String get occupationPivotHelp =>
-      'Cada celda es la demanda propia de esa línea sobre la capacidad total del tipo. La fila TOTAL cuenta todas las líneas que tocan esas estaciones, filtradas o no, así que con un filtro no coincidirá con las celdas de arriba.';
-
-  @override
   String get occupationCell => 'Célula';
 
   @override
   String get occupationLine => 'Línea';
-
-  @override
-  String get occupationTotal => 'TOTAL';
 
   @override
   String get occupationUngraphable =>
@@ -2049,5 +2022,47 @@ class AppLocalizationsEs extends AppLocalizations {
       one: '1 estudio no está listo para simular',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get occupationByWorkcenter => 'Por centro de trabajo';
+
+  @override
+  String get occupationByLine => 'Por línea';
+
+  @override
+  String get occupationUnitPercent => '%';
+
+  @override
+  String get occupationUnitHours => 'Horas';
+
+  @override
+  String get occupationUnitGap => 'Diferencia';
+
+  @override
+  String get occupationPlant => 'PLANTA';
+
+  @override
+  String get occupationWorkcenter => 'Centro de trabajo';
+
+  @override
+  String get occupationAmberAbove => 'Ámbar por encima de';
+
+  @override
+  String get occupationRedAbove => 'Rojo por encima de';
+
+  @override
+  String get occupationBands =>
+      'Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.';
+
+  @override
+  String occupationCellHelp(
+    Object asked,
+    Object name,
+    Object month,
+    Object open,
+    Object share,
+  ) {
+    return '$asked h pedidas a $name en $month, frente a $open h abiertas. $share h están en su filtro.';
   }
 }

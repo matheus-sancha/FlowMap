@@ -31,6 +31,8 @@ class RunFilter {
     this.customerProjects = const {},
     this.partNumbers = const {},
     this.orderNumbers = const {},
+    this.typeIds = const {},
+    this.workcenterIds = const {},
     this.from,
     this.to,
   });
@@ -79,6 +81,59 @@ class RunFilter {
   /// offering it has to say so rather than implying it found one thing.
   final Set<int> orderNumbers;
 
+  /// **The two station filters** — workcenter type, and individual stations
+  /// (#9, absorbed from `OccupationStations`).
+  ///
+  /// **A different class of filter from everything above, and the Occupation
+  /// grid is what made the difference matter.** The filters above are
+  /// *order-level*: they choose whose demand is counted, and a station's
+  /// capacity is untouched by them. These two are **structural** — they choose
+  /// which stations are in view at all, so demand and capacity move together
+  /// and a cell still reads *everyone's* demand at that station over that
+  /// station's full capacity.
+  ///
+  /// So filtering to one line leaves CLAD04 at 99 % rather than dropping it to
+  /// that line's own share: **a filter chooses what you look at; it never
+  /// shrinks what a machine was asked for.** *Rejected: narrowing demand to the
+  /// filtered line's orders* — no single line is ever over 100 %, so the view
+  /// would stop finding overloads the moment anyone filtered, which is how the
+  /// chart it replaces got into that state.
+  ///
+  /// `studyIds`, `cellIds` and `lineIds` are structural too, one level up: they
+  /// choose studies, and a study's stations follow.
+  ///
+  /// **They reach every surface whose rows are stations** — the Gantt's Y axis
+  /// *is* the workcenter, and the Overview's queue and share tables are keyed on
+  /// workcenters. The production plan and the float matrix are per-order and
+  /// per-part, so they ignore these, exactly as §12.1's whole-run caveat already
+  /// handles figures a filter cannot reach.
+  final Set<String> typeIds;
+  final Set<String> workcenterIds;
+
+  /// Whether this filter names particular stations, so a total across them
+  /// cannot wear the plant's name (#9).
+  bool get narrowsStations =>
+      typeIds.isNotEmpty ||
+      workcenterIds.isNotEmpty ||
+      studyIds.isNotEmpty ||
+      cellIds.isNotEmpty ||
+      lineIds.isNotEmpty;
+
+  /// Whether [workcenterId] of [typeId] survives the two station filters.
+  ///
+  /// Empty means every station, including one with no type at all — a type
+  /// filter that silently dropped untyped stations would be a filter nobody
+  /// asked for.
+  bool includesStation({required String workcenterId, String? typeId}) {
+    if (workcenterIds.isNotEmpty && !workcenterIds.contains(workcenterId)) {
+      return false;
+    }
+    if (typeIds.isNotEmpty && (typeId == null || !typeIds.contains(typeId))) {
+      return false;
+    }
+    return true;
+  }
+
   /// The period, **by need date**.
   ///
   /// The only one of an order's three dates that is never null, so an order the
@@ -96,6 +151,8 @@ class RunFilter {
       customerProjects.isEmpty &&
       partNumbers.isEmpty &&
       orderNumbers.isEmpty &&
+      typeIds.isEmpty &&
+      workcenterIds.isEmpty &&
       from == null &&
       to == null;
 
@@ -186,7 +243,14 @@ class FilteredRun {
       // every filter that narrows within a study rather than across studies.
       '|${(filter.customerProjects.toList()..sort()).join(',')}'
       '|${(filter.partNumbers.toList()..sort()).join(',')}'
-      '|${(filter.orderNumbers.toList()..sort()).join(',')}';
+      '|${(filter.orderNumbers.toList()..sort()).join(',')}'
+      // **And #9's two**, for the same reason and with the same failure if they
+      // are left out: `GanttView.didUpdateWidget` compares this string, so a
+      // station filter missing from it would narrow every table on the page and
+      // leave the chart drawing the plant it drew before. That is precisely the
+      // defect §7.5's three were added to fix, one round later.
+      '|${(filter.typeIds.toList()..sort()).join(',')}'
+      '|${(filter.workcenterIds.toList()..sort()).join(',')}';
 }
 
 /// What each of the filter bar's pickers should offer, given what the others
@@ -200,6 +264,8 @@ class RunFilterOptions {
     this.lines = const {},
     this.projects = const {},
     this.parts = const {},
+    this.types = const {},
+    this.workcenters = const {},
     this.studiesInView = 0,
   });
 
@@ -212,6 +278,20 @@ class RunFilterOptions {
   final Map<String, String> projects;
 
   final Map<String, String> parts;
+
+  /// **The stations, offered from the run rather than from the plant** (#9) —
+  /// the same rule as the cells and lines, and for the same reason: a menu
+  /// listing every workcenter in the plant would be mostly entries that select
+  /// nothing.
+  ///
+  /// Unlike every other facet, these are read off the run's **stations** rather
+  /// than its orders: a station the run recorded is a station the run used,
+  /// whether or not an order survives the other filters. Narrowing them by the
+  /// order-level filters would empty the station menu whenever a part filter
+  /// happened to exclude that machine — which is a picker that hides the
+  /// stations you are trying to look at.
+  final Map<String, String> types;
+  final Map<String, String> workcenters;
 
   /// How many studies the other filters leave in view, which is how many orders
   /// one order number names.
@@ -315,10 +395,30 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
         by.entries.toList()..sort((a, b) => a.value.compareTo(b.value)),
       );
 
+  // The run's own stations, each offered when the *other* station filter does
+  // not exclude it — the same ignore-your-own-facet rule the pickers above use.
+  final types = <String, String>{};
+  final workcenters = <String, String>{};
+  for (final station in run.metrics.workcenters) {
+    final byType =
+        filter.typeIds.isEmpty || filter.typeIds.contains(station.typeId);
+    final byStation =
+        filter.workcenterIds.isEmpty ||
+        filter.workcenterIds.contains(station.workcenterId);
+    if (byStation) {
+      if (station.typeId case final id? when station.typeName != null) {
+        types[id] = station.typeName!;
+      }
+    }
+    if (byType) workcenters[station.workcenterId] = station.name;
+  }
+
   return RunFilterOptions(
     studies: sorted(studies),
     cells: sorted(cells),
     lines: sorted(lines),
+    types: sorted(types),
+    workcenters: sorted(workcenters),
     // `(no project)` keeps its sentinel key and takes its label from the view,
     // so it sorts first rather than under whatever it is called in Portuguese.
     projects: sorted(projects),
@@ -405,9 +505,31 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
   final orders = run.result.orders.where(keepsOrder).toList();
   final keptOrderIds = {for (final outcome in orders) outcome.orderId};
 
+  // **And the station filters narrow the steps** (#9). Every surface whose rows
+  // are stations reads them from here — the Gantt's Y axis *is* the workcenter,
+  // and the Overview's queue and share tables are keyed on workcenters — so
+  // narrowing the steps is what makes one picker govern all of them. The
+  // production plan and the float matrix are per-order and per-part and so are
+  // untouched, exactly as §12.1's whole-run caveat already handles figures a
+  // filter cannot reach.
+  //
+  // **A station filter drops steps, never orders.** An order that visits CLAD06
+  // and CEU27 keeps both its outcome and its float when the view narrows to
+  // CLAD06; only its CEU27 bar leaves. Dropping the order instead would make a
+  // station filter silently an order filter, which is the mistake #9 rejected
+  // one level up.
+  final stationTypeOf = {
+    for (final station in run.metrics.workcenters)
+      station.workcenterId: station.typeId,
+  };
   final steps = [
     for (final step in run.result.steps)
-      if (keptOrderIds.contains(step.orderId)) step,
+      if (keptOrderIds.contains(step.orderId) &&
+          filter.includesStation(
+            workcenterId: step.workcenterId,
+            typeId: stationTypeOf[step.workcenterId],
+          ))
+        step,
   ];
 
   // **Which queues the slice still stands in, read off the steps that survived.**

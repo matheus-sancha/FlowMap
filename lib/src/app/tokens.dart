@@ -15,8 +15,16 @@
 /// different languages and v1.0 let them share four Material roles:
 ///
 /// * [FlowStatus] — reserved states. Never a series, never decoration.
-/// * [OccupationRamp] — an *ordered* quantity, so one hue light-to-dark.
 /// * `partPalette` (in `common/part_palette.dart`) — categorical identity.
+///
+/// **There was a third, `OccupationRamp`, and #9 retired it.** It was an
+/// *ordered* quantity — one hue light-to-dark — and it existed to colour the
+/// Occupation chart's four-segment stack. That chart is a station × month grid
+/// now, its bands are [FlowStatus] good/warning/critical against the project's
+/// own thresholds, and nothing else in the app draws an ordered quantity. It is
+/// deleted rather than kept for a future caller: §17.5's own lesson is that
+/// unreachable code with a plausible future consumer is not inert, it is a
+/// loaded slot.
 ///
 /// In v1.0 `tertiary` was literally assigned as `warning:` in one file and as
 /// *rework* in another, and `primary` was the brand, the on-time float band and
@@ -122,50 +130,4 @@ class FlowStatus {
 
 /// The occupation chart's stacked segments, as an ordered ramp.
 ///
-/// **One hue, light to dark, because the quantity is ordered.** The chart's own
-/// v1.0 comment already asked for this — *"rework and changeover are losses on
-/// top of the work, so they read as shades of the same bar rather than as three
-/// unrelated colours"* — but implemented it with `primary`, `tertiary` and
-/// `secondary`, which are three unrelated generated hues.
-///
-/// Passes `validateOrdinal` in both brightnesses: monotone lightness, adjacent
-/// ΔL ≥ 0.06, single hue, and a light end that still clears 2:1 against its own
-/// ground. Dark is its own set of steps rather than a flip of the light one.
-///
-/// [over] is not a step on the ramp — it is [FlowStatus.critical]'s ink, because
-/// exceeding capacity is a state rather than more of the same quantity.
-class OccupationRamp {
-  const OccupationRamp({
-    required this.process,
-    required this.rework,
-    required this.changeover,
-    required this.other,
-  });
 
-  factory OccupationRamp.of(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? _dark : _light;
-
-  static const _light = OccupationRamp(
-    process: Color(0xFF0056A4),
-    rework: Color(0xFF2B72B4),
-    changeover: Color(0xFF588DC3),
-    other: Color(0xFF81A9D2),
-  );
-
-  static const _dark = OccupationRamp(
-    process: Color(0xFF6CC3FF),
-    rework: Color(0xFF579DE2),
-    changeover: Color(0xFF4378AD),
-    other: Color(0xFF30557A),
-  );
-
-  /// The work itself — the darkest step in light, the lightest in dark.
-  final Color process;
-
-  final Color rework;
-  final Color changeover;
-
-  /// Load this filter did not select. The quietest step: it is in the bar so an
-  /// overload cannot be filtered away, not to be read as this filter's own load.
-  final Color other;
-}

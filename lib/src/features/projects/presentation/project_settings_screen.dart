@@ -111,11 +111,41 @@ class ProjectSettingsScreen extends ConsumerWidget {
           margin: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(child: _FloatField(project: project, red: true)),
-                const SizedBox(width: 16),
-                Expanded(child: _FloatField(project: project, red: false)),
+                Row(
+                  children: [
+                    Expanded(child: _FloatField(project: project, red: true)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _FloatField(project: project, red: false)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // **The Occupation grid's bands, on the same card** (#9, v29).
+                // Two thresholds of the same shape, read by the surface next
+                // door — and putting them anywhere else would make a reader
+                // hunt for the second of two settings that do the same job.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.occupationBands,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _OccupationField(project: project, amber: true),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _OccupationField(project: project, amber: false),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -332,6 +362,89 @@ class _NotesFieldState extends ConsumerState<_NotesField> {
 /// above the green one leaves nothing amber and every cell in two bands at once,
 /// which is a state the matrix cannot draw and the reader cannot see they asked
 /// for.
+
+/// The Occupation grid's two thresholds (#9, v29).
+///
+/// **`_FloatField`'s shape, deliberately not `_FloatField` with a flag.** The
+/// two pairs share a card and a commit-on-blur bargain and nothing else: float
+/// is in days and red is the *lower* bound, occupation is per cent and red is
+/// the *higher* one, so a shared widget would be two bodies behind one
+/// signature. The rejection is the same one #10 made about merging `DataGrid`
+/// and `resultTable`.
+class _OccupationField extends ConsumerStatefulWidget {
+  const _OccupationField({required this.project, required this.amber});
+
+  final Project project;
+  final bool amber;
+
+  @override
+  ConsumerState<_OccupationField> createState() => _OccupationFieldState();
+}
+
+class _OccupationFieldState extends ConsumerState<_OccupationField> {
+  late final _controller = TextEditingController(text: '$_stored');
+  late final FocusNode _focus = FocusNode()
+    ..addListener(() {
+      if (!_focus.hasFocus) _commit();
+    });
+
+  int get _stored => widget.amber
+      ? widget.project.occupationAmberPct
+      : widget.project.occupationRedPct;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final typed = int.tryParse(_controller.text.trim());
+    final other = widget.amber
+        ? widget.project.occupationRedPct
+        : widget.project.occupationAmberPct;
+    // **Amber below red, and the reverse of the float pair.** Here a higher
+    // number is worse, so amber has to sit under red — the opposite ordering to
+    // the float thresholds on the row above, which is exactly why these are two
+    // widgets rather than one.
+    final crosses =
+        typed != null && (widget.amber ? typed > other : typed < other);
+
+    // A threshold at or below zero would band every cell red, which is a
+    // setting that reads as a broken grid rather than as a choice.
+    if (typed == null || typed <= 0 || crosses) {
+      setState(() => _controller.text = '$_stored');
+      return;
+    }
+    if (typed == _stored) return;
+    _write(
+      ref,
+      widget.project,
+      occupationAmberPct: widget.amber ? typed : null,
+      occupationRedPct: widget.amber ? null : typed,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return TextField(
+      key: Key(widget.amber ? 'occupationAmber' : 'occupationRed'),
+      controller: _controller,
+      focusNode: _focus,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: widget.amber
+            ? l10n.occupationAmberAbove
+            : l10n.occupationRedAbove,
+        suffixText: '%',
+      ),
+      onSubmitted: (_) => _commit(),
+    );
+  }
+}
+
 class _FloatField extends ConsumerStatefulWidget {
   const _FloatField({required this.project, required this.red});
 
@@ -415,6 +528,8 @@ void _write(
   bool notesGiven = false,
   int? floatRedDays,
   int? floatGreenDays,
+  int? occupationAmberPct,
+  int? occupationRedPct,
 }) => ref
     .read(projectsRepositoryProvider)
     .updateProject(
@@ -424,4 +539,6 @@ void _write(
       notes: notesGiven ? notes : project.notes,
       floatRedDays: floatRedDays ?? project.floatRedDays,
       floatGreenDays: floatGreenDays ?? project.floatGreenDays,
+      occupationAmberPct: occupationAmberPct ?? project.occupationAmberPct,
+      occupationRedPct: occupationRedPct ?? project.occupationRedPct,
     );

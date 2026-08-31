@@ -51,6 +51,29 @@ class Projects extends Table {
   IntColumn get floatRedDays => integer().withDefault(const Constant(0))();
   IntColumn get floatGreenDays => integer().withDefault(const Constant(30))();
 
+  /// Where the Occupation grid turns amber and where it turns red, in **per
+  /// cent** (#9, v29).
+  ///
+  /// Above [occupationAmberPct] is amber, above [occupationRedPct] is red;
+  /// at or below the amber threshold is good. Defaults 85 and 100 — 100 because
+  /// a station asked for more than it has open is over by definition, and 85
+  /// because a month that close has no room for the changeover the next order
+  /// brings.
+  ///
+  /// **The float matrix's own shape, deliberately** (§10.4): two integers on
+  /// the project, plain rather than nullable, sitting on the same settings card.
+  /// A grid has to colour every cell somehow, so a null would only be a second
+  /// spelling of the default — and the two surfaces reading the same shape is
+  /// what lets one settings section serve both.
+  ///
+  /// *Rejected: a third `idle below` threshold.* CLAD17 sat at 0–67 % for a
+  /// whole year and owning a machine nobody loads is a real finding — but it is
+  /// a fourth colour and a third setting for a question this view was not asked.
+  IntColumn get occupationAmberPct =>
+      integer().withDefault(const Constant(85))();
+  IntColumn get occupationRedPct =>
+      integer().withDefault(const Constant(100))();
+
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

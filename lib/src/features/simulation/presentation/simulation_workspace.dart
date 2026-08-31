@@ -65,6 +65,15 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
   final _parts = <String>{};
   final _orders = <int>{};
 
+  /// **#9's two, promoted out of the Occupation view.** They were
+  /// `OccupationStations`, owned by that view and reaching nothing else — so a
+  /// reader narrowing to one workcenter narrowed a chart and left the Gantt and
+  /// the queue tables drawing the whole plant. They are structural filters like
+  /// the cells and lines beside them, and every surface whose rows are stations
+  /// obeys them now.
+  final _types = <String>{};
+  final _workcenters = <String>{};
+
   DateTimeRange? _period;
 
   /// **Copied, every one of them.** The pickers above mutate these sets in
@@ -81,6 +90,8 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
     customerProjects: {..._projects},
     partNumbers: {..._parts},
     orderNumbers: {..._orders},
+    typeIds: {..._types},
+    workcenterIds: {..._workcenters},
     from: _period?.start,
     to: _period?.end,
   );
@@ -106,6 +117,8 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
           projects: _projects,
           parts: _parts,
           orders: _orders,
+          types: _types,
+          workcenters: _workcenters,
           period: _period,
           onChanged: () => setState(() {}),
           onClear: () => setState(() {
@@ -115,6 +128,8 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
             _projects.clear();
             _parts.clear();
             _orders.clear();
+            _types.clear();
+            _workcenters.clear();
             _period = null;
           }),
           onOrders: (values) => setState(() {
@@ -183,6 +198,8 @@ class _FilterBar extends StatelessWidget {
     required this.projects,
     required this.parts,
     required this.orders,
+    required this.types,
+    required this.workcenters,
     required this.period,
     required this.onChanged,
     required this.onClear,
@@ -209,6 +226,8 @@ class _FilterBar extends StatelessWidget {
   final Set<String> projects;
   final Set<String> parts;
   final Set<int> orders;
+  final Set<String> types;
+  final Set<String> workcenters;
   final DateTimeRange? period;
   final VoidCallback onChanged;
   final VoidCallback onClear;
@@ -248,6 +267,8 @@ class _FilterBar extends StatelessWidget {
         projects.isNotEmpty ||
         parts.isNotEmpty ||
         orders.isNotEmpty ||
+        types.isNotEmpty ||
+        workcenters.isNotEmpty ||
         period != null;
 
     return Padding(
@@ -281,6 +302,27 @@ class _FilterBar extends StatelessWidget {
                     label: l10n.simFilterLines,
                     options: options.lines,
                     selected: lines,
+                    onChanged: onChanged,
+                  ),
+                  const SizedBox(width: 8),
+                  // **#9's two, beside the other structural filters** — these
+                  // choose the station set, so demand and capacity move
+                  // together and a cell still reads everyone's demand over that
+                  // station's full capacity. Next to Cells and Lines rather
+                  // than next to §7.5's three, because what a filter *does* is
+                  // the thing worth grouping by: these four narrow the plant,
+                  // the three after them narrow the orders.
+                  _MultiPicker(
+                    label: l10n.occupationType,
+                    options: options.types,
+                    selected: types,
+                    onChanged: onChanged,
+                  ),
+                  const SizedBox(width: 8),
+                  _MultiPicker(
+                    label: l10n.occupationStation,
+                    options: options.workcenters,
+                    selected: workcenters,
                     onChanged: onChanged,
                   ),
                   const SizedBox(width: 8),

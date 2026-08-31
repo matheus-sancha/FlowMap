@@ -3375,48 +3375,6 @@ abstract class AppLocalizations {
   /// **'Station'**
   String get occupationStation;
 
-  /// No description provided for @occupationProcess.
-  ///
-  /// In en, this message translates to:
-  /// **'Process'**
-  String get occupationProcess;
-
-  /// No description provided for @occupationRework.
-  ///
-  /// In en, this message translates to:
-  /// **'Rework'**
-  String get occupationRework;
-
-  /// No description provided for @occupationChangeover.
-  ///
-  /// In en, this message translates to:
-  /// **'Changeover'**
-  String get occupationChangeover;
-
-  /// No description provided for @occupationOutsideFilter.
-  ///
-  /// In en, this message translates to:
-  /// **'Outside the filter'**
-  String get occupationOutsideFilter;
-
-  /// No description provided for @occupationStations.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} stations aggregated'**
-  String occupationStations(String count);
-
-  /// No description provided for @occupationPivotTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'By line and workcenter type'**
-  String get occupationPivotTitle;
-
-  /// No description provided for @occupationPivotHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Each cell is that line\'s own demand over the type\'s full capacity. The TOTAL row counts every line touching those stations, filtered out or not — so under a filter it will not equal the cells above it.'**
-  String get occupationPivotHelp;
-
   /// No description provided for @occupationCell.
   ///
   /// In en, this message translates to:
@@ -3428,12 +3386,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Line'**
   String get occupationLine;
-
-  /// No description provided for @occupationTotal.
-  ///
-  /// In en, this message translates to:
-  /// **'TOTAL'**
-  String get occupationTotal;
 
   /// No description provided for @occupationUngraphable.
   ///
@@ -3595,6 +3547,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 study is not ready to run} other{{count} studies are not ready to run}}'**
   String simulationStudiesNotReady(int count);
+
+  /// No description provided for @occupationByWorkcenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Per workcenter'**
+  String get occupationByWorkcenter;
+
+  /// No description provided for @occupationByLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Per line'**
+  String get occupationByLine;
+
+  /// No description provided for @occupationUnitPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'%'**
+  String get occupationUnitPercent;
+
+  /// No description provided for @occupationUnitHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours'**
+  String get occupationUnitHours;
+
+  /// No description provided for @occupationUnitGap.
+  ///
+  /// In en, this message translates to:
+  /// **'Gap'**
+  String get occupationUnitGap;
+
+  /// No description provided for @occupationPlant.
+  ///
+  /// In en, this message translates to:
+  /// **'PLANT'**
+  String get occupationPlant;
+
+  /// No description provided for @occupationWorkcenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter'**
+  String get occupationWorkcenter;
+
+  /// No description provided for @occupationAmberAbove.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber above'**
+  String get occupationAmberAbove;
+
+  /// No description provided for @occupationRedAbove.
+  ///
+  /// In en, this message translates to:
+  /// **'Red above'**
+  String get occupationRedAbove;
+
+  /// No description provided for @occupationBands.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.'**
+  String get occupationBands;
+
+  /// No description provided for @occupationCellHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{asked} h asked of {name} in {month}, against {open} h open. {share} h of it is in your filter.'**
+  String occupationCellHelp(
+    Object asked,
+    Object name,
+    Object month,
+    Object open,
+    Object share,
+  );
 }
 
 class _AppLocalizationsDelegate

@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1175,6 +1175,22 @@ class AppDatabase extends _$AppDatabase {
             'ALTER TABLE simulation_run_studies DROP COLUMN priority',
           );
         }
+      }
+
+      if (from < 29) {
+        // **Where the Occupation grid turns amber and red** (#9), per project.
+        //
+        // v26's shape exactly, one section down the same settings card: two
+        // columns with defaults on a table that predates them, no rebuild.
+        // Every existing project gets 85 and 100 — a threshold for *reading* a
+        // figure rather than a record of what the plant was, so a default is
+        // the right answer rather than an invented one (§10.2).
+        //
+        // **No stored run is invalidated, and none changes.** The 3 runs that
+        // can draw this view already carry everything the grid reads, and the
+        // 144 that cannot could not draw the chart it replaces either.
+        await _ensureColumn(m, projects, projects.occupationAmberPct);
+        await _ensureColumn(m, projects, projects.occupationRedPct);
       }
 
       // Reference-data seeding runs outside every version guard, on every

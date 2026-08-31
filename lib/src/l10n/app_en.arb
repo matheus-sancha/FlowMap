@@ -1077,23 +1077,8 @@
   "occupationView": "Occupation",
   "occupationType": "Type",
   "occupationStation": "Station",
-  "occupationProcess": "Process",
-  "occupationRework": "Rework",
-  "occupationChangeover": "Changeover",
-  "occupationOutsideFilter": "Outside the filter",
-  "occupationStations": "{count} stations aggregated",
-  "@occupationStations": {
-    "placeholders": {
-      "count": {
-        "type": "String"
-      }
-    }
-  },
-  "occupationPivotTitle": "By line and workcenter type",
-  "occupationPivotHelp": "Each cell is that line's own demand over the type's full capacity. The TOTAL row counts every line touching those stations, filtered out or not — so under a filter it will not equal the cells above it.",
   "occupationCell": "Cell",
   "occupationLine": "Line",
-  "occupationTotal": "TOTAL",
   "occupationUngraphable": "This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.",
   "projectSettingsFloat": "Float thresholds",
   "projectSettingsFloatHelp": "Where the float matrix turns red and green. Between the two is amber.",
@@ -1162,5 +1147,22 @@
   "simulationStudiesNotReady": "{count, plural, =1{1 study is not ready to run} other{{count} studies are not ready to run}}",
   "@simulationStudiesNotReady": {
     "placeholders": { "count": { "type": "int" } }
+  },
+  "occupationByWorkcenter": "Per workcenter",
+  "occupationByLine": "Per line",
+  "occupationUnitPercent": "%",
+  "occupationUnitHours": "Hours",
+  "occupationUnitGap": "Gap",
+  "occupationPlant": "PLANT",
+  "occupationWorkcenter": "Workcenter",
+  "occupationAmberAbove": "Amber above",
+  "occupationRedAbove": "Red above",
+  "occupationBands": "Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.",
+  "occupationCellHelp": "{asked} h asked of {name} in {month}, against {open} h open. {share} h of it is in your filter.",
+  "@occupationCellHelp": {
+    "placeholders": {
+      "asked": {}, "name": {}, "month": {},
+      "open": {}, "share": {}
+    }
   }
 }

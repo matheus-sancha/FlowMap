@@ -34,6 +34,8 @@ void main() {
     updatedAt: now,
       floatRedDays: 0,
       floatGreenDays: 30,
+      occupationAmberPct: 85,
+      occupationRedPct: 100,
     );
 
   final plants = [
@@ -192,6 +194,8 @@ void main() {
           updatedAt: now,
       floatRedDays: 0,
       floatGreenDays: 30,
+      occupationAmberPct: 85,
+      occupationRedPct: 100,
     ),
       ],
     );
@@ -291,6 +295,8 @@ class _SpyProjectsRepository implements ProjectsRepository {
     String? notes,
     int? floatRedDays,
     int? floatGreenDays,
+    int? occupationAmberPct,
+    int? occupationRedPct,
   }) async => writes.add((
     name: name,
     patternId: shiftPatternId,

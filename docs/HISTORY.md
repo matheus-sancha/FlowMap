@@ -2176,3 +2176,34 @@ rules, from before the column was written at all — null means both *unset* and
 across generations, so it cannot be a sentinel for the newer one. The claim is about the moment a run
 is stored, which this file never sees; it lives in `run_storage_test.dart` instead. That is the trap
 at the top of `live_db_check_test.dart` arriving a third time.
+
+### 6.3 Schema v29 — the Occupation view becomes a grid
+
+The stacked bar, its capacity line, its four-segment legend and its
+`CustomPainter` are deleted; the view is a station × month grid banded against
+two thresholds the project now carries. Ticket
+[#9](https://github.com/matheus-sancha/FlowMap/issues/9), reasoning in
+`DESIGN.md` §10.3.
+
+**Met a copy of the real database on 2026-08-30**: upgraded to v29,
+`integrity_check` ok, the one project holding **85 / 100** with its float
+thresholds beside it untouched at 0 / 30, and **3 studies, 150 runs, 195,236 run
+steps, 250 orders and 15 queues** all intact. Backed up first as
+`flowmap.sqlite.backup-v28-…`.
+
+**One of #9's figures has moved, and the argument survives it.** The ticket said
+**3 of 147** stored runs could draw this view at all; it is now **6 of 150** —
+every run made since v25 can, and three were made while v2.0 was being built.
+The claim it supports is unchanged: the grid reads
+`simulation_run_workcenter_months`, a v25 table, so 144 runs still say nothing
+here and §10.2 refuses to invent capacity from today's schedules. A run that
+cannot draw the grid could not draw the chart either. `live_db_check_test.dart`
+now prints this count rather than asserting it, because it only grows.
+
+**No stored run is invalidated and none changes.** v29 adds two columns to
+`projects` and touches nothing a run holds.
+
+**`OccupationRamp` is retired from `tokens.dart`** with the stack it coloured.
+It was the app's only *ordered* colour quantity; nothing else draws one, and
+§17.5's own lesson — unreachable code with a plausible future consumer is a
+loaded slot rather than inert — is why it is deleted rather than kept.

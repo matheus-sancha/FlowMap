@@ -460,5 +460,30 @@ void main() {
       'lanes: ${laneRows.length}, '
       'runs with a null lane rule: ${untypedRuns.length} of ${runs.length}',
     );
+
+    // --- v29: where the Occupation grid bands (#9) ---------------------------
+
+    // Every project has thresholds, and they are the defaults on a database
+    // nobody has changed them on. Non-empty rather than a count, per the note
+    // at the top of this file.
+    final projects = await db.select(db.projects).get();
+    expect(projects, isNotEmpty, reason: 'the projects survived the migration');
+    for (final project in projects) {
+      expect(project.occupationAmberPct, greaterThan(0));
+      expect(project.occupationRedPct, greaterThan(project.occupationAmberPct));
+    }
+
+    // **How many runs can draw the grid at all.** #9's whole argument rests on
+    // this being small: the grid reads `simulation_run_workcenter_months`, a
+    // v25 table, so every run stored before it says nothing here — and §10.2
+    // refuses to invent capacity from today's schedules. Printed rather than
+    // asserted, because the number only grows.
+    final graphable = {
+      for (final row in await db.select(db.simulationRunWorkcenterMonths).get())
+        row.runId,
+    };
+    // ignore: avoid_print
+    print('runs that can draw the occupation grid: '
+        '${graphable.length} of ${runs.length}');
   });
 }

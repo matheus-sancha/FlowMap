@@ -1483,6 +1483,107 @@ occupation = required ÷ available
 _Rejected: the mockup's naming ("Utilization 100 %" on the box)._ It conflates an input with an
 output, and the inconsistency becomes permanent once it is in three `.arb` files and every PDF.
 
+### 8.4.1 The Occupation grid — station × month
+
+**A grid, not a chart**, since v2.0's phase 5 ([#9](https://github.com/matheus-sancha/FlowMap/issues/9)).
+The question it answers:
+
+> **Which station is over capacity, in which month, and by how many hours?**
+
+The plant-level question is answered too, but as one row rather than as the
+figure.
+
+**The live database is the argument.** Across the three stored runs that could
+draw the old chart at all, the aggregate bar **never once broke its capacity
+line** — peak 87 % — while single stations reached 149 % and seven of seventeen
+were over in one month. The figure the view was built around could not report the
+finding the view exists to find; a small red `7` floating above an 87 % bar was
+carrying the whole signal. Two of the four stack segments were hairlines
+besides, at 3 % and 2 %.
+
+**One filter model, in two classes**, and this is the part worth reading twice.
+
+*Structural* — studies, cells, lines, workcenter type, workcenter — **choose the
+station set, so demand and capacity move together.** A cell always reads
+*everyone's* demand at that station over that station's **full** capacity.
+Filtered to one line, CLAD04 still reads 99 % because another line is also on
+it. **A filter chooses what you look at; it never shrinks what a machine was
+asked for.** *Rejected: narrowing demand to the filtered line's own orders* — no
+single line is ever over 100 %, so the view would stop finding overloads the
+moment anyone filtered, which is how the chart got into that state. This is also
+what retires the grey `other` segment: once the station set *is* what the filter
+selects, there is no "outside the filter" left to draw.
+
+*Order-level* — projects, parts, order numbers — **cannot choose stations, so
+capacity is untouched.** They highlight and dim: the cell keeps the plant's
+number and its band, and a fill along the base is the filtered orders' share of
+it. *"CEU27 is at 100 % and 80 of it is yours"* — reschedule. *"CEU32 is at
+147 % and none of it is yours"* — escalate. Same colour, opposite action, and
+the chart had nothing that told them apart.
+
+The period is neither: it narrows the **columns**, and capacity with them.
+
+**The two station filters live on the shared bar**, not on this view. They were
+`OccupationStations`, owned here and reaching nothing else — so narrowing to one
+workcenter narrowed a chart while the Gantt and the queue tables went on drawing
+the whole plant. Every surface whose rows are stations obeys them now; the plan
+and the float matrix are per-order and per-part and ignore them, exactly as
+§12.1's whole-run caveat already handles figures a filter cannot reach.
+
+**Two groupings and three units**, both switched above the grid; the old pivot is
+retired into the per-line grouping, so there is one figure at one grain instead
+of two at two.
+
+| | |
+|---|---|
+| per workcenter | one row per station: all demand at it ÷ its capacity that month |
+| per line | one row per line: **everyone's** demand at the stations that line depends on ÷ those stations' capacity — arithmetically identical to filtering to that line, so the bands carry over |
+| `%` | `147%` |
+| `hours` | `733/499` — asked of ÷ open |
+| `gap` | `-234` h |
+
+The hours restore what a percentage drops: one month carries 3,296 h of capacity
+and another 9,384, and a ratio makes a ramp-up month look like a full one. It is
+§15's rule that a derived figure expands to show its inputs.
+
+*Known cost of the per-line grouping, accepted:* on the live plant the three
+lines read 79–82 % every month, because they share four of their stations. It
+separates them only where they do not overlap. *Rejected: the line's own demand ÷
+all capacity in view* — rows would sum to the plant row exactly and read as a
+clean decomposition, but they would be *shares* rather than occupations, so the
+bands would be meaningless.
+
+**The PLANT row appears only when nothing has narrowed the station set.** Once a
+line or a type is chosen, a total across what is left would be a partial wearing
+the plant's name.
+
+**Bands are the project's own two thresholds** (v29), defaulting to 85 and 100 —
+the float matrix's shape, on the same settings card. 100 because a station asked
+for more than it has open is over by definition; 85 because a month that close
+has no room for the changeover the next order brings. *Rejected: a third `idle
+below` threshold* — owning a machine nobody loads is a real finding, but it is a
+fourth colour and a third setting for a question this view was not asked.
+
+**What is kept from the chart.** Work is bucketed by `queueStart`, never
+`processStart` (§10.3): work the engine scheduled can never much exceed capacity
+or it would not have been scheduled, so bucketing by when it *ran* hides the
+overload that caused the queue. A run before v25 offers no grid rather than an
+empty one (§10.2) — 144 of 150 stored runs are in that state, so the message is
+the common case rather than the edge. And changeover and rework stay *inside* the
+number (§7.6): a cell omitting them would disagree with the Summary.
+
+**The centring fix dissolved rather than being made.** The capacity line was
+drawn per column across each column's full width — deliberately, because capacity
+is a step function — and that is what read as disconnected segments. With the
+chart gone there is no line to centre.
+
+**Two named losses**, recorded rather than quietly dropped. The process / rework
+/ changeover split existed only as stack segments and has nowhere left to live;
+at 3 % and 2 % of a bar it was two hairlines, but it is gone rather than moved.
+And a line's own share of a station is not on the grid, because cell and line are
+structural and do not dim — only project and part show a share. The retired pivot
+was the one place that number lived.
+
 ### 8.5 The production plan — orders over time, and the slots that made none
 
 **Empty release slots are rows.** The plan was the orders that survived §7.2's gate, so a study

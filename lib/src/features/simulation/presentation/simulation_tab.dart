@@ -188,7 +188,7 @@ class RunResults extends StatelessWidget {
                 run: run,
               ),
               GanttView(slice: slice),
-              OccupationView(slice: slice),
+              OccupationView(slice: slice, project: project),
               _FloatTab(slice: slice, project: project),
             ],
           ),

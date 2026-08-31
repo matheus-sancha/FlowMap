@@ -41,7 +41,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **done** |
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, driven in part** |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive owed** |
-| 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
+| 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built, drive owed** |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
@@ -49,7 +49,7 @@ two migrations land while the presentation layer is still the one the tests were
 and the large surface work then runs on a settled model. It is also the order the tickets already
 recorded their migration numbers in, so no resolution has to be corrected.
 
-Schema is at **v28** (`database.dart:78`). **147 runs are stored** — 146 with step rows and one
+Schema is at **v29** (`database.dart:78`). **147 runs are stored** — 146 with step rows and one
 empty. (`DRIVE-2026-08-29.md` says 104; that was true at schema v22 on 29 August.)
 
 ---
@@ -299,8 +299,27 @@ line** (peak 87 %) while single stations hit **149 %**.
 **No stored run is invalidated.** The 3 graphable runs already carry everything the grid reads, and
 the 144 that cannot draw it could not draw the chart either.
 
-**Evidence owed:** `docs/DRIVE-occupation.md` — the grid on the real run, both groupings, all three
-units, and a project whose thresholds have been changed from the defaults.
+**Built** — `flutter analyze` clean, **1,023 tests**, three locales.
+`occupation_graph.dart` is deleted and `occupation_grid.dart` replaces it; `period_matrix.dart` is
+extracted with both its callers, the float matrix and this grid, exactly as #10 asked. The grid is
+sortable by any month per §12.5b, and the float matrix declines that offer because its row *r* means
+rank *r*.
+
+**Evidence — the live-database check is done.** v28 → v29 against a copy of the real database:
+`integrity_check` ok, the project holding **85 / 100** with its float thresholds untouched beside it,
+and 3 studies / 150 runs / 195,236 steps / 250 orders / 15 queues intact.
+
+**One of #9's own figures has moved.** It said **3 of 147** stored runs can draw this view; it is now
+**6 of 150**, because every run made since v25 can and three were made while v2.0 was being built.
+The argument is unchanged — 144 still cannot, and a run that cannot draw the grid could not draw the
+chart either — but the number is in `HISTORY.md` §6.3 rather than left to be re-derived.
+
+**Still owed: `docs/DRIVE-occupation.md`** — the grid on the real run, both groupings, all three
+units, and a project whose thresholds have been changed from the defaults. What the suite already
+covers, so the drive need not: that a structural filter never shrinks what a machine was asked for,
+that an order-level filter moves the share and not the band, that the PLANT row disappears the moment
+the station set is narrowed, and that an aggregate can never be worse than its worst member — which
+is the property that killed the chart, stated as arithmetic.
 
 ---
 

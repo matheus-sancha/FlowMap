@@ -1896,37 +1896,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get occupationStation => 'Station';
 
   @override
-  String get occupationProcess => 'Process';
-
-  @override
-  String get occupationRework => 'Rework';
-
-  @override
-  String get occupationChangeover => 'Changeover';
-
-  @override
-  String get occupationOutsideFilter => 'Outside the filter';
-
-  @override
-  String occupationStations(String count) {
-    return '$count stations aggregated';
-  }
-
-  @override
-  String get occupationPivotTitle => 'By line and workcenter type';
-
-  @override
-  String get occupationPivotHelp =>
-      'Each cell is that line\'s own demand over the type\'s full capacity. The TOTAL row counts every line touching those stations, filtered out or not — so under a filter it will not equal the cells above it.';
-
-  @override
   String get occupationCell => 'Cell';
 
   @override
   String get occupationLine => 'Line';
-
-  @override
-  String get occupationTotal => 'TOTAL';
 
   @override
   String get occupationUngraphable =>
@@ -2031,5 +2004,47 @@ class AppLocalizationsEn extends AppLocalizations {
       one: '1 study is not ready to run',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get occupationByWorkcenter => 'Per workcenter';
+
+  @override
+  String get occupationByLine => 'Per line';
+
+  @override
+  String get occupationUnitPercent => '%';
+
+  @override
+  String get occupationUnitHours => 'Hours';
+
+  @override
+  String get occupationUnitGap => 'Gap';
+
+  @override
+  String get occupationPlant => 'PLANT';
+
+  @override
+  String get occupationWorkcenter => 'Workcenter';
+
+  @override
+  String get occupationAmberAbove => 'Amber above';
+
+  @override
+  String get occupationRedAbove => 'Red above';
+
+  @override
+  String get occupationBands =>
+      'Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.';
+
+  @override
+  String occupationCellHelp(
+    Object asked,
+    Object name,
+    Object month,
+    Object open,
+    Object share,
+  ) {
+    return '$asked h asked of $name in $month, against $open h open. $share h of it is in your filter.';
   }
 }

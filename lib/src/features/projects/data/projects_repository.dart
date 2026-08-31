@@ -64,6 +64,8 @@ class ProjectsRepository {
     String? notes,
     int? floatRedDays,
     int? floatGreenDays,
+    int? occupationAmberPct,
+    int? occupationRedPct,
   }) => (_db.update(_db.projects)..where((p) => p.id.equals(id))).write(
     ProjectsCompanion(
       name: Value(name),
@@ -75,6 +77,15 @@ class ProjectsRepository {
       floatGreenDays: floatGreenDays == null
           ? const Value.absent()
           : Value(floatGreenDays),
+      // #9's two, absent-when-null for the reason the float pair is: this
+      // method writes every field it is given, so a caller editing one
+      // threshold must not clear the other three.
+      occupationAmberPct: occupationAmberPct == null
+          ? const Value.absent()
+          : Value(occupationAmberPct),
+      occupationRedPct: occupationRedPct == null
+          ? const Value.absent()
+          : Value(occupationRedPct),
       updatedAt: Value(DateTime.now()),
     ),
   );

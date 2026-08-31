@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../app/tokens.dart';
-import '../../../common/horizontal_scroll.dart';
+import '../../../common/period_matrix.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/float_matrix.dart';
@@ -62,96 +62,73 @@ class FloatMatrixTable extends StatelessWidget {
         // threshold that defines it and its count.
         _Legend(project: project, tally: tally),
         const SizedBox(height: 8),
-        HorizontalScroll(
-          child: DataTable(
-            headingRowHeight: 36,
-            dataRowMinHeight: 32,
-            dataRowMaxHeight: 32,
-            columns: [
-              const DataColumn(label: Text('#')),
-              for (final month in matrix.months)
-                DataColumn(
-                  label: Text(DateFormat('MMM/yy').format(month)),
-                  numeric: true,
-                ),
-            ],
-            rows: [
-              for (final (rank, row) in matrix.rows.indexed)
-                DataRow(
-                  cells: [
-                    DataCell(Text('${rank + 1}')),
-                    for (final cell in row)
-                      DataCell(_Cell(cell: cell, theme: theme, l10n: l10n)),
-                  ],
-                ),
-            ],
-          ),
+        // **The shared chrome** (#10): rows × months, banded cells, a frozen
+        // first column. The Occupation grid is its other caller. They share
+        // this and not the row semantics — here row *r* means "the order ranked
+        // *r* that month", each column independently sorted and ragged, and
+        // there the rows are stations that persist across the row. So the
+        // widget takes a cell and the row's meaning stays here.
+        PeriodMatrix(
+          months: matrix.months,
+          headerLabel: '#',
+          headerWidth: 40,
+          rows: [
+            for (final (rank, _) in matrix.rows.indexed)
+              PeriodMatrixRow(label: '${rank + 1}'),
+          ],
+          cellAt: (row, month) =>
+              _cellOf(matrix.rows[row], month, context, l10n),
         ),
       ],
     );
   }
 }
 
-/// One order's slack, coloured by its band.
+/// One order's slack, as a banded cell of the shared matrix.
 ///
-/// **The colour is a background rather than the text**, so a red cell is legible
-/// at a glance across a matrix of sixty and does not depend on the reader
-/// telling three similar text colours apart.
-class _Cell extends StatelessWidget {
-  const _Cell({required this.cell, required this.theme, required this.l10n});
+/// **Was a widget, `_Cell`.** The painting moved into `PeriodMatrix` when the
+/// Occupation grid needed the same chrome; what stayed here is the only part
+/// that was ever about float — which band a number falls in, and what the
+/// tooltip says.
+PeriodMatrixCell? _cellOf(
+  List<FloatCell?> row,
+  int month,
+  BuildContext context,
+  AppLocalizations l10n,
+) {
+  if (month >= row.length) return null;
+  final value = row[month];
+  // A month with fewer orders says nothing in this row (§10.4). Blank rather
+  // than zero, which would read as an order delivered exactly on its date.
+  if (value == null) return null;
 
-  final FloatCell? cell;
-  final ThemeData theme;
-  final AppLocalizations l10n;
+  // **The chosen status set, not the generated scheme** (v2.0). These four read
+  // `errorContainer`, `tertiaryContainer` and `primaryContainer` until then —
+  // which is exactly the coupling `tokens.dart` says was removed: with the seed
+  // moved off green to a blueprint blue, `primaryContainer` is *blue*, so the
+  // band named `green` was drawing the brand's accent and the matrix no longer
+  // said what it meant. `FlowStatus` is picked rather than derived, so
+  // re-seeding the chrome cannot move a delivery cell again.
+  final status = FlowStatus.of(context);
+  final (Color background, Color foreground) = switch (value.band) {
+    FloatBand.red => (status.critical.fill, status.critical.ink),
+    FloatBand.amber => (status.warning.fill, status.warning.ink),
+    FloatBand.green => (status.good.fill, status.good.ink),
+    // **Not red.** Late by a month and never finished are different findings,
+    // and colouring them alike hides the second inside the first.
+    FloatBand.undelivered => (status.undelivered.fill, status.undelivered.ink),
+  };
 
-  @override
-  Widget build(BuildContext context) {
-    final value = cell;
-    // A month with fewer orders says nothing in this row (§10.4). Blank rather
-    // than zero, which would read as an order delivered exactly on its date.
-    if (value == null) return const SizedBox.shrink();
-
-    // **The chosen status set, not the generated scheme** (v2.0). These four
-    // read `errorContainer`, `tertiaryContainer` and `primaryContainer` until
-    // now — which is exactly the coupling `tokens.dart` says was removed: with
-    // the seed moved off green to a blueprint blue, `primaryContainer` is
-    // *blue*, so the band named `green` was drawing the brand's accent and the
-    // matrix no longer said what it meant. `FlowStatus` is picked rather than
-    // derived, so re-seeding the chrome cannot move a delivery cell again.
-    final status = FlowStatus.of(context);
-    final (Color background, Color foreground) = switch (value.band) {
-      FloatBand.red => (status.critical.fill, status.critical.ink),
-      FloatBand.amber => (status.warning.fill, status.warning.ink),
-      FloatBand.green => (status.good.fill, status.good.ink),
-      // **Not red.** Late by a month and never finished are different findings,
-      // and colouring them alike hides the second inside the first.
-      FloatBand.undelivered => (
-        status.undelivered.fill,
-        status.undelivered.ink,
-      ),
-    };
-
-    return Tooltip(
-      message: value.band == FloatBand.undelivered
-          ? '${value.partNumber} · ${l10n.floatMatrixUndelivered}'
-          : '${value.partNumber} · ${DateFormat.yMMMd().format(value.needDate)}',
-      child: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          value.days == null ? '—' : '${value.days}',
-          style: theme.textTheme.bodySmall?.copyWith(color: foreground),
-        ),
-      ),
-    );
-  }
+  return PeriodMatrixCell(
+    text: value.days == null ? '—' : '${value.days}',
+    background: background,
+    foreground: foreground,
+    tooltip: value.band == FloatBand.undelivered
+        ? '${value.partNumber} · ${l10n.floatMatrixUndelivered}'
+        : '${value.partNumber} · ${DateFormat.yMMMd().format(value.needDate)}',
+  );
 }
 
-/// What the four bands mean, in the project's own thresholds (DESIGN.md §10.4).
 class _Legend extends StatelessWidget {
   const _Legend({required this.project, required this.tally});
 
