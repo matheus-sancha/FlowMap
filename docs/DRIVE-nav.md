@@ -82,10 +82,12 @@ line above is a screen that had no URL yesterday.
   The strip's taps do fire and each does write its own location, which is the half that was real.
 - **The mode switch, both ways.** `simulation/overview` → `studies/<s>/flow` → `simulation/overview`
   at 22:08:42–43 is the switch being used in one direction and back.
-- **A study location resolves to a tab.** `studies/<s>/flow` is what the log holds; `go_router`
-  reports the location *after* redirect, so a bare `/studies/<s>` and a click on the sidebar both
-  land here. Either way the reader ended on Flow, which is the behaviour
-  `_StudyTabs.didUpdateWidget` used to arrange by hand.
+- **A study location resolves to a tab.** `studies/<s>/flow` is what the log holds, and Flow is
+  where the reader ended — which is the behaviour `_StudyTabs.didUpdateWidget` used to arrange by
+  hand. *The reasoning originally given for this was itself the mistake*: it said go_router "reports
+  the location after redirect", which is exactly backwards and is why the four lines above it were
+  misread. The conclusion survives its argument here only because Flow is where an unguarded
+  redirect sent everything anyway.
 
 ### Not established, and named rather than assumed
 
