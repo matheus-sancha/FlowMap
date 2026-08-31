@@ -39,7 +39,7 @@ first. Nothing here restates a decision — it points at the one place each live
 |---|---|---|---|
 | 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **done** |
-| 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, drive owed** |
+| 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, driven in part** |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
@@ -198,9 +198,26 @@ one they press every time), and the plan tab's help text is **capped at two line
 wrapped far enough on a 768 pt pane to push the table out of its column, which a test caught as
 `RenderFlex overflowed by 5.0 pixels`.
 
-**Still owed: `docs/DRIVE-nav.md`** — ten routes reached by URL, the mode switch, the readiness
-strip. **Plus the first light-mode pass since the tokens drive**: light is still visually
-unverified, and this is the phase where the most screens change at once.
+**Driven 2026-08-30** under `0.1.0-2026-08-30c`, session 22:07:56 — `docs/DRIVE-nav.md`. Reported
+correct for the group, which §5.3 is the standing warning about; **but this is the one phase whose
+group answer a log can sharpen.** §15's route breadcrumbs record every location, and the whole phase
+is about locations, so what was actually reached is objective for once.
+
+**Established:** all five results locations reached and re-reached — `overview`, `plan`, `gantt`,
+`occupation`, `float` — the mode switch used in both directions, and a study location resolving to
+its Flow tab. *That the log reads that way is the headline claim passing*: yesterday a session spent
+entirely inside the run wrote one line and said nothing further.
+
+**Not established, and named rather than assumed:** four of the five study tabs were never opened,
+so **the period control being hidden rather than greyed was not seen** — it is only observable on
+them. **`?study=` surviving a tab change** is not in the log either, because §15 records `uri.path`
+and drops the query per the ids-only rule, and it is asserted nowhere else. And **light mode**, which
+this phase was the pinned home for, was not shown to have been toggled.
+
+**Still owed — a short sitting, worth taking before phase 4 builds on this:** the four unopened
+study tabs with the period control in view; `?study=` carried in and across a tab change; and light
+mode on the five results tabs and the readiness strip, whose `errorContainer` over
+`onErrorContainer` is the pairing most likely to be wrong in the theme nobody has looked at.
 
 ---
 
