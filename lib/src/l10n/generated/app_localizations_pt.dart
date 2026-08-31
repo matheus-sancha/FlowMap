@@ -2067,4 +2067,33 @@ class AppLocalizationsPt extends AppLocalizations {
   ) {
     return '$asked h pedidas a $name em $month, face a $open h abertas. $share h estão no seu filtro.';
   }
+
+  @override
+  String get occupationProcess => 'Processo';
+
+  @override
+  String get occupationRework => 'Retrabalho';
+
+  @override
+  String get occupationChangeover => 'Troca';
+
+  @override
+  String get occupationOutsideFilter => 'Fora do filtro';
+
+  @override
+  String get occupationViewChart => 'Gráfico';
+
+  @override
+  String get occupationViewGrid => 'Grelha';
+
+  @override
+  String occupationStations(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count centros agregados',
+      one: '1 centro agregado',
+    );
+    return '$_temp0';
+  }
 }

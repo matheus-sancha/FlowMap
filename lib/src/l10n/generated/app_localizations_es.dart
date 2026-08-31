@@ -2065,4 +2065,33 @@ class AppLocalizationsEs extends AppLocalizations {
   ) {
     return '$asked h pedidas a $name en $month, frente a $open h abiertas. $share h están en su filtro.';
   }
+
+  @override
+  String get occupationProcess => 'Proceso';
+
+  @override
+  String get occupationRework => 'Retrabajo';
+
+  @override
+  String get occupationChangeover => 'Cambio';
+
+  @override
+  String get occupationOutsideFilter => 'Fuera del filtro';
+
+  @override
+  String get occupationViewChart => 'Gráfico';
+
+  @override
+  String get occupationViewGrid => 'Cuadrícula';
+
+  @override
+  String occupationStations(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count centros agregados',
+      one: '1 centro agregado',
+    );
+    return '$_temp0';
+  }
 }

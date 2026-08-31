@@ -427,6 +427,59 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
   );
 }
 
+/// The stations a run shows under [filter] — **the one station resolution**,
+/// shared by the Occupation chart and the Occupation grid (#9).
+///
+/// **All five structural filters, and studies reach it through their steps.**
+/// `typeIds` and `workcenterIds` name stations directly. `studyIds`, `cellIds`
+/// and `lineIds` name *studies*, and a study narrows the station set to the
+/// stations it actually visited in this run — read off the steps rather than the
+/// flow, because a station a study routes through but never used has no demand
+/// and no reason to be a row.
+///
+/// **This exists because it was got wrong once.** The grid applied only the two
+/// direct filters and a comment claimed the other three were handled elsewhere;
+/// they were handled nowhere, so choosing a study narrowed every other surface
+/// on the page and left the grid drawing the whole plant. Two callers computing
+/// it separately is how that happens twice.
+Set<String> stationsInView(StoredRun run, RunFilter filter) {
+  final typeOf = {
+    for (final row in run.metrics.workcenters) row.workcenterId: row.typeId,
+  };
+
+  final narrowsStudies =
+      filter.studyIds.isNotEmpty ||
+      filter.cellIds.isNotEmpty ||
+      filter.lineIds.isNotEmpty;
+
+  final Set<String>? allowedStudies = !narrowsStudies
+      ? null
+      : {
+          for (final study in run.studies)
+            if ((filter.studyIds.isEmpty ||
+                    filter.studyIds.contains(study.studyId)) &&
+                (filter.cellIds.isEmpty ||
+                    filter.cellIds.contains(study.productionCellId)) &&
+                (filter.lineIds.isEmpty ||
+                    filter.lineIds.contains(study.productionLineId)))
+              study.studyId,
+        };
+
+  final Set<String>? studyStations = allowedStudies == null
+      ? null
+      : {
+          for (final step in run.result.steps)
+            if (allowedStudies.contains(step.studyId)) step.workcenterId,
+        };
+
+  return {
+    for (final id in run.result.openByWorkcenterMonth.keys)
+      if (filter.includesStation(workcenterId: id, typeId: typeOf[id]) &&
+          (studyStations == null || studyStations.contains(id)))
+        id,
+  };
+}
+
 /// Reads [run] through [filter].
 FilteredRun filterRun(StoredRun run, RunFilter filter) {
   // **Naming no study means every study, not no study.** Resolving the set from

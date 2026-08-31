@@ -3619,6 +3619,48 @@ abstract class AppLocalizations {
     Object open,
     Object share,
   );
+
+  /// No description provided for @occupationProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get occupationProcess;
+
+  /// No description provided for @occupationRework.
+  ///
+  /// In en, this message translates to:
+  /// **'Rework'**
+  String get occupationRework;
+
+  /// No description provided for @occupationChangeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Changeover'**
+  String get occupationChangeover;
+
+  /// No description provided for @occupationOutsideFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the filter'**
+  String get occupationOutsideFilter;
+
+  /// No description provided for @occupationViewChart.
+  ///
+  /// In en, this message translates to:
+  /// **'Chart'**
+  String get occupationViewChart;
+
+  /// No description provided for @occupationViewGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid'**
+  String get occupationViewGrid;
+
+  /// No description provided for @occupationStations.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 station aggregated} other{{count} stations aggregated}}'**
+  String occupationStations(int count);
 }
 
 class _AppLocalizationsDelegate

@@ -178,18 +178,11 @@ OccupationGrid? occupationGrid({
     for (final row in run.metrics.workcenters) row.workcenterId: row,
   };
 
-  // The stations the structural filters leave in view. Studies, cells and lines
-  // narrow stations too — through the studies they resolve to — so they are
-  // applied by way of the steps below rather than here, where only type and
-  // workcenter can speak.
-  final inView = {
-    for (final id in capacityByStation.keys)
-      if (filter.includesStation(
-        workcenterId: id,
-        typeId: stations[id]?.typeId,
-      ))
-        id,
-  };
+  // **One station resolution, shared with the chart** — see
+  // `stationsInView`. It lives in `run_filter.dart` because it is filter
+  // semantics, and because computing it in two places is how the study filter
+  // came to be applied in neither.
+  final inView = stationsInView(run, filter);
   if (inView.isEmpty) return null;
 
   // The orders an **order-level** filter keeps, taken through `filterRun` so

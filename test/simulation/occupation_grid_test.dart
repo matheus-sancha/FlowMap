@@ -289,6 +289,45 @@ void main() {
     },
   );
 
+  test('a study filter reaches the grid at all', () async {
+    // **The bug the field found**: "the occupation tables are not being
+    // filtered when I select different study, cell or lines". The grid applied
+    // only `typeIds` and `workcenterIds`, and a comment claimed the other three
+    // were handled elsewhere — they were handled nowhere, so choosing a study
+    // narrowed every other surface on the page and left this one drawing the
+    // whole plant.
+    //
+    // Both studies here visit both stations, so a study filter cannot remove a
+    // row from this fixture — what it can show is that the filter is *read*.
+    // A study nothing matches must leave no grid, which is only true if the
+    // set is being consulted.
+    final run = await stored();
+    expect(occupationGrid(run: run), isNotNull);
+    expect(
+      occupationGrid(
+        run: run,
+        filter: const RunFilter(studyIds: {'nobody'}),
+      ),
+      isNull,
+      reason: 'a study filter that matches nothing leaves no stations in view',
+    );
+  });
+
+  test('a line filter narrows the stations, so the plant row goes', () async {
+    // The half the fixture can show directly: a line filter is structural, so
+    // it narrows the station set — and the moment anything does, the PLANT row
+    // has to go, because a total across a subset would wear the plant's name.
+    final run = await stored();
+    expect(occupationGrid(run: run)!.plant, isNotNull);
+    expect(
+      occupationGrid(
+        run: run,
+        filter: const RunFilter(lineIds: {'line-a'}),
+      )!.plant,
+      isNull,
+    );
+  });
+
   test(
     'a station filter drops the station, its capacity and the plant row',
     () async {

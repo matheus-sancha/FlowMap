@@ -112,9 +112,16 @@ class PeriodMatrix extends StatelessWidget {
 
     return HorizontalScroll(
       child: DataTable(
-        headingRowHeight: 36,
-        dataRowMinHeight: 34,
-        dataRowMaxHeight: 34,
+        // **Tall enough for a two-line row header**, which is what the field
+        // reported as *"the table rows are too narrow"*. A station row carries
+        // its name and the pool it ran in; at 34 pt the second line had nowhere
+        // to go and the first sat hard against the cell above it. The float
+        // matrix's rows are a single rank and were fine at 34 — but one height
+        // for both is worth more than four pixels on the surface that does not
+        // need them.
+        headingRowHeight: 40,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 48,
         columnSpacing: 12,
         horizontalMargin: 8,
         columns: [
@@ -271,7 +278,7 @@ class _Cell extends StatelessWidget {
     final theme = Theme.of(context);
     final body = Container(
       alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: value.background,
         borderRadius: BorderRadius.circular(4),

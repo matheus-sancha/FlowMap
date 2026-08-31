@@ -314,6 +314,18 @@ and 3 studies / 150 runs / 195,236 steps / 250 orders / 15 queues intact.
 The argument is unchanged — 144 still cannot, and a run that cannot draw the grid could not draw the
 chart either — but the number is in `HISTORY.md` §6.3 rather than left to be re-derived.
 
+**Driven, and it came back with three findings — two of them mine.**
+
+1. **The chart was deleted and should not have been.** #9 said to remove it and I did; the field
+   wants it *adjusted*. Both surfaces now sit behind a `Chart | Grid` switch, the grid default.
+   `OccupationRamp` is restored with the stack it colours, and `_SegmentColours` reads it rather
+   than the generated Material roles it read in v1.0.
+2. **The grid ignored study, cell and line filters entirely.** It applied only `typeIds` and
+   `workcenterIds`, under a comment claiming the other three were handled elsewhere — they were
+   handled nowhere. Both surfaces now share one `stationsInView` in `run_filter.dart`, because two
+   callers computing it separately is how it came to be applied in neither.
+3. **The rows were too narrow** for a two-line station header. 34 pt → 48 pt.
+
 **Still owed: `docs/DRIVE-occupation.md`** — the grid on the real run, both groupings, all three
 units, and a project whose thresholds have been changed from the defaults. What the suite already
 covers, so the drive need not: that a structural filter never shrinks what a machine was asked for,

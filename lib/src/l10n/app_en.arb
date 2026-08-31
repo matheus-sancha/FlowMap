@@ -1164,5 +1164,15 @@
       "asked": {}, "name": {}, "month": {},
       "open": {}, "share": {}
     }
+  },
+  "occupationProcess": "Process",
+  "occupationRework": "Rework",
+  "occupationChangeover": "Changeover",
+  "occupationOutsideFilter": "Outside the filter",
+  "occupationViewChart": "Chart",
+  "occupationViewGrid": "Grid",
+  "occupationStations": "{count, plural, =1{1 station aggregated} other{{count} stations aggregated}}",
+  "@occupationStations": {
+    "placeholders": { "count": { "type": "int" } }
   }
 }

@@ -1485,7 +1485,13 @@ output, and the inconsistency becomes permanent once it is in three `.arb` files
 
 ### 8.4.1 The Occupation grid — station × month
 
-**A grid, not a chart**, since v2.0's phase 5 ([#9](https://github.com/matheus-sancha/FlowMap/issues/9)).
+**A grid *and* a chart, switched**, since v2.0's phase 5
+([#9](https://github.com/matheus-sancha/FlowMap/issues/9)). #9 concluded the stacked bar should be
+deleted and it was; **the field then said it was wanted adjusted rather than removed**, which
+settles it — that is what a drive is for, and it outranks the ticket. The grid is the default, and
+everything below is why; the chart keeps the process / rework / changeover split, which exists
+nowhere else, and the shape of a month read against the one before it. Both read the same
+`stationsInView`, so they cannot disagree about which stations are being looked at.
 The question it answers:
 
 > **Which station is over capacity, in which month, and by how many hours?**
@@ -1577,12 +1583,12 @@ drawn per column across each column's full width — deliberately, because capac
 is a step function — and that is what read as disconnected segments. With the
 chart gone there is no line to centre.
 
-**Two named losses**, recorded rather than quietly dropped. The process / rework
-/ changeover split existed only as stack segments and has nowhere left to live;
-at 3 % and 2 % of a bar it was two hairlines, but it is gone rather than moved.
-And a line's own share of a station is not on the grid, because cell and line are
-structural and do not dim — only project and part show a share. The retired pivot
-was the one place that number lived.
+**One named loss.** A line's own share of a station is not on the **grid**, because cell and line
+are structural and do not dim — only project and part show a share. The chart's pivot was the one
+place that number lived, and the chart still has it.
+
+*#9's other named loss no longer applies*: the process / rework / changeover split was to have gone
+with the stack, and the stack stayed.
 
 ### 8.5 The production plan — orders over time, and the slots that made none
 
