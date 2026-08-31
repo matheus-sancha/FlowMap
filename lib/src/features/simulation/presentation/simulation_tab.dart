@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
@@ -7,6 +8,7 @@ import '../../../common/part_palette.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../projects/presentation/workspace_tabs.dart';
 import '../application/run_filter.dart';
 import '../application/run_metrics.dart';
 import '../application/sim_assembly.dart';
@@ -94,39 +96,38 @@ class RunsMenu extends ConsumerWidget {
   }
 }
 
-/// Which of the two views of a run is showing.
-/// **Three views of one run, not three screens.** The occupation graph joined
-/// them rather than becoming a destination of its own because it reads the same
-/// `FilteredRun` the tables and the Gantt do — and §12.1's rule is that two
-/// surfaces reading one run through one filter cannot disagree about a number.
-enum _RunView { results, gantt, occupation }
-
-/// Everything §8 asks a run to report, in two views of it.
+/// Everything §8 asks a run to report, in **five tabs of one destination**
+/// (#7).
 ///
 /// **The run header, the abort banner and the headline stay put**, because they
-/// describe *the run* rather than a view of it; the segmented control switches
-/// only the body beneath them. That is what lets the Gantt take the full body
-/// height — it was a section below the production plan in the first draft, which
-/// was one more block on a page already carrying a header, a headline, a metrics
-/// card, three tables and a fourteen-column plan, and it would have needed a
-/// height cap, a second vertical scrollbar and a nested scroll to fit there.
+/// describe *the run* rather than a view of it; the strip switches only the body
+/// beneath them. That is what lets the Gantt take the full body height — it was
+/// a section below the production plan in the first draft, which would have
+/// needed a height cap, a second vertical scrollbar and a nested scroll to fit.
 ///
-/// Held in an `IndexedStack`, so switching to the results and back returns the
-/// zoom the reader left rather than refitting the chart under them.
+/// **Five tabs, from three views and a scrolling page.** The production plan and
+/// the float matrix were sections inside the Results view, stacked under three
+/// tables; each is now a tab of its own, which is what lets the plan be a table
+/// rather than a block on a page — wrapped in that scrolling column it inherited
+/// `resultTableMaxHeight`'s 360 px cap and used a third of a tall window.
 ///
-/// **One screen shows it now.** It was public because two did — a study's
-/// Simulation tab and the project's workspace — and the whole argument for
+/// **The tab is the location, not this object's state.** It was
+/// `var _view = _RunView.results` behind a `SegmentedButton`, so three screens
+/// had no URL. `IndexedStack` still holds all five, so switching away and back
+/// returns the zoom the reader left rather than refitting the chart under them.
+///
+/// **One screen shows it.** It was public because two did — a study's Simulation
+/// tab and the project's workspace — and the whole argument for
 /// `run_filter.dart` was that two screens reading one `StoredRun` through one
-/// filter could not report different numbers for the same study. The tab is
-/// gone and the filter is what replaced it: a study reaches its slice through
-/// `?study=` on the workspace's route, so the guarantee is now structural
-/// rather than maintained (§12.1).
-class RunResults extends StatefulWidget {
+/// filter could not report different numbers. The tab is gone and the filter is
+/// what replaced it (§12.1).
+class RunResults extends StatelessWidget {
   const RunResults({
     super.key,
     required this.slice,
     required this.projectName,
     required this.project,
+    required this.tab,
   });
 
   /// The project whose float thresholds colour §10.4's matrix.
@@ -138,17 +139,11 @@ class RunResults extends StatefulWidget {
   /// Stamped into the workbook the plan exports to (§13).
   final String projectName;
 
-  @override
-  State<RunResults> createState() => _ResultsState();
-}
-
-class _ResultsState extends State<RunResults> {
-  var _view = _RunView.results;
+  /// Which tab the location names (#7).
+  final SimulationTab tab;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final slice = widget.slice;
     // The header, the abort banner and the horizon warning describe *the run*
     // rather than a view of it, so they read the unfiltered one.
     final run = slice.run;
@@ -174,56 +169,296 @@ class _ResultsState extends State<RunResults> {
                 const SizedBox(height: 12),
               ],
               _Headline(metrics: slice.metrics),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SegmentedButton<_RunView>(
-                  segments: [
-                    ButtonSegment(
-                      value: _RunView.results,
-                      label: Text(l10n.simResultsView),
-                      icon: const Icon(Icons.table_rows_outlined),
-                    ),
-                    ButtonSegment(
-                      value: _RunView.gantt,
-                      label: Text(l10n.simGanttView),
-                      icon: const Icon(Icons.view_timeline_outlined),
-                    ),
-                    ButtonSegment(
-                      value: _RunView.occupation,
-                      label: Text(l10n.occupationView),
-                      icon: const Icon(Icons.bar_chart_outlined),
-                    ),
-                  ],
-                  selected: {_view},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      setState(() => _view = selection.first),
-                ),
-              ),
-              const SizedBox(height: 12),
             ],
           ),
         ),
+        _ResultsTabBar(project: project, tab: tab),
         Expanded(
           child: IndexedStack(
-            index: _view.index,
+            index: tab.index,
             sizing: StackFit.expand,
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _ResultTables(
-                  slice: slice,
-                  projectName: widget.projectName,
-                  project: widget.project,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: _Overview(slice: slice),
+              ),
+              _PlanTab(
+                slice: slice,
+                projectName: projectName,
+                run: run,
               ),
               GanttView(slice: slice),
               OccupationView(slice: slice),
+              _FloatTab(slice: slice, project: project),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The five tabs, each of them a location (#7).
+///
+/// Scrollable for the same reason the study strip is: five labels of this length
+/// do not fit a narrow window, and a tab falling off the end is a screen with no
+/// way to it.
+class _ResultsTabBar extends StatefulWidget {
+  const _ResultsTabBar({required this.project, required this.tab});
+
+  final Project project;
+  final SimulationTab tab;
+
+  @override
+  State<_ResultsTabBar> createState() => _ResultsTabBarState();
+}
+
+class _ResultsTabBarState extends State<_ResultsTabBar>
+    with SingleTickerProviderStateMixin {
+  /// Paints the indicator and nothing else — the location decides which tab is
+  /// showing, and `onTap` navigates. Driven *from* the route on every build.
+  late final TabController _tabs = TabController(
+    length: SimulationTab.values.length,
+    initialIndex: widget.tab.index,
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (_tabs.index != widget.tab.index) _tabs.index = widget.tab.index;
+
+    return TabBar(
+      controller: _tabs,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      // **`?study=` is carried across**, or moving between tabs would silently
+      // widen a reader's filter from one study to the whole run.
+      onTap: (index) {
+        final study = GoRouterState.of(context).uri.queryParameters['study'];
+        context.go(
+          '/projects/${widget.project.id}/simulation'
+          '/${SimulationTab.values[index].slug}'
+          '${study == null ? '' : '?study=$study'}',
+        );
+      },
+      tabs: [
+        // The destination is *Simulation results* and this tab is *Simulation
+        // Overview*, deliberately not the same words — so the way in and the
+        // first thing inside never read as one thing (#7).
+        Tab(text: l10n.simTabOverview),
+        Tab(text: l10n.simTabPlan),
+        Tab(text: l10n.simGanttView),
+        Tab(text: l10n.occupationView),
+        Tab(text: l10n.floatMatrixTitle),
+      ],
+    );
+  }
+}
+
+/// The metrics card, the studies the run covers, and the three station tables.
+///
+/// **The paired layout** (#7): Queue and Share side by side, because §8.1 makes
+/// them one ranking read two ways, with Parts full width beneath. Collapses back
+/// to stacked under 1100 px, where two half-width tables are two cramped ones.
+/// *Rejected: stacked, and a card-per-table grid.*
+class _Overview extends StatelessWidget {
+  const _Overview({required this.slice});
+
+  final FilteredRun slice;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final metrics = slice.metrics;
+
+    final queue = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(l10n.simByQueue, style: theme.textTheme.titleSmall),
+            // **Said, not left to be inferred.** Order-level figures follow the
+            // filter and these do not, because utilisation's denominator is a
+            // run total and the run does not carry what a windowed one would
+            // need (§12.1). A reader comparing a filtered count against an
+            // unfiltered utilisation would be comparing two different plants.
+            //
+            // *Rejected: repeating it on the filter bar* — a note on a bar that
+            // is usually irrelevant is a note people stop reading. It belongs
+            // beside the numbers that would be misread.
+            if (slice.stationsAreWholeRun) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  l10n.simStationsWholeRun,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.simRankingsHelp,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _QueueTable(metrics: metrics),
+      ],
+    );
+
+    final share = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(l10n.simByShare, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        _ShareTable(metrics: metrics),
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _MetricsCard(metrics: metrics),
+        const SizedBox(height: 24),
+        _RunCoverage(slice: slice),
+        const SizedBox(height: 24),
+        LayoutBuilder(
+          builder: (context, constraints) => constraints.maxWidth < 1100
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [queue, const SizedBox(height: 24), share],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: queue),
+                    const SizedBox(width: 24),
+                    Expanded(child: share),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 24),
+        Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        _PartsTable(slice: slice),
+      ],
+    );
+  }
+}
+
+/// Which studies this run covers, and which of them the filter is showing (#7).
+///
+/// **`StoredRun.studies` already held this and nothing showed it.** A reader
+/// looking at a filtered page had no way to tell a study that was never in the
+/// run from one their own filter had excluded — two very different statements
+/// that drew identically.
+class _RunCoverage extends StatelessWidget {
+  const _RunCoverage({required this.slice});
+
+  final FilteredRun slice;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final studies = slice.run.studies;
+    if (studies.isEmpty) return const SizedBox.shrink();
+
+    // Which studies still have a figure after the filter — read off the
+    // per-part rows, which is where a study's presence in the slice actually
+    // shows.
+    final shown = {for (final part in slice.metrics.parts) part.studyId};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.simRunCovers, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final study in studies)
+              if (shown.contains(study.studyId))
+                Chip(
+                  avatar: const Icon(Icons.check, size: 16),
+                  label: Text(study.name),
+                )
+              else
+                // Greyed and explained, rather than absent: a study missing
+                // from a list is indistinguishable from one that was never in
+                // the run, which is the thing this row exists to say.
+                Chip(
+                  label: Text(
+                    '${study.name} — ${l10n.simRunCoversFiltered}',
+                    style: TextStyle(color: theme.colorScheme.outline),
+                  ),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  backgroundColor: Colors.transparent,
+                ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// §10.4's matrix, on a tab of its own (#7).
+///
+/// It was the last section of a scrolling page, beneath the plan — *"the plan's
+/// own Float column read a second way"*, which is true and is why it is the tab
+/// next to the plan rather than a place elsewhere.
+class _FloatTab extends StatelessWidget {
+  const _FloatTab({required this.slice, required this.project});
+
+  final FilteredRun slice;
+  final Project project;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.floatMatrixHelp,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              child: FloatMatrixTable(slice: slice, project: project),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -372,132 +607,272 @@ class _RunHeader extends StatelessWidget {
   }
 }
 
-/// The metrics card and the four tables — what the Results view is.
-class _ResultTables extends StatelessWidget {
-  const _ResultTables({
+/// The production plan, on a tab of its own, read one of two ways (#7).
+///
+/// **The plan is a table, not a page.** It was the fourth section of the
+/// scrolling Results view, where it inherited `resultTableMaxHeight`'s 360 px
+/// cap and used a third of a tall window. Here the heading and the export pin,
+/// and the rows take everything below.
+class _PlanTab extends StatefulWidget {
+  const _PlanTab({
     required this.slice,
     required this.projectName,
-    required this.project,
+    required this.run,
   });
 
   final FilteredRun slice;
   final String projectName;
+  final StoredRun run;
 
-  /// Carried for §10.4's thresholds, which are the project's own (§10.1).
-  final Project project;
+  @override
+  State<_PlanTab> createState() => _PlanTabState();
+}
 
-  StoredRun get run => slice.run;
+class _PlanTabState extends State<_PlanTab> {
+  /// **View state, deliberately not a route.** §12.1 argued the results filters
+  /// should not ride in the URL and #7 left that argument standing; this is the
+  /// same kind of thing — a way of reading one tab, not a place. `?study=` is
+  /// still the one exception, because it is the filter you navigate *from*.
+  bool _combined = false;
+
+  /// Start Date ascending by default, which is the order the plan happens in.
+  int _sortColumn = 3;
+  bool _ascending = true;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final metrics = slice.metrics;
+    final slice = widget.slice;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _MetricsCard(metrics: metrics),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Text(l10n.simByQueue, style: theme.textTheme.titleSmall),
-            // **Said, not left to be inferred.** Order-level figures above
-            // follow the filter and these do not, because utilisation's
-            // denominator is a run total and the run does not carry what a
-            // windowed one would need (§12.1). A reader comparing a filtered
-            // count against an unfiltered utilisation would otherwise be
-            // comparing two different plants.
-            if (slice.stationsAreWholeRun) ...[
-              const SizedBox(width: 6),
-              Icon(
-                Icons.info_outline,
-                size: 16,
-                color: theme.colorScheme.tertiary,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // **The help text is capped at two lines, and this was a defect.**
+          // Unbounded beside the controls it wrapped to whatever width was
+          // left — on a 768 pt pane that was tall enough to push the table out
+          // of the column entirely, which `RenderFlex overflowed by 5.0 pixels`
+          // is what a test saw. A tab's prose is a caption, not the tab.
+          Row(
+            children: [
+              Expanded(
                 child: Text(
-                  l10n.simStationsWholeRun,
+                  l10n.simProductionPlanHelp,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.tertiary,
+                    color: theme.colorScheme.outline,
                   ),
                 ),
               ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.simRankingsHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _QueueTable(metrics: metrics),
-        const SizedBox(height: 24),
-        Text(l10n.simByShare, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
-        _ShareTable(metrics: metrics),
-        const SizedBox(height: 24),
-        Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
-        _PartsTable(slice: slice),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.simProductionPlan,
-                style: theme.textTheme.titleSmall,
+              const SizedBox(width: 12),
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(
+                    value: false,
+                    label: Text(l10n.simPlanByStudy),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text(l10n.simPlanCombined),
+                  ),
+                ],
+                selected: {_combined},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) =>
+                    setState(() => _combined = s.first),
               ),
-            ),
-            // Beside the thing it exports rather than on the tab's chrome: the
-            // plan is one of several tables here, and a project-level export
-            // button would not say which one it takes (§13).
-            if (slice.plan.isNotEmpty)
-              TextButton.icon(
-                icon: const Icon(Icons.table_view_outlined, size: 18),
-                label: Text(l10n.exportExcel),
-                // The slice, not the run: the button is under this table and
-                // exports this table (§12.1).
-                onPressed: () => exportPlanExcel(
-                  context,
-                  run: run,
-                  plan: slice.plan,
-                  projectName: projectName,
+              // Beside the thing it exports rather than on the tab's chrome:
+              // a project-level export button would not say which table it
+              // takes (§13).
+              if (slice.plan.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  icon: const Icon(Icons.table_view_outlined, size: 18),
+                  label: Text(l10n.exportExcel),
+                  // The slice, not the run: the button is over this table and
+                  // exports this table (§12.1).
+                  onPressed: () => exportPlanExcel(
+                    context,
+                    run: widget.run,
+                    plan: slice.plan,
+                    projectName: widget.projectName,
+                  ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.simProductionPlanHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+              ],
+            ],
           ),
-        ),
-        const SizedBox(height: 8),
-        _ProductionPlan(slice: slice),
-        const SizedBox(height: 24),
-        // **Beneath the plan, because it is the plan's own Float column read a
-        // second way** (§10.4). §0 found on-time delivery unable to tell four
-        // configurations apart — 60/60 in all of them — because a thirty-day
-        // start buffer swamped the differences; this is that statement made
-        // readable, and it belongs beside the figures it qualifies rather than
-        // behind a fourth segment nobody would press.
-        Text(l10n.floatMatrixTitle, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 4),
-        Text(
-          l10n.floatMatrixHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+          const SizedBox(height: 12),
+          Expanded(
+            child: _combined
+                ? _CombinedPlan(
+                    slice: slice,
+                    sortColumn: _sortColumn,
+                    ascending: _ascending,
+                    onSort: (column) => setState(() {
+                      if (_sortColumn == column) {
+                        _ascending = !_ascending;
+                      } else {
+                        _sortColumn = column;
+                        _ascending = true;
+                      }
+                    }),
+                  )
+                : SingleChildScrollView(child: _ProductionPlan(slice: slice)),
           ),
-        ),
-        const SizedBox(height: 8),
-        FloatMatrixTable(slice: slice, project: project),
+        ],
+      ),
+    );
+  }
+}
+
+/// Every study's orders in one table, sortable on any column (#7).
+///
+/// **It carries Study, Cell and Line**, the three things §8.5's sectioning used
+/// to say and a flat table would otherwise lose. By study stays the default
+/// shape of the tab — a study is one production line and a planner takes the
+/// section for their line — and this is for the question sectioning cannot
+/// answer: *what is happening across the plant this week?*
+class _CombinedPlan extends StatelessWidget {
+  const _CombinedPlan({
+    required this.slice,
+    required this.sortColumn,
+    required this.ascending,
+    required this.onSort,
+  });
+
+  final FilteredRun slice;
+  final int sortColumn;
+  final bool ascending;
+  final ValueChanged<int> onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dateStyle = DateStyleScope.of(context);
+
+    String date(DateTime? value) =>
+        value == null ? '—' : dateStyle.format(value);
+
+    // What each study was called, and where it sat, when the run was made
+    // (§7.10) — so a study renamed or moved since still reads as the one that
+    // ran.
+    final studies = {
+      for (final study in slice.run.studies) study.studyId: study,
+    };
+
+    String cell(PlanEntry row) =>
+        studies[row.studyId]?.productionCellName ?? '—';
+    String line(PlanEntry row) =>
+        studies[row.studyId]?.productionLineName ?? '—';
+    String name(PlanEntry row) => studies[row.studyId]?.name ?? row.studyId;
+
+    /// What each sortable column compares.
+    Comparable<Object>? keyOf(PlanEntry row, int column) => switch (column) {
+      0 => name(row),
+      1 => cell(row),
+      2 => line(row),
+      3 => row.at ?? DateTime(9999),
+      4 => row is ProductionPlanRow ? row.orderNumber : null,
+      5 => row is ProductionPlanRow ? row.partNumber : null,
+      6 => row is ProductionPlanRow ? (row.customerProject ?? '') : null,
+      7 => row is ProductionPlanRow ? row.outcome.needDate : null,
+      8 => row is ProductionPlanRow ? (row.delivery ?? DateTime(9999)) : null,
+      _ => null,
+    };
+
+    final rows = [...slice.plan];
+    rows.sort((a, b) {
+      // **An empty release slot is not an order** (§7.2), so it cannot sort
+      // like one. It sorts **last whichever way the arrow points** — it is the
+      // absence of an order, not an extreme value of one, and letting it drift
+      // to the top under a descending sort would put "nothing happened" above
+      // everything that did.
+      final aEmpty = a is PlanEmptySlot;
+      final bEmpty = b is PlanEmptySlot;
+      if (aEmpty != bEmpty) return aEmpty ? 1 : -1;
+
+      final ka = keyOf(a, sortColumn);
+      final kb = keyOf(b, sortColumn);
+      if (ka == null || kb == null) return 0;
+      final order = ka.compareTo(kb);
+      return ascending ? order : -order;
+    });
+
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.outline,
+    );
+
+    return resultTable(
+      // **No cap and filling the pane**: the plan is the whole tab now, so it
+      // is as tall as the window rather than as tall as a section.
+      maxHeight: null,
+      fill: true,
+      sortColumn: sortColumn,
+      sortAscending: ascending,
+      onSort: onSort,
+      columns: [
+        ResultColumn(label: l10n.simPlanStudy, width: 140),
+        ResultColumn(label: l10n.simPlanCell, width: 130),
+        ResultColumn(label: l10n.simPlanLine, width: 130),
+        ResultColumn(label: l10n.simPlanOrderStart, width: 120),
+        ResultColumn(label: l10n.simPlanOrder, width: 72),
+        ResultColumn(label: l10n.demandPartNumber, width: 130),
+        ResultColumn(label: l10n.demandProject, width: 140),
+        ResultColumn(label: l10n.demandNeedDate, width: 120),
+        ResultColumn(label: l10n.simPlanOrderEnd, width: 120),
+        ResultColumn(label: l10n.simAverageFloat, width: 130),
       ],
+      rowCount: rows.length,
+      cellAt: (index, column) {
+        final row = rows[index];
+
+        // A slot that produced nothing keeps its study, cell, line and date and
+        // shows em-dashes elsewhere, drawn in the outline colour so it reads as
+        // an absence rather than a row with missing data.
+        if (row is PlanEmptySlot) {
+          return switch (column) {
+            0 => Text(name(row), style: muted),
+            1 => Text(cell(row), style: muted),
+            2 => Text(line(row), style: muted),
+            3 => Text(date(row.slotAt), style: muted),
+            5 => Text(
+              emptySlotReasonLabel(l10n, row.reason),
+              style: muted?.copyWith(fontStyle: FontStyle.italic),
+            ),
+            _ => Text('—', style: muted),
+          };
+        }
+        row as ProductionPlanRow;
+
+        return switch (column) {
+          0 => Text(name(row)),
+          1 => Text(cell(row)),
+          2 => Text(line(row)),
+          3 => Text(date(row.orderStart)),
+          4 => Text('${row.orderNumber}'),
+          5 => Text(row.partNumber),
+          6 => Text(
+            (row.customerProject?.isEmpty ?? true) ? '—' : row.customerProject!,
+          ),
+          7 => Text(date(row.outcome.needDate)),
+          8 => Text(date(row.delivery)),
+          // The one figure here that is a verdict rather than a fact, so late
+          // is coloured. Positive is early (§8).
+          _ => Text(
+            _duration(l10n, row.float),
+            style: (row.float?.isNegative ?? false)
+                ? theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  )
+                : null,
+          ),
+        };
+      },
     );
   }
 }

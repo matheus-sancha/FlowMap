@@ -1366,9 +1366,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simulationRunning => 'Running…';
 
   @override
-  String get simulationRunSettings => 'Run settings';
-
-  @override
   String get dispatchFifo => 'FIFO — by arrival';
 
   @override
@@ -1379,18 +1376,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dispatchShortestProcessing => 'Shortest processing time';
-
-  @override
-  String simulationStudiesIn(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count studies in this run',
-      one: '1 study in this run',
-      zero: 'No studies selected',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get simulationNoStudies => 'No study is selected for a run';
@@ -1596,10 +1581,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'The run and everything it recorded go. The studies it was made from are untouched.';
 
   @override
-  String get simResultsView => 'Results';
-
-  @override
-  String get simGanttView => 'Gantt';
+  String get simGanttView => 'Production Gantt';
 
   @override
   String get simGanttEmpty =>
@@ -1972,7 +1954,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'An order with at least this much slack is drawn green.';
 
   @override
-  String get floatMatrixTitle => 'Float by month';
+  String get floatMatrixTitle => 'Delivery Float';
 
   @override
   String get floatMatrixHelp =>
@@ -2008,5 +1990,46 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String floatLegendGreen(String days) {
     return '$days d or more';
+  }
+
+  @override
+  String get workspaceModeStudy => 'Study';
+
+  @override
+  String get simTabOverview => 'Simulation Overview';
+
+  @override
+  String get simTabPlan => 'Production Plan';
+
+  @override
+  String get simPlanByStudy => 'By study';
+
+  @override
+  String get simPlanCombined => 'Combined';
+
+  @override
+  String get simPlanStudy => 'Study';
+
+  @override
+  String get simPlanCell => 'Cell';
+
+  @override
+  String get simPlanLine => 'Line';
+
+  @override
+  String get simRunCovers => 'Studies in this run';
+
+  @override
+  String get simRunCoversFiltered => 'filtered out';
+
+  @override
+  String simulationStudiesNotReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count studies are not ready to run',
+      one: '1 study is not ready to run',
+    );
+    return '$_temp0';
   }
 }

@@ -717,19 +717,10 @@
   "simStationsWholeRun": "Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.",
   "simulationRun": "Simulate",
   "simulationRunning": "Running…",
-  "simulationRunSettings": "Run settings",
   "dispatchFifo": "FIFO — by arrival",
   "dispatchLifo": "LIFO",
   "dispatchEarliestDueDate": "Earliest need date",
   "dispatchShortestProcessing": "Shortest processing time",
-  "simulationStudiesIn": "{count, plural, =0{No studies selected} =1{1 study in this run} other{{count} studies in this run}}",
-  "@simulationStudiesIn": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "simulationNoStudies": "No study is selected for a run",
   "simulationNoStudiesHelp": "Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.",
   "simulationNotReady": "Not ready to run",
@@ -845,8 +836,7 @@
     }
   },
   "simRunDeleteBody": "The run and everything it recorded go. The studies it was made from are untouched.",
-  "simResultsView": "Results",
-  "simGanttView": "Gantt",
+  "simGanttView": "Production Gantt",
   "simGanttEmpty": "This run recorded no steps, so there is nothing to draw.",
   "simGanttGapHelp": "One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line's order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.",
   "simGanttOrder": "Order {number}",
@@ -1111,7 +1101,7 @@
   "projectFloatGreen": "Green at or above (days)",
   "projectFloatRedHelp": "An order with this much slack or less is drawn red. Zero means an order delivered exactly on its need date has none left.",
   "projectFloatGreenHelp": "An order with at least this much slack is drawn green.",
-  "floatMatrixTitle": "Float by month",
+  "floatMatrixTitle": "Delivery Float",
   "floatMatrixHelp": "Columns are the month of the order's need date, rows its rank in that month by need date. Cells are slack in days — positive is early.",
   "floatMatrixUndelivered": "Never delivered",
   "floatMatrixTally": "{red} red · {amber} amber · {green} green · {undelivered} never delivered",
@@ -1158,5 +1148,19 @@
         "type": "String"
       }
     }
+  },
+  "workspaceModeStudy": "Study",
+  "simTabOverview": "Simulation Overview",
+  "simTabPlan": "Production Plan",
+  "simPlanByStudy": "By study",
+  "simPlanCombined": "Combined",
+  "simPlanStudy": "Study",
+  "simPlanCell": "Cell",
+  "simPlanLine": "Line",
+  "simRunCovers": "Studies in this run",
+  "simRunCoversFiltered": "filtered out",
+  "simulationStudiesNotReady": "{count, plural, =1{1 study is not ready to run} other{{count} studies are not ready to run}}",
+  "@simulationStudiesNotReady": {
+    "placeholders": { "count": { "type": "int" } }
   }
 }

@@ -39,7 +39,7 @@ first. Nothing here restates a decision — it points at the one place each live
 |---|---|---|---|
 | 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **done** |
-| 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) |
+| 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, drive owed** |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
@@ -187,7 +187,18 @@ Settled by four driven rounds of a prototype on the real database, which also re
 Read"* and a flat nine-tab strip. The prototype is deleted, so **#7's write-up is what this phase
 lifts from.**
 
-**Evidence owed:** `docs/DRIVE-nav.md` — ten routes reached by URL, the mode switch, the readiness
+**Built** — `flutter analyze` clean, **1,007 tests** (up from 998), three locales, `DESIGN.md` §12.1
+rewritten around the ten locations. `workspace_tabs.dart` holds the two enums; `workspace_tabs_test`
+holds the round-trip, the fallback and the period-control predicate, which are the parts of "every
+tab is a location" that can be asserted without drawing anything.
+
+Two things went further than the ticket asked, both small: the app bar reads **Simulate then the
+gear** (it was the other way round, putting the control nobody presses between the reader and the
+one they press every time), and the plan tab's help text is **capped at two lines** — unbounded it
+wrapped far enough on a 768 pt pane to push the table out of its column, which a test caught as
+`RenderFlex overflowed by 5.0 pixels`.
+
+**Still owed: `docs/DRIVE-nav.md`** — ten routes reached by URL, the mode switch, the readiness
 strip. **Plus the first light-mode pass since the tokens drive**: light is still visually
 unverified, and this is the phase where the most screens change at once.
 

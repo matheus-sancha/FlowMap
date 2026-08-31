@@ -2514,12 +2514,6 @@ abstract class AppLocalizations {
   /// **'Running…'**
   String get simulationRunning;
 
-  /// No description provided for @simulationRunSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Run settings'**
-  String get simulationRunSettings;
-
   /// No description provided for @dispatchFifo.
   ///
   /// In en, this message translates to:
@@ -2543,12 +2537,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shortest processing time'**
   String get dispatchShortestProcessing;
-
-  /// No description provided for @simulationStudiesIn.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{No studies selected} =1{1 study in this run} other{{count} studies in this run}}'**
-  String simulationStudiesIn(int count);
 
   /// No description provided for @simulationNoStudies.
   ///
@@ -2898,16 +2886,10 @@ abstract class AppLocalizations {
   /// **'The run and everything it recorded go. The studies it was made from are untouched.'**
   String get simRunDeleteBody;
 
-  /// No description provided for @simResultsView.
-  ///
-  /// In en, this message translates to:
-  /// **'Results'**
-  String get simResultsView;
-
   /// No description provided for @simGanttView.
   ///
   /// In en, this message translates to:
-  /// **'Gantt'**
+  /// **'Production Gantt'**
   String get simGanttView;
 
   /// No description provided for @simGanttEmpty.
@@ -3498,7 +3480,7 @@ abstract class AppLocalizations {
   /// No description provided for @floatMatrixTitle.
   ///
   /// In en, this message translates to:
-  /// **'Float by month'**
+  /// **'Delivery Float'**
   String get floatMatrixTitle;
 
   /// No description provided for @floatMatrixHelp.
@@ -3547,6 +3529,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{days} d or more'**
   String floatLegendGreen(String days);
+
+  /// No description provided for @workspaceModeStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Study'**
+  String get workspaceModeStudy;
+
+  /// No description provided for @simTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation Overview'**
+  String get simTabOverview;
+
+  /// No description provided for @simTabPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Production Plan'**
+  String get simTabPlan;
+
+  /// No description provided for @simPlanByStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'By study'**
+  String get simPlanByStudy;
+
+  /// No description provided for @simPlanCombined.
+  ///
+  /// In en, this message translates to:
+  /// **'Combined'**
+  String get simPlanCombined;
+
+  /// No description provided for @simPlanStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Study'**
+  String get simPlanStudy;
+
+  /// No description provided for @simPlanCell.
+  ///
+  /// In en, this message translates to:
+  /// **'Cell'**
+  String get simPlanCell;
+
+  /// No description provided for @simPlanLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get simPlanLine;
+
+  /// No description provided for @simRunCovers.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies in this run'**
+  String get simRunCovers;
+
+  /// No description provided for @simRunCoversFiltered.
+  ///
+  /// In en, this message translates to:
+  /// **'filtered out'**
+  String get simRunCoversFiltered;
+
+  /// No description provided for @simulationStudiesNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 study is not ready to run} other{{count} studies are not ready to run}}'**
+  String simulationStudiesNotReady(int count);
 }
 
 class _AppLocalizationsDelegate

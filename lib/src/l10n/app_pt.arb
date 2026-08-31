@@ -580,19 +580,10 @@
   "simStationsWholeRun": "Utilização e Bloqueado descrevem a corrida inteira — a corrida não guarda o que seria preciso para limitar o tempo aberto. As demais colunas seguem o filtro.",
   "simulationRun": "Simular",
   "simulationRunning": "Executando…",
-  "simulationRunSettings": "Configurações da execução",
   "dispatchFifo": "FIFO — por chegada",
   "dispatchLifo": "LIFO",
   "dispatchEarliestDueDate": "Data de necessidade mais próxima",
   "dispatchShortestProcessing": "Menor tempo de processo",
-  "simulationStudiesIn": "{count, plural, =0{Nenhum estudo selecionado} =1{1 estudo nesta execução} other{{count} estudos nesta execução}}",
-  "@simulationStudiesIn": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "simulationNoStudies": "Nenhum estudo está selecionado para simular",
   "simulationNoStudiesHelp": "Marque um estudo na barra lateral. Vários estudos de uma mesma linha são cenários de uma só realidade, então uma execução leva no máximo um de cada.",
   "simulationNotReady": "Não está pronto para simular",
@@ -708,8 +699,7 @@
     }
   },
   "simRunDeleteBody": "A execução e tudo o que ela registrou são apagados. Os estudos com que foi feita ficam intactos.",
-  "simResultsView": "Resultados",
-  "simGanttView": "Gantt",
+  "simGanttView": "Gantt de produção",
   "simGanttEmpty": "Esta execução não registrou nenhum passo, então não há o que desenhar.",
   "simGanttGapHelp": "Uma linha por estação, uma barra por ordem, todos os estudos juntos: uma estação é compartilhada, então separar o gráfico por estudo a desenharia parada enquanto processava a ordem de outra linha. Uma barra é a estação comprometida com aquela ordem, incluindo as horas fechadas. Um vão é uma estação que não está processando: fechada ou sem material. Quanto desse vão estava sequer aberto é respondido na tabela de filas.",
   "simGanttOrder": "Ordem {number}",
@@ -941,7 +931,7 @@
   "projectFloatGreen": "Verde em ou acima de (dias)",
   "projectFloatRedHelp": "Uma encomenda com esta folga ou menos é desenhada a vermelho. Zero significa que uma encomenda entregue na própria data não tem nenhuma.",
   "projectFloatGreenHelp": "Uma encomenda com pelo menos esta folga é desenhada a verde.",
-  "floatMatrixTitle": "Folga por mês",
+  "floatMatrixTitle": "Folga de entrega",
   "floatMatrixHelp": "As colunas são o mês da data de necessidade da encomenda; as linhas, a sua ordem nesse mês por data. As células são folga em dias — positivo é adiantado.",
   "floatMatrixUndelivered": "Nunca entregue",
   "floatMatrixTally": "{red} vermelhas · {amber} âmbar · {green} verdes · {undelivered} nunca entregues",
@@ -972,5 +962,16 @@
         "type": "String"
       }
     }
-  }
+  },
+  "workspaceModeStudy": "Estudo",
+  "simTabOverview": "Resumo da simulação",
+  "simTabPlan": "Plano de produção",
+  "simPlanByStudy": "Por estudo",
+  "simPlanCombined": "Combinado",
+  "simPlanStudy": "Estudo",
+  "simPlanCell": "Célula",
+  "simPlanLine": "Linha",
+  "simRunCovers": "Estudos nesta simulação",
+  "simRunCoversFiltered": "excluído pelo filtro",
+  "simulationStudiesNotReady": "{count, plural, =1{1 estudo não está pronto para simular} other{{count} estudos não estão prontos para simular}}"
 }

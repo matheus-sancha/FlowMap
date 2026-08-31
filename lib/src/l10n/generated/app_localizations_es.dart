@@ -1381,9 +1381,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simulationRunning => 'Ejecutando…';
 
   @override
-  String get simulationRunSettings => 'Ajustes de la ejecución';
-
-  @override
   String get dispatchFifo => 'FIFO — por llegada';
 
   @override
@@ -1394,18 +1391,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dispatchShortestProcessing => 'Menor tiempo de proceso';
-
-  @override
-  String simulationStudiesIn(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count estudios en esta ejecución',
-      one: '1 estudio en esta ejecución',
-      zero: 'Ningún estudio seleccionado',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get simulationNoStudies =>
@@ -1612,10 +1597,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan.';
 
   @override
-  String get simResultsView => 'Resultados';
-
-  @override
-  String get simGanttView => 'Gantt';
+  String get simGanttView => 'Gantt de producción';
 
   @override
   String get simGanttEmpty =>
@@ -1990,7 +1972,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Un pedido con al menos esta holgura se dibuja en verde.';
 
   @override
-  String get floatMatrixTitle => 'Holgura por mes';
+  String get floatMatrixTitle => 'Holgura de entrega';
 
   @override
   String get floatMatrixHelp =>
@@ -2026,5 +2008,46 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String floatLegendGreen(String days) {
     return '$days d o más';
+  }
+
+  @override
+  String get workspaceModeStudy => 'Estudio';
+
+  @override
+  String get simTabOverview => 'Resumen de simulación';
+
+  @override
+  String get simTabPlan => 'Plan de producción';
+
+  @override
+  String get simPlanByStudy => 'Por estudio';
+
+  @override
+  String get simPlanCombined => 'Combinado';
+
+  @override
+  String get simPlanStudy => 'Estudio';
+
+  @override
+  String get simPlanCell => 'Célula';
+
+  @override
+  String get simPlanLine => 'Línea';
+
+  @override
+  String get simRunCovers => 'Estudios en esta simulación';
+
+  @override
+  String get simRunCoversFiltered => 'excluido por el filtro';
+
+  @override
+  String simulationStudiesNotReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count estudios no están listos para simular',
+      one: '1 estudio no está listo para simular',
+    );
+    return '$_temp0';
   }
 }

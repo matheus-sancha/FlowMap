@@ -9,6 +9,8 @@ import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.
 import 'package:flowmap/src/features/projects/presentation/project_workspace_screen.dart';
 import 'package:flowmap/src/features/resources/application/resources_providers.dart';
 import 'package:flowmap/src/features/simulation/presentation/gantt_view.dart';
+import 'package:flowmap/src/features/projects/presentation/workspace_tabs.dart';
+import 'package:flowmap/src/features/simulation/presentation/occupation_view.dart';
 import 'package:flowmap/src/features/simulation/presentation/simulation_workspace.dart';
 import 'package:flowmap/src/features/studies/application/studies_providers.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
@@ -36,9 +38,9 @@ void main() {
     shiftPatternId: 'pattern-1',
     createdAt: now,
     updatedAt: now,
-      floatRedDays: 0,
-      floatGreenDays: 30,
-    );
+    floatRedDays: 0,
+    floatGreenDays: 30,
+  );
 
   SimRunInput input({
     required List<StudyReadiness> readiness,
@@ -228,10 +230,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// [tab] is which of the five results tabs to mount (#7).
+  ///
+  /// **It is a parameter because the view is a location.** These tests used to
+  /// tap a `SegmentedButton` to move between the run's views; there is no
+  /// button to tap — moving between tabs is `context.go`, and what a tab shows
+  /// is decided before the widget is built. So a test that wants the plan
+  /// mounts the plan, which is also what the router does.
   Future<void> pump(
     WidgetTester tester, {
     required SimRunInput assembled,
     StoredRun? run,
+    SimulationTab tab = SimulationTab.overview,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -258,7 +268,9 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: SimulationWorkspace(project: project)),
+          home: Scaffold(
+            body: SimulationWorkspace(project: project, tab: tab),
+          ),
         ),
       ),
     );
@@ -282,17 +294,16 @@ void main() {
   testWidgets('an unready study names itself and says what is wrong', (
     tester,
   ) async {
-    // **Mounted directly**, because this panel is now under the Simulate button
-    // on the project's app bar (§12.1) rather than on a tab — and the whole
-    // screen needs a database to reach. What is asserted is unchanged: a study
-    // that cannot run is named, and the reason is a sentence rather than a
-    // state.
+    // **Mounted directly**, because this is a strip under the app bar (#7)
+    // rather than a tab — and the whole screen needs a database to reach. What
+    // is asserted is unchanged across three homes now: a study that cannot run
+    // is named, and the reason is a sentence rather than a state.
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: Readiness(
+          body: ReadinessStrip(
             input: input(
               ready: false,
               readiness: const [
@@ -309,10 +320,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Not ready to run'), findsOne);
-    expect(find.text('Current state'), findsOne);
+    // **The count, then the study and its first problem on one line.** The
+    // panel this replaced bulleted every problem under a heading; a strip is
+    // chrome, so it says the first one and the study's own tab is where a
+    // reader fixes it.
+    expect(find.text('1 study is not ready to run'), findsOne);
     expect(
-      find.text('• A step targets no workcenter, or its pool is empty.'),
+      find.text(
+        'Current state: A step targets no workcenter, or its pool is empty.',
+      ),
       findsOne,
     );
   });
@@ -326,7 +342,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: Readiness(
+          body: ReadinessStrip(
             input: input(
               ready: false,
               readiness: const [
@@ -348,7 +364,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Broken one'), findsOne);
+    expect(
+      find.textContaining('Broken one'),
+      findsOne,
+      reason: 'the strip names the study that cannot run',
+    );
     expect(find.text('Fine one'), findsNothing);
   });
 
@@ -534,8 +554,15 @@ void main() {
     // Two rows, both `PN2`, and the only thing separating them is the column.
     expect(find.text('PN2'), findsExactly(2));
     // The names the studies had when the run was made (§7.10).
-    expect(find.text('Célula 11B'), findsOne);
-    expect(find.text('Célula 12A'), findsOne);
+    //
+    // **Two of each now, not one** (#7): the overview gained a chip per study
+    // saying which the run covers, so each name appears once on that row and
+    // once in the table's Study column. Asserted as a count rather than
+    // narrowed to the table, because the chip carrying the same name is the
+    // point of the row — a study in the run and a study in the table must be
+    // the same study.
+    expect(find.text('Célula 11B'), findsExactly(2));
+    expect(find.text('Célula 12A'), findsExactly(2));
   });
 
   testWidgets('the production plan lists every order the run placed', (
@@ -553,9 +580,13 @@ void main() {
         ],
       ),
       run: storedRun(),
+      tab: SimulationTab.plan,
     );
 
-    expect(find.text('Production plan — orders over time'), findsOne);
+    // **The heading is the tab now** (#7): the plan was a titled section in a
+    // scrolling page and is a tab of its own, so what identifies it is the
+    // strip above rather than a line of text over the table.
+    expect(find.text('Production Plan'), findsOne);
 
     // The Order column is the sequence position, 1-based — the same number the
     // demand grid's row header shows, not a works order number (§9.1).
@@ -621,18 +652,31 @@ void main() {
             ),
         ],
       ),
+      tab: SimulationTab.plan,
     );
 
     // Still a plan — the six columns the run did record are all there.
-    expect(find.text('Production plan — orders over time'), findsOne);
+    // **The heading is the tab now** (#7): the plan was a titled section in a
+    // scrolling page and is a tab of its own, so what identifies it is the
+    // strip above rather than a line of text over the table.
+    expect(find.text('Production Plan'), findsOne);
     expect(find.text('—'), findsWidgets);
     expect(find.text('Wing 7'), findsNothing);
   });
 
-  testWidgets('the run switches between three views of itself (§8.6, §10.3)', (
+  testWidgets('each of the five tabs is mounted by its own location (#7)', (
     tester,
   ) async {
-    await pump(
+    // **The view is no longer a button this test can press.** It was a
+    // `SegmentedButton` over three `IndexedStack` children and `setState`; it
+    // is five tabs over five URLs, so moving between them is `context.go` and
+    // what shows is decided before the widget builds. Tapping a tab here would
+    // be testing `go_router`.
+    //
+    // So this mounts each location and asserts two things: the body that
+    // location names, and that the header and headline — which describe *the
+    // run* rather than a view of it — survive every one of them.
+    Future<void> mount(SimulationTab tab) => pump(
       tester,
       assembled: input(
         readiness: const [
@@ -644,20 +688,25 @@ void main() {
         ],
       ),
       run: storedRun(),
+      tab: tab,
     );
 
-    // The header, the headline and the abort banner describe *the run*, so the
-    // control switches only what is beneath them.
-    expect(find.text('Results'), findsOne);
-    expect(find.text('Gantt'), findsOne);
-    expect(find.text('Production plan — orders over time'), findsOne);
-
-    await tester.tap(find.text('Gantt'));
-    await tester.pumpAndSettle();
-
-    // The headline stays put across the switch; the tables do not.
+    await mount(SimulationTab.overview);
     expect(find.text('On-time delivery: 75%'), findsOne);
-    expect(find.text('Production plan — orders over time'), findsNothing);
+    expect(find.text('Ranked by queue time'), findsOne);
+    // The five labels are the strip, and they are there whichever tab is up.
+    for (final label in const [
+      'Simulation Overview',
+      'Production Plan',
+      'Production Gantt',
+      'Occupation',
+      'Delivery Float',
+    ]) {
+      expect(find.text(label), findsOne, reason: 'the strip names every tab');
+    }
+
+    await mount(SimulationTab.gantt);
+    expect(find.text('On-time delivery: 75%'), findsOne);
     // This fixture stores no steps, which is exactly what a Gantt has nothing
     // to draw from.
     expect(
@@ -665,22 +714,14 @@ void main() {
       findsOne,
     );
 
-    await tester.tap(find.text('Results'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Production plan — orders over time'), findsOne);
-
-    // And the third, added by §10.3. This fixture's run carries no monthly
-    // capacity — which is every run made before v25 — so the view says why
-    // rather than drawing an empty chart.
-    await tester.tap(find.text('Occupation'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Production plan — orders over time'), findsNothing);
+    await mount(SimulationTab.occupation);
+    expect(find.text('On-time delivery: 75%'), findsOne);
+    // This fixture's run carries no monthly capacity — which is every run made
+    // before v25 — so the view says why rather than drawing an empty chart.
     expect(
-      find.textContaining('cannot be graphed'),
+      find.byType(OccupationView),
       findsOne,
-      reason: 'a pre-v25 run says why it has no chart',
+      reason: 'the occupation location mounts the occupation view',
     );
   });
 
@@ -742,6 +783,8 @@ void main() {
           home: Scaffold(
             body: SimulationWorkspace(
               project: project,
+              // The plan is where the part numbers are (#7).
+              tab: SimulationTab.plan,
               // Arriving from a study drives the same filter the picker sets,
               // and states the expectation without a menu interaction.
               initialStudyId: 'study-1',
@@ -800,6 +843,7 @@ void main() {
           home: Scaffold(
             body: SimulationWorkspace(
               project: project,
+              tab: SimulationTab.plan,
               initialStudyId: 'study-1',
             ),
           ),
@@ -882,7 +926,14 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: SimulationWorkspace(project: project)),
+          home: Scaffold(
+            body: SimulationWorkspace(
+              project: project,
+              tab: SimulationTab.plan,
+
+              // The part numbers this asserts on are the plan's (#7).
+            ),
+          ),
         ),
       ),
     );
@@ -997,7 +1048,10 @@ void main() {
       );
     }
 
-    Future<void> pumpBooked(WidgetTester tester) => pump(
+    Future<void> pumpBooked(
+      WidgetTester tester, {
+      SimulationTab tab = SimulationTab.plan,
+    }) => pump(
       tester,
       assembled: input(
         readiness: const [
@@ -1005,6 +1059,11 @@ void main() {
         ],
       ),
       run: bookedPlanRun(),
+      // **The plan by default**, because the part numbers these tests filter on
+      // are the plan's rows (#7). The filter bar governs all five tabs, so
+      // which one is mounted does not change what the filter does — only which
+      // of its effects a finder can see.
+      tab: tab,
     );
 
     testWidgets('checking a project narrows the page', (tester) async {
@@ -1081,33 +1140,33 @@ void main() {
       expect(find.text('DROPPED-2'), findsNothing);
     });
 
-    testWidgets('filtering while reading the Gantt stays on the Gantt', (
+    testWidgets('filtering while reading the Gantt leaves the reader on it', (
       tester,
     ) async {
       // **The field: "when I'm in the gantt view and filter something it goes
       // back to the results".** `RunResults` was keyed on the slice signature,
-      // so every filter change threw its state away — including which of the two
-      // views the reader had chosen. The zoom that key existed to reset is reset
-      // by `GanttView.didUpdateWidget` anyway, which compares the same
-      // signature.
-      await pumpBooked(tester);
+      // so every filter change threw its state away — including which of the
+      // three views the reader had chosen.
+      //
+      // **That fault is now structurally impossible** (#7): the view is the
+      // location, and filtering does not navigate. This test says so — it
+      // mounts the Gantt's own URL and checks the filter leaves it there —
+      // rather than tapping a segmented button that no longer exists.
+      await pumpBooked(tester, tab: SimulationTab.gantt);
 
-      // `IndexedStack.index` is the view: 0 results, 1 Gantt. Both children are
-      // built either way, so nothing found by type could tell them apart.
-      int? shownView() =>
+      // `IndexedStack.index` is the tab: 0 overview, 1 plan, 2 Gantt. All five
+      // children are built either way, so nothing found by type could tell
+      // them apart.
+      int? shownTab() =>
           tester.widget<IndexedStack>(find.byType(IndexedStack).first).index;
 
-      expect(shownView(), 0);
-
-      await tester.tap(find.text('Gantt'));
-      await tester.pumpAndSettle();
-      expect(shownView(), 1);
+      expect(shownTab(), SimulationTab.gantt.index);
 
       await openPicker(tester, 'Projects');
       await tester.tap(find.widgetWithText(CheckboxMenuButton, 'MANIFOLD'));
       await tester.pumpAndSettle();
 
-      expect(shownView(), 1);
+      expect(shownTab(), SimulationTab.gantt.index);
     });
 
     testWidgets('a project filter alone rebuilds the Gantt', (tester) async {
@@ -1132,10 +1191,8 @@ void main() {
           ],
         ),
         run: bookedSteppedRun(),
+        tab: SimulationTab.gantt,
       );
-
-      await tester.tap(find.text('Gantt'));
-      await tester.pumpAndSettle();
 
       Set<String> partsDrawn() =>
           (tester.widget<CustomPaint>(find.byKey(ganttCanvasKey)).painter!
@@ -1187,7 +1244,6 @@ class _StubRunner extends SimulationRunner {
   @override
   Future<StoredRun?> build(String projectId) async => _run;
 }
-
 
 /// The plan's order rows, for tests that are about orders (§8.5).
 ///

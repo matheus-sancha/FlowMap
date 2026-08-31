@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../common/help_icon.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../projects/presentation/workspace_tabs.dart';
 import '../application/run_filter.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart' show StoredRun;
@@ -25,10 +26,18 @@ class SimulationWorkspace extends ConsumerStatefulWidget {
   const SimulationWorkspace({
     super.key,
     required this.project,
+    required this.tab,
     this.initialStudyId,
   });
 
   final Project project;
+
+  /// Which of the five results tabs the location names (#7).
+  ///
+  /// **Passed in rather than held.** The tab is a fact about the URL, so a
+  /// chart is linkable and the window reopens on the one that was being read —
+  /// which is the gap §12.1 claimed was closed and was not.
+  final SimulationTab tab;
 
   /// The study to narrow to on arrival, from the route's `?study=`.
   ///
@@ -154,6 +163,7 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
               slice: filterRun(run, _filter),
               projectName: widget.project.name,
               project: widget.project,
+              tab: widget.tab,
             ),
           },
         ),

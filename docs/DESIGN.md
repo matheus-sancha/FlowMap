@@ -2244,6 +2244,58 @@ Opening a project gives a workspace with a studies sidebar and, per study, tabs
 **Flow / Study Settings / Flow Takt / Workcenters / Demand / Summary / Simulation**. Resources uses a hierarchical tree (Plant → Cells → Lines → Workcenters, plus
 Pools and Shift Patterns). All routes deep-linkable via go_router.
 
+**That last sentence was not true until v2.0's phase 3, and this is the record of it** (#7). The
+study's tabs were a `TabController` and the run's views a `setState` segmented button, so **six
+screens had no URL at all** while this section claimed every route was deep-linkable and
+`STRUCTURE.md` said *"no screen reachable only by tapping through"*. Ten locations replace those two
+in-memory indices:
+
+```
+/projects/:p/studies/:s/{flow,settings,capacity,demand,summary}
+/projects/:p/simulation/{overview,plan,gantt,occupation,float}
+```
+
+**A slug, never an index.** An index in a URL breaks the moment a tab is inserted, and a stored
+window position outlives any such edit — the app reopens where it was left. An unknown slug falls
+back to the first tab rather than throwing, for the same reason: reopening where you were is worth
+more than being strict about how you got there. `workspace_tabs.dart` holds both enums and
+`workspace_tabs_test.dart` holds the round-trip.
+
+**A bare `/studies/:s` and a bare `/simulation` redirect to their first tab** rather than rendering
+a sixth thing — and the simulation redirect carries `?study=` across, or arriving from a study would
+drop the filter on the way in. Every link written before phase 3 still works, which is why the
+sidebar's study link is left pointing at the bare location: it lands on Flow, which is the reset
+`_StudyTabs.didUpdateWidget` used to arrange by hand.
+
+**Two modes of one project, not two places.** A `Study | Simulation` switch sits above whichever
+strip is showing, so the study strip and the results strip can never both claim to be *"the tabs"* —
+the fault a flat nine-tab strip had when it was driven and rejected. Flow stays a study tab: the map
+is what you edit, the Gantt is what you read. *Rejected: "Define vs Read", moving Flow beside the
+run's views.*
+
+**The results are five tabs**: Simulation Overview, Production Plan, Production Gantt, Occupation,
+Delivery Float. The destination is *Simulation results* and its first tab is *Simulation Overview*,
+deliberately not the same words, so the way in and the first thing inside never read as one thing.
+The run header, the abort banner and the headline stay above the strip, because they describe *the
+run* rather than a view of it.
+
+**Readiness is a strip under the app bar**, whenever any study cannot run, naming each study and its
+first problem. It replaces `_RunSettingsButton` — a badge over a panel, two clicks from the disabled
+button it explained. *Rejected: putting it in Simulation mode above the run*, which reads well and
+puts the reason a button is disabled one click from the button, the exact fault this section
+recorded when the panel sat on a tab the reader was not looking at. The button's tooltip still names
+the first thing in the way: a tooltip is a sentence, the strip is the list.
+
+**The period control is hidden rather than greyed** on the three tabs it does not govern. *This
+reverses this section's own "dimmed rather than hidden, so the strip does not jump"* — the strip no
+longer carries the results link, so there is nothing left to jump, and a permanently dead control is
+worse than an absent one.
+
+**What still does not ride in the URL: the results filters, bar `?study=`.** This section argued the
+other six should stay view state and phase 3 left that argument standing — a date range in a URL is
+a bigger thing than the one filter you navigate *from*. The plan's `By study | Combined` choice is
+the same kind of thing: a way of reading one tab, not a place.
+
 **Study Settings gathers what is not on the map.** Its name, the line it sits on, whether it takes
 part in a run, its pacemaker, its start buffer, its WIP cap and its priority. Three of those were on
 the study's sidebar menu, two were a `Run settings` dialog, and **two were reachable from nothing at

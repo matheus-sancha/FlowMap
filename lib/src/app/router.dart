@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../common/placeholder_screen.dart';
 import '../features/diagnostics/application/diagnostics.dart';
 import '../features/projects/presentation/project_workspace_screen.dart';
+import '../features/projects/presentation/workspace_tabs.dart';
 import '../features/projects/presentation/projects_screen.dart';
 import '../features/resources/presentation/resources_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
@@ -36,15 +37,34 @@ GoRouter router(Ref ref) {
                       projectId: state.pathParameters['projectId']!,
                     ),
                     routes: [
-                      // The open study is part of the location, so the window
-                      // reopens where the user left off and a study is
-                      // linkable.
+                      // The open study **and the open tab** are part of the
+                      // location, so the window reopens where the user left off
+                      // and one tab is linkable (#7). Five tabs that had no URL
+                      // now have one each.
                       GoRoute(
                         path: 'studies/:studyId',
-                        builder: (context, state) => ProjectWorkspaceScreen(
-                          projectId: state.pathParameters['projectId']!,
-                          studyId: state.pathParameters['studyId'],
-                        ),
+                        // **Redirected, not built.** A bare study is not a
+                        // screen — it is whichever tab the reader was on — so
+                        // it resolves to the first rather than rendering a
+                        // sixth thing. The `RunBanner`, the sidebar and every
+                        // stored location from before #7 point here, and all of
+                        // them keep working.
+                        redirect: (context, state) =>
+                            '/projects/${state.pathParameters['projectId']}'
+                            '/studies/${state.pathParameters['studyId']}'
+                            '/${StudyTab.flow.slug}',
+                        routes: [
+                          GoRoute(
+                            path: ':tab',
+                            builder: (context, state) => ProjectWorkspaceScreen(
+                              projectId: state.pathParameters['projectId']!,
+                              studyId: state.pathParameters['studyId'],
+                              studyTab: StudyTab.fromSlug(
+                                state.pathParameters['tab'],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       // Everything about the project that is not one of its
                       // studies — its fields, and the calendar that was never
@@ -80,14 +100,39 @@ GoRouter router(Ref ref) {
                       // the location — the other three filters stay view state,
                       // which is a smaller thing than moving a date range into
                       // a URL and is the one filter you navigate *from*.
+                      //
+                      // **And each of its five views is a location too** (#7).
+                      // The run was one `setState` segmented button over three
+                      // views; it is five tabs over five URLs, so a chart can
+                      // be linked to and the window reopens on the one that was
+                      // being read.
                       GoRoute(
                         path: 'simulation',
-                        builder: (context, state) => ProjectWorkspaceScreen(
-                          projectId: state.pathParameters['projectId']!,
-                          showSimulation: true,
-                          simulationStudyId:
-                              state.uri.queryParameters['study'],
-                        ),
+                        // The bare destination resolves to its first tab, the
+                        // same shape a bare study takes — and **`?study=` is
+                        // carried across**, or arriving from a study would drop
+                        // the filter on the way in.
+                        redirect: (context, state) {
+                          final study = state.uri.queryParameters['study'];
+                          return '/projects/'
+                              '${state.pathParameters['projectId']}'
+                              '/simulation/${SimulationTab.overview.slug}'
+                              '${study == null ? '' : '?study=$study'}';
+                        },
+                        routes: [
+                          GoRoute(
+                            path: ':tab',
+                            builder: (context, state) => ProjectWorkspaceScreen(
+                              projectId: state.pathParameters['projectId']!,
+                              showSimulation: true,
+                              simulationTab: SimulationTab.fromSlug(
+                                state.pathParameters['tab'],
+                              ),
+                              simulationStudyId:
+                                  state.uri.queryParameters['study'],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

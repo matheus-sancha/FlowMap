@@ -580,19 +580,10 @@
   "simStationsWholeRun": "Utilización y Bloqueado describen la corrida completa — la corrida no guarda lo que haría falta para acotar el tiempo abierto. Las demás columnas siguen el filtro.",
   "simulationRun": "Simular",
   "simulationRunning": "Ejecutando…",
-  "simulationRunSettings": "Ajustes de la ejecución",
   "dispatchFifo": "FIFO — por llegada",
   "dispatchLifo": "LIFO",
   "dispatchEarliestDueDate": "Fecha de necesidad más próxima",
   "dispatchShortestProcessing": "Menor tiempo de proceso",
-  "simulationStudiesIn": "{count, plural, =0{Ningún estudio seleccionado} =1{1 estudio en esta ejecución} other{{count} estudios en esta ejecución}}",
-  "@simulationStudiesIn": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "simulationNoStudies": "Ningún estudio está seleccionado para simular",
   "simulationNoStudiesHelp": "Marca un estudio en la barra lateral. Varios estudios de una misma línea son escenarios de una sola realidad, así que una ejecución toma como máximo uno de cada.",
   "simulationNotReady": "No está listo para simular",
@@ -708,8 +699,7 @@
     }
   },
   "simRunDeleteBody": "Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan.",
-  "simResultsView": "Resultados",
-  "simGanttView": "Gantt",
+  "simGanttView": "Gantt de producción",
   "simGanttEmpty": "Esta ejecución no registró ningún paso, así que no hay nada que dibujar.",
   "simGanttGapHelp": "Una fila por estación, una barra por orden, todos los estudios juntos: una estación se comparte, así que separar el gráfico por estudio la dibujaría parada mientras estaba procesando una orden de otra línea. Una barra es la estación comprometida con esa orden, incluidas las horas cerradas. Un hueco es una estación que no está procesando: cerrada o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.",
   "simGanttOrder": "Orden {number}",
@@ -941,7 +931,7 @@
   "projectFloatGreen": "Verde en o por encima de (días)",
   "projectFloatRedHelp": "Un pedido con esta holgura o menos se dibuja en rojo. Cero significa que un pedido entregado justo en su fecha no tiene ninguna.",
   "projectFloatGreenHelp": "Un pedido con al menos esta holgura se dibuja en verde.",
-  "floatMatrixTitle": "Holgura por mes",
+  "floatMatrixTitle": "Holgura de entrega",
   "floatMatrixHelp": "Las columnas son el mes de la fecha de necesidad del pedido; las filas, su orden dentro de ese mes por fecha. Las celdas son holgura en días: positivo es adelantado.",
   "floatMatrixUndelivered": "Nunca entregado",
   "floatMatrixTally": "{red} rojos · {amber} ámbar · {green} verdes · {undelivered} nunca entregados",
@@ -972,5 +962,16 @@
         "type": "String"
       }
     }
-  }
+  },
+  "workspaceModeStudy": "Estudio",
+  "simTabOverview": "Resumen de simulación",
+  "simTabPlan": "Plan de producción",
+  "simPlanByStudy": "Por estudio",
+  "simPlanCombined": "Combinado",
+  "simPlanStudy": "Estudio",
+  "simPlanCell": "Célula",
+  "simPlanLine": "Línea",
+  "simRunCovers": "Estudios en esta simulación",
+  "simRunCoversFiltered": "excluido por el filtro",
+  "simulationStudiesNotReady": "{count, plural, =1{1 estudio no está listo para simular} other{{count} estudios no están listos para simular}}"
 }
