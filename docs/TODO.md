@@ -37,7 +37,7 @@ first. Nothing here restates a decision — it points at the one place each live
 
 | # | Phase | Schema | Ticket |
 |---|---|---|---|
-| 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **built, drive owed** |
+| 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) |
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
@@ -79,10 +79,29 @@ step rows untouched. Seven of the fifteen are untyped, exactly the seven #5 pred
 caption derives — including `FIFO · CLAD Pool - Célula 11B/C`, the pool whose own name contains a
 hyphen and is why the separator is a middot. `live_db_check_test.dart` carries the assertions.
 
-**Still owed: one drive of the flow map's process boxes**, which is where the caption is read and
-what the suite cannot see. Look for: the seven lanes that used to print `FIFO CEU27` over a push
-arrow now reading `Queue · CEU27`; the pool's caption ellipsising rather than wrapping; and the
-step dialog's single queue section, whose heading is the caption the box will draw.
+**The drive is done** — `docs/DRIVE-queue.md`, 2026-08-30 under `0.1.0-2026-08-30a`, session
+21:20:45, `db.open schema 27 from 27`. Reported correct for the group; recorded there as a group
+result and not itemised, which §5.3 is the standing warning about.
+
+**What the drive settled that nothing else could.** The Gantt read against a *stored* run shows the
+caption unchanged — `gantt_view.dart:355` draws `lane.name` when the run carries one, and all 147
+runs stored before this phase do. That is §7.10 working, and it means those runs' Gantts keep saying
+`FIFO BAN` and `FIFO CLAD` permanently while the map says `Queue · BAN11` and
+`FIFO · CLAD Pool - Célula 11B/C`. Left standing; nobody decided otherwise. A simulation was then
+run — `e0d93a45`, 21:26, **148 runs** — and stores **`name` NULL on all 15 lanes**, so the derive
+path is live. That is the first evidence for `19813d6`'s one deliberate deviation from #5, which
+asked for the caption to be written in and got null instead so it re-derives in the reader's
+language.
+
+**One finding, recorded and not actioned — phase 2 carries it.** That run stores `rule = fifo` on
+all 15 lanes, including the seven `project_queues` holds as null.
+`simulation_repository.dart:129` loads a queue as `rule: row.rule ?? DispatchRule.fifo`, erasing the
+null at the boundary into the sim model — correct for the engine, and harmless while `SimLane.rule`
+was write-only. **This phase made it load-bearing**, so those seven derive `FIFO · CEU27` on the
+Gantt while the map draws `Queue · CEU27`: §5.5's *null is not FIFO* holds on the map and is lost on
+the run. The fix is a nullable `SimQueue.rule` with the FIFO default applied where the engine sorts
+rather than where the project loads — **which is phase 2's own comparator**, so it goes there rather
+than reopening this phase.
 
 ---
 
@@ -97,6 +116,14 @@ anything even if they had**. One read site, `engine.dart:955`.
   cross-study ties in 189,623 step rows were settled by comparing two **UUIDs**. *"Why did this
   order go first?"* was unanswerable a third of the time.
 
+- **Inherited from phase 1's drive: `SimQueue.rule` becomes nullable**, and the FIFO default moves
+  to where the engine sorts rather than `simulation_repository.dart:129`, which currently loads
+  `rule: row.rule ?? DispatchRule.fifo` and erases the null before the run's copy-in can see it.
+  Run `e0d93a45` stores `fifo` on all 15 lanes while the project holds 8 and 7. Harmless while the
+  column was write-only; phase 1 made it the Gantt caption, so seven untyped lanes now derive
+  `FIFO · CEU27` there while the map draws `Queue · CEU27`. This phase is already rewriting the
+  comparator that applies the default, which is why it lands here.
+
 *The live database proves it never fired*: all 3 studies and all 324 stored study rows across 147
 runs sit at the default 100, so deleting it is a provable no-op on every run ever stored.
 
@@ -106,7 +133,9 @@ to say so — a run already carries `created_at` and the history picker already 
 break cross-study ties by UUID while runs after it break them by need date.
 
 **Evidence owed:** a live-database check — re-run Célula 11B/C/D on today's input and diff the step
-rows against run `94e09c38`. No drive: nothing visual changed.
+rows against run `94e09c38`. **Plus one query on the run it stores**: the seven untyped lanes must
+come back with `rule` null, which is the inherited fix proving itself. No drive: nothing visual
+changed except that caption, and a query says it.
 
 ---
 
