@@ -43,6 +43,8 @@ first. Nothing here restates a decision — it points at the one place each live
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive owed** |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built, drive owed** |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
+| 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13), [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **open, deciding** |
+| 7 | Text clean-up | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **open, deciding** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -346,6 +348,39 @@ The one thing a later phase inherits is a *rule*, not a task: **a hue changed in
 `part_palette.dart` is re-validated, never eyeballed.** Headroom over the floors is 0.7 and 1.6 ΔE,
 and `part_palette_test` now measures all pairs — which is what would have caught both of the
 palettes it has replaced.
+
+---
+
+#### Phases 6 and 7 — what the field sent back, 2026-08-31
+
+**The map was declared finished on 30 August and reopened on the 31st.** A sitting was prepared as
+`docs/DRIVE-2026-08-31.md` — 23 checks covering everything phases 3, 4 and 5 still owed — and came
+back with **four adjustments instead of 23 answers**, all inside one screen. Three tickets carry
+them, and they are still *deciding*, not built.
+
+- **Phase 6 — Occupation, round two.** The chart `#9` deleted and `795ac6e` restored is now **the
+  view that opens first**, which partly reverses #9's grid-first answer.
+  [#13](https://github.com/matheus-sancha/FlowMap/issues/13) owes it a **data label showing
+  occupation %** and a **Y axis in hours** — neither of which has ever existed; `_OccupationPainter`
+  draws bars, a stepped capacity line, month labels and an over-count badge and no scale at all — and
+  has to say what the four-segment stack is still for, which was fog on the map until this reopened
+  it. [#14](https://github.com/matheus-sancha/FlowMap/issues/14) turns the **PLANT row into a TOTAL
+  row at the bottom**, and because `PeriodMatrix.pinned` is shared with the float matrix, it has to
+  answer for both.
+- **Phase 7 — text clean-up.** *"Too much explanation and random text."* Asked where it was worst,
+  the answer was **the long inline help paragraphs** — not the field-level helpers, not the empty
+  states, not the captions. 589 keys, 81 named `*Help`, 97 over 70 characters, ~20 rendered inline;
+  the longest is 352 characters on the Gantt. [#15](https://github.com/matheus-sancha/FlowMap/issues/15)
+  wants a **rule in `DESIGN.md`**, not twenty one-off deletions.
+
+**The 23 checks are still owed.** `docs/DRIVE-2026-08-31.md` stays until they are answered — the four
+unopened study tabs and the period control, `?study=` across a tab change, the 130-row drag and the
+sort rule, and **light mode, which has now escaped three sittings running**.
+
+> **The standing lesson, since this is the second time it has cost something.** A phase built is not
+> a phase seen. Five phases were built in two days; three had never been looked at by the person who
+> asked for them, and the first look produced four findings in a single screen. Build less before
+> showing more.
 
 ---
 
