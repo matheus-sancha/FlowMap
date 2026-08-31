@@ -2163,6 +2163,13 @@ orders and 15 queues** all intact. Backed up first as `flowmap.sqlite.backup-v27
 *The drop is a provable no-op on every run ever stored*: all 3 studies and all 327 stored study rows
 sat at the default 100, so nothing that was ever run had priority doing anything.
 
+**And the live file itself the same evening**: `db.open schema 28 from 27` at **21:47:48 under
+`0.1.0-2026-08-30b`**, the build label and the line both in `log.txt`. `integrity_check` ok
+afterwards, and 3 studies / 327 stored study rows / 148 runs / 191,494 run steps / 250 orders / 15
+queues all still there. **`v28.dropped` appears zero times in the log**, which is the evidence the
+step was designed to produce: it logs only a priority someone actually set, so an empty result is the
+migration confirming on the real file what the copy predicted.
+
 One assertion was written for this check and **removed after it failed correctly**: *lanes with a
 null rule belong only to runs newer than the fix*. 37 of the 148 runs here already carry null lane
 rules, from before the column was written at all — null means both *unset* and *never recorded*
