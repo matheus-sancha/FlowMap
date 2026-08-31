@@ -9,20 +9,35 @@
 ///
 /// **The field then said the chart was wanted adjusted, not deleted**, which
 /// settles it: that is what a drive is for, and it outranks the ticket. So both
-/// are here behind a `Chart | Grid` switch, and the argument above is why the
-/// grid is the default rather than why the chart is gone.
+/// are here behind a `Chart | Grid` switch.
+///
+/// **The chart is the default, and #13 is why the argument above does not stop
+/// it.** The chart is *demand against capacity of whatever is selected* — so the
+/// aggregate is not hiding a station, it is answering the question that was
+/// asked. Narrow with the structural filters and the same label reads 147 %;
+/// leave them wide and 87 % is a true statement about the plant. The reader
+/// drills, and the chart does not have to second-guess them.
+///
+/// **What that costs, recorded rather than lost.** #13 also dropped the small
+/// red count of stations over their own line, so on an unnarrowed chart nothing
+/// says that April's comfortable 87 % holds seven overloaded machines. That was
+/// chosen with the cost stated: one figure per column, and the grid one press
+/// away.
 ///
 /// What the grid adds that the chart could not: a per-station figure, so an
 /// overloaded machine is visible under an aggregate that is not; two groupings;
 /// three units; and the project's own bands. What the chart keeps that the grid
 /// does not: the process / rework / changeover split, which exists nowhere else,
-/// and the shape of a month read against the one before it.
+/// the shape of a month read against the one before it, and — since #13 — an
+/// hours axis, so a bar has a size and not only a ratio.
 ///
 /// **One filter, both surfaces.** They read the same `stationsInView`, so they
 /// cannot disagree about which stations are being looked at.
 library;
 
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
 import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../app/tokens.dart';
@@ -31,6 +46,7 @@ import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../common/horizontal_scroll.dart';
 import '../application/occupation_graph.dart';
+import 'occupation_chart_scale.dart';
 import '../application/occupation_grid.dart';
 import '../application/run_filter.dart';
 
@@ -54,7 +70,7 @@ class _OccupationViewState extends State<OccupationView> {
   /// Which of the two the reader is looking at. **The grid by default**, for
   /// #9's reason: an aggregate cannot report the finding this view exists to
   /// find.
-  bool _asGrid = true;
+  bool _asGrid = false;
 
   OccupationGrouping _grouping = OccupationGrouping.workcenter;
   OccupationUnit _unit = OccupationUnit.percent;
@@ -432,31 +448,146 @@ class _OccupationChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+
+    // **The tallest bar or the line, whichever is higher.** A scale fitted to
+    // the bars alone would push the capacity line off the top on a quiet month
+    // and make an under-loaded plant look overloaded.
+    var peak = 0;
+    for (final month in graph.months) {
+      if (month.total.inSeconds > peak) peak = month.total.inSeconds;
+      if (month.capacity.inSeconds > peak) peak = month.capacity.inSeconds;
+    }
+
+    final scale = ChartScale(
+      peakSeconds: peak,
+      // Formatted here rather than in the painter: a thousands separator is the
+      // locale's, and a `CustomPainter` has no `BuildContext` to ask.
+      ticks: hoursTicks(peak, Localizations.localeOf(context).toString()),
+    );
+
     // A month is 64 px, so a two-year run scrolls rather than shrinking its
     // bars into stripes.
     final width = graph.months.length * 64.0;
-    return HorizontalScroll(
-      child: SizedBox(
-        width: width < 320 ? 320 : width,
-        child: CustomPaint(
-          painter: _OccupationPainter(
-            graph: graph,
-            colours: _SegmentColours.of(context),
-            grid: theme.colorScheme.outlineVariant,
-            label:
-                theme.textTheme.bodySmall?.color ?? theme.colorScheme.onSurface,
-            direction: Directionality.of(context),
+
+    // **The axis is outside the scroll, and has to be.** The plot is sized to
+    // its months and scrolls sideways; an axis painted inside it would slide
+    // off the left edge and leave the bars measured against nothing. Both
+    // painters read the same [_ChartScale], so a tick and a bar of the same
+    // height land on the same pixel despite living in different widgets.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: ChartScale.axisWidth,
+          child: CustomPaint(
+            painter: _AxisPainter(
+              scale: scale,
+              caption: l10n.occupationUnitHours,
+              label:
+                  theme.textTheme.bodySmall?.color ??
+                  theme.colorScheme.onSurface,
+              grid: theme.colorScheme.outlineVariant,
+              direction: Directionality.of(context),
+            ),
           ),
         ),
-      ),
+        Expanded(
+          child: HorizontalScroll(
+            child: SizedBox(
+              width: width < 320 ? 320 : width,
+              child: CustomPaint(
+                painter: _OccupationPainter(
+                  graph: graph,
+                  scale: scale,
+                  colours: _SegmentColours.of(context),
+                  grid: theme.colorScheme.outlineVariant,
+                  label:
+                      theme.textTheme.bodySmall?.color ??
+                      theme.colorScheme.onSurface,
+                  direction: Directionality.of(context),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// Stacked bars, a capacity line, and a month label under each column.
+/// The hours axis, in its own fixed column to the left of the scrolling plot.
+class _AxisPainter extends CustomPainter {
+  _AxisPainter({
+    required this.scale,
+    required this.caption,
+    required this.label,
+    required this.grid,
+    required this.direction,
+  });
+
+  final ChartScale scale;
+  final String caption;
+  final Color label;
+  final Color grid;
+  final TextDirection direction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final floor = scale.floorOf(size.height);
+
+    // The unit once, at the top — rather than an `h` on every tick, which is
+    // four repetitions of a fact that does not change.
+    _paintText(
+      canvas,
+      caption,
+      Offset(size.width - 6, 0),
+      label,
+      direction,
+      rightAligned: true,
+    );
+
+    for (final tick in scale.ticks) {
+      final y = scale.y(size.height, tick.seconds);
+      _paintText(
+        canvas,
+        tick.label,
+        Offset(size.width - 8, y - 6),
+        label,
+        direction,
+        rightAligned: true,
+      );
+      canvas.drawLine(
+        Offset(size.width - 4, y),
+        Offset(size.width, y),
+        Paint()
+          ..color = grid
+          ..strokeWidth = 1,
+      );
+    }
+
+    canvas.drawLine(
+      Offset(size.width, ChartScale.headroom),
+      Offset(size.width, floor),
+      Paint()
+        ..color = grid
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_AxisPainter old) =>
+      old.scale.peakSeconds != scale.peakSeconds ||
+      old.label != label ||
+      old.caption != caption;
+}
+
+/// Stacked bars, a capacity line, a month label under each column, and the
+/// month's occupation above it.
 class _OccupationPainter extends CustomPainter {
   _OccupationPainter({
     required this.graph,
+    required this.scale,
     required this.colours,
     required this.grid,
     required this.label,
@@ -464,32 +595,31 @@ class _OccupationPainter extends CustomPainter {
   });
 
   final OccupationGraph graph;
+  final ChartScale scale;
   final _SegmentColours colours;
   final Color grid;
   final Color label;
   final TextDirection direction;
 
-  static const _axis = 28.0;
-
   @override
   void paint(Canvas canvas, Size size) {
     final months = graph.months;
-    if (months.isEmpty) return;
+    if (months.isEmpty || scale.peakSeconds <= 0) return;
 
-    final plot = size.height - _axis;
-    // **The tallest bar or the line, whichever is higher.** A scale fitted to
-    // the bars alone would push the capacity line off the top on a quiet month
-    // and make an under-loaded plant look overloaded.
-    var peak = 0;
-    for (final month in months) {
-      final total = month.total.inSeconds;
-      if (total > peak) peak = total;
-      if (month.capacity.inSeconds > peak) peak = month.capacity.inSeconds;
-    }
-    if (peak <= 0) return;
-
-    double y(int seconds) => plot * (1 - seconds / peak);
+    final plot = scale.floorOf(size.height);
+    double y(int seconds) => scale.y(size.height, seconds);
     final columnWidth = size.width / months.length;
+
+    // **Dotted, and behind everything else.** The capacity line is solid, thick
+    // and coloured, and it is the one line the chart exists to show a bar
+    // breaking — so the gridlines have to be unmistakably not it.
+    final gridPaint = Paint()
+      ..color = grid
+      ..strokeWidth = 1;
+    for (final tick in scale.ticks) {
+      if (tick.seconds == 0) continue;
+      _dotted(canvas, y(tick.seconds), size.width, gridPaint);
+    }
 
     for (var i = 0; i < months.length; i++) {
       final month = months[i];
@@ -528,23 +658,29 @@ class _OccupationPainter extends CustomPainter {
           ..strokeWidth = 2,
       );
 
-      _text(
+      _paintText(
         canvas,
         DateFormat('MMM/yy').format(month.month),
         Offset((i + 0.5) * columnWidth, plot + 6),
         label,
+        direction,
         centred: true,
       );
 
-      // How many individual stations are over, where the sum alone would not
-      // say (§10.3). Only when there are any — a badge on every column would be
-      // noise on a plant that is coping.
-      if (month.stationsOver > 0) {
-        _text(
+      // **The month's occupation, above its bar** (#13) — demand over capacity
+      // for the stations in view, counting the neutral segment, so the figure
+      // is the stations' true load rather than the filter's share of it.
+      //
+      // Absent where there is no capacity to divide by: a month every station
+      // was closed for is a real state, and `0 %` would be a claim about a
+      // plant that was not open.
+      if (month.occupation case final ratio?) {
+        _paintText(
           canvas,
-          '${month.stationsOver}',
+          '${(ratio * 100).round()}%',
           Offset((i + 0.5) * columnWidth, y(month.total.inSeconds) - 14),
-          colours.over,
+          label,
+          direction,
           centred: true,
         );
       }
@@ -559,24 +695,41 @@ class _OccupationPainter extends CustomPainter {
     );
   }
 
-  void _text(
-    Canvas canvas,
-    String text,
-    Offset at,
-    Color colour, {
-    bool centred = false,
-  }) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(color: colour, fontSize: 10),
-      ),
-      textDirection: direction,
-    )..layout();
-    painter.paint(canvas, centred ? at.translate(-painter.width / 2, 0) : at);
+  void _dotted(Canvas canvas, double y, double width, Paint paint) {
+    const on = 2.0;
+    const off = 5.0;
+    for (var x = 0.0; x < width; x += on + off) {
+      canvas.drawLine(Offset(x, y), Offset(math.min(x + on, width), y), paint);
+    }
   }
 
   @override
   bool shouldRepaint(_OccupationPainter old) =>
-      old.graph != graph || old.colours.process != colours.process;
+      old.graph != graph ||
+      old.scale.peakSeconds != scale.peakSeconds ||
+      old.colours.process != colours.process;
+}
+
+void _paintText(
+  Canvas canvas,
+  String text,
+  Offset at,
+  Color colour,
+  TextDirection direction, {
+  bool centred = false,
+  bool rightAligned = false,
+}) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: text,
+      style: TextStyle(color: colour, fontSize: 10),
+    ),
+    textDirection: direction,
+  )..layout();
+  final dx = centred
+      ? -painter.width / 2
+      : rightAligned
+      ? -painter.width
+      : 0.0;
+  painter.paint(canvas, at.translate(dx, 0));
 }
