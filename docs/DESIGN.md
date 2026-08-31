@@ -3655,9 +3655,14 @@ because that residue was a UUID, which is not FIFO either, and §4.4 wants a run
 rather than merely repeatable. *Rejected: the study name*, which is editable, so fixing a typo in
 `Célula 11C` could silently reorder a run.
 
-**A re-run after this will not match a run stored before it**, for exactly those 27 ties. Nothing is
-stamped on the run to say so: it already carries `created_at`, and `HISTORY.md` carries the date.
-*Rejected: an `engine_generation` column.*
+**How much of a run this actually moves was then measured, and it is very little.** Re-running the
+real database's newest run under the new fall-through gives **1,871 steps, zero drift, zero moved**.
+The two counts answer different questions: *27 of 78 ties settled by a UUID* is about how a run was
+**explained**, and it is why the slot was refilled; *how many orders move* is smaller — across 148
+stored runs there are 80 cross-study arrival ties, 61 still resolvable, and the need date reorders
+**4** of them. So this is a legibility fix that is nearly invisible in output. Nothing is stamped on
+the run to say which side it falls on: it already carries `created_at`, and `HISTORY.md` §6.2 carries
+the date and the figures. *Rejected: an `engine_generation` column.*
 
 **Two migrations, not one, deliberately.** v27 and v28 are both pure column drops and could have been
 welded together. They were not, because the live database is opened daily: the moment v27 ships and

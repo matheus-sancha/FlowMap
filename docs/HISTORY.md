@@ -2127,11 +2127,30 @@ Study priority dropped, and `simulation_run_studies.priority` with it; the vacat
 dispatch fall-through refilled with the **need date**. Ticket
 [#6](https://github.com/matheus-sancha/FlowMap/issues/6), reasoning in `DESIGN.md` §16.24.
 
-**A re-run after this will not match a run stored before it.** Only for ties on arrival: 78 pairs in
-189,623 step rows, **27 of which were being settled by comparing two UUIDs**. Nothing is stamped on
-the run to say which side of the line it falls on — a run already carries `created_at` — so this
-line is the record. **Runs created before 2026-08-30 break cross-study ties by UUID; runs created
-after it break them by need date.**
+**Runs created before 2026-08-30 break cross-study ties by UUID; runs created after it break them by
+need date.** Nothing is stamped on the run to say which side of the line it falls on — a run already
+carries `created_at` — so this line is the record.
+
+**The ticket predicted a re-run would not match, and the measurement says otherwise.** Re-running
+today's input under the new fall-through and diffing against `e0d93a45`, the newest stored run and
+the last one made under the old one: **1,871 steps on both sides, zero input drift, and not one step
+starting at a different second.** The two figures are both true and they answer different questions.
+*27 of 78 ties were being settled by comparing two UUIDs* is a fact about how a run was **explained**
+— unanswerable a third of the time, which is why the slot was refilled. *How many orders actually
+move* is a different count, and it is small: across all 148 stored runs there are **80 cross-study
+arrival ties, 61 of them still resolvable** — the other 19 name orders since deleted — **and the need
+date reorders 4 of the 61.** `e0d93a45` has two such ties and the need date agrees with the old key
+on both, so it re-runs identically.
+
+So the comparability worry is much smaller than the phase assumed: the change is a legibility fix
+that is very nearly invisible in output. It is still not zero, and this line still says which side of
+it a run falls on.
+
+*The check that produced this had a defect worth recording.* Its first version compared the two
+moments directly and reported **1,862 of 1,871 steps moved** — every one by a fraction,
+`21:33:21.000` against `21:33:21.428571`. That is `simulation_run_steps` storing whole seconds
+meeting an in-memory `DateTime`, not the comparator. Comparing at the resolution the run was stored
+at turns 1,862 false differences into zero real ones. `live_tiebreak_check_test.dart` carries it.
 
 `SimQueue.rule` became nullable in the same step, with the FIFO default moved to where the engine
 sorts. A run stored from here on keeps the difference between a lane someone typed FIFO on and one

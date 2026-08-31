@@ -38,7 +38,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | # | Phase | Schema | Ticket |
 |---|---|---|---|
 | 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
-| 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **built, re-run diff owed** |
+| 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **done** |
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
@@ -139,12 +139,25 @@ all 327 stored study rows sat at the default 100, so the drop is a provable no-o
 stored. `live_db_check_test.dart` carries the assertions; `HISTORY.md` §6.2 carries the figures and
 the tie-break line.
 
-**Still owed: the re-run diff.** Re-run Célula 11B/C/D on today's input and diff the step rows
-against run `94e09c38` — the need date should move only orders that tied on arrival, 78 pairs in
-189,623 step rows. **Plus one query on the run it stores**: the seven untyped lanes must come back
-with `rule` null, which is the inherited fix proving itself against real data. Both need the app
-opened on a v28 build, which migrates the live database. No drive: nothing visual changed except
-that caption, and a query says it.
+**The re-run diff is done too, and it corrects this phase's own prediction.**
+`live_tiebreak_check_test.dart` re-runs Célula 11B/C/D on today's input and diffs against
+`e0d93a45` — the newest stored run, and the last made under the old fall-through, so it is the least
+drifted baseline available. Result: **1,871 steps on both sides, zero input drift, and not one step
+starting at a different second.**
+
+#6 expected a re-run not to match. Both figures are true and they answer different questions: *27 of
+78 ties settled by a UUID* is about how a run was **explained**, which is why the slot was refilled;
+*how many orders move* is smaller. Across all 148 stored runs there are **80 cross-study arrival
+ties, 61 still resolvable** — the other 19 name deleted orders — **and the need date reorders 4.**
+`e0d93a45` has two, and the need date agrees with the old key on both. **The comparability worry is
+much smaller than this phase assumed.** `HISTORY.md` §6.2 has the figures.
+
+*The check had a defect worth knowing about*: comparing the moments directly reported 1,862 of 1,871
+steps moved, all by a fraction of a second — `simulation_run_steps` stores whole seconds and the
+in-memory result does not. It compares at the stored resolution now.
+
+**No drive: nothing visual changed.** The one caption that did is covered by a query and by
+`run_storage_test.dart`.
 
 *One assertion was written for the live check and removed after it failed correctly* — see
 `HISTORY.md` §6.2. Null in `simulation_run_lanes.rule` means both *unset* and *never recorded*
