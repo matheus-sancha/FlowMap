@@ -177,7 +177,6 @@ void main() {
       ],
       releaseInterval: const Duration(hours: 6),
       releaseCalendarId: 'wc-1',
-      priority: 20,
       wipCap: 2,
     );
     return (studies: [study], plant: plant);
@@ -548,7 +547,11 @@ void main() {
           title: 'CEU27',
           candidates: ['wc-2'],
           demandKey: 'wc-2',
-          queue: SimQueue(targetId: 'wc-2', capacity: 1),
+          queue: SimQueue(
+            targetId: 'wc-2',
+            rule: DispatchRule.lifo,
+            capacity: 1,
+          ),
         ),
       ],
       parts: {
@@ -598,9 +601,22 @@ void main() {
     // rule is what the caption is derived *from*, so that is what has to
     // survive storage.
     expect(lane.name, isNull);
-    expect(lane.rule, DispatchRule.fifo);
+    expect(lane.rule, DispatchRule.lifo);
     expect(lane.position, 2);
     expect(lane.capacity, 1);
+
+    // **And an untyped lane comes back null, not FIFO** (#6, v28). `node-0`'s
+    // queue names no rule, and the engine runs it FIFO — but nobody *chose*
+    // that, and the run has to keep the difference or the caption cannot.
+    // Phase 1's drive is what found this: the default was applied when the
+    // project was loaded, so run `e0d93a45` stored `fifo` on all 15 lanes while
+    // the project held 8 and 7, and the seven untyped ones drew `FIFO · CEU27`
+    // on a Gantt whose map said `Queue · CEU27`. This assertion is the one that
+    // fails if the default moves back.
+    expect(
+      stored.result.lanes.firstWhere((l) => l.nodeId == 'wc-1').rule,
+      isNull,
+    );
 
     // And the stays themselves: every order that was pulled leaves a step
     // naming the lane it stood in, which is what the occupancy is read from.
@@ -727,7 +743,6 @@ void main() {
     expect(stored.studies.single.name, 'Current state');
     expect(stored.studies.single.releaseSeconds, 6 * 3600);
     expect(stored.studies.single.releaseCalendarId, 'wc-1');
-    expect(stored.studies.single.priority, 20);
     expect(stored.studies.single.wipCap, 2);
   });
 
@@ -997,7 +1012,6 @@ void main() {
       orders: base.orders,
       releaseInterval: base.releaseInterval,
       releaseCalendarId: base.releaseCalendarId,
-      priority: base.priority,
       wipCap: base.wipCap,
       taktValue: 4,
       taktUnit: TaktUnit.days,
@@ -1035,7 +1049,6 @@ void main() {
       orders: base.orders,
       releaseInterval: const Duration(hours: 6),
       releaseCalendarId: base.releaseCalendarId,
-      priority: base.priority,
       wipCap: base.wipCap,
       taktValue: 6,
       taktUnit: TaktUnit.hours,
@@ -1103,7 +1116,6 @@ void main() {
       orders: base.orders,
       releaseInterval: const Duration(hours: 6),
       releaseCalendarId: base.releaseCalendarId,
-      priority: base.priority,
       wipCap: base.wipCap,
       taktValue: 6,
       taktUnit: TaktUnit.hours,

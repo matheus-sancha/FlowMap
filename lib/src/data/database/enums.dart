@@ -100,8 +100,9 @@ enum DispatchRule {
   shortestProcessing;
 
   /// Every rule falls back to the same three keys, so a run of the same inputs
-  /// always produces the same output (§4.4): arrival, then the study's
-  /// priority, then its position in the sequence.
+  /// always produces the same output (§4.4): arrival, then the **need date**,
+  /// then its position in the sequence. The study's priority held the middle
+  /// slot until v28 dropped it (#6).
   bool get isDefault => this == DispatchRule.fifo;
 }
 

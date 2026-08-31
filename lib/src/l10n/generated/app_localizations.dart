@@ -1102,18 +1102,6 @@ abstract class AppLocalizations {
   /// **'The most orders this study may have in the flow at once. A release waits for a completion, which is what makes the flow pulled rather than pushed. Blank is unlimited.'**
   String get studyWipCapHelp;
 
-  /// No description provided for @studyPriority.
-  ///
-  /// In en, this message translates to:
-  /// **'Priority'**
-  String get studyPriority;
-
-  /// No description provided for @studyPriorityHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Which study wins when two of them want the same station at the same instant. Lower goes first. Only a tie-break — it never reorders a queue on its own.'**
-  String get studyPriorityHelp;
-
   /// No description provided for @studyTabFlow.
   ///
   /// In en, this message translates to:

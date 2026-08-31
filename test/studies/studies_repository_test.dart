@@ -230,7 +230,6 @@ void main() {
     /// leaving the others alone.
     Future<void> write({
       int? wipCap,
-      int? priority,
       int? startBufferDays,
       String? paceSetterTargetId,
       bool paceSetterGiven = false,
@@ -240,7 +239,6 @@ void main() {
         studyId,
         name: study.name,
         wipCap: wipCap,
-        priority: priority ?? study.priority,
         startBufferDays: startBufferDays ?? study.startBufferDays,
         paceSetterTargetId: paceSetterTargetId,
         paceSetterGiven: paceSetterGiven,
@@ -262,16 +260,6 @@ void main() {
       // "no cap" and "a cap of none" is the whole of §7.3 working or not.
       await write(wipCap: null);
       expect((await read()).wipCap, isNull);
-    });
-
-    test('priority round-trips', () async {
-      expect((await read()).priority, 100, reason: 'the shipped default');
-      await write(priority: 7);
-      expect((await read()).priority, 7);
-      // And is left alone by a write that does not mention it, which is what
-      // lets each field on the settings tab commit on its own.
-      await write(wipCap: 2);
-      expect((await read()).priority, 7);
     });
 
     test('a start buffer round-trips in calendar days (§7.8)', () async {

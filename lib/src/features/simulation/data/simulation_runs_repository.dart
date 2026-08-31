@@ -275,7 +275,6 @@ class SimulationRunsRepository {
               // Copied in so a run can still say why it began where it did
               // after the study's buffer is changed (§7.10).
               startBufferDays: Value(study.startBuffer.inDays),
-              priority: study.priority,
               wipCap: Value(study.wipCap),
               // Where it sat in the plant, so §12.1's cell and line filters can
               // read a stored run rather than joining to a study that may have
@@ -382,7 +381,12 @@ class SimulationRunsRepository {
               // name still says which pools it served (§3.1).
               poolId: Value(pools[entry.key]?.id),
               poolName: Value(pools[entry.key]?.name),
-              queueType: Value(queues[entry.key]?.rule.name),
+              // **How the station dispatched, not what someone chose** —
+              // so the default belongs here. This column answers the history
+              // picker's "what rule did this run use?", and an untyped lane
+              // ran FIFO (§5.5). The lane's own row keeps the null, because
+              // there the question is what the map should caption.
+              queueType: Value(queues[entry.key]?.effectiveRule.name),
               queueCapacity: Value(queues[entry.key]?.capacity),
               // Copied in for the same reason the pool name is: a station
               // retyped afterwards would otherwise re-column every stored run
@@ -435,7 +439,12 @@ class SimulationRunsRepository {
               // this table and `simulation_run_workcenters` already carry.
               name: const Value(null),
               position: entry.value.node.position,
-              rule: Value(entry.value.node.queue.rule.name),
+              // **Null stays null** (v28). This is what phase 1's drive
+              // found: the default was applied at load, so all 15 lanes of run
+              // `e0d93a45` stored `fifo` while the project held 8 and 7, and
+              // the seven untyped ones captioned `FIFO · CEU27` on a Gantt
+              // whose map said `Queue · CEU27`.
+              rule: Value(entry.value.node.queue.rule?.name),
               capacity: Value(entry.value.node.queue.capacity),
             ),
         ]);

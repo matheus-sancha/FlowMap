@@ -138,7 +138,6 @@ class SimulationRunStudies extends Table {
   /// well end before the horizon with the warning silent.
   DateTimeColumn get cadenceEndedAt => dateTime().nullable()();
 
-  IntColumn get priority => integer()();
   IntColumn get wipCap => integer().nullable()();
 
   /// The margin that was added ahead of the derived cold start (§7.8), in

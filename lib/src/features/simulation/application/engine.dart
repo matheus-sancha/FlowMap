@@ -922,14 +922,39 @@ class _Engine {
     return best;
   }
 
-  /// The lane's rule, or the run's where a step has no lane (§7.4).
-  DispatchRule _ruleFor(_Waiting waiting) => waiting.lane.rule;
+  /// How the lane this order stands in actually dispatches (§7.4).
+  ///
+  /// **[SimQueue.effectiveRule], which is where the FIFO default now lives**
+  /// (v28). It used to be applied when the project was loaded, which erased the
+  /// difference between a lane someone typed FIFO on and one nobody typed
+  /// anything on before the run could copy it in. The engine is the only reader
+  /// that wants the default, so it is the only one that applies it.
+  DispatchRule _ruleFor(_Waiting waiting) => waiting.lane.effectiveRule;
 
   /// Whether [a] should run before [b] under [rule] (§7.4).
   ///
   /// Each rule adds its own first key; all of them fall through to arrival,
-  /// then study priority, then sequence number, so contention between two
+  /// then **need date**, then sequence number, so contention between two
   /// studies over a shared workcenter is reproducible.
+  ///
+  /// **The need date refills the slot study priority held** (#6, v28). Priority
+  /// sat here, below arrival, which is why it could never expedite anything:
+  /// two orders reaching a station at different times never get this far. What
+  /// the slot actually decides is a *tie* on arrival — 78 of them in the live
+  /// database's 189,623 step rows, and **27 were settled by comparing two
+  /// UUIDs**, so *"why did this order go first?"* was unanswerable a third of
+  /// the time.
+  ///
+  /// It is a **no-op on an EDD lane**, where the need date is already the first
+  /// key, and on every pair that does not tie on arrival. So it fires exactly
+  /// where FIFO, LIFO and SPT have nothing left to say, and makes the answer a
+  /// planner's sentence: *"both hit CEU27 at 09:00; that one was due first."*
+  ///
+  /// The cost, stated plainly: a FIFO lane is no longer purely FIFO in its
+  /// residue. Accepted, because that residue is a UUID today, which is not FIFO
+  /// either — and §4.4 wants a run's output explicable, not merely repeatable.
+  /// *Rejected: the study name*, which is editable, so fixing a typo in
+  /// `Célula 11C` could silently reorder a run.
   bool _prefers(_Waiting a, _Waiting b, DispatchRule rule) {
     switch (rule) {
       case DispatchRule.earliestDueDate:
@@ -952,14 +977,15 @@ class _Engine {
     final arrival = a.since.compareTo(b.since);
     if (arrival != 0) return arrival < 0;
 
-    final priority = a.study.priority.compareTo(b.study.priority);
-    if (priority != 0) return priority < 0;
+    final due = a.order.needDate.compareTo(b.order.needDate);
+    if (due != 0) return due < 0;
 
     final sequence = a.order.sequence.compareTo(b.order.sequence);
     if (sequence != 0) return sequence < 0;
 
     // Two orders of one study cannot share a sequence number, so this only
-    // separates orders of two studies of equal priority.
+    // separates orders of two studies that tied on arrival and are due the
+    // same day.
     return a.order.id.compareTo(b.order.id) < 0;
   }
 

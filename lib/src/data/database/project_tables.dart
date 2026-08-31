@@ -209,10 +209,6 @@ class Studies extends Table {
   BoolColumn get includeInSimulation =>
       boolean().withDefault(const Constant(false))();
 
-  /// Breaks dispatch ties between studies contending for a shared workcenter
-  /// (DESIGN.md §7.4). Lower runs first.
-  IntColumn get priority => integer().withDefault(const Constant(100))();
-
   /// CONWIP cap: maximum orders open in the flow at once. Null is unlimited,
   /// the default, so a first run shows raw demand-vs-capacity behaviour
   /// (DESIGN.md §7.3).

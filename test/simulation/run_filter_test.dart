@@ -19,7 +19,6 @@ void main() {
     studyId: id,
     name: id,
     releaseSeconds: 3600,
-    priority: 100,
     wipCap: null,
     startBufferDays: 0,
     productionCellId: cell,

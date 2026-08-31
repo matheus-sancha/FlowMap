@@ -323,7 +323,6 @@ void main() {
             studyId: 'study-1',
             name: 'Célula 11B',
             releaseSeconds: 3600,
-            priority: 0,
             startBufferDays: 0,
           ),
           SimulationRunStudy(
@@ -331,7 +330,6 @@ void main() {
             studyId: 'study-2',
             name: 'Célula 12A',
             releaseSeconds: 3600,
-            priority: 0,
             startBufferDays: 0,
           ),
         ],

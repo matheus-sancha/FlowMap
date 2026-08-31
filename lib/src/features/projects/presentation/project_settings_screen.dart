@@ -19,7 +19,8 @@ import '../application/projects_providers.dart';
 /// unchanged. So **the shift pattern and the notes were stored, written by
 /// `updateProject`, and reachable from no screen in the app** — the same shape
 /// as §17.5's `wipCap` and `priority`, which Study Settings closed for the same
-/// reason.
+/// reason — and `priority` then went altogether in v28 (#6), reachability
+/// having shown it was a lever nobody wanted.
 ///
 /// So this is not only a move. It is the first time two stored fields can be
 /// set at all.

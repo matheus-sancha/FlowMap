@@ -552,13 +552,6 @@ class AppLocalizationsPt extends AppLocalizations {
       'O máximo de ordens que este estudo pode ter no fluxo ao mesmo tempo. Uma liberação espera por uma conclusão, que é o que torna o fluxo puxado em vez de empurrado. Em branco é sem limite.';
 
   @override
-  String get studyPriority => 'Prioridade';
-
-  @override
-  String get studyPriorityHelp =>
-      'Qual estudo ganha quando dois querem o mesmo centro de trabalho no mesmo instante. O menor vai primeiro. Apenas desempata — nunca reordena uma fila por si só.';
-
-  @override
   String get studyTabFlow => 'Fluxo';
 
   @override

@@ -132,7 +132,6 @@ void main() {
     String? releaseCalendarId,
     String? paceSetterNodeId,
     Duration startBuffer = Duration.zero,
-    int priority = 100,
     int? wipCap,
     String id = 'study-1',
   }) => SimStudy(
@@ -146,7 +145,6 @@ void main() {
     releaseCalendarId: releaseCalendarId,
     paceSetterNodeId: paceSetterNodeId,
     startBuffer: startBuffer,
-    priority: priority,
     wipCap: wipCap,
   );
 
@@ -1551,14 +1549,12 @@ void main() {
             nodes: nodes,
             parts: parts,
             orders: [order(0, 'p1')],
-            priority: 1,
           ),
           study(
             id: 'B',
             nodes: nodes,
             parts: parts,
             orders: [order(0, 'p1')],
-            priority: 2,
           ),
         ],
         workcenters: shared,
@@ -1574,8 +1570,18 @@ void main() {
       expect(byStudy['B'], aug1.add(const Duration(hours: 6)));
     });
 
-    test('study priority breaks the tie, reproducibly', () {
-      SimRunResult runWith(int priorityOfB) => runSimulation(
+    test('the need date breaks a tie on arrival, reproducibly (§7.4)', () {
+      // **The slot study priority used to hold** (#6, v28). Priority sat *below*
+      // arrival, so it never expedited anything — what it actually decided was
+      // this: two orders that reach one station at the same instant. On the live
+      // database that happened 78 times in 189,623 step rows, and **27 of them
+      // fell through to comparing two UUIDs**, so "why did this order go first?"
+      // had no answer a third of the time.
+      //
+      // Both orders here are sequence 0 and so share an id, and neither study
+      // types a rule, so the need date is the only key left that can separate
+      // them. Which is the point: this test fails if the slot is left empty.
+      SimRunResult runWith({required int dueDayOfB}) => runSimulation(
         studies: [
           study(
             id: 'A',
@@ -1585,8 +1591,7 @@ void main() {
             parts: {
               'p1': part('p1', {'W': const Duration(hours: 3)}),
             },
-            orders: [order(0, 'p1')],
-            priority: 5,
+            orders: [order(0, 'p1', needDay: 20)],
           ),
           study(
             id: 'B',
@@ -1596,8 +1601,7 @@ void main() {
             parts: {
               'p1': part('p1', {'W': const Duration(hours: 3)}),
             },
-            orders: [order(0, 'p1')],
-            priority: priorityOfB,
+            orders: [order(0, 'p1', needDay: dueDayOfB)],
           ),
         ],
         workcenters: {'W': workcenter('W')},
@@ -1610,8 +1614,12 @@ void main() {
         return ordered.first.studyId;
       }
 
-      expect(firstStudy(runWith(9)), 'A', reason: 'lower priority runs first');
-      expect(firstStudy(runWith(1)), 'B');
+      expect(
+        firstStudy(runWith(dueDayOfB: 25)),
+        'A',
+        reason: 'the earlier-due order runs first',
+      );
+      expect(firstStudy(runWith(dueDayOfB: 15)), 'B');
     });
   });
 

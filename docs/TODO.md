@@ -38,7 +38,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | # | Phase | Schema | Ticket |
 |---|---|---|---|
 | 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
-| 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) |
+| 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **built, re-run diff owed** |
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) |
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
@@ -49,7 +49,7 @@ two migrations land while the presentation layer is still the one the tests were
 and the large surface work then runs on a settled model. It is also the order the tickets already
 recorded their migration numbers in, so no resolution has to be corrected.
 
-Schema is at **v26** (`database.dart:78`). **147 runs are stored** — 146 with step rows and one
+Schema is at **v28** (`database.dart:78`). **147 runs are stored** — 146 with step rows and one
 empty. (`DRIVE-2026-08-29.md` says 104; that was true at schema v22 on 29 August.)
 
 ---
@@ -132,10 +132,23 @@ to say so — a run already carries `created_at` and the history picker already 
 **`docs/HISTORY.md` gets the line** instead: the date this phase landed, and that runs before it
 break cross-study ties by UUID while runs after it break them by need date.
 
-**Evidence owed:** a live-database check — re-run Célula 11B/C/D on today's input and diff the step
-rows against run `94e09c38`. **Plus one query on the run it stores**: the seven untyped lanes must
-come back with `rule` null, which is the inherited fix proving itself. No drive: nothing visual
-changed except that caption, and a query says it.
+**Evidence — the live-database check is done.** The migration ran against a copy of the real 150 MB
+database: upgraded to v28, `integrity_check` ok, both priority columns gone, and **3 studies, 327
+stored study rows, 148 runs, 191,494 run steps, 250 orders and 15 queues** intact. All 3 studies and
+all 327 stored study rows sat at the default 100, so the drop is a provable no-op on every run ever
+stored. `live_db_check_test.dart` carries the assertions; `HISTORY.md` §6.2 carries the figures and
+the tie-break line.
+
+**Still owed: the re-run diff.** Re-run Célula 11B/C/D on today's input and diff the step rows
+against run `94e09c38` — the need date should move only orders that tied on arrival, 78 pairs in
+189,623 step rows. **Plus one query on the run it stores**: the seven untyped lanes must come back
+with `rule` null, which is the inherited fix proving itself against real data. Both need the app
+opened on a v28 build, which migrates the live database. No drive: nothing visual changed except
+that caption, and a query says it.
+
+*One assertion was written for the live check and removed after it failed correctly* — see
+`HISTORY.md` §6.2. Null in `simulation_run_lanes.rule` means both *unset* and *never recorded*
+across generations, so it cannot prove the fix; `run_storage_test.dart` does that instead.
 
 ---
 

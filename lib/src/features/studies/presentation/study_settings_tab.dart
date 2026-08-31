@@ -17,6 +17,12 @@ import '../application/studies_providers.dart';
 /// has listed them since M3, and §3.3b said outright that they belonged in the
 /// same place and were waiting for the round that needed them.
 ///
+/// **`priority` was given a field here and then deleted in v28** (#6). Making
+/// it reachable is what showed it was not worth reaching: it sat below arrival
+/// in the fall-through, so it could not expedite anything, and all 3 studies
+/// and all 324 stored run rows sat at the default. The cap stays and is
+/// unaffected.
+///
 /// Gathering them costs one tab and closes two §17.5 entries. It is also where
 /// a map-only flag will go when §3.8 is picked up, which is half the reason the
 /// tab is worth its place now rather than later.
@@ -97,8 +103,6 @@ class StudySettingsTab extends ConsumerWidget {
                 // by the engine and neither has ever been set by a user, so
                 // §7.3's CONWIP behaviour meets the field here.
                 _WipCapField(study: study),
-                const SizedBox(height: 16),
-                _PriorityField(study: study),
               ],
             ),
           ),
@@ -121,7 +125,6 @@ class StudySettingsTab extends ConsumerWidget {
     bool? includeInSimulation,
     int? wipCap,
     bool wipCapGiven = false,
-    int? priority,
     int? startBufferDays,
     String? paceSetterTargetId,
     bool paceSetterGiven = false,
@@ -139,7 +142,6 @@ class StudySettingsTab extends ConsumerWidget {
       // Null is a real answer for the cap — unlimited — so absence has to be
       // said separately or every other field would clear it.
       wipCap: wipCapGiven ? wipCap : study.wipCap,
-      priority: priority ?? study.priority,
       notes: study.notes,
       startBufferDays: startBufferDays ?? study.startBufferDays,
       paceSetterTargetId: paceSetterGiven
@@ -209,7 +211,6 @@ class _NameFieldState extends ConsumerState<_NameField> {
       supplierName: widget.study.supplierName,
       customerName: widget.study.customerName,
       wipCap: widget.study.wipCap,
-      priority: widget.study.priority,
       notes: widget.study.notes,
       startBufferDays: widget.study.startBufferDays,
       paceSetterTargetId: widget.study.paceSetterTargetId,
@@ -270,7 +271,6 @@ class _PaceSetterField extends ConsumerWidget {
         supplierName: study.supplierName,
         customerName: study.customerName,
         wipCap: study.wipCap,
-        priority: study.priority,
         notes: study.notes,
         startBufferDays: study.startBufferDays,
         paceSetterTargetId: value,
@@ -282,8 +282,9 @@ class _PaceSetterField extends ConsumerWidget {
 
 /// A whole number written straight to the study when the field is left.
 ///
-/// One widget for the buffer, the cap and the priority: they differ only in
-/// their label, whether blank is allowed, and where the value lands.
+/// One widget for the buffer and the cap: they differ only in their label,
+/// whether blank is allowed, and where the value lands. It served the priority
+/// too until v28 dropped it (#6).
 class _NumberField extends ConsumerStatefulWidget {
   const _NumberField({
     required this.study,
@@ -376,7 +377,6 @@ class _StartBufferField extends StatelessWidget {
         supplierName: study.supplierName,
         customerName: study.customerName,
         wipCap: study.wipCap,
-        priority: study.priority,
         notes: study.notes,
         startBufferDays: value ?? 0,
         paceSetterTargetId: study.paceSetterTargetId,
@@ -408,36 +408,6 @@ class _WipCapField extends StatelessWidget {
         supplierName: study.supplierName,
         customerName: study.customerName,
         wipCap: value,
-        priority: study.priority,
-        notes: study.notes,
-        startBufferDays: study.startBufferDays,
-        paceSetterTargetId: study.paceSetterTargetId,
-        paceSetterGiven: true,
-      ),
-    );
-  }
-}
-
-class _PriorityField extends StatelessWidget {
-  const _PriorityField({required this.study});
-
-  final Study study;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return _NumberField(
-      study: study,
-      label: l10n.studyPriority,
-      initial: '${study.priority}',
-      help: l10n.studyPriorityHelp,
-      onCommit: (ref, value) => ref.read(studiesRepositoryProvider).updateStudy(
-        study.id,
-        name: study.name,
-        supplierName: study.supplierName,
-        customerName: study.customerName,
-        wipCap: study.wipCap,
-        priority: value ?? study.priority,
         notes: study.notes,
         startBufferDays: study.startBufferDays,
         paceSetterTargetId: study.paceSetterTargetId,

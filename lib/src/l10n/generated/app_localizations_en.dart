@@ -547,13 +547,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The most orders this study may have in the flow at once. A release waits for a completion, which is what makes the flow pulled rather than pushed. Blank is unlimited.';
 
   @override
-  String get studyPriority => 'Priority';
-
-  @override
-  String get studyPriorityHelp =>
-      'Which study wins when two of them want the same station at the same instant. Lower goes first. Only a tie-break — it never reorders a queue on its own.';
-
-  @override
   String get studyTabFlow => 'Flow';
 
   @override

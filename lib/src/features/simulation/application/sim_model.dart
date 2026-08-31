@@ -319,7 +319,7 @@ class SimStep {
 class SimQueue {
   const SimQueue({
     required this.targetId,
-    this.rule = DispatchRule.fifo,
+    this.rule,
     this.capacity,
     this.stockMode,
     this.stockQuantity,
@@ -342,13 +342,31 @@ class SimQueue {
   /// target share this id, and that identity is the whole point.
   final String targetId;
 
-  /// How the station chooses what to take next (§7.4).
+  /// How the station chooses what to take next (§7.4), or **null for a lane
+  /// nobody has given a discipline**.
   ///
-  /// **Not nullable, and no longer deferring to a run-level rule.** The queue
-  /// type replaced that rule outright: one place a dispatch decision is made,
-  /// and the map draws every one of them. Unset in the project reads as
-  /// [DispatchRule.fifo], which is what a shop floor does.
-  final DispatchRule rule;
+  /// **Nullable since v28, and this is a correction phase 1's drive forced.**
+  /// It used to default to [DispatchRule.fifo] here, at the boundary where the
+  /// project is loaded — which reads as harmless, because §5.5 says the engine
+  /// runs an untyped lane FIFO and that is what a shop floor does. But the
+  /// default was applied *before* the run copied the lane in, so a stored run
+  /// could not tell *someone chose FIFO* from *nobody chose anything*: run
+  /// `e0d93a45` stored `fifo` on all 15 lanes while the project held 8 and 7.
+  ///
+  /// That was invisible while the column was write-only. Phase 1 made it the
+  /// Gantt's caption, so those seven lanes drew `FIFO · CEU27` on a run while
+  /// the map drew `Queue · CEU27` — §5.5's *null is not FIFO* holding on the
+  /// map and lost on the run. **The default now lives where the engine sorts**
+  /// ([effectiveRule]), which is the only place it ever meant anything.
+  final DispatchRule? rule;
+
+  /// What the station actually does with this lane: the discipline someone set,
+  /// or FIFO where nobody set one (§5.5).
+  ///
+  /// **The one place the default belongs.** Every reader that wants to know how
+  /// the queue *behaves* asks this; every reader that wants to know what someone
+  /// *chose* — the caption, the run's copy-in — reads [rule] and keeps the null.
+  DispatchRule get effectiveRule => rule ?? DispatchRule.fifo;
 
   /// How many orders fit, or null for unlimited.
   ///
@@ -439,7 +457,6 @@ class SimStudy {
     this.nextTaktChange,
     this.paceSetterNodeId,
     this.startBuffer = Duration.zero,
-    this.priority = 100,
     this.wipCap,
     this.productionCellId,
     this.productionCellName,
@@ -583,10 +600,6 @@ class SimStudy {
 
   /// In sequence order.
   final List<SimOrder> orders;
-
-  /// Breaks dispatch ties between studies contending for a shared workcenter
-  /// (§7.4). Lower runs first.
-  final int priority;
 
   /// CONWIP cap: orders open in the flow at once. Null is unlimited (§7.3).
   final int? wipCap;

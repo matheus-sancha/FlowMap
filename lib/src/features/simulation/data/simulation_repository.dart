@@ -126,7 +126,13 @@ class SimulationRepository {
       )..where((q) => q.projectId.equals(project.id))).get())
         row.targetId: SimQueue(
           targetId: row.targetId,
-          rule: row.rule ?? DispatchRule.fifo,
+          // **Carried as stored, null and all** (v28). §5.5 is explicit that
+          // an unset rule is not the statement that a lane is FIFO even though
+          // the engine runs it that way, and the default used to be applied
+          // here — before the run copied the lane in, so a stored run could not
+          // tell the two apart. `SimQueue.effectiveRule` applies it where the
+          // engine sorts instead.
+          rule: row.rule,
           capacity: row.capacity,
           // Raw, for the assembler to resolve against each study's takt.
           stockMode: row.stockMode,

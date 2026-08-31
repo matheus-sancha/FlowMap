@@ -967,7 +967,8 @@ diagnostics.
 
 ### 7.4 Dispatching
 
-Ties break by (arrival, study priority, sequence #) so shared-workcenter contention is reproducible.
+Ties break by (arrival, **need date**, sequence #) so shared-workcenter contention is reproducible.
+The middle key was the study's priority until v28 dropped it (§16.24).
 Four rules: **FIFO** by arrival, **LIFO**, **EDD** (earliest need date) and **SPT** (shortest
 processing time) — "what if we dispatched by due date" is exactly the experiment this app exists to
 run.
@@ -1135,8 +1136,7 @@ to prevent.
 A run takes the set of selected studies (**at most one per production line**) and builds **one**
 resource model of the plant — each workcenter and pool exists once regardless of how many studies
 point at it. Each study releases on its own takt slots into that shared model, so line A's orders
-genuinely delay line B's. Each study carries an explicit priority used in dispatch tie-breaking.
-Results are reported per study and rolled up per plant.
+genuinely delay line B's. Results are reported per study and rolled up per plant.
 
 ### 7.8 Initial state and horizon
 
@@ -2251,6 +2251,10 @@ all** — `wipCap` and `priority` have been stored and read by the engine since 
 ever since, and §3.3b said outright that they belonged with the others and were waiting for the round
 that needed them. That round is this one, and gathering them closes two §17.5 entries.
 
+*Priority did not survive being reachable.* Giving it a field is what made it examinable, and v28
+deleted it outright (§16.24): it sat below arrival in the fall-through, so it could not expedite
+anything, and nobody had ever moved it off the default. The cap stays.
+
 The dialog is removed rather than kept beside the tab, for §12.6's reason: two ways to set one field
 is how the two come to disagree. **Every field writes when it is left**, so there is no draft to lose
 and nothing to cancel out of — and an unreadable value puts back what was stored rather than writing
@@ -2460,7 +2464,8 @@ rather than the one being read.
   sidebar, beside Rename and Duplicate. A dialog rather than a panel: neither is read while working,
   both are set once and left, and the Flow tab already carries everything that *is* read while
   working. `wipCap` and `priority` are still stored-but-unreachable there (§17.5) — they belong in
-  the same dialog and were left for the round that needs them.
+  the same dialog and were left for the round that needs them. *`priority` was reached in M5 and
+  deleted in v28* (§16.24).
 - **Blocked time** is a column in the Queue table, beside utilization rather than folded into it: a
   station at 40 % and blocked half the run is a different plant from one at 40 % and idle, and only
   the first is fixed downstream (§8.3).
@@ -3055,9 +3060,9 @@ pass that starts whatever can start.
   overnight is not beaten to the shift by one that merely queued first.
 - **Free stations are tried least-busy first, then by name** — §3.1's pool tie-break, and the reason
   a run of the same inputs cannot reorder itself.
-- **Every ordering falls through to keys that cannot tie**: arrival, then study priority, then
-  sequence number, then order id. Determinism is not a nice-to-have here (§4.4) — the output is a
-  headcount decision.
+- **Every ordering falls through to keys that cannot tie**: arrival, then need date, then
+  sequence number, then order id. The second key was the study's priority until v28 (§16.24).
+  Determinism is not a nice-to-have here (§4.4) — the output is a headcount decision.
 - **The first order of a run never pays a changeover** — _true when this was written, reversed in
   v17._ Cold start meant no previous order and §7.6 charged only for a *different* part number. It
   now charges unless the part **repeated**, so an empty station pays in full: it is set up for
@@ -3615,6 +3620,60 @@ first as `flowmap.sqlite.backup-v21-20260827-215250`.
 `0.1.0-2026-08-27a`**, the build label and the line both in `log.txt` — the pair §0 says a stale
 link cannot produce.
 
+### 16.24 Schema v28, the lever nobody pulled
+
+**The first entry in this section since v22.** v23 to v27 landed without one, which is a gap in the
+record and not a claim that they were unremarkable; v27's reasoning lives in
+[#5](https://github.com/matheus-sancha/FlowMap/issues/5) and this one's in
+[#6](https://github.com/matheus-sancha/FlowMap/issues/6).
+
+**`studies.priority` and `simulation_run_studies.priority` are dropped.** Both by `DROP COLUMN`,
+neither indexed nor part of a key — v27's argument, which is that a `TableMigration` rebuild reaches
+for every column the *current* Dart definition names while dropping one by name cannot.
+
+**It was a lever nobody had ever pulled, wired where pulling it would not have helped.** Priority sat
+*below* arrival in the fall-through, so two orders reaching a station at different times never got to
+it — it could not expedite anything even for someone who set it. One read site, `engine.dart`. And
+the live database proves it never fired: **all 3 studies and all 324 stored study rows across 147
+runs sit at the default 100**, so the drop is a provable no-op on every run ever stored.
+
+*Rejected: promoting it above arrival to make it real.* That is new simulation capability, which v2.0
+rules out — and it would silently reorder every future run against a knob nobody knew was live.
+
+**The run's copy goes too, and §7.10 does not object.** `simulation_run_studies.priority` was
+**write-only**: written on every run since it existed, read back by nothing, displayed by no surface.
+§7.10's rule is that what a *report* needs is copied in, and no report needed this. Keeping it frozen
+at 100 would be a `NOT NULL` column describing a study field that no longer exists — a lie shaped
+like a record.
+
+**The vacated slot is refilled with the need date**, because what the slot actually decides is a tie
+on arrival, and **27 of the 78 real cross-study ties in 189,623 step rows were settled by comparing
+two UUIDs**. *"Why did this order go first?"* was unanswerable a third of the time. It is a no-op on
+an EDD lane, where the need date is already the first key, and on every pair that does not tie on
+arrival. The cost, stated plainly: a FIFO lane is no longer purely FIFO in its residue — accepted,
+because that residue was a UUID, which is not FIFO either, and §4.4 wants a run's output explicable
+rather than merely repeatable. *Rejected: the study name*, which is editable, so fixing a typo in
+`Célula 11C` could silently reorder a run.
+
+**A re-run after this will not match a run stored before it**, for exactly those 27 ties. Nothing is
+stamped on the run to say so: it already carries `created_at`, and `HISTORY.md` carries the date.
+*Rejected: an `engine_generation` column.*
+
+**Two migrations, not one, deliberately.** v27 and v28 are both pure column drops and could have been
+welded together. They were not, because the live database is opened daily: the moment v27 ships and
+FlowMap is launched, v27 has already run and a priority drop can no longer ride in it. One migration
+would have made *"do not open the app between the two phases"* an unwritten precondition of the
+release.
+
+**And one correction this migration carries that is not about priority.** `SimQueue.rule` becomes
+nullable, with the FIFO default moved from where the project is *loaded* to where the engine *sorts*
+(`SimQueue.effectiveRule`). §5.5 has always said an unset rule is not the statement that a lane is
+FIFO, but the default was applied before a run copied the lane in, so a stored run could not tell the
+two apart — run `e0d93a45` stored `fifo` on all 15 lanes while the project held 8 typed and 7
+untyped. That was invisible while the column was write-only; v27 made it the Gantt's caption, so
+seven lanes drew `FIFO · CEU27` on a run whose map drew `Queue · CEU27`. **Found by driving, not by
+the suite**, and recorded in `DRIVE-queue.md`.
+
 ## 17. Done between M2 and M3
 
 ### 17.1 A buffer's time now agrees with itself
@@ -3795,7 +3854,7 @@ next milestone plans them rather than rediscovering them:
 | The decorative layer (§5.2) | table, enum, five repository methods, provider | M5 — nothing draws or creates an annotation; `duplicateStudy` deep-copies a table that is always empty. §5.4's node notes deliberately do **not** use it |
 | `DiagnosticsLog.compose` / `addFeedback` | written, never called | M5 — there is no About screen (§12.1), so the log has no in-app way out |
 | ~~`_walkCalendar` and `FlowView.endDate` / `runningDays` / `workingDays`~~ | **deleted** — this row's own reasoning is what went wrong. Kept as a tested answer to a question that would be asked again, it was reached again: §7.9 wired the end date into the footer's `working days` slot, where it sat mislabelled as an elapsed span counting weekends, and `runningDays` / `workingDays` were never displayed at all. §13's report can walk the calendar when it needs one. **The lesson for this table**: unreachable code with a plausible future consumer is not inert, it is a loaded slot | — |
-| ~~`wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn`~~ | **reached in M4** — the engine walks dates rather than periods, which is what the two `…On(date)` accessors were written for | — |
+| ~~`wipCap`, `priority`, `effectiveProcessTime`, `availabilityOn`, `reworkOn`~~ | **reached in M4** — the engine walks dates rather than periods, which is what the two `…On(date)` accessors were written for. **`priority` was then deleted in v28** (§16.24): reaching it is what showed it was a lever nobody wanted, wired where it could not expedite anything. This table's own lesson, run the other way — an unreachable field can turn out to be dead weight rather than a loaded slot, and only reaching it tells you which | — |
 
 ---
 

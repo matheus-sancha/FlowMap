@@ -8034,18 +8034,6 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     ),
     defaultValue: const Constant(false),
   );
-  static const VerificationMeta _priorityMeta = const VerificationMeta(
-    'priority',
-  );
-  @override
-  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
-    'priority',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(100),
-  );
   static const VerificationMeta _wipCapMeta = const VerificationMeta('wipCap');
   @override
   late final GeneratedColumn<int> wipCap = GeneratedColumn<int>(
@@ -8161,7 +8149,6 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     productionLineId,
     name,
     includeInSimulation,
-    priority,
     wipCap,
     startBufferDays,
     paceSetterTargetId,
@@ -8235,12 +8222,6 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
           data['include_in_simulation']!,
           _includeInSimulationMeta,
         ),
-      );
-    }
-    if (data.containsKey('priority')) {
-      context.handle(
-        _priorityMeta,
-        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
       );
     }
     if (data.containsKey('wip_cap')) {
@@ -8362,10 +8343,6 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
         DriftSqlType.bool,
         data['${effectivePrefix}include_in_simulation'],
       )!,
-      priority: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}priority'],
-      )!,
       wipCap: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}wip_cap'],
@@ -8425,10 +8402,6 @@ class Study extends DataClass implements Insertable<Study> {
   /// Whether this study takes part in the next simulation run. The project
   /// enforces at most one flagged study per line before a run.
   final bool includeInSimulation;
-
-  /// Breaks dispatch ties between studies contending for a shared workcenter
-  /// (DESIGN.md §7.4). Lower runs first.
-  final int priority;
 
   /// CONWIP cap: maximum orders open in the flow at once. Null is unlimited,
   /// the default, so a first run shows raw demand-vs-capacity behaviour
@@ -8496,7 +8469,6 @@ class Study extends DataClass implements Insertable<Study> {
     required this.productionLineId,
     required this.name,
     required this.includeInSimulation,
-    required this.priority,
     this.wipCap,
     required this.startBufferDays,
     this.paceSetterTargetId,
@@ -8517,7 +8489,6 @@ class Study extends DataClass implements Insertable<Study> {
     map['production_line_id'] = Variable<String>(productionLineId);
     map['name'] = Variable<String>(name);
     map['include_in_simulation'] = Variable<bool>(includeInSimulation);
-    map['priority'] = Variable<int>(priority);
     if (!nullToAbsent || wipCap != null) {
       map['wip_cap'] = Variable<int>(wipCap);
     }
@@ -8553,7 +8524,6 @@ class Study extends DataClass implements Insertable<Study> {
       productionLineId: Value(productionLineId),
       name: Value(name),
       includeInSimulation: Value(includeInSimulation),
-      priority: Value(priority),
       wipCap: wipCap == null && nullToAbsent
           ? const Value.absent()
           : Value(wipCap),
@@ -8595,7 +8565,6 @@ class Study extends DataClass implements Insertable<Study> {
       includeInSimulation: serializer.fromJson<bool>(
         json['includeInSimulation'],
       ),
-      priority: serializer.fromJson<int>(json['priority']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
       startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
       paceSetterTargetId: serializer.fromJson<String?>(
@@ -8620,7 +8589,6 @@ class Study extends DataClass implements Insertable<Study> {
       'productionLineId': serializer.toJson<String>(productionLineId),
       'name': serializer.toJson<String>(name),
       'includeInSimulation': serializer.toJson<bool>(includeInSimulation),
-      'priority': serializer.toJson<int>(priority),
       'wipCap': serializer.toJson<int?>(wipCap),
       'startBufferDays': serializer.toJson<int>(startBufferDays),
       'paceSetterTargetId': serializer.toJson<String?>(paceSetterTargetId),
@@ -8641,7 +8609,6 @@ class Study extends DataClass implements Insertable<Study> {
     String? productionLineId,
     String? name,
     bool? includeInSimulation,
-    int? priority,
     Value<int?> wipCap = const Value.absent(),
     int? startBufferDays,
     Value<String?> paceSetterTargetId = const Value.absent(),
@@ -8659,7 +8626,6 @@ class Study extends DataClass implements Insertable<Study> {
     productionLineId: productionLineId ?? this.productionLineId,
     name: name ?? this.name,
     includeInSimulation: includeInSimulation ?? this.includeInSimulation,
-    priority: priority ?? this.priority,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
     startBufferDays: startBufferDays ?? this.startBufferDays,
     paceSetterTargetId: paceSetterTargetId.present
@@ -8689,7 +8655,6 @@ class Study extends DataClass implements Insertable<Study> {
       includeInSimulation: data.includeInSimulation.present
           ? data.includeInSimulation.value
           : this.includeInSimulation,
-      priority: data.priority.present ? data.priority.value : this.priority,
       wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
       startBufferDays: data.startBufferDays.present
           ? data.startBufferDays.value
@@ -8724,7 +8689,6 @@ class Study extends DataClass implements Insertable<Study> {
           ..write('productionLineId: $productionLineId, ')
           ..write('name: $name, ')
           ..write('includeInSimulation: $includeInSimulation, ')
-          ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
           ..write('paceSetterTargetId: $paceSetterTargetId, ')
@@ -8747,7 +8711,6 @@ class Study extends DataClass implements Insertable<Study> {
     productionLineId,
     name,
     includeInSimulation,
-    priority,
     wipCap,
     startBufferDays,
     paceSetterTargetId,
@@ -8769,7 +8732,6 @@ class Study extends DataClass implements Insertable<Study> {
           other.productionLineId == this.productionLineId &&
           other.name == this.name &&
           other.includeInSimulation == this.includeInSimulation &&
-          other.priority == this.priority &&
           other.wipCap == this.wipCap &&
           other.startBufferDays == this.startBufferDays &&
           other.paceSetterTargetId == this.paceSetterTargetId &&
@@ -8789,7 +8751,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
   final Value<String> productionLineId;
   final Value<String> name;
   final Value<bool> includeInSimulation;
-  final Value<int> priority;
   final Value<int?> wipCap;
   final Value<int> startBufferDays;
   final Value<String?> paceSetterTargetId;
@@ -8808,7 +8769,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     this.productionLineId = const Value.absent(),
     this.name = const Value.absent(),
     this.includeInSimulation = const Value.absent(),
-    this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
     this.paceSetterTargetId = const Value.absent(),
@@ -8828,7 +8788,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     required String productionLineId,
     required String name,
     this.includeInSimulation = const Value.absent(),
-    this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
     this.paceSetterTargetId = const Value.absent(),
@@ -8854,7 +8813,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     Expression<String>? productionLineId,
     Expression<String>? name,
     Expression<bool>? includeInSimulation,
-    Expression<int>? priority,
     Expression<int>? wipCap,
     Expression<int>? startBufferDays,
     Expression<String>? paceSetterTargetId,
@@ -8875,7 +8833,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
       if (name != null) 'name': name,
       if (includeInSimulation != null)
         'include_in_simulation': includeInSimulation,
-      if (priority != null) 'priority': priority,
       if (wipCap != null) 'wip_cap': wipCap,
       if (startBufferDays != null) 'start_buffer_days': startBufferDays,
       if (paceSetterTargetId != null)
@@ -8898,7 +8855,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     Value<String>? productionLineId,
     Value<String>? name,
     Value<bool>? includeInSimulation,
-    Value<int>? priority,
     Value<int?>? wipCap,
     Value<int>? startBufferDays,
     Value<String?>? paceSetterTargetId,
@@ -8918,7 +8874,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
       productionLineId: productionLineId ?? this.productionLineId,
       name: name ?? this.name,
       includeInSimulation: includeInSimulation ?? this.includeInSimulation,
-      priority: priority ?? this.priority,
       wipCap: wipCap ?? this.wipCap,
       startBufferDays: startBufferDays ?? this.startBufferDays,
       paceSetterTargetId: paceSetterTargetId ?? this.paceSetterTargetId,
@@ -8953,9 +8908,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     }
     if (includeInSimulation.present) {
       map['include_in_simulation'] = Variable<bool>(includeInSimulation.value);
-    }
-    if (priority.present) {
-      map['priority'] = Variable<int>(priority.value);
     }
     if (wipCap.present) {
       map['wip_cap'] = Variable<int>(wipCap.value);
@@ -9002,7 +8954,6 @@ class StudiesCompanion extends UpdateCompanion<Study> {
           ..write('productionLineId: $productionLineId, ')
           ..write('name: $name, ')
           ..write('includeInSimulation: $includeInSimulation, ')
-          ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
           ..write('paceSetterTargetId: $paceSetterTargetId, ')
@@ -13289,17 +13240,6 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _priorityMeta = const VerificationMeta(
-    'priority',
-  );
-  @override
-  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
-    'priority',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _wipCapMeta = const VerificationMeta('wipCap');
   @override
   late final GeneratedColumn<int> wipCap = GeneratedColumn<int>(
@@ -13376,7 +13316,6 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     taktUnit,
     nextTaktChange,
     cadenceEndedAt,
-    priority,
     wipCap,
     startBufferDays,
     productionCellId,
@@ -13469,14 +13408,6 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
           _cadenceEndedAtMeta,
         ),
       );
-    }
-    if (data.containsKey('priority')) {
-      context.handle(
-        _priorityMeta,
-        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_priorityMeta);
     }
     if (data.containsKey('wip_cap')) {
       context.handle(
@@ -13574,10 +13505,6 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         DriftSqlType.dateTime,
         data['${effectivePrefix}cadence_ended_at'],
       ),
-      priority: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}priority'],
-      )!,
       wipCap: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}wip_cap'],
@@ -13674,7 +13601,6 @@ class SimulationRunStudy extends DataClass
   /// against the schedule horizon, and a run that stops releasing early may
   /// well end before the horizon with the warning silent.
   final DateTime? cadenceEndedAt;
-  final int priority;
   final int? wipCap;
 
   /// The margin that was added ahead of the derived cold start (§7.8), in
@@ -13709,7 +13635,6 @@ class SimulationRunStudy extends DataClass
     this.taktUnit,
     this.nextTaktChange,
     this.cadenceEndedAt,
-    required this.priority,
     this.wipCap,
     required this.startBufferDays,
     this.productionCellId,
@@ -13739,7 +13664,6 @@ class SimulationRunStudy extends DataClass
     if (!nullToAbsent || cadenceEndedAt != null) {
       map['cadence_ended_at'] = Variable<DateTime>(cadenceEndedAt);
     }
-    map['priority'] = Variable<int>(priority);
     if (!nullToAbsent || wipCap != null) {
       map['wip_cap'] = Variable<int>(wipCap);
     }
@@ -13780,7 +13704,6 @@ class SimulationRunStudy extends DataClass
       cadenceEndedAt: cadenceEndedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(cadenceEndedAt),
-      priority: Value(priority),
       wipCap: wipCap == null && nullToAbsent
           ? const Value.absent()
           : Value(wipCap),
@@ -13817,7 +13740,6 @@ class SimulationRunStudy extends DataClass
       taktUnit: serializer.fromJson<String?>(json['taktUnit']),
       nextTaktChange: serializer.fromJson<DateTime?>(json['nextTaktChange']),
       cadenceEndedAt: serializer.fromJson<DateTime?>(json['cadenceEndedAt']),
-      priority: serializer.fromJson<int>(json['priority']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
       startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
       productionCellId: serializer.fromJson<String?>(json['productionCellId']),
@@ -13843,7 +13765,6 @@ class SimulationRunStudy extends DataClass
       'taktUnit': serializer.toJson<String?>(taktUnit),
       'nextTaktChange': serializer.toJson<DateTime?>(nextTaktChange),
       'cadenceEndedAt': serializer.toJson<DateTime?>(cadenceEndedAt),
-      'priority': serializer.toJson<int>(priority),
       'wipCap': serializer.toJson<int?>(wipCap),
       'startBufferDays': serializer.toJson<int>(startBufferDays),
       'productionCellId': serializer.toJson<String?>(productionCellId),
@@ -13863,7 +13784,6 @@ class SimulationRunStudy extends DataClass
     Value<String?> taktUnit = const Value.absent(),
     Value<DateTime?> nextTaktChange = const Value.absent(),
     Value<DateTime?> cadenceEndedAt = const Value.absent(),
-    int? priority,
     Value<int?> wipCap = const Value.absent(),
     int? startBufferDays,
     Value<String?> productionCellId = const Value.absent(),
@@ -13886,7 +13806,6 @@ class SimulationRunStudy extends DataClass
     cadenceEndedAt: cadenceEndedAt.present
         ? cadenceEndedAt.value
         : this.cadenceEndedAt,
-    priority: priority ?? this.priority,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
     startBufferDays: startBufferDays ?? this.startBufferDays,
     productionCellId: productionCellId.present
@@ -13921,7 +13840,6 @@ class SimulationRunStudy extends DataClass
       cadenceEndedAt: data.cadenceEndedAt.present
           ? data.cadenceEndedAt.value
           : this.cadenceEndedAt,
-      priority: data.priority.present ? data.priority.value : this.priority,
       wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
       startBufferDays: data.startBufferDays.present
           ? data.startBufferDays.value
@@ -13953,7 +13871,6 @@ class SimulationRunStudy extends DataClass
           ..write('taktUnit: $taktUnit, ')
           ..write('nextTaktChange: $nextTaktChange, ')
           ..write('cadenceEndedAt: $cadenceEndedAt, ')
-          ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
           ..write('productionCellId: $productionCellId, ')
@@ -13975,7 +13892,6 @@ class SimulationRunStudy extends DataClass
     taktUnit,
     nextTaktChange,
     cadenceEndedAt,
-    priority,
     wipCap,
     startBufferDays,
     productionCellId,
@@ -13996,7 +13912,6 @@ class SimulationRunStudy extends DataClass
           other.taktUnit == this.taktUnit &&
           other.nextTaktChange == this.nextTaktChange &&
           other.cadenceEndedAt == this.cadenceEndedAt &&
-          other.priority == this.priority &&
           other.wipCap == this.wipCap &&
           other.startBufferDays == this.startBufferDays &&
           other.productionCellId == this.productionCellId &&
@@ -14016,7 +13931,6 @@ class SimulationRunStudiesCompanion
   final Value<String?> taktUnit;
   final Value<DateTime?> nextTaktChange;
   final Value<DateTime?> cadenceEndedAt;
-  final Value<int> priority;
   final Value<int?> wipCap;
   final Value<int> startBufferDays;
   final Value<String?> productionCellId;
@@ -14034,7 +13948,6 @@ class SimulationRunStudiesCompanion
     this.taktUnit = const Value.absent(),
     this.nextTaktChange = const Value.absent(),
     this.cadenceEndedAt = const Value.absent(),
-    this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
     this.productionCellId = const Value.absent(),
@@ -14053,7 +13966,6 @@ class SimulationRunStudiesCompanion
     this.taktUnit = const Value.absent(),
     this.nextTaktChange = const Value.absent(),
     this.cadenceEndedAt = const Value.absent(),
-    required int priority,
     this.wipCap = const Value.absent(),
     this.startBufferDays = const Value.absent(),
     this.productionCellId = const Value.absent(),
@@ -14064,8 +13976,7 @@ class SimulationRunStudiesCompanion
   }) : runId = Value(runId),
        studyId = Value(studyId),
        name = Value(name),
-       releaseSeconds = Value(releaseSeconds),
-       priority = Value(priority);
+       releaseSeconds = Value(releaseSeconds);
   static Insertable<SimulationRunStudy> custom({
     Expression<String>? runId,
     Expression<String>? studyId,
@@ -14076,7 +13987,6 @@ class SimulationRunStudiesCompanion
     Expression<String>? taktUnit,
     Expression<DateTime>? nextTaktChange,
     Expression<DateTime>? cadenceEndedAt,
-    Expression<int>? priority,
     Expression<int>? wipCap,
     Expression<int>? startBufferDays,
     Expression<String>? productionCellId,
@@ -14095,7 +14005,6 @@ class SimulationRunStudiesCompanion
       if (taktUnit != null) 'takt_unit': taktUnit,
       if (nextTaktChange != null) 'next_takt_change': nextTaktChange,
       if (cadenceEndedAt != null) 'cadence_ended_at': cadenceEndedAt,
-      if (priority != null) 'priority': priority,
       if (wipCap != null) 'wip_cap': wipCap,
       if (startBufferDays != null) 'start_buffer_days': startBufferDays,
       if (productionCellId != null) 'production_cell_id': productionCellId,
@@ -14118,7 +14027,6 @@ class SimulationRunStudiesCompanion
     Value<String?>? taktUnit,
     Value<DateTime?>? nextTaktChange,
     Value<DateTime?>? cadenceEndedAt,
-    Value<int>? priority,
     Value<int?>? wipCap,
     Value<int>? startBufferDays,
     Value<String?>? productionCellId,
@@ -14137,7 +14045,6 @@ class SimulationRunStudiesCompanion
       taktUnit: taktUnit ?? this.taktUnit,
       nextTaktChange: nextTaktChange ?? this.nextTaktChange,
       cadenceEndedAt: cadenceEndedAt ?? this.cadenceEndedAt,
-      priority: priority ?? this.priority,
       wipCap: wipCap ?? this.wipCap,
       startBufferDays: startBufferDays ?? this.startBufferDays,
       productionCellId: productionCellId ?? this.productionCellId,
@@ -14178,9 +14085,6 @@ class SimulationRunStudiesCompanion
     if (cadenceEndedAt.present) {
       map['cadence_ended_at'] = Variable<DateTime>(cadenceEndedAt.value);
     }
-    if (priority.present) {
-      map['priority'] = Variable<int>(priority.value);
-    }
     if (wipCap.present) {
       map['wip_cap'] = Variable<int>(wipCap.value);
     }
@@ -14217,7 +14121,6 @@ class SimulationRunStudiesCompanion
           ..write('taktUnit: $taktUnit, ')
           ..write('nextTaktChange: $nextTaktChange, ')
           ..write('cadenceEndedAt: $cadenceEndedAt, ')
-          ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
           ..write('startBufferDays: $startBufferDays, ')
           ..write('productionCellId: $productionCellId, ')
@@ -27490,7 +27393,6 @@ typedef $$StudiesTableCreateCompanionBuilder =
       required String productionLineId,
       required String name,
       Value<bool> includeInSimulation,
-      Value<int> priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
       Value<String?> paceSetterTargetId,
@@ -27511,7 +27413,6 @@ typedef $$StudiesTableUpdateCompanionBuilder =
       Value<String> productionLineId,
       Value<String> name,
       Value<bool> includeInSimulation,
-      Value<int> priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
       Value<String?> paceSetterTargetId,
@@ -27678,11 +27579,6 @@ class $$StudiesTableFilterComposer
 
   ColumnFilters<bool> get includeInSimulation => $composableBuilder(
     column: $table.includeInSimulation,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get priority => $composableBuilder(
-    column: $table.priority,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -27930,11 +27826,6 @@ class $$StudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get priority => $composableBuilder(
-    column: $table.priority,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get wipCap => $composableBuilder(
     column: $table.wipCap,
     builder: (column) => ColumnOrderings(column),
@@ -28074,9 +27965,6 @@ class $$StudiesTableAnnotationComposer
     column: $table.includeInSimulation,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get priority =>
-      $composableBuilder(column: $table.priority, builder: (column) => column);
 
   GeneratedColumn<int> get wipCap =>
       $composableBuilder(column: $table.wipCap, builder: (column) => column);
@@ -28332,7 +28220,6 @@ class $$StudiesTableTableManager
                 Value<String> productionLineId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<bool> includeInSimulation = const Value.absent(),
-                Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
                 Value<String?> paceSetterTargetId = const Value.absent(),
@@ -28351,7 +28238,6 @@ class $$StudiesTableTableManager
                 productionLineId: productionLineId,
                 name: name,
                 includeInSimulation: includeInSimulation,
-                priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
                 paceSetterTargetId: paceSetterTargetId,
@@ -28372,7 +28258,6 @@ class $$StudiesTableTableManager
                 required String productionLineId,
                 required String name,
                 Value<bool> includeInSimulation = const Value.absent(),
-                Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
                 Value<String?> paceSetterTargetId = const Value.absent(),
@@ -28391,7 +28276,6 @@ class $$StudiesTableTableManager
                 productionLineId: productionLineId,
                 name: name,
                 includeInSimulation: includeInSimulation,
-                priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
                 paceSetterTargetId: paceSetterTargetId,
@@ -32686,7 +32570,6 @@ typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
       Value<String?> taktUnit,
       Value<DateTime?> nextTaktChange,
       Value<DateTime?> cadenceEndedAt,
-      required int priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
       Value<String?> productionCellId,
@@ -32706,7 +32589,6 @@ typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
       Value<String?> taktUnit,
       Value<DateTime?> nextTaktChange,
       Value<DateTime?> cadenceEndedAt,
-      Value<int> priority,
       Value<int?> wipCap,
       Value<int> startBufferDays,
       Value<String?> productionCellId,
@@ -32793,11 +32675,6 @@ class $$SimulationRunStudiesTableFilterComposer
 
   ColumnFilters<DateTime> get cadenceEndedAt => $composableBuilder(
     column: $table.cadenceEndedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get priority => $composableBuilder(
-    column: $table.priority,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -32904,11 +32781,6 @@ class $$SimulationRunStudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get priority => $composableBuilder(
-    column: $table.priority,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get wipCap => $composableBuilder(
     column: $table.wipCap,
     builder: (column) => ColumnOrderings(column),
@@ -33003,9 +32875,6 @@ class $$SimulationRunStudiesTableAnnotationComposer
     column: $table.cadenceEndedAt,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get priority =>
-      $composableBuilder(column: $table.priority, builder: (column) => column);
 
   GeneratedColumn<int> get wipCap =>
       $composableBuilder(column: $table.wipCap, builder: (column) => column);
@@ -33104,7 +32973,6 @@ class $$SimulationRunStudiesTableTableManager
                 Value<String?> taktUnit = const Value.absent(),
                 Value<DateTime?> nextTaktChange = const Value.absent(),
                 Value<DateTime?> cadenceEndedAt = const Value.absent(),
-                Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
                 Value<String?> productionCellId = const Value.absent(),
@@ -33122,7 +32990,6 @@ class $$SimulationRunStudiesTableTableManager
                 taktUnit: taktUnit,
                 nextTaktChange: nextTaktChange,
                 cadenceEndedAt: cadenceEndedAt,
-                priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
                 productionCellId: productionCellId,
@@ -33142,7 +33009,6 @@ class $$SimulationRunStudiesTableTableManager
                 Value<String?> taktUnit = const Value.absent(),
                 Value<DateTime?> nextTaktChange = const Value.absent(),
                 Value<DateTime?> cadenceEndedAt = const Value.absent(),
-                required int priority,
                 Value<int?> wipCap = const Value.absent(),
                 Value<int> startBufferDays = const Value.absent(),
                 Value<String?> productionCellId = const Value.absent(),
@@ -33160,7 +33026,6 @@ class $$SimulationRunStudiesTableTableManager
                 taktUnit: taktUnit,
                 nextTaktChange: nextTaktChange,
                 cadenceEndedAt: cadenceEndedAt,
-                priority: priority,
                 wipCap: wipCap,
                 startBufferDays: startBufferDays,
                 productionCellId: productionCellId,

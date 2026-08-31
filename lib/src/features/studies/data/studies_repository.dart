@@ -89,7 +89,6 @@ class StudiesRepository {
     String? supplierName,
     String? customerName,
     int? wipCap,
-    int? priority,
     int? startBufferDays,
     String? paceSetterTargetId,
     bool paceSetterGiven = false,
@@ -106,7 +105,6 @@ class StudiesRepository {
       supplierName: Value(supplierName),
       customerName: Value(customerName),
       wipCap: Value(wipCap),
-      priority: priority == null ? const Value.absent() : Value(priority),
       startBufferDays: startBufferDays == null
           ? const Value.absent()
           : Value(startBufferDays),
@@ -206,7 +204,6 @@ class StudiesRepository {
                 productionLineId: source.productionLineId,
                 name: newName,
                 includeInSimulation: const Value(false),
-                priority: Value(source.priority),
                 wipCap: Value(source.wipCap),
                 supplierName: Value(source.supplierName),
                 customerName: Value(source.customerName),

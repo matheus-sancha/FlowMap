@@ -18,6 +18,10 @@ moved onto the lane), §5's round one (availability came off setup, and cold sta
 one), and `TODO.md`'s §8.1, which stops an order queueing at a station its part never visits. So a
 number below describes the model as it stood, not as it stands.
 
+**A fifth change moves some runs but not all of them: §6.2, v28**, which refilled the dispatch
+fall-through's middle slot with the need date. It touches only orders that tie on arrival — 78 pairs
+in 189,623 step rows — so most of a run is untouched and no figure here is retracted by it.
+
 ---
 
 ## The state this file was split at
@@ -2080,3 +2084,69 @@ dropping every study; that Simulate works from both places and reports the same 
 **DESIGN.md this round:** **§8.6** (the Gantt's row filter), **§12.1** (rewritten — seven tabs, the sidebar destination, two triggers
 for one run), **§7.3** and **§7.7** (the cap and the priority are reachable, and what a study's
 slice is), **§7.10** (the cell and line the run carries), **§10.1**, **§17.5** (two entries closed).
+
+
+## 6. Version 2.0, 2026-08-30
+
+The plan is `docs/TODO.md`; the reasoning behind each phase is its wayfinder ticket, and neither is
+repeated here. This section is what the migrations **met when they ran**, which is what this file is
+for.
+
+### 6.1 Schema v27 — a queue is an aspect of its target
+
+Landed `19813d6`. `project_queues.name` and `flow_nodes.label` dropped; the caption is derived as
+`<type> · <target>`. Ticket [#5](https://github.com/matheus-sancha/FlowMap/issues/5), reasoning in
+`DESIGN.md`.
+
+**Met a copy of the real database on 2026-08-30**: upgraded to v27, `integrity_check` ok, both
+columns gone, **15 queues and 25 steps survived** with 250 orders, 147 runs and 189,623 step rows
+untouched. Seven of the fifteen queues are untyped — exactly the seven the ticket predicted — and
+every caption derives, including `FIFO · CLAD Pool - Célula 11B/C`, the pool whose own name contains
+a hyphen and is why the separator is a middot. Backed up first as
+`flowmap.sqlite.backup-v26-20260830-171232`.
+
+**And the live file itself**: `db.open schema 27 from 27` at **21:20:45 under `0.1.0-2026-08-30a`**,
+the migration having run at 17:14 in the session before it.
+
+**Driven the same evening** — `DRIVE-queue.md`, the process boxes, which no test in the suite
+renders. Two things it established that the 997 tests could not. A run stored from v27 on writes
+**no lane caption**: run `e0d93a45` at 21:26 carries `name` NULL on all 15 lanes, so the caption
+re-derives in the reader's language rather than being frozen in whoever ran it — the ticket had
+asked for it to be written in, and the commit stored null instead. And **the 147 runs stored before
+it keep the caption they were saved with**, so their Gantts read `FIFO BAN` and `FIFO CLAD` against a
+map now reading `Queue · BAN11` and `FIFO · CLAD Pool - Célula 11B/C`. That is §7.10 working as
+written and it stands; it is recorded because nothing on screen explains it.
+
+The drive also found what §16.24's last paragraph describes: an untyped lane was being stored as
+FIFO. Fixed in v28 rather than here, since v28 was already rewriting the comparator the default
+belongs in.
+
+### 6.2 Schema v28 — study priority goes
+
+Study priority dropped, and `simulation_run_studies.priority` with it; the vacated slot in the
+dispatch fall-through refilled with the **need date**. Ticket
+[#6](https://github.com/matheus-sancha/FlowMap/issues/6), reasoning in `DESIGN.md` §16.24.
+
+**A re-run after this will not match a run stored before it.** Only for ties on arrival: 78 pairs in
+189,623 step rows, **27 of which were being settled by comparing two UUIDs**. Nothing is stamped on
+the run to say which side of the line it falls on — a run already carries `created_at` — so this
+line is the record. **Runs created before 2026-08-30 break cross-study ties by UUID; runs created
+after it break them by need date.**
+
+`SimQueue.rule` became nullable in the same step, with the FIFO default moved to where the engine
+sorts. A run stored from here on keeps the difference between a lane someone typed FIFO on and one
+nobody typed anything on.
+
+**Met a copy of the real database on 2026-08-30**: upgraded to v28, `integrity_check` ok, both
+priority columns gone, and **3 studies, 327 stored study rows, 148 runs, 191,494 run steps, 250
+orders and 15 queues** all intact. Backed up first as `flowmap.sqlite.backup-v27-20260830-213823`.
+
+*The drop is a provable no-op on every run ever stored*: all 3 studies and all 327 stored study rows
+sat at the default 100, so nothing that was ever run had priority doing anything.
+
+One assertion was written for this check and **removed after it failed correctly**: *lanes with a
+null rule belong only to runs newer than the fix*. 37 of the 148 runs here already carry null lane
+rules, from before the column was written at all — null means both *unset* and *never recorded*
+across generations, so it cannot be a sentinel for the newer one. The claim is about the moment a run
+is stored, which this file never sees; it lives in `run_storage_test.dart` instead. That is the trap
+at the top of `live_db_check_test.dart` arriving a third time.

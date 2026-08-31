@@ -129,7 +129,6 @@ void main() {
     studyId: id,
     name: name,
     releaseSeconds: const Duration(hours: 6).inSeconds,
-    priority: 0,
     startBufferDays: 0,
   );
 
@@ -860,7 +859,6 @@ void main() {
                 name: 'Celula 11B',
                 includeInSimulation: true,
                 startBufferDays: 0,
-                priority: 0,
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -872,7 +870,6 @@ void main() {
                 name: 'Celula 12A',
                 includeInSimulation: true,
                 startBufferDays: 0,
-                priority: 0,
                 createdAt: now,
                 updatedAt: now,
               ),

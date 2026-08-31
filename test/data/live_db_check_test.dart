@@ -406,5 +406,59 @@ void main() {
       'queues: ${queues.length} '
       '(${queues.where((q) => q.rule == null).length} untyped)',
     );
+
+    // --- v28: study priority goes (#6) --------------------------------------
+
+    // Both columns are gone, the study's and the run's copy of it.
+    expect(await hasColumn('studies', 'priority'), isFalse);
+    expect(await hasColumn('simulation_run_studies', 'priority'), isFalse);
+
+    // **And every study and every stored study row survived the drop.** This
+    // is the whole claim: 3 studies and 324 rows across 147 runs all sat at the
+    // default 100, so a lever nobody ever moved could be removed without
+    // changing a single stored run. Non-empty rather than those counts, per the
+    // note at the top of this file.
+    expect(studies, isNotEmpty, reason: 'the studies survived the drop');
+    expect(
+      runStudies,
+      isNotEmpty,
+      reason: 'and so did every stored study row',
+    );
+    // ignore: avoid_print
+    print('studies: ${studies.length}');
+    // ignore: avoid_print
+    print('stored study rows: ${runStudies.length}');
+
+    // **The untyped-lane fix is not assertable here, and this says why.**
+    //
+    // `SimQueue.rule` became nullable so a run keeps the difference between a
+    // lane someone typed FIFO on and one nobody typed anything on. The obvious
+    // check — `expectOnlyNewerRunsAnswer` on lanes with a null rule — was
+    // written, run against this file, and **failed correctly**: 37 of the 148
+    // runs here already carry null lane rules, from before the column was
+    // written at all. Null in this column has two meanings across generations,
+    // *unset* and *never recorded*, so it cannot be a sentinel for the newer
+    // one.
+    //
+    // That is the trap at the top of this file arriving a third time: the claim
+    // is about the moment a run is *stored*, and this file only ever sees runs
+    // that already exist. It belongs in `run_storage_test.dart`, which stores a
+    // run with one typed lane and one untyped and asserts both come back as
+    // they went in — and it is there.
+    //
+    // What is checked here is what this file can actually see: the lane rows
+    // survived the migration, and how many runs sit on each side of the
+    // ambiguity, printed so a reader knows which case they are looking at.
+    final laneRows = await db.select(db.simulationRunLanes).get();
+    expect(laneRows, isNotEmpty, reason: 'the stored lanes survived too');
+    final untypedRuns = {
+      for (final lane in laneRows)
+        if (lane.rule == null) lane.runId,
+    };
+    // ignore: avoid_print
+    print(
+      'lanes: ${laneRows.length}, '
+      'runs with a null lane rule: ${untypedRuns.length} of ${runs.length}',
+    );
   });
 }

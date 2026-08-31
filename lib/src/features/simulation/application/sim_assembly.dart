@@ -427,7 +427,6 @@ SimStudy? assembleSimStudy({
     // Calendar days, which is what the column stores and what every surface
     // showing it says (§7.8, §17.4).
     startBuffer: Duration(days: study.startBufferDays),
-    priority: study.priority,
     wipCap: study.wipCap,
   );
 }

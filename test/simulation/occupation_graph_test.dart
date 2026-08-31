@@ -170,7 +170,6 @@ void main() {
           ],
           releaseInterval: const Duration(hours: 12),
           releaseCalendarId: 'wc-1',
-          priority: 20,
         );
 
     return (

@@ -17,7 +17,6 @@ void main() {
     name: 'Current state',
     includeInSimulation: true,
     startBufferDays: 0,
-    priority: 7,
     wipCap: 3,
     createdAt: now,
     updatedAt: now,
@@ -158,8 +157,8 @@ void main() {
     expect(built.steps.first.setupUnit, TaktUnit.seconds);
     expect(built.orders.map((o) => o.batchSize), [1, 4]);
     expect(built.parts['p1']!.timeAt('W'), const Duration(hours: 2));
-    // The study's own dispatch keys travel with it (§7.4, §7.3).
-    expect(built.priority, 7);
+    // The study's own dispatch key travels with it (§7.3). Priority was the
+    // other one until v28 dropped it (#6).
     expect(built.wipCap, 3);
 
     // And where it sat in the plant, ids and names both, so §12.1's filters can

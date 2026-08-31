@@ -2735,4 +2735,85 @@ void main() {
     });
   });
 
+  group('v27 to v28: study priority goes (#6)', () {
+    /// A v27 database with both priority columns present and filled, so the
+    /// step is exercised rather than skipped.
+    ///
+    /// **One of them holds a value nobody ever set in reality.** All 3 live
+    /// studies and all 324 stored run rows sit at the default 100 — which is
+    /// the evidence the drop is a no-op, and exactly why the fixture uses 7
+    /// instead: a migration that only ever meets the default cannot show that
+    /// it drops anything.
+    Future<File> v27() async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "created_at, updated_at) VALUES "
+        "('proj-1', 'P', 'plant-1', 'pattern-1', $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute(
+          'ALTER TABLE studies ADD COLUMN priority INTEGER NOT NULL '
+          'DEFAULT 100',
+        )
+        ..execute(
+          'ALTER TABLE simulation_run_studies ADD COLUMN priority INTEGER '
+          'NOT NULL DEFAULT 100',
+        )
+        ..execute(
+          'INSERT INTO studies (id, project_id, production_cell_id, '
+          'production_line_id, name, priority, wip_cap, created_at, '
+          "updated_at) VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'S', "
+          '7, 4, $now, $now)',
+        )
+        ..execute('PRAGMA user_version = 27')
+        ..close();
+      return file;
+    }
+
+    test('the column goes, and the study survives it', () async {
+      final db = AppDatabase(NativeDatabase(await v27()));
+      addTearDown(db.close);
+
+      // The row is kept and so is the cap beside it — §17.5 listed the two
+      // together and only one of them was a lever nobody pulled.
+      final study = await db.select(db.studies).getSingle();
+      expect(study.id, 'study-1');
+      expect(study.name, 'S');
+      expect(study.wipCap, 4);
+
+      Future<bool> hasColumn(String table, String column) async =>
+          (await db.customSelect('PRAGMA table_info($table)').get()).any(
+            (row) => row.read<String>('name') == column,
+          );
+      expect(await hasColumn('studies', 'priority'), isFalse);
+      // The run's copy goes with it: written on every run since it existed and
+      // read back by nothing, so §7.10's copy-in rule never covered it.
+      expect(
+        await hasColumn('simulation_run_studies', 'priority'),
+        isFalse,
+      );
+    });
+
+    test('running it twice is a no-op, as an interrupted upgrade replays', () async {
+      final file = await v27();
+      final first = AppDatabase(NativeDatabase(file));
+      await first.select(first.studies).get();
+      await first.close();
+
+      sqlite3.open(file.path)
+        ..execute('PRAGMA user_version = 27')
+        ..close();
+
+      final second = AppDatabase(NativeDatabase(file));
+      addTearDown(second.close);
+      expect(await second.select(second.studies).get(), hasLength(1));
+    });
+  });
+
 }

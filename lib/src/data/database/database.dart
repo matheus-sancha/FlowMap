@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1127,6 +1127,53 @@ class AppDatabase extends _$AppDatabase {
             );
           }
           await customStatement('ALTER TABLE flow_nodes DROP COLUMN label');
+        }
+      }
+
+      if (from < 28) {
+        // **Study priority goes** (#6). It was a lever nobody ever pulled,
+        // wired *below* arrival in the fall-through so it could not have
+        // expedited anything if they had: two orders that reach a station at
+        // different times never reach the priority key at all.
+        //
+        // Two columns, and they are dropped for different reasons. The study's
+        // is a field the app no longer offers. The run's copy
+        // (`simulation_run_studies`) is **write-only** — written on every run
+        // since it existed, read back by nothing — and §7.10's rule is that
+        // what a *report* needs is copied in. No report needs this one, so
+        // dropping it loses nothing a reader could ever have seen and stops
+        // every future run fabricating a value for a field that is gone.
+        //
+        // **`DROP COLUMN` on both, not the `TableMigration` rebuild #6
+        // proposed.** Neither column is indexed or part of a key — the run
+        // table is keyed `{runId, studyId}` — so v27's argument applies
+        // unchanged and more strongly: a rebuild reaches for every column the
+        // *current* Dart definition names, and dropping one column by name
+        // cannot reach for a column the table in front of it does not have.
+        //
+        // **Only a value someone actually set is logged.** v27 logged every
+        // dropped value because each was a string someone had typed; here the
+        // live database holds 3 studies and 324 run rows all sitting at the
+        // default 100, so logging them would be 327 lines saying nothing. A
+        // line appearing here at all is the interesting case, and its absence
+        // on upgrade is the evidence that the drop was the no-op #6 predicted.
+        if (await _hasColumn('studies', 'priority')) {
+          for (final row in await customSelect(
+            'SELECT id, priority FROM studies WHERE priority <> 100',
+          ).get()) {
+            Diag.event(
+              'v28.dropped',
+              'study priority ${row.read<int>('priority')} '
+                  'on study ${row.read<String>('id')}',
+            );
+          }
+          await customStatement('ALTER TABLE studies DROP COLUMN priority');
+        }
+
+        if (await _hasColumn('simulation_run_studies', 'priority')) {
+          await customStatement(
+            'ALTER TABLE simulation_run_studies DROP COLUMN priority',
+          );
         }
       }
 
