@@ -735,6 +735,19 @@ class _PlanTabState extends State<_PlanTab> {
 /// shape of the tab — a study is one production line and a planner takes the
 /// section for their line — and this is for the question sectioning cannot
 /// answer: *what is happening across the plant this week?*
+///
+/// **Why this sorts when #10 says the production plan does not.** The rule is
+/// *a surface sorts unless its row order is itself data*, and the two halves of
+/// this tab fall on opposite sides of it. **By study**, a section's rows are one
+/// study's release sequence — that order *is* the record, and sorting it would
+/// produce a plan that looks fine and says something false, which is exactly
+/// what #10 rejected. **Combined** has no such order to destroy: three studies
+/// release on three independent sequences, so there is no single sequence
+/// across them and whatever order the rows arrive in is already a presentation
+/// choice. Start Date ascending is the honest default for it.
+///
+/// So the two are one surface only in the sense that they share a tab. The rule
+/// holds unchanged; #7 and #10 do not actually disagree.
 class _CombinedPlan extends StatelessWidget {
   const _CombinedPlan({
     required this.slice,
@@ -1335,11 +1348,17 @@ class _QueueTable extends StatelessWidget {
     }
 
     return Card(
-      child: resultTable(
+      // **Sortable** (#10): re-ranking is exactly what a reader comes to §8.1's
+      // two rankings to do. It arrives on queue time descending, which is the
+      // order `metrics.workcenters` already computed — so the table looks on
+      // arrival precisely as it did before it could sort at all.
+      child: SortableResultTable<WorkcenterRunMetrics>(
         // The overview pairs Queue and Share side by side (#7), so these
         // take the width they are given rather than leaving half a pane
         // blank. `fill` never narrows a column below its declared width.
         fill: true,
+        initialColumn: 2,
+        initialAscending: false,
         columns: [
           // Wider than it was, for the pool a station ran in (§3.1).
           ResultColumn(label: l10n.workcenter, width: 210),
@@ -1353,24 +1372,30 @@ class _QueueTable extends StatelessWidget {
           ResultColumn(label: l10n.simVisits, width: 100),
           ResultColumn(label: l10n.simChangeovers, width: 130),
         ],
-        rowCount: metrics.workcenters.length,
-        cellAt: (index, column) {
-          final station = metrics.workcenters[index];
-          return switch (column) {
-            0 => _StationName(station: station),
-            1 => Tooltip(
-              message: l10n.simUtilizationHelp,
-              child: Text(_percent(station.utilization)),
-            ),
-            2 => Text(_duration(l10n, station.queueTime)),
-            3 => Text(_duration(l10n, station.averageQueue)),
-            4 => Tooltip(
-              message: l10n.simBlockedHelp,
-              child: Text(_duration(l10n, station.blocked)),
-            ),
-            5 => Text('${station.visits}'),
-            _ => Text('${station.changeovers}'),
-          };
+        rows: metrics.workcenters,
+        sortKeyOf: (station, column) => switch (column) {
+          0 => station.name,
+          1 => station.utilization,
+          2 => station.queueTime,
+          3 => station.averageQueue,
+          4 => station.blocked,
+          5 => station.visits,
+          _ => station.changeovers,
+        },
+        cellAt: (station, column) => switch (column) {
+          0 => _StationName(station: station),
+          1 => Tooltip(
+            message: l10n.simUtilizationHelp,
+            child: Text(_percent(station.utilization)),
+          ),
+          2 => Text(_duration(l10n, station.queueTime)),
+          3 => Text(_duration(l10n, station.averageQueue)),
+          4 => Tooltip(
+            message: l10n.simBlockedHelp,
+            child: Text(_duration(l10n, station.blocked)),
+          ),
+          5 => Text('${station.visits}'),
+          _ => Text('${station.changeovers}'),
         },
       ),
     );
@@ -1390,24 +1415,32 @@ class _ShareTable extends StatelessWidget {
     if (metrics.workcenters.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      child: resultTable(
+      // Sortable for the same reason as the queue ranking, and arriving on the
+      // contribution `byContribution` already ordered it by (#10).
+      child: SortableResultTable<WorkcenterRunMetrics>(
         // The overview pairs Queue and Share side by side (#7), so these
         // take the width they are given rather than leaving half a pane
         // blank. `fill` never narrows a column below its declared width.
         fill: true,
+        initialColumn: 1,
+        initialAscending: false,
         columns: [
           ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.simContributed, width: 160),
           ResultColumn(label: l10n.simShareOfFlow, width: 140),
         ],
-        rowCount: metrics.byContribution.length,
-        cellAt: (index, column) {
-          final station = metrics.byContribution[index];
-          return switch (column) {
-            0 => _StationName(station: station),
-            1 => Text(_duration(l10n, station.contributedTime)),
-            _ => Text(_percent(metrics.shareOfFlow(station))),
-          };
+        rows: metrics.byContribution,
+        // Share of flow is contributed time over the same total, so the two
+        // columns are one ordering — sorting either gives the same rows in the
+        // same places, which is honest rather than redundant.
+        sortKeyOf: (station, column) => switch (column) {
+          0 => station.name,
+          _ => station.contributedTime,
+        },
+        cellAt: (station, column) => switch (column) {
+          0 => _StationName(station: station),
+          1 => Text(_duration(l10n, station.contributedTime)),
+          _ => Text(_percent(metrics.shareOfFlow(station))),
         },
       ),
     );
@@ -1448,8 +1481,17 @@ class _PartsTable extends StatelessWidget {
     // then hold the same answer on every row (§8.1.2).
     final showStudy = slice.studyIds.length > 1;
 
+    // **The palette index travels with the row** (#10). The swatch is keyed on
+    // a part's position in `metrics.parts` — that is what `partColour` reads
+    // and what the Gantt draws — so a sorted table handing `_PartSwatch` its
+    // *displayed* row would recolour every part the moment a heading was
+    // pressed, and the legend would then disagree with the chart it is the
+    // legend for. Pairing each part with the index it had is what makes this
+    // table safe to sort at all.
+    final rows = metrics.parts.indexed.toList();
+
     return Card(
-      child: resultTable(
+      child: SortableResultTable<(int, PartMetrics)>(
         // The overview pairs Queue and Share side by side (#7), so these
         // take the width they are given rather than leaving half a pane
         // blank. `fill` never narrows a column below its declared width.
@@ -1466,9 +1508,24 @@ class _PartsTable extends StatelessWidget {
           ResultColumn(label: l10n.simAverageLeadTime, width: 150),
           ResultColumn(label: l10n.simAverageFloat, width: 130),
         ],
-        rowCount: metrics.parts.length,
-        cellAt: (index, column) {
-          final part = metrics.parts[index];
+        rows: rows,
+        sortKeyOf: (row, column) {
+          final part = row.$2;
+          if (showStudy && column == 1) return names[part.studyId] ?? '';
+          return switch (showStudy && column > 0 ? column - 1 : column) {
+            0 => part.partNumber,
+            1 => part.orders,
+            2 => part.delivered,
+            3 => part.onTime,
+            // A part the run could not cost sorts as though it took no time,
+            // which puts it at one end rather than scattering it — the same
+            // choice the empty release slot makes on the combined plan.
+            4 => part.averageLeadTime ?? Duration.zero,
+            _ => part.averageFloat ?? Duration.zero,
+          };
+        },
+        cellAt: (row, column) {
+          final (index, part) = row;
           // Everything after Part Number shifts right by one when the Study
           // column is there, so the switch is written against the position the
           // column would have without it.

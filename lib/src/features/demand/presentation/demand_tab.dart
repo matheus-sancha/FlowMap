@@ -358,6 +358,17 @@ class _SequenceGrid extends ConsumerWidget {
       rowCount: orders.length + 1,
       rowHeaderWidth: 44,
       rowActionsWidth: 48,
+      // **The one grid in the app that reorders** (#10). `demand_orders` is the
+      // only table carrying a `sequence` column — `demand_parts` has none and
+      // its row number is a display index — so this is one table's behaviour
+      // rather than a capability every grid grew.
+      //
+      // The trailing `+` row is excluded: it has no sequence to move, and
+      // dropping a real row past it would ask the repository to place
+      // something after a row that does not exist.
+      reorderableRows: orders.length,
+      onReorder: (from, to) =>
+          ref.read(demandRepositoryProvider).moveOrder(study.id, from, to),
       rowHeader: (row) => Center(
         child: Text(
           row < orders.length ? '${row + 1}' : '+',
@@ -381,6 +392,11 @@ class _SequenceGrid extends ConsumerWidget {
                     await repository.deleteOrder(study.id, orders[row].id);
                 }
               },
+              // **Move up / Move down stay** (#10). A drag is best at "put
+              // this somewhere over there" and worst at "nudge this one slot",
+              // which is the opposite of what this menu is good at — and it is
+              // the only path for a reader who cannot drag. The row-header
+              // handle is the addition, not the replacement.
               itemBuilder: (context) => [
                 PopupMenuItem(value: 'up', child: Text(l10n.actionMoveUp)),
                 PopupMenuItem(value: 'down', child: Text(l10n.actionMoveDown)),

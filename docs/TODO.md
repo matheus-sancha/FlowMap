@@ -40,7 +40,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **done** |
 | 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, driven in part** |
-| 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) |
+| 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive owed** |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
 
@@ -241,8 +241,28 @@ Three interaction adjustments turned out to be three local behaviours, not one s
   question read two ways*, collapsing to stacked under 1100 px. Already implemented on the
   Overview by #7; recorded here as the rule, honestly noted as inferred from its single instance.
 
-**Evidence owed:** `docs/DRIVE-grids.md` — drag a row across all 130, sort each of the four
-surfaces and confirm the two that must not offer it do not.
+**Built** — `flutter analyze` clean, **1,018 tests** (up from 1,007), `DESIGN.md` §12.5b written with
+all three rules. Sorting is one widget, `SortableResultTable`, rather than five copies of the same
+toggle; reordering is `DataGrid.onReorder` with the one caller #10 predicted.
+
+**One thing #10 did not price, found while wiring it.** The parts table's swatch *is* the Gantt's
+legend (§8.6) and is keyed on a part's position in `metrics.parts` — so sorting it while handing
+`_PartSwatch` the displayed row would recolour every part on first press, and the legend would
+disagree with the chart it is the legend for. The rows carry the index they arrived with. Recorded in
+§12.5b because any future sortable table holding a positional value has the same trap.
+
+**And one apparent contradiction, resolved rather than papered over.** #7's combined production plan
+sorts; #10 says the production plan does not. Both are right: *by study* the rows are one study's
+release sequence and that order is the record, while *combined* spans three independent sequences, so
+there is no single order to destroy and Start Date ascending is a presentation choice like any other.
+The rule stands unchanged.
+
+**Still owed: `docs/DRIVE-grids.md`** — drag a row across all 130, sort each of the four surfaces and
+confirm the two that must not offer it do not. What the suite already covers, so the drive need not:
+the drag arithmetic and its clamps (`data_grid_reorder_test`), and the sort toggle, the
+ascending-on-a-new-column rule and the unsortable column (`sortable_result_table_test`). What is left
+is genuinely feel — how the edge-jump reads at 130 rows, which #10 named as the one thing reasoning
+could not settle.
 
 ---
 

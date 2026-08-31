@@ -141,7 +141,11 @@ class _OccupationTable extends StatelessWidget {
     }
 
     return Card(
-      child: resultTable(
+      // **Sortable** (#10): the rule is that a surface sorts unless its row
+      // order is itself data, and this table's order is alphabetical by
+      // station — a presentation choice, not a record. Sorting by Occupation
+      // descending is the question the tab exists to answer.
+      child: SortableResultTable<TargetOccupation>(
         // As tall as it is, and as wide as the window allows. A row per
         // workcenter is long enough to hit a 360 px pane, and a pane inside the
         // tab's own scroll gives two vertical bars a few pixels apart — one
@@ -156,9 +160,17 @@ class _OccupationTable extends StatelessWidget {
           ResultColumn(label: l10n.summaryOperatorsAllocated, width: 140),
           ResultColumn(label: l10n.summaryOperatorsNeeded, width: 140),
         ],
-        rowCount: summary.targets.length,
-        cellAt: (index, column) {
-          final target = summary.targets[index];
+        rows: summary.targets,
+        sortKeyOf: (target, column) => switch (column) {
+          0 => target.title,
+          1 => target.required,
+          2 => target.availableProductive,
+          3 => target.occupation,
+          4 => target.operatorsAllocated,
+          // A station with no figure sorts as zero rather than scattering.
+          _ => target.operatorsNeeded ?? 0,
+        },
+        cellAt: (target, column) {
           return switch (column) {
             0 => Row(
               // Without this the Row fills the column and the centring around

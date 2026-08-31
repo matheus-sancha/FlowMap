@@ -104,6 +104,113 @@ Widget resultTable({
   onSort: onSort,
 );
 
+/// A [resultTable] that sorts itself, for the surfaces the rule names (#10).
+///
+/// > **A surface sorts unless its row order is itself data.**
+///
+/// So the queue ranking, the share of flow, the parts table and the summary
+/// table sort — re-ranking is what a reader goes to those to do. The production
+/// plan does not: its order is the release sequence. The float matrix does not:
+/// row *r* means rank *r* in that column. No editable grid does: sequence order
+/// is the record. *Rejected: every read-only table sorts* — simpler to state,
+/// and clicking a heading on the plan or the matrix produces a table that looks
+/// fine and says something false.
+///
+/// **State lives here, not in four call sites.** Each surface would otherwise
+/// grow the same `int _sortColumn` / `bool _ascending` pair and the same
+/// three-line `onSort`, which is four chances to get the toggle subtly
+/// different.
+///
+/// [sortKeyOf] returns what a column compares, or **null for a column that does
+/// not sort** — a name column with an icon in it, say. A null key leaves the
+/// rows where they are rather than throwing, and the heading still shows no
+/// arrow because [onSort] is never called for it.
+class SortableResultTable<T> extends StatefulWidget {
+  const SortableResultTable({
+    super.key,
+    required this.columns,
+    required this.rows,
+    required this.cellAt,
+    required this.sortKeyOf,
+    this.initialColumn = 0,
+    this.initialAscending = true,
+    this.maxHeight = resultTableMaxHeight,
+    this.fill = false,
+  });
+
+  final List<ResultColumn> columns;
+  final List<T> rows;
+  final Widget Function(T row, int column) cellAt;
+
+  /// What column [column] compares on [row], or null if it does not sort.
+  final Comparable<Object>? Function(T row, int column) sortKeyOf;
+
+  /// Which column the surface arrives sorted on — **the order the metrics
+  /// already computed**, so a table looks on arrival exactly as it did before
+  /// it could sort at all.
+  final int initialColumn;
+  final bool initialAscending;
+
+  final double? maxHeight;
+  final bool fill;
+
+  @override
+  State<SortableResultTable<T>> createState() => _SortableResultTableState<T>();
+}
+
+class _SortableResultTableState<T> extends State<SortableResultTable<T>> {
+  late int _column = widget.initialColumn;
+  late bool _ascending = widget.initialAscending;
+
+  @override
+  Widget build(BuildContext context) {
+    // **Sorted here rather than in the caller's list**, which is the run's own
+    // ordering and is read by other surfaces. A copy costs one allocation per
+    // build on tables of tens of rows.
+    final rows = [...widget.rows];
+    final sortable = widget.rows.isEmpty
+        ? false
+        : widget.sortKeyOf(widget.rows.first, _column) != null;
+    if (sortable) {
+      rows.sort((a, b) {
+        final ka = widget.sortKeyOf(a, _column);
+        final kb = widget.sortKeyOf(b, _column);
+        if (ka == null || kb == null) return 0;
+        final order = ka.compareTo(kb);
+        return _ascending ? order : -order;
+      });
+    }
+
+    return resultTable(
+      columns: widget.columns,
+      maxHeight: widget.maxHeight,
+      fill: widget.fill,
+      sortColumn: sortable ? _column : null,
+      sortAscending: _ascending,
+      onSort: (column) {
+        // A column with no key is not offered: pressing it would move the
+        // arrow onto a heading that sorts nothing.
+        if (widget.rows.isEmpty) return;
+        if (widget.sortKeyOf(widget.rows.first, column) == null) return;
+        setState(() {
+          if (_column == column) {
+            _ascending = !_ascending;
+          } else {
+            _column = column;
+            // **A new column starts ascending**, rather than inheriting the
+            // previous column's direction — otherwise the first press on a
+            // heading can sort it the way the reader did not ask for and the
+            // second press is the one that looks like it worked.
+            _ascending = true;
+          }
+        });
+      },
+      rowCount: rows.length,
+      cellAt: (index, column) => widget.cellAt(rows[index], column),
+    );
+  }
+}
+
 class _ResultTable extends StatefulWidget {
   const _ResultTable({
     super.key,

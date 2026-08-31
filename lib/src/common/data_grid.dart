@@ -8,6 +8,8 @@
 /// stays on screen as an error rather than being dropped.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -66,6 +68,8 @@ class DataGrid extends StatefulWidget {
     this.rowHeaderWidth = 56,
     this.rowActionsWidth = 56,
     this.frozenColumns = 0,
+    this.onReorder,
+    this.reorderableRows,
   });
 
   final List<DataGridColumn> columns;
@@ -88,6 +92,30 @@ class DataGrid extends StatefulWidget {
 
   final double rowHeaderWidth;
   final double rowActionsWidth;
+
+  /// Move the row at `from` so it sits at `to`, or null for a grid whose order
+  /// is not the reader's to change (#10).
+  ///
+  /// **Optional, and exactly one caller passes it.** Reordering is a property
+  /// of *one* table rather than of any ordered grid, and the database is what
+  /// says so: `demand_orders` carries a `sequence` column and nothing else
+  /// does. `demand_parts` has none — its row number is a display index — and
+  /// takt and schedule periods are ordered by date. So this is not a capability
+  /// every grid grew; it is one table's behaviour, offered here because the
+  /// drag has to live where the rows are.
+  ///
+  /// The data layer needed nothing: `moveOrder(studyId, from, to)` already does
+  /// an arbitrary insert with a two-pass rewrite to dodge the unique-per-study
+  /// collision.
+  final void Function(int from, int to)? onReorder;
+
+  /// How many rows from the top may be dragged, or null for all of them.
+  ///
+  /// **The trailing `+` row is not a row.** The sequence grid draws one extra
+  /// line for adding an order, which has no sequence number and nothing to
+  /// reorder — dragging it, or dropping another row past it, would ask the
+  /// repository to move something that does not exist.
+  final int? reorderableRows;
 
   /// How many leading columns stay put while the rest scroll sideways, the row
   /// header going with them.
@@ -145,6 +173,34 @@ class _DataGridState extends State<DataGrid> {
   final _scrollingRows = ScrollController();
   bool _syncing = false;
 
+  /// The row being dragged by its header, and where it would land (#10).
+  ///
+  /// **Both panes read this**, so the insertion line is drawn across the whole
+  /// grid rather than only over the frozen columns the handle lives in.
+  int? _dragFrom;
+  int? _dragTo;
+
+  /// Where the drag began, in scroll offset and in pointer travel.
+  ///
+  /// **Two numbers, because the list moves under the pointer.** Edge
+  /// auto-scroll changes the offset without the pointer moving at all, and a
+  /// target computed from pointer travel alone would ignore every row that
+  /// passed by underneath. The displacement is the sum of the two.
+  double _dragStartOffset = 0;
+  double _dragDy = 0;
+
+  /// Runs while the pointer sits in an edge zone.
+  ///
+  /// **A timer rather than a scroll per drag event.** Dragging order 130 to
+  /// position 3 crosses 127 rows, which is the case #10 named as the one drag
+  /// is worst at — and scrolling only when the pointer *moves* makes the reader
+  /// jiggle it to keep going. This scrolls while it is held still.
+  Timer? _autoScroll;
+
+  /// How many rows the reader may drag, which is [DataGrid.rowCount] unless the
+  /// caller reserved trailing rows.
+  int get _reorderable => widget.reorderableRows ?? widget.rowCount;
+
   bool get _frozen => widget.frozenColumns > 0;
 
   @override
@@ -156,6 +212,7 @@ class _DataGridState extends State<DataGrid> {
 
   @override
   void dispose() {
+    _autoScroll?.cancel();
     _frozenRows.dispose();
     _scrollingRows.dispose();
     super.dispose();
@@ -404,32 +461,158 @@ class _DataGridState extends State<DataGrid> {
     required int to,
     required bool leading,
     required bool trailing,
-  }) => Row(
-    key: ValueKey('row-$row-$from'),
-    children: [
-      if (leading && widget.rowHeader != null)
-        SizedBox(width: widget.rowHeaderWidth, child: widget.rowHeader!(row)),
-      for (var column = from; column < to; column++)
-        SizedBox(
-          width: widget.columns[column].width,
-          child: _GridCell(
-            key: ValueKey('cell-$row-$column'),
-            value: widget.valueAt(row, column),
-            spec: widget.columns[column],
-            error: (raw) => widget.errorAt?.call(row, column, raw),
-            onRegister: (node) => _register(row, column, node),
-            onUnregister: (node) => _unregister(row, column, node),
-            onFocused: () => _anchor = (row: row, column: column),
-            onCommit: (text) => widget.onCommit(row, column, [
-              [text],
-            ]),
-            onMove: _move,
-          ),
-        ),
-      if (trailing && widget.rowActions != null)
-        SizedBox(width: widget.rowActionsWidth, child: widget.rowActions!(row)),
-    ],
-  );
+  }) {
+    final theme = Theme.of(context);
+    // **The insertion line, drawn on every pane** (#10). The handle is in the
+    // frozen columns, but a line only over those would say where the row lands
+    // for two columns out of fourteen.
+    final to_ = _dragTo;
+    final showsLine = to_ != null && _dragFrom != null && to_ == row;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: showsLine
+            ? Border(top: BorderSide(color: theme.colorScheme.primary, width: 2))
+            : null,
+        // The row being carried is dimmed where it came from, so the grid says
+        // what is moving as well as where it would go.
+        color: _dragFrom == row
+            ? theme.colorScheme.primary.withValues(alpha: 0.08)
+            : null,
+      ),
+      child: Row(
+        key: ValueKey('row-$row-$from'),
+        children: [
+          if (leading && widget.rowHeader != null)
+            SizedBox(
+              width: widget.rowHeaderWidth,
+              child: _reorderHandle(row, child: widget.rowHeader!(row)),
+            ),
+          for (var column = from; column < to; column++)
+            SizedBox(
+              width: widget.columns[column].width,
+              child: _GridCell(
+                key: ValueKey('cell-$row-$column'),
+                value: widget.valueAt(row, column),
+                spec: widget.columns[column],
+                error: (raw) => widget.errorAt?.call(row, column, raw),
+                onRegister: (node) => _register(row, column, node),
+                onUnregister: (node) => _unregister(row, column, node),
+                onFocused: () => _anchor = (row: row, column: column),
+                onCommit: (text) => widget.onCommit(row, column, [
+                  [text],
+                ]),
+                onMove: _move,
+              ),
+            ),
+          if (trailing && widget.rowActions != null)
+            SizedBox(
+              width: widget.rowActionsWidth,
+              child: widget.rowActions!(row),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The row-header number, made a drag handle (#10).
+  ///
+  /// **The handle is the header and nothing else.** It is already a frozen
+  /// 44 pt slot showing the position, so making it the grab point leaves every
+  /// cell undraggable — which is what keeps text selection inside a cell
+  /// working. A grid with no `onReorder`, or a row past [_reorderable], gets
+  /// the number back unchanged.
+  Widget _reorderHandle(int row, {required Widget child}) {
+    if (widget.onReorder == null || row >= _reorderable) return child;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.grab,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: (_) => setState(() {
+          _dragFrom = row;
+          _dragTo = row;
+          _dragDy = 0;
+          _dragStartOffset = _scrollingRows.hasClients
+              ? _scrollingRows.offset
+              : 0;
+        }),
+        onVerticalDragUpdate: (details) {
+          _dragDy += details.delta.dy;
+          _autoScrollFor(details.globalPosition.dy);
+          _updateDropTarget();
+        },
+        onVerticalDragEnd: (_) => _endDrag(commit: true),
+        onVerticalDragCancel: () => _endDrag(commit: false),
+        child: child,
+      ),
+    );
+  }
+
+  /// Where the carried row would land, from pointer travel **plus** whatever
+  /// the list scrolled underneath it.
+  void _updateDropTarget() {
+    final from = _dragFrom;
+    if (from == null) return;
+    final scrolled = _scrollingRows.hasClients
+        ? _scrollingRows.offset - _dragStartOffset
+        : 0.0;
+    final moved = ((_dragDy + scrolled) / _rowHeight).round();
+    final target = (from + moved).clamp(0, _reorderable - 1);
+    if (target != _dragTo) setState(() => _dragTo = target);
+  }
+
+  /// Scrolls while the pointer is held in the top or bottom band.
+  ///
+  /// Restarted rather than accumulated: each update either sets the direction
+  /// or cancels, so leaving the band stops the scroll on the next event rather
+  /// than at the end of the drag.
+  void _autoScrollFor(double globalDy) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !_scrollingRows.hasClients) return;
+    final local = box.globalToLocal(Offset(0, globalDy)).dy;
+    final height = box.size.height;
+    const band = 48.0;
+
+    final direction = local < band
+        ? -1
+        : local > height - band
+        ? 1
+        : 0;
+    if (direction == 0) {
+      _autoScroll?.cancel();
+      _autoScroll = null;
+      return;
+    }
+    if (_autoScroll != null) return;
+    _autoScroll = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_scrollingRows.hasClients) return;
+      final position = _scrollingRows.position;
+      final next = (position.pixels + direction * 8).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      if (next == position.pixels) return;
+      _scrollingRows.jumpTo(next);
+      _updateDropTarget();
+    });
+  }
+
+  void _endDrag({required bool commit}) {
+    _autoScroll?.cancel();
+    _autoScroll = null;
+    final from = _dragFrom;
+    final to = _dragTo;
+    setState(() {
+      _dragFrom = null;
+      _dragTo = null;
+    });
+    // **A move to where it already is is not a move.** It would spend a
+    // two-pass rewrite of the whole study's sequence to arrive at what is
+    // already stored, and every listener would rebuild for nothing.
+    if (!commit || from == null || to == null || from == to) return;
+    widget.onReorder!(from, to);
+  }
 }
 
 class _GridCell extends StatefulWidget {

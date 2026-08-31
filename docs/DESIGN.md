@@ -2634,6 +2634,77 @@ fill its card, and that exception goes with it.
   also covers the stretched case — which is now the takt table's own case rather than a hazard the
   other six could still meet, since a declared width is a width whatever else is in the column.
 
+### 12.5b Which tables sort, which pair, and which reorder
+
+Three rules, all of them settled by [#10](https://github.com/matheus-sancha/FlowMap/issues/10) and
+all of them narrow on purpose.
+
+**A surface sorts unless its row order is itself data.**
+
+| sorts | does not — the order *is* the data |
+|---|---|
+| Queue ranking, Share of flow — §8.1's one question read two ways, and re-ranking is what you go there to do | Production plan, *by study* — the order is that study's release sequence |
+| Parts table, Summary table | Float matrix — row *r* means rank *r* in that column |
+| Occupation grid — stations by a month, worst first | Every editable grid — sequence order is the record |
+
+*Rejected: every read-only table sorts.* Simpler to state, and clicking a heading on the plan or the
+matrix produces a table that looks fine and says something false.
+
+**The production plan's combined view sorts, and that is the rule rather than an exception to it.**
+By study, a section's rows are one study's release sequence and that order is the record. Combined
+has no such order to destroy: three studies release on three independent sequences, so there is no
+single sequence across them and whatever order the rows arrive in is already a presentation choice.
+Start Date ascending is its honest default. #7 and #10 do not disagree; the tab holds two surfaces.
+
+**Sorting lives in one widget**, `SortableResultTable` in `result_table.dart`, rather than in each
+of the five call sites — which would otherwise be five copies of the same toggle and five chances to
+get it subtly different. Two of its rules are worth stating because both fail quietly:
+
+- **A new column starts ascending** rather than inheriting the previous column's direction, or the
+  first press sorts it the way nobody asked and the second press is the one that looks like it
+  worked.
+- **A column whose sort key is null does not sort and shows no arrow.** A heading that reorders
+  nothing is worse than one that cannot be pressed.
+
+**And one hazard the parts table has that the others do not.** Its swatch is the Gantt's legend
+(§8.6), keyed on a part's position in `metrics.parts` — so handing `_PartSwatch` the *displayed* row
+would recolour every part the moment a heading was pressed, and the legend would then disagree with
+the chart it is the legend for. The rows are paired with the index they arrived with. Any future
+sortable table carrying a positional value has the same trap.
+
+**Two tables pair when they are one question read two ways.** Everything else is full width and
+stacked, and the pair collapses to stacked under 1100 px, where two half-width tables are two
+cramped ones. §8.1 says the queue ranking and the share of flow are exactly that, and their
+disagreement is itself the finding. *Stated honestly:* across the whole app that is the only instance
+today, so this is a rule inferred from a single driven case — narrow enough to be checkable, and it
+says what would qualify next.
+
+**Reordering is one table's behaviour, not a capability every grid grew.** `demand_orders` carries a
+`sequence` column and nothing else does — `demand_parts` has none and its row number is a display
+index; takt and schedule periods are ordered by date. So `DataGrid.onReorder` is optional and exactly
+one caller passes it.
+
+- **Drag by the row-header number.** It is already a frozen 44 pt slot showing the position, so
+  making it the handle leaves every cell undraggable, which is what keeps text selection inside a
+  cell working.
+- **The trailing `+` row is excluded** through `reorderableRows`. It has no sequence to move, and
+  dropping a real row past it would ask the repository to place something after a row that does not
+  exist.
+- **Where a row lands is `(pointer travel + whatever scrolled underneath) ÷ row height`, rounded.**
+  Two terms, because edge auto-scroll changes the offset without the pointer moving at all — a
+  target computed from travel alone would ignore every row that passed by underneath. The fixed
+  `itemExtent` §12.6 declares is what makes that arithmetic exact rather than a hit test.
+- **Auto-scroll is a timer, not a scroll per drag event.** Dragging order 130 to position 3 crosses
+  127 rows, the case a drag is worst at, and scrolling only when the pointer *moves* makes the reader
+  jiggle it to keep going.
+- **Move up / Move down stay.** A drag is best at *"put this over there"* and worst at *"nudge this
+  one slot"*, which is the opposite of what the menu is good at — and it is the only path for a
+  reader who cannot drag. *Rejected: typing the target position into the header* — better for the
+  127-row case and cheaper, but it turns a one-slot nudge into typing.
+
+The data layer needed nothing: `moveOrder(studyId, from, to)` already did an arbitrary insert with a
+two-pass rewrite to dodge the unique-per-study collision.
+
 ### 12.6 A wide table scrolls, and says so
 
 Every read-only table except the takt schedule is a fixed-height pane: the heading holds still, the
