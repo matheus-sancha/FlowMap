@@ -43,9 +43,9 @@ first. Nothing here restates a decision — it points at the one place each live
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive owed** |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built, drive owed** |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
-| 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13) — **executed and driven**; [#16](https://github.com/matheus-sancha/FlowMap/issues/16) — **open, deciding** |
+| 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13), [#16](https://github.com/matheus-sancha/FlowMap/issues/16) — **executed and driven** |
 | 7 | Text clean-up | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **open, deciding** |
-| 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **open, deciding** |
+| 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **executed and driven** |
 | 9 | The period filter | ? | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **open, deciding** |
 | 10 | Pane state | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **open, deciding** |
 
