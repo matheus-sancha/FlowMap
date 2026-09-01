@@ -7,6 +7,18 @@
 /// period matrix has one column per month, so its width is data rather than
 /// declared, and its cells are painted bands rather than text.
 ///
+/// **The frozen column became real in #16.** This comment claimed one from the
+/// day it was written while every column sat inside a single `DataTable` inside
+/// a single scroll — so the labels slid away with the data, and nobody noticed
+/// because nothing asserted it. It is now a pinned gutter beside a scrolling
+/// body, two `Column`s kept in step by one row height, and
+/// `period_matrix_test.dart` holds it down.
+///
+/// **[banner] is why it had to be.** The Occupation chart is drawn above this
+/// matrix as its header; its hours axis has to stay out of the scroll (#13) and
+/// its bars have to move with the month columns (#16), which is only possible
+/// once the gutter and the body are separately scrollable things.
+///
 /// **Known asymmetry, accepted.** The two share the chrome and not the row
 /// semantics: float's row *r* means *"the order ranked r that month"*, each
 /// column independently sorted and ragged, while occupation's rows are stations
@@ -70,6 +82,8 @@ class PeriodMatrix extends StatelessWidget {
     required this.cellAt,
     required this.headerLabel,
     this.headerWidth = 150,
+    this.monthWidth = defaultMonthWidth,
+    this.banner,
     this.pinned,
     this.pinnedCellAt,
     this.sortedMonth,
@@ -89,6 +103,20 @@ class PeriodMatrix extends StatelessWidget {
   final String headerLabel;
   final double headerWidth;
 
+  /// The width every month column takes unless a caller says otherwise.
+  ///
+  /// Public because the Occupation chart has to lay its bars out to exactly
+  /// this before it is handed to [banner], and a second copy of the number is
+  /// how the two would come apart.
+  static const defaultMonthWidth = 72.0;
+
+  /// **One width for every month column, rather than sizing to content** (#16).
+  /// The Occupation chart is drawn above this matrix and its bars must be as
+  /// wide as the columns they sit over; a column that sized itself to its
+  /// widest cell would move the moment the unit switch changed `81%` into
+  /// `733/499`, and take the chart out of alignment with it.
+  final double monthWidth;
+
   /// A row held above the scroll — the plant's own. Null when there is none.
   final PeriodMatrixRow? pinned;
   final PeriodMatrixCell? Function(int month)? pinnedCellAt;
@@ -106,68 +134,144 @@ class PeriodMatrix extends StatelessWidget {
   final bool sortAscending;
   final ValueChanged<int>? onSortMonth;
 
+  /// A widget spanning the top of the matrix, in two pieces that line up with
+  /// the two halves below it (#16).
+  ///
+  /// **This is how the Occupation chart became the grid's header.** The chart
+  /// and the grid are the same months, so drawing them as two stacked surfaces
+  /// with two scrollbars and two column widths made a reader align them by eye.
+  /// Passing the chart in here instead means one column width, one horizontal
+  /// scrollbar, and a bar sitting directly above its own row of cells.
+  ///
+  /// `gutter` is pinned beside the frozen labels — it holds the chart's hours
+  /// axis, which #13 established has to stay out of the scroll or the bars are
+  /// measured against nothing. `body` scrolls with the month columns and is
+  /// laid out `months.length * monthWidth` wide, so it cannot drift out of step.
+  final ({double height, Widget gutter, Widget body})? banner;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return HorizontalScroll(
-      child: DataTable(
-        // **Tall enough for a two-line row header**, which is what the field
-        // reported as *"the table rows are too narrow"*. A station row carries
-        // its name and the pool it ran in; at 34 pt the second line had nowhere
-        // to go and the first sat hard against the cell above it. The float
-        // matrix's rows are a single rank and were fine at 34 — but one height
-        // for both is worth more than four pixels on the surface that does not
-        // need them.
-        headingRowHeight: 40,
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 48,
-        columnSpacing: 12,
-        horizontalMargin: 8,
-        columns: [
-          DataColumn(
-            label: SizedBox(width: headerWidth, child: Text(headerLabel)),
-          ),
-          for (final (index, month) in months.indexed)
-            DataColumn(
-              label: _MonthHeading(
-                label: DateFormat('MMM/yy').format(month),
-                sorted: sortedMonth == index,
-                ascending: sortAscending,
-                onTap: onSortMonth == null
-                    ? null
-                    : () => onSortMonth!(index),
+    // **The matrix measures itself** (#16). The field reported the Occupation
+    // grid's rows cramped at 48; the float matrix's rows are a bare rank and
+    // were fine at 34. Rather than one constant that is wrong for one of them,
+    // or a parameter each caller has to remember, the height follows the thing
+    // that actually decides it: whether any row carries a second line.
+    final tall =
+        rows.any((row) => row.qualifier != null) || pinned?.qualifier != null;
+    final rowHeight = tall ? 60.0 : 40.0;
+    const headingHeight = 40.0;
+
+    final divider = BorderSide(color: theme.colorScheme.outlineVariant);
+
+    Widget gutterCell(PeriodMatrixRow row) => Container(
+      height: rowHeight,
+      padding: const EdgeInsets.only(left: 8, right: 4),
+      alignment: Alignment.centerLeft,
+      color: (row.emphasis ?? false)
+          ? theme.colorScheme.surfaceContainerHighest
+          : null,
+      child: _Header(row: row, width: headerWidth - 12),
+    );
+
+    Widget bodyRow(
+      PeriodMatrixCell? Function(int month) cellOf, {
+      bool emphasis = false,
+    }) => Container(
+      height: rowHeight,
+      color: emphasis ? theme.colorScheme.surfaceContainerHighest : null,
+      child: Row(
+        children: [
+          for (var m = 0; m < months.length; m++)
+            SizedBox(
+              width: monthWidth,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                child: _Cell(cell: cellOf(m)),
               ),
-              numeric: true,
-            ),
-        ],
-        rows: [
-          if (pinned case final row? when pinnedCellAt != null)
-            DataRow(
-              // The plant reads as chrome rather than as one more station.
-              color: WidgetStatePropertyAll(
-                theme.colorScheme.surfaceContainerHighest,
-              ),
-              cells: [
-                DataCell(_Header(row: row, width: headerWidth)),
-                for (var m = 0; m < months.length; m++)
-                  DataCell(_Cell(cell: pinnedCellAt!(m))),
-              ],
-            ),
-          for (final (index, row) in rows.indexed)
-            DataRow(
-              cells: [
-                DataCell(_Header(row: row, width: headerWidth)),
-                for (var m = 0; m < months.length; m++)
-                  DataCell(_Cell(cell: cellAt(index, m))),
-              ],
             ),
         ],
       ),
     );
+
+    // **A real frozen column, at last.** This file has claimed one since #10 —
+    // *"rows × months, with banded cells and a frozen first column"* — while
+    // putting every column inside one `DataTable` inside one scroll, so the
+    // labels slid away with the data. #16 needed the gutter pinned for the
+    // chart's axis anyway, and pinning one meant pinning both.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: headerWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (banner case final top?)
+                SizedBox(
+                  height: top.height,
+                  width: headerWidth,
+                  child: top.gutter,
+                ),
+              Container(
+                height: headingHeight,
+                padding: const EdgeInsets.only(left: 8),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(border: Border(bottom: divider)),
+                child: Text(headerLabel, style: theme.textTheme.labelLarge),
+              ),
+              if (pinned case final row?) gutterCell(row),
+              for (final row in rows) gutterCell(row),
+            ],
+          ),
+        ),
+        Expanded(
+          child: HorizontalScroll(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (banner case final top?)
+                  SizedBox(
+                    height: top.height,
+                    width: months.length * monthWidth,
+                    child: top.body,
+                  ),
+                Container(
+                  height: headingHeight,
+                  decoration: BoxDecoration(border: Border(bottom: divider)),
+                  child: Row(
+                    children: [
+                      for (final (index, month) in months.indexed)
+                        SizedBox(
+                          width: monthWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: _MonthHeading(
+                              label: DateFormat('MMM/yy').format(month),
+                              sorted: sortedMonth == index,
+                              ascending: sortAscending,
+                              onTap: onSortMonth == null
+                                  ? null
+                                  : () => onSortMonth!(index),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (pinned case final row? when pinnedCellAt != null)
+                  bodyRow(pinnedCellAt!, emphasis: row.emphasis ?? false),
+                for (final (index, _) in rows.indexed)
+                  bodyRow((month) => cellAt(index, month)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
-
 
 /// A month heading that can be pressed to sort by it.
 ///
@@ -193,7 +297,18 @@ class _MonthHeading extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label),
+        // **Ellipsised, because the column is now a declared width** (#16).
+        // Inside a `DataTable` this heading sized its own column and could
+        // never overflow; over a fixed 72 px it can, and an unbounded `Text`
+        // here throws rather than clipping.
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            softWrap: false,
+          ),
+        ),
         if (onTap != null)
           SizedBox(
             width: 16,
@@ -207,9 +322,7 @@ class _MonthHeading extends StatelessWidget {
           ),
       ],
     );
-    return onTap == null
-        ? row
-        : InkWell(onTap: onTap, child: row);
+    return onTap == null ? row : InkWell(onTap: onTap, child: row);
   }
 }
 
@@ -303,11 +416,17 @@ class _Cell extends StatelessWidget {
                 ),
               ),
             ),
+          // Ellipsised for the same reason as the month heading (#16): the
+          // column is a declared width now, and `733/499` under the Hours unit
+          // is the widest thing either caller draws. The tooltip carries the
+          // figure in full, so a clipped cell loses nothing that cannot be
+          // recovered by hovering it.
           Text(
             value.text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: value.foreground,
-            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            softWrap: false,
+            style: theme.textTheme.bodySmall?.copyWith(color: value.foreground),
           ),
         ],
       ),

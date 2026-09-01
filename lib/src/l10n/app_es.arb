@@ -981,7 +981,13 @@
   "occupationRework": "Retrabajo",
   "occupationChangeover": "Cambio",
   "occupationOutsideFilter": "Fuera del filtro",
-  "occupationViewChart": "Gráfico",
-  "occupationViewGrid": "Cuadrícula",
-  "occupationStations": "{count, plural, =1{1 centro agregado} other{{count} centros agregados}}"
+  "occupationStations": "{count, plural, =1{1 centro agregado} other{{count} centros agregados}}",
+  "occupationTipDemand": "Demanda",
+  "occupationTipCapacity": "Capacidad",
+  "occupationHours": "{hours} h",
+  "@occupationHours": {
+    "placeholders": {
+      "hours": {}
+    }
+  }
 }

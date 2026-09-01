@@ -1146,7 +1146,11 @@
   "simRunCoversFiltered": "filtered out",
   "simulationStudiesNotReady": "{count, plural, =1{1 study is not ready to run} other{{count} studies are not ready to run}}",
   "@simulationStudiesNotReady": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "occupationByWorkcenter": "Per workcenter",
   "occupationByLine": "Per line",
@@ -1161,18 +1165,31 @@
   "occupationCellHelp": "{asked} h asked of {name} in {month}, against {open} h open. {share} h of it is in your filter.",
   "@occupationCellHelp": {
     "placeholders": {
-      "asked": {}, "name": {}, "month": {},
-      "open": {}, "share": {}
+      "asked": {},
+      "name": {},
+      "month": {},
+      "open": {},
+      "share": {}
     }
   },
   "occupationProcess": "Process",
   "occupationRework": "Rework",
   "occupationChangeover": "Changeover",
   "occupationOutsideFilter": "Outside the filter",
-  "occupationViewChart": "Chart",
-  "occupationViewGrid": "Grid",
   "occupationStations": "{count, plural, =1{1 station aggregated} other{{count} stations aggregated}}",
   "@occupationStations": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "occupationTipDemand": "Demand",
+  "occupationTipCapacity": "Capacity",
+  "occupationHours": "{hours} h",
+  "@occupationHours": {
+    "placeholders": {
+      "hours": {}
+    }
   }
 }

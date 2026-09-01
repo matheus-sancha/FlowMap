@@ -2081,12 +2081,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get occupationOutsideFilter => 'Fora do filtro';
 
   @override
-  String get occupationViewChart => 'Gráfico';
-
-  @override
-  String get occupationViewGrid => 'Grelha';
-
-  @override
   String occupationStations(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -2095,5 +2089,16 @@ class AppLocalizationsPt extends AppLocalizations {
       one: '1 centro agregado',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get occupationTipDemand => 'Demanda';
+
+  @override
+  String get occupationTipCapacity => 'Capacidade';
+
+  @override
+  String occupationHours(Object hours) {
+    return '$hours h';
   }
 }

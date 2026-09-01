@@ -3644,23 +3644,29 @@ abstract class AppLocalizations {
   /// **'Outside the filter'**
   String get occupationOutsideFilter;
 
-  /// No description provided for @occupationViewChart.
-  ///
-  /// In en, this message translates to:
-  /// **'Chart'**
-  String get occupationViewChart;
-
-  /// No description provided for @occupationViewGrid.
-  ///
-  /// In en, this message translates to:
-  /// **'Grid'**
-  String get occupationViewGrid;
-
   /// No description provided for @occupationStations.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 station aggregated} other{{count} stations aggregated}}'**
   String occupationStations(int count);
+
+  /// No description provided for @occupationTipDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'Demand'**
+  String get occupationTipDemand;
+
+  /// No description provided for @occupationTipCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Capacity'**
+  String get occupationTipCapacity;
+
+  /// No description provided for @occupationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String occupationHours(Object hours);
 }
 
 class _AppLocalizationsDelegate

@@ -8,11 +8,17 @@
 /// red `7` above an 87 % bar was carrying the whole signal.
 ///
 /// **The field then said the chart was wanted adjusted, not deleted**, which
-/// settles it: that is what a drive is for, and it outranks the ticket. So both
-/// are here behind a `Chart | Grid` switch.
+/// settles it: that is what a drive is for, and it outranks the ticket.
 ///
-/// **The chart is the default, and #13 is why the argument above does not stop
-/// it.** The chart is *demand against capacity of whatever is selected* — so the
+/// **And there is no switch between them any more** (#16). `795ac6e` put one
+/// in, #13 chose which side it opened on, and the third answer in three rounds
+/// was to stop asking: the chart is drawn as the grid's own header, through
+/// [PeriodMatrix.banner], so the two share one column width, one frozen gutter
+/// and one horizontal scrollbar. A bar sits directly above its own row of
+/// cells, which is what makes them one surface rather than two stacked ones.
+///
+/// **#13 is why the argument above does not stop the chart leading.** The chart
+/// is *demand against capacity of whatever is selected* — so the
 /// aggregate is not hiding a station, it is answering the question that was
 /// asked. Narrow with the structural filters and the same label reads 147 %;
 /// leave them wide and 87 % is a true statement about the plant. The reader
@@ -27,9 +33,15 @@
 /// What the grid adds that the chart could not: a per-station figure, so an
 /// overloaded machine is visible under an aggregate that is not; two groupings;
 /// three units; and the project's own bands. What the chart keeps that the grid
-/// does not: the process / rework / changeover split, which exists nowhere else,
-/// the shape of a month read against the one before it, and — since #13 — an
-/// hours axis, so a bar has a size and not only a ratio.
+/// does not: the process / rework / changeover split, which exists nowhere else
+/// on screen — though since #16 its **hours** live in the bar's tooltip, which
+/// is where the deleted badge's signal was asked to go and did not — the shape
+/// of a month read against the one before it, and, since #13, an hours axis, so
+/// a bar has a size and not only a ratio.
+///
+/// **The two switches govern the grid half only.** The chart is always the
+/// aggregate of the stations in view, so grouping and unit do nothing to it;
+/// they sit directly over the rows they reorder, and adjacency is what says so.
 ///
 /// **One filter, both surfaces.** They read the same `stationsInView`, so they
 /// cannot disagree about which stations are being looked at.
@@ -38,13 +50,12 @@ library;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-import 'package:intl/intl.dart' show DateFormat;
+import 'package:intl/intl.dart' show DateFormat, NumberFormat;
 
 import '../../../app/tokens.dart';
 import '../../../common/period_matrix.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../../common/horizontal_scroll.dart';
 import '../application/occupation_graph.dart';
 import 'occupation_chart_scale.dart';
 import '../application/occupation_grid.dart';
@@ -67,11 +78,6 @@ class _OccupationViewState extends State<OccupationView> {
   /// **View state, not a location.** §12.1 keeps the results filters out of the
   /// URL bar `?study=`, and how a reader is reading one tab is the same kind of
   /// thing as which of the plan's two shapes they chose.
-  /// Which of the two the reader is looking at. **The grid by default**, for
-  /// #9's reason: an aggregate cannot report the finding this view exists to
-  /// find.
-  bool _asGrid = false;
-
   OccupationGrouping _grouping = OccupationGrouping.workcenter;
   OccupationUnit _unit = OccupationUnit.percent;
 
@@ -201,112 +207,108 @@ class _OccupationViewState extends State<OccupationView> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              SegmentedButton<bool>(
+              // **No `Chart | Grid` switch** (#16). It was added by `795ac6e`
+              // when the field wanted the chart back, and #13 chose which side
+              // it opened on — three answers to one question in three rounds.
+              // The fourth is to stop asking: both are on the page, the chart
+              // drawn as the grid's own header so they share a column width, a
+              // left gutter and one horizontal scrollbar.
+              //
+              // These two switches govern the grid half only; the chart is
+              // always the aggregate of the stations in view. Adjacency is what
+              // says so — they sit directly over the rows they reorder.
+              SegmentedButton<OccupationGrouping>(
                 segments: [
                   ButtonSegment(
-                    value: false,
-                    label: Text(l10n.occupationViewChart),
-                    icon: const Icon(Icons.bar_chart_outlined, size: 18),
+                    value: OccupationGrouping.workcenter,
+                    label: Text(l10n.occupationByWorkcenter),
                   ),
                   ButtonSegment(
-                    value: true,
-                    label: Text(l10n.occupationViewGrid),
-                    icon: const Icon(Icons.grid_on_outlined, size: 18),
+                    value: OccupationGrouping.line,
+                    label: Text(l10n.occupationByLine),
                   ),
                 ],
-                selected: {_asGrid},
+                selected: {_grouping},
                 showSelectedIcon: false,
-                onSelectionChanged: (s) => setState(() => _asGrid = s.first),
+                onSelectionChanged: (s) => setState(() => _grouping = s.first),
               ),
-              // The grid's two switches, and only while the grid is showing —
-              // a grouping control over a chart that has no rows would be a
-              // control that does nothing.
-              if (_asGrid)
-                SegmentedButton<OccupationGrouping>(
-                  segments: [
-                    ButtonSegment(
-                      value: OccupationGrouping.workcenter,
-                      label: Text(l10n.occupationByWorkcenter),
-                    ),
-                    ButtonSegment(
-                      value: OccupationGrouping.line,
-                      label: Text(l10n.occupationByLine),
-                    ),
-                  ],
-                  selected: {_grouping},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) =>
-                      setState(() => _grouping = s.first),
-                ),
-              if (_asGrid)
-                SegmentedButton<OccupationUnit>(
-                  segments: [
-                    ButtonSegment(
-                      value: OccupationUnit.percent,
-                      label: Text(l10n.occupationUnitPercent),
-                    ),
-                    ButtonSegment(
-                      value: OccupationUnit.hours,
-                      label: Text(l10n.occupationUnitHours),
-                    ),
-                    ButtonSegment(
-                      value: OccupationUnit.gap,
-                      label: Text(l10n.occupationUnitGap),
-                    ),
-                  ],
-                  selected: {_unit},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) => setState(() => _unit = s.first),
-                ),
-              if (_asGrid) _Bands(project: widget.project),
+              SegmentedButton<OccupationUnit>(
+                segments: [
+                  ButtonSegment(
+                    value: OccupationUnit.percent,
+                    label: Text(l10n.occupationUnitPercent),
+                  ),
+                  ButtonSegment(
+                    value: OccupationUnit.hours,
+                    label: Text(l10n.occupationUnitHours),
+                  ),
+                  ButtonSegment(
+                    value: OccupationUnit.gap,
+                    label: Text(l10n.occupationUnitGap),
+                  ),
+                ],
+                selected: {_unit},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _unit = s.first),
+              ),
+              _Bands(project: widget.project),
             ],
           ),
           const SizedBox(height: 12),
-          if (!_asGrid && graph != null) ...[
+          if (graph != null) ...[
             _Legend(graph: graph),
             const SizedBox(height: 8),
-            Expanded(child: _OccupationChart(graph: graph)),
-          ] else
-            Expanded(
-              child: SingleChildScrollView(
-                child: PeriodMatrix(
-                  months: grid.months,
-                  headerLabel: _grouping == OccupationGrouping.workcenter
-                      ? l10n.occupationWorkcenter
-                      : l10n.occupationLine,
-                  rows: [
-                    for (final row in rows)
-                      PeriodMatrixRow(
-                        label: row.name,
-                        qualifier: row.qualifier,
+          ],
+          Expanded(
+            child: SingleChildScrollView(
+              child: PeriodMatrix(
+                // **The chart, as the grid's header** (#16) — split into the
+                // half that stays put and the half that scrolls. The axis
+                // sits over the frozen labels, which is what keeps #13's rule
+                // that a bar is never measured against nothing; the plot sits
+                // over the month columns and is laid out to exactly their
+                // width, so a bar cannot drift off the cells it describes.
+                banner: graph == null
+                    ? null
+                    : (
+                        height: 240,
+                        gutter: _ChartAxis(graph: graph),
+                        body: _ChartPlot(graph: graph),
                       ),
-                  ],
-                  cellAt: (row, month) => cellOf(rows[row], month),
-                  sortedMonth: _sortedMonth,
-                  sortAscending: _sortAscending,
-                  onSortMonth: (index) => setState(() {
-                    if (_sortedMonth == index) {
-                      _sortAscending = !_sortAscending;
-                    } else {
-                      _sortedMonth = index;
-                      _sortAscending = false;
-                    }
-                  }),
-                  // **Only when nothing has narrowed the station set** — once a
-                  // line or a type is chosen, a total across what is left would
-                  // be a partial wearing the plant's name.
-                  pinned: grid.plant == null
-                      ? null
-                      : PeriodMatrixRow(
-                          label: l10n.occupationPlant,
-                          emphasis: true,
-                        ),
-                  pinnedCellAt: grid.plant == null
-                      ? null
-                      : (month) => cellOf(grid.plant!, month),
-                ),
+                months: grid.months,
+                headerLabel: _grouping == OccupationGrouping.workcenter
+                    ? l10n.occupationWorkcenter
+                    : l10n.occupationLine,
+                rows: [
+                  for (final row in rows)
+                    PeriodMatrixRow(label: row.name, qualifier: row.qualifier),
+                ],
+                cellAt: (row, month) => cellOf(rows[row], month),
+                sortedMonth: _sortedMonth,
+                sortAscending: _sortAscending,
+                onSortMonth: (index) => setState(() {
+                  if (_sortedMonth == index) {
+                    _sortAscending = !_sortAscending;
+                  } else {
+                    _sortedMonth = index;
+                    _sortAscending = false;
+                  }
+                }),
+                // **Only when nothing has narrowed the station set** — once a
+                // line or a type is chosen, a total across what is left would
+                // be a partial wearing the plant's name.
+                pinned: grid.plant == null
+                    ? null
+                    : PeriodMatrixRow(
+                        label: l10n.occupationPlant,
+                        emphasis: true,
+                      ),
+                pinnedCellAt: grid.plant == null
+                    ? null
+                    : (month) => cellOf(grid.plant!, month),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -447,8 +449,31 @@ class _SegmentColours {
   final Color over;
 }
 
-class _OccupationChart extends StatelessWidget {
-  const _OccupationChart({required this.graph});
+/// The scale both halves of the chart read.
+///
+/// **Built once per build and handed to both**, so the axis in the frozen
+/// gutter and the plot in the scrolling body cannot disagree about where
+/// 8,000 h is.
+ChartScale _scaleFor(OccupationGraph graph, String locale) {
+  // **The tallest bar or the line, whichever is higher.** A scale fitted to the
+  // bars alone would push the capacity line off the top on a quiet month and
+  // make an under-loaded plant look overloaded.
+  var peak = 0;
+  for (final month in graph.months) {
+    if (month.total.inSeconds > peak) peak = month.total.inSeconds;
+    if (month.capacity.inSeconds > peak) peak = month.capacity.inSeconds;
+  }
+  return ChartScale(peakSeconds: peak, ticks: hoursTicks(peak, locale));
+}
+
+/// The hours axis, in the matrix's frozen gutter (#16).
+///
+/// **It sits over the row labels rather than beside the bars**, which is what
+/// keeps #13's rule — an axis inside the scroll slides off the left edge and
+/// leaves the bars measured against nothing — while letting the plot align to
+/// the month columns.
+class _ChartAxis extends StatelessWidget {
+  const _ChartAxis({required this.graph});
 
   final OccupationGraph graph;
 
@@ -457,65 +482,91 @@ class _OccupationChart extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
 
-    // **The tallest bar or the line, whichever is higher.** A scale fitted to
-    // the bars alone would push the capacity line off the top on a quiet month
-    // and make an under-loaded plant look overloaded.
-    var peak = 0;
-    for (final month in graph.months) {
-      if (month.total.inSeconds > peak) peak = month.total.inSeconds;
-      if (month.capacity.inSeconds > peak) peak = month.capacity.inSeconds;
-    }
-
-    final scale = ChartScale(
-      peakSeconds: peak,
-      // Formatted here rather than in the painter: a thousands separator is the
-      // locale's, and a `CustomPainter` has no `BuildContext` to ask.
-      ticks: hoursTicks(peak, Localizations.localeOf(context).toString()),
+    return CustomPaint(
+      painter: _AxisPainter(
+        scale: _scaleFor(graph, Localizations.localeOf(context).toString()),
+        caption: l10n.occupationUnitHours,
+        label: theme.textTheme.bodySmall?.color ?? theme.colorScheme.onSurface,
+        grid: theme.colorScheme.outlineVariant,
+        direction: Directionality.of(context),
+      ),
     );
+  }
+}
 
-    // A month is 64 px, so a two-year run scrolls rather than shrinking its
-    // bars into stripes.
-    final width = graph.months.length * 64.0;
+/// The bars, in the matrix's scrolling body — one column per month, each
+/// exactly as wide as the grid column beneath it.
+class _ChartPlot extends StatelessWidget {
+  const _ChartPlot({required this.graph});
 
-    // **The axis is outside the scroll, and has to be.** The plot is sized to
-    // its months and scrolls sideways; an axis painted inside it would slide
-    // off the left edge and leave the bars measured against nothing. Both
-    // painters read the same [_ChartScale], so a tick and a bar of the same
-    // height land on the same pixel despite living in different widgets.
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+  final OccupationGraph graph;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toString();
+    final scale = _scaleFor(graph, locale);
+    final hours = NumberFormat.decimalPattern(locale)
+      ..maximumFractionDigits = 0;
+
+    String h(Duration value) =>
+        l10n.occupationHours(hours.format(value.inHours));
+
+    return Stack(
       children: [
-        SizedBox(
-          width: ChartScale.axisWidth,
+        Positioned.fill(
           child: CustomPaint(
-            painter: _AxisPainter(
+            painter: _OccupationPainter(
+              graph: graph,
               scale: scale,
-              caption: l10n.occupationUnitHours,
+              colours: _SegmentColours.of(context),
+              grid: theme.colorScheme.outlineVariant,
               label:
                   theme.textTheme.bodySmall?.color ??
                   theme.colorScheme.onSurface,
-              grid: theme.colorScheme.outlineVariant,
               direction: Directionality.of(context),
             ),
           ),
         ),
-        Expanded(
-          child: HorizontalScroll(
-            child: SizedBox(
-              width: width < 320 ? 320 : width,
-              child: CustomPaint(
-                painter: _OccupationPainter(
-                  graph: graph,
-                  scale: scale,
-                  colours: _SegmentColours.of(context),
-                  grid: theme.colorScheme.outlineVariant,
-                  label:
-                      theme.textTheme.bodySmall?.color ??
-                      theme.colorScheme.onSurface,
-                  direction: Directionality.of(context),
+        // **A transparent column per month rather than a hit test on the
+        // painter** (#16). The columns are already a fixed width, so the month
+        // under the pointer is a division rather than a search — and letting
+        // `Tooltip` own the hover gives the same delay, the same styling and
+        // the same dismissal as every other tooltip in the app, which a painter
+        // reimplementing hover would not.
+        Positioned.fill(
+          child: Row(
+            children: [
+              for (final month in graph.months)
+                SizedBox(
+                  width: PeriodMatrix.defaultMonthWidth,
+                  child: Tooltip(
+                    richMessage: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: DateFormat.yMMM().format(month.month),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        TextSpan(
+                          text:
+                              '\n${l10n.occupationTipDemand}  ${h(month.total)}'
+                              '\n${l10n.occupationTipCapacity}  ${h(month.capacity)}'
+                              '\n'
+                              '\n${l10n.occupationProcess}  ${h(month.process)}'
+                              '\n${l10n.occupationRework}  ${h(month.rework)}'
+                              '\n${l10n.occupationChangeover}  ${h(month.changeover)}'
+                              // Only when there is any — an order-level filter
+                              // is the only thing that produces it, so on most
+                              // charts this line would be a permanent zero.
+                              '${month.other > Duration.zero ? '\n${l10n.occupationOutsideFilter}  ${h(month.other)}' : ''}',
+                        ),
+                      ],
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
         ),
       ],
@@ -523,7 +574,7 @@ class _OccupationChart extends StatelessWidget {
   }
 }
 
-/// The hours axis, in its own fixed column to the left of the scrolling plot.
+/// Paints the ticks and their labels.
 class _AxisPainter extends CustomPainter {
   _AxisPainter({
     required this.scale,
