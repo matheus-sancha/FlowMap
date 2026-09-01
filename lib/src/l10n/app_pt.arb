@@ -975,7 +975,6 @@
   "occupationAmberAbove": "Âmbar acima de",
   "occupationRedAbove": "Vermelho acima de",
   "occupationBands": "Onde a grelha de ocupação passa a âmbar e a vermelho. Um centro a que se pedem mais horas do que tem abertas está excedido por definição; a banda âmbar é a margem que resta para a troca que o próximo pedido traz.",
-  "occupationCellHelp": "{asked} h pedidas a {name} em {month}, face a {open} h abertas. {share} h estão no seu filtro.",
   "occupationProcess": "Processo",
   "occupationRework": "Retrabalho",
   "occupationChangeover": "Troca",

@@ -57,6 +57,7 @@ class PeriodMatrixCell {
     required this.background,
     required this.foreground,
     this.tooltip,
+    this.richTooltip,
     this.share,
   });
 
@@ -73,6 +74,14 @@ class PeriodMatrixCell {
   final Color background;
   final Color foreground;
   final String? tooltip;
+
+  /// A formatted hover, where a plain [tooltip] is not enough (#14).
+  ///
+  /// The Occupation grid uses it so its cells carry **the same hover the chart
+  /// bars carry** — a bold heading, then demand and capacity, then what the
+  /// demand is made of. Both are built by one function, so the two surfaces
+  /// cannot come to explain the same month differently.
+  final InlineSpan? richTooltip;
 
   /// How much of the cell belongs to the reader's own filter, 0–1, or null for
   /// a cell with nothing to divide.
@@ -602,6 +611,9 @@ class _Cell extends StatelessWidget {
       ),
     );
 
+    if (value.richTooltip case final rich?) {
+      return Tooltip(richMessage: rich, child: body);
+    }
     return value.tooltip == null
         ? body
         : Tooltip(message: value.tooltip!, child: body);

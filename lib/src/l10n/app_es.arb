@@ -975,7 +975,6 @@
   "occupationAmberAbove": "Ámbar por encima de",
   "occupationRedAbove": "Rojo por encima de",
   "occupationBands": "Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.",
-  "occupationCellHelp": "{asked} h pedidas a {name} en {month}, frente a {open} h abiertas. {share} h están en su filtro.",
   "occupationProcess": "Proceso",
   "occupationRework": "Retrabajo",
   "occupationChangeover": "Cambio",

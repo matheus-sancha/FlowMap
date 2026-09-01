@@ -2053,17 +2053,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.';
 
   @override
-  String occupationCellHelp(
-    Object asked,
-    Object name,
-    Object month,
-    Object open,
-    Object share,
-  ) {
-    return '$asked h pedidas a $name en $month, frente a $open h abiertas. $share h están en su filtro.';
-  }
-
-  @override
   String get occupationProcess => 'Proceso';
 
   @override

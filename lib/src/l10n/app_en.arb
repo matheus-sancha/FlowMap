@@ -1161,16 +1161,6 @@
   "occupationAmberAbove": "Amber above",
   "occupationRedAbove": "Red above",
   "occupationBands": "Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.",
-  "occupationCellHelp": "{asked} h asked of {name} in {month}, against {open} h open. {share} h of it is in your filter.",
-  "@occupationCellHelp": {
-    "placeholders": {
-      "asked": {},
-      "name": {},
-      "month": {},
-      "open": {},
-      "share": {}
-    }
-  },
   "occupationProcess": "Process",
   "occupationRework": "Rework",
   "occupationChangeover": "Changeover",

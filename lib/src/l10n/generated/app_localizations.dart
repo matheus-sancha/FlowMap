@@ -3602,18 +3602,6 @@ abstract class AppLocalizations {
   /// **'Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.'**
   String get occupationBands;
 
-  /// No description provided for @occupationCellHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'{asked} h asked of {name} in {month}, against {open} h open. {share} h of it is in your filter.'**
-  String occupationCellHelp(
-    Object asked,
-    Object name,
-    Object month,
-    Object open,
-    Object share,
-  );
-
   /// No description provided for @occupationProcess.
   ///
   /// In en, this message translates to:

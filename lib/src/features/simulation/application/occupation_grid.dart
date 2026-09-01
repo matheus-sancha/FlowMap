@@ -101,12 +101,25 @@ class OccupationRow {
     var asked = Duration.zero;
     var open = Duration.zero;
     var filtered = Duration.zero;
+    var process = Duration.zero;
+    var rework = Duration.zero;
+    var changeover = Duration.zero;
     for (final cell in cells.values) {
       asked += cell.asked;
       open += cell.open;
       filtered += cell.filtered;
+      process += cell.process;
+      rework += cell.rework;
+      changeover += cell.changeover;
     }
-    return OccupationCell(asked: asked, open: open, filtered: filtered);
+    return OccupationCell(
+      asked: asked,
+      open: open,
+      filtered: filtered,
+      process: process,
+      rework: rework,
+      changeover: changeover,
+    );
   }
 
   /// The worst month this row had, for the sort the grid arrives on.
@@ -127,6 +140,9 @@ class OccupationCell {
     required this.asked,
     required this.open,
     required this.filtered,
+    this.process = Duration.zero,
+    this.rework = Duration.zero,
+    this.changeover = Duration.zero,
   });
 
   /// **Everyone's demand**, never the filtered line's own share.
@@ -139,6 +155,19 @@ class OccupationCell {
   final Duration asked;
 
   final Duration open;
+
+  /// What the kept orders' demand is made of — the same three segments the
+  /// chart stacks (#14).
+  ///
+  /// **They sum to [filtered], not to [asked].** The split is only knowable for
+  /// orders the filter kept; what an order-level filter excluded is a lump, the
+  /// grey segment on the chart, and is [asked] minus [filtered].
+  final Duration process;
+  final Duration rework;
+  final Duration changeover;
+
+  /// Demand here from orders an order-level filter excluded.
+  Duration get outside => asked - filtered;
 
   /// How much of [asked] belongs to the orders an **order-level** filter kept.
   ///
@@ -240,6 +269,11 @@ OccupationGrid? occupationGrid({
   // Demand per station per month, and the filtered share of it.
   final asked = <String, Map<DateTime, Duration>>{};
   final mine = <String, Map<DateTime, Duration>>{};
+  // The kept orders' demand broken into the chart's three segments, so the
+  // grid's hover can say the same things the chart's does (#14).
+  final mineProcess = <String, Map<DateTime, Duration>>{};
+  final mineRework = <String, Map<DateTime, Duration>>{};
+  final mineChangeover = <String, Map<DateTime, Duration>>{};
 
   for (final step in run.result.steps) {
     if (!inView.contains(step.workcenterId)) continue;
@@ -263,6 +297,24 @@ OccupationGrid? occupationGrid({
         (had) => had + work,
         ifAbsent: () => work,
       );
+
+      // **A run with no rework column keeps its whole time as process**, rather
+      // than being skipped the way the chart skips it: the grid already counts
+      // this step in `asked`, so dropping it here would make the segments
+      // disagree with the number they are supposed to explain.
+      final before = step.processSecondsBeforeRework ?? total;
+      void add(Map<String, Map<DateTime, Duration>> into, int seconds) {
+        if (seconds <= 0) return;
+        (into[step.workcenterId] ??= {}).update(
+          month,
+          (had) => had + Duration(seconds: seconds),
+          ifAbsent: () => Duration(seconds: seconds),
+        );
+      }
+
+      add(mineProcess, before);
+      add(mineRework, total - before);
+      add(mineChangeover, step.changeoverSeconds ?? 0);
     }
   }
 
@@ -270,12 +322,25 @@ OccupationGrid? occupationGrid({
     var open = Duration.zero;
     var demand = Duration.zero;
     var filtered = Duration.zero;
+    var process = Duration.zero;
+    var rework = Duration.zero;
+    var changeover = Duration.zero;
     for (final id in ids) {
       open += capacityByStation[id]?[month] ?? Duration.zero;
       demand += asked[id]?[month] ?? Duration.zero;
       filtered += mine[id]?[month] ?? Duration.zero;
+      process += mineProcess[id]?[month] ?? Duration.zero;
+      rework += mineRework[id]?[month] ?? Duration.zero;
+      changeover += mineChangeover[id]?[month] ?? Duration.zero;
     }
-    return OccupationCell(asked: demand, open: open, filtered: filtered);
+    return OccupationCell(
+      asked: demand,
+      open: open,
+      filtered: filtered,
+      process: process,
+      rework: rework,
+      changeover: changeover,
+    );
   }
 
   Map<DateTime, OccupationCell> cellsFor(Iterable<String> ids) => {

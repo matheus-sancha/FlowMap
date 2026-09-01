@@ -122,6 +122,9 @@ class _OccupationViewState extends State<OccupationView> {
     }
 
     final status = FlowStatus.of(context);
+    final hoursFormat = NumberFormat.decimalPattern(
+      Localizations.localeOf(context).toString(),
+    )..maximumFractionDigits = 0;
     final amber = widget.project.occupationAmberPct / 100;
     final red = widget.project.occupationRedPct / 100;
 
@@ -175,12 +178,19 @@ class _OccupationViewState extends State<OccupationView> {
         subtext: subtext,
         background: background,
         foreground: foreground,
-        tooltip: l10n.occupationCellHelp(
-          '${cell.asked.inHours}',
-          name,
-          period,
-          '${cell.open.inHours}',
-          '${cell.filtered.inHours}',
+        // **The chart's hover, on a cell** (#14). Same builder, so a station's
+        // month and the plant's month are explained in the same words and the
+        // same order.
+        richTooltip: occupationTooltip(
+          heading: '$name · $period',
+          demand: cell.asked,
+          capacity: cell.open,
+          process: cell.process,
+          rework: cell.rework,
+          changeover: cell.changeover,
+          outside: cell.outside,
+          l10n: l10n,
+          hours: hoursFormat,
         ),
         // The fill along the base is the filtered orders' share. It is what
         // tells "CEU27 is at 100 % and 80 of it is yours" from "CEU32 is at
@@ -348,6 +358,50 @@ class _OccupationViewState extends State<OccupationView> {
       ),
     );
   }
+}
+
+/// The hover both Occupation surfaces carry (#14).
+///
+/// **One function, two callers, on purpose.** The field asked for the grid's
+/// cells to say what the chart's bars say; building that twice is how they
+/// would come to describe the same month differently — which is the fault this
+/// file has already had twice, once in a comment about a frozen column that did
+/// not exist and once in a filter the chart and grid applied differently.
+///
+/// The three segments sum to the *kept* demand, and `outside` is what an
+/// order-level filter excluded — so the four together are the whole bar, and
+/// the line for `outside` is drawn only when there is any.
+InlineSpan occupationTooltip({
+  required String heading,
+  required Duration demand,
+  required Duration capacity,
+  required Duration process,
+  required Duration rework,
+  required Duration changeover,
+  required Duration outside,
+  required AppLocalizations l10n,
+  required NumberFormat hours,
+}) {
+  String h(Duration value) => l10n.occupationHours(hours.format(value.inHours));
+
+  return TextSpan(
+    children: [
+      TextSpan(
+        text: heading,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+      TextSpan(
+        text:
+            '\n${l10n.occupationTipDemand}  ${h(demand)}'
+            '\n${l10n.occupationTipCapacity}  ${h(capacity)}'
+            '\n'
+            '\n${l10n.occupationProcess}  ${h(process)}'
+            '\n${l10n.occupationRework}  ${h(rework)}'
+            '\n${l10n.occupationChangeover}  ${h(changeover)}'
+            '${outside > Duration.zero ? '\n${l10n.occupationOutsideFilter}  ${h(outside)}' : ''}',
+      ),
+    ],
+  );
 }
 
 /// The two thresholds, named beside the grid they band.
@@ -545,9 +599,6 @@ class _ChartPlot extends StatelessWidget {
     final hours = NumberFormat.decimalPattern(locale)
       ..maximumFractionDigits = 0;
 
-    String h(Duration value) =>
-        l10n.occupationHours(hours.format(value.inHours));
-
     return Stack(
       children: [
         Positioned.fill(
@@ -577,26 +628,16 @@ class _ChartPlot extends StatelessWidget {
                 SizedBox(
                   width: PeriodMatrix.defaultMonthWidth,
                   child: Tooltip(
-                    richMessage: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: DateFormat.yMMM().format(month.month),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        TextSpan(
-                          text:
-                              '\n${l10n.occupationTipDemand}  ${h(month.total)}'
-                              '\n${l10n.occupationTipCapacity}  ${h(month.capacity)}'
-                              '\n'
-                              '\n${l10n.occupationProcess}  ${h(month.process)}'
-                              '\n${l10n.occupationRework}  ${h(month.rework)}'
-                              '\n${l10n.occupationChangeover}  ${h(month.changeover)}'
-                              // Only when there is any — an order-level filter
-                              // is the only thing that produces it, so on most
-                              // charts this line would be a permanent zero.
-                              '${month.other > Duration.zero ? '\n${l10n.occupationOutsideFilter}  ${h(month.other)}' : ''}',
-                        ),
-                      ],
+                    richMessage: occupationTooltip(
+                      heading: DateFormat.yMMM().format(month.month),
+                      demand: month.total,
+                      capacity: month.capacity,
+                      process: month.process,
+                      rework: month.rework,
+                      changeover: month.changeover,
+                      outside: month.other,
+                      l10n: l10n,
+                      hours: hours,
                     ),
                     child: const SizedBox.expand(),
                   ),

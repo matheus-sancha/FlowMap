@@ -2035,17 +2035,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.';
 
   @override
-  String occupationCellHelp(
-    Object asked,
-    Object name,
-    Object month,
-    Object open,
-    Object share,
-  ) {
-    return '$asked h asked of $name in $month, against $open h open. $share h of it is in your filter.';
-  }
-
-  @override
   String get occupationProcess => 'Process';
 
   @override

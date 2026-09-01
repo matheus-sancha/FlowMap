@@ -645,4 +645,55 @@ void main() {
       expect(grid.total.total.asked, fromRows);
     });
   });
+
+  group('a cell explains itself (#14)', () {
+    test('the three segments account for exactly the kept demand', () async {
+      // **The property the shared hover rests on.** The grid's cells now carry
+      // the same breakdown the chart's bars do, and a reader adding the lines
+      // up must land on the number at the top of the card — so process, rework
+      // and changeover have to sum to `filtered`, never to `asked`.
+      final grid = occupationGrid(run: await stored(rework: 0.25))!;
+
+      for (final row in [...grid.rows, grid.total]) {
+        for (final entry in row.cells.entries) {
+          final cell = entry.value;
+          expect(
+            cell.process + cell.rework + cell.changeover,
+            cell.filtered,
+            reason: '${row.name} in ${entry.key} does not add up',
+          );
+        }
+      }
+    });
+
+    test('what an order-level filter excluded is the remainder', () async {
+      // The fourth line of the hover, and the grey segment of the bar.
+      final run = await stored();
+      final filtered = occupationGrid(
+        run: run,
+        filter: const RunFilter(partNumbers: {'PN-study-a'}),
+      )!;
+
+      var outside = Duration.zero;
+      for (final cell in filtered.total.cells.values) {
+        expect(cell.outside, cell.asked - cell.filtered);
+        outside += cell.outside;
+      }
+      expect(outside, greaterThan(Duration.zero));
+    });
+
+    test('a structural filter leaves no remainder to explain', () async {
+      // The other half of the rule #13 fixed: structural filters move demand
+      // and capacity together, so every hour in the cell is accounted for by
+      // the three segments and the fourth line never appears.
+      final grid = occupationGrid(
+        run: await stored(),
+        filter: const RunFilter(lineIds: {'line-a'}),
+      )!;
+
+      for (final cell in grid.total.cells.values) {
+        expect(cell.outside, Duration.zero);
+      }
+    });
+  });
 }
