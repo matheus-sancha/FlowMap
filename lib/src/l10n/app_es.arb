@@ -971,7 +971,6 @@
   "occupationUnitPercent": "%",
   "occupationUnitHours": "Horas",
   "occupationUnitGap": "Diferencia",
-  "occupationPlant": "PLANTA",
   "occupationWorkcenter": "Centro de trabajo",
   "occupationAmberAbove": "Ámbar por encima de",
   "occupationRedAbove": "Rojo por encima de",
@@ -988,6 +987,15 @@
   "@occupationHours": {
     "placeholders": {
       "hours": {}
+    }
+  },
+  "occupationTotal": "TOTAL",
+  "occupationAllMonths": "todos los meses mostrados",
+  "floatAverage": "PROM",
+  "floatAverageHelp": "{days} días de holgura en promedio.",
+  "@floatAverageHelp": {
+    "placeholders": {
+      "days": {}
     }
   }
 }

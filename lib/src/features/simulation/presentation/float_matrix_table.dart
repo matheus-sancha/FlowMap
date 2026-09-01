@@ -78,6 +78,20 @@ class FloatMatrixTable extends StatelessWidget {
           ],
           cellAt: (row, month) =>
               _cellOf(matrix.rows[row], month, context, l10n),
+          // **An average row along the bottom, and no average column** (#14).
+          // The row is the mean float of the orders needing that month, which
+          // is the figure this surface exists to report. A column would have
+          // averaged rank *r* across months — orders with nothing in common —
+          // so the right edge carries one cell instead: the run's own mean,
+          // computed from every order rather than from the averages.
+          aggregate: PeriodMatrixRow(label: l10n.floatAverage, emphasis: true),
+          aggregateCellAt: (month) =>
+              _averageCell(matrix.averageIn(month), context, l10n),
+          aggregateTrailingCell: _averageCell(
+            matrix.averageFloat,
+            context,
+            l10n,
+          ),
         ),
       ],
     );
@@ -200,4 +214,32 @@ class _Legend extends StatelessWidget {
       ],
     );
   }
+}
+
+/// A mean float, banded like the cells it summarises (#14).
+///
+/// **Banded on the same thresholds**, so an average that has fallen into the
+/// red reads as red — the aggregate is not a different kind of number from the
+/// cells above it, only a coarser one.
+PeriodMatrixCell? _averageCell(
+  Duration? average,
+  BuildContext context,
+  AppLocalizations l10n,
+) {
+  if (average == null) return null;
+
+  final status = FlowStatus.of(context);
+  final days = average.inDays;
+  final (Color background, Color foreground) = switch (days) {
+    _ when days < 0 => (status.critical.fill, status.critical.ink),
+    _ when days == 0 => (status.warning.fill, status.warning.ink),
+    _ => (status.good.fill, status.good.ink),
+  };
+
+  return PeriodMatrixCell(
+    text: '$days',
+    background: background,
+    foreground: foreground,
+    tooltip: l10n.floatAverageHelp(days.toString()),
+  );
 }

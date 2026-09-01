@@ -125,11 +125,12 @@ class _OccupationViewState extends State<OccupationView> {
     final amber = widget.project.occupationAmberPct / 100;
     final red = widget.project.occupationRedPct / 100;
 
-    PeriodMatrixCell? cellOf(OccupationRow row, int index) {
-      final month = grid.months[index];
-      final cell = row.cells[month];
-      if (cell == null) return null;
-
+    /// One banded cell from one [OccupationCell].
+    ///
+    /// **Shared by the month cells and the TOTAL column** (#14), so the frozen
+    /// summary cannot band, format or explain itself differently from the
+    /// months it summarises.
+    PeriodMatrixCell cellFrom(OccupationCell cell, String name, String period) {
       final ratio = cell.ratio;
       // **Three bands, from the project's own two thresholds** (v29) — the
       // float matrix's shape next door. `FlowStatus` is picked rather than
@@ -166,8 +167,8 @@ class _OccupationViewState extends State<OccupationView> {
         foreground: foreground,
         tooltip: l10n.occupationCellHelp(
           '${cell.asked.inHours}',
-          row.name.isEmpty ? l10n.occupationPlant : row.name,
-          DateFormat.yMMM().format(month),
+          name,
+          period,
           '${cell.open.inHours}',
           '${cell.filtered.inHours}',
         ),
@@ -177,6 +178,26 @@ class _OccupationViewState extends State<OccupationView> {
         share: cell.share,
       );
     }
+
+    String nameOf(OccupationRow row) =>
+        row.name.isEmpty ? l10n.occupationTotal : row.name;
+
+    PeriodMatrixCell? cellOf(OccupationRow row, int index) {
+      final month = grid.months[index];
+      final cell = row.cells[month];
+      // Blank rather than zero: a month this row has nothing to say in is not
+      // a month it said zero.
+      if (cell == null) return null;
+      return cellFrom(cell, nameOf(row), DateFormat.yMMM().format(month));
+    }
+
+    /// The frozen right edge: this row across every month shown.
+    ///
+    /// **A ratio of sums, not a mean of ratios** — `OccupationRow.total` does
+    /// that arithmetic and says why. Under Hours and Gap the same sums are
+    /// simply read differently, so one total serves all three units.
+    PeriodMatrixCell totalOf(OccupationRow row) =>
+        cellFrom(row.total, nameOf(row), l10n.occupationAllMonths);
 
     // **Sorted here rather than in the model** (#10): which month a reader is
     // ranking by is a way of reading the grid, not a fact about the run.
@@ -294,18 +315,22 @@ class _OccupationViewState extends State<OccupationView> {
                     _sortAscending = false;
                   }
                 }),
-                // **Only when nothing has narrowed the station set** — once a
-                // line or a type is chosen, a total across what is left would
-                // be a partial wearing the plant's name.
-                pinned: grid.plant == null
-                    ? null
-                    : PeriodMatrixRow(
-                        label: l10n.occupationPlant,
-                        emphasis: true,
-                      ),
-                pinnedCellAt: grid.plant == null
-                    ? null
-                    : (month) => cellOf(grid.plant!, month),
+                // **Along the bottom, and always** (#14). #9 hid this row
+                // the moment a filter narrowed the stations, because a
+                // partial total wearing the *plant's* name is a lie. Calling
+                // it TOTAL makes it true again — it claims only the rows
+                // above it — and a narrowed view is exactly when someone
+                // wants a total of what they narrowed to.
+                aggregate: PeriodMatrixRow(
+                  label: l10n.occupationTotal,
+                  emphasis: true,
+                ),
+                aggregateCellAt: (month) => cellOf(grid.total, month),
+                // The other frozen edge, so the months scroll between a row's
+                // name and that row's summary.
+                trailingLabel: l10n.occupationTotal,
+                trailingCellAt: (row) => totalOf(rows[row]),
+                aggregateTrailingCell: totalOf(grid.total),
               ),
             ),
           ),

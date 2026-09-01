@@ -87,6 +87,28 @@ class OccupationRow {
   /// different facts, and only one of them is a finding.
   final Map<DateTime, OccupationCell> cells;
 
+  /// This row across every month shown — the frozen TOTAL column (#14).
+  ///
+  /// **A ratio of sums, never a mean of ratios.** Averaging the monthly
+  /// percentages would weight a 400 h month exactly like a 9,000 h one, and on
+  /// the live database those months sit side by side: 3,296 h of capacity in
+  /// October against 9,384 h in July. `OccupationPivot.total` already computes
+  /// its figure this way and is the precedent.
+  ///
+  /// Under the Hours and Gap units the same sums are simply read differently,
+  /// so one total serves all three.
+  OccupationCell get total {
+    var asked = Duration.zero;
+    var open = Duration.zero;
+    var filtered = Duration.zero;
+    for (final cell in cells.values) {
+      asked += cell.asked;
+      open += cell.open;
+      filtered += cell.filtered;
+    }
+    return OccupationCell(asked: asked, open: open, filtered: filtered);
+  }
+
   /// The worst month this row had, for the sort the grid arrives on.
   double? get peak {
     double? worst;
@@ -143,7 +165,7 @@ class OccupationGrid {
   const OccupationGrid({
     required this.months,
     required this.rows,
-    required this.plant,
+    required this.total,
   });
 
   /// Every month the run spans at the stations in view, whether or not anything
@@ -153,10 +175,15 @@ class OccupationGrid {
 
   final List<OccupationRow> rows;
 
-  /// The whole plant as one row, or **null once anything has narrowed the
-  /// station set** — a partial total wearing the plant's name is worse than no
-  /// total at all.
-  final OccupationRow? plant;
+  /// Every station in view as one row, drawn along the bottom (#14).
+  ///
+  /// **Always present, which it was not.** This was `plant`, and it went null
+  /// the moment any filter narrowed the station set, because #9 judged *"a
+  /// partial total wearing the plant's name"* worse than no row at all.
+  /// Renaming it **TOTAL** dissolved that objection rather than answering it: a
+  /// total claims only the rows above it, which is true under every filter —
+  /// and a narrowed view is exactly when a reader wants one.
+  final OccupationRow total;
 }
 
 /// Builds the grid from a stored run.
@@ -192,17 +219,16 @@ OccupationGrid? occupationGrid({
   // mistake #9 rejected — no single line is ever over 100 %, so the view would
   // stop finding overloads the moment anyone filtered.
   final kept = {
-    for (final outcome
-        in filterRun(
-          run,
-          RunFilter(
-            customerProjects: filter.customerProjects,
-            partNumbers: filter.partNumbers,
-            orderNumbers: filter.orderNumbers,
-            from: filter.from,
-            to: filter.to,
-          ),
-        ).result.orders)
+    for (final outcome in filterRun(
+      run,
+      RunFilter(
+        customerProjects: filter.customerProjects,
+        partNumbers: filter.partNumbers,
+        orderNumbers: filter.orderNumbers,
+        from: filter.from,
+        to: filter.to,
+      ),
+    ).result.orders)
       outcome.orderId,
   };
 
@@ -322,16 +348,12 @@ OccupationGrid? occupationGrid({
   return OccupationGrid(
     months: months,
     rows: rows,
-    // **Only when nothing has narrowed the station set.** Once a line or a type
-    // is chosen, a total across what is left would be a partial wearing the
-    // plant's name.
-    plant: filter.narrowsStations
-        ? null
-        : OccupationRow(
-            id: '',
-            name: '',
-            qualifier: null,
-            cells: cellsFor(inView),
-          ),
+    // Every station in view, under every filter (#14).
+    total: OccupationRow(
+      id: '',
+      name: '',
+      qualifier: null,
+      cells: cellsFor(inView),
+    ),
   );
 }

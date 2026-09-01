@@ -78,6 +78,46 @@ class FloatMatrix {
 
   bool get isEmpty => months.isEmpty;
 
+  /// The mean float of the orders needing [month], or null where none of them
+  /// finished (#14).
+  ///
+  /// **Down a column, and only down a column.** The row aggregate the field
+  /// asked for is this; the *column* aggregate it also asked for is not built,
+  /// because row *r* means *"the order ranked r that month"* — so averaging a
+  /// row averages orders that share nothing but a rank, across ragged columns
+  /// where the deeper rows quietly cover fewer months.
+  Duration? averageIn(int month) {
+    var total = Duration.zero;
+    var counted = 0;
+    for (final row in rows) {
+      if (month >= row.length) continue;
+      final float = row[month]?.float;
+      if (float == null) continue;
+      total += float;
+      counted++;
+    }
+    return counted == 0 ? null : Duration(seconds: total.inSeconds ~/ counted);
+  }
+
+  /// The mean float of every order on the matrix — the corner cell (#14).
+  ///
+  /// **From the orders, never the mean of [averageIn].** A month with three
+  /// orders and a month with forty would otherwise weigh the same, and on a
+  /// real run the months are nothing like even.
+  Duration? get averageFloat {
+    var total = Duration.zero;
+    var counted = 0;
+    for (final row in rows) {
+      for (final cell in row) {
+        final float = cell?.float;
+        if (float == null) continue;
+        total += float;
+        counted++;
+      }
+    }
+    return counted == 0 ? null : Duration(seconds: total.inSeconds ~/ counted);
+  }
+
   /// How many cells in each band, for the caption that says what the matrix
   /// found without the reader counting squares.
   Map<FloatBand, int> get tally {
@@ -132,8 +172,10 @@ FloatMatrix buildFloatMatrix({
     return FloatBand.amber;
   }
 
-  final depth = byMonth.values.fold(0, (deepest, orders) =>
-      orders.length > deepest ? orders.length : deepest);
+  final depth = byMonth.values.fold(
+    0,
+    (deepest, orders) => orders.length > deepest ? orders.length : deepest,
+  );
 
   return FloatMatrix(
     months: months,

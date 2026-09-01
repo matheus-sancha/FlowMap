@@ -43,8 +43,8 @@ class PeriodMatrixRow {
   /// sits in. Null where there is nothing to qualify.
   final String? qualifier;
 
-  /// A row that reads differently from the rest: the Occupation grid's PLANT
-  /// row, pinned at the top and drawn in the emphasis colour.
+  /// A row that reads differently from the rest: the Occupation grid's TOTAL
+  /// row, drawn along the bottom in the emphasis colour (#14).
   final bool? emphasis;
 }
 
@@ -84,8 +84,12 @@ class PeriodMatrix extends StatelessWidget {
     this.headerWidth = 150,
     this.monthWidth = defaultMonthWidth,
     this.banner,
-    this.pinned,
-    this.pinnedCellAt,
+    this.aggregate,
+    this.aggregateCellAt,
+    this.trailingLabel,
+    this.trailingCellAt,
+    this.aggregateTrailingCell,
+    this.trailingWidth = 84,
     this.sortedMonth,
     this.sortAscending = false,
     this.onSortMonth,
@@ -117,10 +121,6 @@ class PeriodMatrix extends StatelessWidget {
   /// `733/499`, and take the chart out of alignment with it.
   final double monthWidth;
 
-  /// A row held above the scroll — the plant's own. Null when there is none.
-  final PeriodMatrixRow? pinned;
-  final PeriodMatrixCell? Function(int month)? pinnedCellAt;
-
   /// Which month column the rows are ordered by, and whether ascending.
   ///
   /// **Offered, and one of the two callers declines it** (#10). *A surface
@@ -149,6 +149,33 @@ class PeriodMatrix extends StatelessWidget {
   /// laid out `months.length * monthWidth` wide, so it cannot drift out of step.
   final ({double height, Widget gutter, Widget body})? banner;
 
+  /// The row along the bottom: the Occupation grid's TOTAL (#14).
+  ///
+  /// **At the bottom, and always shown** — both of which changed in #14. It was
+  /// `pinned`, drawn at the top, and hidden the moment a filter narrowed the
+  /// station set, because #9 judged *"a partial wearing the plant's name"*
+  /// worse than no row at all. Renaming it from PLANT to **TOTAL** dissolved
+  /// that: a total only ever claims to be the total of the rows above it, which
+  /// is true under every filter — and a filtered view is exactly when someone
+  /// wants one.
+  final PeriodMatrixRow? aggregate;
+  final PeriodMatrixCell? Function(int month)? aggregateCellAt;
+
+  /// The column along the right: each row summarised across every month shown.
+  ///
+  /// **Frozen, like the labels opposite it** (#14). The months scroll between
+  /// two fixed edges — the row's name on the left, its total on the right — so
+  /// the summary is never the column a reader has to hunt for on a long run.
+  ///
+  /// Null on a caller that has no per-row summary worth drawing: the float
+  /// matrix's rows are *ranks*, and averaging rank 3 across months averages
+  /// unrelated orders. It passes [aggregateTrailingCell] alone, so its right
+  /// edge holds one figure — the run's own mean float — and nothing above it.
+  final String? trailingLabel;
+  final PeriodMatrixCell? Function(int row)? trailingCellAt;
+  final PeriodMatrixCell? aggregateTrailingCell;
+  final double trailingWidth;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -159,20 +186,31 @@ class PeriodMatrix extends StatelessWidget {
     // or a parameter each caller has to remember, the height follows the thing
     // that actually decides it: whether any row carries a second line.
     final tall =
-        rows.any((row) => row.qualifier != null) || pinned?.qualifier != null;
+        rows.any((row) => row.qualifier != null) ||
+        aggregate?.qualifier != null;
     final rowHeight = tall ? 60.0 : 40.0;
     const headingHeight = 40.0;
 
     final divider = BorderSide(color: theme.colorScheme.outlineVariant);
+    final hasTrailing = trailingLabel != null || aggregateTrailingCell != null;
+
+    Color? tint(bool emphasis) =>
+        emphasis ? theme.colorScheme.surfaceContainerHighest : null;
 
     Widget gutterCell(PeriodMatrixRow row) => Container(
       height: rowHeight,
       padding: const EdgeInsets.only(left: 8, right: 4),
       alignment: Alignment.centerLeft,
-      color: (row.emphasis ?? false)
-          ? theme.colorScheme.surfaceContainerHighest
-          : null,
+      color: tint(row.emphasis ?? false),
       child: _Header(row: row, width: headerWidth - 12),
+    );
+
+    Widget valueCell(PeriodMatrixCell? cell, double width) => SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+        child: _Cell(cell: cell),
+      ),
     );
 
     Widget bodyRow(
@@ -180,26 +218,37 @@ class PeriodMatrix extends StatelessWidget {
       bool emphasis = false,
     }) => Container(
       height: rowHeight,
-      color: emphasis ? theme.colorScheme.surfaceContainerHighest : null,
+      color: tint(emphasis),
       child: Row(
         children: [
           for (var m = 0; m < months.length; m++)
-            SizedBox(
-              width: monthWidth,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                child: _Cell(cell: cellOf(m)),
-              ),
-            ),
+            valueCell(cellOf(m), monthWidth),
         ],
       ),
     );
+
+    Widget trailingCell(PeriodMatrixCell? cell, {bool emphasis = false}) =>
+        Container(
+          height: rowHeight,
+          color: tint(emphasis),
+          child: valueCell(cell, trailingWidth),
+        );
+
+    Widget headingBox({required Widget child, EdgeInsets? padding}) =>
+        Container(
+          height: headingHeight,
+          padding: padding,
+          alignment: Alignment.centerLeft,
+          decoration: BoxDecoration(border: Border(bottom: divider)),
+          child: child,
+        );
 
     // **A real frozen column, at last.** This file has claimed one since #10 —
     // *"rows × months, with banded cells and a frozen first column"* — while
     // putting every column inside one `DataTable` inside one scroll, so the
     // labels slid away with the data. #16 needed the gutter pinned for the
-    // chart's axis anyway, and pinning one meant pinning both.
+    // chart's axis anyway, and pinning one meant pinning both. #14 then pinned
+    // the other edge too, so the months scroll between two fixed columns.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -214,15 +263,12 @@ class PeriodMatrix extends StatelessWidget {
                   width: headerWidth,
                   child: top.gutter,
                 ),
-              Container(
-                height: headingHeight,
+              headingBox(
                 padding: const EdgeInsets.only(left: 8),
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(border: Border(bottom: divider)),
                 child: Text(headerLabel, style: theme.textTheme.labelLarge),
               ),
-              if (pinned case final row?) gutterCell(row),
               for (final row in rows) gutterCell(row),
+              if (aggregate case final row?) gutterCell(row),
             ],
           ),
         ),
@@ -260,14 +306,46 @@ class PeriodMatrix extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (pinned case final row? when pinnedCellAt != null)
-                  bodyRow(pinnedCellAt!, emphasis: row.emphasis ?? false),
                 for (final (index, _) in rows.indexed)
                   bodyRow((month) => cellAt(index, month)),
+                if (aggregate case final row? when aggregateCellAt != null)
+                  bodyRow(aggregateCellAt!, emphasis: row.emphasis ?? false),
               ],
             ),
           ),
         ),
+        if (hasTrailing)
+          SizedBox(
+            width: trailingWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (banner case final top?) SizedBox(height: top.height),
+                headingBox(
+                  child: SizedBox(
+                    width: trailingWidth,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        trailingLabel ?? '',
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: theme.textTheme.labelLarge,
+                      ),
+                    ),
+                  ),
+                ),
+                for (final (index, _) in rows.indexed)
+                  trailingCell(trailingCellAt?.call(index)),
+                if (aggregate case final row?)
+                  trailingCell(
+                    aggregateTrailingCell,
+                    emphasis: row.emphasis ?? false,
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }

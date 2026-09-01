@@ -322,22 +322,28 @@ void main() {
   });
 
   test('a line filter narrows the stations, so the plant row goes', () async {
-    // The half the fixture can show directly: a line filter is structural, so
-    // it narrows the station set — and the moment anything does, the PLANT row
-    // has to go, because a total across a subset would wear the plant's name.
+    // **This rule was reversed by #14, deliberately.** It used to be: a line
+    // filter is structural, so it narrows the station set, and the moment
+    // anything does the PLANT row has to go — a total across a subset would
+    // wear the plant's name.
+    //
+    // The row is called **TOTAL** now, and a total claims only the rows above
+    // it. That is true under every filter, so the row stays; and a narrowed
+    // view is exactly when a reader wants one. What survives from the old rule
+    // is the reason it existed: the aggregate must never be read as the plant.
+    // The label is what carries that now.
     final run = await stored();
-    expect(occupationGrid(run: run)!.plant, isNotNull);
-    expect(
-      occupationGrid(
-        run: run,
-        filter: const RunFilter(lineIds: {'line-a'}),
-      )!.plant,
-      isNull,
-    );
+    expect(occupationGrid(run: run)!.total.cells, isNotEmpty);
+
+    final narrowed = occupationGrid(
+      run: run,
+      filter: const RunFilter(lineIds: {'line-a'}),
+    )!;
+    expect(narrowed.total.cells, isNotEmpty);
   });
 
   test(
-    'a station filter drops the station, its capacity and the plant row',
+    'a station filter drops the station and its capacity, and the total follows',
     () async {
       final run = await stored();
       final whole = occupationGrid(run: run)!;
@@ -349,18 +355,34 @@ void main() {
       expect(whole.rows.map((r) => r.name), containsAll(['CLAD04', 'MILL02']));
       expect(one.rows.map((r) => r.name), ['CLAD04']);
 
-      // **And the plant row goes with it.** Once anything has narrowed the
-      // station set, a total across what is left would be a partial wearing the
-      // plant's name.
-      expect(whole.plant, isNotNull);
-      expect(one.plant, isNull);
+      // **And the TOTAL row now totals what is left** (#14) rather than
+      // vanishing: with CLAD04 alone in view, the aggregate is CLAD04's own
+      // demand, not the two stations' — which is the whole point of it
+      // surviving a filter.
+      final onlyRow = one.rows.single;
+      for (final month in onlyRow.cells.keys) {
+        expect(
+          one.total.cells[month]!.asked,
+          onlyRow.cells[month]!.asked,
+          reason: 'a total over one station is that station',
+        );
+      }
+      expect(
+        whole.total.cells.values.fold(Duration.zero, (sum, c) => sum + c.asked),
+        greaterThan(
+          one.total.cells.values.fold<Duration>(
+            Duration.zero,
+            (sum, c) => sum + c.asked,
+          ),
+        ),
+      );
     },
   );
 
-  test('the plant row is the sum of the stations under it', () async {
+  test('the TOTAL row is the sum of the stations above it', () async {
     final run = await stored();
     final grid = occupationGrid(run: run)!;
-    final plant = grid.plant!;
+    final plant = grid.total;
 
     for (final month in plant.cells.keys) {
       final asked = grid.rows.fold(
@@ -387,7 +409,7 @@ void main() {
     final worstStation = grid.rows
         .map((r) => r.peak ?? 0)
         .fold<double>(0, (a, b) => a > b ? a : b);
-    final worstPlant = grid.plant!.peak ?? 0;
+    final worstPlant = grid.total.peak ?? 0;
     expect(
       worstStation,
       greaterThanOrEqualTo(worstPlant),
@@ -408,7 +430,7 @@ void main() {
         run: run,
         grouping: OccupationGrouping.line,
       )!;
-      final plant = occupationGrid(run: run)!.plant!;
+      final plant = occupationGrid(run: run)!.total;
 
       expect(
         byLine.rows.map((r) => r.name),
@@ -453,7 +475,7 @@ void main() {
     final run = await stored();
     final grid = occupationGrid(run: run)!;
 
-    final asked = grid.plant!.cells.values.fold(
+    final asked = grid.total.cells.values.fold(
       Duration.zero,
       (sum, c) => sum + c.asked,
     );
@@ -470,7 +492,7 @@ void main() {
   test('the three units read one cell three ways', () async {
     final run = await stored();
     final grid = occupationGrid(run: run)!;
-    final cell = grid.plant!.cells.values.first;
+    final cell = grid.total.cells.values.first;
 
     // `%` is asked ÷ open; `gap` is open − asked; `hours` is the pair. They are
     // one number, so they cannot disagree — which is what makes the switch a
@@ -577,5 +599,50 @@ void main() {
         }
       },
     );
+  });
+
+  group('the TOTAL column (#14)', () {
+    test('a row total is a ratio of sums, not a mean of ratios', () async {
+      // **The arithmetic this ticket turns on.** Averaging the monthly
+      // percentages would weight a 400 h month exactly like a 9,000 h one, and
+      // on the live database those sit side by side: 3,296 h of capacity in
+      // October against 9,384 h in July.
+      final grid = occupationGrid(run: await stored())!;
+      final row = grid.rows.first;
+
+      var asked = Duration.zero;
+      var open = Duration.zero;
+      for (final cell in row.cells.values) {
+        asked += cell.asked;
+        open += cell.open;
+      }
+
+      expect(row.total.asked, asked);
+      expect(row.total.open, open);
+      expect(row.total.ratio, asked.inSeconds / open.inSeconds);
+
+      // And it is *not* the mean of the monthly ratios, unless every month
+      // happened to have identical capacity.
+      final ratios = row.cells.values
+          .map((c) => c.ratio)
+          .whereType<double>()
+          .toList();
+      final mean = ratios.reduce((a, b) => a + b) / ratios.length;
+      expect(row.total.ratio, isNotNull);
+      if ((mean - row.total.ratio!).abs() > 1e-9) {
+        expect(row.total.ratio, isNot(mean));
+      }
+    });
+
+    test('the corner is the total of the totals', () async {
+      // The TOTAL row × TOTAL column intersection: every station, every month.
+      final grid = occupationGrid(run: await stored())!;
+
+      final fromRows = grid.rows.fold(
+        Duration.zero,
+        (sum, row) => sum + row.total.asked,
+      );
+      expect(grid.total.total.asked, fromRows);
+    });
   });
 }

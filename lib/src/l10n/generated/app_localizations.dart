@@ -3578,12 +3578,6 @@ abstract class AppLocalizations {
   /// **'Gap'**
   String get occupationUnitGap;
 
-  /// No description provided for @occupationPlant.
-  ///
-  /// In en, this message translates to:
-  /// **'PLANT'**
-  String get occupationPlant;
-
   /// No description provided for @occupationWorkcenter.
   ///
   /// In en, this message translates to:
@@ -3667,6 +3661,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours} h'**
   String occupationHours(Object hours);
+
+  /// No description provided for @occupationTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'TOTAL'**
+  String get occupationTotal;
+
+  /// No description provided for @occupationAllMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'all months shown'**
+  String get occupationAllMonths;
+
+  /// No description provided for @floatAverage.
+  ///
+  /// In en, this message translates to:
+  /// **'AVG'**
+  String get floatAverage;
+
+  /// No description provided for @floatAverageHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days of float on average.'**
+  String floatAverageHelp(Object days);
 }
 
 class _AppLocalizationsDelegate

@@ -1157,7 +1157,6 @@
   "occupationUnitPercent": "%",
   "occupationUnitHours": "Hours",
   "occupationUnitGap": "Gap",
-  "occupationPlant": "PLANT",
   "occupationWorkcenter": "Workcenter",
   "occupationAmberAbove": "Amber above",
   "occupationRedAbove": "Red above",
@@ -1190,6 +1189,15 @@
   "@occupationHours": {
     "placeholders": {
       "hours": {}
+    }
+  },
+  "occupationTotal": "TOTAL",
+  "occupationAllMonths": "all months shown",
+  "floatAverage": "AVG",
+  "floatAverageHelp": "{days} days of float on average.",
+  "@floatAverageHelp": {
+    "placeholders": {
+      "days": {}
     }
   }
 }

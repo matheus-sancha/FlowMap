@@ -68,11 +68,8 @@ void main() {
     List<SimOrderOutcome> orders, {
     int red = 0,
     int green = 30,
-  }) => buildFloatMatrix(
-    slice: sliceOf(orders),
-    redDays: red,
-    greenDays: green,
-  );
+  }) =>
+      buildFloatMatrix(slice: sliceOf(orders), redDays: red, greenDays: green);
 
   test('columns are the need-date month, not the delivery month', () {
     // **The rule §12's run comparison depends on.** An order due in March and
@@ -114,10 +111,26 @@ void main() {
     final matrix = matrixOf(
       [
         // Delivered on the need date: no slack left, which is what red is for.
-        order('none', need: DateTime(2026, 3, 10), delivered: DateTime(2026, 3, 10)),
-        order('late', need: DateTime(2026, 3, 11), delivered: DateTime(2026, 4, 11)),
-        order('some', need: DateTime(2026, 3, 12), delivered: DateTime(2026, 3, 1)),
-        order('lots', need: DateTime(2026, 4, 20), delivered: DateTime(2026, 3, 1)),
+        order(
+          'none',
+          need: DateTime(2026, 3, 10),
+          delivered: DateTime(2026, 3, 10),
+        ),
+        order(
+          'late',
+          need: DateTime(2026, 3, 11),
+          delivered: DateTime(2026, 4, 11),
+        ),
+        order(
+          'some',
+          need: DateTime(2026, 3, 12),
+          delivered: DateTime(2026, 3, 1),
+        ),
+        order(
+          'lots',
+          need: DateTime(2026, 4, 20),
+          delivered: DateTime(2026, 3, 1),
+        ),
       ],
       red: 0,
       green: 30,
@@ -142,10 +155,7 @@ void main() {
 
     expect(matrixOf(orders).rows.first.single!.band, FloatBand.amber);
     // Ten days of slack is comfortable on a plant that says so.
-    expect(
-      matrixOf(orders, green: 5).rows.first.single!.band,
-      FloatBand.green,
-    );
+    expect(matrixOf(orders, green: 5).rows.first.single!.band, FloatBand.green);
   });
 
   test('an order that never delivered is its own band, not red', () {
@@ -192,5 +202,85 @@ void main() {
 
   test('a slice with no orders is empty rather than a matrix of nothing', () {
     expect(matrixOf(const []).isEmpty, isTrue);
+  });
+
+  group('the average row and its corner (#14)', () {
+    test('a month average is the mean of the orders needing that month', () {
+      // The row the field asked for, and the one aggregate on this surface that
+      // is unambiguously meaningful: down a column, every cell is an order due
+      // in the same month.
+      final matrix = matrixOf([
+        order(
+          'a',
+          need: DateTime(2026, 3, 10),
+          delivered: DateTime(2026, 3, 0),
+        ),
+        order(
+          'b',
+          need: DateTime(2026, 3, 20),
+          delivered: DateTime(2026, 3, 10),
+        ),
+      ]);
+
+      // 10 days of float and 10 days of float.
+      expect(matrix.averageIn(0), const Duration(days: 10));
+    });
+
+    test('a month nothing finished in has no average, rather than zero', () {
+      // Zero float is a real and alarming figure — an order due the day it
+      // shipped. An undelivered month must not borrow it.
+      final matrix = matrixOf([order('u', need: DateTime(2026, 3, 1))]);
+
+      expect(matrix.averageIn(0), isNull);
+    });
+
+    test('the corner is the mean of the orders, not the mean of the means', () {
+      // **The arithmetic the corner turns on.** One month with a single very
+      // late order and another with three comfortable ones: averaging the two
+      // monthly averages would give the single order the same weight as the
+      // three, which is exactly what a grand total must not do.
+      final matrix = matrixOf([
+        order(
+          'late',
+          need: DateTime(2026, 3, 10),
+          delivered: DateTime(2026, 3, 10),
+        ),
+        order(
+          'a',
+          need: DateTime(2026, 4, 20),
+          delivered: DateTime(2026, 4, 10),
+        ),
+        order(
+          'b',
+          need: DateTime(2026, 4, 20),
+          delivered: DateTime(2026, 4, 10),
+        ),
+        order(
+          'c',
+          need: DateTime(2026, 4, 20),
+          delivered: DateTime(2026, 4, 10),
+        ),
+      ]);
+
+      final march = matrix.averageIn(0)!;
+      final april = matrix.averageIn(1)!;
+      final meanOfMeans = Duration(
+        seconds: (march.inSeconds + april.inSeconds) ~/ 2,
+      );
+
+      // Four orders: 0, 10, 10, 10 days -> 7.5 days, floored to 7 by the
+      // integer division the cells use.
+      expect(matrix.averageFloat, const Duration(days: 7, hours: 12));
+      expect(matrix.averageFloat, isNot(meanOfMeans));
+    });
+
+    test('a matrix with nothing delivered has no average at all', () {
+      final matrix = matrixOf([
+        order('u', need: DateTime(2026, 3, 1)),
+        order('v', need: DateTime(2026, 4, 1)),
+      ]);
+
+      expect(matrix.averageFloat, isNull);
+    });
   });
 }

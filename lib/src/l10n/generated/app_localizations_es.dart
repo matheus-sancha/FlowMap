@@ -2040,9 +2040,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get occupationUnitGap => 'Diferencia';
 
   @override
-  String get occupationPlant => 'PLANTA';
-
-  @override
   String get occupationWorkcenter => 'Centro de trabajo';
 
   @override
@@ -2098,5 +2095,19 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String occupationHours(Object hours) {
     return '$hours h';
+  }
+
+  @override
+  String get occupationTotal => 'TOTAL';
+
+  @override
+  String get occupationAllMonths => 'todos los meses mostrados';
+
+  @override
+  String get floatAverage => 'PROM';
+
+  @override
+  String floatAverageHelp(Object days) {
+    return '$days días de holgura en promedio.';
   }
 }
