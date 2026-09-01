@@ -56,13 +56,22 @@ class OccupationMonth {
   /// a surface agreeing with itself and disagreeing with its own metric costs.
   final Duration changeover;
 
-  /// Demand at these stations from orders the filter excluded.
+  /// Demand at these stations from orders an **order-level** filter excluded —
+  /// a customer project, a part number, an order number.
   ///
-  /// **A filter colours the bar; it never shrinks it.** BAN11 is shared by three
-  /// lines: filtered to one of them its own demand may sit comfortably under the
-  /// line while the three together break it, and a bar that dropped the other
-  /// two would let a planner filter an overload away. So it stays in the stack
-  /// as a fourth, neutral segment and [total] is always the station's true load.
+  /// **An order-level filter colours the bar; it never shrinks it.** Filtered to
+  /// one project, its own demand may sit comfortably under the line while
+  /// everything the station is actually asked for breaks it, and a bar that
+  /// dropped the rest would let a planner filter an overload away. So it stays
+  /// in the stack as a fourth, neutral segment and [total] is always the
+  /// station's true load.
+  ///
+  /// **Zero under a structural filter, always.** Study, cell, line, type and
+  /// workcenter choose the *station set*, so demand and capacity move together
+  /// and there is no remainder to hold — the bar is fully coloured. It did not
+  /// used to be, and the field reported it: those filters were being passed
+  /// through to `kept`, so narrowing to one study painted every other study's
+  /// work at a shared station grey.
   final Duration other;
 
   /// Open time those stations had in this month, units already multiplied in.
@@ -207,11 +216,36 @@ OccupationGraph? occupationGraph({
   final inView = stationsInView(run, filter);
   if (inView.isEmpty) return null;
 
-  // The orders the filter keeps. Taken through `filterRun` rather than
-  // re-implemented, so the chart and every table beside it cannot disagree
-  // about which orders are in the slice.
+  // The orders an **order-level** filter keeps, taken through `filterRun` so
+  // the chart and every table beside it cannot disagree about which orders are
+  // in the slice.
+  //
+  // **Structural filters are stripped out of this, and were not** — the field
+  // reported the neutral segment appearing under a study, cell, line, type or
+  // workcenter filter, and it was right. This passed the whole `filter`, so a
+  // structural filter narrowed the station set *and* dropped every other
+  // study's orders out of `kept`, painting their work at those shared stations
+  // grey. `occupation_grid.dart` has always stripped them; the chart never did,
+  // which quietly broke this library's own claim that the two surfaces cannot
+  // disagree about what is being looked at.
+  //
+  // A structural filter therefore leaves the bar entirely coloured: the station
+  // set moved, so demand and capacity moved with it, and there is no remainder
+  // for the neutral segment to hold. The bar is still the stations' **full**
+  // load, which is what stops a filter from making an overload disappear.
   final kept = {
-    for (final outcome in filterRun(run, filter).result.orders) outcome.orderId,
+    for (final outcome
+        in filterRun(
+          run,
+          RunFilter(
+            customerProjects: filter.customerProjects,
+            partNumbers: filter.partNumbers,
+            orderNumbers: filter.orderNumbers,
+            from: filter.from,
+            to: filter.to,
+          ),
+        ).result.orders)
+      outcome.orderId,
   };
 
   // --- the columns ---------------------------------------------------------

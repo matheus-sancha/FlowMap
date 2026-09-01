@@ -389,9 +389,16 @@ class _Legend extends StatelessWidget {
         swatch(colours.process, l10n.occupationProcess),
         swatch(colours.rework, l10n.occupationRework),
         swatch(colours.changeover, l10n.occupationChangeover),
-        // Named for what it is rather than "other": it is the demand of lines
+        // Named for what it is rather than "other": it is the demand of orders
         // the filter excluded, and a reader has to know the bar still holds it.
-        swatch(colours.other, l10n.occupationOutsideFilter),
+        //
+        // **Only when the bar actually holds some.** A key for a colour that is
+        // nowhere on the chart is a reader looking for a segment that does not
+        // exist — and since only an order-level filter can produce one, this is
+        // absent on every unfiltered chart and under every structural filter,
+        // which is most of the time.
+        if (graph.months.any((m) => m.other > Duration.zero))
+          swatch(colours.other, l10n.occupationOutsideFilter),
         Text(
           l10n.occupationStations(graph.stationsInView.length),
           style: theme.textTheme.bodySmall?.copyWith(

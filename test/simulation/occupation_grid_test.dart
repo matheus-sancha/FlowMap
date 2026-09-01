@@ -5,6 +5,7 @@ import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dar
 import 'package:flowmap/src/features/calendar/application/working_calendar.dart';
 import 'package:flowmap/src/features/schedules/application/workcenter_schedule.dart';
 import 'package:flowmap/src/features/simulation/application/engine.dart';
+import 'package:flowmap/src/features/simulation/application/occupation_graph.dart';
 import 'package:flowmap/src/features/simulation/application/occupation_grid.dart';
 import 'package:flowmap/src/features/simulation/application/run_filter.dart';
 import 'package:flowmap/src/features/simulation/application/sim_model.dart';
@@ -20,11 +21,18 @@ import 'package:flutter_test/flutter_test.dart';
 /// **This file was `occupation_graph_test.dart`** and its nine tests were about
 /// a stacked bar: three segments summing to the required time, a neutral
 /// segment for load outside the filter, a per-month count of stations over, and
-/// a pivot of lines against types. The chart is gone (#9) and so are they. What
-/// survives is the fixture — two lines sharing MILL02, which is the shape every
-/// rule here is still about — and the three claims that were never about the
-/// bar: bucketing by arrival, a pre-v25 run drawing nothing, and a filter never
-/// shrinking what a machine was asked for.
+/// a pivot of lines against types. The chart was deleted (#9) and so were they.
+/// What survived is the fixture — two lines sharing MILL02, which is the shape
+/// every rule here is still about — and the three claims that were never about
+/// the bar: bucketing by arrival, a pre-v25 run drawing nothing, and a filter
+/// never shrinking what a machine was asked for.
+///
+/// **The chart then came back (`795ac6e`, #13) and its tests did not**, which is
+/// how the neutral segment came to be drawn under a study, cell or line filter
+/// for two commits without anything failing. The field found it instead. The
+/// `the chart` group at the foot of this file is the part that had to return:
+/// not the pivot or the over-count, but the one rule the two surfaces are
+/// supposed to share and briefly did not.
 void main() {
   late AppDatabase db;
   late SimulationRunsRepository runs;
@@ -473,6 +481,101 @@ void main() {
       cell.gap.isNegative,
       (cell.ratio ?? 0) > 1,
       reason: 'over capacity and a negative gap are the same statement',
+    );
+  });
+
+  group('the chart', () {
+    Duration greyIn(OccupationGraph graph) =>
+        graph.months.fold(Duration.zero, (sum, month) => sum + month.other);
+
+    test('a structural filter leaves no neutral segment at all', () async {
+      // **The bug the field found**: "the graph is still showing the outside
+      // filter when i filter studies, cells, lines, workcenter type and
+      // workcenter. I don't want that."
+      //
+      // `occupationGraph` passed the *whole* filter through to `kept`, so a
+      // structural filter narrowed the station set and simultaneously dropped
+      // every other study's orders out of the kept set — painting their work at
+      // the shared stations grey. `occupation_grid.dart` has always stripped
+      // the structural filters out of that computation; the chart never did.
+      //
+      // Both studies visit both stations here, so a line filter cannot change
+      // which stations are in view: any grey it produces is the defect and
+      // nothing else.
+      final run = await stored();
+
+      for (final filter in const [
+        RunFilter(studyIds: {'study-a'}),
+        RunFilter(cellIds: {'cell-1'}),
+        RunFilter(lineIds: {'line-a'}),
+        RunFilter(typeIds: {'type-mill'}),
+        RunFilter(workcenterIds: {'wc-2'}),
+      ]) {
+        final graph = occupationGraph(run: run, filter: filter)!;
+        expect(
+          greyIn(graph),
+          Duration.zero,
+          reason: 'structural filter $filter produced a neutral segment',
+        );
+      }
+    });
+
+    test('an order-level filter still produces one', () async {
+      // The other half of the rule, and the reason the segment exists at all:
+      // capacity is fixed, so the bar keeps its full height and the part of it
+      // that is not yours goes grey. Without this the fix above would read
+      // equally well as "the segment never appears", which is not the decision.
+      final run = await stored();
+
+      final graph = occupationGraph(
+        run: run,
+        filter: const RunFilter(partNumbers: {'PN-study-a'}),
+      )!;
+
+      expect(greyIn(graph), greaterThan(Duration.zero));
+    });
+
+    test(
+      'a structural filter never shrinks what a machine was asked for',
+      () async {
+        // The property that stops a filter making an overload disappear. Both
+        // studies visit both stations, so narrowing to one line leaves the same
+        // stations in view — and therefore the same total demand on them, now
+        // entirely coloured rather than partly grey.
+        final whole = occupationGraph(run: await stored())!;
+        final line = occupationGraph(
+          run: await stored(),
+          filter: const RunFilter(lineIds: {'line-a'}),
+        )!;
+
+        expect(
+          line.months.map((m) => m.total),
+          whole.months.map((m) => m.total),
+        );
+        expect(greyIn(whole), Duration.zero);
+        expect(greyIn(line), Duration.zero);
+      },
+    );
+
+    test(
+      'the coloured segments sum to the whole bar when nothing is grey',
+      () async {
+        // What the reader is actually looking at once the neutral segment is
+        // gone: three colours that account for every hour the stations were
+        // asked for.
+        final graph = occupationGraph(
+          run: await stored(rework: 0.25),
+          filter: const RunFilter(lineIds: {'line-a'}),
+        )!;
+
+        for (final month in graph.months) {
+          expect(
+            month.process + month.rework + month.changeover,
+            month.required,
+          );
+          expect(month.required, month.total);
+        }
+      },
     );
   });
 }
