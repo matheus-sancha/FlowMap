@@ -151,18 +151,28 @@ class _OccupationViewState extends State<OccupationView> {
         _ => (status.good.fill, status.good.ink),
       };
 
-      final text = switch (_unit) {
-        OccupationUnit.percent =>
+      // Asked of, over open — §15's rule that a derived figure expands to show
+      // its inputs, and what a percentage drops: 3,296 h of capacity in one
+      // month and 9,384 in another read alike as a ratio.
+      //
+      // **Stacked rather than divided by a slash** (#14). `733/499` puts two
+      // measurements behind the punctuation of a single number, and a reader
+      // has to be told which way round it is. Demand above, capacity below.
+      final (String text, String? subtext) = switch (_unit) {
+        OccupationUnit.percent => (
           ratio == null ? '—' : '${(ratio * 100).round()}%',
-        // Asked of, over open — §15's rule that a derived figure expands to
-        // show its inputs, and what a percentage drops: 3,296 h of capacity in
-        // one month and 9,384 in another read alike as a ratio.
-        OccupationUnit.hours => '${cell.asked.inHours}/${cell.open.inHours}',
-        OccupationUnit.gap => '${cell.gap.inHours}',
+          null,
+        ),
+        OccupationUnit.hours => (
+          '${cell.asked.inHours}',
+          '${cell.open.inHours}',
+        ),
+        OccupationUnit.gap => ('${cell.gap.inHours}', null),
       };
 
       return PeriodMatrixCell(
         text: text,
+        subtext: subtext,
         background: background,
         foreground: foreground,
         tooltip: l10n.occupationCellHelp(

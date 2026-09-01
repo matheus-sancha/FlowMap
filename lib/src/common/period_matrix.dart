@@ -53,6 +53,7 @@ class PeriodMatrixRow {
 class PeriodMatrixCell {
   const PeriodMatrixCell({
     required this.text,
+    this.subtext,
     required this.background,
     required this.foreground,
     this.tooltip,
@@ -60,6 +61,15 @@ class PeriodMatrixCell {
   });
 
   final String text;
+
+  /// A second line under [text], dimmer and smaller (#14).
+  ///
+  /// **What the Hours unit uses to stop reading as a fraction.** It was
+  /// `733/499` on one line, which is two facts wearing the punctuation of one
+  /// number — and the field asked for demand above capacity instead. Null on
+  /// every other unit and on the float matrix, which have one figure to give.
+  final String? subtext;
+
   final Color background;
   final Color foreground;
   final String? tooltip;
@@ -185,7 +195,19 @@ class PeriodMatrix extends StatelessWidget {
     // were fine at 34. Rather than one constant that is wrong for one of them,
     // or a parameter each caller has to remember, the height follows the thing
     // that actually decides it: whether any row carries a second line.
+    // A cell can carry a second line too (the Hours unit stacks demand over
+    // capacity), and a 40 pt row cannot hold one. Probing the first row's
+    // months is enough: a unit is a property of the whole grid, never of one
+    // cell.
+    var stacked = false;
+    if (rows.isNotEmpty) {
+      for (var m = 0; m < months.length && !stacked; m++) {
+        stacked = cellAt(0, m)?.subtext != null;
+      }
+    }
+
     final tall =
+        stacked ||
         rows.any((row) => row.qualifier != null) ||
         aggregate?.qualifier != null;
     final rowHeight = tall ? 60.0 : 40.0;
@@ -510,15 +532,20 @@ class _Cell extends StatelessWidget {
     if (value == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
+    // **Centred** (#14), where these were right-aligned. Right alignment is the
+    // usual rule for a column of figures, because it lines the digits up — but
+    // every cell here is its own filled band with its own rounded edges, so the
+    // digits are read against the band rather than against the column, and a
+    // number pushed to one edge of its own tile reads as an accident.
     final body = Container(
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: value.background,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Stack(
-        alignment: Alignment.centerRight,
+        alignment: Alignment.center,
         children: [
           if (value.share case final share? when share < 1)
             Positioned(
@@ -538,16 +565,38 @@ class _Cell extends StatelessWidget {
               ),
             ),
           // Ellipsised for the same reason as the month heading (#16): the
-          // column is a declared width now, and `733/499` under the Hours unit
-          // is the widest thing either caller draws. The tooltip carries the
-          // figure in full, so a clipped cell loses nothing that cannot be
-          // recovered by hovering it.
-          Text(
-            value.text,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-            softWrap: false,
-            style: theme.textTheme.bodySmall?.copyWith(color: value.foreground),
+          // column is a declared width now. The tooltip carries every figure in
+          // full, so a clipped cell loses nothing that cannot be recovered by
+          // hovering it.
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                value.text,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                softWrap: false,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: value.foreground,
+                ),
+              ),
+              // **Under it rather than after a slash.** Demand above, capacity
+              // below, dimmer — so the pair reads as two measurements of the
+              // same month instead of as one division.
+              if (value.subtext case final second?)
+                Text(
+                  second,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: value.foreground.withValues(alpha: 0.72),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

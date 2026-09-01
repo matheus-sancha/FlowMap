@@ -242,4 +242,63 @@ void main() {
       );
     });
   });
+
+  group('a cell can carry two figures (#14)', () {
+    testWidgets('demand sits above capacity, and both are drawn', (
+      tester,
+    ) async {
+      // **Not `733/499`.** That put two measurements behind the punctuation of
+      // a single number and left the reader to work out which way round it was.
+      await tester.pumpWidget(
+        host(
+          PeriodMatrix(
+            months: months,
+            headerLabel: 'LINE',
+            rows: const [PeriodMatrixRow(label: 'Fluxo 11B')],
+            cellAt: (row, month) => const PeriodMatrixCell(
+              text: '733',
+              subtext: '499',
+              background: Color(0xFFEEEEEE),
+              foreground: Color(0xFF000000),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('733'), findsNWidgets(3));
+      expect(find.text('499'), findsNWidgets(3));
+
+      // Demand above capacity, not beside or below it.
+      expect(
+        tester.getTopLeft(find.text('733').first).dy,
+        lessThan(tester.getTopLeft(find.text('499').first).dy),
+      );
+    });
+
+    testWidgets('a stacked cell forces the taller row, with no qualifier', (
+      tester,
+    ) async {
+      // The matrix measures itself on the row header, and a two-line *cell* is
+      // the other thing that needs the height. Per workcenter, a plant whose
+      // stations are all outside a pool has no qualifier anywhere — so without
+      // this the Hours unit would overflow every row.
+      await tester.pumpWidget(
+        host(
+          PeriodMatrix(
+            months: months,
+            headerLabel: 'STATION',
+            rows: const [PeriodMatrixRow(label: 'CEU27')],
+            cellAt: (row, month) => const PeriodMatrixCell(
+              text: '733',
+              subtext: '499',
+              background: Color(0xFFEEEEEE),
+              foreground: Color(0xFF000000),
+            ),
+          ),
+        ),
+      );
+
+      expect(heightOfRowCarrying(tester, 'CEU27'), 60);
+    });
+  });
 }
