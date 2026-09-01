@@ -71,7 +71,12 @@ class FloatMatrixTable extends StatelessWidget {
         PeriodMatrix(
           months: matrix.months,
           headerLabel: '#',
-          headerWidth: 40,
+          // **Wide enough for the AVG row's own label** (#14), not just for a
+          // rank. 40 was chosen when every row header here was a number; the
+          // aggregate row put a word in the same column, and `PROM` in Spanish
+          // is the widest of the three. Still less than half the Occupation
+          // grid's gutter, which carries a station over a pool.
+          headerWidth: 72,
           rows: [
             for (final (rank, _) in matrix.rows.indexed)
               PeriodMatrixRow(label: '${rank + 1}'),

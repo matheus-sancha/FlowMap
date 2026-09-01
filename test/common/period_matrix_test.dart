@@ -301,4 +301,60 @@ void main() {
       expect(heightOfRowCarrying(tester, 'CEU27'), 60);
     });
   });
+
+  group('a row label gets the room it needs (#14)', () {
+    /// The width the label actually paints at, against the width it wants.
+    ///
+    /// **Compared to an unconstrained render of the same string**, rather than
+    /// to a number: the test font's metrics are not the shipping font's, and a
+    /// hard-coded pixel count would pass here and clip on a real machine.
+    Future<(double drawn, double natural)> widths(
+      WidgetTester tester,
+      String label,
+      double headerWidth,
+    ) async {
+      double measure(double width) => tester.getSize(find.text(label)).width;
+
+      Widget at(double w) => host(
+        PeriodMatrix(
+          months: months,
+          headerLabel: '#',
+          headerWidth: w,
+          rows: const [PeriodMatrixRow(label: '1')],
+          cellAt: (row, month) => cell('x'),
+          aggregate: PeriodMatrixRow(label: label, emphasis: true),
+          aggregateCellAt: (month) => cell('y'),
+        ),
+        width: 1200,
+      );
+
+      await tester.pumpWidget(at(headerWidth));
+      final drawn = measure(headerWidth);
+      await tester.pumpWidget(at(400));
+      final natural = measure(400);
+      return (drawn, natural);
+    }
+
+    for (final label in const ['AVG', 'PROM', 'MÉD']) {
+      testWidgets('the float matrix fits its aggregate label: $label', (
+        tester,
+      ) async {
+        // **The float matrix's gutter was 40**, chosen when every row header in
+        // it was a rank. #14 put a word in that column and the widest of the
+        // three locales did not fit, so the label ellipsised to nothing useful.
+        final (drawn, natural) = await widths(tester, label, 72);
+
+        expect(drawn, natural, reason: '$label is clipped at a 72 pt gutter');
+      });
+    }
+
+    testWidgets('and 40 would not have been enough, which is why it moved', (
+      tester,
+    ) async {
+      // Recorded so the constant cannot quietly go back.
+      final (drawn, natural) = await widths(tester, 'PROM', 40);
+
+      expect(drawn, lessThan(natural));
+    });
+  });
 }
