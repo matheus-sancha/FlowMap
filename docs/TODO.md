@@ -43,8 +43,11 @@ first. Nothing here restates a decision — it points at the one place each live
 | 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive owed** |
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built, drive owed** |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
-| 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13) — **executed, drive owed**; [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **open, deciding** |
+| 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13) — **executed and driven**; [#16](https://github.com/matheus-sancha/FlowMap/issues/16) — **open, deciding** |
 | 7 | Text clean-up | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **open, deciding** |
+| 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **open, deciding** |
+| 9 | The period filter | ? | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **open, deciding** |
+| 10 | Pane state | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **open, deciding** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -376,6 +379,31 @@ them, and they are still *deciding*, not built.
   test found a defect inside the hour: a 12,345 h peak collapsed the axis to three ticks because the
   nice-number ladder skipped 2.5. That is the standing constraint below working exactly as written —
   reach for the property before reaching for a drive.
+
+  **Then it was driven, twice, and produced eight findings.** The first (`789ca14`): the neutral
+  segment appeared under *every* structural filter, because `occupationGraph` passed the whole
+  `RunFilter` into its kept-orders set — so narrowing to one of two studies painted **half** the
+  demand grey. `occupation_grid.dart` had stripped the structural filters out of that since #9; the
+  chart never did. **It survived because the chart's tests were deleted with the chart in #9 and did
+  not come back with it in `795ac6e`** — four are now restored to
+  `occupation_grid_test.dart`, three of which fail on the pre-fix code. The second look produced
+  seven more, now [#14](https://github.com/matheus-sancha/FlowMap/issues/14),
+  [#16](https://github.com/matheus-sancha/FlowMap/issues/16),
+  [#17](https://github.com/matheus-sancha/FlowMap/issues/17) and
+  [#18](https://github.com/matheus-sancha/FlowMap/issues/18).
+
+- **Phases 8, 9 and 10 — the second drive's other findings.** [#14](https://github.com/matheus-sancha/FlowMap/issues/14)
+  widened from *"PLANT becomes TOTAL at the bottom"* to **what aggregates a period matrix carries on
+  its edges**: a total row *and column* on the Occupation grid, an **average** row and column on the
+  float matrix, and the awkward part — Occupation cells are ratios, which do not sum, so the column
+  is `total asked ÷ total capacity` and changes arithmetic with the unit switch.
+  [#17](https://github.com/matheus-sancha/FlowMap/issues/17) is the largest and the only one not
+  confined to one screen: a date **slicer** plus a Year/Semester/Month dropdown, whose scope is the
+  whole ticket — if it re-columns the matrices rather than just stepping the filter, it reaches the
+  shape of a stored run and stops being presentation-only.
+  [#18](https://github.com/matheus-sancha/FlowMap/issues/18) is small and sharp: `_sidebarCollapsed`
+  is a `setState` flag that does not survive a route change, the last piece of in-memory UI state
+  phase 3 did not convert.
 - **Phase 7 — text clean-up.** *"Too much explanation and random text."* Asked where it was worst,
   the answer was **the long inline help paragraphs** — not the field-level helpers, not the empty
   states, not the captions. 589 keys, 81 named `*Help`, 97 over 70 characters, ~20 rendered inline;
