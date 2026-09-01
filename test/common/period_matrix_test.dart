@@ -11,8 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// row height was a constant chosen for one caller and left wrong for the
 /// other. Both are now properties rather than prose.
 void main() {
-  Widget host(Widget child) => MaterialApp(
-    home: Scaffold(body: SizedBox(width: 900, height: 600, child: child)),
+  Widget host(Widget child, {double width = 900}) => MaterialApp(
+    home: Scaffold(
+      body: SizedBox(width: width, height: 600, child: child),
+    ),
   );
 
   PeriodMatrixCell cell(String text) => PeriodMatrixCell(
@@ -23,16 +25,23 @@ void main() {
 
   final months = [DateTime(2026), DateTime(2026, 2), DateTime(2026, 3)];
 
-  Widget matrix({required List<PeriodMatrixRow> rows, double? monthWidth}) =>
-      host(
-        PeriodMatrix(
-          months: months,
-          headerLabel: 'WORKCENTER',
-          rows: rows,
-          monthWidth: monthWidth ?? PeriodMatrix.defaultMonthWidth,
-          cellAt: (row, month) => cell('${row}x$month'),
-        ),
-      );
+  Widget matrix({
+    required List<PeriodMatrixRow> rows,
+    double? monthWidth,
+    double width = 900,
+    String? trailingLabel,
+  }) => host(
+    PeriodMatrix(
+      months: months,
+      headerLabel: 'WORKCENTER',
+      rows: rows,
+      monthWidth: monthWidth ?? PeriodMatrix.defaultMonthWidth,
+      cellAt: (row, month) => cell('${row}x$month'),
+      trailingLabel: trailingLabel,
+      trailingCellAt: trailingLabel == null ? null : (row) => cell('t$row'),
+    ),
+    width: width,
+  );
 
   /// The height of the box holding a row's label, which is what the reader sees
   /// as the row.
@@ -99,6 +108,10 @@ void main() {
   });
 
   group('the frozen column is real (#16)', () {
+    // 150 pt of gutter and three 72 pt months need 366; a 300 pt pane cannot
+    // hold them, which is the only state in which this matrix scrolls at all.
+    const narrow = 300.0;
+
     testWidgets('there is exactly one horizontal scroller', (tester) async {
       // **The claim this file made and did not keep.** Everything used to sit
       // in one `DataTable` in one scroll, so the labels slid away with the
@@ -107,6 +120,7 @@ void main() {
       await tester.pumpWidget(
         matrix(
           rows: const [PeriodMatrixRow(label: 'CEU27', qualifier: 'Pool')],
+          width: narrow,
         ),
       );
 
@@ -117,7 +131,10 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        matrix(rows: const [PeriodMatrixRow(label: 'CEU27')]),
+        matrix(
+          rows: const [PeriodMatrixRow(label: 'CEU27')],
+          width: narrow,
+        ),
       );
 
       expect(
@@ -152,8 +169,7 @@ void main() {
             months: months,
             headerLabel: 'LINE',
             rows: const [PeriodMatrixRow(label: 'Fluxo 11B')],
-            cellAt: (row, month) =>
-                cell(month == 0 ? '9%' : '7331/4992 wider'),
+            cellAt: (row, month) => cell(month == 0 ? '9%' : '7331/4992 wider'),
           ),
         ),
       );
@@ -165,6 +181,65 @@ void main() {
 
       // Three headings and three cells, at the one declared width.
       expect(widths, greaterThanOrEqualTo(6));
+    });
+  });
+
+  group('the matrix only scrolls when it must (#14)', () {
+    testWidgets('a matrix that fits carries no scroller at all', (
+      tester,
+    ) async {
+      // A scrollbar under content that cannot move says the table is cut off
+      // when it is not.
+      await tester.pumpWidget(
+        matrix(rows: const [PeriodMatrixRow(label: 'CEU27')]),
+      );
+
+      expect(find.byType(HorizontalScroll), findsNothing);
+    });
+
+    testWidgets('the trailing column sits next to the months, not the window', (
+      tester,
+    ) async {
+      // **The gap the field reported**: *"the distance between the column and
+      // the grid"*. The body was `Expanded` unconditionally, so it took every
+      // spare pixel and drove the frozen TOTAL column against the right edge —
+      // on a 1,920 pt window with fifteen months, roughly 700 pt of dead space
+      // between the last month and the summary of it.
+      //
+      // 150 gutter + three 72 pt months = 366, so TOTAL must start there and
+      // not at 900 - 84.
+      await tester.pumpWidget(
+        matrix(
+          rows: const [PeriodMatrixRow(label: 'CEU27')],
+          trailingLabel: 'TOTAL',
+        ),
+      );
+
+      expect(tester.getTopLeft(find.text('TOTAL')).dx, lessThan(460));
+    });
+
+    testWidgets('a matrix too wide to fit still pins its trailing column', (
+      tester,
+    ) async {
+      // The other half of the rule: once the months overflow, the summary has
+      // to stay put or it becomes the one column a reader must hunt for.
+      await tester.pumpWidget(
+        matrix(
+          rows: const [PeriodMatrixRow(label: 'CEU27')],
+          trailingLabel: 'TOTAL',
+          width: 300,
+        ),
+      );
+
+      expect(find.byType(HorizontalScroll), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(HorizontalScroll),
+          matching: find.text('TOTAL'),
+        ),
+        findsNothing,
+        reason: 'the summary must not scroll away with the months',
+      );
     });
   });
 }

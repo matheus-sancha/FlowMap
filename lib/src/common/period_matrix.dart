@@ -243,112 +243,155 @@ class PeriodMatrix extends StatelessWidget {
           child: child,
         );
 
+    final bodyWidth = months.length * monthWidth;
+
     // **A real frozen column, at last.** This file has claimed one since #10 —
     // *"rows × months, with banded cells and a frozen first column"* — while
     // putting every column inside one `DataTable` inside one scroll, so the
     // labels slid away with the data. #16 needed the gutter pinned for the
     // chart's axis anyway, and pinning one meant pinning both. #14 then pinned
     // the other edge too, so the months scroll between two fixed columns.
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: headerWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (banner case final top?)
-                SizedBox(
-                  height: top.height,
-                  width: headerWidth,
-                  child: top.gutter,
-                ),
-              headingBox(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(headerLabel, style: theme.textTheme.labelLarge),
-              ),
-              for (final row in rows) gutterCell(row),
-              if (aggregate case final row?) gutterCell(row),
-            ],
-          ),
-        ),
-        Expanded(
-          child: HorizontalScroll(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (banner case final top?)
-                  SizedBox(
-                    height: top.height,
-                    width: months.length * monthWidth,
-                    child: top.body,
+    //
+    // **But only once there is something to scroll** (#14, after the field
+    // reported *"the distance between the column and the grid"*). Making the
+    // body `Expanded` unconditionally gave it every spare pixel, which pushed
+    // the frozen TOTAL column hard against the window edge and left a band of
+    // dead space between the last month and the summary of it. Where the whole
+    // matrix fits, the body takes exactly its own width and the trailing column
+    // sits where a reader expects it: immediately after the last month.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final needed =
+            headerWidth + bodyWidth + (hasTrailing ? trailingWidth : 0);
+        final fits =
+            constraints.hasBoundedWidth && needed <= constraints.maxWidth;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: headerWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (banner case final top?)
+                    SizedBox(
+                      height: top.height,
+                      width: headerWidth,
+                      child: top.gutter,
+                    ),
+                  headingBox(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(headerLabel, style: theme.textTheme.labelLarge),
                   ),
-                Container(
-                  height: headingHeight,
-                  decoration: BoxDecoration(border: Border(bottom: divider)),
-                  child: Row(
-                    children: [
-                      for (final (index, month) in months.indexed)
-                        SizedBox(
-                          width: monthWidth,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: _MonthHeading(
-                              label: DateFormat('MMM/yy').format(month),
-                              sorted: sortedMonth == index,
-                              ascending: sortAscending,
-                              onTap: onSortMonth == null
-                                  ? null
-                                  : () => onSortMonth!(index),
+                  for (final row in rows) gutterCell(row),
+                  if (aggregate case final row?) gutterCell(row),
+                ],
+              ),
+            ),
+            // Sized to its months when they fit, and only then wrapped in a
+            // scroller — a scrollbar under content that cannot move is a control
+            // that says the table is cut off when it is not.
+            _Body(
+              fits: fits,
+              width: bodyWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (banner case final top?)
+                    SizedBox(
+                      height: top.height,
+                      width: months.length * monthWidth,
+                      child: top.body,
+                    ),
+                  Container(
+                    height: headingHeight,
+                    decoration: BoxDecoration(border: Border(bottom: divider)),
+                    child: Row(
+                      children: [
+                        for (final (index, month) in months.indexed)
+                          SizedBox(
+                            width: monthWidth,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: _MonthHeading(
+                                label: DateFormat('MMM/yy').format(month),
+                                sorted: sortedMonth == index,
+                                ascending: sortAscending,
+                                onTap: onSortMonth == null
+                                    ? null
+                                    : () => onSortMonth!(index),
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-                for (final (index, _) in rows.indexed)
-                  bodyRow((month) => cellAt(index, month)),
-                if (aggregate case final row? when aggregateCellAt != null)
-                  bodyRow(aggregateCellAt!, emphasis: row.emphasis ?? false),
-              ],
-            ),
-          ),
-        ),
-        if (hasTrailing)
-          SizedBox(
-            width: trailingWidth,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (banner case final top?) SizedBox(height: top.height),
-                headingBox(
-                  child: SizedBox(
-                    width: trailingWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        trailingLabel ?? '',
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: theme.textTheme.labelLarge,
-                      ),
+                      ],
                     ),
                   ),
-                ),
-                for (final (index, _) in rows.indexed)
-                  trailingCell(trailingCellAt?.call(index)),
-                if (aggregate case final row?)
-                  trailingCell(
-                    aggregateTrailingCell,
-                    emphasis: row.emphasis ?? false,
-                  ),
-              ],
+                  for (final (index, _) in rows.indexed)
+                    bodyRow((month) => cellAt(index, month)),
+                  if (aggregate case final row? when aggregateCellAt != null)
+                    bodyRow(aggregateCellAt!, emphasis: row.emphasis ?? false),
+                ],
+              ),
             ),
-          ),
-      ],
+            if (hasTrailing)
+              SizedBox(
+                width: trailingWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (banner case final top?) SizedBox(height: top.height),
+                    headingBox(
+                      child: SizedBox(
+                        width: trailingWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            trailingLabel ?? '',
+                            textAlign: TextAlign.right,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: theme.textTheme.labelLarge,
+                          ),
+                        ),
+                      ),
+                    ),
+                    for (final (index, _) in rows.indexed)
+                      trailingCell(trailingCellAt?.call(index)),
+                    if (aggregate case final row?)
+                      trailingCell(
+                        aggregateTrailingCell,
+                        emphasis: row.emphasis ?? false,
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
+}
+
+/// The month columns: their own width where the matrix fits, a scroller where
+/// it does not (#14).
+///
+/// **A widget rather than a ternary at the call site**, because the two branches
+/// have to sit in the same slot of the same `Row` — `Expanded` is only legal as
+/// a direct child of one, so the choice cannot be pushed any further down.
+class _Body extends StatelessWidget {
+  const _Body({required this.fits, required this.width, required this.child});
+
+  final bool fits;
+  final double width;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => fits
+      ? SizedBox(width: width, child: child)
+      : Expanded(child: HorizontalScroll(child: child));
 }
 
 /// A month heading that can be pressed to sort by it.
