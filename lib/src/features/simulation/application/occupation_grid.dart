@@ -46,6 +46,30 @@ enum OccupationGrouping {
   /// *shares* rather than occupations — so the 85/100 bands would be meaningless
   /// and the view would need a second colour vocabulary.
   line,
+
+  /// One row per workcenter type: all demand at the stations of that type over
+  /// those stations' capacity.
+  ///
+  /// **The one grouping whose rows genuinely partition.** A station carries
+  /// exactly one type, so unlike [line] — where two lines sharing four stations
+  /// count them both — no station is in two rows and none is in none. The rows
+  /// therefore sum to the TOTAL row, which is the clean decomposition [line]
+  /// was asked for and could not be.
+  ///
+  /// **Membership is the station's, not the run's.** [line] reads its stations
+  /// from the steps, because a line depends on a station by using it; a type is
+  /// a property of the machine, so a scheduled station the run never touched is
+  /// in its type's row with capacity and no demand. That is the answer to *have
+  /// I got enough cladding capacity* rather than *what did cladding do* — and
+  /// on the live plant it moves Cladding from 67 % to 58 %, because one of its
+  /// seven machines has never had work.
+  ///
+  /// **Recorded, and chosen with the cost stated:** nothing on the row says so.
+  /// The qualifier slot could carry *7 stations, 1 idle*, and the offer was
+  /// declined — the third time this view has been offered a way to show that an
+  /// aggregate hides its members, after the plant row's 87 % over a 149 %
+  /// station and the stations-over badge twice.
+  type,
 }
 
 /// How a cell reads. The same cell, three ways.
@@ -228,6 +252,11 @@ OccupationGrid? occupationGrid({
   RunFilter filter = const RunFilter(),
   OccupationGrouping grouping = OccupationGrouping.workcenter,
   PeriodGranularity granularity = PeriodGranularity.month,
+  /// What to call the bucket for stations carrying no type, under
+  /// [OccupationGrouping.type]. Passed in rather than composed here because
+  /// this file is pure and the label is one of three locales' — the same reason
+  /// the line rows take their names from the run rather than from the plant.
+  String untypedLabel = 'Untyped',
 }) {
   final monthly = run.result.openByWorkcenterMonth;
   if (monthly.isEmpty) return null;
@@ -433,6 +462,42 @@ OccupationGrid? occupationGrid({
             name: line.name,
             qualifier: line.cell,
             cells: cellsFor(ids),
+          ),
+        );
+      }
+      rows.sort((a, b) {
+        final byPeak = (b.peak ?? -1).compareTo(a.peak ?? -1);
+        return byPeak != 0 ? byPeak : a.name.compareTo(b.name);
+      });
+
+    case OccupationGrouping.type:
+      // **The station's own type, not the run's steps.** A machine belongs to a
+      // type whether or not anything ran on it, so a scheduled station the run
+      // never touched is in its type's row carrying capacity and no demand —
+      // which is the question this grouping answers.
+      //
+      // The type is read from the stored run (§7.10), so a station retyped
+      // since still groups as it did when it ran.
+      final byType = <String, ({String name, Set<String> ids})>{};
+      for (final id in inView) {
+        final station = stations[id];
+        // A run stored before a station was typed carries a null here. It gets
+        // its own bucket rather than being dropped: the rows partition the
+        // stations in view, and a row silently missing from that partition is
+        // a TOTAL that does not add up — the fault #14 spent its argument on.
+        final key = station?.typeId ?? '';
+        final name = station?.typeName ?? untypedLabel;
+        (byType[key] ??= (name: name, ids: <String>{})).ids.add(id);
+      }
+      for (final entry in byType.entries) {
+        rows.add(
+          OccupationRow(
+            id: entry.key,
+            name: entry.value.name,
+            // **No qualifier, so the rows stay 40 pt.** The count and the idle
+            // ones would go here; see the enum.
+            qualifier: null,
+            cells: cellsFor(entry.value.ids),
           ),
         );
       }

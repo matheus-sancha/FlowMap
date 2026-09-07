@@ -1875,6 +1875,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get occupationByLine => 'Por Linha';
 
   @override
+  String get occupationByType => 'Por Tipo';
+
+  @override
+  String get occupationWorkcenterType => 'Tipo de centro de trabalho';
+
+  @override
+  String get occupationUntyped => 'Sem tipo';
+
+  @override
   String get occupationUnitPercent => '%';
 
   @override

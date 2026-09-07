@@ -111,6 +111,7 @@ class _OccupationViewState extends State<OccupationView> {
       filter: widget.slice.filter,
       grouping: _grouping,
       granularity: _granularity,
+      untypedLabel: l10n.occupationUntyped,
     );
 
     // **A run before v25 offers no grid rather than an empty one** (§10.2). 144
@@ -287,6 +288,13 @@ class _OccupationViewState extends State<OccupationView> {
                     value: OccupationGrouping.line,
                     label: Text(l10n.occupationByLine),
                   ),
+                  // **The third grouping, and the only one whose rows
+                  // partition** — a station carries exactly one type, so unlike
+                  // the line rows these sum to TOTAL.
+                  ButtonSegment(
+                    value: OccupationGrouping.type,
+                    label: Text(l10n.occupationByType),
+                  ),
                 ],
                 selected: {_grouping},
                 showSelectedIcon: false,
@@ -370,9 +378,11 @@ class _OccupationViewState extends State<OccupationView> {
                       ),
                 monthWidth: columnWidth,
                 months: grid.months,
-                headerLabel: _grouping == OccupationGrouping.workcenter
-                    ? l10n.occupationWorkcenter
-                    : l10n.occupationLine,
+                headerLabel: switch (_grouping) {
+                  OccupationGrouping.workcenter => l10n.occupationWorkcenter,
+                  OccupationGrouping.line => l10n.occupationLine,
+                  OccupationGrouping.type => l10n.occupationWorkcenterType,
+                },
                 columnLabel: (month) =>
                     periodLabel(context, month, _granularity),
                 rows: [

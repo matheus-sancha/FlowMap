@@ -218,7 +218,15 @@ class RunMetrics {
   }
 
   /// The station the headline names: the one orders wait at longest.
-  WorkcenterRunMetrics? get bottleneck => workcenters.firstOrNull;
+  /// **The busiest station that actually ran something.**
+  ///
+  /// `workcenters` lists every station the run modelled, idle ones included, so
+  /// that an open machine nobody loaded keeps its name and its type. A machine
+  /// with no visits is not a bottleneck under any reading — and in a run where
+  /// nothing queued at all it would otherwise take the top of a ranking sorted
+  /// by queue time, and be named as one.
+  WorkcenterRunMetrics? get bottleneck =>
+      workcenters.where((station) => station.visits > 0).firstOrNull;
 
   /// The same stations ranked by share of the flow's total time instead — the
   /// second ranking §8.1 asks for, kept separate because the disagreement
@@ -257,6 +265,7 @@ RunMetrics computeRunMetrics({
   workcenterNames: {
     for (final entry in workcenters.entries) entry.key: entry.value.name,
   },
+  includeUnvisited: true,
   // Resolved from the studies rather than looked up: this is the same map the
   // repository copies into the run, so a fresh run and the same run read back
   // group their stations identically (§7.10).
@@ -332,6 +341,19 @@ RunMetrics summariseRun({
   required Map<String, Duration> theoreticalByOrder,
   Map<String, StationPool> pools = const {},
   Map<String, ({String id, String name})> types = const {},
+  /// Whether a station the run modelled but no order reached gets a row.
+  ///
+  /// **True for the whole run, false for a slice**, and the difference is what
+  /// each is for. The run's own list is the plant it ran against, and since
+  /// capacity started following the schedule that includes machines nobody
+  /// loaded — they are on the Occupation grid and need their name and their
+  /// type from here, or they draw as a uuid and vanish under a type filter.
+  ///
+  /// A *slice* is the stations its own orders touched. `filterRun` keeps the
+  /// open-time maps whole on purpose — utilisation is the run's, not the
+  /// slice's — so seeding from them there would put every station in the plant
+  /// into every filtered ranking, which is the splice that file removed.
+  bool includeUnvisited = false,
 }) {
   var floatTotal = Duration.zero;
   var leadTotal = Duration.zero;
@@ -410,7 +432,16 @@ RunMetrics summariseRun({
     }
   }
 
-  final stations = <String, _StationTally>{};
+  // **Every station the run modelled, not only the ones an order reached** —
+  // see [includeUnvisited]. Seeded from the open time, so an idle machine keeps
+  // its name and its type; its tally stays at zero visits, which is the true
+  // thing to say about it and what the utilization column already means: 0 % of
+  // an open machine.
+  final stations = <String, _StationTally>{
+    if (includeUnvisited)
+      for (final id in result.openByWorkcenter.keys)
+        id: _StationTally(workcenterNames[id] ?? id),
+  };
   for (final row in result.steps) {
     final tally = stations.putIfAbsent(
       row.workcenterId,

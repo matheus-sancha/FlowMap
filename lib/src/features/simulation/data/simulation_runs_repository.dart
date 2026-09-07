@@ -701,6 +701,9 @@ class SimulationRunsRepository {
         workcenterNames: {
           for (final row in stations) row.workcenterId: row.name,
         },
+        // The whole run, so a scheduled station nobody loaded keeps its name
+        // and its type for §10.3's grid and its filters.
+        includeUnvisited: true,
         // Read back rather than re-derived: the pools the plant has today are
         // not necessarily the ones this run dispatched through (§7.10). A row
         // written before v18 has neither column and is simply absent, which is

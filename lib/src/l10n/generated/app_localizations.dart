@@ -3297,6 +3297,24 @@ abstract class AppLocalizations {
   /// **'Per Line'**
   String get occupationByLine;
 
+  /// No description provided for @occupationByType.
+  ///
+  /// In en, this message translates to:
+  /// **'Per Type'**
+  String get occupationByType;
+
+  /// No description provided for @occupationWorkcenterType.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter Type'**
+  String get occupationWorkcenterType;
+
+  /// No description provided for @occupationUntyped.
+  ///
+  /// In en, this message translates to:
+  /// **'Untyped'**
+  String get occupationUntyped;
+
   /// No description provided for @occupationUnitPercent.
   ///
   /// In en, this message translates to:

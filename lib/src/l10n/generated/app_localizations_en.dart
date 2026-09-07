@@ -1856,6 +1856,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get occupationByLine => 'Per Line';
 
   @override
+  String get occupationByType => 'Per Type';
+
+  @override
+  String get occupationWorkcenterType => 'Workcenter Type';
+
+  @override
+  String get occupationUntyped => 'Untyped';
+
+  @override
   String get occupationUnitPercent => '%';
 
   @override

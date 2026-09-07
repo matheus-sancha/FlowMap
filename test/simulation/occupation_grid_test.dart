@@ -976,4 +976,146 @@ void main() {
     });
   });
 
+  group('per workcenter type (the drive, 2026-09-07)', () {
+    /// A run whose plant carries [extra] stations beyond the two the studies
+    /// route to — so a station can be *scheduled and idle*, which is the state
+    /// this grouping exists to put somewhere.
+    Future<StoredRun> storedWith(Map<String, SimWorkcenter> extra) async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final all = {...plant, ...extra};
+      final result = runSimulation(studies: studies, workcenters: all);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: all,
+      );
+      return (await runs.loadRun(runId))!;
+    }
+
+    test('the rows partition the stations, so they sum to TOTAL', () async {
+      // **The property this grouping was chosen for.** A station carries one
+      // type, so no station is in two rows and none is in none — which the line
+      // grouping can never say, because two lines sharing a station count it
+      // twice.
+      final run = await stored();
+      final byType = occupationGrid(
+        run: run,
+        grouping: OccupationGrouping.type,
+      )!;
+
+      expect(byType.rows.map((r) => r.name), unorderedEquals(['Cladding', 'Milling']));
+
+      for (final month in byType.total.cells.keys) {
+        final asked = byType.rows
+            .map((r) => r.cells[month]?.asked ?? Duration.zero)
+            .fold(Duration.zero, (a, b) => a + b);
+        final open = byType.rows
+            .map((r) => r.cells[month]?.open ?? Duration.zero)
+            .fold(Duration.zero, (a, b) => a + b);
+        expect(asked, byType.total.cells[month]!.asked, reason: '$month demand');
+        expect(open, byType.total.cells[month]!.open, reason: '$month capacity');
+      }
+    });
+
+    test('the line rows, by contrast, do not', () async {
+      // Recorded beside it, because it is the reason the third grouping earns
+      // its place rather than duplicating the second.
+      final run = await stored();
+      final byLine = occupationGrid(
+        run: run,
+        grouping: OccupationGrouping.line,
+      )!;
+
+      final month = _busiest(byLine.total);
+      final summed = byLine.rows
+          .map((r) => r.cells[month]?.asked ?? Duration.zero)
+          .fold(Duration.zero, (a, b) => a + b);
+
+      expect(
+        summed,
+        greaterThan(byLine.total.cells[month]!.asked),
+        reason: 'both lines touch both stations, so the rows double-count',
+      );
+    });
+
+    test('a scheduled station with no demand is still in its type', () async {
+      // **Membership is the machine's, not the run's.** The line grouping reads
+      // its stations from the steps; a type is a property of the station, so an
+      // idle one carries capacity into its type's row and pulls the percentage
+      // down. That is the answer to *have I got enough cladding capacity*.
+      final run = await storedWith({
+        'wc-3': workcenter(
+          'wc-3',
+          'CLAD09',
+          typeId: 'type-clad',
+          typeName: 'Cladding',
+        ),
+      });
+
+      expect(
+        run.result.steps.every((s) => s.workcenterId != 'wc-3'),
+        isTrue,
+        reason: 'nothing routes to it',
+      );
+
+      final withIdle = occupationGrid(
+        run: run,
+        grouping: OccupationGrouping.type,
+      )!;
+      final cladding = withIdle.rows.firstWhere((r) => r.name == 'Cladding');
+      final month = _busiest(cladding);
+
+      // Its capacity is in the row and its demand is not, so Cladding reads
+      // lower than the busy machine alone would.
+      final busyOnly = occupationGrid(
+        run: run,
+        grouping: OccupationGrouping.workcenter,
+      )!.rows.firstWhere((r) => r.name == 'CLAD04');
+
+      expect(
+        cladding.cells[month]!.open,
+        greaterThan(busyOnly.cells[month]!.open),
+        reason: 'the idle machine brought capacity',
+      );
+      expect(cladding.cells[month]!.asked, busyOnly.cells[month]!.asked,
+          reason: 'and no demand');
+    });
+
+    test('a station with no type gets a row rather than vanishing', () async {
+      // A run stored before a station was typed carries a null. Dropping it
+      // would leave a TOTAL that does not add up, which is the fault #14 spent
+      // its whole argument preventing.
+      final run = await storedWith({
+        'wc-3': workcenter('wc-3', 'CEU31'),
+      });
+
+      final byType = occupationGrid(
+        run: run,
+        grouping: OccupationGrouping.type,
+        untypedLabel: 'Untyped',
+      )!;
+
+      expect(byType.rows.map((r) => r.name), contains('Untyped'));
+
+      for (final month in byType.total.cells.keys) {
+        final open = byType.rows
+            .map((r) => r.cells[month]?.open ?? Duration.zero)
+            .fold(Duration.zero, (a, b) => a + b);
+        expect(open, byType.total.cells[month]!.open, reason: '$month');
+      }
+    });
+  });
+}
+
+/// The month a row was actually asked for something in.
+///
+/// Since capacity started following the schedule, a row's first month is
+/// usually one with capacity and no demand — so `cells.keys.first` tests
+/// arithmetic about nothing.
+DateTime _busiest(OccupationRow row) {
+  final months = row.cells.keys.toList()
+    ..sort((a, b) => row.cells[b]!.asked.compareTo(row.cells[a]!.asked));
+  return months.first;
 }
