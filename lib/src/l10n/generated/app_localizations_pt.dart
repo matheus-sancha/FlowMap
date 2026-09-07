@@ -85,7 +85,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get plant => 'Planta';
 
   @override
-  String get plantNew => 'Nova planta';
+  String get plantNew => 'Nova Planta';
 
   @override
   String get productionCell => 'Célula de produção';
@@ -94,7 +94,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get productionCells => 'Células de produção';
 
   @override
-  String get productionCellNew => 'Nova célula de produção';
+  String get productionCellNew => 'Nova Célula De Produção';
 
   @override
   String get productionLine => 'Linha de produção';
@@ -103,7 +103,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get productionLines => 'Linhas de produção';
 
   @override
-  String get productionLineNew => 'Nova linha de produção';
+  String get productionLineNew => 'Nova Linha De Produção';
 
   @override
   String get workcenter => 'Centro de trabalho';
@@ -139,7 +139,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenters => 'Centros de trabalho';
 
   @override
-  String get workcenterNew => 'Novo centro de trabalho';
+  String get workcenterNew => 'Novo Centro De Trabalho';
 
   @override
   String get workcenterType => 'Tipo de centro de trabalho';
@@ -257,7 +257,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenterPools => 'Pools de centros de trabalho';
 
   @override
-  String get workcenterPoolNew => 'Novo pool';
+  String get workcenterPoolNew => 'Novo Pool';
 
   @override
   String get workcenterPoolMembers => 'Membros';
@@ -279,10 +279,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get shiftPatternCycle => 'Ciclo';
 
   @override
-  String get shiftPatternCycleFixedWeekly => 'Semanal fixo';
+  String get shiftPatternCycleFixedWeekly => 'Semanal Fixo';
 
   @override
-  String get shiftPatternCycleRotating => 'Revezamento (contínuo)';
+  String get shiftPatternCycleRotating => 'Revezamento (Contínuo)';
 
   @override
   String get shiftPatternWorkingDays => 'Dias úteis base';
@@ -291,7 +291,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get shiftPatternShifts => 'Turnos';
 
   @override
-  String get shiftPatternShiftNew => 'Adicionar turno';
+  String get shiftPatternShiftNew => 'Adicionar Turno';
 
   @override
   String get shiftPatternNoShifts =>
@@ -351,7 +351,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get valueNone => 'Nenhum';
 
   @override
-  String get workcenterAddExisting => 'Adicionar existente';
+  String get workcenterAddExisting => 'Adicionar Existente';
 
   @override
   String get workcenterNoneToAdd =>
@@ -399,7 +399,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get projectNew => 'Novo projeto';
+  String get projectNew => 'Novo Projeto';
 
   @override
   String get projectsEmpty => 'Nenhum projeto ainda.';
@@ -423,7 +423,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get study => 'Estudo';
 
   @override
-  String get studyNew => 'Novo estudo';
+  String get studyNew => 'Novo Estudo';
 
   @override
   String get studiesEmpty => 'Nenhum estudo neste projeto ainda.';
@@ -727,7 +727,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String importAccept(String count) {
-    return 'Importar $count linhas';
+    return 'Importar $count Linhas';
   }
 
   @override
@@ -767,7 +767,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get exceptions => 'Exceções de calendário';
 
   @override
-  String get exceptionNew => 'Nova exceção';
+  String get exceptionNew => 'Nova Exceção';
 
   @override
   String get exceptionsEmpty =>
@@ -781,7 +781,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get exceptionKindNonWorking => 'Fechado';
 
   @override
-  String get exceptionKindExtraWorking => 'Horas extras';
+  String get exceptionKindExtraWorking => 'Horas Extras';
 
   @override
   String get exceptionScope => 'Aplica-se a';
@@ -807,7 +807,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get demandProject => 'Projeto';
 
   @override
-  String get demandDeleteAll => 'Excluir todos os pedidos';
+  String get demandDeleteAll => 'Excluir Todos Os Pedidos';
 
   @override
   String get demandDeleteAllBody =>
@@ -1023,7 +1023,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get flowCustomer => 'Cliente';
 
   @override
-  String get flowFitToScreen => 'Ajustar à tela';
+  String get flowFitToScreen => 'Ajustar À Tela';
 
   @override
   String get flowZoomIn => 'Ampliar';
@@ -1160,7 +1160,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get inventoryModeQuantity => 'Peças';
 
   @override
-  String get inventoryModeDuration => 'Espera fixa';
+  String get inventoryModeDuration => 'Espera Fixa';
 
   @override
   String get inventoryPieces => 'Peças em espera';
@@ -1242,7 +1242,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get simFilterClear => 'Limpar filtros';
+  String get simFilterClear => 'Limpar Filtros';
 
   @override
   String get simWorkspace => 'Simulação';
@@ -1425,7 +1425,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get simViewResults => 'Resultados da simulação';
+  String get simViewResults => 'Resultados Da Simulação';
 
   @override
   String get simulationRunFailed => 'Não foi possível concluir a simulação';
@@ -1587,7 +1587,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Neste zoom esses passos são mais finos que um pixel, então são desenhados na largura mínima para continuarem visíveis. A posição é exata; a largura não. Ao aproximar, o aviso some.';
 
   @override
-  String get exportExcel => 'Exportar para Excel';
+  String get exportExcel => 'Exportar Para Excel';
 
   @override
   String get simExportRunSheet => 'Execução';
@@ -1837,7 +1837,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simTabPlan => 'Plano de produção';
 
   @override
-  String get simPlanByStudy => 'Por estudo';
+  String get simPlanByStudy => 'Por Estudo';
 
   @override
   String get simPlanCombined => 'Combinado';
@@ -1869,10 +1869,10 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get occupationByWorkcenter => 'Por centro de trabalho';
+  String get occupationByWorkcenter => 'Por Centro De Trabalho';
 
   @override
-  String get occupationByLine => 'Por linha';
+  String get occupationByLine => 'Por Linha';
 
   @override
   String get occupationUnitPercent => '%';

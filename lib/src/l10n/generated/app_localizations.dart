@@ -253,7 +253,7 @@ abstract class AppLocalizations {
   /// No description provided for @plantNew.
   ///
   /// In en, this message translates to:
-  /// **'New plant'**
+  /// **'New Plant'**
   String get plantNew;
 
   /// No description provided for @productionCell.
@@ -271,7 +271,7 @@ abstract class AppLocalizations {
   /// No description provided for @productionCellNew.
   ///
   /// In en, this message translates to:
-  /// **'New production cell'**
+  /// **'New Production Cell'**
   String get productionCellNew;
 
   /// No description provided for @productionLine.
@@ -289,7 +289,7 @@ abstract class AppLocalizations {
   /// No description provided for @productionLineNew.
   ///
   /// In en, this message translates to:
-  /// **'New production line'**
+  /// **'New Production Line'**
   String get productionLineNew;
 
   /// No description provided for @workcenter.
@@ -355,7 +355,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterNew.
   ///
   /// In en, this message translates to:
-  /// **'New workcenter'**
+  /// **'New Workcenter'**
   String get workcenterNew;
 
   /// No description provided for @workcenterType.
@@ -577,7 +577,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterPoolNew.
   ///
   /// In en, this message translates to:
-  /// **'New pool'**
+  /// **'New Pool'**
   String get workcenterPoolNew;
 
   /// No description provided for @workcenterPoolMembers.
@@ -619,13 +619,13 @@ abstract class AppLocalizations {
   /// No description provided for @shiftPatternCycleFixedWeekly.
   ///
   /// In en, this message translates to:
-  /// **'Fixed weekly'**
+  /// **'Fixed Weekly'**
   String get shiftPatternCycleFixedWeekly;
 
   /// No description provided for @shiftPatternCycleRotating.
   ///
   /// In en, this message translates to:
-  /// **'Rotating (continuous)'**
+  /// **'Rotating (Continuous)'**
   String get shiftPatternCycleRotating;
 
   /// No description provided for @shiftPatternWorkingDays.
@@ -643,7 +643,7 @@ abstract class AppLocalizations {
   /// No description provided for @shiftPatternShiftNew.
   ///
   /// In en, this message translates to:
-  /// **'Add shift'**
+  /// **'Add Shift'**
   String get shiftPatternShiftNew;
 
   /// No description provided for @shiftPatternNoShifts.
@@ -757,7 +757,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterAddExisting.
   ///
   /// In en, this message translates to:
-  /// **'Add existing'**
+  /// **'Add Existing'**
   String get workcenterAddExisting;
 
   /// No description provided for @workcenterNoneToAdd.
@@ -835,7 +835,7 @@ abstract class AppLocalizations {
   /// No description provided for @projectNew.
   ///
   /// In en, this message translates to:
-  /// **'New project'**
+  /// **'New Project'**
   String get projectNew;
 
   /// No description provided for @projectsEmpty.
@@ -877,7 +877,7 @@ abstract class AppLocalizations {
   /// No description provided for @studyNew.
   ///
   /// In en, this message translates to:
-  /// **'New study'**
+  /// **'New Study'**
   String get studyNew;
 
   /// No description provided for @studiesEmpty.
@@ -1377,7 +1377,7 @@ abstract class AppLocalizations {
   /// No description provided for @importAccept.
   ///
   /// In en, this message translates to:
-  /// **'Import {count} rows'**
+  /// **'Import {count} Rows'**
   String importAccept(String count);
 
   /// No description provided for @importDone.
@@ -1437,7 +1437,7 @@ abstract class AppLocalizations {
   /// No description provided for @exceptionNew.
   ///
   /// In en, this message translates to:
-  /// **'New exception'**
+  /// **'New Exception'**
   String get exceptionNew;
 
   /// No description provided for @exceptionsEmpty.
@@ -1461,7 +1461,7 @@ abstract class AppLocalizations {
   /// No description provided for @exceptionKindExtraWorking.
   ///
   /// In en, this message translates to:
-  /// **'Extra hours'**
+  /// **'Extra Hours'**
   String get exceptionKindExtraWorking;
 
   /// No description provided for @exceptionScope.
@@ -1509,7 +1509,7 @@ abstract class AppLocalizations {
   /// No description provided for @demandDeleteAll.
   ///
   /// In en, this message translates to:
-  /// **'Delete all orders'**
+  /// **'Delete All Orders'**
   String get demandDeleteAll;
 
   /// No description provided for @demandDeleteAllBody.
@@ -1887,7 +1887,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowFitToScreen.
   ///
   /// In en, this message translates to:
-  /// **'Fit to screen'**
+  /// **'Fit To Screen'**
   String get flowFitToScreen;
 
   /// No description provided for @flowZoomIn.
@@ -2133,7 +2133,7 @@ abstract class AppLocalizations {
   /// No description provided for @inventoryModeDuration.
   ///
   /// In en, this message translates to:
-  /// **'Fixed wait'**
+  /// **'Fixed Wait'**
   String get inventoryModeDuration;
 
   /// No description provided for @inventoryPieces.
@@ -2277,7 +2277,7 @@ abstract class AppLocalizations {
   /// No description provided for @simFilterClear.
   ///
   /// In en, this message translates to:
-  /// **'Clear filters'**
+  /// **'Clear Filters'**
   String get simFilterClear;
 
   /// No description provided for @simWorkspace.
@@ -2589,7 +2589,7 @@ abstract class AppLocalizations {
   /// No description provided for @simViewResults.
   ///
   /// In en, this message translates to:
-  /// **'Simulation results'**
+  /// **'Simulation Results'**
   String get simViewResults;
 
   /// No description provided for @simulationRunFailed.
@@ -2835,7 +2835,7 @@ abstract class AppLocalizations {
   /// No description provided for @exportExcel.
   ///
   /// In en, this message translates to:
-  /// **'Export to Excel'**
+  /// **'Export To Excel'**
   String get exportExcel;
 
   /// No description provided for @simExportRunSheet.
@@ -3240,7 +3240,7 @@ abstract class AppLocalizations {
   /// No description provided for @simPlanByStudy.
   ///
   /// In en, this message translates to:
-  /// **'By study'**
+  /// **'By Study'**
   String get simPlanByStudy;
 
   /// No description provided for @simPlanCombined.
@@ -3288,13 +3288,13 @@ abstract class AppLocalizations {
   /// No description provided for @occupationByWorkcenter.
   ///
   /// In en, this message translates to:
-  /// **'Per workcenter'**
+  /// **'Per Workcenter'**
   String get occupationByWorkcenter;
 
   /// No description provided for @occupationByLine.
   ///
   /// In en, this message translates to:
-  /// **'Per line'**
+  /// **'Per Line'**
   String get occupationByLine;
 
   /// No description provided for @occupationUnitPercent.

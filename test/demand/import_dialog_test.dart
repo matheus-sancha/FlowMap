@@ -90,7 +90,7 @@ void main() {
     expect(find.text('2 rows ready'), findsOneWidget);
     expect(
       tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Import 2 rows'))
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Import 2 Rows'))
           .onPressed,
       isNotNull,
     );

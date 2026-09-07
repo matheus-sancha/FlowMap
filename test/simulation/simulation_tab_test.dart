@@ -1251,8 +1251,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('KEPT-1'), findsNothing);
 
-      await tester.ensureVisible(find.text('Clear filters'));
-      await tester.tap(find.text('Clear filters'));
+      await tester.ensureVisible(find.text('Clear Filters'));
+      await tester.tap(find.text('Clear Filters'));
       await tester.pumpAndSettle();
 
       // The text went with the filter. A field still reading `2` over an

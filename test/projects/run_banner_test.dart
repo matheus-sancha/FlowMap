@@ -38,7 +38,7 @@ void main() {
     await pump(tester, failed: false);
 
     expect(find.text('On-time delivery: 3%'), findsOne);
-    expect(find.text('Simulation results'), findsOne);
+    expect(find.text('Simulation Results'), findsOne);
     expect(find.text('Close'), findsOne);
   });
 
@@ -47,7 +47,7 @@ void main() {
     await pump(tester, failed: true);
 
     expect(find.text('Simulation failed'), findsOne);
-    expect(find.text('Simulation results'), findsNothing);
+    expect(find.text('Simulation Results'), findsNothing);
     // Still dismissible: a bar that cannot be got rid of is worse than the
     // snackbar this replaced, which at least went away on its own.
     expect(find.text('Close'), findsOne);
@@ -63,7 +63,7 @@ void main() {
       onDismiss: () => dismissed++,
     );
 
-    await tester.tap(find.text('Simulation results'));
+    await tester.tap(find.text('Simulation Results'));
     await tester.pump();
     expect(viewed, 1);
 
