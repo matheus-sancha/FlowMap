@@ -213,6 +213,11 @@ class _OccupationViewState extends State<OccupationView> {
     String nameOf(OccupationRow row) =>
         row.name.isEmpty ? l10n.occupationTotal : row.name;
 
+    /// **One width for the grid, the bars and the hover**, chosen by the grain
+    /// the headings are written at. Two copies of this number is how the chart
+    /// and the cells beneath it would drift apart (#16), so it is read once.
+    final columnWidth = PeriodMatrix.widthFor(_granularity);
+
     PeriodMatrixCell? cellOf(OccupationRow row, int index) {
       final month = grid.months[index];
       final cell = row.cells[month];
@@ -358,8 +363,12 @@ class _OccupationViewState extends State<OccupationView> {
                     : (
                         height: 240,
                         gutter: _ChartAxis(graph: graph),
-                        body: _ChartPlot(graph: graph),
+                        body: _ChartPlot(
+                          graph: graph,
+                          columnWidth: columnWidth,
+                        ),
                       ),
+                monthWidth: columnWidth,
                 months: grid.months,
                 headerLabel: _grouping == OccupationGrouping.workcenter
                     ? l10n.occupationWorkcenter
@@ -632,9 +641,15 @@ class _ChartAxis extends StatelessWidget {
 /// The bars, in the matrix's scrolling body — one column per month, each
 /// exactly as wide as the grid column beneath it.
 class _ChartPlot extends StatelessWidget {
-  const _ChartPlot({required this.graph});
+  const _ChartPlot({required this.graph, required this.columnWidth});
 
   final OccupationGraph graph;
+
+  /// The grid's own column width, handed down rather than read from
+  /// [PeriodMatrix.defaultMonthWidth]: the hover strip below divides the plot
+  /// exactly as the grid divides its cells, and reading the constant made it
+  /// right at month grain and wrong at every other.
+  final double columnWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -672,7 +687,7 @@ class _ChartPlot extends StatelessWidget {
             children: [
               for (final month in graph.months)
                 SizedBox(
-                  width: PeriodMatrix.defaultMonthWidth,
+                  width: columnWidth,
                   child: Tooltip(
                     richMessage: occupationTooltip(
                       heading: DateFormat.yMMM().format(month.month),

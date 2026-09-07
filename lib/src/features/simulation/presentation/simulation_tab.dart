@@ -740,6 +740,28 @@ class _CombinedPlan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _table(
+        context,
+        // **As tall as the pane it is given, which is not the same as no cap
+        // at all.** `maxHeight: null` means *the page I sit in scrolls*, and
+        // that is true of the by-study plan — it is inside a
+        // `SingleChildScrollView`. The combined plan is inside an `Expanded`
+        // with nothing scrolling above it, so an uncapped table simply grew
+        // past the pane and **clipped**: 130 orders and no way to reach row 30.
+        //
+        // Taking the constraint instead gives the intent the old comment
+        // wanted — as tall as the window — and gives it through the mechanism
+        // §12.6 already built: a bounded pane whose heading holds still and
+        // whose two bars pin to its edges.
+        constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : resultTableMaxHeight,
+      ),
+    );
+  }
+
+  Widget _table(BuildContext context, double maxHeight) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final dateStyle = DateStyleScope.of(context);
@@ -797,9 +819,7 @@ class _CombinedPlan extends StatelessWidget {
     );
 
     return resultTable(
-      // **No cap and filling the pane**: the plan is the whole tab now, so it
-      // is as tall as the window rather than as tall as a section.
-      maxHeight: null,
+      maxHeight: maxHeight,
       fill: true,
       sortColumn: sortColumn,
       sortAscending: ascending,

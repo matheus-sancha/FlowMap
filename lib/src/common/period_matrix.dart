@@ -31,6 +31,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show DateFormat;
 
 import 'horizontal_scroll.dart';
+import 'period_granularity.dart';
 
 /// The frozen first column of one row: what identifies it.
 class PeriodMatrixRow {
@@ -142,6 +143,37 @@ class PeriodMatrix extends StatelessWidget {
   /// this before it is handed to [banner], and a second copy of the number is
   /// how the two would come apart.
   static const defaultMonthWidth = 72.0;
+
+  /// The width a column takes at [granularity], **sized to its own heading**.
+  ///
+  /// 72 was chosen for a *month*: `Aug 2026` beside the 16 pt sort-arrow slot
+  /// reserved whether or not the column is sorted, and the `733/499` the unit
+  /// switch puts under it. A quarter and a semester are written `Q4 2026` and
+  /// `H2 2026` — one character wider than that leaves room for, so they
+  /// ellipsised to **`Q4 2...`**: a heading naming a quarter without saying
+  /// which year, on a grid that has spanned three of them since capacity
+  /// started following the schedule.
+  ///
+  /// The room is free where it is needed — there are a third as many quarter
+  /// columns as month columns and a sixth as many semesters. A **year** stays
+  /// at 72 because `2026` fits: each grain is sized to the label it carries
+  /// rather than all of them to the widest.
+  ///
+  /// *Not measured at runtime, though the row height above is.* A `TextPainter`
+  /// over the headings would be locale-proof and is the better answer in the
+  /// abstract — but it makes the column width depend on the font, and the test
+  /// font here is far wider than the shipping one, so every existing width
+  /// assertion in `period_matrix_test.dart` would become a different question.
+  /// This is a **visual** fix and this map's standing rule is that a visual fix
+  /// is settled by driving the app, not by a green suite. If a locale is later
+  /// found whose quarter label does not fit, widen the constant — the labels
+  /// are `Q4`/`T4`/`S2` plus a year in all three, so 96 has the room.
+  static double widthFor(PeriodGranularity granularity) =>
+      switch (granularity) {
+        PeriodGranularity.month => defaultMonthWidth,
+        PeriodGranularity.quarter || PeriodGranularity.semester => 96.0,
+        PeriodGranularity.year => defaultMonthWidth,
+      };
 
   /// **One width for every month column, rather than sizing to content** (#16).
   /// The Occupation chart is drawn above this matrix and its bars must be as

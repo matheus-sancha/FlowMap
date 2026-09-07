@@ -1,7 +1,9 @@
 import 'package:flowmap/src/common/horizontal_scroll.dart';
+import 'package:flowmap/src/common/period_granularity.dart';
 import 'package:flowmap/src/common/period_matrix.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 /// The shared period matrix (#10, #16).
 ///
@@ -355,6 +357,57 @@ void main() {
       final (drawn, natural) = await widths(tester, 'PROM', 40);
 
       expect(drawn, lessThan(natural));
+    });
+  });
+
+  group('a column is as wide as the heading its grain writes', () {
+    // The field reported `Q4 2...`. What can be asserted here is the *rule* —
+    // the pixel fit is a visual question and this map settles those by driving
+    // the app, which is where the number came from.
+
+    test('a quarter and a semester get more room than a month', () {
+      // `Q4 2026` is a character wider than `Aug 2026` has left over once the
+      // sort-arrow slot is reserved.
+      expect(
+        PeriodMatrix.widthFor(PeriodGranularity.quarter),
+        greaterThan(PeriodMatrix.widthFor(PeriodGranularity.month)),
+      );
+      expect(
+        PeriodMatrix.widthFor(PeriodGranularity.semester),
+        PeriodMatrix.widthFor(PeriodGranularity.quarter),
+      );
+    });
+
+    test('a month and a year keep the width the cells were sized for', () {
+      // Not a widening of everything: `733/499` still needs 72 and `2026` fits
+      // it, so the two grains that were never broken do not move.
+      expect(
+        PeriodMatrix.widthFor(PeriodGranularity.month),
+        PeriodMatrix.defaultMonthWidth,
+      );
+      expect(
+        PeriodMatrix.widthFor(PeriodGranularity.year),
+        PeriodMatrix.defaultMonthWidth,
+      );
+    });
+
+    testWidgets('the matrix lays its columns out to the width it is given', (
+      tester,
+    ) async {
+      // The half that matters for #16: whatever the width is, the grid uses it
+      // — so the chart handed the same number sits over its own cells.
+      const width = 96.0;
+      await tester.pumpWidget(
+        matrix(rows: const [PeriodMatrixRow(label: 'CEU27')], monthWidth: width),
+      );
+
+      final heading = find
+          .ancestor(
+            of: find.text(DateFormat('MMM/yy').format(months.first)),
+            matching: find.byType(SizedBox),
+          )
+          .first;
+      expect(tester.getSize(heading).width, width);
     });
   });
 }
