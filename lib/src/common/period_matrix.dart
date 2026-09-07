@@ -142,11 +142,17 @@ class PeriodMatrix extends StatelessWidget {
   /// Public because the Occupation chart has to lay its bars out to exactly
   /// this before it is handed to [banner], and a second copy of the number is
   /// how the two would come apart.
-  static const defaultMonthWidth = 72.0;
+  ///
+  /// **80, where the cells alone wanted 72.** The heading is `MMM/yy` and the
+  /// widest one is not the English one: Portuguese abbreviates with a trailing
+  /// point (`ago./26`) and Spanish September is four letters (`sept/26`). A
+  /// width that fits `Aug/26` and clips `sept/26` is the `Q4 2...` defect
+  /// again, one locale over.
+  static const defaultMonthWidth = 80.0;
 
   /// The width a column takes at [granularity], **sized to its own heading**.
   ///
-  /// 72 was chosen for a *month*: `Aug 2026` beside the 16 pt sort-arrow slot
+  /// 80 is a *month*: `MMM/yy` beside the 16 pt sort-arrow slot
   /// reserved whether or not the column is sorted, and the `733/499` the unit
   /// switch puts under it. A quarter and a semester are written `Q4 2026` and
   /// `H2 2026` — one character wider than that leaves room for, so they
@@ -156,8 +162,8 @@ class PeriodMatrix extends StatelessWidget {
   ///
   /// The room is free where it is needed — there are a third as many quarter
   /// columns as month columns and a sixth as many semesters. A **year** stays
-  /// at 72 because `2026` fits: each grain is sized to the label it carries
-  /// rather than all of them to the widest.
+  /// at the month width because `2026` fits it: each grain is sized to the
+  /// label it carries rather than all of them to the widest.
   ///
   /// *Not measured at runtime, though the row height above is.* A `TextPainter`
   /// over the headings would be locale-proof and is the better answer in the
@@ -392,7 +398,19 @@ class PeriodMatrix extends StatelessWidget {
                               child: _MonthHeading(
                                 label:
                                     columnLabel?.call(month) ??
-                                    DateFormat('MMM/yy').format(month),
+                                    // **Locale-aware, which it was not.** This
+                                    // read whatever `Intl` had as its ambient
+                                    // default rather than the app's locale, so
+                                    // the float matrix wrote English months in
+                                    // a Portuguese app — invisible beside the
+                                    // Occupation grid, which passes its own
+                                    // label and got it right.
+                                    DateFormat(
+                                      'MMM/yy',
+                                      Localizations.localeOf(
+                                        context,
+                                      ).toString(),
+                                    ).format(month),
                                 sorted: sortedMonth == index,
                                 ascending: sortAscending,
                                 onTap: onSortMonth == null
@@ -425,7 +443,10 @@ class PeriodMatrix extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: Text(
                             trailingLabel ?? '',
-                            textAlign: TextAlign.right,
+                            // Centred with the month headings beside it — the
+                            // TOTAL column is a column like the rest and was
+                            // the only heading pushed to an edge.
+                            textAlign: TextAlign.center,
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                             style: theme.textTheme.labelLarge,
@@ -491,7 +512,14 @@ class _MonthHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final row = Row(
-      mainAxisSize: MainAxisSize.min,
+      // **Centred over its own column**, like the cells beneath it (#14). The
+      // arrow slot rides inside the centred group rather than being subtracted
+      // from it, so a sorted column's label sits 8 pt left of geometric centre
+      // — the alternative is reserving 16 pt on both sides, which at a month's
+      // width would leave `sept/26` less room than it needs and reintroduce the
+      // clipping this heading was just fixed for.
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // **Ellipsised, because the column is now a declared width** (#16).
         // Inside a `DataTable` this heading sized its own column and could

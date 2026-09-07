@@ -39,28 +39,19 @@ void main() {
   });
 
   group('a column heading is shorter than a caption', () {
-    testWidgets('a month is numeric in the heading and spelled in the hover', (
+    testWidgets('a month drops its century in the heading, not its name', (
       tester,
     ) async {
-      // The field asked for `08/26`. `Aug 2026` spells out the part a grid of
-      // twelve makes obvious from position, and the year is what tells them
-      // apart.
-      final august = await labels(tester, DateTime(2026, 8), PeriodGranularity.month);
-
-      expect(august.short, '08/26');
-      expect(august.long, 'Aug 2026');
-    });
-
-    testWidgets('a leading zero is kept, so the columns line up', (
-      tester,
-    ) async {
-      final january = await labels(
+      // `Aug/26` — the same form the float matrix has always used, so the two
+      // period matrices in the app write a month the same way.
+      final august = await labels(
         tester,
-        DateTime(2026),
+        DateTime(2026, 8),
         PeriodGranularity.month,
       );
 
-      expect(january.short, '01/26');
+      expect(august.short, 'Aug/26');
+      expect(august.long, 'Aug 2026');
     });
 
     testWidgets('the coarser grains are already as short as they go', (
@@ -78,18 +69,46 @@ void main() {
       }
     });
 
-    testWidgets('the numeric month needs no translating', (tester) async {
-      // `MMM` is `ago` in both Spanish and Portuguese for August, and the
-      // abbreviations collide differently in each. A number does not.
-      for (final locale in const [Locale('en'), Locale('es'), Locale('pt')]) {
+    testWidgets('the month is written in the reader’s own language', (
+      tester,
+    ) async {
+      // The float matrix's default did *not* do this until the two were
+      // matched: it read `Intl`'s ambient locale rather than the app's, so it
+      // wrote English months in a Portuguese app.
+      const expected = {'en': 'Aug/26', 'es': 'ago/26', 'pt': 'ago./26'};
+      for (final entry in expected.entries) {
         final august = await labels(
           tester,
           DateTime(2026, 8),
           PeriodGranularity.month,
-          locale: locale,
+          locale: Locale(entry.key),
         );
-        expect(august.short, '08/26', reason: locale.languageCode);
+        expect(august.short, entry.value, reason: entry.key);
       }
+    });
+
+    testWidgets('and the widest of the three is not the English one', (
+      tester,
+    ) async {
+      // Which is why the column is 80 rather than the 72 the cells wanted:
+      // Spanish September is four letters and Portuguese carries a point.
+      final widest = <String>[];
+      for (final code in const ['en', 'es', 'pt']) {
+        final september = await labels(
+          tester,
+          DateTime(2026, 9),
+          PeriodGranularity.month,
+          locale: Locale(code),
+        );
+        widest.add(september.short);
+      }
+
+      expect(widest, ['Sep/26', 'sept/26', 'set./26']);
+      expect(
+        widest.map((s) => s.length).reduce((a, b) => a > b ? a : b),
+        greaterThan('Sep/26'.length),
+        reason: 'English is not the one to size the column against',
+      );
     });
   });
 }

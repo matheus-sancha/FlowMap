@@ -31,25 +31,31 @@ String periodLabel(
   };
 }
 
-/// The same span written for a **column heading**: `08/26`, `Q3 2026`,
+/// The same span written for a **column heading**: `Aug/26`, `Q3 2026`,
 /// `H2 2026`, `2026`.
 ///
 /// **Only the month differs from [periodLabel]**, and it differs because a
-/// heading is read in a 72 pt column beside eleven others — `Aug 2026` spells
-/// out the one part of the date that a grid of them makes obvious from
-/// position, and the year is what tells them apart. The coarser grains are
-/// already as short as they go.
+/// heading is read in a narrow column beside eleven others: `Aug 2026` spells
+/// out the century, which no column in this app has ever needed. The coarser
+/// grains are already as short as they go.
 ///
-/// Numeric rather than abbreviated, so it does not need translating and cannot
-/// collide: `MMM` is `Aug`, `ago` and `ago` in this app's three locales, and
-/// the last two are the same string for August and for a different month in
-/// neither.
+/// **The same `MMM/yy` the float matrix has always used**, so the two period
+/// matrices in the app write a month the same way — and locale-aware, which
+/// `period_matrix.dart`'s own default was not until they were matched.
+///
+/// *Not numeric.* `08/26` is a character narrower and the same in every locale,
+/// and it was tried; a month name is what a reader recognises without counting.
+/// The width it costs is real and paid in [PeriodMatrix.defaultMonthWidth]:
+/// Portuguese abbreviates with a trailing point (`ago./26`) and Spanish
+/// September is four letters (`sept/26`), so the widest heading is not the
+/// English one.
 String periodColumnLabel(
   BuildContext context,
   DateTime anchor,
   PeriodGranularity granularity,
 ) => granularity == PeriodGranularity.month
-    ? DateFormat('MM/yy').format(anchor)
+    ? DateFormat('MMM/yy', Localizations.localeOf(context).toString())
+          .format(anchor)
     : periodLabel(context, anchor, granularity);
 
 String granularityLabel(AppLocalizations l10n, PeriodGranularity granularity) =>

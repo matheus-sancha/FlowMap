@@ -410,4 +410,62 @@ void main() {
       expect(tester.getSize(heading).width, width);
     });
   });
+
+  group('a heading is centred over its column', () {
+    testWidgets('an unsortable column centres its label exactly', (
+      tester,
+    ) async {
+      // The float matrix declines sorting (#10), so it reserves no arrow and
+      // its headings are centred with nothing to offset them.
+      await tester.pumpWidget(
+        matrix(rows: const [PeriodMatrixRow(label: 'CEU27')]),
+      );
+
+      final label = find.text(DateFormat('MMM/yy').format(months.first));
+      final column = find
+          .ancestor(of: label, matching: find.byType(SizedBox))
+          .first;
+
+      final labelBox = tester.getRect(label);
+      final columnBox = tester.getRect(column);
+
+      expect(
+        labelBox.center.dx,
+        moreOrLessEquals(columnBox.center.dx, epsilon: 0.5),
+      );
+    });
+
+    testWidgets('a sortable column centres the label and its arrow slot', (
+      tester,
+    ) async {
+      // The Occupation grid sorts, so 16 pt of arrow rides inside the centred
+      // group and the label sits half of that left of geometric centre. The
+      // alternative is reserving the same on both sides, which at a month's
+      // width would leave the widest heading less room than it needs.
+      await tester.pumpWidget(
+        host(
+          PeriodMatrix(
+            months: months,
+            headerLabel: 'WORKCENTER',
+            rows: const [PeriodMatrixRow(label: 'CEU27')],
+            cellAt: (row, month) => cell('x'),
+            onSortMonth: (_) {},
+          ),
+          width: 900,
+        ),
+      );
+
+      final label = find.text(DateFormat('MMM/yy').format(months.first));
+      final column = find
+          .ancestor(of: label, matching: find.byType(SizedBox))
+          .first;
+
+      final offset =
+          tester.getRect(column).center.dx - tester.getRect(label).center.dx;
+
+      // Left of centre, by half the arrow slot and no more.
+      expect(offset, greaterThan(0));
+      expect(offset, lessThanOrEqualTo(8.5));
+    });
+  });
 }
