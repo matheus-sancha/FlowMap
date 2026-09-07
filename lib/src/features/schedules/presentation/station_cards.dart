@@ -255,6 +255,12 @@ class _ScheduleGrid extends ConsumerWidget {
           title: l10n.scheduleOperatorsPerShift,
           width: 150,
           helper: shiftLabels.join(' / '),
+          // **Where the wrong conclusion was actually drawn** (§12.7b). The
+          // field crewed a station up twice and watched nothing move, and the
+          // switch that decides whether it should is two screens away on the
+          // workcenter *type* — so the definition belongs here, beside the
+          // number being typed, and not only beside the switch.
+          help: l10n.scheduleOperatorsHelp,
         ),
         DataGridColumn(title: l10n.availability, width: 120, numeric: true),
         DataGridColumn(title: l10n.rework, width: 110, numeric: true),

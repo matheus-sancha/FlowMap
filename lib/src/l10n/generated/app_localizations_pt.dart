@@ -923,6 +923,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get scheduleOperatorsPerShift => 'Operadores por turno';
 
   @override
+  String get scheduleOperatorsHelp =>
+      'Quantas pessoas há em cada turno. Um zero fecha aquele turno. Se mais pessoas terminam antes é uma propriedade do tipo do centro de trabalho, não deste número: ative “Os Operadores Ditam o Ritmo” em Recursos › Tipos de centro de trabalho, ou a equipe apenas abre o turno.';
+
+  @override
   String get availability => 'Disponibilidade';
 
   @override

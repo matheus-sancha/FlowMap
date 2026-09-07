@@ -11,6 +11,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'help_icon.dart';
 import 'package:flutter/services.dart';
 
 import 'horizontal_scroll.dart';
@@ -23,6 +25,7 @@ class DataGridColumn {
     this.numeric = false,
     this.readOnly = false,
     this.helper,
+    this.help,
   });
 
   final String title;
@@ -45,6 +48,13 @@ class DataGridColumn {
 
   /// Shown under the header, for a unit or a format hint.
   final String? helper;
+
+  /// What the column *means*, behind an `ⓘ` on its title (§12.7b).
+  ///
+  /// Distinct from [helper], which is a format hint printed under the name and
+  /// read every time. This is a definition a wrong conclusion depends on, and
+  /// it hides until asked for.
+  final String? help;
 }
 
 /// A rectangular block of raw cell text starting at one cell.
@@ -298,6 +308,10 @@ class _DataGridState extends State<DataGrid> {
   /// Likewise for the heading: a column with a `helper` under its title is two
   /// lines where a column without one is one, so a frozen part number beside a
   /// helper-bearing station would start its rows higher than the pane next to it.
+  ///
+  /// **Unchanged by a column's `ⓘ`**, which is the point of declaring it: the
+  /// heading's children are [Flexible], so a taller title takes the room it has
+  /// rather than growing the box and moving the pane beside it. See [_heading].
   static const _headerHeight = 52.0;
 
   @override
@@ -426,23 +440,37 @@ class _DataGridState extends State<DataGrid> {
                 // (§8.3). The first pass moved only the headings; the drive
                 // asked for the values too, and a column that agrees with
                 // itself is what it now is.
+                // **Flexible, so the heading cannot grow the box it is in.**
+                // [_headerHeight] is declared precisely so one column's
+                // contents cannot move the rows beneath another's, and an `ⓘ`
+                // is 18 pt against a 14 pt line — enough to overflow a heading
+                // that also carries a helper. Loose children take the room
+                // they have instead.
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      column.title,
-                      style: theme.textTheme.labelLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // The `ⓘ` hangs on the column's name, which is the name of
+                    // the thing it explains (§12.7b).
+                    Flexible(
+                      child: namedHelp(
+                        context,
+                        column.title,
+                        column.help,
+                        style: theme.textTheme.labelLarge,
+                      ),
                     ),
                     if (column.helper != null)
-                      Text(
-                        column.helper!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.outline,
+                      Flexible(
+                        child: Text(
+                          column.helper!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                   ],
                 ),

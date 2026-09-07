@@ -1722,6 +1722,12 @@ abstract class AppLocalizations {
   /// **'Operators per shift'**
   String get scheduleOperatorsPerShift;
 
+  /// No description provided for @scheduleOperatorsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How many people are on each shift. A zero closes that shift. Whether more of them finish the work sooner is a property of the workcenter\'s type, not of this number — turn on “Operators set the pace” under Resources › Workcenter types, or the crew only opens the shift.'**
+  String get scheduleOperatorsHelp;
+
   /// No description provided for @availability.
   ///
   /// In en, this message translates to:
