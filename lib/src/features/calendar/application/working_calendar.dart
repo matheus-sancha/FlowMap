@@ -249,6 +249,66 @@ class WorkingCalendar {
     return false;
   }
 
+  /// Open time between [from] and [to], **each hour weighted by the crew
+  /// standing in it** — operator-hours rather than station-hours (§7.5, v30).
+  ///
+  /// **What a labour-paced station's capacity is measured in.** Where the
+  /// machine-paced reading asks how long the station was open, this asks how
+  /// much *work* could have been done in that time: a shift open eight hours
+  /// with three people offers twenty-four, and doubling the crew doubles the
+  /// answer. It is the same quantity `units` already produces for a station
+  /// with two machines, counted in people instead.
+  ///
+  /// **Sliced at every shift boundary rather than merged**, because the crew is
+  /// a property of the shift and a merged window spanning two of them has two
+  /// answers. The slices come from the pattern's own start and end minutes, so
+  /// the subdivision is exact rather than sampled — and the total open time it
+  /// weights is [openTimeBetween]'s to the second, because it walks the same
+  /// intervals.
+  Duration operatorTimeBetween(DateTime from, DateTime to) {
+    if (!to.isAfter(from)) return Duration.zero;
+    var total = Duration.zero;
+    var day = _previousDay(dateOnly(from));
+    final last = dateOnly(to);
+    while (!day.isAfter(last)) {
+      for (final interval in _unclaimedIntervalsOn(day)) {
+        final start = interval.start.isBefore(from) ? from : interval.start;
+        final end = interval.end.isAfter(to) ? to : interval.end;
+        if (!end.isAfter(start)) continue;
+        for (final slice in _sliceAtShiftBoundaries(start, end)) {
+          total += slice.duration * operatorsAt(slice.start);
+        }
+      }
+      day = _nextDay(day);
+    }
+    return total;
+  }
+
+  /// [start, end) cut wherever a shift begins or ends inside it, so each piece
+  /// has one crew.
+  Iterable<OpenInterval> _sliceAtShiftBoundaries(DateTime start, DateTime end) {
+    final cuts = <DateTime>{start, end};
+    for (var day = _previousDay(dateOnly(start));
+        !day.isAfter(dateOnly(end));
+        day = _nextDay(day)) {
+      for (final shift in pattern.shifts) {
+        cuts.add(_at(day, shift.startMinute));
+        final grossEnd = shift.crossesMidnight
+            ? _at(_nextDay(day), shift.endMinute)
+            : _at(day, shift.endMinute);
+        cuts.add(grossEnd.subtract(Duration(seconds: shift.breakSeconds)));
+      }
+    }
+    final inside =
+        cuts.where((t) => !t.isBefore(start) && !t.isAfter(end)).toList()
+          ..sort();
+    return [
+      for (var i = 0; i < inside.length - 1; i++)
+        if (inside[i + 1].isAfter(inside[i]))
+          OpenInterval(inside[i], inside[i + 1]),
+    ];
+  }
+
   /// The open window containing [from], or the next one after it.
   ///
   /// Null if there is none within [_searchLimitDays]. Where [nextOpen] answers

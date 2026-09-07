@@ -1062,23 +1062,42 @@ about half the types. The claim was corrected by the field, which crewed Coating
 each paying its own changeover. *Operators per shift* is how many people work the orders that are
 there, and it makes them go **faster**. Three people on one part is not three parts at once.
 
-**The model carries it since v30.** A workcenter type says whether its crew is its throughput, and
-at a labour-paced one the crew on shift is a fourth term in §4.4's arithmetic:
+**The model carries it since v30.** A workcenter type is **Machine Pace** or **Operator Pace**, and
+at an operator-paced one the crew on shift does two things.
+
+**It enlarges the room.** The station's monthly capacity is counted in **operator-hours** — each
+shift's open time weighted by the people standing in it — where a machine-paced station's is
+station-hours × units. Both are *resource* hours; the resource differs. Adding a person to a bench
+adds capacity, which is what the field asked for and what "capacity" has to mean at a station whose
+capacity is people.
+
+**And it makes the station finish sooner**, as a fourth term in §4.4's arithmetic:
 
 ```
 effective = per_piece × batch × (1 + rework) ÷ availability ÷ operators
 ```
 
-A process time is therefore **one operator's labour content** — the definition the switch's own `ⓘ`
-gives, because the field drew the opposite conclusion from a screen that gave none. Every type
-defaults to machine-paced, so nothing moved when this shipped.
+**The work itself does not shrink.** A process time is **one operator's labour content**, so a step
+*stores* what the crew between them spent while `processStart → processEnd` brackets how long the
+station was held. Three people hold a bench for four hours and spend twelve, and §10.3 draws the
+twelve against a capacity counted in operator-hours — counting station-hours against operator-hours
+would divide the crew out twice.
+
+*Utilization is untouched* (§8.3). Its numerator is how long the machine was **held**, so its
+denominator stays station-hours: it asks a question about the machine, and gets the machine's clock
+on both sides. Occupation asks whether there is enough resource, and gets the resource's.
+
+Every type defaults to Machine Pace, so nothing moved when this shipped. *Changeover is not divided
+by the crew* and stays in station-hours — 3.4 % of the demand on the live plant, and recorded here
+rather than solved.
 
 **The crew is read where the work starts and held for the whole job**, exactly as availability is,
 and for the reason §4.4 gives for availability: a rate that changes mid-process is a different
 engine. A job beginning at 22:00 under a two-operator night shift is costed at two even if it runs
-into a three-operator morning. On the live plant that makes Coating's `3/2/2` an effective divisor
-of **2.29** rather than 3 — the shifts are 8:48, 8:34 and 5:25, and the weighting is arithmetic
-rather than an approximation.
+into a three-operator morning. The capacity side is weighted the same way and by the same walk, so
+the two agree: on the live plant Coating at `3/3/2` reads **17,742 h → 48,992 h** of capacity, a
+factor of 2.76 rather than 3, because the shifts are 8:48, 8:34 and 5:25 and the smallest carries
+the smallest crew.
 
 _Rejected: operators as parallel capacity._ Still rejected, and now for the right reason: three
 people on one part is not three parts at once. It is the same part, sooner.

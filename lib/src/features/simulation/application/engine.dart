@@ -1070,14 +1070,31 @@ class _Engine {
       rework: schedule.reworkOn(_now),
       operators: operators,
     );
-    // The same work with rework left off (§10.2). Computed rather than divided
-    // back out of `work`: the two differ by a rounding otherwise, and a stacked
-    // bar whose segments do not sum to the whole is the §7.6 failure again.
-    final workBeforeRework = effectiveProcessTime(
+    // **The same work in labour hours** — what the crew between them spent,
+    // rather than how long the station was held (§7.5, v30). The two are the
+    // same number everywhere but an operator-paced station, and there they
+    // differ by the crew: three people hold a bench for four hours and spend
+    // twelve.
+    //
+    // This is what a step *stores*, because it is the half §10.3 draws against
+    // an operator-paced capacity — counting a crewed station's demand in
+    // station-hours against a denominator in operator-hours would divide the
+    // crew out twice. The span the station was actually held for is
+    // `processStart → processEnd`, which is what the Gantt draws and what
+    // `busyByWorkcenter` sums, so nothing that measures occupancy reads this.
+    final labour = effectiveProcessTime(
       processTimePerPiece: waiting.perPiece,
       batchSize: waiting.order.batchSize,
       availability: availability,
-      operators: operators,
+      rework: schedule.reworkOn(_now),
+    );
+    // The same work with rework left off (§10.2). Computed rather than divided
+    // back out of `work`: the two differ by a rounding otherwise, and a stacked
+    // bar whose segments do not sum to the whole is the §7.6 failure again.
+    final labourBeforeRework = effectiveProcessTime(
+      processTimePerPiece: waiting.perPiece,
+      batchSize: waiting.order.batchSize,
+      availability: availability,
     );
     final occupancy = work + changeover;
 
@@ -1116,10 +1133,11 @@ class _Engine {
         // percentage is neither incurred nor not, and this is the only place the
         // new rule can be checked against what it did.
         changeoverSeconds: changeover.inSeconds,
-        processSecondsBeforeRework: workBeforeRework.inSeconds,
+        processSecondsBeforeRework: labourBeforeRework.inSeconds,
         // And what the work itself cost, which is the half §7.4 moves and the
-        // one an elapsed span cannot be read back into (v21).
-        processSeconds: work.inSeconds,
+        // one an elapsed span cannot be read back into (v21). **In labour
+        // hours** since v30 — see `labour` above.
+        processSeconds: labour.inSeconds,
         // The lane it was pulled out of, so the run can say where it stood
         // without joining back to a flow that may have been edited (§7.10).
         laneNodeId: waiting.lane.targetId,
@@ -1232,6 +1250,28 @@ class _Engine {
     // utilised, and a denominator counting one clock would report it at 200 %.
     // Asked once per station rather than once per server — the calendar walk is
     // the expensive part (§16.9) and every unit of a station shares one.
+    /// What a station offers between two instants, in the unit its pacing
+    /// measures capacity in (§7.5, v30).
+    ///
+    /// **Machine-paced is station-hours × units** — how long the machines were
+    /// open, which is what capacity has always meant here. **Operator-paced is
+    /// operator-hours**: the same open time weighted by the crew standing in
+    /// it, because at a bench the people are the capacity and adding one adds
+    /// room. Both are *resource* hours; the resource differs.
+    ///
+    /// `units` does not multiply an operator-paced station: two benches with
+    /// one crew between them are not two crews, and the crew is already
+    /// counted. A station that is genuinely both says so with its type and its
+    /// Orders at once, and this is where they would disagree.
+    Duration capacityOf(
+      SimWorkcenter station,
+      DateTime from,
+      DateTime to,
+      int units,
+    ) => station.labourPaced
+        ? station.calendar.operatorTimeBetween(from, to)
+        : station.calendar.openTimeBetween(from, to) * units;
+
     // **One station set, and it is a union** (phase 9). This used to be
     // [workcenters] — what the routings reach — so capacity existed only where
     // demand did and a scheduled station nobody routed to was invisible rather
@@ -1249,6 +1289,11 @@ class _Engine {
     for (final entry in capacityStations.entries) {
       final units = entry.value.units < 1 ? 1 : entry.value.units;
       try {
+        // **Station-hours, even at an operator-paced station.** This is
+        // utilization's denominator (§8.3) and its numerator is how long the
+        // machine was *held* — a question about the machine, so both halves
+        // count the machine's clock. Occupation asks the other question and
+        // gets the other unit, in the monthly rows below.
         open[entry.key] =
             entry.value.calendar.openTimeBetween(start, _now) * units;
       } on StateError {
@@ -1290,7 +1335,7 @@ class _Engine {
         final to = next.isAfter(to0) ? to0 : next;
         if (!to.isAfter(from)) continue;
         try {
-          months[month] = entry.value.calendar.openTimeBetween(from, to) * units;
+          months[month] = capacityOf(entry.value, from, to, units);
         } on StateError {
           // A station with no staffed shift in that month has no open time in
           // it, which is a real answer and is drawn as a floor rather than as a

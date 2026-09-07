@@ -507,19 +507,29 @@ them, and they are still *deciding*, not built.
   - **Capacity stays open hours and demand falls** — the grid measures station occupancy, and
     reading it as labour-hours over crew × open gives the identical ratio.
 
-  **Built 2026-09-07**, 1,110 tests, analyze clean. The owed query is committed as
-  `test/simulation/live_pacing_check_test.dart` — repace one type in memory, run the same plant
-  twice, and diff. Against the live plant:
+  **Built 2026-09-07**, 1,123 tests, analyze clean — and **corrected the same evening**. It first
+  shipped dividing the *demand*, which reads as the work getting smaller; the field's answer was
+  *"I don't want the demand to drop, I want the capacity to increase."* The room is what grows.
+
+  A **Machine Pace / Operator Pace** dropdown on the type, defaulting to Machine Pace. At an
+  operator-paced station the monthly capacity is **operator-hours** — each shift's open time
+  weighted by the crew standing in it — and the step stores the work's **labour content**, which
+  the crew does not change. The station is still held for less time, so dates and queueing move.
+  *Utilization keeps station-hours on both sides* (§8.3): its numerator is how long the machine was
+  held, so its denominator has to be the machine's clock too.
+
+  The owed query is `test/simulation/live_pacing_check_test.dart` — the same plant against itself
+  with every station forced machine-paced, so the diff is the pacing and nothing else:
 
   ```
-  stations whose demand moved: [Coating]
-    Coating  6335h -> 2772h
+  operator-paced on this plant: [Coating]
+  stations whose grid moved: [Coating]
+    Coating  demand 6335h -> 6335h, capacity 17742h -> 48992h
   ```
 
-  **Only Coating moved**, which is the assertion and not the print. The factor is **2.29, not 3**,
-  and that is the model working rather than a rounding: the crew is `3/2/2`, so work starting on
-  shift A divides by three and work starting on B or C by two. Weighting by each shift's own length
-  — 8:48, 8:34, 5:25 — predicts 2.295 before the run is made.
+  **Only Coating moved, its capacity rose and its demand did not**, which is the assertion and not
+  the print. The factor is **2.76, not 3**: the crew is `3/3/2` and the shifts are 8:48, 8:34 and
+  5:25, so the smallest shift carries the smallest crew.
 
   **The explanation the field is owed now lands with the feature**: the labour-paced switch carries
   its own `ⓘ`, which is where the definition belongs — §12.7b's case, held back deliberately

@@ -23,13 +23,23 @@ fall-through's middle slot with the need date. It touches only orders that tie o
 in 189,623 step rows — so most of a run is untouched and no figure here is retracted by it.
 
 **A seventh changes what a run computes, and only where a type has been marked: phase 10,
-2026-09-07, v30.** At a **labour-paced** workcenter type the crew on shift divides the work — a
-process time is one operator's labour content — so a station crewed above one finishes sooner than
-it used to. Every type ships **machine-paced**, which is what the model assumed before the
-distinction existed, so nothing moved on the day it landed and nothing moves until someone marks a
-type. Where one is marked the break is real: on the live plant, repacing *Coating* takes its demand
-from **6,335 h to 2,772 h** and moves no other station at all. Runs stored before a type was marked
-describe the plant as it was paced then; `created_at` dates them and this line is the record.
+2026-09-07, v30.** A workcenter type is **Machine Pace** or **Operator Pace**. At an operator-paced
+one the crew on shift is the capacity: the station's monthly capacity is counted in
+**operator-hours** — each shift's open time weighted by the people standing in it — while the work
+itself is unchanged, because a process time is one operator's labour content and three people do
+not make the job smaller. The crew does make the station finish *sooner*, so dates and queueing
+move too.
+
+Every type ships **Machine Pace**, which is what the model assumed before the distinction existed,
+so nothing moved on the day it landed and nothing moves until someone marks a type. Where one is
+marked the break is real: on the live plant, marking *Coating* at a crew of `3/3/2` takes its
+capacity from **17,742 h to 48,992 h** with its demand unchanged at **6,335 h**, and moves no other
+station at all. Runs stored before a type was marked describe the plant as it was paced then;
+`created_at` dates them and this line is the record.
+
+*Corrected the same day.* This first shipped dividing the **demand** rather than multiplying the
+capacity — 6,335 h became 2,772 h — which reads as the work getting smaller. It is the room that
+grows; the field said so and the model says so now.
 
 **A sixth changes what a run writes down without changing what it computes: phase 9, 2026-09-07**,
 which stopped clipping monthly capacity to the run. Every station the plant has *scheduled* now gets

@@ -835,4 +835,84 @@ void main() {
       expect(noNights.operatorsAt(DateTime(2026, 8, 5, 8)), 3);
     });
   });
+
+  group('operator-hours (v30)', () {
+    test('a crew of one is the open time itself', () {
+      // Machine-paced is the old reading, so the two must not diverge where
+      // there is nobody extra to count.
+      final calendar = WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: const [1, 1, 1],
+      );
+      final from = DateTime(2026, 8, 3);
+      final to = DateTime(2026, 8, 10);
+
+      expect(
+        calendar.operatorTimeBetween(from, to),
+        calendar.openTimeBetween(from, to),
+      );
+    });
+
+    test('doubling every crew doubles the answer', () {
+      final one = WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: const [1, 1, 1],
+      );
+      final two = WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: const [2, 2, 2],
+      );
+      final from = DateTime(2026, 8, 3);
+      final to = DateTime(2026, 8, 10);
+
+      expect(
+        two.operatorTimeBetween(from, to),
+        one.operatorTimeBetween(from, to) * 2,
+      );
+    });
+
+    test('each shift is weighted by its own crew, not by an average', () {
+      // **Per-shift linearity, which a mean cannot have.** Adding two people
+      // to shift A must add exactly as much as adding the next two, and A's
+      // hours are what decides how much — so the increments are equal and
+      // neither is the whole day's open time.
+      //
+      // Asserted as increments rather than as a total, because a total has to
+      // reckon with the night shift crossing in from the previous day and with
+      // A and B's seven-minute overlap. The interval structure is identical in
+      // all three calendars here, so the difference isolates A's crew alone.
+      Duration at(int crewOnA) => WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: [crewOnA, 2, 2],
+      ).operatorTimeBetween(DateTime(2026, 8, 5), DateTime(2026, 8, 6));
+
+      final one = at(1);
+      final three = at(3);
+      final five = at(5);
+
+      expect(three - one, five - three, reason: 'equal crew, equal room');
+      expect(three - one, greaterThan(Duration.zero));
+      // And it is A's hours doing the weighting, not the day's: two more
+      // people on one shift cannot add two whole days.
+      expect(
+        three - one,
+        lessThan(const Duration(hours: 24)),
+        reason: 'one shift, not the day',
+      );
+    });
+
+    test('a closed shift contributes nothing, whatever its neighbours', () {
+      final calendar = WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: const [3, 0, 0],
+      );
+      final from = DateTime(2026, 8, 5);
+      final to = DateTime(2026, 8, 6);
+
+      expect(
+        calendar.operatorTimeBetween(from, to),
+        const Duration(hours: 8, minutes: 48) * 3,
+      );
+    });
+  });
 }

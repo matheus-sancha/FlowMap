@@ -681,6 +681,113 @@ void main() {
       expect(ran(crew: 3, labourPaced: false), const Duration(hours: 6));
     });
 
+    test('capacity rises where the crew does, and demand does not fall', () {
+      // **What the field asked for, and the correction to how it was first
+      // built.** A crew does not shrink the work; it enlarges the room. The
+      // step still stores the labour content - six hours of one person's work
+      // is six hours of it whoever does it - while the station's capacity is
+      // counted in operator-hours.
+      ({Duration labour, Duration capacity, Duration held}) run({
+        required int crew,
+        required bool labourPaced,
+      }) {
+        final setup = scenario(
+          nodes: [step(0, 'W')],
+          parts: {
+            'p1': SimPart(
+              id: 'p1',
+              partNumber: 'PN1',
+              processTimes: const {'W': Duration(hours: 6)},
+            ),
+          },
+          orders: [
+            SimOrder(
+              id: 'o1',
+              sequence: 0,
+              partId: 'p1',
+              needDate: DateTime(2026, 12),
+            ),
+          ],
+          workcenters: {
+            'W': workcenter(
+              'W',
+              operatorsPerShift: [crew],
+              labourPaced: labourPaced,
+            ),
+          },
+        );
+        final result = runSimulation(
+          studies: setup.studies,
+          workcenters: setup.workcenters,
+          start: aug1,
+        );
+        final only = result.steps.single;
+        return (
+          labour: Duration(seconds: only.processSeconds!),
+          // **The monthly rows, not the whole-run figure.** That one is
+          // utilization's denominator and is bounded by the run, which a crew
+          // makes *shorter* - so it cannot show the room growing. Occupation's
+          // capacity spans the station's schedule (phase 9) and is what §10.3
+          // draws against.
+          capacity: result.openByWorkcenterMonth['W']!.values.fold(
+            Duration.zero,
+            (a, b) => a + b,
+          ),
+          held: only.processEnd.difference(only.processStart),
+        );
+      }
+
+      final alone = run(crew: 1, labourPaced: true);
+      final crewed = run(crew: 3, labourPaced: true);
+
+      // The work is the same work.
+      expect(crewed.labour, alone.labour);
+      expect(crewed.labour, const Duration(hours: 6));
+      // The room is three times the room.
+      expect(crewed.capacity, alone.capacity * 3);
+      // And the station is genuinely held for less of it, which is what makes
+      // the dates move.
+      expect(crewed.held, const Duration(hours: 2));
+      expect(alone.held, const Duration(hours: 6));
+    });
+
+    test('a machine-paced station counts capacity in station hours', () {
+      // The crew must not enlarge a CNC's room either.
+      Duration capacityAt(int crew) {
+        final setup = scenario(
+          nodes: [step(0, 'W')],
+          parts: {
+            'p1': SimPart(
+              id: 'p1',
+              partNumber: 'PN1',
+              processTimes: const {'W': Duration(hours: 6)},
+            ),
+          },
+          orders: [
+            SimOrder(
+              id: 'o1',
+              sequence: 0,
+              partId: 'p1',
+              needDate: DateTime(2026, 12),
+            ),
+          ],
+          workcenters: {
+            'W': workcenter('W', operatorsPerShift: [crew]),
+          },
+        );
+        return runSimulation(
+          studies: setup.studies,
+          workcenters: setup.workcenters,
+          start: aug1,
+        ).openByWorkcenterMonth['W']!.values.fold(
+          Duration.zero,
+          (a, b) => a + b,
+        );
+      }
+
+      expect(capacityAt(3), capacityAt(1));
+    });
+
     test('the default pacing leaves every existing run identical', () {
       // v30 must be a no-op on a plant nobody has repaced, whatever its crews.
       for (final crew in const [1, 2, 5]) {

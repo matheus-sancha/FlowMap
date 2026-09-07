@@ -19,12 +19,15 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Run by hand with `--tags live` and `FLOWMAP_LIVE_DB` pointing at a copy.
 ///
-/// What #20 says it has to show: marking a type labour-paced moves **that
-/// type's stations and nothing else**, and moves them by the crew. Exactly one
-/// station on the live plant is crewed above 1 — Coating, at `3/2/2` — so the
-/// blast radius is checkable rather than argued about.
+/// What it has to show: marking a type **Operator Pace** moves *that type's
+/// stations and nothing else*, and moves them the right way — **capacity up,
+/// demand unchanged**. A crew does not make the job smaller; it makes more of
+/// the day available to do it in.
+///
+/// The baseline is the same plant with every station machine-paced, built in
+/// memory from the same rows, so the diff is the pacing and nothing else.
 void main() {
-  test('a crew divides the work, and only where the type says so', () async {
+  test('a crew is more room, and only where the type says so', () async {
     final path = Platform.environment['FLOWMAP_LIVE_DB'];
     if (path == null || !File(path).existsSync()) {
       markTestSkipped('set FLOWMAP_LIVE_DB to a copy of flowmap.sqlite');
@@ -47,35 +50,16 @@ void main() {
     final input = await simulation.assembleRun(project.id);
     expect(input.canRun, isTrue);
 
-    // --- nothing is labour-paced until someone says so ----------------------
+    // --- whatever the plant says its pacing is ------------------------------
 
-    expect(
-      input.workcenters.values.every((w) => !w.labourPaced),
-      isTrue,
-      reason: 'v30 defaults every type to machine-paced',
-    );
+    final pacedNames = input.workcenters.values
+        .where((w) => w.labourPaced)
+        .map((w) => w.name)
+        .toSet();
+    // ignore: avoid_print
+    print('operator-paced on this plant: ${pacedNames.toList()}');
 
-    Map<String, Duration> busyOf(SimRunResult result) => {
-      for (final entry in result.busyByWorkcenter.entries)
-        input.workcenters[entry.key]?.name ?? entry.key: entry.value,
-    };
-
-    final before = busyOf(
-      runSimulation(
-        studies: input.studies,
-        workcenters: input.workcenters,
-        scheduledStations: input.scheduledStations,
-        scheduleHorizon: input.scheduleHorizon,
-      ),
-    );
-
-    // --- repace one type, in memory, and run the same plant again -----------
-
-    // Coating: one station, crewed 3/2/2, and the only crew above 1 on the
-    // plant. Repaced here rather than written, so the check is repeatable and
-    // leaves the copy as it found it.
-    const target = 'Coating';
-    SimWorkcenter repaced(SimWorkcenter w) => SimWorkcenter(
+    SimWorkcenter machinePaced(SimWorkcenter w) => SimWorkcenter(
       id: w.id,
       name: w.name,
       calendar: w.calendar,
@@ -83,63 +67,103 @@ void main() {
       units: w.units,
       typeId: w.typeId,
       typeName: w.typeName,
-      labourPaced: w.typeName == target,
     );
 
-    final paced = {
-      for (final entry in input.workcenters.entries)
-        entry.key: repaced(entry.value),
-    };
+    String nameOf(String id) => input.workcenters[id]?.name ?? id;
+
+    /// Demand in labour hours and capacity in whatever unit the pacing
+    /// measures it in — the two halves §10.3 divides.
+    Map<String, ({Duration demand, Duration capacity})> gridOf(
+      SimRunResult result,
+    ) {
+      final demand = <String, Duration>{};
+      for (final step in result.steps) {
+        demand[step.workcenterId] =
+            (demand[step.workcenterId] ?? Duration.zero) +
+            Duration(seconds: step.processSeconds ?? 0);
+      }
+      return {
+        for (final entry in result.openByWorkcenterMonth.entries)
+          nameOf(entry.key): (
+            demand: demand[entry.key] ?? Duration.zero,
+            capacity: entry.value.values.fold(
+              Duration.zero,
+              (a, b) => a + b,
+            ),
+          ),
+      };
+    }
+
+    final before = gridOf(
+      runSimulation(
+        studies: input.studies,
+        workcenters: {
+          for (final e in input.workcenters.entries)
+            e.key: machinePaced(e.value),
+        },
+        scheduledStations: {
+          for (final e in input.scheduledStations.entries)
+            e.key: machinePaced(e.value),
+        },
+        scheduleHorizon: input.scheduleHorizon,
+      ),
+    );
+
+    // --- the same plant with every station machine-paced --------------------
+
+    // The baseline is the model as it was before v30, built in memory from the
+    // same rows — so the diff below is the pacing and nothing else. Repaced
+    // here rather than written, so the check is repeatable and leaves the copy
+    // as it found it.
+    final paced = input.workcenters;
     expect(
-      paced.values.where((w) => w.labourPaced).map((w) => w.name).toList(),
+      pacedNames,
       isNotEmpty,
-      reason: 'the plant has a $target station to repace',
+      reason: 'mark a type Operator Pace before this can say anything',
     );
 
-    final after = busyOf(
+    final after = gridOf(
       runSimulation(
         studies: input.studies,
         workcenters: paced,
-        scheduledStations: {
-          for (final entry in input.scheduledStations.entries)
-            entry.key: repaced(entry.value),
-        },
+        scheduledStations: input.scheduledStations,
         scheduleHorizon: input.scheduleHorizon,
       ),
     );
 
     // --- the blast radius ---------------------------------------------------
 
-    final moved = <String>[];
-    for (final name in before.keys) {
-      if (before[name] != after[name]) moved.add(name);
-    }
+    final moved = [
+      for (final name in before.keys)
+        if (before[name] != after[name]) name,
+    ];
     // ignore: avoid_print
-    print('stations whose demand moved: $moved');
-
+    print('stations whose grid moved: $moved');
     for (final name in moved) {
-      final was = before[name]!.inHours;
-      final now = after[name]!.inHours;
+      final was = before[name]!;
+      final now = after[name]!;
       // ignore: avoid_print
-      print('  $name  ${was}h -> ${now}h');
+      print(
+        '  $name  demand ${was.demand.inHours}h -> ${now.demand.inHours}h, '
+        'capacity ${was.capacity.inHours}h -> ${now.capacity.inHours}h',
+      );
     }
 
-    final pacedNames = paced.values
-        .where((w) => w.labourPaced)
-        .map((w) => w.name)
-        .toSet();
-    expect(
-      moved.toSet(),
-      pacedNames,
-      reason: 'only the repaced type may move',
-    );
+    expect(moved.toSet(), pacedNames, reason: 'only a paced type may move');
 
-    // And it moved the right way: a crew of 2 or 3 does the work sooner.
     for (final name in pacedNames) {
+      // **The room grows and the work does not shrink**, which is the whole
+      // correction: a crew does not make the job smaller, it makes more of the
+      // day available to do it in.
       expect(
-        after[name]!,
-        lessThan(before[name]!),
-        reason: '$name is crewed above 1, so its work takes less of it',
+        after[name]!.capacity,
+        greaterThan(before[name]!.capacity),
+        reason: '$name is crewed above 1, so it offers more operator-hours',
+      );
+      expect(
+        after[name]!.demand,
+        before[name]!.demand,
+        reason: '$name does the same work either way',
       );
     }
   });
