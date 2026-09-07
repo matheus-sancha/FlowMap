@@ -162,6 +162,23 @@ class WorkcenterTypes extends Table {
   TextColumn get icon => textEnum<WorkcenterIcon>().nullable()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
   BoolColumn get isBuiltIn => boolean().withDefault(const Constant(false))();
+
+  /// Whether the crew is this kind of station's throughput (DESIGN.md §7.5,
+  /// v30).
+  ///
+  /// **Machine-paced by default, which is what every station was.** A CNC's
+  /// operators only open its shift — two of them do not double its output — but
+  /// a spray booth, a bench, an inspection table and a weld station are
+  /// *labour-paced*: the crew is the constraint, and adding to it is how the
+  /// work goes faster. §7.5 asserted the first for every station in the plant
+  /// until the field crewed Coating from 1/1/1 to 3/2/2 and watched nothing
+  /// move.
+  ///
+  /// **On the type rather than on the station**, because the pacing is a
+  /// property of what kind of machine it is. A run copies the type in (§7.10),
+  /// so a stored run can still say how it was paced.
+  BoolColumn get isLabourPaced =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 

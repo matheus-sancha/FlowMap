@@ -75,9 +75,14 @@ class SimulationRepository {
     // run (§10.2). By id *and* by name: the balance compares two stations by
     // name (§7.4) and §10.3's pivot columns need an identity a rename cannot
     // move, so the run keeps both.
-    final typeNames = {
-      for (final type in await _db.select(_db.workcenterTypes).get())
-        type.id: type.name,
+    final typeRows = await _db.select(_db.workcenterTypes).get();
+    final typeNames = {for (final type in typeRows) type.id: type.name};
+    // Whether a type's crew is its throughput (§7.5, v30). Read here with the
+    // names because it travels the same way: a property of the type, copied
+    // onto each station so the engine never joins back to the plant.
+    final labourPaced = {
+      for (final type in typeRows)
+        if (type.isLabourPaced) type.id,
     };
 
     final workcenters = <String, SimWorkcenter>{};
@@ -97,6 +102,7 @@ class SimulationRepository {
         units: row.parallelCapacity,
         typeId: row.typeId,
         typeName: typeNames[row.typeId],
+        labourPaced: labourPaced.contains(row.typeId),
       );
     }
 
@@ -139,6 +145,7 @@ class SimulationRepository {
         units: row.parallelCapacity,
         typeId: row.typeId,
         typeName: typeNames[row.typeId],
+        labourPaced: labourPaced.contains(row.typeId),
       );
     }
 

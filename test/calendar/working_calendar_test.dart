@@ -787,4 +787,52 @@ void main() {
       expect(resolved.containsKey(DateTime(2026, 8, 8)), isTrue);
     });
   });
+
+  group('who is on shift at an instant (v30)', () {
+    // The ABC pattern above, crewed differently on each shift so the answer
+    // says which shift it found rather than merely a number.
+    //   A 05:45-14:33  ->  3
+    //   B 14:26-23:00  ->  2
+    //   C 23:40-05:05 (+1d) -> 1
+    final calendar = WorkingCalendar(
+      pattern: abc,
+      operatorsPerShift: const [3, 2, 1],
+    );
+
+    test('each shift answers with its own crew', () {
+      // Wednesday, a working day in the mask.
+      expect(calendar.operatorsAt(DateTime(2026, 8, 5, 8)), 3, reason: 'A');
+      expect(calendar.operatorsAt(DateTime(2026, 8, 5, 20)), 2, reason: 'B');
+      expect(calendar.operatorsAt(DateTime(2026, 8, 6, 2)), 1, reason: 'C');
+    });
+
+    test('a night shift staffs the small hours of the day after', () {
+      // C starts at 23:40 Wednesday and runs to 05:05 Thursday. 02:00 Thursday
+      // belongs to Wednesday's crew, which is the same rule the open intervals
+      // already follow.
+      expect(calendar.operatorsAt(DateTime(2026, 8, 6, 2)), 1);
+    });
+
+    test('an unstaffed instant costs the work as one operator', () {
+      // Sunday is outside the working mask. Never reached from a run - work
+      // only starts at an open instant - and 1 is the answer that leaves the
+      // arithmetic exactly as it was before crews divided anything.
+      expect(calendar.operatorsAt(DateTime(2026, 8, 9, 8)), 1);
+      // 05:20 on a working day: after C ends at 05:05 and before A opens.
+      expect(calendar.operatorsAt(DateTime(2026, 8, 5, 5, 20)), 1);
+    });
+
+    test('a zero-crewed shift is closed and does not answer for its hours', () {
+      // The gate is unchanged: a shift with nobody on it is shut, so its hours
+      // fall through to whatever else covers them - here, nothing.
+      final noNights = WorkingCalendar(
+        pattern: abc,
+        operatorsPerShift: const [3, 2, 0],
+      );
+
+      expect(noNights.operatorsAt(DateTime(2026, 8, 6, 2)), 1);
+      expect(noNights.isOpenAt(DateTime(2026, 8, 6, 2)), isFalse);
+      expect(noNights.operatorsAt(DateTime(2026, 8, 5, 8)), 3);
+    });
+  });
 }

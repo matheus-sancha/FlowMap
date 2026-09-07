@@ -22,6 +22,15 @@ number below describes the model as it stood, not as it stands.
 fall-through's middle slot with the need date. It touches only orders that tie on arrival — 78 pairs
 in 189,623 step rows — so most of a run is untouched and no figure here is retracted by it.
 
+**A seventh changes what a run computes, and only where a type has been marked: phase 10,
+2026-09-07, v30.** At a **labour-paced** workcenter type the crew on shift divides the work — a
+process time is one operator's labour content — so a station crewed above one finishes sooner than
+it used to. Every type ships **machine-paced**, which is what the model assumed before the
+distinction existed, so nothing moved on the day it landed and nothing moves until someone marks a
+type. Where one is marked the break is real: on the live plant, repacing *Coating* takes its demand
+from **6,335 h to 2,772 h** and moves no other station at all. Runs stored before a type was marked
+describe the plant as it was paced then; `created_at` dates them and this line is the record.
+
 **A sixth changes what a run writes down without changing what it computes: phase 9, 2026-09-07**,
 which stopped clipping monthly capacity to the run. Every station the plant has *scheduled* now gets
 capacity rows spanning its own schedule, where before only the stations the routings reached got

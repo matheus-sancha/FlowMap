@@ -152,6 +152,58 @@ class WorkingCalendar {
   /// engine's whole cost.
   final Map<int, List<OpenInterval>> _intervalCache = {};
 
+  /// Who is on each shift of [day], honouring its exception — or empty when the
+  /// plant is shut.
+  ///
+  /// Extracted so [operatorsAt] and the interval walk cannot disagree about
+  /// staffing: one asks *is this hour open*, the other *how many people are in
+  /// it*, and two readings of the same day would be a fault of the shape §7.6
+  /// has already paid for twice.
+  List<int> _crewOn(DateTime day) {
+    final exception = exceptions[day];
+    if (exception?.kind == CalendarExceptionKind.nonWorking) return const [];
+    if (exception?.kind == CalendarExceptionKind.extraWorking) {
+      // Extra hours may bring their own staffing; null means "as an ordinary
+      // working day", which is the common case of simply opening a Saturday.
+      return exception!.operatorsPerShift ?? staffing.operatorsOn(day);
+    }
+    if (pattern.worksOnWeekday(day.weekday)) return staffing.operatorsOn(day);
+    return const [];
+  }
+
+  /// How many operators are on the shift covering [t] (DESIGN.md §7.5, v30).
+  ///
+  /// **At a labour-paced station this is the throughput**, so it divides the
+  /// work in `effectiveProcessTime`. Read at the instant work *starts* and held
+  /// for the whole job, which is how availability already behaves — a job
+  /// beginning at 22:00 under a two-operator night shift is costed at two even
+  /// if it runs into a three-operator morning. Letting the rate change
+  /// mid-process is a different engine, and §4.4 declines it for the same
+  /// reason.
+  ///
+  /// **Never zero.** An instant inside no staffed shift returns 1, which costs
+  /// the work exactly as the model did before this existed — the conservative
+  /// answer, and unreachable from the simulation, which only ever starts work
+  /// at an open instant.
+  int operatorsAt(DateTime t) {
+    // The previous day too: a shift that started at 23:40 yesterday is what
+    // staffs 02:00 today.
+    for (final day in [_previousDay(dateOnly(t)), dateOnly(t)]) {
+      final crew = _crewOn(day);
+      for (final shift in pattern.shifts) {
+        final count = shift.position < crew.length ? crew[shift.position] : 0;
+        if (count <= 0) continue;
+        final start = _at(day, shift.startMinute);
+        final grossEnd = shift.crossesMidnight
+            ? _at(_nextDay(day), shift.endMinute)
+            : _at(day, shift.endMinute);
+        final end = grossEnd.subtract(Duration(seconds: shift.breakSeconds));
+        if (!t.isBefore(start) && t.isBefore(end)) return count;
+      }
+    }
+    return 1;
+  }
+
   List<OpenInterval> _computeIntervalsStartingOn(DateTime day) {
     final exception = exceptions[day];
 
@@ -159,17 +211,8 @@ class WorkingCalendar {
       return const [];
     }
 
-    final List<int> operators;
-    if (exception?.kind == CalendarExceptionKind.extraWorking) {
-      // Extra hours may bring their own staffing; null means "as an ordinary
-      // working day", which is the common case of simply opening a Saturday.
-      exception!;
-      operators = exception.operatorsPerShift ?? staffing.operatorsOn(day);
-    } else if (pattern.worksOnWeekday(day.weekday)) {
-      operators = staffing.operatorsOn(day);
-    } else {
-      return const [];
-    }
+    final operators = _crewOn(day);
+    if (operators.isEmpty) return const [];
 
     final intervals = <OpenInterval>[];
     for (final shift in _staffedShifts(operators)) {

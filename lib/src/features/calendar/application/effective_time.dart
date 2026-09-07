@@ -8,10 +8,18 @@ library;
 ///
 /// ```
 /// effective = process_time_per_piece × batch × (1 + rework) ÷ availability
+///                                                          ÷ operators
 /// ```
 ///
 /// A 10 h piece, batch 1, on a 74 % available workcenter with 3.7 % rework
 /// holds it for 14.0 h of open working time.
+///
+/// **[operators] is 1 everywhere but a labour-paced station** (§7.5, v30). A
+/// process time is *one operator's labour content*, so a crew of three does it
+/// in a third of the time — three people on one part is not three parts at
+/// once, it is the same part sooner. At a machine-paced station the crew only
+/// opens the shift and this stays 1, which is what every station did before the
+/// distinction existed.
 ///
 /// **Availability appears exactly once in the whole app, and this is it.** The
 /// calendar deliberately does not derate its open time (see
@@ -27,6 +35,7 @@ Duration effectiveProcessTime({
   required int batchSize,
   required double availability,
   double rework = 0,
+  int operators = 1,
 }) {
   if (batchSize < 1) {
     throw ArgumentError.value(batchSize, 'batchSize', 'must be at least 1');
@@ -41,5 +50,9 @@ Duration effectiveProcessTime({
   if (rework < 0) {
     throw ArgumentError.value(rework, 'rework', 'must not be negative');
   }
-  return processTimePerPiece * (batchSize * (1 + rework) / availability);
+  if (operators < 1) {
+    throw ArgumentError.value(operators, 'operators', 'must be at least 1');
+  }
+  return processTimePerPiece *
+      (batchSize * (1 + rework) / availability / operators);
 }

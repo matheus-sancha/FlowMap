@@ -123,6 +123,13 @@ TheoreticalLeadTime? theoreticalLeadTime({
             batchSize: batchSize,
             availability: workcenter.schedule.availabilityOn(cursor),
             rework: workcenter.schedule.reworkOn(cursor),
+            // The crew divides the work at a labour-paced station (§7.5), and
+            // the theoretical walk has to charge what the run will or the two
+            // disagree about the same order — which is what §8.2's efficiency
+            // ratio is the ratio *of*.
+            operators: workcenter.labourPaced
+                ? workcenter.calendar.operatorsAt(cursor)
+                : 1,
           );
 
           // The queue first: an order joins the line in front of the station
@@ -220,6 +227,9 @@ DateTime? coldStartDate({
               // at one station is not a case worth splitting a step over.
               availability: workcenter.schedule.availabilityOn(cursor),
               rework: workcenter.schedule.reworkOn(cursor),
+              operators: workcenter.labourPaced
+                  ? workcenter.calendar.operatorsAt(cursor)
+                  : 1,
             ) +
                 node.setupAt(productiveDay, repeated: false) +
                 node.teardownAt(productiveDay, repeated: false),

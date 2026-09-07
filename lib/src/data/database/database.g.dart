@@ -2486,6 +2486,21 @@ class $WorkcenterTypesTable extends WorkcenterTypes
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isLabourPacedMeta = const VerificationMeta(
+    'isLabourPaced',
+  );
+  @override
+  late final GeneratedColumn<bool> isLabourPaced = GeneratedColumn<bool>(
+    'is_labour_paced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_labour_paced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -2514,6 +2529,7 @@ class $WorkcenterTypesTable extends WorkcenterTypes
     icon,
     name,
     isBuiltIn,
+    isLabourPaced,
     archivedAt,
     createdAt,
   ];
@@ -2546,6 +2562,15 @@ class $WorkcenterTypesTable extends WorkcenterTypes
       context.handle(
         _isBuiltInMeta,
         isBuiltIn.isAcceptableOrUnknown(data['is_built_in']!, _isBuiltInMeta),
+      );
+    }
+    if (data.containsKey('is_labour_paced')) {
+      context.handle(
+        _isLabourPacedMeta,
+        isLabourPaced.isAcceptableOrUnknown(
+          data['is_labour_paced']!,
+          _isLabourPacedMeta,
+        ),
       );
     }
     if (data.containsKey('archived_at')) {
@@ -2593,6 +2618,10 @@ class $WorkcenterTypesTable extends WorkcenterTypes
         DriftSqlType.bool,
         data['${effectivePrefix}is_built_in'],
       )!,
+      isLabourPaced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_labour_paced'],
+      )!,
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -2628,6 +2657,22 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   final WorkcenterIcon? icon;
   final String name;
   final bool isBuiltIn;
+
+  /// Whether the crew is this kind of station's throughput (DESIGN.md §7.5,
+  /// v30).
+  ///
+  /// **Machine-paced by default, which is what every station was.** A CNC's
+  /// operators only open its shift — two of them do not double its output — but
+  /// a spray booth, a bench, an inspection table and a weld station are
+  /// *labour-paced*: the crew is the constraint, and adding to it is how the
+  /// work goes faster. §7.5 asserted the first for every station in the plant
+  /// until the field crewed Coating from 1/1/1 to 3/2/2 and watched nothing
+  /// move.
+  ///
+  /// **On the type rather than on the station**, because the pacing is a
+  /// property of what kind of machine it is. A run copies the type in (§7.10),
+  /// so a stored run can still say how it was paced.
+  final bool isLabourPaced;
   final DateTime? archivedAt;
   final DateTime createdAt;
   const WorkcenterType({
@@ -2635,6 +2680,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     this.icon,
     required this.name,
     required this.isBuiltIn,
+    required this.isLabourPaced,
     this.archivedAt,
     required this.createdAt,
   });
@@ -2649,6 +2695,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     }
     map['name'] = Variable<String>(name);
     map['is_built_in'] = Variable<bool>(isBuiltIn);
+    map['is_labour_paced'] = Variable<bool>(isLabourPaced);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -2662,6 +2709,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
       name: Value(name),
       isBuiltIn: Value(isBuiltIn),
+      isLabourPaced: Value(isLabourPaced),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -2681,6 +2729,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       ),
       name: serializer.fromJson<String>(json['name']),
       isBuiltIn: serializer.fromJson<bool>(json['isBuiltIn']),
+      isLabourPaced: serializer.fromJson<bool>(json['isLabourPaced']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -2695,6 +2744,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       ),
       'name': serializer.toJson<String>(name),
       'isBuiltIn': serializer.toJson<bool>(isBuiltIn),
+      'isLabourPaced': serializer.toJson<bool>(isLabourPaced),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -2705,6 +2755,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     Value<WorkcenterIcon?> icon = const Value.absent(),
     String? name,
     bool? isBuiltIn,
+    bool? isLabourPaced,
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
   }) => WorkcenterType(
@@ -2712,6 +2763,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     icon: icon.present ? icon.value : this.icon,
     name: name ?? this.name,
     isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+    isLabourPaced: isLabourPaced ?? this.isLabourPaced,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -2721,6 +2773,9 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       icon: data.icon.present ? data.icon.value : this.icon,
       name: data.name.present ? data.name.value : this.name,
       isBuiltIn: data.isBuiltIn.present ? data.isBuiltIn.value : this.isBuiltIn,
+      isLabourPaced: data.isLabourPaced.present
+          ? data.isLabourPaced.value
+          : this.isLabourPaced,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -2735,6 +2790,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
           ..write('icon: $icon, ')
           ..write('name: $name, ')
           ..write('isBuiltIn: $isBuiltIn, ')
+          ..write('isLabourPaced: $isLabourPaced, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -2742,8 +2798,15 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, icon, name, isBuiltIn, archivedAt, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    icon,
+    name,
+    isBuiltIn,
+    isLabourPaced,
+    archivedAt,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2752,6 +2815,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
           other.icon == this.icon &&
           other.name == this.name &&
           other.isBuiltIn == this.isBuiltIn &&
+          other.isLabourPaced == this.isLabourPaced &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt);
 }
@@ -2761,6 +2825,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   final Value<WorkcenterIcon?> icon;
   final Value<String> name;
   final Value<bool> isBuiltIn;
+  final Value<bool> isLabourPaced;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -2769,6 +2834,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     this.icon = const Value.absent(),
     this.name = const Value.absent(),
     this.isBuiltIn = const Value.absent(),
+    this.isLabourPaced = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2778,6 +2844,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     this.icon = const Value.absent(),
     required String name,
     this.isBuiltIn = const Value.absent(),
+    this.isLabourPaced = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
@@ -2789,6 +2856,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     Expression<String>? icon,
     Expression<String>? name,
     Expression<bool>? isBuiltIn,
+    Expression<bool>? isLabourPaced,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -2798,6 +2866,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
       if (icon != null) 'icon': icon,
       if (name != null) 'name': name,
       if (isBuiltIn != null) 'is_built_in': isBuiltIn,
+      if (isLabourPaced != null) 'is_labour_paced': isLabourPaced,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -2809,6 +2878,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     Value<WorkcenterIcon?>? icon,
     Value<String>? name,
     Value<bool>? isBuiltIn,
+    Value<bool>? isLabourPaced,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -2818,6 +2888,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
       icon: icon ?? this.icon,
       name: name ?? this.name,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+      isLabourPaced: isLabourPaced ?? this.isLabourPaced,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -2841,6 +2912,9 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     if (isBuiltIn.present) {
       map['is_built_in'] = Variable<bool>(isBuiltIn.value);
     }
+    if (isLabourPaced.present) {
+      map['is_labour_paced'] = Variable<bool>(isLabourPaced.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -2860,6 +2934,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
           ..write('icon: $icon, ')
           ..write('name: $name, ')
           ..write('isBuiltIn: $isBuiltIn, ')
+          ..write('isLabourPaced: $isLabourPaced, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -21832,6 +21907,7 @@ typedef $$WorkcenterTypesTableCreateCompanionBuilder =
       Value<WorkcenterIcon?> icon,
       required String name,
       Value<bool> isBuiltIn,
+      Value<bool> isLabourPaced,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       Value<int> rowid,
@@ -21842,6 +21918,7 @@ typedef $$WorkcenterTypesTableUpdateCompanionBuilder =
       Value<WorkcenterIcon?> icon,
       Value<String> name,
       Value<bool> isBuiltIn,
+      Value<bool> isLabourPaced,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -21902,6 +21979,11 @@ class $$WorkcenterTypesTableFilterComposer
 
   ColumnFilters<bool> get isBuiltIn => $composableBuilder(
     column: $table.isBuiltIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isLabourPaced => $composableBuilder(
+    column: $table.isLabourPaced,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21970,6 +22052,11 @@ class $$WorkcenterTypesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isLabourPaced => $composableBuilder(
+    column: $table.isLabourPaced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -22001,6 +22088,11 @@ class $$WorkcenterTypesTableAnnotationComposer
 
   GeneratedColumn<bool> get isBuiltIn =>
       $composableBuilder(column: $table.isBuiltIn, builder: (column) => column);
+
+  GeneratedColumn<bool> get isLabourPaced => $composableBuilder(
+    column: $table.isLabourPaced,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
@@ -22070,6 +22162,7 @@ class $$WorkcenterTypesTableTableManager
                 Value<WorkcenterIcon?> icon = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<bool> isBuiltIn = const Value.absent(),
+                Value<bool> isLabourPaced = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -22078,6 +22171,7 @@ class $$WorkcenterTypesTableTableManager
                 icon: icon,
                 name: name,
                 isBuiltIn: isBuiltIn,
+                isLabourPaced: isLabourPaced,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -22088,6 +22182,7 @@ class $$WorkcenterTypesTableTableManager
                 Value<WorkcenterIcon?> icon = const Value.absent(),
                 required String name,
                 Value<bool> isBuiltIn = const Value.absent(),
+                Value<bool> isLabourPaced = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
@@ -22096,6 +22191,7 @@ class $$WorkcenterTypesTableTableManager
                 icon: icon,
                 name: name,
                 isBuiltIn: isBuiltIn,
+                isLabourPaced: isLabourPaced,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 rowid: rowid,

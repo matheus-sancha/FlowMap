@@ -158,6 +158,7 @@ void main() {
                   id: 'type-1',
                   name: 'Cladding',
                   isBuiltIn: true,
+                  isLabourPaced: false,
                   createdAt: now,
                 ),
               ],

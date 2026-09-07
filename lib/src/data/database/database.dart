@@ -75,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   });
 
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 30;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1191,6 +1191,23 @@ class AppDatabase extends _$AppDatabase {
         // 144 that cannot could not draw the chart it replaces either.
         await _ensureColumn(m, projects, projects.occupationAmberPct);
         await _ensureColumn(m, projects, projects.occupationRedPct);
+      }
+
+      if (from < 30) {
+        // **Whether a type's crew is its throughput** (§7.5, phase 10). One
+        // defaulted column on a table that predates it, no rebuild — the same
+        // shape as v26 and v29.
+        //
+        // **Every existing type defaults to machine-paced**, which is what the
+        // model has assumed all along, so nothing moves until someone says
+        // otherwise. That is deliberate: the flag changes what a run computes
+        // at any station carrying it, and a migration that silently repaced
+        // half a plant would invalidate every stored figure for it without
+        // anyone asking.
+        //
+        // **No stored run is touched.** The 150 keep what they have; a re-run
+        // is what moves, and only at a type someone has marked.
+        await _ensureColumn(m, workcenterTypes, workcenterTypes.isLabourPaced);
       }
 
       // Reference-data seeding runs outside every version guard, on every

@@ -1022,6 +1022,16 @@ class _Engine {
     final schedule = server.workcenter.schedule;
     final availability = schedule.availabilityOn(_now);
 
+    // **The crew on the shift this work starts in** (§7.5, v30), and only where
+    // the station's type says the crew *is* its throughput. Read at `_now` and
+    // held for the whole job, exactly as availability above is — a job
+    // beginning at 22:00 under a two-operator night shift is costed at two even
+    // if it runs into a three-operator morning. Letting the rate change
+    // mid-process is a different engine, and one §4.4 already declines.
+    final operators = server.workcenter.labourPaced
+        ? server.workcenter.calendar.operatorsAt(_now)
+        : 1;
+
     // A changeover is the teardown this server still owes plus the setup the
     // arriving order needs, charged together and discounted together when the
     // part has not changed (§7.6).
@@ -1058,6 +1068,7 @@ class _Engine {
       batchSize: waiting.order.batchSize,
       availability: availability,
       rework: schedule.reworkOn(_now),
+      operators: operators,
     );
     // The same work with rework left off (§10.2). Computed rather than divided
     // back out of `work`: the two differ by a rounding otherwise, and a stacked
@@ -1066,6 +1077,7 @@ class _Engine {
       processTimePerPiece: waiting.perPiece,
       batchSize: waiting.order.batchSize,
       availability: availability,
+      operators: operators,
     );
     final occupancy = work + changeover;
 

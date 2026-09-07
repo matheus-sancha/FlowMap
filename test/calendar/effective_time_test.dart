@@ -100,4 +100,77 @@ void main() {
       },
     );
   });
+
+  group('a crew divides the work at a labour-paced station (v30)', () {
+    test('three operators do one operators work in a third of the time', () {
+      // A process time is one operator's labour content, so this is the whole
+      // of the model: three people on one part is the same part, sooner.
+      final alone = effectiveProcessTime(
+        processTimePerPiece: const Duration(hours: 12),
+        batchSize: 1,
+        availability: 1,
+      );
+      final crewed = effectiveProcessTime(
+        processTimePerPiece: const Duration(hours: 12),
+        batchSize: 1,
+        availability: 1,
+        operators: 3,
+      );
+
+      expect(alone, const Duration(hours: 12));
+      expect(crewed, const Duration(hours: 4));
+    });
+
+    test('one operator is what every station did before the flag existed', () {
+      // The default has to be exactly the old arithmetic, or v30 would repace
+      // the whole plant on the day it shipped.
+      for (final hours in const [1, 7, 12]) {
+        expect(
+          effectiveProcessTime(
+            processTimePerPiece: Duration(hours: hours),
+            batchSize: 2,
+            availability: 0.74,
+            rework: 0.037,
+            operators: 1,
+          ),
+          effectiveProcessTime(
+            processTimePerPiece: Duration(hours: hours),
+            batchSize: 2,
+            availability: 0.74,
+            rework: 0.037,
+          ),
+        );
+      }
+    });
+
+    test('it composes with availability and rework rather than replacing them',
+        () {
+      // All four terms are one division, so the order they are applied in
+      // cannot matter and no pair of them can be double-counted.
+      final full = effectiveProcessTime(
+        processTimePerPiece: const Duration(hours: 10),
+        batchSize: 1,
+        availability: 0.5,
+        rework: 1,
+        operators: 4,
+      );
+
+      // 10h x (1 + 1) / 0.5 / 4 = 10h
+      expect(full, const Duration(hours: 10));
+    });
+
+    test('a crew of zero is refused rather than dividing by nothing', () {
+      // Unreachable from the app - a shift with no operators is closed, so no
+      // work starts in it - but the function is total or it is not.
+      expect(
+        () => effectiveProcessTime(
+          processTimePerPiece: const Duration(hours: 1),
+          batchSize: 1,
+          availability: 1,
+          operators: 0,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
 }

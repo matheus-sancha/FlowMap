@@ -31,6 +31,7 @@ class SimWorkcenter {
     this.units = 1,
     this.typeId,
     this.typeName,
+    this.labourPaced = false,
   });
 
   final String id;
@@ -71,6 +72,14 @@ class SimWorkcenter {
   /// §7.4 already reads as *"nothing says it is like its neighbours"*.
   final String? typeId;
   final String? typeName;
+
+  /// Whether the crew is this station's throughput (§7.5, v30).
+  ///
+  /// Carried from the workcenter *type*, because the pacing is a property of
+  /// what kind of machine it is. **False is what every station was**: a CNC's
+  /// operators only open its shift. True divides the work by the crew on shift,
+  /// which is the only honest thing to say about a bench or a spray booth.
+  final bool labourPaced;
 }
 
 /// A takt as a **figure**, which is the identity a balance group is split

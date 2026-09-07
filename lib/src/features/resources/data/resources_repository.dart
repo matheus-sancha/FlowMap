@@ -393,6 +393,7 @@ class ResourcesRepository {
   Future<String> createWorkcenterType(
     String name, {
     WorkcenterIcon? icon,
+    bool labourPaced = false,
   }) async {
     final id = newId();
     await _db
@@ -401,6 +402,13 @@ class ResourcesRepository {
           WorkcenterTypesCompanion.insert(
             id: id,
             name: name,
+            // **The icon was accepted and dropped.** This took the parameter,
+            // never wrote it, and the editor guesses a glyph from the name —
+            // so a new type silently arrived with the default machine icon and
+            // the chosen one appeared only after a second edit. Found while
+            // adding the column beside it.
+            icon: Value(icon),
+            isLabourPaced: Value(labourPaced),
             createdAt: DateTime.now(),
           ),
         );
@@ -411,8 +419,13 @@ class ResourcesRepository {
     String id, {
     required String name,
     WorkcenterIcon? icon,
+    bool labourPaced = false,
   }) => (_db.update(_db.workcenterTypes)..where((t) => t.id.equals(id))).write(
-    WorkcenterTypesCompanion(name: Value(name), icon: Value(icon)),
+    WorkcenterTypesCompanion(
+      name: Value(name),
+      icon: Value(icon),
+      isLabourPaced: Value(labourPaced),
+    ),
   );
 
   Future<void> renameWorkcenterType(String id, String name) =>

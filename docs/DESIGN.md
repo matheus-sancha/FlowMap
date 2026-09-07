@@ -1062,11 +1062,23 @@ about half the types. The claim was corrected by the field, which crewed Coating
 each paying its own changeover. *Operators per shift* is how many people work the orders that are
 there, and it makes them go **faster**. Three people on one part is not three parts at once.
 
-**Today the model still only gates**: a shift with 0 operators is closed and any count ≥ 1 runs
-identically, whatever the station. Making the crew divide labour-paced work is
-[#20](https://github.com/matheus-sancha/FlowMap/issues/20), written up as phase 10 in
-`docs/TODO.md` — a fourth term in §4.4's arithmetic, a flag on the workcenter type, and a process
-time that means **one operator's labour content**.
+**The model carries it since v30.** A workcenter type says whether its crew is its throughput, and
+at a labour-paced one the crew on shift is a fourth term in §4.4's arithmetic:
+
+```
+effective = per_piece × batch × (1 + rework) ÷ availability ÷ operators
+```
+
+A process time is therefore **one operator's labour content** — the definition the switch's own `ⓘ`
+gives, because the field drew the opposite conclusion from a screen that gave none. Every type
+defaults to machine-paced, so nothing moved when this shipped.
+
+**The crew is read where the work starts and held for the whole job**, exactly as availability is,
+and for the reason §4.4 gives for availability: a rate that changes mid-process is a different
+engine. A job beginning at 22:00 under a two-operator night shift is costed at two even if it runs
+into a three-operator morning. On the live plant that makes Coating's `3/2/2` an effective divisor
+of **2.29** rather than 3 — the shifts are 8:48, 8:34 and 5:25, and the weighting is arithmetic
+rather than an approximation.
 
 _Rejected: operators as parallel capacity._ Still rejected, and now for the right reason: three
 people on one part is not three parts at once. It is the same part, sooner.

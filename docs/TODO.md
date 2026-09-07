@@ -49,7 +49,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | — | ~~The period filter~~ | — | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **executed, not phased** |
 | — | ~~Pane state~~ | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **executed, not phased** |
 | 9 | Capacity follows the schedule | — | [#19](https://github.com/matheus-sancha/FlowMap/issues/19) — **built, query answered** |
-| 10 | Operators scale labour-paced work | **v30** | [#20](https://github.com/matheus-sancha/FlowMap/issues/20) — **decided, not built** |
+| 10 | Operators scale labour-paced work | **v30** | [#20](https://github.com/matheus-sancha/FlowMap/issues/20) — **built, query answered** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -507,13 +507,27 @@ them, and they are still *deciding*, not built.
   - **Capacity stays open hours and demand falls** — the grid measures station occupancy, and
     reading it as labour-hours over crew × open gives the identical ratio.
 
-  **Evidence it owes**: a *query*. After a re-run, Coating's demand must fall by a factor of its
-  crew and **no other station's may move** — exactly one station on the live plant is crewed above
-  1, so the blast radius is checkable in one query. Coating goes 92.7 % → ~31 %.
+  **Built 2026-09-07**, 1,110 tests, analyze clean. The owed query is committed as
+  `test/simulation/live_pacing_check_test.dart` — repace one type in memory, run the same plant
+  twice, and diff. Against the live plant:
 
-  **Also owed, and deliberately held until this lands:** the `ⓘ` on *Operators per shift*. The
-  field drew a wrong conclusion from a definition the screen does not give — §12.7b's case exactly
-  — but the definition changes here, so writing it twice is writing it wrong once.
+  ```
+  stations whose demand moved: [Coating]
+    Coating  6335h -> 2772h
+  ```
+
+  **Only Coating moved**, which is the assertion and not the print. The factor is **2.29, not 3**,
+  and that is the model working rather than a rounding: the crew is `3/2/2`, so work starting on
+  shift A divides by three and work starting on B or C by two. Weighting by each shift's own length
+  — 8:48, 8:34, 5:25 — predicts 2.295 before the run is made.
+
+  **The explanation the field is owed now lands with the feature**: the labour-paced switch carries
+  its own `ⓘ`, which is where the definition belongs — §12.7b's case, held back deliberately
+  because the definition changed here and writing it twice would have been writing it wrong once.
+
+  **One thing found next door.** `createWorkcenterType` took an `icon` and never wrote it, so a new
+  type arrived with the default glyph and kept the chosen one only after a second edit. Fixed with
+  the column added beside it.
 
 **The 23 checks are still owed, and the sheet asking them has been rewritten.**
 `docs/DRIVE-2026-09-07.md` is the live sitting: sections A, B, C and E of the 2026-08-31 sheet

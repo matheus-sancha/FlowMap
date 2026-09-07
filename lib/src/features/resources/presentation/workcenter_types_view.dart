@@ -48,12 +48,14 @@ class WorkcenterTypesView extends ConsumerWidget {
                             .toSet(),
                         initialName: type.name,
                         initialIcon: type.icon,
+                        initialLabourPaced: type.isLabourPaced,
                       );
                       if (draft != null) {
                         await repository.updateWorkcenterType(
                           type.id,
                           name: draft.name,
                           icon: draft.icon,
+                          labourPaced: draft.labourPaced,
                         );
                       }
                     case 'archive':
@@ -111,6 +113,7 @@ class WorkcenterTypesView extends ConsumerWidget {
                     await repository.createWorkcenterType(
                       draft.name,
                       icon: draft.icon,
+                      labourPaced: draft.labourPaced,
                     );
                   }
                 },

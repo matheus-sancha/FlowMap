@@ -2852,4 +2852,40 @@ void main() {
     });
   });
 
+  group('v29 to v30: whether a type’s crew is its throughput (#20)', () {
+    test('every existing type stays machine-paced', () async {
+      // **The default has to be the old behaviour**, because the flag changes
+      // what a run computes at any station carrying it. A migration that
+      // silently repaced half a plant would invalidate every stored figure for
+      // it without anyone asking.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO workcenter_types (id, name, is_built_in, created_at) "
+        "VALUES ('type-1', 'Spray Booth', 0, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE workcenter_types DROP COLUMN is_labour_paced')
+        ..execute('PRAGMA user_version = 29')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      // By id: reference seeding runs on every upgrade, so the built-in types
+      // are here too — and they are worth asserting over as well.
+      final types = await db.select(db.workcenterTypes).get();
+      final mine = types.firstWhere((t) => t.id == 'type-1');
+      expect(mine.isLabourPaced, isFalse);
+      // And the row it landed on is otherwise untouched.
+      expect(mine.name, 'Spray Booth');
+      expect(mine.isBuiltIn, isFalse);
+      // Every seeded type too: the migration repaces nothing.
+      expect(types.every((t) => !t.isLabourPaced), isTrue);
+    });
+  });
 }

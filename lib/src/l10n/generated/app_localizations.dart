@@ -418,6 +418,18 @@ abstract class AppLocalizations {
   /// **'Icon'**
   String get workcenterTypeIcon;
 
+  /// No description provided for @workcenterTypeLabourPaced.
+  ///
+  /// In en, this message translates to:
+  /// **'Operators set the pace'**
+  String get workcenterTypeLabourPaced;
+
+  /// No description provided for @workcenterTypeLabourPacedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'On for a bench, a booth or an inspection table, where more people finish the work sooner: the crew on shift divides the process time. Off for a machine that runs at its own rate whoever is standing at it — a second operator on one CNC does not double its output, and there the crew only opens the shift. Process times are entered as one operator\'s work either way.'**
+  String get workcenterTypeLabourPacedHelp;
+
   /// No description provided for @workcenterTypeNone.
   ///
   /// In en, this message translates to:

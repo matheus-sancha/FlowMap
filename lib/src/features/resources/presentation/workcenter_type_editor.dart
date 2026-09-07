@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/workcenter_icons.dart';
 import '../../../data/database/enums.dart';
 import '../../../data/database/seed_data.dart';
@@ -7,9 +8,16 @@ import '../../../l10n/generated/app_localizations.dart';
 
 /// What the workcenter type editor produced.
 class WorkcenterTypeDraft {
-  const WorkcenterTypeDraft({required this.name, this.icon});
+  const WorkcenterTypeDraft({
+    required this.name,
+    this.icon,
+    this.labourPaced = false,
+  });
 
   final String name;
+
+  /// Whether the crew is this type's throughput (§7.5, v30).
+  final bool labourPaced;
 
   /// Null draws the default machine glyph — a type without an icon is a
   /// perfectly ordinary type, not an unfinished one.
@@ -26,6 +34,7 @@ Future<WorkcenterTypeDraft?> showWorkcenterTypeEditor(
   required Set<String> takenNames,
   String initialName = '',
   WorkcenterIcon? initialIcon,
+  bool initialLabourPaced = false,
 }) {
   return showDialog<WorkcenterTypeDraft>(
     context: context,
@@ -33,6 +42,7 @@ Future<WorkcenterTypeDraft?> showWorkcenterTypeEditor(
       takenNames: takenNames,
       initialName: initialName,
       initialIcon: initialIcon,
+      initialLabourPaced: initialLabourPaced,
     ),
   );
 }
@@ -42,11 +52,13 @@ class _WorkcenterTypeDialog extends StatefulWidget {
     required this.takenNames,
     required this.initialName,
     this.initialIcon,
+    this.initialLabourPaced = false,
   });
 
   final Set<String> takenNames;
   final String initialName;
   final WorkcenterIcon? initialIcon;
+  final bool initialLabourPaced;
 
   @override
   State<_WorkcenterTypeDialog> createState() => _WorkcenterTypeDialogState();
@@ -57,6 +69,7 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
     text: widget.initialName,
   );
   late WorkcenterIcon? _icon = widget.initialIcon;
+  late bool _labourPaced = widget.initialLabourPaced;
 
   /// Whether the user has chosen a glyph by hand. Until they do, typing a name
   /// keeps re-guessing — so "Welding" lands on the welding icon without a
@@ -75,9 +88,13 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
 
   void _submit(String value) {
     if (value.isEmpty || _error(value) != null) return;
-    Navigator.of(
-      context,
-    ).pop(WorkcenterTypeDraft(name: value, icon: _icon));
+    Navigator.of(context).pop(
+      WorkcenterTypeDraft(
+        name: value,
+        icon: _icon,
+        labourPaced: _labourPaced,
+      ),
+    );
   }
 
   @override
@@ -112,6 +129,23 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
                     if (guess != _icon) setState(() => _icon = guess);
                   },
                   onSubmitted: (_) => _submit(value),
+                ),
+                const SizedBox(height: 8),
+                // **The one thing here that changes a number.** §12.7b: a
+                // definition a wrong conclusion depends on, and the field drew
+                // exactly that conclusion — crewing a station up and expecting
+                // it to go faster, on a model that said every station was
+                // machine-paced.
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _labourPaced,
+                  onChanged: (on) => setState(() => _labourPaced = on),
+                  title: Row(
+                    children: [
+                      Flexible(child: Text(l10n.workcenterTypeLabourPaced)),
+                      ?helpIcon(context, l10n.workcenterTypeLabourPacedHelp),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // *Deleted, not moved* (§12.7b): "workcenters of this type are

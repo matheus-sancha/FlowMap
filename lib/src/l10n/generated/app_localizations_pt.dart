@@ -179,6 +179,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenterTypeIcon => 'Ícone';
 
   @override
+  String get workcenterTypeLabourPaced => 'Os Operadores Ditam o Ritmo';
+
+  @override
+  String get workcenterTypeLabourPacedHelp =>
+      'Ative para uma bancada, uma cabine ou uma mesa de inspeção, onde mais pessoas terminam antes: a equipe do turno divide o tempo de processo. Desative para uma máquina que anda no próprio ritmo seja quem for que esteja nela — um segundo operador num CNC não dobra a produção, e aí a equipe só abre o turno. Os tempos de processo são informados como o trabalho de um operador nos dois casos.';
+
+  @override
   String get workcenterTypeNone => 'Sem ícone';
 
   @override

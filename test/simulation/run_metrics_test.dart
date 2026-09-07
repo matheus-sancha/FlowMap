@@ -26,12 +26,16 @@ void main() {
     ],
   );
 
-  SimWorkcenter workcenter(String id) {
+  SimWorkcenter workcenter(
+    String id, {
+    List<int> operatorsPerShift = const [1],
+    bool labourPaced = false,
+  }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
         startDate: DateTime(2020),
         endDate: DateTime(2030),
-        operatorsPerShift: const [1],
+        operatorsPerShift: operatorsPerShift,
       ),
     ]);
     return SimWorkcenter(
@@ -39,6 +43,7 @@ void main() {
       name: id,
       calendar: WorkingCalendar.scheduled(pattern: always, staffing: schedule),
       schedule: schedule,
+      labourPaced: labourPaced,
     );
   }
 
@@ -621,6 +626,70 @@ void main() {
       // between two reads of one run.
       expect(report().parts.map((p) => p.studyId), ['study-a', 'study-b']);
       expect(report().parts.map((p) => p.studyId), ['study-a', 'study-b']);
+    });
+  });
+
+  group('a crew is the throughput at a labour-paced station (v30)', () {
+    /// The same one-hour order at one station, run at [crew] and with the
+    /// station paced one way or the other.
+    Duration ran({required int crew, required bool labourPaced}) {
+      final setup = scenario(
+        nodes: [step(0, 'W')],
+        parts: {
+          'p1': SimPart(
+            id: 'p1',
+            partNumber: 'PN1',
+            processTimes: const {'W': Duration(hours: 6)},
+          ),
+        },
+        orders: [
+          SimOrder(
+            id: 'o1',
+            sequence: 0,
+            partId: 'p1',
+            needDate: DateTime(2026, 12),
+          ),
+        ],
+        workcenters: {
+          'W': workcenter(
+            'W',
+            operatorsPerShift: [crew],
+            labourPaced: labourPaced,
+          ),
+        },
+      );
+      final result = runSimulation(
+        studies: setup.studies,
+        workcenters: setup.workcenters,
+        start: aug1,
+      );
+      final step0 = result.steps.single;
+      return step0.processEnd.difference(step0.processStart);
+    }
+
+    test('three operators finish one operator’s work three times sooner', () {
+      // The whole of phase 10: a process time is one operator's labour content.
+      expect(ran(crew: 1, labourPaced: true), const Duration(hours: 6));
+      expect(ran(crew: 3, labourPaced: true), const Duration(hours: 2));
+    });
+
+    test('a machine-paced station is unmoved by its crew', () {
+      // The CNC case, still true and still the default: the operators open the
+      // shift and nothing else. This is what the field reported as a bug, and
+      // it is correct here.
+      expect(ran(crew: 1, labourPaced: false), const Duration(hours: 6));
+      expect(ran(crew: 3, labourPaced: false), const Duration(hours: 6));
+    });
+
+    test('the default pacing leaves every existing run identical', () {
+      // v30 must be a no-op on a plant nobody has repaced, whatever its crews.
+      for (final crew in const [1, 2, 5]) {
+        expect(
+          ran(crew: crew, labourPaced: false),
+          const Duration(hours: 6),
+          reason: 'crew of $crew',
+        );
+      }
     });
   });
 }

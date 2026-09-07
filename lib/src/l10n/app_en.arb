@@ -70,6 +70,8 @@
   },
   "workcenterDeleteBody": "This removes the workcenter from the plant, not just from this line. Its schedules go with it.",
   "workcenterTypeIcon": "Icon",
+  "workcenterTypeLabourPaced": "Operators set the pace",
+  "workcenterTypeLabourPacedHelp": "On for a bench, a booth or an inspection table, where more people finish the work sooner: the crew on shift divides the process time. Off for a machine that runs at its own rate whoever is standing at it — a second operator on one CNC does not double its output, and there the crew only opens the shift. Process times are entered as one operator's work either way.",
   "workcenterTypeNone": "No icon",
   "workcenterTypeEdit": "Workcenter type",
   "iconMachining": "Machining",
