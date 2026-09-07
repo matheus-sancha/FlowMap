@@ -94,7 +94,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get productionCells => 'Células de produção';
 
   @override
-  String get productionCellNew => 'Nova Célula De Produção';
+  String get productionCellNew => 'Nova Célula de Produção';
 
   @override
   String get productionLine => 'Linha de produção';
@@ -103,7 +103,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get productionLines => 'Linhas de produção';
 
   @override
-  String get productionLineNew => 'Nova Linha De Produção';
+  String get productionLineNew => 'Nova Linha de Produção';
 
   @override
   String get workcenter => 'Centro de trabalho';
@@ -139,7 +139,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenters => 'Centros de trabalho';
 
   @override
-  String get workcenterNew => 'Novo Centro De Trabalho';
+  String get workcenterNew => 'Novo Centro de Trabalho';
 
   @override
   String get workcenterType => 'Tipo de centro de trabalho';
@@ -807,7 +807,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get demandProject => 'Projeto';
 
   @override
-  String get demandDeleteAll => 'Excluir Todos Os Pedidos';
+  String get demandDeleteAll => 'Excluir Todos os Pedidos';
 
   @override
   String get demandDeleteAllBody =>
@@ -1023,7 +1023,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get flowCustomer => 'Cliente';
 
   @override
-  String get flowFitToScreen => 'Ajustar À Tela';
+  String get flowFitToScreen => 'Ajustar à Tela';
 
   @override
   String get flowZoomIn => 'Ampliar';
@@ -1425,7 +1425,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get simViewResults => 'Resultados Da Simulação';
+  String get simViewResults => 'Resultados da Simulação';
 
   @override
   String get simulationRunFailed => 'Não foi possível concluir a simulação';
@@ -1587,7 +1587,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Neste zoom esses passos são mais finos que um pixel, então são desenhados na largura mínima para continuarem visíveis. A posição é exata; a largura não. Ao aproximar, o aviso some.';
 
   @override
-  String get exportExcel => 'Exportar Para Excel';
+  String get exportExcel => 'Exportar para Excel';
 
   @override
   String get simExportRunSheet => 'Execução';
@@ -1869,7 +1869,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get occupationByWorkcenter => 'Por Centro De Trabalho';
+  String get occupationByWorkcenter => 'Por Centro de Trabalho';
 
   @override
   String get occupationByLine => 'Por Linha';

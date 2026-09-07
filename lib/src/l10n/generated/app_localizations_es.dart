@@ -94,7 +94,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get productionCells => 'Células de producción';
 
   @override
-  String get productionCellNew => 'Nueva Célula De Producción';
+  String get productionCellNew => 'Nueva Célula de Producción';
 
   @override
   String get productionLine => 'Línea de producción';
@@ -103,7 +103,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get productionLines => 'Líneas de producción';
 
   @override
-  String get productionLineNew => 'Nueva Línea De Producción';
+  String get productionLineNew => 'Nueva Línea de Producción';
 
   @override
   String get workcenter => 'Centro de trabajo';
@@ -139,7 +139,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get workcenters => 'Centros de trabajo';
 
   @override
-  String get workcenterNew => 'Nuevo Centro De Trabajo';
+  String get workcenterNew => 'Nuevo Centro de Trabajo';
 
   @override
   String get workcenterType => 'Tipo de centro de trabajo';
@@ -806,7 +806,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get demandProject => 'Proyecto';
 
   @override
-  String get demandDeleteAll => 'Eliminar Todos Los Pedidos';
+  String get demandDeleteAll => 'Eliminar Todos los Pedidos';
 
   @override
   String get demandDeleteAllBody =>
@@ -1022,7 +1022,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get flowCustomer => 'Cliente';
 
   @override
-  String get flowFitToScreen => 'Ajustar A La Pantalla';
+  String get flowFitToScreen => 'Ajustar a la Pantalla';
 
   @override
   String get flowZoomIn => 'Acercar';
@@ -1424,7 +1424,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get simViewResults => 'Resultados De Simulación';
+  String get simViewResults => 'Resultados de Simulación';
 
   @override
   String get simulationRunFailed => 'No se pudo completar la simulación';
@@ -1586,7 +1586,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'A este zoom estos pasos son más finos que un píxel, así que se dibujan al ancho mínimo para que se vean. Su posición es exacta; su ancho no. Al acercar, el aviso desaparece.';
 
   @override
-  String get exportExcel => 'Exportar A Excel';
+  String get exportExcel => 'Exportar a Excel';
 
   @override
   String get simExportRunSheet => 'Ejecución';
@@ -1868,7 +1868,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get occupationByWorkcenter => 'Por Centro De Trabajo';
+  String get occupationByWorkcenter => 'Por Centro de Trabajo';
 
   @override
   String get occupationByLine => 'Por Línea';

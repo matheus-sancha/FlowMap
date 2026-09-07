@@ -1010,7 +1010,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowCustomer => 'Customer';
 
   @override
-  String get flowFitToScreen => 'Fit To Screen';
+  String get flowFitToScreen => 'Fit to Screen';
 
   @override
   String get flowZoomIn => 'Zoom in';
@@ -1569,7 +1569,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.';
 
   @override
-  String get exportExcel => 'Export To Excel';
+  String get exportExcel => 'Export to Excel';
 
   @override
   String get simExportRunSheet => 'Run';

@@ -549,7 +549,7 @@
   "flowShowing": "Showing",
   "flowSupplier": "Supplier",
   "flowCustomer": "Customer",
-  "flowFitToScreen": "Fit To Screen",
+  "flowFitToScreen": "Fit to Screen",
   "flowZoomIn": "Zoom in",
   "flowZoomOut": "Zoom out",
   "flowInsertHere": "Insert here",
@@ -827,7 +827,7 @@
     }
   },
   "simGanttFlooredHelp": "At this zoom these steps are thinner than a pixel, so they are drawn at the minimum width to keep them visible. Their position is exact; their width is not. Zoom in and the note goes.",
-  "exportExcel": "Export To Excel",
+  "exportExcel": "Export to Excel",
   "simExportRunSheet": "Run",
   "flowQueueEdit": "Set the queue in front of this step",
   "flowQueueShared": "One queue per station: every step that feeds {target} waits in this one, in this study and in every other.",

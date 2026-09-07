@@ -1887,7 +1887,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowFitToScreen.
   ///
   /// In en, this message translates to:
-  /// **'Fit To Screen'**
+  /// **'Fit to Screen'**
   String get flowFitToScreen;
 
   /// No description provided for @flowZoomIn.
@@ -2835,7 +2835,7 @@ abstract class AppLocalizations {
   /// No description provided for @exportExcel.
   ///
   /// In en, this message translates to:
-  /// **'Export To Excel'**
+  /// **'Export to Excel'**
   String get exportExcel;
 
   /// No description provided for @simExportRunSheet.
