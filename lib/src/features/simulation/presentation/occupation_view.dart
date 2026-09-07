@@ -227,7 +227,9 @@ class _OccupationViewState extends State<OccupationView> {
       if (cell == null) return null;
       // The hover names the column the way the heading does — a quarter cell
       // saying "Jan 2026" would be the banner-versus-grid disagreement (#16) in
-      // words instead of bars.
+      // words instead of bars. **The same period at the same grain, not the
+      // same glyphs**: the heading is `08/26` where this is `Aug 2026`, which
+      // is a difference of room rather than of meaning.
       return cellFrom(cell, nameOf(row), periodLabel(context, month, _granularity));
     }
 
@@ -383,8 +385,12 @@ class _OccupationViewState extends State<OccupationView> {
                   OccupationGrouping.line => l10n.occupationLine,
                   OccupationGrouping.type => l10n.occupationWorkcenterType,
                 },
+                // **The heading is numeric, the hover is not.** A column is
+                // 72 pt with eleven like it either side, where `08/26` reads
+                // faster than `Aug 2026` and the year is the part that tells
+                // them apart. The hover has a whole card and spells it out.
                 columnLabel: (month) =>
-                    periodLabel(context, month, _granularity),
+                    periodColumnLabel(context, month, _granularity),
                 rows: [
                   for (final row in rows)
                     PeriodMatrixRow(label: row.name, qualifier: row.qualifier),
