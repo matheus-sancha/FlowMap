@@ -424,10 +424,28 @@ abstract class AppLocalizations {
   /// **'Operators set the pace'**
   String get workcenterTypeLabourPaced;
 
+  /// No description provided for @workcenterCapacityType.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter Capacity Type'**
+  String get workcenterCapacityType;
+
+  /// No description provided for @workcenterCapacityMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine Pace'**
+  String get workcenterCapacityMachine;
+
+  /// No description provided for @workcenterCapacityOperator.
+  ///
+  /// In en, this message translates to:
+  /// **'Operator Pace'**
+  String get workcenterCapacityOperator;
+
   /// No description provided for @workcenterTypeLabourPacedHelp.
   ///
   /// In en, this message translates to:
-  /// **'On for a bench, a booth or an inspection table, where more people finish the work sooner: the crew on shift divides the process time. Off for a machine that runs at its own rate whoever is standing at it — a second operator on one CNC does not double its output, and there the crew only opens the shift. Process times are entered as one operator\'s work either way.'**
+  /// **'Machine Pace: the machine runs at its own rate whoever is standing at it, and the crew only opens the shift — a second operator on one CNC does not double its output. Operator Pace: a bench, a booth or an inspection table, where the crew on shift is the throughput. Process times are entered as one operator\'s work either way.'**
   String get workcenterTypeLabourPacedHelp;
 
   /// No description provided for @workcenterTypeNone.

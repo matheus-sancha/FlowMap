@@ -136,16 +136,33 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
                 // exactly that conclusion — crewing a station up and expecting
                 // it to go faster, on a model that said every station was
                 // machine-paced.
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _labourPaced,
-                  onChanged: (on) => setState(() => _labourPaced = on),
-                  title: Row(
-                    children: [
-                      Flexible(child: Text(l10n.workcenterTypeLabourPaced)),
-                      ?helpIcon(context, l10n.workcenterTypeLabourPacedHelp),
-                    ],
+                // **A named choice between two, not a switch.** A switch says
+                // *on or off* and leaves the reader to guess what off is; the
+                // two pacings are peers, and the one nobody picks is a real
+                // answer about the machine rather than the absence of one.
+                DropdownButtonFormField<bool>(
+                  initialValue: _labourPaced,
+                  decoration: InputDecoration(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: Text(l10n.workcenterCapacityType)),
+                        ?helpIcon(context, l10n.workcenterTypeLabourPacedHelp),
+                      ],
+                    ),
                   ),
+                  items: [
+                    DropdownMenuItem(
+                      value: false,
+                      child: Text(l10n.workcenterCapacityMachine),
+                    ),
+                    DropdownMenuItem(
+                      value: true,
+                      child: Text(l10n.workcenterCapacityOperator),
+                    ),
+                  ],
+                  onChanged: (picked) =>
+                      setState(() => _labourPaced = picked ?? false),
                 ),
                 const SizedBox(height: 16),
                 // *Deleted, not moved* (§12.7b): "workcenters of this type are

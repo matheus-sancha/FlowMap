@@ -180,8 +180,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workcenterTypeLabourPaced => 'Operators set the pace';
 
   @override
+  String get workcenterCapacityType => 'Workcenter Capacity Type';
+
+  @override
+  String get workcenterCapacityMachine => 'Machine Pace';
+
+  @override
+  String get workcenterCapacityOperator => 'Operator Pace';
+
+  @override
   String get workcenterTypeLabourPacedHelp =>
-      'On for a bench, a booth or an inspection table, where more people finish the work sooner: the crew on shift divides the process time. Off for a machine that runs at its own rate whoever is standing at it — a second operator on one CNC does not double its output, and there the crew only opens the shift. Process times are entered as one operator\'s work either way.';
+      'Machine Pace: the machine runs at its own rate whoever is standing at it, and the crew only opens the shift — a second operator on one CNC does not double its output. Operator Pace: a bench, a booth or an inspection table, where the crew on shift is the throughput. Process times are entered as one operator\'s work either way.';
 
   @override
   String get workcenterTypeNone => 'No icon';

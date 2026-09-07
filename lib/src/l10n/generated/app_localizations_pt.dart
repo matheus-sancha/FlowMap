@@ -182,8 +182,18 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenterTypeLabourPaced => 'Os Operadores Ditam o Ritmo';
 
   @override
+  String get workcenterCapacityType =>
+      'Tipo de Capacidade do Centro de Trabalho';
+
+  @override
+  String get workcenterCapacityMachine => 'Ritmo de Máquina';
+
+  @override
+  String get workcenterCapacityOperator => 'Ritmo de Operador';
+
+  @override
   String get workcenterTypeLabourPacedHelp =>
-      'Ative para uma bancada, uma cabine ou uma mesa de inspeção, onde mais pessoas terminam antes: a equipe do turno divide o tempo de processo. Desative para uma máquina que anda no próprio ritmo seja quem for que esteja nela — um segundo operador num CNC não dobra a produção, e aí a equipe só abre o turno. Os tempos de processo são informados como o trabalho de um operador nos dois casos.';
+      'Ritmo de Máquina: a máquina anda no próprio ritmo seja quem for que esteja nela e a equipe apenas abre o turno — um segundo operador num CNC não dobra a produção. Ritmo de Operador: uma bancada, uma cabine ou uma mesa de inspeção, onde a equipe do turno é a capacidade. Os tempos de processo são informados como o trabalho de um operador nos dois casos.';
 
   @override
   String get workcenterTypeNone => 'Sem ícone';
