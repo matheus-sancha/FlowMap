@@ -551,15 +551,18 @@ void main() {
     expect(find.textContaining('drawn wider'), findsNothing);
   });
 
-  testWidgets('what a gap means is on screen, not left to be inferred', (
+  testWidgets('the chart paints no explanation of itself (§12.7b)', (
     tester,
   ) async {
     await pump(tester, twoDayRun());
 
-    // Both halves said: the chart cannot tell closed from starved, and where
-    // that is answered is named (§8.6).
-    expect(find.textContaining('A gap is a station not running'), findsOne);
-    expect(find.textContaining('Queue table'), findsOne);
+    // **What a gap means moved to the Gantt tab's own `ⓘ`** and the chart
+    // paints none of it. This asserts the absence, because the caption is the
+    // thing that grows back: 352 characters above the bars, on every visit,
+    // was the worst instance of the 2026-08-31 complaint. What it says is
+    // still said — `simulation_tab_test` holds the tab label to it.
+    expect(find.textContaining('A gap is a station not running'), findsNothing);
+    expect(find.textContaining('One row per station'), findsNothing);
   });
 
   /// Following one order down the plant (§7.5).

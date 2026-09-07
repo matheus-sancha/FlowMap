@@ -98,13 +98,11 @@ class ProjectSettingsScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text(l10n.projectSettingsFloat, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 4),
-        Text(
+        namedHelp(
+          context,
+          l10n.projectSettingsFloat,
           l10n.projectSettingsFloatHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
+          style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         Card(
@@ -125,13 +123,18 @@ class ProjectSettingsScreen extends ConsumerWidget {
                 // Two thresholds of the same shape, read by the surface next
                 // door — and putting them anywhere else would make a reader
                 // hunt for the second of two settings that do the same job.
+                //
+                // *The caption was standing in for a heading*, which §12.7b
+                // calls the defect rather than the case for a caption: the
+                // pair had no name, so the prose had to introduce itself. It
+                // has one now and the prose is behind it.
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
+                  child: namedHelp(
+                    context,
+                    l10n.occupationBandsTitle,
                     l10n.occupationBands,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
+                    style: theme.textTheme.labelLarge,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -151,13 +154,11 @@ class ProjectSettingsScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text(l10n.calendarExceptions, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 4),
-        Text(
+        namedHelp(
+          context,
+          l10n.calendarExceptions,
           l10n.exceptionsScope,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
+          style: theme.textTheme.titleMedium,
         ),
         const SizedBox(height: 16),
         // The shift labels come from the project's own pattern, so switching it

@@ -2207,3 +2207,68 @@ now prints this count rather than asserting it, because it only grows.
 It was the app's only *ordered* colour quantity; nothing else draws one, and
 §17.5's own lesson — unreachable code with a plausible future consumer is a
 loaded slot rather than inert — is why it is deleted rather than kept.
+
+---
+
+## 7. The surface captions removed, 2026-09-07
+
+Ticket [#15](https://github.com/matheus-sancha/FlowMap/issues/15), rule in
+`DESIGN.md` §12.7b. **A deleted explanation is the kind of thing someone re-adds
+a year later**, so what went and why is written down here rather than left to a
+diff.
+
+**The rule existed and the complaint came back anyway.** §12.7 answered the same
+field words on 2026-08-15 and held — one `helperText` left in the tree, nineteen
+`ⓘ`. What it never covered was a *surface's* standing prose, and that is what
+*"too much explanation and random text"* was pointing at on 2026-08-31.
+
+**Deleted outright, as restatement:**
+
+| String | Said | Why it went |
+|---|---|---|
+| `workcenterTypeIconHelp` | Workcenters of this type are drawn with it | Picking an icon visibly draws it |
+| first sentence of `simGanttGapHelp` | One row per station, one bar per order… | Describes the picture below it |
+| first sentence of `simProductionPlanHelp` | What this run says each order does | Restates the tab |
+| last sentence of `mm3Help` | Reorder on the Sequence tab and watch it flatten | You can watch it flatten |
+| `workcenterAddExistingHelp` | A workcenter belongs to the plant… | The same claim as `workcenterLinesHelp`, differently worded; they share one key now |
+
+**Moved behind an `ⓘ` beside the name of the thing it explains**, unchanged in
+substance: `simRankingsHelp`, `simProductionPlanHelp`, `simGanttGapHelp` and
+`floatMatrixHelp` onto the four results tab labels; `exceptionsHelp` and
+`exceptionsScope` onto their headings; `workcenterLinesHelp`,
+`projectSettingsFloatHelp` and `occupationBands` onto theirs;
+`resourcesUnassignedHelp` and `studyIncludeInRunsHelp` onto their tile titles;
+`inventoryWaitHelp` onto its own field, which is §12.7's `days` case and the
+reason that rule refuses to delete this class of text.
+
+**Given a name it never had.** The two Occupation thresholds had no heading, so
+`occupationBands` was introducing itself. `occupationBandsTitle` is new in three
+locales and the paragraph sits behind it.
+
+**Kept, and moved to where it is live.** *Paste a block from Excel with Ctrl+V*
+was inside two captions. It is one key, `demandPasteHint`, shown above either
+Demand grid **only while that grid is empty**. Pasting a block across rows and
+columns is not what every grid does and nobody tries it unprompted — deleting it
+would have lost how the app is actually filled.
+
+**41 ARB keys deleted, in all three locales.** They rendered nowhere: 7 % of the
+app's strings. Some were this map's own churn — `flowQueueName`'s neighbours
+from [#5](https://github.com/matheus-sancha/FlowMap/issues/5), `occupationCell`
+from [#9](https://github.com/matheus-sancha/FlowMap/issues/9),
+`simProductionPlan` from [#7](https://github.com/matheus-sancha/FlowMap/issues/7)
+— but most predate v2.0: `taktDaysHelp`, `availabilityHelp`, `reworkHelp`,
+`mm3SlotLoadHelp`, `workcenterHomeLineHelp`, `scheduleShiftsDerived`,
+`confirmArchiveBody`, `floatMatrixTally`, and thirty-odd bare labels.
+**`flowQueueName` is deliberately kept**: three tests in
+`flow_node_editor_test.dart` assert the *absence* of the field §7.3 removed, and
+the key is how they name it.
+
+**Two tests asserted the old placement and now assert the new one.**
+`gantt_view_test` asserted *"what a gap means is on screen"*; it asserts the
+chart paints none of it, because a caption is the thing that grows back, and
+`simulation_tab_test` holds the tab strip to carrying all four definitions.
+1,062 tests pass.
+
+**A drive is owed.** Nothing in the suite renders a pixel, so what an `ⓘ` looks
+like in a scrollable `TabBar` — and whether four of them crowd a five-tab strip
+— has not been seen.

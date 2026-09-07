@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
+import '../../../common/help_icon.dart';
 import '../../../common/part_palette.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
@@ -248,15 +249,19 @@ class _ResultsTabBarState extends State<_ResultsTabBar>
           '${study == null ? '' : '?study=$study'}',
         );
       },
+      // **Each tab carries its own definition, not a caption above the table**
+      // (§12.7b). A results tab has no heading widget — the strip *is* the
+      // heading — so the `ⓘ` hangs here, beside the name of the thing it
+      // explains. Occupation has none: its chart and grid say what they are.
       tabs: [
         // The destination is *Simulation results* and this tab is *Simulation
         // Overview*, deliberately not the same words — so the way in and the
         // first thing inside never read as one thing (#7).
-        Tab(text: l10n.simTabOverview),
-        Tab(text: l10n.simTabPlan),
-        Tab(text: l10n.simGanttView),
+        Tab(child: namedHelp(context, l10n.simTabOverview, l10n.simRankingsHelp)),
+        Tab(child: namedHelp(context, l10n.simTabPlan, l10n.simProductionPlanHelp)),
+        Tab(child: namedHelp(context, l10n.simGanttView, l10n.simGanttGapHelp)),
         Tab(text: l10n.occupationView),
-        Tab(text: l10n.floatMatrixTitle),
+        Tab(child: namedHelp(context, l10n.floatMatrixTitle, l10n.floatMatrixHelp)),
       ],
     );
   }
@@ -312,13 +317,6 @@ class _Overview extends StatelessWidget {
               ),
             ],
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.simRankingsHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
         ),
         const SizedBox(height: 8),
         _QueueTable(metrics: metrics),
@@ -435,23 +433,12 @@ class _FloatTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            l10n.floatMatrixHelp,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-          const SizedBox(height: 8),
           Expanded(
             child: SingleChildScrollView(
               child: FloatMatrixTable(slice: slice, project: project),
@@ -642,7 +629,6 @@ class _PlanTabState extends State<_PlanTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final slice = widget.slice;
 
     return Padding(
@@ -650,24 +636,15 @@ class _PlanTabState extends State<_PlanTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // **The help text is capped at two lines, and this was a defect.**
-          // Unbounded beside the controls it wrapped to whatever width was
-          // left — on a 768 pt pane that was tall enough to push the table out
-          // of the column entirely, which `RenderFlex overflowed by 5.0 pixels`
-          // is what a test saw. A tab's prose is a caption, not the tab.
+          // **A row of controls, and only controls** (§12.7b). It used to open
+          // with a two-line paragraph, so a caption, a segmented button and an
+          // icon button read as one line of chrome — the *random text* half of
+          // the 2026-08-31 complaint. The paragraph is the Plan tab's own `ⓘ`
+          // now, and the cap that stopped it pushing the table out of the
+          // column (`RenderFlex overflowed by 5.0 pixels`) goes with it.
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  l10n.simProductionPlanHelp,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              const Spacer(),
               SegmentedButton<bool>(
                 segments: [
                   ButtonSegment(

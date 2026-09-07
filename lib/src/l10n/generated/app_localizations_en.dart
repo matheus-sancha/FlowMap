@@ -24,12 +24,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navSettings => 'Settings';
 
   @override
-  String get navAbout => 'About';
-
-  @override
-  String get actionAdd => 'Add';
-
-  @override
   String get actionEdit => 'Edit';
 
   @override
@@ -58,12 +52,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fieldName => 'Name';
-
-  @override
-  String get fieldCode => 'Code';
-
-  @override
-  String get fieldType => 'Type';
 
   @override
   String get fieldNotes => 'Notes';
@@ -100,10 +88,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get plantNew => 'New plant';
 
   @override
-  String get plantDeleteBlocked =>
-      'This plant has production cells. Archive it instead.';
-
-  @override
   String get productionCell => 'Production cell';
 
   @override
@@ -130,9 +114,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get exceptionsScope =>
       'Applies to the whole project — every study in it.';
-
-  @override
-  String get navExceptions => 'Exceptions';
 
   @override
   String get projectSettings => 'Project settings';
@@ -194,10 +175,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workcenterTypeIcon => 'Icon';
-
-  @override
-  String get workcenterTypeIconHelp =>
-      'Workcenters of this type are drawn with it, in the tree and in the pickers.';
 
   @override
   String get workcenterTypeNone => 'No icon';
@@ -326,20 +303,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shiftEnd => 'End';
 
   @override
-  String get shiftBreak => 'Break';
-
-  @override
-  String get shiftCrossesMidnight => 'Crosses midnight';
-
-  @override
-  String get shiftDuration => 'Net duration';
-
-  @override
-  String shiftOverlapWarning(String other) {
-    return 'This shift overlaps $other.';
-  }
-
-  @override
   String get weekdayMon => 'Mon';
 
   @override
@@ -369,23 +332,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirmDeleteBody => 'This cannot be undone.';
 
   @override
-  String get confirmArchiveBody =>
-      'It stays available to projects already using it, but is hidden from pickers.';
-
-  @override
-  String aboutVersion(String version) {
-    return 'Version $version';
-  }
-
-  @override
-  String aboutBuild(String build) {
-    return 'Build $build';
-  }
-
-  @override
-  String get settingsTitle => 'Settings';
-
-  @override
   String get settingsLanguage => 'Language';
 
   @override
@@ -393,9 +339,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDateFormat => 'Date format';
-
-  @override
-  String get settingsDateFormatLocale => 'Follow language';
 
   @override
   String get comingSoon => 'Coming soon';
@@ -407,19 +350,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workcenterAddExisting => 'Add existing';
 
   @override
-  String get workcenterAddExistingHelp =>
-      'A workcenter belongs to the plant, so this only changes where it appears in the tree. Any study of any line can use it either way.';
-
-  @override
   String get workcenterNoneToAdd =>
       'Every workcenter in this plant is already on this line.';
-
-  @override
-  String get workcenterHomeLine => 'Home production line';
-
-  @override
-  String get workcenterHomeLineHelp =>
-      'Where it appears in the tree. Studies on other lines can still use it, and that shared use is what the simulation contends for.';
 
   @override
   String get workcenterTypeUnset => 'No type';
@@ -589,9 +521,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepEquivalence => 'Equivalent';
 
   @override
-  String get flowNoParts => 'No parts yet';
-
-  @override
   String get footerEquivalence => 'Equivalent';
 
   @override
@@ -625,10 +554,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mm3SlotLoad => 'Slot load';
 
   @override
-  String get mm3SlotLoadHelp =>
-      'The part\'s equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.';
-
-  @override
   String get mm3NoSequence => 'No orders in the sequence yet.';
 
   @override
@@ -637,7 +562,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mm3Help =>
-      'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.';
+      'A centred moving average of three over the sequence, blank at both ends.';
 
   @override
   String get summaryOccupation => 'Occupation by workcenter';
@@ -896,9 +821,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get demandTotal => 'Total';
 
   @override
-  String get demandOrderNumber => 'Order';
-
-  @override
   String get demandBatchSize => 'Batch size';
 
   @override
@@ -922,11 +844,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get demandTimesHelp =>
-      'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.';
+      'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step.';
 
   @override
   String get demandSequenceHelp =>
-      'The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.';
+      'The order the plant will build in. Nothing reorders it but you.';
 
   @override
   String get demandNoSteps =>
@@ -946,21 +868,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get taktUnit => 'Unit';
 
   @override
-  String get taktEmpty => 'No takt defined for this production line yet.';
-
-  @override
-  String get taktPeriodNew => 'New takt period';
-
-  @override
   String get taktPeriodDeleteTitle => 'Delete this takt period?';
-
-  @override
-  String get taktDaysHelp =>
-      'Days are relative to each workcenter\'s own capacity: a 3-day takt is 68 h at a station open 22:40 a day, and 26:24 at one open 8:48.';
-
-  @override
-  String get taktLiteralHelp =>
-      'Resolves to the same duration at every workcenter.';
 
   @override
   String get unitDays => 'days';
@@ -987,9 +895,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unitSecondsShort => 's';
 
   @override
-  String get schedulePeriodNew => 'New period';
-
-  @override
   String get schedulePeriodDeleteTitle => 'Delete this schedule period?';
 
   @override
@@ -999,29 +904,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scheduleOperatorsPerShift => 'Operators per shift';
 
   @override
-  String scheduleShiftsDerived(String count, String operators) {
-    return 'Shifts: $count ($operators) — counted from the shifts with operators, never stored separately.';
-  }
-
-  @override
   String get availability => 'Availability';
 
   @override
-  String get availabilityHelp =>
-      'Fraction of open time the workcenter can actually run. Applied once, to process time.';
-
-  @override
-  String get availabilityInvalid => 'Must be above 0% and at most 100%';
-
-  @override
   String get rework => 'Rework';
-
-  @override
-  String get reworkHelp =>
-      'Fraction of work that has to be redone. Inflates process time.';
-
-  @override
-  String get reworkInvalid => 'Must be 0% or more';
 
   @override
   String get occupation => 'Occupation';
@@ -1149,13 +1035,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'A step runs on exactly one. A pool sends each order to whichever member frees first.';
 
   @override
-  String get flowNodeLabel => 'Label';
-
-  @override
   String get flowNodeNotes => 'Notes';
-
-  @override
-  String get flowNodeHasNotes => 'Has notes';
 
   @override
   String get flowMoveLeft => 'Move earlier';
@@ -1202,9 +1082,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get workcenterParallelCapacityHelp =>
       'How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.';
-
-  @override
-  String get studyRunSettings => 'Run settings';
 
   @override
   String get studyStartBuffer => 'Start buffer (calendar days)';
@@ -1385,9 +1262,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.';
 
   @override
-  String get simulationNotReady => 'Not ready to run';
-
-  @override
   String get simProblemNoTakt =>
       'No takt period covers the day this run would start.';
 
@@ -1541,11 +1415,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simulationRunFailed => 'The run could not be completed';
 
   @override
-  String get simProductionPlan => 'Production plan — orders over time';
-
-  @override
   String get simProductionPlanHelp =>
-      'What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.';
+      'Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.';
 
   @override
   String get simPlanOrder => 'Order';
@@ -1589,7 +1460,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simGanttGapHelp =>
-      'One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line\'s order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.';
+      'A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.';
 
   @override
   String simGanttOrder(String number) {
@@ -1707,11 +1578,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowQueueEdit => 'Set the queue in front of this step';
 
   @override
-  String flowQueueTitle(String target) {
-    return 'Queue in front of $target';
-  }
-
-  @override
   String flowQueueShared(String target) {
     return 'One queue per station: every step that feeds $target waits in this one, in this study and in every other.';
   }
@@ -1748,9 +1614,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queueShortQueue => 'Queue';
 
   @override
-  String get queueShortSupermarket => 'Supermarket';
-
-  @override
   String get queueTypeSupermarket => 'Supermarket — not yet';
 
   @override
@@ -1776,10 +1639,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flowEndStockOutbound => 'Finished goods stock';
 
   @override
-  String get flowEndStockEdit =>
-      'Set the stock standing at this end of the flow';
-
-  @override
   String get flowEndStockQuantity => 'Pieces standing here';
 
   @override
@@ -1788,9 +1647,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flowEndStockNone => 'Not counted';
-
-  @override
-  String get flowEndStockDays => 'Days of stock';
 
   @override
   String get stepBalancedMark => '⇄';
@@ -1896,9 +1752,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get occupationStation => 'Station';
 
   @override
-  String get occupationCell => 'Cell';
-
-  @override
   String get occupationLine => 'Line';
 
   @override
@@ -1935,16 +1788,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get floatMatrixUndelivered => 'Never delivered';
-
-  @override
-  String floatMatrixTally(
-    String red,
-    String amber,
-    String green,
-    String undelivered,
-  ) {
-    return '$red red · $amber amber · $green green · $undelivered never delivered';
-  }
 
   @override
   String get floatMatrixEmpty =>
@@ -2081,4 +1924,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String floatAverageHelp(Object days) {
     return '$days days of float on average.';
   }
+
+  @override
+  String get demandPasteHint =>
+      'Type a value, or paste a block from Excel with Ctrl+V.';
+
+  @override
+  String get occupationBandsTitle => 'Occupation bands';
 }

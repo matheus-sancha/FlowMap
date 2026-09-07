@@ -185,19 +185,15 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
+                // Beside the name of the thing it explains (§12.7b). It is the
+                // same sentence the add-existing dialog shows, from the same
+                // key — ticking a line does not restrict who may use a station,
+                // which is a wrong conclusion the boxes invite.
+                child: namedHelp(
+                  context,
                   l10n.workcenterLines,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
                   l10n.workcenterLinesHelp,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
               if (widget.lines.isEmpty)

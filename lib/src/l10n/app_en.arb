@@ -8,8 +8,6 @@
   "navTemplates": "Study Templates",
   "navResources": "Resources",
   "navSettings": "Settings",
-  "navAbout": "About",
-  "actionAdd": "Add",
   "actionEdit": "Edit",
   "actionDelete": "Delete",
   "actionArchive": "Archive",
@@ -20,8 +18,6 @@
   "actionDuplicate": "Duplicate",
   "actionRename": "Rename",
   "fieldName": "Name",
-  "fieldCode": "Code",
-  "fieldType": "Type",
   "fieldNotes": "Notes",
   "fieldStart": "Start",
   "fieldEnd": "End",
@@ -33,7 +29,6 @@
   "resourcesArchivedBadge": "Archived",
   "plant": "Plant",
   "plantNew": "New plant",
-  "plantDeleteBlocked": "This plant has production cells. Archive it instead.",
   "productionCell": "Production cell",
   "productionCells": "Production cells",
   "productionCellNew": "New production cell",
@@ -43,7 +38,6 @@
   "workcenter": "Workcenter",
   "studyTabCapacity": "Capacity",
   "exceptionsScope": "Applies to the whole project — every study in it.",
-  "navExceptions": "Exceptions",
   "projectSettings": "Project settings",
   "projectSettingsIdentity": "Identity",
   "projectPatternHelp": "The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every station, and every figure derived from one.",
@@ -76,7 +70,6 @@
   },
   "workcenterDeleteBody": "This removes the workcenter from the plant, not just from this line. Its schedules go with it.",
   "workcenterTypeIcon": "Icon",
-  "workcenterTypeIconHelp": "Workcenters of this type are drawn with it, in the tree and in the pickers.",
   "workcenterTypeNone": "No icon",
   "workcenterTypeEdit": "Workcenter type",
   "iconMachining": "Machining",
@@ -119,17 +112,6 @@
   "shiftLabel": "Label",
   "shiftStart": "Start",
   "shiftEnd": "End",
-  "shiftBreak": "Break",
-  "shiftCrossesMidnight": "Crosses midnight",
-  "shiftDuration": "Net duration",
-  "shiftOverlapWarning": "This shift overlaps {other}.",
-  "@shiftOverlapWarning": {
-    "placeholders": {
-      "other": {
-        "type": "String"
-      }
-    }
-  },
   "weekdayMon": "Mon",
   "weekdayTue": "Tue",
   "weekdayWed": "Wed",
@@ -146,35 +128,13 @@
     }
   },
   "confirmDeleteBody": "This cannot be undone.",
-  "confirmArchiveBody": "It stays available to projects already using it, but is hidden from pickers.",
-  "aboutVersion": "Version {version}",
-  "@aboutVersion": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      }
-    }
-  },
-  "aboutBuild": "Build {build}",
-  "@aboutBuild": {
-    "placeholders": {
-      "build": {
-        "type": "String"
-      }
-    }
-  },
-  "settingsTitle": "Settings",
   "settingsLanguage": "Language",
   "settingsLanguageSystem": "Follow the system",
   "settingsDateFormat": "Date format",
-  "settingsDateFormatLocale": "Follow language",
   "comingSoon": "Coming soon",
   "valueNone": "None",
   "workcenterAddExisting": "Add existing",
-  "workcenterAddExistingHelp": "A workcenter belongs to the plant, so this only changes where it appears in the tree. Any study of any line can use it either way.",
   "workcenterNoneToAdd": "Every workcenter in this plant is already on this line.",
-  "workcenterHomeLine": "Home production line",
-  "workcenterHomeLineHelp": "Where it appears in the tree. Studies on other lines can still use it, and that shared use is what the simulation contends for.",
   "workcenterTypeUnset": "No type",
   "workcenterTypeDeleteBody": "Workcenters using this type keep working; their type is cleared.",
   "workcenterPoolNoCandidates": "This plant has no workcenters yet.",
@@ -240,7 +200,6 @@
   "validationUnknownPart": "No part with that number in this study",
   "stepProblemNoProcessTime": "This part has no process time here.",
   "stepEquivalence": "Equivalent",
-  "flowNoParts": "No parts yet",
   "footerEquivalence": "Equivalent",
   "footerEquivalenceHelp": "This part's process time across the flow divided by the flow equivalent's. 1.13 means it consumes 1.13 takts of the line's capacity.",
   "flowSourceNeedsDemand": "Needs at least one part in the Demand tab",
@@ -251,10 +210,9 @@
   "mm3Smoothness": "Average deviation",
   "mm3SmoothnessHelp": "How far the moving average sits from 1.0 on average. 1.0 is one takt of the scope's capacity per order, which is a perfectly levelled sequence.",
   "mm3SlotLoad": "Slot load",
-  "mm3SlotLoadHelp": "The part's equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.",
   "mm3NoSequence": "No orders in the sequence yet.",
   "mm3NotMeasurable": "Nothing to measure yet: the parts in this sequence have no process times in this scope.",
-  "mm3Help": "A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.",
+  "mm3Help": "A centred moving average of three over the sequence, blank at both ends.",
   "summaryOccupation": "Occupation by workcenter",
   "summaryDemandTakt": "Demand takt",
   "summaryRequired": "Required",
@@ -479,7 +437,6 @@
   "demandPartNumber": "Part number",
   "demandDescription": "Description",
   "demandTotal": "Total",
-  "demandOrderNumber": "Order",
   "demandBatchSize": "Batch size",
   "demandBatchNumber": "Batch no.",
   "demandBatchNumberHelp": "Your own identifier for this batch of this part — whatever the paperwork calls it. Free text: nothing matches on it, duplicates are allowed and it may be left blank. It appears on the production plan so a printed order can be found in your system.",
@@ -487,18 +444,14 @@
   "demandMaterialDate": "Material date",
   "demandMaterialDateHelp": "optional",
   "demandUnbound": "not bound",
-  "demandTimesHelp": "Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.",
-  "demandSequenceHelp": "The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.",
+  "demandTimesHelp": "Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step.",
+  "demandSequenceHelp": "The order the plant will build in. Nothing reorders it but you.",
   "demandNoSteps": "This flow has no process steps yet, so there is nothing to cost a part against.",
   "demandNeedsPart": "Add a part before adding orders.",
   "demandPartDeleteBody": "Its process times go with it, and every order for it leaves the sequence.",
   "takt": "Takt",
   "taktUnit": "Unit",
-  "taktEmpty": "No takt defined for this production line yet.",
-  "taktPeriodNew": "New takt period",
   "taktPeriodDeleteTitle": "Delete this takt period?",
-  "taktDaysHelp": "Days are relative to each workcenter's own capacity: a 3-day takt is 68 h at a station open 22:40 a day, and 26:24 at one open 8:48.",
-  "taktLiteralHelp": "Resolves to the same duration at every workcenter.",
   "unitDays": "days",
   "unitHours": "hours",
   "unitMinutes": "minutes",
@@ -507,27 +460,11 @@
   "unitHoursShort": "h",
   "unitMinutesShort": "min",
   "unitSecondsShort": "s",
-  "schedulePeriodNew": "New period",
   "schedulePeriodDeleteTitle": "Delete this schedule period?",
   "scheduleShifts": "Shifts",
   "scheduleOperatorsPerShift": "Operators per shift",
-  "scheduleShiftsDerived": "Shifts: {count} ({operators}) — counted from the shifts with operators, never stored separately.",
-  "@scheduleShiftsDerived": {
-    "placeholders": {
-      "count": {
-        "type": "String"
-      },
-      "operators": {
-        "type": "String"
-      }
-    }
-  },
   "availability": "Availability",
-  "availabilityHelp": "Fraction of open time the workcenter can actually run. Applied once, to process time.",
-  "availabilityInvalid": "Must be above 0% and at most 100%",
   "rework": "Rework",
-  "reworkHelp": "Fraction of work that has to be redone. Inflates process time.",
-  "reworkInvalid": "Must be 0% or more",
   "occupation": "Occupation",
   "workcentersTabEmpty": "Add steps to the flow to schedule their workcenters here.",
   "workcentersTabPattern": "Shift pattern: {shifts}",
@@ -620,9 +557,7 @@
   "flowStep": "Process step",
   "flowStepTarget": "Workcenter or pool",
   "flowStepTargetHelp": "A step runs on exactly one. A pool sends each order to whichever member frees first.",
-  "flowNodeLabel": "Label",
   "flowNodeNotes": "Notes",
-  "flowNodeHasNotes": "Has notes",
   "flowMoveLeft": "Move earlier",
   "flowMoveRight": "Move later",
   "flowDeleteNodeTitle": "Remove this node from the flow?",
@@ -637,7 +572,6 @@
   "laneCapacityHelp": "How many orders fit here. Leave blank for unlimited. When it is full the station behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.",
   "workcenterParallelCapacity": "Orders at once",
   "workcenterParallelCapacityHelp": "How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.",
-  "studyRunSettings": "Run settings",
   "studyStartBuffer": "Start buffer (calendar days)",
   "studyStartBufferHelp": "Extra margin ahead of the calculated start. A run begins at the first order's need date, less its theoretical lead time, less this. Calendar days, because slippage happens whether or not the plant is open.",
   "studyPaceSetter": "Pacemaker",
@@ -723,7 +657,6 @@
   "dispatchShortestProcessing": "Shortest processing time",
   "simulationNoStudies": "No study is selected for a run",
   "simulationNoStudiesHelp": "Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.",
-  "simulationNotReady": "Not ready to run",
   "simProblemNoTakt": "No takt period covers the day this run would start.",
   "simProblemNoOrders": "The demand sequence is empty — there is nothing to release.",
   "simProblemUnboundStep": "A step targets no workcenter, or its pool is empty.",
@@ -814,8 +747,7 @@
   },
   "simViewResults": "Simulation results",
   "simulationRunFailed": "The run could not be completed",
-  "simProductionPlan": "Production plan — orders over time",
-  "simProductionPlanHelp": "What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.",
+  "simProductionPlanHelp": "Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.",
   "simPlanOrder": "Order",
   "simPlanOrderStart": "Order start",
   "simPlanOrderEnd": "Order end",
@@ -838,7 +770,7 @@
   "simRunDeleteBody": "The run and everything it recorded go. The studies it was made from are untouched.",
   "simGanttView": "Production Gantt",
   "simGanttEmpty": "This run recorded no steps, so there is nothing to draw.",
-  "simGanttGapHelp": "One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line's order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.",
+  "simGanttGapHelp": "A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.",
   "simGanttOrder": "Order {number}",
   "@simGanttOrder": {
     "placeholders": {
@@ -898,14 +830,6 @@
   "exportExcel": "Export to Excel",
   "simExportRunSheet": "Run",
   "flowQueueEdit": "Set the queue in front of this step",
-  "flowQueueTitle": "Queue in front of {target}",
-  "@flowQueueTitle": {
-    "placeholders": {
-      "target": {
-        "type": "String"
-      }
-    }
-  },
   "flowQueueShared": "One queue per station: every step that feeds {target} waits in this one, in this study and in every other.",
   "@flowQueueShared": {
     "placeholders": {
@@ -924,7 +848,6 @@
   "queueShortEarliestDueDate": "EDD",
   "queueShortShortestProcessing": "SPT",
   "queueShortQueue": "Queue",
-  "queueShortSupermarket": "Supermarket",
   "queueTypeSupermarket": "Supermarket — not yet",
   "flowBatchHelp": "How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.",
   "validationNumber": "Enter a number",
@@ -933,11 +856,9 @@
   "simEmptySlotWipCap": "WIP cap reached",
   "flowEndStockInbound": "Raw material stock",
   "flowEndStockOutbound": "Finished goods stock",
-  "flowEndStockEdit": "Set the stock standing at this end of the flow",
   "flowEndStockQuantity": "Pieces standing here",
   "flowEndStockHelp": "An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.",
   "flowEndStockNone": "Not counted",
-  "flowEndStockDays": "Days of stock",
   "stepBalancedMark": "⇄",
   "stepBalancedHelp": "Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.",
   "@stepBalancedHelp": {
@@ -1077,7 +998,6 @@
   "occupationView": "Occupation",
   "occupationType": "Type",
   "occupationStation": "Station",
-  "occupationCell": "Cell",
   "occupationLine": "Line",
   "occupationUngraphable": "This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.",
   "projectSettingsFloat": "Float thresholds",
@@ -1089,23 +1009,6 @@
   "floatMatrixTitle": "Delivery Float",
   "floatMatrixHelp": "Columns are the month of the order's need date, rows its rank in that month by need date. Cells are slack in days — positive is early.",
   "floatMatrixUndelivered": "Never delivered",
-  "floatMatrixTally": "{red} red · {amber} amber · {green} green · {undelivered} never delivered",
-  "@floatMatrixTally": {
-    "placeholders": {
-      "red": {
-        "type": "String"
-      },
-      "amber": {
-        "type": "String"
-      },
-      "green": {
-        "type": "String"
-      },
-      "undelivered": {
-        "type": "String"
-      }
-    }
-  },
   "floatMatrixEmpty": "No orders in this slice have a need date to place.",
   "floatLegendRed": "{days} d or less",
   "@floatLegendRed": {
@@ -1189,5 +1092,13 @@
     "placeholders": {
       "days": {}
     }
+  },
+  "demandPasteHint": "Type a value, or paste a block from Excel with Ctrl+V.",
+  "@demandPasteHint": {
+    "description": "Shown above an empty Demand grid: how to fill it."
+  },
+  "occupationBandsTitle": "Occupation bands",
+  "@occupationBandsTitle": {
+    "description": "Heading for the two Occupation grid thresholds."
   }
 }

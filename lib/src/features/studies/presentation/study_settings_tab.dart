@@ -83,8 +83,14 @@ class StudySettingsTab extends ConsumerWidget {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: study.includeInSimulation,
-                  title: Text(l10n.studyIncludeInRuns),
-                  subtitle: Text(l10n.studyIncludeInRunsHelp),
+                  // Beside the name (§12.7b): that included studies run *at
+                  // once*, contending for one plant, is the conclusion a reader
+                  // gets wrong when the switch reads as "run this one too".
+                  title: namedHelp(
+                    context,
+                    l10n.studyIncludeInRuns,
+                    l10n.studyIncludeInRunsHelp,
+                  ),
                   onChanged: (value) => _write(ref, includeInSimulation: value),
                 ),
                 const Divider(height: 24),

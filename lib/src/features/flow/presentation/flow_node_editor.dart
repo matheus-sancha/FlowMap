@@ -788,22 +788,16 @@ class _StepDialogState extends State<_StepDialog> {
                     controller: _stockWait,
                     unit: _stockUnit,
                     label: l10n.inventoryWait,
+                    // A day here is 24 h — §12.7's own `days` case, and the
+                    // reason that rule refuses to delete this class of text.
+                    // The working-time switch the inventory node carried has
+                    // not come across: `project_queues` stores no such flag,
+                    // and §5.5 leaves a genuine process delay open rather than
+                    // inventing the column inside a re-model.
+                    help: l10n.inventoryWaitHelp,
                     invalid: _stockInvalid,
                     onChanged: () => setState(() {}),
                     onUnitChanged: _changeStockUnit,
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      // A day here is 24 h. The working-time switch the
-                      // inventory node carried has not come across:
-                      // `project_queues` stores no such flag, and §5.5 leaves a
-                      // genuine process delay open rather than inventing the
-                      // column inside a re-model.
-                      l10n.inventoryWaitHelp,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
                   ),
                 ],
               ],
@@ -1289,11 +1283,13 @@ class _ValueAndUnitDuration extends StatelessWidget {
     required this.invalid,
     required this.onChanged,
     required this.onUnitChanged,
+    this.help,
   });
 
   final TextEditingController controller;
   final DurationUnit unit;
   final String label;
+  final String? help;
   final bool invalid;
   final VoidCallback onChanged;
   final ValueChanged<DurationUnit> onUnitChanged;
@@ -1310,6 +1306,7 @@ class _ValueAndUnitDuration extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: label,
+              suffixIcon: helpIcon(context, help),
               errorText: invalid ? l10n.validationNumber : null,
             ),
             onChanged: (_) => onChanged(),

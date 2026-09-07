@@ -9,6 +9,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../application/resources_providers.dart';
 import '../data/resources_repository.dart';
 import 'workcenter_editor.dart';
+import '../../../common/help_icon.dart';
 
 /// The Plant → Cells → Lines → Workcenters tree.
 ///
@@ -334,15 +335,17 @@ Future<void> _showExistingWorkcenter(
   final chosen = await showDialog<String>(
     context: context,
     builder: (context) => SimpleDialog(
-      title: Text(l10n.workcenterAddExisting),
+      // **One canonical sentence, said once** (§12.7b). This dialog and the
+      // workcenter editor each carried their own paragraph making the same
+      // claim in different words — a workcenter belongs to the plant, lines
+      // are organisational — so neither read as authoritative. They share
+      // `workcenterLinesHelp` now, beside the name in both places.
+      title: namedHelp(
+        context,
+        l10n.workcenterAddExisting,
+        l10n.workcenterLinesHelp,
+      ),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-          child: Text(
-            l10n.workcenterAddExistingHelp,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
         for (final workcenter in candidates)
           SimpleDialogOption(
             onPressed: () => Navigator.of(context).pop(workcenter.id),
@@ -375,8 +378,11 @@ class _UnassignedSection extends ConsumerWidget {
     return ExpansionTile(
       initiallyExpanded: workcenters.isNotEmpty,
       leading: const Icon(Icons.inventory_2_outlined),
-      title: Text(l10n.resourcesUnassigned),
-      subtitle: Text(l10n.resourcesUnassignedHelp),
+      title: namedHelp(
+        context,
+        l10n.resourcesUnassigned,
+        l10n.resourcesUnassignedHelp,
+      ),
       children: [
         for (final workcenter in workcenters)
           _WorkcenterTile(

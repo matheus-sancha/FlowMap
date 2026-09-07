@@ -46,7 +46,12 @@ class CalendarExceptionsView extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Text(l10n.exceptions, style: theme.textTheme.titleSmall),
+            namedHelp(
+              context,
+              l10n.exceptions,
+              l10n.exceptionsHelp,
+              style: theme.textTheme.titleSmall,
+            ),
             const Spacer(),
             OutlinedButton.icon(
               onPressed: () => _edit(context, ref),
@@ -54,13 +59,6 @@ class CalendarExceptionsView extends ConsumerWidget {
               label: Text(l10n.exceptionNew),
             ),
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.exceptionsHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
         ),
         const SizedBox(height: 12),
         if (exceptions.isEmpty)

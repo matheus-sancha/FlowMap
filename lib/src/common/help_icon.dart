@@ -47,3 +47,31 @@ Widget? helpIcon(BuildContext context, String? message) {
     ),
   );
 }
+
+/// A name with its explanation beside it (DESIGN.md §12.7b).
+///
+/// §12.7 attaches a field's definition to the field. A *surface* has no field
+/// to hang one on, so it hangs on the surface's name — a tab label, a section
+/// heading, a group's title. That is the whole placement rule: **the `ⓘ` sits
+/// beside the name of the thing it explains**, and a surface with no name on
+/// screen is a defect rather than a case for a caption.
+///
+/// Returns a bare [Text] when there is nothing to say, so a caller can pass an
+/// optional string through without a conditional at every site.
+Widget namedHelp(
+  BuildContext context,
+  String label,
+  String? message, {
+  TextStyle? style,
+}) {
+  final icon = helpIcon(context, message);
+  if (icon == null) return Text(label, style: style);
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Flexible(child: Text(label, style: style)),
+      const SizedBox(width: 4),
+      icon,
+    ],
+  );
+}

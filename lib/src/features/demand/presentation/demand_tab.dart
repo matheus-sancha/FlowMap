@@ -6,6 +6,7 @@ import '../../../common/date_input.dart';
 import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/duration_input.dart';
+import '../../../common/help_icon.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/demand_paste.dart';
@@ -97,6 +98,16 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                     onSelectionChanged: (selection) =>
                         setState(() => _view = selection.first),
                   ),
+                  // **The selected segment is the name, so the `ⓘ` sits beside
+                  // it** (§12.7b). The three views had three captions rotating
+                  // through one slot under the toolbar; each is now its own
+                  // view's definition and nothing is painted when the reader
+                  // already knows which of the three they are looking at.
+                  ?helpIcon(context, switch (_view) {
+                    _DemandView.parts => l10n.demandTimesHelp,
+                    _DemandView.sequence => l10n.demandSequenceHelp,
+                    _DemandView.mm3 => l10n.mm3Help,
+                  }),
                   // Only the two grids can be imported into; MM3 is a reading
                   // of what they hold.
                   if (_view != _DemandView.mm3)
@@ -122,22 +133,6 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                       label: Text(l10n.demandDeleteAll),
                     ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              // On its own line and capped at two: in the toolbar row it wraps
-              // as far as it likes and pushes the grid off the bottom of a
-              // short window, which is what the mounting test caught.
-              Text(
-                switch (_view) {
-                  _DemandView.parts => l10n.demandTimesHelp,
-                  _DemandView.sequence => l10n.demandSequenceHelp,
-                  _DemandView.mm3 => l10n.mm3Help,
-                },
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
               ),
             ],
           ),
@@ -187,6 +182,21 @@ class _PartsGrid extends ConsumerWidget {
             child: Text(
               l10n.demandNoSteps,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+        // **How to fill it, only while it is empty** (§12.7b). Pasting a block
+        // across rows and columns is not what every grid does and nobody tries
+        // it unprompted, so the hint is load-bearing — but it answers a
+        // question a filled grid has already answered, which is why it is
+        // conditional rather than a caption.
+        if (parts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              l10n.demandPasteHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
@@ -354,6 +364,34 @@ class _SequenceGrid extends ConsumerWidget {
       );
     }
 
+    if (orders.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              l10n.demandPasteHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+          Expanded(child: _sequenceGrid(context, ref, l10n, dateStyle, orders)),
+        ],
+      );
+    }
+
+    return _sequenceGrid(context, ref, l10n, dateStyle, orders);
+  }
+
+  Widget _sequenceGrid(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    DateStyle dateStyle,
+    List<DemandOrder> orders,
+  ) {
     return DataGrid(
       rowCount: orders.length + 1,
       rowHeaderWidth: 44,

@@ -707,6 +707,33 @@ void main() {
       expect(find.text(label), findsOne, reason: 'the strip names every tab');
     }
 
+    // **The definitions the captions used to paint are on the tab labels**
+    // (§12.7b): the `ⓘ` sits beside the name of the thing it explains, and a
+    // results tab has no other name. Four tabs carry one; Occupation does not,
+    // because its chart and grid say what they are.
+    //
+    // Asserted from the strip rather than from each body, because the strip is
+    // there whichever tab is up — which is also why moving them here means a
+    // reader can find any surface's definition without visiting it.
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    for (final message in [
+      l10n.simRankingsHelp,
+      l10n.simProductionPlanHelp,
+      l10n.simGanttGapHelp,
+      l10n.floatMatrixHelp,
+    ]) {
+      expect(
+        find.byWidgetPredicate((w) => w is Tooltip && w.message == message),
+        findsOne,
+        reason: 'the tab strip carries the surface definition',
+      );
+    }
+    expect(
+      find.textContaining('A gap is a station not running'),
+      findsNothing,
+      reason: 'behind the affordance, not painted beside it',
+    );
+
     await mount(SimulationTab.gantt);
     expect(find.text('On-time delivery: 75%'), findsOne);
     // This fixture stores no steps, which is exactly what a Gantt has nothing

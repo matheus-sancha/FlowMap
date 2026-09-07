@@ -121,12 +121,20 @@ void main() {
     // `ListView` builds lazily and "not built yet" is not "not there".
     expect(find.text(l10n.projectSettingsFloat), findsOne);
     await tester.scrollUntilVisible(
-      find.text(l10n.exceptionsScope),
+      find.text(l10n.calendarExceptions),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text(l10n.calendarExceptions), findsOne);
-    expect(find.text(l10n.exceptionsScope), findsOne);
+    // **The scope is beside the heading, not painted under it** (§12.7b). That
+    // exceptions apply to every study in the project is a definition a wrong
+    // conclusion depends on, so it survives — behind the heading's own `ⓘ`.
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Tooltip && w.message == l10n.exceptionsScope,
+      ),
+      findsOne,
+    );
   });
 
   testWidgets('the plant is shown and cannot be changed', (tester) async {

@@ -472,19 +472,6 @@ class _GanttViewState extends State<GanttView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              // Said rather than left to be inferred: a gap is a station not
-              // running, and this chart cannot tell closed from starved.
-              // Splitting a bar at closed time would need calendars a stored
-              // run does not have (§7.10).
-              child: Text(
-                l10n.simGanttGapHelp,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ),
             Expanded(
               child: _Chart(
                 layout: layout,

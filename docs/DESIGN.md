@@ -2943,6 +2943,63 @@ carried **inside each item** (`Day/month/year · 15/08/2026`), so the preview th
 reading survives the collapse and still describes the current choice when closed; the paragraph is an
 `ⓘ` beside the heading, because it defines what `Locale` means and the label does not.
 
+### 12.7b How a surface explains itself
+
+§12.7 swept the fields in one commit and held — one `helperText` left in the tree, nineteen `ⓘ`.
+The complaint came back anyway: *"Clean the app, there is too much explanation and random text."*
+It was pointing at the sibling §12.7 never covered — **a surface's standing prose**, the
+`bodySmall`/`outline` paragraph pinned above a table or a chart, attached to no field and painted
+on every visit. Fifteen of them, worst first at 352 characters over the Gantt with no `maxLines`.
+
+**The test is §12.7's, with one word changed.** A field is something you fill in, so its half reads
+*a definition a wrong **answer** depends on*. A surface is something you read, so its half reads
+**a definition a wrong *conclusion* depends on** — which covers a figure whose units are not
+guessable *and* two tables misread as redundant, with no third category to remember.
+
+- **Prose that restates the heading, the columns or the picture is deleted, not moved.** *One row
+  per station, one bar per order* describes what the Gantt visibly is. *Workcenters of this type
+  are drawn with it* restates what picking an icon does. *Reorder on the Sequence tab and watch it
+  flatten* describes something you can watch.
+- **What survives goes behind a tappable `ⓘ` beside the name of the thing it explains** —
+  `common/help_icon.dart`'s `namedHelp`. A results tab hangs it on its label in the strip, a
+  section on its `titleSmall`, a group on its tile title, a field on its `suffixIcon` as before.
+- **A surface with no name on screen is the defect, not the case for a caption.** The Occupation
+  thresholds had no heading, so their paragraph had to introduce itself; it has one now
+  (*Occupation bands*) and the paragraph is behind it.
+- **The test is applied per sentence, not per string.** Most captions were half restatement and
+  half definition, so moving one whole would have hidden the half that never earned its space —
+  exactly what §12.7 warns a tooltip does. The Gantt's 352 characters were cut to 174 before they
+  moved; the plan's 234 to 198; three Demand captions lost a paste hint apiece.
+
+**Conditional prose is exempt.** Text that appears only when its condition holds has already
+justified itself, and its condition *is* its relevance test — the schedule-tail warning, the
+whole-run caveat on utilisation, the note that a queue is shared. The complaint is about what is on
+screen every visit; a warning seen once a year is exactly when the words should be in front of you.
+
+**And an affordance is not an explanation.** *Paste a block from Excel with Ctrl+V* was inside two
+captions, which is why they read as tacked on: it answers *how do I drive this*, not *what does
+this mean*. It is one key now, shown above either Demand grid **while that grid is empty** — the
+only moment the question is live. Pasting a block across rows and columns is not what every grid
+does and nobody tries it unprompted, so it is kept rather than deleted.
+
+_Priced and accepted:_ a definition behind an `ⓘ` is absent from a screenshot, which is how this
+project's findings travel, and unreachable by keyboard on some of these surfaces. It is read when
+learning a surface, not when reporting one. *Rejected: a dismissable popover that survives a
+screenshot* — a second mechanism beside a working one, for a case that is not how these are read.
+_Rejected: a length cap in place._ It is a budget, not a judgement: a caption that restates its
+heading survives as long as it is short, and the count never falls.
+_Rejected: deleting every caption._ §12.7 already refused the field-level version of this, and the
+float matrix is the surface-level answer — its rows are *ranks within a month*, so rank 3 in
+January and rank 3 in April are unrelated orders, and no heading can say that.
+
+**Random text, which was three things and not one.** *Prose wedged among controls* — the production
+plan opened its toolbar `Row` with a two-line paragraph, so a caption, a segmented button and an
+export button read as one line of chrome; that `Row` is controls only now. *The same claim twice in
+different words* — the workcenter editor and the add-existing dialog each argued that a workcenter
+belongs to the plant, so neither read as authoritative; they share one key. *Left-over strings* —
+**41 of 592 ARB keys rendered nowhere**, across three locales, and are gone. (`flowQueueName` is
+kept: three tests assert the absence of the field §7.3 removed, and the key is how they name it.)
+
 ---
 
 ## 13. Exports

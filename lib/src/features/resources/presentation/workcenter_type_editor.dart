@@ -114,13 +114,9 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
                   onSubmitted: (_) => _submit(value),
                 ),
                 const SizedBox(height: 16),
+                // *Deleted, not moved* (§12.7b): "workcenters of this type are
+                // drawn with it" restates what picking an icon visibly does.
                 Text(l10n.workcenterTypeIcon, style: theme.textTheme.labelLarge),
-                Text(
-                  l10n.workcenterTypeIconHelp,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
                 const SizedBox(height: 8),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 220),

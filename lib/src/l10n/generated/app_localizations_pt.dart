@@ -24,12 +24,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get navSettings => 'Configurações';
 
   @override
-  String get navAbout => 'Sobre';
-
-  @override
-  String get actionAdd => 'Adicionar';
-
-  @override
   String get actionEdit => 'Editar';
 
   @override
@@ -58,12 +52,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get fieldName => 'Nome';
-
-  @override
-  String get fieldCode => 'Código';
-
-  @override
-  String get fieldType => 'Tipo';
 
   @override
   String get fieldNotes => 'Observações';
@@ -100,10 +88,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get plantNew => 'Nova planta';
 
   @override
-  String get plantDeleteBlocked =>
-      'Esta planta possui células de produção. Arquive-a em vez de excluir.';
-
-  @override
   String get productionCell => 'Célula de produção';
 
   @override
@@ -130,9 +114,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get exceptionsScope =>
       'Aplica-se ao projeto inteiro — a todos os seus estudos.';
-
-  @override
-  String get navExceptions => 'Exceções';
 
   @override
   String get projectSettings => 'Definições do projeto';
@@ -196,10 +177,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get workcenterTypeIcon => 'Ícone';
-
-  @override
-  String get workcenterTypeIconHelp =>
-      'Os centros de trabalho deste tipo são desenhados com ele, na árvore e nos seletores.';
 
   @override
   String get workcenterTypeNone => 'Sem ícone';
@@ -330,20 +307,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get shiftEnd => 'Fim';
 
   @override
-  String get shiftBreak => 'Intervalo';
-
-  @override
-  String get shiftCrossesMidnight => 'Vira o dia';
-
-  @override
-  String get shiftDuration => 'Duração líquida';
-
-  @override
-  String shiftOverlapWarning(String other) {
-    return 'Este turno se sobrepõe a $other.';
-  }
-
-  @override
   String get weekdayMon => 'Seg';
 
   @override
@@ -373,23 +336,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get confirmDeleteBody => 'Isso não pode ser desfeito.';
 
   @override
-  String get confirmArchiveBody =>
-      'Permanece disponível para projetos que já o utilizam, mas fica oculto nas listas de seleção.';
-
-  @override
-  String aboutVersion(String version) {
-    return 'Versão $version';
-  }
-
-  @override
-  String aboutBuild(String build) {
-    return 'Build $build';
-  }
-
-  @override
-  String get settingsTitle => 'Configurações';
-
-  @override
   String get settingsLanguage => 'Idioma';
 
   @override
@@ -397,9 +343,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsDateFormat => 'Formato de data';
-
-  @override
-  String get settingsDateFormatLocale => 'Seguir o idioma';
 
   @override
   String get comingSoon => 'Em breve';
@@ -411,19 +354,8 @@ class AppLocalizationsPt extends AppLocalizations {
   String get workcenterAddExisting => 'Adicionar existente';
 
   @override
-  String get workcenterAddExistingHelp =>
-      'Um centro de trabalho pertence à planta, então isso só muda onde ele aparece na árvore. Qualquer estudo de qualquer linha pode utilizá-lo de todo modo.';
-
-  @override
   String get workcenterNoneToAdd =>
       'Todos os centros de trabalho desta planta já estão nesta linha.';
-
-  @override
-  String get workcenterHomeLine => 'Linha de produção principal';
-
-  @override
-  String get workcenterHomeLineHelp =>
-      'Onde aparece na árvore. Estudos de outras linhas ainda podem utilizá-lo, e é esse uso compartilhado que a simulação disputa.';
 
   @override
   String get workcenterTypeUnset => 'Sem tipo';
@@ -597,9 +529,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get stepEquivalence => 'Equivalente';
 
   @override
-  String get flowNoParts => 'Ainda não há peças';
-
-  @override
   String get footerEquivalence => 'Equivalente';
 
   @override
@@ -633,10 +562,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get mm3SlotLoad => 'Carga do slot';
 
   @override
-  String get mm3SlotLoadHelp =>
-      'O equivalente da peça vezes o tamanho do lote — o que este slot de liberação custa ao fluxo. O MM3 faz a média disto, não do equivalente.';
-
-  @override
   String get mm3NoSequence => 'Ainda não há pedidos na sequência.';
 
   @override
@@ -645,7 +570,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get mm3Help =>
-      'Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas. Reordene na aba Sequência e veja achatar.';
+      'Uma média móvel centrada de três sobre a sequência, vazia nas duas pontas.';
 
   @override
   String get summaryOccupation => 'Ocupação por centro de trabalho';
@@ -907,9 +832,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get demandTotal => 'Total';
 
   @override
-  String get demandOrderNumber => 'Pedido';
-
-  @override
   String get demandBatchSize => 'Tamanho do lote';
 
   @override
@@ -933,11 +855,11 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get demandTimesHelp =>
-      'Por peça. Digite 30:00:00, 1.5h, 90min ou 2d; um número sem unidade é lido como horas. Deixe a célula vazia quando a peça não passa pelo passo. Cole um bloco do Excel com Ctrl+V.';
+      'Por peça. Digite 30:00:00, 1.5h, 90min ou 2d; um número sem unidade é lido como horas. Deixe a célula vazia quando a peça não passa pelo passo.';
 
   @override
   String get demandSequenceHelp =>
-      'A ordem em que a planta vai produzir. Nada a reordena além de você. Cole um bloco do Excel com Ctrl+V.';
+      'A ordem em que a planta vai produzir. Nada a reordena além de você.';
 
   @override
   String get demandNoSteps =>
@@ -957,22 +879,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get taktUnit => 'Unidade';
 
   @override
-  String get taktEmpty =>
-      'Nenhum takt definido para esta linha de produção ainda.';
-
-  @override
-  String get taktPeriodNew => 'Novo período de takt';
-
-  @override
   String get taktPeriodDeleteTitle => 'Excluir este período de takt?';
-
-  @override
-  String get taktDaysHelp =>
-      'Dias são relativos à capacidade de cada centro de trabalho: um takt de 3 dias vale 68 h em uma estação aberta 22:40 por dia e 26:24 em uma aberta 8:48.';
-
-  @override
-  String get taktLiteralHelp =>
-      'Resulta na mesma duração em todos os centros de trabalho.';
 
   @override
   String get unitDays => 'dias';
@@ -999,9 +906,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get unitSecondsShort => 's';
 
   @override
-  String get schedulePeriodNew => 'Novo período';
-
-  @override
   String get schedulePeriodDeleteTitle =>
       'Excluir este período de programação?';
 
@@ -1012,29 +916,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get scheduleOperatorsPerShift => 'Operadores por turno';
 
   @override
-  String scheduleShiftsDerived(String count, String operators) {
-    return 'Turnos: $count ($operators) — contados a partir dos turnos com operadores, nunca armazenados à parte.';
-  }
-
-  @override
   String get availability => 'Disponibilidade';
 
   @override
-  String get availabilityHelp =>
-      'Fração do tempo aberto em que o centro de trabalho consegue operar. Aplicada uma única vez, ao tempo de processo.';
-
-  @override
-  String get availabilityInvalid => 'Deve ser maior que 0% e no máximo 100%';
-
-  @override
   String get rework => 'Retrabalho';
-
-  @override
-  String get reworkHelp =>
-      'Fração do trabalho que precisa ser refeita. Aumenta o tempo de processo.';
-
-  @override
-  String get reworkInvalid => 'Deve ser 0% ou mais';
 
   @override
   String get occupation => 'Ocupação';
@@ -1163,13 +1048,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Uma etapa executa em exatamente um. Um pool envia cada ordem para o membro que ficar livre primeiro.';
 
   @override
-  String get flowNodeLabel => 'Rótulo';
-
-  @override
   String get flowNodeNotes => 'Notas';
-
-  @override
-  String get flowNodeHasNotes => 'Tem notas';
 
   @override
   String get flowMoveLeft => 'Mover para antes';
@@ -1216,9 +1095,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get workcenterParallelCapacityHelp =>
       'Quantas ordens esta estação processa em paralelo. Uma é uma única máquina. Acima de uma são unidades independentes, cada uma pagando suas próprias trocas de referência — e o dobro da capacidade em tudo que é medido. Use um pool quando as máquinas forem realmente separadas e você quiser ver qual fez o quê.';
-
-  @override
-  String get studyRunSettings => 'Ajustes da simulação';
 
   @override
   String get studyStartBuffer => 'Margem de início (dias corridos)';
@@ -1402,9 +1278,6 @@ class AppLocalizationsPt extends AppLocalizations {
       'Marque um estudo na barra lateral. Vários estudos de uma mesma linha são cenários de uma só realidade, então uma execução leva no máximo um de cada.';
 
   @override
-  String get simulationNotReady => 'Não está pronto para simular';
-
-  @override
   String get simProblemNoTakt =>
       'Nenhum período de takt cobre o dia em que esta execução começaria.';
 
@@ -1558,12 +1431,8 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simulationRunFailed => 'Não foi possível concluir a simulação';
 
   @override
-  String get simProductionPlan =>
-      'Plano de produção — ordens ao longo do tempo';
-
-  @override
   String get simProductionPlanHelp =>
-      'O que esta simulação diz que cada ordem faz. As linhas seguem a ordem da sequência, que é também a ordem de liberação: o motor libera sempre a partir do início da sequência e nunca a reordena. Colunas em branco são de uma simulação anterior ao registro delas.';
+      'As linhas seguem a ordem da sequência, que é também a ordem de liberação: o motor libera sempre a partir do início da sequência e nunca a reordena. Colunas em branco são de uma simulação anterior ao registro delas.';
 
   @override
   String get simPlanOrder => 'Ordem';
@@ -1607,7 +1476,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get simGanttGapHelp =>
-      'Uma linha por estação, uma barra por ordem, todos os estudos juntos: uma estação é compartilhada, então separar o gráfico por estudo a desenharia parada enquanto processava a ordem de outra linha. Uma barra é a estação comprometida com aquela ordem, incluindo as horas fechadas. Um vão é uma estação que não está processando: fechada ou sem material. Quanto desse vão estava sequer aberto é respondido na tabela de filas.';
+      'Uma barra é a estação comprometida com aquela ordem, incluindo as horas fechadas. Um vão é uma estação que não está processando: fechada ou sem material. Quanto desse vão estava sequer aberto é respondido na tabela de filas.';
 
   @override
   String simGanttOrder(String number) {
@@ -1727,11 +1596,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get flowQueueEdit => 'Definir a fila diante deste passo';
 
   @override
-  String flowQueueTitle(String target) {
-    return 'Fila diante de $target';
-  }
-
-  @override
   String flowQueueShared(String target) {
     return 'Uma fila por estação: todos os passos que alimentam $target esperam nesta, neste estudo e nos outros.';
   }
@@ -1768,9 +1632,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get queueShortQueue => 'Fila';
 
   @override
-  String get queueShortSupermarket => 'Supermercado';
-
-  @override
   String get queueTypeSupermarket => 'Supermercado — ainda não';
 
   @override
@@ -1796,9 +1657,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get flowEndStockOutbound => 'Estoque de produto acabado';
 
   @override
-  String get flowEndStockEdit => 'Definir o estoque nesta extremidade do fluxo';
-
-  @override
   String get flowEndStockQuantity => 'Peças paradas aqui';
 
   @override
@@ -1807,9 +1665,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get flowEndStockNone => 'Não contado';
-
-  @override
-  String get flowEndStockDays => 'Dias de estoque';
 
   @override
   String get stepBalancedMark => '⇄';
@@ -1916,9 +1771,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get occupationStation => 'Estação';
 
   @override
-  String get occupationCell => 'Célula';
-
-  @override
   String get occupationLine => 'Linha';
 
   @override
@@ -1955,16 +1807,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get floatMatrixUndelivered => 'Nunca entregue';
-
-  @override
-  String floatMatrixTally(
-    String red,
-    String amber,
-    String green,
-    String undelivered,
-  ) {
-    return '$red vermelhas · $amber âmbar · $green verdes · $undelivered nunca entregues';
-  }
 
   @override
   String get floatMatrixEmpty =>
@@ -2101,4 +1943,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String floatAverageHelp(Object days) {
     return '$days dias de folga em média.';
   }
+
+  @override
+  String get demandPasteHint =>
+      'Digite um valor, ou cole um bloco do Excel com Ctrl+V.';
+
+  @override
+  String get occupationBandsTitle => 'Faixas de ocupação';
 }

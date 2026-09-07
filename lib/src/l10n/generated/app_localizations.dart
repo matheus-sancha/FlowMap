@@ -130,18 +130,6 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get navSettings;
 
-  /// No description provided for @navAbout.
-  ///
-  /// In en, this message translates to:
-  /// **'About'**
-  String get navAbout;
-
-  /// No description provided for @actionAdd.
-  ///
-  /// In en, this message translates to:
-  /// **'Add'**
-  String get actionAdd;
-
   /// No description provided for @actionEdit.
   ///
   /// In en, this message translates to:
@@ -201,18 +189,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get fieldName;
-
-  /// No description provided for @fieldCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Code'**
-  String get fieldCode;
-
-  /// No description provided for @fieldType.
-  ///
-  /// In en, this message translates to:
-  /// **'Type'**
-  String get fieldType;
 
   /// No description provided for @fieldNotes.
   ///
@@ -280,12 +256,6 @@ abstract class AppLocalizations {
   /// **'New plant'**
   String get plantNew;
 
-  /// No description provided for @plantDeleteBlocked.
-  ///
-  /// In en, this message translates to:
-  /// **'This plant has production cells. Archive it instead.'**
-  String get plantDeleteBlocked;
-
   /// No description provided for @productionCell.
   ///
   /// In en, this message translates to:
@@ -339,12 +309,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Applies to the whole project — every study in it.'**
   String get exceptionsScope;
-
-  /// No description provided for @navExceptions.
-  ///
-  /// In en, this message translates to:
-  /// **'Exceptions'**
-  String get navExceptions;
 
   /// No description provided for @projectSettings.
   ///
@@ -453,12 +417,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Icon'**
   String get workcenterTypeIcon;
-
-  /// No description provided for @workcenterTypeIconHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Workcenters of this type are drawn with it, in the tree and in the pickers.'**
-  String get workcenterTypeIconHelp;
 
   /// No description provided for @workcenterTypeNone.
   ///
@@ -712,30 +670,6 @@ abstract class AppLocalizations {
   /// **'End'**
   String get shiftEnd;
 
-  /// No description provided for @shiftBreak.
-  ///
-  /// In en, this message translates to:
-  /// **'Break'**
-  String get shiftBreak;
-
-  /// No description provided for @shiftCrossesMidnight.
-  ///
-  /// In en, this message translates to:
-  /// **'Crosses midnight'**
-  String get shiftCrossesMidnight;
-
-  /// No description provided for @shiftDuration.
-  ///
-  /// In en, this message translates to:
-  /// **'Net duration'**
-  String get shiftDuration;
-
-  /// No description provided for @shiftOverlapWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This shift overlaps {other}.'**
-  String shiftOverlapWarning(String other);
-
   /// No description provided for @weekdayMon.
   ///
   /// In en, this message translates to:
@@ -790,30 +724,6 @@ abstract class AppLocalizations {
   /// **'This cannot be undone.'**
   String get confirmDeleteBody;
 
-  /// No description provided for @confirmArchiveBody.
-  ///
-  /// In en, this message translates to:
-  /// **'It stays available to projects already using it, but is hidden from pickers.'**
-  String get confirmArchiveBody;
-
-  /// No description provided for @aboutVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Version {version}'**
-  String aboutVersion(String version);
-
-  /// No description provided for @aboutBuild.
-  ///
-  /// In en, this message translates to:
-  /// **'Build {build}'**
-  String aboutBuild(String build);
-
-  /// No description provided for @settingsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get settingsTitle;
-
   /// No description provided for @settingsLanguage.
   ///
   /// In en, this message translates to:
@@ -831,12 +741,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Date format'**
   String get settingsDateFormat;
-
-  /// No description provided for @settingsDateFormatLocale.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow language'**
-  String get settingsDateFormatLocale;
 
   /// No description provided for @comingSoon.
   ///
@@ -856,29 +760,11 @@ abstract class AppLocalizations {
   /// **'Add existing'**
   String get workcenterAddExisting;
 
-  /// No description provided for @workcenterAddExistingHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'A workcenter belongs to the plant, so this only changes where it appears in the tree. Any study of any line can use it either way.'**
-  String get workcenterAddExistingHelp;
-
   /// No description provided for @workcenterNoneToAdd.
   ///
   /// In en, this message translates to:
   /// **'Every workcenter in this plant is already on this line.'**
   String get workcenterNoneToAdd;
-
-  /// No description provided for @workcenterHomeLine.
-  ///
-  /// In en, this message translates to:
-  /// **'Home production line'**
-  String get workcenterHomeLine;
-
-  /// No description provided for @workcenterHomeLineHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Where it appears in the tree. Studies on other lines can still use it, and that shared use is what the simulation contends for.'**
-  String get workcenterHomeLineHelp;
 
   /// No description provided for @workcenterTypeUnset.
   ///
@@ -1186,12 +1072,6 @@ abstract class AppLocalizations {
   /// **'Equivalent'**
   String get stepEquivalence;
 
-  /// No description provided for @flowNoParts.
-  ///
-  /// In en, this message translates to:
-  /// **'No parts yet'**
-  String get flowNoParts;
-
   /// No description provided for @footerEquivalence.
   ///
   /// In en, this message translates to:
@@ -1252,12 +1132,6 @@ abstract class AppLocalizations {
   /// **'Slot load'**
   String get mm3SlotLoad;
 
-  /// No description provided for @mm3SlotLoadHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'The part\'s equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.'**
-  String get mm3SlotLoadHelp;
-
   /// No description provided for @mm3NoSequence.
   ///
   /// In en, this message translates to:
@@ -1273,7 +1147,7 @@ abstract class AppLocalizations {
   /// No description provided for @mm3Help.
   ///
   /// In en, this message translates to:
-  /// **'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.'**
+  /// **'A centred moving average of three over the sequence, blank at both ends.'**
   String get mm3Help;
 
   /// No description provided for @summaryOccupation.
@@ -1680,12 +1554,6 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get demandTotal;
 
-  /// No description provided for @demandOrderNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Order'**
-  String get demandOrderNumber;
-
   /// No description provided for @demandBatchSize.
   ///
   /// In en, this message translates to:
@@ -1731,13 +1599,13 @@ abstract class AppLocalizations {
   /// No description provided for @demandTimesHelp.
   ///
   /// In en, this message translates to:
-  /// **'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.'**
+  /// **'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step.'**
   String get demandTimesHelp;
 
   /// No description provided for @demandSequenceHelp.
   ///
   /// In en, this message translates to:
-  /// **'The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.'**
+  /// **'The order the plant will build in. Nothing reorders it but you.'**
   String get demandSequenceHelp;
 
   /// No description provided for @demandNoSteps.
@@ -1770,35 +1638,11 @@ abstract class AppLocalizations {
   /// **'Unit'**
   String get taktUnit;
 
-  /// No description provided for @taktEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'No takt defined for this production line yet.'**
-  String get taktEmpty;
-
-  /// No description provided for @taktPeriodNew.
-  ///
-  /// In en, this message translates to:
-  /// **'New takt period'**
-  String get taktPeriodNew;
-
   /// No description provided for @taktPeriodDeleteTitle.
   ///
   /// In en, this message translates to:
   /// **'Delete this takt period?'**
   String get taktPeriodDeleteTitle;
-
-  /// No description provided for @taktDaysHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Days are relative to each workcenter\'s own capacity: a 3-day takt is 68 h at a station open 22:40 a day, and 26:24 at one open 8:48.'**
-  String get taktDaysHelp;
-
-  /// No description provided for @taktLiteralHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Resolves to the same duration at every workcenter.'**
-  String get taktLiteralHelp;
 
   /// No description provided for @unitDays.
   ///
@@ -1848,12 +1692,6 @@ abstract class AppLocalizations {
   /// **'s'**
   String get unitSecondsShort;
 
-  /// No description provided for @schedulePeriodNew.
-  ///
-  /// In en, this message translates to:
-  /// **'New period'**
-  String get schedulePeriodNew;
-
   /// No description provided for @schedulePeriodDeleteTitle.
   ///
   /// In en, this message translates to:
@@ -1872,47 +1710,17 @@ abstract class AppLocalizations {
   /// **'Operators per shift'**
   String get scheduleOperatorsPerShift;
 
-  /// No description provided for @scheduleShiftsDerived.
-  ///
-  /// In en, this message translates to:
-  /// **'Shifts: {count} ({operators}) — counted from the shifts with operators, never stored separately.'**
-  String scheduleShiftsDerived(String count, String operators);
-
   /// No description provided for @availability.
   ///
   /// In en, this message translates to:
   /// **'Availability'**
   String get availability;
 
-  /// No description provided for @availabilityHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Fraction of open time the workcenter can actually run. Applied once, to process time.'**
-  String get availabilityHelp;
-
-  /// No description provided for @availabilityInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Must be above 0% and at most 100%'**
-  String get availabilityInvalid;
-
   /// No description provided for @rework.
   ///
   /// In en, this message translates to:
   /// **'Rework'**
   String get rework;
-
-  /// No description provided for @reworkHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Fraction of work that has to be redone. Inflates process time.'**
-  String get reworkHelp;
-
-  /// No description provided for @reworkInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Must be 0% or more'**
-  String get reworkInvalid;
 
   /// No description provided for @occupation.
   ///
@@ -2124,23 +1932,11 @@ abstract class AppLocalizations {
   /// **'A step runs on exactly one. A pool sends each order to whichever member frees first.'**
   String get flowStepTargetHelp;
 
-  /// No description provided for @flowNodeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Label'**
-  String get flowNodeLabel;
-
   /// No description provided for @flowNodeNotes.
   ///
   /// In en, this message translates to:
   /// **'Notes'**
   String get flowNodeNotes;
-
-  /// No description provided for @flowNodeHasNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Has notes'**
-  String get flowNodeHasNotes;
 
   /// No description provided for @flowMoveLeft.
   ///
@@ -2225,12 +2021,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.'**
   String get workcenterParallelCapacityHelp;
-
-  /// No description provided for @studyRunSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Run settings'**
-  String get studyRunSettings;
 
   /// No description provided for @studyStartBuffer.
   ///
@@ -2550,12 +2340,6 @@ abstract class AppLocalizations {
   /// **'Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.'**
   String get simulationNoStudiesHelp;
 
-  /// No description provided for @simulationNotReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Not ready to run'**
-  String get simulationNotReady;
-
   /// No description provided for @simProblemNoTakt.
   ///
   /// In en, this message translates to:
@@ -2814,16 +2598,10 @@ abstract class AppLocalizations {
   /// **'The run could not be completed'**
   String get simulationRunFailed;
 
-  /// No description provided for @simProductionPlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Production plan — orders over time'**
-  String get simProductionPlan;
-
   /// No description provided for @simProductionPlanHelp.
   ///
   /// In en, this message translates to:
-  /// **'What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.'**
+  /// **'Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.'**
   String get simProductionPlanHelp;
 
   /// No description provided for @simPlanOrder.
@@ -2901,7 +2679,7 @@ abstract class AppLocalizations {
   /// No description provided for @simGanttGapHelp.
   ///
   /// In en, this message translates to:
-  /// **'One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line\'s order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.'**
+  /// **'A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.'**
   String get simGanttGapHelp;
 
   /// No description provided for @simGanttOrder.
@@ -3072,12 +2850,6 @@ abstract class AppLocalizations {
   /// **'Set the queue in front of this step'**
   String get flowQueueEdit;
 
-  /// No description provided for @flowQueueTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Queue in front of {target}'**
-  String flowQueueTitle(String target);
-
   /// No description provided for @flowQueueShared.
   ///
   /// In en, this message translates to:
@@ -3144,12 +2916,6 @@ abstract class AppLocalizations {
   /// **'Queue'**
   String get queueShortQueue;
 
-  /// No description provided for @queueShortSupermarket.
-  ///
-  /// In en, this message translates to:
-  /// **'Supermarket'**
-  String get queueShortSupermarket;
-
   /// No description provided for @queueTypeSupermarket.
   ///
   /// In en, this message translates to:
@@ -3198,12 +2964,6 @@ abstract class AppLocalizations {
   /// **'Finished goods stock'**
   String get flowEndStockOutbound;
 
-  /// No description provided for @flowEndStockEdit.
-  ///
-  /// In en, this message translates to:
-  /// **'Set the stock standing at this end of the flow'**
-  String get flowEndStockEdit;
-
   /// No description provided for @flowEndStockQuantity.
   ///
   /// In en, this message translates to:
@@ -3221,12 +2981,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not counted'**
   String get flowEndStockNone;
-
-  /// No description provided for @flowEndStockDays.
-  ///
-  /// In en, this message translates to:
-  /// **'Days of stock'**
-  String get flowEndStockDays;
 
   /// No description provided for @stepBalancedMark.
   ///
@@ -3375,12 +3129,6 @@ abstract class AppLocalizations {
   /// **'Station'**
   String get occupationStation;
 
-  /// No description provided for @occupationCell.
-  ///
-  /// In en, this message translates to:
-  /// **'Cell'**
-  String get occupationCell;
-
   /// No description provided for @occupationLine.
   ///
   /// In en, this message translates to:
@@ -3446,17 +3194,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Never delivered'**
   String get floatMatrixUndelivered;
-
-  /// No description provided for @floatMatrixTally.
-  ///
-  /// In en, this message translates to:
-  /// **'{red} red · {amber} amber · {green} green · {undelivered} never delivered'**
-  String floatMatrixTally(
-    String red,
-    String amber,
-    String green,
-    String undelivered,
-  );
 
   /// No description provided for @floatMatrixEmpty.
   ///
@@ -3673,6 +3410,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{days} days of float on average.'**
   String floatAverageHelp(Object days);
+
+  /// Shown above an empty Demand grid: how to fill it.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a value, or paste a block from Excel with Ctrl+V.'**
+  String get demandPasteHint;
+
+  /// Heading for the two Occupation grid thresholds.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupation bands'**
+  String get occupationBandsTitle;
 }
 
 class _AppLocalizationsDelegate
