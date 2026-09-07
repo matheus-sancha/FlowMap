@@ -44,7 +44,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built, drive owed** |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
 | 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13), [#16](https://github.com/matheus-sancha/FlowMap/issues/16) — **executed and driven** |
-| 7 | Text clean-up | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **open, deciding** |
+| — | ~~Text clean-up~~ | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **executed, not phased** |
 | 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **executed and driven** |
 | 9 | The period filter | ? | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **open, deciding** |
 | 10 | Pane state | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **open, deciding** |
@@ -404,11 +404,6 @@ them, and they are still *deciding*, not built.
   [#18](https://github.com/matheus-sancha/FlowMap/issues/18) is small and sharp: `_sidebarCollapsed`
   is a `setState` flag that does not survive a route change, the last piece of in-memory UI state
   phase 3 did not convert.
-- **Phase 7 — text clean-up.** *"Too much explanation and random text."* Asked where it was worst,
-  the answer was **the long inline help paragraphs** — not the field-level helpers, not the empty
-  states, not the captions. 589 keys, 81 named `*Help`, 97 over 70 characters, ~20 rendered inline;
-  the longest is 352 characters on the Gantt. [#15](https://github.com/matheus-sancha/FlowMap/issues/15)
-  wants a **rule in `DESIGN.md`**, not twenty one-off deletions.
 
 **The 23 checks are still owed.** `docs/DRIVE-2026-08-31.md` stays until they are answered — the four
 unopened study tabs and the period control, `?study=` across a tab change, the 130-row drag and the
@@ -429,6 +424,7 @@ answer is unambiguous is executed rather than planned.
 | Commit | What |
 |---|---|
 | `1d4cb0d` | Four renames, before the map opened: the duplicate **Simulation** button under *New study* gone; *View results* → **Simulation results**; *In simulation* → **Simulation settings**; *Include in runs* → **Include in simulation**. |
+| `f30b4ab` | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **§12.7b**, the surface half of a rule the app already had: prose that restates its heading is deleted, a definition a wrong *conclusion* depends on goes behind an `ⓘ` beside the name of the thing it explains. Fifteen standing captions swept, 41 dead ARB keys gone in three locales. Not a phase, because it reaches no schema, no engine and no stored run. **A drive is owed.** |
 | `8daf2a8` | [#8](https://github.com/matheus-sancha/FlowMap/issues/8) — the seed off green to blueprint blue `#1F5C8B`, status colours and the occupation ramp chosen explicitly, space/radius/motion scales named. Two palette defects fixed that two tests had agreed were fine. |
 | `3d82715` | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — the Delivery Float was painting the band named *green* in the brand's blue; a real legend in three locales; `fill:` on the overview tables; optional sorting on `resultTable`. |
 | `9264a90` | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — the arrows leave a cell only once the caret cannot; the Gantt pans on middle-drag or space+drag; `centred_table.dart` deleted, having had zero callers. |
