@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/common/period_granularity.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dart';
 import 'package:flowmap/src/features/calendar/application/working_calendar.dart';
@@ -696,4 +697,235 @@ void main() {
       }
     });
   });
+  group('the granularity re-columns it (#17)', () {
+    /// **Its own run, because the shared fixture is one month wide.** Every
+    /// rule in this group is about folding several months into one column, and
+    /// a single-month run can only assert that folding one month gives one
+    /// column. Widening `model()` instead would move every figure the tests
+    /// above pin down.
+    ///
+    /// One study, thirty orders released three days apart, so the run spans
+    /// about a quarter of a year and the capacity table spans it too.
+    Future<StoredRun> storedWide() async {
+      final projectId = await seedProject();
+      final plant = {
+        'wc-1': workcenter('wc-1', 'CLAD04', typeId: 't', typeName: 'T'),
+        'wc-2': workcenter('wc-2', 'MILL02', typeId: 't', typeName: 'T'),
+      };
+      final studies = [
+        SimStudy(
+          id: 'study-a',
+          name: 'Line A',
+          productionCellId: 'cell-1',
+          productionCellName: 'Cell 11',
+          productionLineId: 'line-a',
+          productionLineName: 'Fluxo A',
+          nodes: [
+            SimStep(
+              id: 'n0',
+              position: 0,
+              title: 'Cladding',
+              candidates: const ['wc-1'],
+              demandKey: 'wc-1',
+              queue: SimQueue(targetId: 'wc-1'),
+            ),
+            SimStep(
+              id: 'n1',
+              position: 1,
+              title: 'Milling',
+              candidates: const ['wc-2'],
+              demandKey: 'wc-2',
+              queue: SimQueue(targetId: 'wc-2'),
+            ),
+          ],
+          parts: {
+            'part-a': SimPart(
+              id: 'part-a',
+              partNumber: 'PN-a',
+              processTimes: const {
+                'wc-1': Duration(hours: 4),
+                'wc-2': Duration(hours: 2),
+              },
+            ),
+          },
+          orders: [
+            for (var i = 0; i < 30; i++)
+              SimOrder(
+                id: 'o$i',
+                sequence: i,
+                partId: 'part-a',
+                needDate: DateTime(2026, 1, 15).add(Duration(days: i * 9)),
+              ),
+          ],
+          releaseInterval: const Duration(days: 3),
+          releaseCalendarId: 'wc-1',
+        ),
+      ];
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+      return (await runs.loadRun(runId))!;
+    }
+
+    test('the fixture really does span several months', () async {
+      // Guards the group rather than the code: every test below is vacuous on a
+      // one-month run, and passing vacuously is how the chart's own tests came
+      // to say nothing for two commits (#13).
+      final grid = occupationGrid(run: await storedWide())!;
+      expect(grid.months.length, greaterThan(2));
+    });
+
+    test('a coarser column is the sum of its months, both sides', () async {
+      // **A ratio of sums, never a mean of ratios** — #14's arithmetic for the
+      // TOTAL column, and for its reason: averaging monthly percentages would
+      // weight a 733 h month like a 499 h one. Asserted against the monthly
+      // grid rather than a constant, so the two cannot drift apart.
+      final run = await storedWide();
+      final monthly = occupationGrid(run: run)!;
+      final yearly = occupationGrid(
+        run: run,
+        granularity: PeriodGranularity.year,
+      )!;
+
+      final before = rowFor(monthly, 'MILL02');
+      final after = rowFor(yearly, 'MILL02');
+      expect(before.cells.length, greaterThan(1));
+
+      var asked = Duration.zero;
+      var open = Duration.zero;
+      for (final cell in before.cells.values) {
+        asked += cell.asked;
+        open += cell.open;
+      }
+      final folded = after.cells.values.single;
+      expect(folded.asked, asked);
+      expect(folded.open, open);
+      expect(folded.ratio, asked.inSeconds / open.inSeconds);
+
+      // And it is *not* the mean of the monthly ratios, which is the mistake
+      // this test exists to prevent.
+      final ratios = [for (final cell in before.cells.values) ?cell.ratio];
+      final meanOfRatios =
+          ratios.reduce((a, b) => a + b) / ratios.length;
+      expect(folded.ratio, isNot(closeTo(meanOfRatios, 1e-9)));
+    });
+
+    test('every granularity keeps the same total hours', () async {
+      // Coarsening aggregates; it must not lose or invent an hour. The float
+      // matrix was kept off this control precisely because it aggregates
+      // nothing — here the invariant is that only the columns change.
+      final run = await storedWide();
+      Duration askedAt(PeriodGranularity granularity) {
+        final grid = occupationGrid(run: run, granularity: granularity)!;
+        var total = Duration.zero;
+        for (final cell in grid.total.cells.values) {
+          total += cell.asked;
+        }
+        return total;
+      }
+
+      final monthly = askedAt(PeriodGranularity.month);
+      expect(monthly, greaterThan(Duration.zero));
+      for (final granularity in PeriodGranularity.values) {
+        expect(askedAt(granularity), monthly, reason: granularity.name);
+      }
+    });
+
+    test('columns never outnumber the months they fold', () async {
+      final run = await storedWide();
+      var previous = 1 << 30;
+      for (final granularity in PeriodGranularity.values) {
+        final count = occupationGrid(
+          run: run,
+          granularity: granularity,
+        )!.months.length;
+        expect(count, lessThanOrEqualTo(previous), reason: granularity.name);
+        previous = count;
+      }
+      expect(previous, 1, reason: 'a run inside one year is one year column');
+    });
+
+    test('the chart columns exactly as the grid does', () async {
+      // #16 draws the chart as the grid's own header — one bar directly above
+      // its own row of cells. Two different foldings would put a bar over the
+      // wrong figures, and nothing in the suite renders a pixel to catch it.
+      final run = await storedWide();
+      for (final granularity in PeriodGranularity.values) {
+        final grid = occupationGrid(run: run, granularity: granularity)!;
+        final chart = occupationGraph(run: run, granularity: granularity)!;
+        expect(
+          chart.months.map((m) => m.month).toList(),
+          grid.months,
+          reason: 'chart and grid must agree at ${granularity.name}',
+        );
+      }
+    });
+
+    test('a period survives when only part of it is in range', () async {
+      // **The defect this nearly shipped with.** Folding capacity before
+      // applying the date filter drops a period whose first day falls before
+      // the range — ask for the second month onward while reading quarters and
+      // the quarter holding it vanishes, taking two in-range months with it.
+      // The filter stays monthly and the fold happens after it.
+      final run = await storedWide();
+      final months = occupationGrid(run: run)!.months;
+      final quarter = PeriodGranularity.quarter.startOf(months.first);
+      final sharing = months
+          .where((m) => PeriodGranularity.quarter.startOf(m) == quarter)
+          .toList();
+      expect(
+        sharing.length,
+        greaterThan(1),
+        reason: 'the case needs two months inside one quarter',
+      );
+
+      final fromSecond = occupationGrid(
+        run: run,
+        filter: RunFilter(from: sharing[1]),
+        granularity: PeriodGranularity.quarter,
+      )!;
+      expect(
+        fromSecond.months,
+        contains(quarter),
+        reason: 'the quarter holding an in-range month must survive',
+      );
+
+      // And it holds only what is still in range, not the whole quarter.
+      final whole = occupationGrid(
+        run: run,
+        granularity: PeriodGranularity.quarter,
+      )!;
+      expect(
+        rowFor(fromSecond, 'MILL02').cells[quarter]!.open,
+        lessThan(rowFor(whole, 'MILL02').cells[quarter]!.open),
+      );
+    });
+
+    test('runMonths is the union of need dates and capacity', () async {
+      // Need dates and capacity do not cover the same months, so the slicer's
+      // stops are their union — need dates alone would put capacity-only months
+      // beyond the left end and make them unreachable on the grid.
+      final run = await storedWide();
+      final stops = runMonths(run);
+      expect(stops, isNotEmpty);
+      expect(stops, orderedEquals(stops.toList()..sort()));
+
+      for (final outcome in run.result.orders) {
+        expect(
+          stops,
+          contains(DateTime(outcome.needDate.year, outcome.needDate.month)),
+        );
+      }
+      for (final byMonth in run.result.openByWorkcenterMonth.values) {
+        for (final month in byMonth.keys) {
+          expect(stops, contains(DateTime(month.year, month.month)));
+        }
+      }
+    });
+  });
+
 }

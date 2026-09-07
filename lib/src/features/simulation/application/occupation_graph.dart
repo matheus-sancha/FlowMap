@@ -12,6 +12,7 @@ library;
 
 import '../data/simulation_runs_repository.dart';
 import 'run_filter.dart';
+import '../../../common/period_granularity.dart';
 
 /// Which stations are in view, on top of the study and order filters
 /// [RunFilter] already carries.
@@ -195,9 +196,10 @@ class OccupationGraph {
 OccupationGraph? occupationGraph({
   required StoredRun run,
   RunFilter filter = const RunFilter(),
+  PeriodGranularity granularity = PeriodGranularity.month,
 }) {
-  final capacityByStation = run.result.openByWorkcenterMonth;
-  if (capacityByStation.isEmpty) return null;
+  final monthly = run.result.openByWorkcenterMonth;
+  if (monthly.isEmpty) return null;
 
   final typeOf = {
     for (final row in run.metrics.workcenters) row.workcenterId: row.typeId,
@@ -265,8 +267,8 @@ OccupationGraph? occupationGraph({
     // scheduled otherwise — so bucketing by `processStart` hides the overload
     // that caused the queue. Five orders arriving with 500 h against a 400 h
     // month is 125 %, and the bar is meant to break the line.
-    final month = DateTime(step.queueStart.year, step.queueStart.month);
     if (!filter.includesDate(step.queueStart)) continue;
+    final month = granularity.startOf(step.queueStart);
 
     final before = step.processSecondsBeforeRework;
     final total = step.processSeconds;
@@ -293,9 +295,30 @@ OccupationGraph? occupationGraph({
   // Every month the run spans at the stations in view, whether or not anything
   // arrived in it: a quiet month is a fact about the plan and a gap in the axis
   // would hide it.
-  final months = <DateTime>{
-    for (final id in inView) ...?capacityByStation[id]?.keys,
-  }.where(filter.includesDate).toList()..sort();
+  // **Filtered monthly, then folded — the grid's order exactly** (#17). The
+  // chart is the grid's banner since #16, one bar directly above its own row of
+  // cells, so a column the two computed differently would be a bar over the
+  // wrong figures.
+  final keptMonths = <DateTime>{
+    for (final id in inView) ...?monthly[id]?.keys,
+  }.where(filter.includesDate).toSet();
+
+  final capacityByStation = <String, Map<DateTime, Duration>>{
+    for (final entry in monthly.entries) entry.key: <DateTime, Duration>{},
+  };
+  for (final entry in monthly.entries) {
+    final folded = capacityByStation[entry.key]!;
+    for (final month in entry.value.entries) {
+      if (!keptMonths.contains(month.key)) continue;
+      folded.update(
+        granularity.startOf(month.key),
+        (had) => had + month.value,
+        ifAbsent: () => month.value,
+      );
+    }
+  }
+
+  final months = keptMonths.map(granularity.startOf).toSet().toList()..sort();
 
   final columns = [
     for (final month in months)
@@ -344,7 +367,7 @@ OccupationGraph? occupationGraph({
   for (final step in run.result.steps) {
     if (!inView.contains(step.workcenterId)) continue;
     if (!filter.includesDate(step.queueStart)) continue;
-    final month = DateTime(step.queueStart.year, step.queueStart.month);
+    final month = granularity.startOf(step.queueStart);
     if (!months.contains(month)) continue;
     final type = typeOf[step.workcenterId];
     if (type == null) continue;

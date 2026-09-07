@@ -100,6 +100,7 @@ class PeriodMatrix extends StatelessWidget {
     required this.rows,
     required this.cellAt,
     required this.headerLabel,
+    this.columnLabel,
     this.headerWidth = 150,
     this.monthWidth = defaultMonthWidth,
     this.banner,
@@ -124,6 +125,15 @@ class PeriodMatrix extends StatelessWidget {
   /// What sits over the frozen column: `#` on the float matrix, the grouping's
   /// name on the Occupation grid.
   final String headerLabel;
+
+  /// How a column names itself.
+  ///
+  /// **A callback rather than a granularity** (#17). The Occupation grid columns
+  /// by month, quarter, semester or year; the float matrix only ever by month.
+  /// Handing this widget the enum would make it know which of its two callers
+  /// it is drawing for, which is the thing #10 kept it from knowing: they share
+  /// the chrome and not the row semantics. Defaults to `MMM/yy`.
+  final String Function(DateTime)? columnLabel;
   final double headerWidth;
 
   /// The width every month column takes unless a caller says otherwise.
@@ -348,7 +358,9 @@ class PeriodMatrix extends StatelessWidget {
                                 horizontal: 4,
                               ),
                               child: _MonthHeading(
-                                label: DateFormat('MMM/yy').format(month),
+                                label:
+                                    columnLabel?.call(month) ??
+                                    DateFormat('MMM/yy').format(month),
                                 sorted: sortedMonth == index,
                                 ascending: sortAscending,
                                 onTap: onSortMonth == null

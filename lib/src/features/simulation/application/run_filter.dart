@@ -175,6 +175,27 @@ class RunFilter {
   }
 }
 
+/// Every month the run holds anything for, ascending — the slicer's stops.
+///
+/// **The union of two spans, and it has to be** (#17). Need dates and monthly
+/// capacity do not cover the same months: on the live database the widest run's
+/// orders run December 2025 to December 2026 while its capacity runs October
+/// 2025 to December 2026, so taking need dates alone would put two months of
+/// real capacity beyond the left end of the slider and make them unreachable on
+/// the Occupation grid. Taking capacity alone fails the other way on a run made
+/// before v25, which has none.
+///
+/// Empty only when the run has neither, which is a run with no orders.
+List<DateTime> runMonths(StoredRun run) {
+  final months = <DateTime>{
+    for (final outcome in run.result.orders)
+      DateTime(outcome.needDate.year, outcome.needDate.month),
+    for (final byMonth in run.result.openByWorkcenterMonth.values)
+      for (final month in byMonth.keys) DateTime(month.year, month.month),
+  }.toList()..sort();
+  return months;
+}
+
 /// A stored run as one slice of it reads.
 class FilteredRun {
   FilteredRun({

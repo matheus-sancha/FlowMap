@@ -2272,3 +2272,67 @@ chart paints none of it, because a caption is the thing that grows back, and
 **A drive is owed.** Nothing in the suite renders a pixel, so what an `ⓘ` looks
 like in a scrollable `TabBar` — and whether four of them crowd a five-tab strip
 — has not been seen.
+
+---
+
+## 8. The period slicer and the granularity, 2026-09-07
+
+Ticket [#17](https://github.com/matheus-sancha/FlowMap/issues/17), reasoning in `DESIGN.md` §12.8.
+
+**Three of the ticket's own premises were wrong, and the live database corrected a fourth.**
+
+- *"`semester` is a domain word this codebase has never used."* `PeriodGranularity` has shipped since
+  §12.1 with **four** values — month, quarter, semester, year — a semester already defined as a
+  calendar half, and `periodMonth` / `periodQuarterly` / `periodSemesterly` / `periodYearly` already
+  translated in three locales. The l10n cost the ticket priced was **zero**, and the field asked for
+  three values where the app had four.
+- *"a year column is a sum the model does not currently produce."* It is a sum over
+  `simulation_run_workcenter_months`, which is a **read-side aggregation**. Nothing reaches the
+  schema, the engine, or a stored run — so this executed inside the ticket rather than landing as a
+  phase, which the ticket had flagged as possible.
+- *"the run's span is 15 months on the live database."* 15 is the **capacity** span. Orders span
+  **10–13 months, median 12**, across all 149 runs that have any. Both figures are real and they
+  measure different things, which is why `runMonths` is their union.
+
+**What re-columning is worth, from real rows.** The widest run: month **15 columns**, quarter **5**,
+semester **3**, year **2**. Quarter is the one that reads.
+
+**And what it costs, which is the finding.** Coarsening **hides overload** — the same run's worst
+station reads **148.5 %** in a month, **128.2 %** in its quarter, **118.9 %** in its semester and
+**101.8 %** in the year. The view exists to find a station asking for more than it has; a wider
+column averages a bad March against a quiet April. Month stays the default and the control is a
+dropdown, so the coarse values are a deliberate reach.
+
+**The arithmetic is not a rounding argument.** Ratio of sums gives **68.384 %** at every
+granularity, as it must. Mean of ratios gives **64.8 / 66.9 / 67.5 / 67.2 %** — wrong by up to
+**3.58 points**.
+
+**The float matrix does not follow the control**, and that is the design rather than an omission.
+Only surfaces whose cells *sum* can coarsen. The float matrix's rows are ranks within a column, so
+by year it becomes one column of 250 rows — the same orders re-poured, with §10.4's warning that
+rank 3 in January and rank 3 in April are unrelated orders made worse rather than better.
+
+**A defect caught by writing its test, not by running the app.** Folding capacity to the granularity
+*before* applying the date filter drops a period whose first day falls before the range: ask for
+February onward while reading quarters and Q1 disappears, taking February and March with it. The
+filter stays monthly and the fold happens after it. `a period survives when only part of it is in
+range` holds it down.
+
+**The date picker had a defect nobody had reported.** `showDateRangePicker` chose *days* while the
+button printed only year and month, so 15 January – 20 February read back as `2026-01 → 2026-02`.
+The slicer snaps to whole months and the control now says exactly what it takes. It also makes the
+empty period range **unreachable**, so `occupationUngraphable` keeps its one meaning.
+
+**`PeriodGranularity` moved to `common/`** and `flow_view.dart` re-exports it, so its ten existing
+importers are untouched. `PeriodMatrix` gained a `columnLabel` callback rather than a granularity:
+it has two callers, only one of which coarsens, and §12.5b keeps it from knowing which it is
+drawing for.
+
+**Seven tests, 1,069 passing.** They assert the fold both ways, that every granularity preserves the
+total hours, that columns never outnumber the months they fold, that the chart and the grid produce
+identical column lists at all four granularities, and that `runMonths` is a union. The group builds
+its **own** 30-order run: the shared fixture is one month wide, on which every one of these would
+pass vacuously — which is how the chart's tests came to say nothing for two commits (#13).
+
+**A drive is owed.** Nothing in the suite renders a pixel, so a `RangeSlider` in a filter bar and a
+five-column grid have not been looked at.

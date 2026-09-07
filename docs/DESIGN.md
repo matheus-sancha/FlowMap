@@ -3000,6 +3000,84 @@ belongs to the plant, so neither read as authoritative; they share one key. *Lef
 **41 of 592 ARB keys rendered nowhere**, across three locales, and are gone. (`flowQueueName` is
 kept: three tests assert the absence of the field §7.3 removed, and the key is how they name it.)
 
+### 12.8 What a period matrix is columned by, and what slices it
+
+Field feedback: *"Change the date filter to date filter slicer and add next a dropdown filter with
+(Year/Semester/Month)."* Two controls, and they turned out to govern different things.
+
+**The granularity was already in the app.** `PeriodGranularity` — month, quarter, semester, year —
+has driven the Flow map's period navigator since §12.1, with `startOf`/`endOf`/`shift`, a semester
+defined as a **calendar half**, and all four labels translated in three locales. It moved to
+`common/` rather than being reinvented: a plant whose Flow map steps a quarter at a time and whose
+Occupation grid cannot show one would be two apps. The field asked for three values; the app has
+**four**, and quarter is the one that actually reads.
+
+**Only what aggregates follows it.** The Occupation grid and its chart coarsen because their cells
+*sum* — a quarter's demand over a quarter's capacity is a figure a month cannot show. The float
+matrix sums nothing: its rows are ranks within a column (§12.5b), so coarsening only re-pours the
+same orders from 12 columns of 28 into 1 of 250, and §10.4's own rule that *rank 3 in January and
+rank 3 in April are unrelated orders* gets worse rather than better. It stays monthly.
+
+- **A coarse cell is a ratio of sums, never a mean of ratios** — #14's arithmetic for the TOTAL
+  column, for its reason. On the live database this is not a rounding argument: the whole-plant
+  figure is **68.384 % at every granularity** taken as a ratio of sums, and **64.8 / 66.9 / 67.5 /
+  67.2 %** taken as a mean of ratios, wrong by up to **3.58 points**.
+- **The date filter stays monthly and the fold happens after it.** Folding first drops a period
+  whose first day falls before the range — ask for February onward while reading quarters and Q1
+  vanishes, taking February and March with it. A period is in view when *any* of its months is.
+- **The chart folds identically to the grid**, because since #16 it *is* the grid's header: one bar
+  directly above its own row of cells. Two foldings would put a bar over the wrong figures, and
+  nothing in the suite renders a pixel to catch that — so a test asserts the two column lists are
+  equal at all four granularities.
+
+**The cost, measured and accepted: coarsening hides overload.** The view exists to find a station
+asking for more than it has, and the live database's worst station reads **148.5 % in a month,
+128.2 % in its quarter, 118.9 % in its semester and 101.8 % in the year**. Averaging a bad March
+against a quiet April is what a wider column *is*. Month therefore stays the default, and the
+control is a dropdown rather than a segmented button so the coarse values are a deliberate reach
+rather than one tap away.
+
+**The granularity is a view setting; the slicer is the filter.** It sits beside the Occupation
+view's grouping and unit switches — the other two things that rewrite these columns — and like them
+it is local state and stays out of the URL, which §12.1 reserves for `?study=`. It is deliberately
+*not* in the shared filter bar: it would be inert on four of the five results tabs, and a control
+that visibly does nothing is worse than one that is not offered.
+
+_Rejected: putting it in the shared bar and hiding it off the Occupation tab._ §12.1 already took
+this the other way for the study-side period control — *"a control that vanishes makes the strip
+jump"* — and arguing both sides on one screen is worse than either.
+_Rejected: a granularity on `PeriodMatrix` itself._ It has two callers and only one obeys this, so
+the widget would carry a control the other must switch off; it takes a `columnLabel` callback
+instead and goes on knowing nothing about which caller it draws for (§12.5b).
+
+#### The slicer
+
+**A range slider over the run's own months**, replacing `showDateRangePicker` — and the reason is a
+defect. The modal picked *days* while the button beside it printed only year and month, so choosing
+15 January to 20 February read back as `2026-01 → 2026-02`: a control accepting precision it never
+showed. Snapping to whole months makes it say exactly what it takes, and month is the resolution
+every surface downstream buckets by in any case.
+
+**The stops are `runMonths` — the union of the run's need-date months and its capacity months.**
+They are not the same span: on the live database the widest run's orders run December 2025 to
+December 2026 while its capacity runs October 2025 to December 2026, so need dates alone would put
+two months of real capacity beyond the left end of the slider and make them unreachable on the
+Occupation grid. Real runs are **10–13 months** of orders (median 12) and **15 months** of capacity,
+so this is a slider of twelve to fifteen stops rather than one of four hundred and fifty days.
+
+- **The whole span is *no filter*, not a filter matching everything**, so `isWholeRun` stays true
+  and every surface that asks whether anything narrowed keeps its answer.
+- **The empty range is now unreachable.** Two date pickers could express a range no month falls in;
+  a slider whose stops are the run's own months cannot. `occupationUngraphable` therefore keeps its
+  single meaning — *this run predates v25* — instead of acquiring a second one.
+- **A one-month run shows no slicer at all.** `RangeSlider` asserts on `min == max`, and the only
+  range such a run can express is the one it already has.
+
+_Rejected: day resolution over the span._ ~450 stops in a filter bar is roughly a pixel a day, so
+nobody lands on a chosen date by dragging and the label would have to become the real control.
+_Rejected: a sparkline of orders per month behind the track._ It reads well, and it is a chart in a
+filter bar — a new painter, with nothing in the suite rendering a pixel, landing unverified.
+
 ---
 
 ## 13. Exports

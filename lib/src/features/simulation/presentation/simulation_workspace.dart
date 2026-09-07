@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../common/help_icon.dart';
 import '../../../data/database/database.dart';
@@ -356,7 +357,11 @@ class _FilterBar extends StatelessWidget {
                     onChanged: onOrders,
                   ),
                   const SizedBox(width: 8),
-                  _PeriodPicker(period: period, onChanged: onPeriod),
+                  _PeriodSlicer(
+                    months: run == null ? const [] : runMonths(run!),
+                    period: period,
+                    onChanged: onPeriod,
+                  ),
                   if (anyFilter) ...[
                     const SizedBox(width: 8),
                     TextButton.icon(
@@ -559,34 +564,112 @@ class _OrderNumberFieldState extends State<_OrderNumberField> {
   }
 }
 
-class _PeriodPicker extends StatelessWidget {
-  const _PeriodPicker({required this.period, required this.onChanged});
+/// The period slicer: a range over the run's own months (#17).
+///
+/// **It replaced `showDateRangePicker`, and the reason is a defect.** The modal
+/// picked *days* while the button beside it printed only year and month, so
+/// choosing 15 January to 20 February read back as `2026-01 → 2026-02` — a
+/// control accepting precision it never showed. Snapping to whole months makes
+/// the control say exactly what it takes, and it is the resolution every
+/// surface downstream buckets by in any case.
+///
+/// **The stops are the run's own months**, from [runMonths], so a range outside
+/// the run cannot be expressed and the empty slice this filter used to be able
+/// to produce is now unreachable. Other filters can still empty a run; this one
+/// cannot, which is why `occupationUngraphable` keeps meaning what it says —
+/// *this run predates v25* — rather than acquiring a second meaning.
+///
+/// _Rejected: day resolution over the span._ ~450 stops in a filter bar is a
+/// pixel a day, so no one lands on a date by dragging and the label would have
+/// to become the real control.
+/// _Rejected: a sparkline of orders per month behind the track._ It reads well
+/// and it is a chart in a filter bar — a new painter, nothing in the suite
+/// renders a pixel, and it would land unverified.
+class _PeriodSlicer extends StatelessWidget {
+  const _PeriodSlicer({
+    required this.months,
+    required this.period,
+    required this.onChanged,
+  });
 
+  /// Ascending, one entry per month the run holds anything for.
+  final List<DateTime> months;
   final DateTimeRange? period;
   final ValueChanged<DateTimeRange?> onChanged;
+
+  /// The last instant of [month], so `to` includes the whole of it.
+  static DateTime _endOf(DateTime month) =>
+      DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+  int _indexFor(DateTime date, {required int fallback}) {
+    final key = DateTime(date.year, date.month);
+    final at = months.indexWhere((m) => !m.isBefore(key));
+    if (at < 0) return fallback;
+    return at;
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    // **A run with one month has no range to drag**, and `RangeSlider` asserts
+    // on min == max. Nothing is lost by omitting it: the only range a one-month
+    // run can express is the one it already has.
+    if (months.length < 2) return const SizedBox.shrink();
+
+    final last = months.length - 1;
+    final start = period == null
+        ? 0
+        : _indexFor(period!.start, fallback: 0);
+    final end = period == null ? last : _indexFor(period!.end, fallback: last);
+    final values = RangeValues(
+      start.clamp(0, last).toDouble(),
+      end.clamp(0, last).toDouble(),
+    );
+    final whole = values.start == 0 && values.end == last;
+    final format = DateFormat.yMMM(Localizations.localeOf(context).toString());
+
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        OutlinedButton.icon(
-          onPressed: () async {
-            final picked = await showDateRangePicker(
-              context: context,
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2100),
-              initialDateRange: period,
-            );
-            if (picked != null) onChanged(picked);
-          },
-          icon: const Icon(Icons.date_range, size: 18),
-          label: Text(
-            period == null
-                ? '${l10n.simFilterPeriod} · ${l10n.simFilterAll}'
-                : '${period!.start.year}-${period!.start.month.toString().padLeft(2, '0')}'
-                      ' → ${period!.end.year}-${period!.end.month.toString().padLeft(2, '0')}',
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              whole
+                  ? '${l10n.simFilterPeriod} · ${l10n.simFilterAll}'
+                  : '${format.format(months[values.start.round()])}'
+                        ' → ${format.format(months[values.end.round()])}',
+              style: theme.textTheme.bodySmall,
+            ),
+            SizedBox(
+              width: 220,
+              child: RangeSlider(
+                values: values,
+                min: 0,
+                max: last.toDouble(),
+                divisions: last,
+                labels: RangeLabels(
+                  format.format(months[values.start.round()]),
+                  format.format(months[values.end.round()]),
+                ),
+                onChanged: (next) {
+                  final lo = next.start.round();
+                  final hi = next.end.round();
+                  // The whole span is *no filter*, not a filter that happens to
+                  // match everything — so `isWholeRun` stays true and every
+                  // surface that asks whether anything narrowed keeps its
+                  // answer (§12.1).
+                  if (lo == 0 && hi == last) return onChanged(null);
+                  onChanged(
+                    DateTimeRange(start: months[lo], end: _endOf(months[hi])),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
         // The one thing about this filter a reader has to know, and it cannot be
         // guessed from the control: it selects by **need date**, which is the

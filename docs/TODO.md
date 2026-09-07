@@ -46,7 +46,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13), [#16](https://github.com/matheus-sancha/FlowMap/issues/16) — **executed and driven** |
 | — | ~~Text clean-up~~ | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **executed, not phased** |
 | 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **executed and driven** |
-| 9 | The period filter | ? | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **open, deciding** |
+| — | ~~The period filter~~ | — | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **executed, not phased** |
 | 10 | Pane state | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **open, deciding** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
@@ -392,15 +392,14 @@ them, and they are still *deciding*, not built.
   [#17](https://github.com/matheus-sancha/FlowMap/issues/17) and
   [#18](https://github.com/matheus-sancha/FlowMap/issues/18).
 
-- **Phases 8, 9 and 10 — the second drive's other findings.** [#14](https://github.com/matheus-sancha/FlowMap/issues/14)
+- **Phases 8 and 10 — the second drive's other findings.** [#14](https://github.com/matheus-sancha/FlowMap/issues/14)
   widened from *"PLANT becomes TOTAL at the bottom"* to **what aggregates a period matrix carries on
   its edges**: a total row *and column* on the Occupation grid, an **average** row and column on the
   float matrix, and the awkward part — Occupation cells are ratios, which do not sum, so the column
   is `total asked ÷ total capacity` and changes arithmetic with the unit switch.
-  [#17](https://github.com/matheus-sancha/FlowMap/issues/17) is the largest and the only one not
-  confined to one screen: a date **slicer** plus a Year/Semester/Month dropdown, whose scope is the
-  whole ticket — if it re-columns the matrices rather than just stepping the filter, it reaches the
-  shape of a stored run and stops being presentation-only.
+  [#17](https://github.com/matheus-sancha/FlowMap/issues/17) **is answered and executed** — it did
+  re-column the matrices, and that turned out *not* to reach the shape of a stored run: folding
+  monthly capacity rows into quarters is a read-side aggregation. §12.8.
   [#18](https://github.com/matheus-sancha/FlowMap/issues/18) is small and sharp: `_sidebarCollapsed`
   is a `setState` flag that does not survive a route change, the last piece of in-memory UI state
   phase 3 did not convert.
@@ -424,6 +423,7 @@ answer is unambiguous is executed rather than planned.
 | Commit | What |
 |---|---|
 | `1d4cb0d` | Four renames, before the map opened: the duplicate **Simulation** button under *New study* gone; *View results* → **Simulation results**; *In simulation* → **Simulation settings**; *Include in runs* → **Include in simulation**. |
+| _next_ | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **§12.8**: the period filter becomes a month-stepped slicer over the run's own months, and the Occupation grid and its chart re-column by `PeriodGranularity`. Not a phase: folding monthly capacity rows is a **read-side aggregation**, so it reaches no schema, no engine and no stored run — the one thing the ticket flagged as possibly making it one. The float matrix does not follow, because it aggregates nothing. **A drive is owed.** |
 | `f30b4ab` | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **§12.7b**, the surface half of a rule the app already had: prose that restates its heading is deleted, a definition a wrong *conclusion* depends on goes behind an `ⓘ` beside the name of the thing it explains. Fifteen standing captions swept, 41 dead ARB keys gone in three locales. Not a phase, because it reaches no schema, no engine and no stored run. **A drive is owed.** |
 | `8daf2a8` | [#8](https://github.com/matheus-sancha/FlowMap/issues/8) — the seed off green to blueprint blue `#1F5C8B`, status colours and the occupation ramp chosen explicitly, space/radius/motion scales named. Two palette defects fixed that two tests had agreed were fine. |
 | `3d82715` | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — the Delivery Float was painting the band named *green* in the brand's blue; a real legend in three locales; `fill:` on the overview tables; optional sorting on `resultTable`. |

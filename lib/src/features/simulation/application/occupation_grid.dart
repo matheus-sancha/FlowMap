@@ -22,6 +22,7 @@ library;
 
 import '../data/simulation_runs_repository.dart';
 import 'run_filter.dart';
+import '../../../common/period_granularity.dart';
 
 /// What the rows of the grid are.
 enum OccupationGrouping {
@@ -226,9 +227,10 @@ OccupationGrid? occupationGrid({
   required StoredRun run,
   RunFilter filter = const RunFilter(),
   OccupationGrouping grouping = OccupationGrouping.workcenter,
+  PeriodGranularity granularity = PeriodGranularity.month,
 }) {
-  final capacityByStation = run.result.openByWorkcenterMonth;
-  if (capacityByStation.isEmpty) return null;
+  final monthly = run.result.openByWorkcenterMonth;
+  if (monthly.isEmpty) return null;
 
   final stations = {
     for (final row in run.metrics.workcenters) row.workcenterId: row,
@@ -261,10 +263,36 @@ OccupationGrid? occupationGrid({
       outcome.orderId,
   };
 
-  final months = <DateTime>{
-    for (final id in inView) ...?capacityByStation[id]?.keys,
-  }.where(filter.includesDate).toList()..sort();
-  if (months.isEmpty) return null;
+  // **The period filter stays monthly, and the fold happens after it** (#17).
+  // Folding first would drop a quarter whose first day falls before the range —
+  // ask for February onward while reading quarters and Q1 would vanish, taking
+  // February and March with it. A period is in view when *any* of its months
+  // is, which is what filtering the months and then bucketing them means.
+  final keptMonths = <DateTime>{
+    for (final id in inView) ...?monthly[id]?.keys,
+  }.where(filter.includesDate).toSet();
+  if (keptMonths.isEmpty) return null;
+
+  final months = keptMonths.map(granularity.startOf).toSet().toList()..sort();
+
+  // **Capacity is the sum of the months in each period, never a mean of their
+  // ratios** — #14's arithmetic for the TOTAL column, for its reason: averaging
+  // three monthly percentages would weight a 733 h month like a 499 h one.
+  final capacityByStation = <String, Map<DateTime, Duration>>{
+    for (final entry in monthly.entries)
+      entry.key: {
+        for (final month in entry.value.entries)
+          if (keptMonths.contains(month.key))
+            granularity.startOf(month.key): Duration.zero,
+      },
+  };
+  for (final entry in monthly.entries) {
+    final folded = capacityByStation[entry.key]!;
+    for (final month in entry.value.entries) {
+      if (!keptMonths.contains(month.key)) continue;
+      folded.update(granularity.startOf(month.key), (had) => had + month.value);
+    }
+  }
 
   // Demand per station per month, and the filtered share of it.
   final asked = <String, Map<DateTime, Duration>>{};
@@ -277,8 +305,12 @@ OccupationGrid? occupationGrid({
 
   for (final step in run.result.steps) {
     if (!inView.contains(step.workcenterId)) continue;
-    final month = DateTime(step.queueStart.year, step.queueStart.month);
-    if (!months.contains(month)) continue;
+    if (!keptMonths.contains(
+      DateTime(step.queueStart.year, step.queueStart.month),
+    )) {
+      continue;
+    }
+    final month = granularity.startOf(step.queueStart);
 
     final total = step.processSeconds;
     if (total == null) continue;

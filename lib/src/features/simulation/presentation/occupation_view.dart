@@ -60,6 +60,8 @@ import '../application/occupation_graph.dart';
 import 'occupation_chart_scale.dart';
 import '../application/occupation_grid.dart';
 import '../application/run_filter.dart';
+import '../../../common/period_granularity.dart';
+import '../../flow/presentation/period_label.dart';
 
 class OccupationView extends StatefulWidget {
   const OccupationView({super.key, required this.slice, required this.project});
@@ -81,6 +83,13 @@ class _OccupationViewState extends State<OccupationView> {
   OccupationGrouping _grouping = OccupationGrouping.workcenter;
   OccupationUnit _unit = OccupationUnit.percent;
 
+  /// **A view setting, not a filter** (#17). It sits beside grouping and unit
+  /// because it does what they do — rewrite these columns and nothing else —
+  /// and like them it stays out of the URL, which §12.1 reserves for `?study=`.
+  /// The period *slicer* in the shared bar is the filter; this is the
+  /// resolution the filtered span is read at.
+  PeriodGranularity _granularity = PeriodGranularity.month;
+
   /// Which month the rows are ordered by, or **null for the arrival order** —
   /// worst month first, which is the question the view exists to answer and so
   /// the order it should already be in (#10).
@@ -95,11 +104,13 @@ class _OccupationViewState extends State<OccupationView> {
     final graph = occupationGraph(
       run: widget.slice.run,
       filter: widget.slice.filter,
+      granularity: _granularity,
     );
     final grid = occupationGrid(
       run: widget.slice.run,
       filter: widget.slice.filter,
       grouping: _grouping,
+      granularity: _granularity,
     );
 
     // **A run before v25 offers no grid rather than an empty one** (§10.2). 144
@@ -208,7 +219,10 @@ class _OccupationViewState extends State<OccupationView> {
       // Blank rather than zero: a month this row has nothing to say in is not
       // a month it said zero.
       if (cell == null) return null;
-      return cellFrom(cell, nameOf(row), DateFormat.yMMM().format(month));
+      // The hover names the column the way the heading does — a quarter cell
+      // saying "Jan 2026" would be the banner-versus-grid disagreement (#16) in
+      // words instead of bars.
+      return cellFrom(cell, nameOf(row), periodLabel(context, month, _granularity));
     }
 
     /// The frozen right edge: this row across every month shown.
@@ -292,6 +306,36 @@ class _OccupationViewState extends State<OccupationView> {
                 showSelectedIcon: false,
                 onSelectionChanged: (s) => setState(() => _unit = s.first),
               ),
+              // **The third switch, and the only one that moves the columns.**
+              // A dropdown rather than a fourth segmented button: four values
+              // beside five other segments is a toolbar nobody can scan, and
+              // this is set once and read often — `PeriodControl` made the same
+              // call on the study side for the same reason.
+              MenuAnchor(
+                menuChildren: [
+                  for (final granularity in PeriodGranularity.values)
+                    MenuItemButton(
+                      onPressed: () =>
+                          setState(() => _granularity = granularity),
+                      leadingIcon: Icon(
+                        granularity == _granularity
+                            ? Icons.check
+                            : Icons.check_box_outline_blank,
+                        size: 18,
+                        color: granularity == _granularity
+                            ? null
+                            : Colors.transparent,
+                      ),
+                      child: Text(granularityLabel(l10n, granularity)),
+                    ),
+                ],
+                builder: (context, controller, _) => OutlinedButton.icon(
+                  onPressed: () =>
+                      controller.isOpen ? controller.close() : controller.open(),
+                  icon: const Icon(Icons.calendar_view_month, size: 18),
+                  label: Text(granularityLabel(l10n, _granularity)),
+                ),
+              ),
               _Bands(project: widget.project),
             ],
           ),
@@ -320,6 +364,8 @@ class _OccupationViewState extends State<OccupationView> {
                 headerLabel: _grouping == OccupationGrouping.workcenter
                     ? l10n.occupationWorkcenter
                     : l10n.occupationLine,
+                columnLabel: (month) =>
+                    periodLabel(context, month, _granularity),
                 rows: [
                   for (final row in rows)
                     PeriodMatrixRow(label: row.name, qualifier: row.qualifier),

@@ -7,6 +7,7 @@
 /// (DESIGN.md §5.4).
 library;
 
+import '../../../common/period_granularity.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../../calendar/application/working_calendar.dart';
@@ -14,49 +15,10 @@ import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
 import 'takt_balance.dart';
 
-/// How wide a span the period navigator steps through.
-///
-/// The map is always rendered **at the first day of the span**, not averaged
-/// across it: takt and staffing change on dated boundaries, and an averaged map
-/// would show a takt no period actually has. Choosing a wider span therefore
-/// says "step a quarter at a time", and [FlowView.scheduleVariesInPeriod] warns
-/// when the span is not uniform.
-enum PeriodGranularity {
-  month,
-  quarter,
-  semester,
-  year;
-
-  /// The first day of the span containing [date].
-  DateTime startOf(DateTime date) => switch (this) {
-    PeriodGranularity.month => DateTime(date.year, date.month),
-    PeriodGranularity.quarter => DateTime(
-      date.year,
-      ((date.month - 1) ~/ 3) * 3 + 1,
-    ),
-    PeriodGranularity.semester => DateTime(date.year, date.month <= 6 ? 1 : 7),
-    PeriodGranularity.year => DateTime(date.year),
-  };
-
-  /// The last day of that span.
-  DateTime endOf(DateTime date) {
-    final start = startOf(date);
-    return DateTime(start.year, start.month + months, 0);
-  }
-
-  int get months => switch (this) {
-    PeriodGranularity.month => 1,
-    PeriodGranularity.quarter => 3,
-    PeriodGranularity.semester => 6,
-    PeriodGranularity.year => 12,
-  };
-
-  /// The span [steps] spans away, keeping the same granularity.
-  DateTime shift(DateTime date, int steps) {
-    final start = startOf(date);
-    return DateTime(start.year, start.month + months * steps);
-  }
-}
+/// **Re-exported, not redefined** (#17). [PeriodGranularity] moved to
+/// `common/` when the Occupation grid started columning by it too; every
+/// caller here reached it through this library, so they still do.
+export '../../../common/period_granularity.dart' show PeriodGranularity;
 
 /// Which numbers the process boxes show (DESIGN.md §5.4).
 enum FlowDataSource {
