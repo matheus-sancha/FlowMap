@@ -523,6 +523,46 @@ void main() {
       expect(writes.saved, isEmpty);
     });
 
+    testWidgets('typing a lane capacity writes it', (tester) async {
+      // **Reported from the field:** "I'm trying to input the lane capacity to
+      // 2, but it's not saving." The queue this opens on is untyped and
+      // uncapped, which is what the live plant's Coating lane is.
+      final writes = _RecordingQueues();
+
+      await pumpHost(
+        tester,
+        (context, ref) => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: boundStep(),
+          queues: {'wc-1': queueRow('wc-1', rule: null, capacity: null)},
+        ),
+        overrides: [
+          flowTargetsProvider('study-1').overrideWith(
+            (ref) async => (workcenters: [clad], pools: <WorkcenterPool>[]),
+          ),
+          flowQueuesRepositoryProvider.overrideWithValue(writes),
+          studiesRepositoryProvider.overrideWithValue(_SilentSteps()),
+        ],
+      );
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await tester.enterText(
+        find.ancestor(
+          of: find.text(l10n.laneCapacity),
+          matching: find.byType(TextField),
+        ),
+        '2',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.actionSave));
+      await tester.pumpAndSettle();
+
+      expect(writes.saved, hasLength(1));
+      expect(writes.saved.single.capacity, 2);
+    });
+
     testWidgets('changing the queue type writes it', (tester) async {
       // The other half: the rule above must not be so eager that a deliberate
       // edit is dropped too.
