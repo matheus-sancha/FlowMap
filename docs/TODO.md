@@ -49,6 +49,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | — | ~~The period filter~~ | — | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **executed, not phased** |
 | — | ~~Pane state~~ | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **executed, not phased** |
 | 9 | Capacity follows the schedule | — | [#19](https://github.com/matheus-sancha/FlowMap/issues/19) — **built, query answered** |
+| 10 | Operators scale labour-paced work | **v30** | [#20](https://github.com/matheus-sancha/FlowMap/issues/20) — **decided, not built** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -472,6 +473,47 @@ them, and they are still *deciding*, not built.
   2026-11 still reads 74 % — and #14 defined that column as a ratio of sums over *what is shown*,
   changing with the filter by design. One drag of #17's slicer back to the run's own span restores
   68.4 %.
+
+- **Phase 10 — operators scale labour-paced work · schema v30.** *"I added more operators per shift
+  to coating. But it didn't increase the capacity."*
+  [#20](https://github.com/matheus-sancha/FlowMap/issues/20) is the second thing in this map to
+  change what a simulation writes down, and the first to be found by someone using the app rather
+  than by reading it.
+
+  **The model states something false about the plant.** §7.5 says *"any count ≥ 1 runs
+  identically"* and rejects operators as capacity because *"two operators on one CNC do not double
+  its output"* — true of a CNC, false of a spray booth, a bench or an inspection table. Some
+  stations are **machine-paced** and some are **labour-paced**, and the docs assert the first for
+  all of them. That is why this is in scope at all: the map rules out new capability, and makes an
+  exception for the field showing the existing model wrong.
+
+  **What changes.** One more divisor in an arithmetic that already has two
+  (`effective_time.dart`):
+
+  ```
+  effective = perPiece × batch × (1 + rework) ÷ availability ÷ operators
+  ```
+
+  - **A process time is one operator's labour content**, and the crew divides it. *Rejected: a
+    baseline crew stored beside it*, and *rejected: migrating existing times so nothing moves.*
+  - **The crew on the shift where work starts costs the whole job** — availability already resolves
+    this way at `engine.dart:1059`, so this follows the precedent rather than inventing a rule.
+    Needs a way to ask the calendar which shift covers an instant; `ShiftWindow.position` is
+    already the index into the operators list.
+  - **The flag lives on `workcenter_types`, defaulting to machine-paced**, so nothing moves until a
+    type is marked. The run already copies the type in (§7.10), so a stored run can say how it was
+    paced.
+  - **No marker on the run.** The 150 stored keep what they have, as #11 and #19 both decided.
+  - **Capacity stays open hours and demand falls** — the grid measures station occupancy, and
+    reading it as labour-hours over crew × open gives the identical ratio.
+
+  **Evidence it owes**: a *query*. After a re-run, Coating's demand must fall by a factor of its
+  crew and **no other station's may move** — exactly one station on the live plant is crewed above
+  1, so the blast radius is checkable in one query. Coating goes 92.7 % → ~31 %.
+
+  **Also owed, and deliberately held until this lands:** the `ⓘ` on *Operators per shift*. The
+  field drew a wrong conclusion from a definition the screen does not give — §12.7b's case exactly
+  — but the definition changes here, so writing it twice is writing it wrong once.
 
 **The 23 checks are still owed, and the sheet asking them has been rewritten.**
 `docs/DRIVE-2026-09-07.md` is the live sitting: sections A, B, C and E of the 2026-08-31 sheet

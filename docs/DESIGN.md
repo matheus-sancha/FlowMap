@@ -1044,11 +1044,32 @@ question does not arise, and the whole function went.
 
 A workcenter is a **single server** by default: one order at a time. Parallel capacity is modelled
 either by putting several workcenters in a pool or by raising the station's own
-`parallel_capacity` (§3.1), which gives it that many independent servers. A shift with 0 operators is closed; any count ≥ 1 runs
-identically. **Operators Needed** is computed from load (required hours ÷ productive hours per
-operator) and compared against Allocated — the "6.7 operators required" figure.
+`parallel_capacity` (§3.1), which gives it that many independent servers. **Operators Needed** is
+computed from load (required hours ÷ productive hours per operator) and compared against
+Allocated — the "6.7 operators required" figure.
 
-_Rejected: operators as parallel capacity._ Two operators on one CNC do not double its output.
+**Machine-paced and labour-paced are different, and this section used to deny it.** It said *"a
+shift with 0 operators is closed; any count ≥ 1 runs identically"* and rejected operators as
+capacity because *"two operators on one CNC do not double its output"*. The second sentence is
+true and the first does not follow from it: a CNC is **machine-paced** and its crew only opens the
+shift, but a spray booth, a bench, an inspection table and a weld station are **labour-paced** —
+the crew is the constraint, and adding to it is how the work goes faster. On the live plant that is
+about half the types. The claim was corrected by the field, which crewed Coating from 1/1/1 to
+3/2/2 and watched nothing move.
+
+**The two levers, which this section had let run together.** *Orders at once*
+(`parallel_capacity`) is how many orders run **side by side** — parallelism, independent servers,
+each paying its own changeover. *Operators per shift* is how many people work the orders that are
+there, and it makes them go **faster**. Three people on one part is not three parts at once.
+
+**Today the model still only gates**: a shift with 0 operators is closed and any count ≥ 1 runs
+identically, whatever the station. Making the crew divide labour-paced work is
+[#20](https://github.com/matheus-sancha/FlowMap/issues/20), written up as phase 10 in
+`docs/TODO.md` — a fourth term in §4.4's arithmetic, a flag on the workcenter type, and a process
+time that means **one operator's labour content**.
+
+_Rejected: operators as parallel capacity._ Still rejected, and now for the right reason: three
+people on one part is not three parts at once. It is the same part, sooner.
 _Rejected: a shared operator pool across workcenters._ A second contended resource class with its
 own assignment policy; nothing in the spec asks for it.
 
@@ -1471,7 +1492,11 @@ occupation = required ÷ available
 - **Operators needed is occupation restated in people**, and deliberately so. A workcenter is a
   single server (§7.5) — a second operator on one CNC does not double its output — so the only
   honest meaning of "operators needed" is the crew the current pattern would have to become to
-  carry this load. Headcount is what makes it actionable.
+  carry this load. Headcount is what makes it actionable. *Note the CNC in that sentence:* §7.5 now
+  distinguishes machine-paced from labour-paced stations, and at a labour-paced one the crew
+  genuinely is the throughput. This figure is unaffected either way — it restates the load as
+  people, which is the same restatement whichever paces the work — but the reasoning behind it only
+  holds for the machine-paced case, and the sentence should not be read as denying the other.
 - **Available working time for the demand takt is the bottleneck's.** A line is a set of stations
   with different calendars and no single figure of its own; the constraint is what sets the pace,
   so its hours are the ones demand has to fit into, and the configured takt is resolved at that
