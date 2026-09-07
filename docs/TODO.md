@@ -445,9 +445,18 @@ them, and they are still *deciding*, not built.
   changing with the filter by design. One drag of #17's slicer back to the run's own span restores
   68.4 %.
 
-**The 23 checks are still owed.** `docs/DRIVE-2026-08-31.md` stays until they are answered — the four
-unopened study tabs and the period control, `?study=` across a tab change, the 130-row drag and the
-sort rule, and **light mode, which has now escaped three sittings running**.
+**The 23 checks are still owed, and the sheet asking them has been rewritten.**
+`docs/DRIVE-2026-09-07.md` is the live sitting: sections A, B, C and E of the 2026-08-31 sheet
+re-pointed at the app as it stands, plus what the six tickets closed since have never had looked at
+— the rebuilt Occupation surface, the period slicer and its granularity dropdown, and the four `ⓘ`
+left on a five-tab strip. `docs/DRIVE-2026-08-31.md` stays for its **Findings**, which are the
+field's own words and the origin of three tickets; its unanswered checks have moved.
+
+**Two changes of method, both paid for.** The new sheet leads with **light mode** — four sittings
+have now missed it, every one of them because it sat last — and it names two preconditions the last
+sheet did not: **run a fresh simulation first** (the newest stored run is from 2026-08-30 and
+predates every surface change since), and **do not report `CLAD09` or the 68 % TOTAL column**, which
+are phase 9 decided and not yet built.
 
 > **The standing lesson, since this is the second time it has cost something.** A phase built is not
 > a phase seen. Five phases were built in two days; three had never been looked at by the person who
