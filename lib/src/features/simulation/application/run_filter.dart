@@ -17,6 +17,8 @@
 /// Pure and free of Drift, so what a filter *means* is a unit test.
 library;
 
+import 'package:flutter/material.dart' show DateTimeRange;
+
 import '../data/simulation_runs_repository.dart';
 import 'run_metrics.dart';
 import 'sim_model.dart' show StationPool;
@@ -730,5 +732,45 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
           entry,
     ],
     stationsAreWholeRun: !filter.isWholeRun,
+  );
+}
+
+/// Where the period lands when one end of it is moved to [picked].
+///
+/// **The arithmetic of the two date fields, out here so it can be asserted.**
+/// `occupation_chart_scale.dart` is the precedent: a rule living inside a
+/// widget's callback is a rule nothing can test, and this one carries two
+/// guarantees the slider used to hold up on its own.
+///
+/// - **The ends push rather than cross.** Moving the start past the end takes
+///   the end with it. An inverted range would be an empty slice, which this
+///   filter has never been able to express — and `occupationUngraphable` means
+///   *this run predates v25* only for as long as that stays true.
+/// - **The whole span is no filter**, not a filter that matches everything, so
+///   it returns null and `isWholeRun` keeps its answer (§12.1).
+///
+/// [months] is ascending and non-empty; [start] and [end] index into it.
+DateTimeRange? periodAfterPick({
+  required List<DateTime> months,
+  required int start,
+  required int end,
+  required DateTime picked,
+  required bool movingStart,
+}) {
+  final last = months.length - 1;
+  final key = DateTime(picked.year, picked.month);
+  // The first month at or after the pick, so a date the run does not hold
+  // resolves forwards rather than silently to an edge.
+  final at = months.indexWhere((m) => !m.isBefore(key));
+  final landed = (at < 0 ? last : at).clamp(0, last);
+
+  final lo = movingStart ? landed : (start > landed ? landed : start);
+  final hi = movingStart ? (end < landed ? landed : end) : landed;
+
+  if (lo == 0 && hi == last) return null;
+  return DateTimeRange(
+    start: months[lo],
+    // The last instant of the month, so `to` includes the whole of it.
+    end: DateTime(months[hi].year, months[hi].month + 1, 0, 23, 59, 59),
   );
 }

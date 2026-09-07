@@ -1219,6 +1219,12 @@ class AppLocalizationsPt extends AppLocalizations {
       'Seleciona as ordens pela data de necessidade — a única das datas de uma ordem que nunca está vazia, portanto uma ordem que a corrida nunca completou continua a aparecer no seu período. A utilização e o tempo bloqueado dos centros continuam a descrever a corrida inteira, porque a corrida não guarda o que seria preciso para os limitar.';
 
   @override
+  String get simFilterPeriodStart => 'Primeiro mês';
+
+  @override
+  String get simFilterPeriodEnd => 'Último mês';
+
+  @override
   String get simFilterAll => 'todos';
 
   @override

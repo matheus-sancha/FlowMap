@@ -632,6 +632,8 @@
   "simFilterLines": "Lines",
   "simFilterPeriod": "Period",
   "simFilterPeriodHelp": "Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.",
+  "simFilterPeriodStart": "First month",
+  "simFilterPeriodEnd": "Last month",
   "simFilterAll": "all",
   "simFilterProjects": "Projects",
   "simFilterParts": "Part numbers",

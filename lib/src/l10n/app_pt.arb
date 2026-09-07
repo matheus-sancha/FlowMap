@@ -526,6 +526,8 @@
   "simFilterLines": "Linhas",
   "simFilterPeriod": "Período",
   "simFilterPeriodHelp": "Seleciona as ordens pela data de necessidade — a única das datas de uma ordem que nunca está vazia, portanto uma ordem que a corrida nunca completou continua a aparecer no seu período. A utilização e o tempo bloqueado dos centros continuam a descrever a corrida inteira, porque a corrida não guarda o que seria preciso para os limitar.",
+  "simFilterPeriodStart": "Primeiro mês",
+  "simFilterPeriodEnd": "Último mês",
   "simFilterAll": "todos",
   "simFilterProjects": "Projetos",
   "simFilterParts": "Números de peça",

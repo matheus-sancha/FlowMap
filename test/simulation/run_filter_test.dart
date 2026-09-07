@@ -870,6 +870,100 @@ void main() {
       );
     });
   });
+
+  group('the period fields (the drive, 2026-09-07)', () {
+    final months = [for (var m = 1; m <= 12; m++) DateTime(2026, m)];
+
+    test('picking a month lands on it, whatever day was clicked', () async {
+      // The calendar shows days and the field answers with a month. Any day in
+      // March is March.
+      for (final day in const [1, 15, 31]) {
+        final picked = periodAfterPick(
+          months: months,
+          start: 0,
+          end: 11,
+          picked: DateTime(2026, 3, day),
+          movingStart: true,
+        );
+        expect(picked!.start, DateTime(2026, 3), reason: 'day $day');
+      }
+    });
+
+    test('the end includes the whole of its month', () async {
+      // An order needed on the 31st is inside a range ending that month.
+      final picked = periodAfterPick(
+        months: months,
+        start: 0,
+        end: 11,
+        picked: DateTime(2026, 3, 1),
+        movingStart: false,
+      )!;
+
+      expect(picked.end.isAfter(DateTime(2026, 3, 31, 23, 0)), isTrue);
+      expect(picked.end.isBefore(DateTime(2026, 4)), isTrue);
+    });
+
+    test('a start past the end pushes the end, it does not cross it', () async {
+      // **The empty range stays unreachable**, which is what lets
+      // `occupationUngraphable` keep meaning only "this run predates v25".
+      final picked = periodAfterPick(
+        months: months,
+        start: 0,
+        end: 2,
+        picked: DateTime(2026, 9),
+        movingStart: true,
+      )!;
+
+      expect(picked.start, DateTime(2026, 9));
+      expect(picked.end.isAfter(picked.start), isTrue);
+      expect(picked.end.month, 9, reason: 'the end came with it');
+    });
+
+    test('an end before the start pushes the start', () async {
+      final picked = periodAfterPick(
+        months: months,
+        start: 8,
+        end: 11,
+        picked: DateTime(2026, 2),
+        movingStart: false,
+      )!;
+
+      expect(picked.start, DateTime(2026, 2));
+      expect(picked.end.month, 2);
+    });
+
+    test('the whole span is no filter at all', () async {
+      // Not a filter that happens to match everything — `isWholeRun` has to
+      // keep its answer, or the Clear button and the whole-run caveat appear
+      // on arrival (§12.1).
+      expect(
+        periodAfterPick(
+          months: months,
+          start: 3,
+          end: 11,
+          picked: DateTime(2026),
+          movingStart: true,
+        ),
+        isNull,
+      );
+    });
+
+    test('a month the run does not hold resolves forwards', () async {
+      // The picker is bounded to the run, so this is reachable only through a
+      // gap in the middle. Landing on the next month the run *does* hold beats
+      // snapping to an edge that has nothing to do with the pick.
+      final sparse = [DateTime(2026), DateTime(2026, 6), DateTime(2026, 12)];
+      final picked = periodAfterPick(
+        months: sparse,
+        start: 0,
+        end: 2,
+        picked: DateTime(2026, 4),
+        movingStart: true,
+      )!;
+
+      expect(picked.start, DateTime(2026, 6));
+    });
+  });
 }
 
 

@@ -671,12 +671,111 @@ class _PeriodSlicer extends StatelessWidget {
             ),
           ],
         ),
+        // **Two selections beside the track, and the track follows them.**
+        // The slider is a good way to sweep and a poor way to land: it holds
+        // the run's whole span in 220 pt, which was 15 stops and became 36 when
+        // capacity started following the schedule — about six pixels a month.
+        // The fields are how you name a month; the slider is how you feel where
+        // it sits.
+        const SizedBox(width: 12),
+        _MonthField(
+          month: months[values.start.round()],
+          first: months.first,
+          last: _endOf(months.last),
+          tooltip: l10n.simFilterPeriodStart,
+          // The push rule and the whole-span rule are `periodAfterPick`'s, out
+          // in `run_filter.dart` where they can be asserted.
+          onPicked: (picked) => onChanged(
+            periodAfterPick(
+              months: months,
+              start: values.start.round(),
+              end: values.end.round(),
+              picked: picked,
+              movingStart: true,
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(Icons.arrow_forward, size: 14),
+        ),
+        _MonthField(
+          month: months[values.end.round()],
+          first: months.first,
+          last: _endOf(months.last),
+          tooltip: l10n.simFilterPeriodEnd,
+          onPicked: (picked) => onChanged(
+            periodAfterPick(
+              months: months,
+              start: values.start.round(),
+              end: values.end.round(),
+              picked: picked,
+              movingStart: false,
+            ),
+          ),
+        ),
         // The one thing about this filter a reader has to know, and it cannot be
         // guessed from the control: it selects by **need date**, which is the
         // only one of an order's dates that is never null — so an order the run
         // never completed still appears in its period rather than vanishing.
         helpIcon(context, l10n.simFilterPeriodHelp) ?? const SizedBox.shrink(),
       ],
+    );
+  }
+}
+
+/// One end of the period, as a field with a calendar behind it.
+///
+/// **The calendar shows days and the field answers with a month**, which is the
+/// whole of the arrangement. #17 deleted `showDateRangePicker` because the
+/// control *kept showing* a day it had already thrown away — 15 January read
+/// back as `2026-01` while the field still said the 15th. Snapping the display
+/// rather than the picker keeps Flutter's own calendar, which is free and
+/// familiar, and stops it promising a precision the grid does not use: you may
+/// land on any day you like, and the field tells you what was taken.
+///
+/// **Bounded to the run's own months**, so a date outside it cannot be picked
+/// and the empty slice the slider cannot express stays unreachable from here
+/// too — which is what lets `occupationUngraphable` keep its single meaning.
+class _MonthField extends StatelessWidget {
+  const _MonthField({
+    required this.month,
+    required this.first,
+    required this.last,
+    required this.tooltip,
+    required this.onPicked,
+  });
+
+  final DateTime month;
+  final DateTime first;
+  final DateTime last;
+  final String tooltip;
+  final ValueChanged<DateTime> onPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    final format = DateFormat.yMMM(Localizations.localeOf(context).toString());
+    return Tooltip(
+      message: tooltip,
+      child: OutlinedButton.icon(
+        icon: const Icon(Icons.calendar_today_outlined, size: 16),
+        label: Text(format.format(month)),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          visualDensity: VisualDensity.compact,
+        ),
+        onPressed: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: month,
+            firstDate: first,
+            lastDate: last,
+            helpText: tooltip,
+          );
+          if (picked == null) return;
+          onPicked(DateTime(picked.year, picked.month));
+        },
+      ),
     );
   }
 }

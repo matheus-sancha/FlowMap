@@ -2232,6 +2232,18 @@ abstract class AppLocalizations {
   /// **'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.'**
   String get simFilterPeriodHelp;
 
+  /// No description provided for @simFilterPeriodStart.
+  ///
+  /// In en, this message translates to:
+  /// **'First month'**
+  String get simFilterPeriodStart;
+
+  /// No description provided for @simFilterPeriodEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Last month'**
+  String get simFilterPeriodEnd;
+
   /// No description provided for @simFilterAll.
   ///
   /// In en, this message translates to:

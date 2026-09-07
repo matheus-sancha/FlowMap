@@ -1218,6 +1218,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.';
 
   @override
+  String get simFilterPeriodStart => 'Primer mes';
+
+  @override
+  String get simFilterPeriodEnd => 'Último mes';
+
+  @override
   String get simFilterAll => 'todos';
 
   @override

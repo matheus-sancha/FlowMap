@@ -1204,6 +1204,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.';
 
   @override
+  String get simFilterPeriodStart => 'First month';
+
+  @override
+  String get simFilterPeriodEnd => 'Last month';
+
+  @override
   String get simFilterAll => 'all';
 
   @override

@@ -526,6 +526,8 @@
   "simFilterLines": "Líneas",
   "simFilterPeriod": "Periodo",
   "simFilterPeriodHelp": "Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.",
+  "simFilterPeriodStart": "Primer mes",
+  "simFilterPeriodEnd": "Último mes",
   "simFilterAll": "todos",
   "simFilterProjects": "Proyectos",
   "simFilterParts": "Números de pieza",
