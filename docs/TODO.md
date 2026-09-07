@@ -48,6 +48,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **executed and driven** |
 | — | ~~The period filter~~ | — | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **executed, not phased** |
 | — | ~~Pane state~~ | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **executed, not phased** |
+| 9 | Capacity follows the schedule | — | [#19](https://github.com/matheus-sancha/FlowMap/issues/19) — **decided, not built** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -404,6 +405,45 @@ them, and they are still *deciding*, not built.
   small and sharp only until its own sweep ran: the pane turned out not to belong in Simulation mode
   at all, the mode switch was returning to the wrong study, and the two tab strips disagreed about
   whether view state survives. §12.9.
+
+- **Phase 9 — capacity follows the schedule.** *"The capacity lines and values must follow the
+  workcenter periods, even without demand."* [#19](https://github.com/matheus-sancha/FlowMap/issues/19)
+  is **the only thing in this map since phase 2 that changes what a simulation writes down**, which
+  is why it is a phase and not another execution inside its ticket.
+
+  **What changes.** `engine.dart:1211` loops `for (var month = start; month.isBefore(_now); ...)` —
+  the run's own start and end. It loops each station's **schedule periods** instead, and it writes a
+  row for every station that *has* a period rather than only those the run gave work to. Both
+  clippings are one loop and one station set.
+
+  - **Bounded per station, by its own periods** — so the grid goes ragged and a station whose
+    schedule stops earlier is *blank* there rather than zero. §10.2's distinction: nobody has said is
+    not the same claim as said zero.
+  - **`scheduleHorizon` is computed over the stations the run USES, not the ones it can draw.** It is
+    the *minimum* of each schedule's last end date, and on the live database the one idle station
+    (`CLAD09`) ends **2026-12-31** while all seventeen busy ones end **2027-12-31** — so writing its
+    capacity without this separation would drag the horizon back a year and start firing the
+    schedule-tail warning on runs that have nothing wrong with them. **This is the trap in the
+    phase.**
+  - **No marker on the run.** The 150 stored runs keep what they have (§7.10), so their charts stop
+    where their orders did. #11 refused an `engine_generation` column for a larger behavioural break
+    and the same argument holds: `created_at` dates the run and `HISTORY.md` carries the line.
+
+  **Evidence it owes**: a query, because this is provable from the live database rather than seen. On
+  project *VSM 2026 Q1* the newest run must go from **17 stations × 15 months = 255 rows** to
+  **18 × 36 = 648**, `CLAD09` must appear with capacity and no demand, its columns must stop at
+  2026-12, and `schedule_horizon` must still read 2027-12-31.
+
+  **What it gets for free**, because three readers already derive from this one table:
+  `stationsInView` iterates `openByWorkcenterMonth.keys`, so the idle station becomes filterable
+  with no change; and #17's `runMonths` unions the capacity months, so the period slicer grows from
+  15 stops to 36 and its Year granularity goes from two columns to three — **no code in #17 moves**.
+
+  **What it costs, decided and accepted**: the TOTAL column falls from **68.4 % to 28.5 %**, because
+  21 months of real capacity join the denominator at zero demand. Per-month figures are untouched —
+  2026-11 still reads 74 % — and #14 defined that column as a ratio of sums over *what is shown*,
+  changing with the filter by design. One drag of #17's slicer back to the run's own span restores
+  68.4 %.
 
 **The 23 checks are still owed.** `docs/DRIVE-2026-08-31.md` stays until they are answered — the four
 unopened study tabs and the period control, `?study=` across a tab change, the 130-row drag and the
