@@ -48,7 +48,7 @@ first. Nothing here restates a decision — it points at the one place each live
 | 8 | Matrix edges | — | [#14](https://github.com/matheus-sancha/FlowMap/issues/14) — **executed and driven** |
 | — | ~~The period filter~~ | — | [#17](https://github.com/matheus-sancha/FlowMap/issues/17) — **executed, not phased** |
 | — | ~~Pane state~~ | — | [#18](https://github.com/matheus-sancha/FlowMap/issues/18) — **executed, not phased** |
-| 9 | Capacity follows the schedule | — | [#19](https://github.com/matheus-sancha/FlowMap/issues/19) — **decided, not built** |
+| 9 | Capacity follows the schedule | — | [#19](https://github.com/matheus-sancha/FlowMap/issues/19) — **built, query answered** |
 
 **The plant model first, then the surface.** The two tracks barely touch, and this order means the
 two migrations land while the presentation layer is still the one the tests were written against,
@@ -429,10 +429,38 @@ them, and they are still *deciding*, not built.
     where their orders did. #11 refused an `engine_generation` column for a larger behavioural break
     and the same argument holds: `created_at` dates the run and `HISTORY.md` carries the line.
 
-  **Evidence it owes**: a query, because this is provable from the live database rather than seen. On
-  project *VSM 2026 Q1* the newest run must go from **17 stations × 15 months = 255 rows** to
-  **18 × 36 = 648**, `CLAD09` must appear with capacity and no demand, its columns must stop at
-  2026-12, and `schedule_horizon` must still read 2027-12-31.
+  **Built 2026-09-07**, 1,085 tests, analyze clean. The evidence it owed is a query rather than a
+  drive, and it is committed as `test/simulation/live_capacity_check_test.dart` — run with
+  `--tags live` and `FLOWMAP_LIVE_DB` pointing at a copy. Against the live plant it prints:
+
+  ```
+  resource model=17  scheduled=18  horizon=2027-12-31
+  scheduled but unrouted: [CLAD09]
+  capacity rows=636 across 18 stations
+  CLAD09: 24 months, 2025-01 → 2026-12, steps=false
+  the run spans 15 months, its stations 36
+  ```
+
+  **636 rows, not the 648 the ticket predicted.** 648 was 18 × 36 — the unragged arithmetic — and
+  `CLAD09` is scheduled for 24 months rather than 36. The ticket's own two figures could not both
+  be true, and *"its columns must stop at 2026-12"* is the one that held. Everything else landed as
+  written, the horizon included.
+
+  **Three things the ticket did not price, found while building it.**
+
+  - **The set is a union, not a replacement.** A station can be routed to with no schedule of its
+    own, and swapping the sets would have deleted its rows. It keeps them, bounded by the run as
+    before.
+  - **The idle station needed an identity, not just capacity.** `stationsInView` iterates
+    `openByWorkcenterMonth.keys` — which the ticket read as *filterable with no change* — but the
+    name and the type it filters and labels by come from `simulation_run_workcenters`, and that
+    table was written from the resource model. `CLAD09` would have drawn as a **uuid** and vanished
+    under any type filter. Its whole-run open time is written too, so it appears in the utilization
+    table at 0 % — which is that table's own stated purpose: *a station that sat idle all run is
+    evidence too*.
+  - **The months no longer sum to the whole-run open time.** That invariant had a test and a
+    comment claiming the two were one walk cut up. They are two walks over two spans now, by
+    design, and the test says so instead.
 
   **What it gets for free**, because three readers already derive from this one table:
   `stationsInView` iterates `openByWorkcenterMonth.keys`, so the idle station becomes filterable

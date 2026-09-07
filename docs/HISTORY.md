@@ -22,6 +22,17 @@ number below describes the model as it stood, not as it stands.
 fall-through's middle slot with the need date. It touches only orders that tie on arrival — 78 pairs
 in 189,623 step rows — so most of a run is untouched and no figure here is retracted by it.
 
+**A sixth changes what a run writes down without changing what it computes: phase 9, 2026-09-07**,
+which stopped clipping monthly capacity to the run. Every station the plant has *scheduled* now gets
+capacity rows spanning its own schedule, where before only the stations the routings reached got
+them and only for the run's own months. No order moves and no date changes — the engine's answer is
+identical — but the occupation grid of a run stored before this date is narrower than one stored
+after, and **no marker distinguishes them**: `created_at` dates the run, and this line is the
+record. On the live plant the newest run goes from **255 capacity rows across 17 stations and 15
+months to 636 across 18 stations and up to 36**, and its whole-plant TOTAL column falls from 68.4 %
+to 28.5 % because months with real capacity and no demand join the denominator. Per-month figures
+are untouched. The 150 runs stored before it keep what they have (§7.10).
+
 ---
 
 ## The state this file was split at

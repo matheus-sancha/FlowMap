@@ -183,6 +183,10 @@ class SimulationRunsRepository {
     required String projectId,
     required SimRunResult result,
     required List<SimStudy> studies,
+    /// **Identity for every station the result mentions**, which since phase 9
+    /// is wider than the resource model: a scheduled station the routings never
+    /// reach has capacity rows and must still be stored under its own name and
+    /// type, or §10.2's grid draws a uuid. Pass the union.
     required Map<String, SimWorkcenter> workcenters,
   }) async {
     final runId = newId();

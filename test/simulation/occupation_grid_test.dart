@@ -93,17 +93,23 @@ void main() {
     ],
   );
 
+  /// [from] and [to] are the station's **schedule**, which since phase 9 is
+  /// what the capacity table spans — not the run. A fixture scheduled 2020 to
+  /// 2030 draws a hundred and twenty empty columns beside its demand, which is
+  /// correct and is not what most tests here are about.
   SimWorkcenter workcenter(
     String id,
     String name, {
     double rework = 0,
     String? typeId,
     String? typeName,
+    DateTime? from,
+    DateTime? to,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
-        startDate: DateTime(2020),
-        endDate: DateTime(2030),
+        startDate: from ?? DateTime(2020),
+        endDate: to ?? DateTime(2030),
         operatorsPerShift: const [1],
         availability: 1,
         rework: rework,
@@ -284,7 +290,19 @@ void main() {
 
       final before = rowFor(whole, 'MILL02');
       final after = rowFor(mine, 'MILL02');
-      for (final month in before.cells.keys) {
+
+      // **Only where there is work to take a share of** (phase 9). The plant is
+      // scheduled far wider than this run, so most months now carry capacity
+      // and no demand at all — and in those the share is not "unmoved by the
+      // filter", it is undefined. Asserting over them would have this test
+      // passing on arithmetic about nothing.
+      final worked = [
+        for (final month in before.cells.keys)
+          if (before.cells[month]!.asked > Duration.zero) month,
+      ];
+      expect(worked, isNotEmpty, reason: 'the run has to occupy something');
+
+      for (final month in worked) {
         final all = before.cells[month]!;
         final slice = after.cells[month]!;
         expect(slice.asked, all.asked, reason: 'the band does not move');
@@ -293,8 +311,19 @@ void main() {
         expect(slice.filtered, lessThan(slice.asked));
         expect(slice.share, lessThan(1.0));
       }
-      // With nothing order-level set, every cell is wholly the reader's.
-      expect(before.cells.values.every((c) => c.share == 1.0), isTrue);
+      // With nothing order-level set, every worked cell is wholly the reader's.
+      expect(
+        worked.every((m) => before.cells[m]!.share == 1.0),
+        isTrue,
+      );
+      // And the months the run never reached are open and unasked — the state
+      // that could not exist before capacity followed the schedule.
+      final idle = before.cells.keys.where((m) => !worked.contains(m));
+      expect(idle, isNotEmpty, reason: 'a decade of schedule, one month of run');
+      for (final month in idle) {
+        expect(before.cells[month]!.open, greaterThan(Duration.zero));
+        expect(after.cells[month]!.asked, Duration.zero);
+      }
     },
   );
 
@@ -708,9 +737,28 @@ void main() {
     /// about a quarter of a year and the capacity table spans it too.
     Future<StoredRun> storedWide() async {
       final projectId = await seedProject();
+      // Scheduled for 2026 alone, which is the year the run falls in
+      // (2026-01-14 → 2026-04-12): twelve month columns, four quarters, two
+      // semesters and one year, so the foldings below have something to fold
+      // and the last of them really is one column.
+      final year = (from: DateTime(2026), to: DateTime(2026, 12, 31));
       final plant = {
-        'wc-1': workcenter('wc-1', 'CLAD04', typeId: 't', typeName: 'T'),
-        'wc-2': workcenter('wc-2', 'MILL02', typeId: 't', typeName: 'T'),
+        'wc-1': workcenter(
+          'wc-1',
+          'CLAD04',
+          typeId: 't',
+          typeName: 'T',
+          from: year.from,
+          to: year.to,
+        ),
+        'wc-2': workcenter(
+          'wc-2',
+          'MILL02',
+          typeId: 't',
+          typeName: 'T',
+          from: year.from,
+          to: year.to,
+        ),
       };
       final studies = [
         SimStudy(

@@ -136,6 +136,7 @@ class SimulationRunner extends _$SimulationRunner {
       final result = await compute(runSimulationOffThread, (
         studies: assembled.studies,
         workcenters: assembled.workcenters,
+        scheduledStations: assembled.scheduledStations,
         scheduleHorizon: assembled.scheduleHorizon,
       ));
       // The measurement §14 is still short of, recorded where a field report
@@ -152,7 +153,13 @@ class SimulationRunner extends _$SimulationRunner {
         projectId: projectId,
         result: result,
         studies: assembled.studies,
-        workcenters: assembled.workcenters,
+        // The union, not the resource model: the result now carries capacity
+        // for scheduled stations the routings never reach (phase 9), and each
+        // still has to be stored under its own name and type.
+        workcenters: {
+          ...assembled.workcenters,
+          ...assembled.scheduledStations,
+        },
       );
       return runs.loadRun(id);
     });
@@ -174,6 +181,7 @@ class SimulationRunner extends _$SimulationRunner {
 typedef SimRunRequest = ({
   List<SimStudy> studies,
   Map<String, SimWorkcenter> workcenters,
+  Map<String, SimWorkcenter> scheduledStations,
   DateTime? scheduleHorizon,
 });
 
@@ -187,5 +195,6 @@ typedef SimRunRequest = ({
 SimRunResult runSimulationOffThread(SimRunRequest request) => runSimulation(
   studies: request.studies,
   workcenters: request.workcenters,
+  scheduledStations: request.scheduledStations,
   scheduleHorizon: request.scheduleHorizon,
 );

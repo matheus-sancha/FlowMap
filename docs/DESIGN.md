@@ -1563,6 +1563,39 @@ bands would be meaningless.
 line or a type is chosen, a total across what is left would be a partial wearing
 the plant's name.
 
+**Capacity is the plant's, not the run's** (phase 9). The monthly rows a run
+writes span **each station's own schedule**, and cover **every station the plant
+has scheduled** rather than only the ones the routings reached. Occupation is
+demand against capacity, and a denominator clipped to its own numerator cannot
+draw a plant with room to spare: a station open all March and idle until June
+used to begin in June, and a machine nobody routed to had no row at all. The grid
+therefore goes **ragged** — a station whose schedule stops a year earlier is
+*blank* past it rather than zero, which is this section's own distinction between
+nobody has said and said zero.
+
+A station with **no schedule in any project is left out entirely**: it is
+*unmodelled*, not idle, and a row of zeroes would invent a machine nobody has
+said anything about. On the live plant that is 24 of 42 workcenters; 18 are
+scheduled and 17 of those carry work.
+
+*Two consequences, both accepted.* The monthly rows **no longer sum to the
+whole-run open time** — utilization's denominator (§8.3) is what the station was
+open for while the run was on the clock, and the two spans stopped being the same
+span. And a TOTAL column over the whole schedule reads far lower than one over
+the run's own months (68.4 % → 28.5 % on the live plant), because months with
+real capacity and no demand join the denominator; §8.4's TOTAL is a ratio of sums
+over *what is shown*, so one drag of the period slicer restores it.
+
+**The schedule horizon is computed over the stations the run *uses*, not the ones
+it can draw** — and this is the trap the phase was mostly about. §11.1's horizon
+is the *minimum* of each schedule's last end date, so admitting an idle station to
+the resource model in order to give it capacity rows would drag the horizon back
+to wherever that machine happens to stop. On the live plant the one idle station
+ends 2026-12-31 while all seventeen busy ones end 2027-12-31, so the tail warning
+would have started firing on runs with nothing wrong with them. Capacity is
+written for the stations that are **open**; the horizon answers for the stations
+the run **used**.
+
 **Bands are the project's own two thresholds** (v29), defaulting to 85 and 100 —
 the float matrix's shape, on the same settings card. 100 because a station asked
 for more than it has open is over by definition; 85 because a month that close

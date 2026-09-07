@@ -59,12 +59,14 @@ class SimRunInput {
     required this.studies,
     required this.workcenters,
     required this.readiness,
+    this.scheduledStations = const {},
     this.scheduleHorizon,
   });
 
   const SimRunInput.empty()
     : studies = const [],
       workcenters = const {},
+      scheduledStations = const {},
       readiness = const [],
       scheduleHorizon = null;
 
@@ -73,6 +75,16 @@ class SimRunInput {
   final List<SimStudy> studies;
 
   final Map<String, SimWorkcenter> workcenters;
+
+  /// **Every station the plant has scheduled**, which is a superset of
+  /// [workcenters] and is what monthly capacity is written for (phase 9).
+  ///
+  /// Kept separate rather than folded in, and the reason is [scheduleHorizon]:
+  /// a station with a schedule and no work still has a last defined date, and
+  /// admitting it to the resource model would pull the horizon back to it. A
+  /// run is answerable for the stations it uses and can *draw* the ones that
+  /// are merely open.
+  final Map<String, SimWorkcenter> scheduledStations;
 
   /// Every flagged study, ready or not, in the order the sidebar shows them.
   final List<StudyReadiness> readiness;

@@ -452,12 +452,18 @@ void main() {
       expect(rows.every((r) => r.typeName == 'Cladding'), isTrue);
     });
 
-    test('the months sum to the whole-run open time they were cut from',
-        () async {
-      // **One walk, two figures.** The monthly rows are not a second opinion
-      // about the calendar — they are the same span cut up, and a capacity line
-      // that did not add back to the utilization denominator would be the §7.6
-      // failure again.
+    test('the months follow the schedule, not the run (phase 9)', () async {
+      // **Two questions, two spans — and they stopped being the same span.**
+      // The whole-run figure is utilization's denominator (§8.3): what the
+      // station was open for while the run was on the clock. The monthly rows
+      // are occupation's (§10.2), and clipping them to the run made capacity
+      // exist only where demand did — a station open all March and idle until
+      // June began in June, and a plant with room to spare could not be drawn.
+      //
+      // So the months now span the station's **own schedule** and deliberately
+      // no longer add back to the run's open time. They were never a second
+      // opinion about the calendar and still are not; they answer a wider
+      // question about it. This test is the one that used to assert the sum.
       final projectId = await seedProject();
       final (:studies, :plant) = model();
       final result = runSimulation(studies: studies, workcenters: plant);
@@ -476,21 +482,33 @@ void main() {
       )..where((m) => m.runId.equals(runId))).get();
 
       expect(months, isNotEmpty, reason: 'a run spans at least one month');
+      // The fixture schedules every station 2020 → 2030 and the run is one
+      // month inside it, so the two figures are far apart rather than
+      // arguably equal.
       for (final station in stations) {
         final mine = months.where((m) => m.workcenterId == station.workcenterId);
         expect(mine, isNotEmpty);
         expect(
           mine.fold(0, (sum, m) => sum + m.openSeconds),
-          station.openSeconds,
-          reason: '${station.name}: the months are the run, cut up',
+          greaterThan(station.openSeconds),
+          reason: '${station.name}: the schedule outlasts the run',
+        );
+        // And the run's own months are still among them, so nothing the old
+        // rule drew has gone missing.
+        expect(
+          mine.map((m) => m.month),
+          contains(DateTime(result.start.year, result.start.month)),
+          reason: '${station.name}: the run is inside its own capacity',
         );
       }
     });
 
-    test('every month of the span has a row, including a closed one', () async {
-      // *Closed* and *not in this run* are different answers and §10.3 draws
-      // them differently, so a month with no open time is a zero rather than a
-      // missing row.
+    test('every month of the schedule has a row, including a closed one',
+        () async {
+      // *Closed* and *not scheduled at all* are different answers and §10.3
+      // draws them differently, so a month with no open time inside the
+      // schedule is a zero rather than a missing row — and a month outside it
+      // is missing rather than a zero (§10.2, phase 9).
       final projectId = await seedProject();
       final (:studies, :plant) = model();
       final result = runSimulation(studies: studies, workcenters: plant);
@@ -505,17 +523,26 @@ void main() {
         db.simulationRunWorkcenterMonths,
       )..where((m) => m.runId.equals(runId))).get();
 
-      final spanned = <DateTime>{};
-      for (var month = DateTime(result.start.year, result.start.month);
-          month.isBefore(result.end);
-          month = DateTime(month.year, month.month + 1)) {
-        spanned.add(month);
-      }
-      for (final station in plant.keys) {
+      for (final entry in plant.entries) {
+        final periods = entry.value.schedule.periods;
+        final spanned = <DateTime>{};
+        for (var month = DateTime(
+              periods.first.startDate.year,
+              periods.first.startDate.month,
+            );
+            !month.isAfter(
+              DateTime(periods.last.endDate.year, periods.last.endDate.month),
+            );
+            month = DateTime(month.year, month.month + 1)) {
+          spanned.add(month);
+        }
         expect(
-          months.where((m) => m.workcenterId == station).map((m) => m.month).toSet(),
+          months
+              .where((m) => m.workcenterId == entry.key)
+              .map((m) => m.month)
+              .toSet(),
           spanned,
-          reason: 'every month the run spans has a row for $station',
+          reason: 'every month ${entry.key} is scheduled for has a row',
         );
       }
     });

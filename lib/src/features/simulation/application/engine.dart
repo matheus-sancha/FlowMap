@@ -16,6 +16,7 @@
 library;
 
 import '../../calendar/application/effective_time.dart';
+import '../../calendar/application/shift_pattern_spec.dart' show dateOnly;
 import '../../calendar/application/working_calendar.dart';
 import 'sim_model.dart';
 import 'sim_result.dart';
@@ -36,6 +37,25 @@ SimRunResult runSimulation({
   /// `PeriodSchedule` already does, and the run's job is to say that happened
   /// rather than to behave differently.
   DateTime? scheduleHorizon,
+  /// **Every station with a schedule, not only the ones this run gave work to**
+  /// — the set monthly capacity is written for (§10.2, phase 9).
+  ///
+  /// [workcenters] is what the routings reach, so capacity used to exist only
+  /// where demand did and a station nobody routed to was invisible rather than
+  /// idle. This set is the plant's own answer to *who is open*, and the two are
+  /// **unioned** rather than swapped: a station can be routed to without a
+  /// schedule of its own, and it keeps the rows it has always had.
+  ///
+  /// It is deliberately not folded into [workcenters], and the reason is
+  /// [scheduleHorizon]: letting an unused station into the *resource model*
+  /// would drag the horizon back to wherever its schedule happens to stop and
+  /// fire §11.1's warning on runs with nothing wrong with them. The horizon is
+  /// computed over the stations the run **uses**; capacity is written for the
+  /// stations that are **open**.
+  ///
+  /// Empty means *the run's own stations*, which is what a caller with no
+  /// plant-wide view can honestly say.
+  Map<String, SimWorkcenter> scheduledStations = const {},
 }) {
   final plan = planRun(studies: studies, workcenters: workcenters);
   final from = start ?? plan.start;
@@ -68,6 +88,7 @@ SimRunResult runSimulation({
   return _Engine(
     studies: studies,
     workcenters: workcenters,
+    scheduledStations: scheduledStations,
     start: from,
     startByStudy: startByStudy,
     guard: guard ?? plan.guardFrom(from),
@@ -400,11 +421,17 @@ class _Engine {
     required this.start,
     required this.guard,
     required this.scheduleHorizon,
+    this.scheduledStations = const {},
     this.startByStudy = const {},
   });
 
   final List<SimStudy> studies;
   final Map<String, SimWorkcenter> workcenters;
+
+  /// The stations monthly capacity is written for. See `runSimulation`; empty
+  /// falls back to [workcenters].
+  final Map<String, SimWorkcenter> scheduledStations;
+
   final DateTime start;
 
   /// Where each study's first release slot falls (§7.8). A study absent from
@@ -1193,14 +1220,21 @@ class _Engine {
     // utilised, and a denominator counting one clock would report it at 200 %.
     // Asked once per station rather than once per server — the calendar walk is
     // the expensive part (§16.9) and every unit of a station shares one.
+    // **One station set, and it is a union** (phase 9). This used to be
+    // [workcenters] — what the routings reach — so capacity existed only where
+    // demand did and a scheduled station nobody routed to was invisible rather
+    // than idle. Occupation is demand against capacity, and a denominator
+    // clipped to its own numerator cannot show a plant with room to spare.
+    //
+    // A union rather than a replacement, because neither set contains the
+    // other: a station can be routed to with no schedule of its own, and it
+    // keeps the rows it has always had.
     final open = <String, Duration>{};
-    // The same walk cut into months (§10.2). **Clipped to the run at both
-    // ends**, so the first and last months state the capacity the run actually
-    // had rather than the whole calendar month's — a run beginning on the 20th
-    // did not have January's hours and a line drawn as though it did would put
-    // every bar in that column under it.
     final openByMonth = <String, Map<DateTime, Duration>>{};
-    for (final entry in workcenters.entries) {
+    final capacityStations = scheduledStations.isEmpty
+        ? workcenters
+        : {...workcenters, ...scheduledStations};
+    for (final entry in capacityStations.entries) {
       final units = entry.value.units < 1 ? 1 : entry.value.units;
       try {
         open[entry.key] =
@@ -1208,13 +1242,40 @@ class _Engine {
       } on StateError {
         open[entry.key] = Duration.zero;
       }
+    }
+
+    // The same walk cut into months (§10.2), **bounded per station by its own
+    // schedule** rather than by the run — so the grid goes ragged: a station
+    // whose schedule stops a year earlier is *blank* past it rather than zero.
+    // §10.2's own distinction — nobody has said is not the same claim as said
+    // zero.
+    for (final entry in capacityStations.entries) {
+      final units = entry.value.units < 1 ? 1 : entry.value.units;
+      final periods = entry.value.schedule.periods;
+      // Sorted by start date, so the last period is not necessarily the one
+      // that ends last.
+      final DateTime from0;
+      final DateTime to0;
+      if (periods.isEmpty) {
+        // No schedule to be bounded by — the run is all this station can be
+        // asked about. Reached by callers that pass no [scheduledStations].
+        from0 = start;
+        to0 = _now;
+      } else {
+        from0 = dateOnly(periods.first.startDate);
+        // `endDate` is inclusive (§11.1) and `openTimeBetween` is half-open,
+        // so the last day of the schedule needs the day after it as the bound.
+        to0 = dateOnly(
+          periods.map((p) => p.endDate).reduce((a, b) => a.isAfter(b) ? a : b),
+        ).add(const Duration(days: 1));
+      }
       final months = <DateTime, Duration>{};
-      for (var month = DateTime(start.year, start.month);
-          month.isBefore(_now);
+      for (var month = DateTime(from0.year, from0.month);
+          month.isBefore(to0);
           month = DateTime(month.year, month.month + 1)) {
         final next = DateTime(month.year, month.month + 1);
-        final from = month.isBefore(start) ? start : month;
-        final to = next.isAfter(_now) ? _now : next;
+        final from = month.isBefore(from0) ? from0 : month;
+        final to = next.isAfter(to0) ? to0 : next;
         if (!to.isAfter(from)) continue;
         try {
           months[month] = entry.value.calendar.openTimeBetween(from, to) * units;

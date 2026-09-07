@@ -189,6 +189,9 @@ void main() {
     final result = await compute(runSimulationOffThread, (
       studies: input.studies,
       workcenters: input.workcenters,
+      // A second map of `SimWorkcenter`, and a station in it may be in neither
+      // study — phase 9 sends the plant's scheduled set across as well.
+      scheduledStations: input.scheduledStations,
       // A `DateTime` has to cross the isolate too, and null is not a test of
       // that — the horizon is what §11.1's warning is built on, so a value
       // that could not be sent would surface as Simulate throwing.
@@ -549,7 +552,7 @@ void main() {
       expect(input.scheduleHorizon, DateTime(2026, 12, 31));
     });
 
-    test('reaches the stored run, so the warning survives a reload', () async {
+  test('reaches the stored run, so the warning survives a reload', () async {
       await taktFor(lineId);
       await seedStudy(name: 'Current state', line: lineId);
       final input = await simulation.assembleRun(projectId);
@@ -565,4 +568,113 @@ void main() {
       expect(result.scheduleHorizon, DateTime(2026, 12, 31));
     });
   });
+
+  group('capacity follows the schedule, not the demand (phase 9)', () {
+    /// A station the plant has scheduled and no study routes to — and it stops
+    /// **half a year before** the two that carry work, which is the shape of
+    /// the trap this phase is mostly about.
+    Future<String> idleStation() async {
+      final id = await resources.createWorkcenter(
+        plantId: plantId,
+        name: 'IDLE01',
+        lineIds: {lineId},
+      );
+      await schedules.createWorkcenterSchedulePeriod(
+        projectId: projectId,
+        workcenterId: id,
+        startDate: DateTime(2026),
+        endDate: DateTime(2026, 6, 30),
+        operatorsPerShift: const [1, 1, 1],
+        availability: 1,
+        rework: 0,
+      );
+      return id;
+    }
+
+    test('it is capacity, and deliberately not a resource', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      final idle = await idleStation();
+
+      final input = await simulation.assembleRun(projectId);
+
+      // The resource model is what the routings reach, unchanged.
+      expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
+      // The capacity set is what the plant has scheduled — a superset.
+      expect(
+        input.scheduledStations.keys,
+        unorderedEquals([cladId, millId, idle]),
+      );
+    });
+
+    test('a station with no schedule at all stays out of both', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      // Scheduled by nobody, in any project: *unmodelled*, not idle. A row of
+      // zeroes for it would invent a machine no one has said anything about.
+      await resources.createWorkcenter(
+        plantId: plantId,
+        name: 'UNKNOWN01',
+        lineIds: {lineId},
+      );
+
+      final input = await simulation.assembleRun(projectId);
+
+      expect(
+        input.scheduledStations.values.map((w) => w.name),
+        isNot(contains('UNKNOWN01')),
+      );
+    });
+
+    test('the idle station does not drag the horizon back', () async {
+      // **The trap in the phase.** `scheduleHorizon` is the *minimum* of each
+      // schedule's last end date, so admitting a station with no work to the
+      // resource model in order to give it capacity rows would pull the
+      // horizon back to whenever that machine happens to stop — here half a
+      // year — and start firing §11.1's warning on a run with nothing wrong
+      // with it. The horizon is computed over the stations the run uses.
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      await idleStation();
+
+      final input = await simulation.assembleRun(projectId);
+
+      expect(input.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+
+    test('it gets capacity rows, bounded by its own schedule', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      final idle = await idleStation();
+
+      final input = await simulation.assembleRun(projectId);
+      final result = runSimulation(
+        studies: input.studies,
+        workcenters: input.workcenters,
+        scheduledStations: input.scheduledStations,
+        scheduleHorizon: input.scheduleHorizon,
+      );
+
+      // Nothing ran on it, and it is on the chart anyway — which is the whole
+      // point: occupation is demand against capacity, and a denominator
+      // clipped to its own numerator cannot draw a plant with room to spare.
+      expect(result.steps.every((step) => step.workcenterId != idle), isTrue);
+      final months = result.openByWorkcenterMonth[idle];
+      expect(months, isNotNull);
+      expect(
+        months!.keys,
+        unorderedEquals([for (var m = 1; m <= 6; m++) DateTime(2026, m)]),
+        reason: 'January to June, and the grid goes ragged after it',
+      );
+      expect(months.values.every((open) => open > Duration.zero), isTrue);
+
+      // And the stations that do carry work span their own full schedule,
+      // which outlasts the run rather than stopping with it.
+      expect(
+        result.openByWorkcenterMonth[cladId]!.keys,
+        unorderedEquals([for (var m = 1; m <= 12; m++) DateTime(2026, m)]),
+      );
+    });
+  });
+
 }

@@ -100,6 +100,48 @@ class SimulationRepository {
       );
     }
 
+    // **Every station the plant has scheduled**, which is a wider set than the
+    // routings reach and is what monthly capacity is written for (phase 9).
+    //
+    // A station with a schedule and no demand is *idle*; a station with neither
+    // is *unmodelled*, and drawing it as a row of zeroes would invent a machine
+    // nobody has said anything about. So the schedule is the filter — on the
+    // live plant that is 18 of 42 workcenters, and 17 of the 18 already carry
+    // work.
+    //
+    // The schedule is read before the calendar because it is the cheap half of
+    // the pair and it decides: 24 of the 42 are answered without a calendar
+    // walk. Stations already assembled above are reused rather than rebuilt.
+    final scheduledStations = <String, SimWorkcenter>{};
+    for (final row in workcenterRows) {
+      final existing = workcenters[row.id];
+      if (existing != null) {
+        if (existing.schedule.periods.isNotEmpty) {
+          scheduledStations[row.id] = existing;
+        }
+        continue;
+      }
+      final schedule = await _schedules.loadWorkcenterSchedule(
+        projectId,
+        row.id,
+      );
+      if (schedule.periods.isEmpty) continue;
+      final calendar = await _schedules.loadWorkcenterCalendar(
+        projectId: projectId,
+        workcenterId: row.id,
+      );
+      if (calendar == null) continue;
+      scheduledStations[row.id] = SimWorkcenter(
+        id: row.id,
+        name: row.name,
+        calendar: calendar,
+        schedule: schedule,
+        units: row.parallelCapacity,
+        typeId: row.typeId,
+        typeName: typeNames[row.typeId],
+      );
+    }
+
     // Workcenter → the name of its type, which is the identity §7.4 balances
     // on. By name rather than by id because the balance compares two stations
     // and a name is what a reader would compare them by — and because the type
@@ -254,7 +296,14 @@ class SimulationRepository {
       return SimRunInput(
         studies: assembled,
         workcenters: workcenters,
+        scheduledStations: scheduledStations,
         readiness: readiness,
+        // **Over the stations the run USES, not the ones it can draw**, and
+        // this is the trap in phase 9. On the live plant the one idle
+        // scheduled station ends 2026-12-31 while all seventeen busy ones end
+        // 2027-12-31, so `scheduledStations.values` here would drag the
+        // horizon back a year and fire §11.1's warning on runs with nothing
+        // wrong with them.
         scheduleHorizon: _horizonOf(
           takts: [for (final study in flagged) demand[study.id]!.takt],
           stations: workcenters.values,
