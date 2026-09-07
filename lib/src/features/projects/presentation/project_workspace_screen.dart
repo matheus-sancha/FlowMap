@@ -22,6 +22,7 @@ import '../../studies/presentation/study_settings_tab.dart';
 import 'workspace_tabs.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
+import '../../../app/studies_pane.dart';
 
 /// The project workspace: a studies sidebar and the tabs of whichever study is
 /// open — or, at `/simulation`, the one place the project's run is read
@@ -86,7 +87,6 @@ class _ProjectWorkspaceScreenState
   ///
   /// Held here rather than in a provider: it is a property of this window, not
   /// of the project, and it should not follow the user to another machine.
-  bool _sidebarCollapsed = false;
 
   /// What the last run said, until the reader dismisses it (§12.1).
   ///
@@ -123,9 +123,27 @@ class _ProjectWorkspaceScreenState
         }
 
         final studyList = studies.value ?? const <Study>[];
-        final selected =
-            studyList.where((s) => s.id == studyId).firstOrNull ??
-            studyList.firstOrNull;
+        // **Simulation mode carries its study in `?study=`, not in the path**
+        // (#18). Reading only `widget.studyId` here meant `selected` fell back
+        // to the *first* study the moment the reader crossed into Simulation —
+        // so the mode switch's way back landed them on a study they had not
+        // been on. Arriving from study B and switching straight back returned
+        // them to study A, silently, and nothing said so.
+        final selected = selectedStudy(
+          studyList,
+          pathStudyId: studyId,
+          queryStudyId: widget.simulationStudyId,
+        );
+
+        // **The pane is Study-mode chrome** (#18). In Simulation mode it was a
+        // study picker that navigated *out* of Simulation mode, duplicating a
+        // job the results filter bar already does — so the collapse the reader
+        // chose was not being discarded so much as being asked of a pane that
+        // had no business being there. Project Settings keeps it: that
+        // destination has no mode switch, so the pane is its only way back to a
+        // study.
+        final showsPane = !widget.showSimulation;
+        final collapsed = ref.watch(studiesPaneCollapsedProvider);
 
         return Scaffold(
           appBar: AppBar(
@@ -143,20 +161,22 @@ class _ProjectWorkspaceScreenState
                 Flexible(
                   child: Text(project.name, overflow: TextOverflow.ellipsis),
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: _sidebarCollapsed
-                      ? l10n.studiesExpand
-                      : l10n.studiesCollapse,
-                  icon: Icon(
-                    _sidebarCollapsed
-                        ? Icons.menu_open
-                        : Icons.chevron_left,
+                // Gone with the pane in Simulation mode: a control for
+                // something not on screen is worse than no control.
+                if (showsPane) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: collapsed
+                        ? l10n.studiesExpand
+                        : l10n.studiesCollapse,
+                    icon: Icon(
+                      collapsed ? Icons.menu_open : Icons.chevron_left,
+                    ),
+                    onPressed: ref
+                        .read(studiesPaneCollapsedProvider.notifier)
+                        .toggle,
                   ),
-                  onPressed: () => setState(
-                    () => _sidebarCollapsed = !_sidebarCollapsed,
-                  ),
-                ),
+                ],
               ],
             ),
             actions: [
@@ -230,14 +250,14 @@ class _ProjectWorkspaceScreenState
                 duration: const Duration(milliseconds: 160),
                 curve: Curves.easeOut,
                 child: SizedBox(
-                  width: _sidebarCollapsed ? 0 : 280,
-                  child: _sidebarCollapsed
-                      ? const SizedBox.shrink()
-                      : _StudiesSidebar(
+                  width: showsPane && !collapsed ? 280 : 0,
+                  child: showsPane && !collapsed
+                      ? _StudiesSidebar(
                           project: project,
                           studies: studyList,
                           selectedId: selected?.id,
-                        ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
               const VerticalDivider(width: 1),
@@ -423,6 +443,33 @@ class _SimulateButton extends ConsumerWidget {
     }
     return '';
   }
+}
+
+/// Which study the workspace is about, whichever mode is showing (#18).
+///
+/// **Two ids reach this screen and only one of them is a path parameter.**
+/// Study mode carries the study in the path; Simulation mode carries it in
+/// `?study=` (§12.1) and leaves the path one null. Reading only the path meant
+/// `selected` silently became *the first study in the list* the moment the
+/// reader crossed into Simulation — so the mode switch, which navigates back to
+/// `selected`, returned them to a study they had never been on. Arriving from
+/// study B and switching straight back landed on study A, and nothing said so.
+///
+/// Falls back to the first study, which is what a project opened at its bare
+/// location shows and what an unknown id has to resolve to — the same
+/// forgiving rule §12.1 applies to a stale tab slug.
+///
+/// Visible for testing: the round trip this fixes is a property of three
+/// arguments, and asserting it does not need a widget tree (#18).
+@visibleForTesting
+Study? selectedStudy(
+  List<Study> studies, {
+  required String? pathStudyId,
+  required String? queryStudyId,
+}) {
+  final wanted = pathStudyId ?? queryStudyId;
+  return studies.where((s) => s.id == wanted).firstOrNull ??
+      studies.firstOrNull;
 }
 
 class _StudiesSidebar extends ConsumerWidget {
@@ -819,20 +866,30 @@ class _StudyTabsState extends State<_StudyTabs>
               ),
           ],
         ),
+        // **All five mounted, like the results strip** (#18). This was a
+        // `switch`, so only the current tab existed and its view state died
+        // when the reader looked at another one: the VSM map's zoom and pan
+        // (`_fitted`) re-fitted itself, and Demand's `Parts | Sequence | MM3`
+        // went back to Parts. The results tabs have never lost their grouping,
+        // unit or sort because they are an `IndexedStack` — one strip
+        // remembering and the other forgetting, with nothing on screen saying
+        // why, is the quiet inconsistency this map keeps finding.
+        //
+        // **The cost is real and accepted**: the VSM canvas, the demand grid
+        // and the summary now build on every study open rather than on first
+        // sight. That is the same bargain `simulation_tab.dart` already made.
         Expanded(
-          child: switch (widget.tab) {
-            StudyTab.flow => FlowTab(study: study),
-            StudyTab.settings => StudySettingsTab(
-              project: widget.project,
-              study: study,
-            ),
-            StudyTab.capacity => CapacityTab(
-              project: widget.project,
-              study: study,
-            ),
-            StudyTab.demand => DemandTab(study: study),
-            StudyTab.summary => SummaryTab(study: study),
-          },
+          child: IndexedStack(
+            index: widget.tab.index,
+            sizing: StackFit.expand,
+            children: [
+              FlowTab(study: study),
+              StudySettingsTab(project: widget.project, study: study),
+              CapacityTab(project: widget.project, study: study),
+              DemandTab(study: study),
+              SummaryTab(study: study),
+            ],
+          ),
         ),
       ],
     );

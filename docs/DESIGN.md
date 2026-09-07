@@ -3078,6 +3078,67 @@ nobody lands on a chosen date by dragging and the label would have to become the
 _Rejected: a sparkline of orders per month behind the track._ It reads well, and it is a chart in a
 filter bar — a new painter, with nothing in the suite rendering a pixel, landing unverified.
 
+
+### 12.9 Where workspace chrome remembers itself
+
+Field feedback: *"When I click to the simulation it is opening the side pane, keep the same state as
+it was."* `_sidebarCollapsed` was a plain `bool` on `_ProjectWorkspaceScreenState`, and switching
+mode is a `go_router` navigation to a *different route* — so the screen was rebuilt and the flag went
+with it. **The last piece of in-memory UI state phase 3 did not convert** (§12.1).
+
+**The pane is Study-mode chrome.** Before deciding where the collapse lives, the question underneath
+it: in Simulation mode the pane was a study picker whose taps navigated *out* of Simulation mode,
+duplicating a job the results filter bar already does with a multi-select. It is not shown there —
+so a collapse is not discarded so much as never asked of a pane that had no business being on
+screen. **Project Settings keeps it**, deliberately: that destination has no mode switch, so the
+pane is its only way back to a study, and removing it there would strand the reader on the back
+arrow to the projects list.
+
+**The collapse lives in `window.json`, beside `maximized`.** That file exists because window chrome
+is not domain state and would otherwise cost a schema migration for every field, and a collapsed
+pane is exactly that class of thing: a layout choice made once that a reader expects to still hold
+tomorrow. `WindowGeometry.save` therefore **merges rather than overwrites** — the file has two
+writers now, and a plain write on the next window move would have dropped the pane key silently, a
+fault reportable only as *"it forgets, sometimes"*.
+
+_Rejected: a session-scoped provider._ It fixes what was reported and nothing more; the `maximized`
+flag next door does not reset every morning and neither should this.
+_Rejected: `?pane=collapsed` in the location._ §12.1 reserves the URL for `?study=` — the one filter
+you navigate *from* — and §12.8 re-affirmed that a view setting stays out of it.
+
+**Failure is always *not collapsed*.** A missing, corrupt or hand-edited file opens the workspace
+with its study list showing. Hiding a pane because some json could not be parsed would be the app
+losing a control for a reason nobody on screen can see.
+
+#### The study a mode switch comes back to
+
+**A second defect, unreported, found under the first.** Two ids reach this screen and only one is a
+path parameter: Study mode carries the study in the path, Simulation mode in `?study=`. `selected`
+read only the path, so crossing into Simulation quietly made it *the first study in the list* — and
+since the mode switch navigates back to `selected`, a reader who went from study B to the run and
+straight back arrived at **study A**. No error, no message, and the correct id sitting in the URL
+the whole time. `selectedStudy` takes both and prefers the path; it is extracted and
+`@visibleForTesting` because the round trip is a property of three arguments and needs no widget
+tree.
+
+#### One strip remembered and the other forgot
+
+The sweep this ticket asked for found the same fault twice more, and a cause: **the results tabs are
+an `IndexedStack` and the study tabs were a `switch`.** All five results tabs stay mounted, so their
+grouping, unit, granularity, sort and lane toggles have never been lost; only the current study tab
+existed, so the VSM map's zoom and pan (`_fitted`, `_lastViewport`) re-fitted itself and Demand's
+`Parts | Sequence | MM3` went back to Parts on every trip to another tab. The study strip is an
+`IndexedStack` too now.
+
+**The cost is real and accepted**: the VSM canvas, the demand grid and the summary build on every
+study open rather than on first sight. That is the bargain the results strip already made, and one
+strip remembering while the other forgets — with nothing on screen saying why — is the quiet
+inconsistency this map keeps finding.
+
+_Not changed: which tab a mode returns to._ §12.1's *"the location is the memory, and coming back to
+a mode by way of the switch is a fresh arrival at it"* still holds. What is fixed is state *within*
+a tab, not which tab is showing.
+
 ---
 
 ## 13. Exports

@@ -63,6 +63,11 @@ dev_dependencies:
   # Drives migration fixtures in tests: opens a database in an old shape before
   # the current AppDatabase migrates it (DATA.md).
   sqlite3: ^3.5.0
+  # Points appDataDirectory() at a temp folder, so window.json can be written
+  # and read for real rather than mocked (#18). Transitive via path_provider,
+  # but imported directly here, which the analyzer rightly wants declared.
+  path_provider_platform_interface: ^2.1.0
+  plugin_platform_interface: ^2.1.0
 
 flutter:
   uses-material-design: true

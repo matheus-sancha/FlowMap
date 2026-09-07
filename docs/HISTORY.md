@@ -2336,3 +2336,38 @@ pass vacuously — which is how the chart's tests came to say nothing for two co
 
 **A drive is owed.** Nothing in the suite renders a pixel, so a `RangeSlider` in a filter bar and a
 five-column grid have not been looked at.
+
+---
+
+## 9. The studies pane stops forgetting, 2026-09-07
+
+Ticket [#18](https://github.com/matheus-sancha/FlowMap/issues/18), reasoning in `DESIGN.md` §12.9.
+Executed on `v2.0`, **1,081 tests**.
+
+**The reported bug was dissolved rather than fixed.** The pane reopened on a mode switch because
+`_sidebarCollapsed` was a `setState` flag on a screen that a route change rebuilds. But the question
+underneath was whether Simulation mode should show a *studies* pane at all — and it should not: its
+taps navigated **out** of Simulation mode, duplicating a job the results filter bar already does.
+Project Settings keeps the pane, because that destination has no mode switch and the pane is its
+only way back to a study.
+
+**The collapse moved into `window.json`, beside `maximized`**, and `WindowGeometry.save` had to start
+**merging**: the file has two writers now, and the obvious write would have dropped the pane key on
+the next window move — a fault reportable only as *"it forgets, sometimes"*. Two of the six new
+`window_chrome_test` cases exist for exactly that, one in each direction.
+
+**A second defect, unreported, found under the first.** Simulation mode carries its study in
+`?study=` while `selected` read only the path parameter, so crossing into Simulation silently made it
+**the first study in the list**. The mode switch navigates back to `selected` — so leaving study B
+for the run and switching straight back landed on **study A**, with the correct id in the URL the
+whole time. `selectedStudy` is extracted and tested; six cases, no widget tree.
+
+**And the sweep found the cause of two more.** The results tabs are an `IndexedStack`; the study tabs
+were a `switch`. So the Occupation view's grouping, unit and granularity have never been lost, while
+the VSM map's zoom and pan and Demand's `Parts | Sequence | MM3` reset on every trip to another study
+tab. The study strip is an `IndexedStack` too now — at the cost, stated and accepted, of building
+the VSM canvas, the demand grid and the summary on every study open.
+
+**Nothing here needed a pixel**, which is what the ticket claimed of itself and the reason it was
+worth taking without a drive: a merged file and a three-argument selection are both properties.
+The pane's *animation* is the only part that is feel, and it is not what was reported.

@@ -75,6 +75,25 @@ class WindowGeometry {
   static Future<File> _file() async =>
       File(p.join((await appDataDirectory()).path, fileName));
 
+  /// The file as it stands, or an empty map if there is not one to read.
+  static Future<Map<String, Object?>> _readAll() async {
+    try {
+      final file = await _file();
+      if (!file.existsSync()) return {};
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map ? decoded.cast<String, Object?>() : {};
+    } catch (error, stack) {
+      Diag.error('window.readAll', error, stack);
+      return {};
+    }
+  }
+
+  static Future<void> _writeMerged(Map<String, Object?> changes) async {
+    final merged = await _readAll()
+      ..addAll(changes);
+    await (await _file()).writeAsString(jsonEncode(merged), flush: true);
+  }
+
   static Future<WindowGeometry?> load() async {
     try {
       final file = await _file();
@@ -90,9 +109,13 @@ class WindowGeometry {
     }
   }
 
+  /// **Merges rather than overwrites** (#18). This file gained a second writer
+  /// when the studies pane's collapse moved into it, and a plain write here on
+  /// the next window move would have silently dropped it — a fault that would
+  /// only ever show up as *"it forgot again, sometimes"*.
   Future<void> save() async {
     try {
-      await (await _file()).writeAsString(jsonEncode(toJson()), flush: true);
+      await _writeMerged(toJson());
     } catch (error, stack) {
       Diag.error('window.save', error, stack);
     }
@@ -173,5 +196,36 @@ class WindowGeometry {
     normal ??= await windowManager.getBounds();
     if (saved?.maximized ?? false) await windowManager.maximize();
     return normal;
+  }
+}
+
+
+/// Window chrome that is not geometry, in the same file and for the same
+/// reason (#18).
+///
+/// `window.json` exists because window chrome is not domain state and would
+/// otherwise cost a schema migration for every field. A collapsed studies pane
+/// is exactly that: a layout choice, made once, that a reader expects to still
+/// hold tomorrow — the same expectation `maximized` next door already meets.
+///
+/// **Reads and writes are merged**, so this and [WindowGeometry.save] can both
+/// own the file without either dropping the other's key.
+///
+/// Failure is always *not collapsed*: a missing, corrupt or unreadable file
+/// opens the workspace with its study list showing, which is the state a reader
+/// can act on. Hiding the list because a json file could not be parsed would be
+/// the app losing a pane for a reason nobody can see.
+abstract final class WindowChrome {
+  static const _paneKey = 'studiesPaneCollapsed';
+
+  static Future<bool> studiesPaneCollapsed() async =>
+      (await WindowGeometry._readAll())[_paneKey] == true;
+
+  static Future<void> setStudiesPaneCollapsed(bool collapsed) async {
+    try {
+      await WindowGeometry._writeMerged({_paneKey: collapsed});
+    } catch (error, stack) {
+      Diag.error('window.pane', error, stack);
+    }
   }
 }
