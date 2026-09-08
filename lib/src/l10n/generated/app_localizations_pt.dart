@@ -1756,6 +1756,22 @@ class AppLocalizationsPt extends AppLocalizations {
       'Em que idioma a aplicação é apresentada. Seguir o sistema usa o idioma do Windows.';
 
   @override
+  String get settingsTheme => 'Aparência';
+
+  @override
+  String get settingsThemeHelp =>
+      'Se a aplicação é apresentada em claro ou escuro. Seguir o sistema usa o modo de cor do Windows.';
+
+  @override
+  String get settingsThemeSystem => 'Seguir o sistema';
+
+  @override
+  String get settingsThemeLight => 'Claro';
+
+  @override
+  String get settingsThemeDark => 'Escuro';
+
+  @override
   String get languageEn => 'English';
 
   @override

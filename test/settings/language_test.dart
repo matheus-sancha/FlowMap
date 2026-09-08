@@ -3,6 +3,7 @@
 // same name.
 import 'package:drift/native.dart';
 import 'package:flowmap/src/common/app_language.dart';
+import 'package:flowmap/src/common/app_theme_mode.dart';
 import 'package:flowmap/src/common/date_input.dart';
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/features/settings/application/settings_providers.dart';
@@ -116,6 +117,12 @@ void main() {
             ),
             dateFormatSettingProvider.overrideWith(
               (ref) => Stream.value(DateFormatSetting.locale),
+            ),
+            // The screen reads a third setting now. Overridden here for the
+            // reason the other two are — an un-overridden provider would reach
+            // for the database this group exists to keep out of the tree.
+            themeModeSettingProvider.overrideWith(
+              (ref) => Stream.value(AppThemeMode.system),
             ),
           ],
           child: Consumer(

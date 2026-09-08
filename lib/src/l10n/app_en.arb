@@ -955,6 +955,11 @@
     }
   },
   "settingsLanguageHelp": "Which language the app is drawn in. Follow the system uses your Windows display language.",
+  "settingsTheme": "Appearance",
+  "settingsThemeHelp": "Whether the app is drawn light or dark. Follow the system uses your Windows app colour mode.",
+  "settingsThemeSystem": "Follow the system",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
   "languageEn": "English",
   "languageEs": "Español",
   "languagePt": "Português",

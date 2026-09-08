@@ -16,6 +16,13 @@ class FlowMapApp extends ConsumerWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       theme: FlowMapTheme.light(),
       darkTheme: FlowMapTheme.dark(),
+      // **Both themes existed and neither was reachable.** Without a
+      // `themeMode:` this followed Windows, so seeing the light palette meant
+      // changing an OS-wide setting and changing it back — which is most of
+      // why it went unlooked-at through four drive sittings.
+      themeMode: ref
+          .watch(themeModeSettingProvider)
+          .maybeWhen(data: (m) => m.themeMode, orElse: () => ThemeMode.system),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       // **Null until somebody chooses**, which is what this had instead of a

@@ -5,10 +5,11 @@
 /// control with its own help text — is what the next setting should follow.
 library;
 
-import '../../../common/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/app_language.dart';
+import '../../../common/app_theme_mode.dart';
 import '../../../common/date_input.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/settings_providers.dart';
@@ -27,6 +28,9 @@ class SettingsScreen extends ConsumerWidget {
     final language = ref
         .watch(languageSettingProvider)
         .maybeWhen(data: (l) => l, orElse: () => AppLanguage.system);
+    final themeMode = ref
+        .watch(themeModeSettingProvider)
+        .maybeWhen(data: (m) => m, orElse: () => AppThemeMode.system);
 
     // **A language names itself.** `Español` rather than `Spanish`, in every
     // list and whatever the app is currently drawn in — because the person who
@@ -37,6 +41,12 @@ class SettingsScreen extends ConsumerWidget {
       AppLanguage.en => l10n.languageEn,
       AppLanguage.es => l10n.languageEs,
       AppLanguage.pt => l10n.languagePt,
+    };
+
+    String themeLabel(AppThemeMode value) => switch (value) {
+      AppThemeMode.system => l10n.settingsThemeSystem,
+      AppThemeMode.light => l10n.settingsThemeLight,
+      AppThemeMode.dark => l10n.settingsThemeDark,
     };
 
     String label(DateFormatSetting value) => switch (value) {
@@ -166,6 +176,60 @@ class SettingsScreen extends ConsumerWidget {
                       ref
                           .read(settingsRepositoryProvider)
                           .setDateFormat(chosen);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // **Last of the three**, because it is the only one that cannot make
+          // the screen unreadable: a reader who cannot read the language or
+          // parse the dates has a problem this control does not solve, and
+          // both of those sit above it for that reason.
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        l10n.settingsTheme,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: l10n.settingsThemeHelp,
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<AppThemeMode>(
+                    initialValue: themeMode,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final value in AppThemeMode.values)
+                        DropdownMenuItem(
+                          value: value,
+                          child: Text(themeLabel(value)),
+                        ),
+                    ],
+                    onChanged: (chosen) {
+                      if (chosen == null) return;
+                      ref
+                          .read(settingsRepositoryProvider)
+                          .setThemeMode(chosen);
                     },
                   ),
                 ],

@@ -9,6 +9,7 @@ library;
 import 'package:drift/drift.dart';
 
 import '../../../common/app_language.dart';
+import '../../../common/app_theme_mode.dart';
 import '../../../common/date_input.dart';
 import '../../../data/database/database.dart';
 
@@ -20,6 +21,9 @@ const dateFormatKey = 'display.dateFormat';
 
 /// The `app_settings` key the chosen language lives under (§8.7).
 const languageKey = 'display.language';
+
+/// The `app_settings` key the chosen theme lives under.
+const themeModeKey = 'display.themeMode';
 
 class SettingsRepository {
   SettingsRepository(this._db);
@@ -45,6 +49,28 @@ class SettingsRepository {
       (_db.select(_db.appSettings)..where((s) => s.key.equals(languageKey)))
           .watchSingleOrNull()
           .map((row) => AppLanguage.fromStored(row?.value));
+
+  /// The chosen theme, or [AppThemeMode.system] when nothing is stored.
+  ///
+  /// A stream for the reason the other two are: the whole tree repaints the
+  /// moment it changes. Cheaper than the language — the same widgets in
+  /// different colours rather than different strings — but read every bit as
+  /// widely, so it gets the same treatment.
+  Stream<AppThemeMode> watchThemeMode() =>
+      (_db.select(_db.appSettings)..where((s) => s.key.equals(themeModeKey)))
+          .watchSingleOrNull()
+          .map((row) => AppThemeMode.fromStored(row?.value));
+
+  Future<void> setThemeMode(AppThemeMode mode) =>
+      _db
+          .into(_db.appSettings)
+          .insertOnConflictUpdate(
+            AppSettingsCompanion.insert(
+              key: themeModeKey,
+              value: Value(mode.name),
+              updatedAt: DateTime.now(),
+            ),
+          );
 
   Future<void> setLanguage(AppLanguage language) =>
       _db

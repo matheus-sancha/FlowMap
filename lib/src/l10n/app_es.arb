@@ -849,6 +849,11 @@
     }
   },
   "settingsLanguageHelp": "En qué idioma se muestra la aplicación. Seguir el sistema usa el idioma de Windows.",
+  "settingsTheme": "Apariencia",
+  "settingsThemeHelp": "Si la aplicación se muestra en claro u oscuro. Seguir el sistema usa el modo de color de Windows.",
+  "settingsThemeSystem": "Seguir el sistema",
+  "settingsThemeLight": "Claro",
+  "settingsThemeDark": "Oscuro",
   "languageEn": "English",
   "languageEs": "Español",
   "languagePt": "Português",

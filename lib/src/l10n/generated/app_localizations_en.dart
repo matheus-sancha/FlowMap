@@ -1736,6 +1736,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Which language the app is drawn in. Follow the system uses your Windows display language.';
 
   @override
+  String get settingsTheme => 'Appearance';
+
+  @override
+  String get settingsThemeHelp =>
+      'Whether the app is drawn light or dark. Follow the system uses your Windows app colour mode.';
+
+  @override
+  String get settingsThemeSystem => 'Follow the system';
+
+  @override
+  String get settingsThemeLight => 'Light';
+
+  @override
+  String get settingsThemeDark => 'Dark';
+
+  @override
   String get languageEn => 'English';
 
   @override

@@ -140,17 +140,24 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
                 // *on or off* and leaves the reader to guess what off is; the
                 // two pacings are peers, and the one nobody picks is a real
                 // answer about the machine rather than the absence of one.
+                // **The `ⓘ` sits beside a heading, not inside the field's
+                // label.** A floating label is painted through a scale
+                // transform that `_RenderDecoration.hitTestChildren` does not
+                // apply when it hit-tests — its own comment says the label
+                // *must be handled specially* and then handles it like every
+                // other child. So anything interactive in a floating label is
+                // painted in one place and hit in another, and this dropdown
+                // always floats its label because it always has a value. The
+                // icon grid below already names itself this way.
+                namedHelp(
+                  context,
+                  l10n.workcenterCapacityType,
+                  l10n.workcenterTypeLabourPacedHelp,
+                  style: theme.textTheme.labelLarge,
+                ),
+                const SizedBox(height: 8),
                 DropdownButtonFormField<bool>(
                   initialValue: _labourPaced,
-                  decoration: InputDecoration(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(child: Text(l10n.workcenterCapacityType)),
-                        ?helpIcon(context, l10n.workcenterTypeLabourPacedHelp),
-                      ],
-                    ),
-                  ),
                   items: [
                     DropdownMenuItem(
                       value: false,

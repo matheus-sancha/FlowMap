@@ -3114,6 +3114,36 @@ abstract class AppLocalizations {
   /// **'Which language the app is drawn in. Follow the system uses your Windows display language.'**
   String get settingsLanguageHelp;
 
+  /// No description provided for @settingsTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsTheme;
+
+  /// No description provided for @settingsThemeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Whether the app is drawn light or dark. Follow the system uses your Windows app colour mode.'**
+  String get settingsThemeHelp;
+
+  /// No description provided for @settingsThemeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the system'**
+  String get settingsThemeSystem;
+
+  /// No description provided for @settingsThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeLight;
+
+  /// No description provided for @settingsThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeDark;
+
   /// No description provided for @languageEn.
   ///
   /// In en, this message translates to:

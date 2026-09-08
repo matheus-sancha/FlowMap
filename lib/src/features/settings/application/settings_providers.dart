@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../common/app_language.dart';
+import '../../../common/app_theme_mode.dart';
 import '../../../common/date_input.dart';
 import '../../../data/database/database_providers.dart';
 import '../data/settings_repository.dart';
@@ -33,6 +34,16 @@ final dateFormatSettingProvider = StreamProvider<DateFormatSetting>(
 /// platform would have chosen anyway — which is what the app did before §8.7.
 final languageSettingProvider = StreamProvider<AppLanguage>(
   (ref) => ref.watch(settingsRepositoryProvider).watchLanguage(),
+);
+
+/// The stored theme, defaulting to the platform before it has loaded.
+///
+/// **Never in a loading state to its readers**, on the argument the other two
+/// make: one frame in the brightness the platform would have chosen anyway is
+/// better than one frame of no app at all, and that frame is what the app did
+/// before this setting existed.
+final themeModeSettingProvider = StreamProvider<AppThemeMode>(
+  (ref) => ref.watch(settingsRepositoryProvider).watchThemeMode(),
 );
 
 /// How this build should write and read dates: the setting, over the locale.
