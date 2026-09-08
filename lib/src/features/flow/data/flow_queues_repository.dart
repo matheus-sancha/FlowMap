@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../diagnostics/application/diagnostics.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
@@ -53,6 +54,11 @@ class FlowQueuesRepository {
     DurationUnit? stockUnit,
   }) {
     final now = DateTime.now();
+    // The other half of the same question: the dialog says it decided to
+    // write, this says whether the write landed. A throw here used to reach
+    // nobody — `_saveQueue` is awaited inside an async gap with no handler, so
+    // the dialog closes and the row does not move.
+    Diag.event('queue.write', 'target $targetId capacity $capacity');
     return _db
         .into(_db.projectQueues)
         .insert(

@@ -7,7 +7,9 @@ import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../diagnostics/application/diagnostics.dart';
 import '../../studies/application/studies_providers.dart';
+import '../data/flow_queues_repository.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
 import '../application/takt_balance.dart' show BalanceStanding;
@@ -39,6 +41,9 @@ Future<void> showInsertNodeMenu(
   );
   if (draft == null) return;
 
+  // **Both repositories, before the first await.** After it the dialog has
+  // closed and this `ref` belongs to an unmounted widget; see `_saveQueue`.
+  final queueWrites = ref.read(flowQueuesRepositoryProvider);
   await ref
       .read(studiesRepositoryProvider)
       .insertStep(
@@ -56,7 +61,7 @@ Future<void> showInsertNodeMenu(
         equivalentUnit: draft.equivalentUnit,
         notes: draft.notes,
       );
-  await _saveQueue(ref, projectId: study.projectId, draft: draft);
+  await _saveQueue(queueWrites, projectId: study.projectId, draft: draft);
 }
 
 /// Writes the step's queue, and only when the dialog says it changed.
@@ -68,8 +73,21 @@ Future<void> showInsertNodeMenu(
 /// either of them seeing it happen. So `_StepDraft.queue` is null unless a queue
 /// field actually differs from what the dialog loaded, and a target nobody has
 /// described keeps no row at all.
+///
+/// **Takes the repository rather than the `ref` it came from**, and that is the
+/// whole of a defect the field hit four times in one evening: *"I'm trying to
+/// input the lane capacity to 2, but it's not saving."* This runs after the
+/// step has been written, which is an `await` — by then the dialog has closed
+/// and the widget that owns the `ref` is unmounted, so `ref.read` throws
+/// `Using "ref" when a widget is about to or has been unmounted is unsafe`.
+/// The step row moved and the queue row did not, with nothing on screen to say
+/// why.
+///
+/// The caller reads both repositories **before** the first await, which is what
+/// `studiesRepositoryProvider` already did one line above and is why *it*
+/// survived.
 Future<void> _saveQueue(
-  WidgetRef ref, {
+  FlowQueuesRepository queueWrites, {
   required String projectId,
   required _StepDraft draft,
 }) async {
@@ -77,18 +95,25 @@ Future<void> _saveQueue(
   final targetId = draft.targetId;
   if (queue == null || targetId == null) return;
 
-  await ref
-      .read(flowQueuesRepositoryProvider)
-      .saveQueue(
-        projectId: projectId,
-        targetId: targetId,
-        rule: queue.rule,
-        capacity: queue.capacity,
-        stockMode: queue.stockMode,
-        stockQuantity: queue.stockQuantity,
-        stockSeconds: queue.stockSeconds,
-        stockUnit: queue.stockUnit,
-      );
+  // **Caught, because the alternative is silence.** This is awaited inside an
+  // async gap with no handler above it: a throw here unwinds into the framework,
+  // the dialog has already closed, and the only symptom is a row that did not
+  // move. Whatever else goes wrong with a queue write, it now says so.
+  try {
+    await queueWrites.saveQueue(
+          projectId: projectId,
+          targetId: targetId,
+          rule: queue.rule,
+          capacity: queue.capacity,
+          stockMode: queue.stockMode,
+          stockQuantity: queue.stockQuantity,
+          stockSeconds: queue.stockSeconds,
+          stockUnit: queue.stockUnit,
+        );
+  } catch (error, stack) {
+    Diag.error('queue.save', error, stack);
+    rethrow;
+  }
 }
 
 /// Edits, moves or removes a process step — and the queue in front of it.
@@ -128,6 +153,9 @@ Future<void> showStepEditor(
   if (result == null) return;
 
   final repository = ref.read(studiesRepositoryProvider);
+  // Read here rather than after the step is written: by then this `ref` is an
+  // unmounted widget's and reading it throws. See `_saveQueue`.
+  final queueWrites = ref.read(flowQueuesRepositoryProvider);
   switch (result) {
     case _StepDraft draft:
       await repository.updateStep(
@@ -144,7 +172,7 @@ Future<void> showStepEditor(
         equivalentUnit: draft.equivalentUnit,
         notes: draft.notes,
       );
-      await _saveQueue(ref, projectId: study.projectId, draft: draft);
+      await _saveQueue(queueWrites, projectId: study.projectId, draft: draft);
       case _MoveNode move:
       await repository.moveNode(
         study.id,
@@ -837,6 +865,23 @@ class _StepDialogState extends State<_StepDialog> {
                   final notes = _notes.text.trim();
                   final equivalent = _equivalentValue;
                   final queue = _targetId == null ? null : _queueDraft();
+                  // **A write that decides to do nothing leaves no trace**,
+                  // and this one decides on a comparison the reader cannot
+                  // see. The field reported typing a lane capacity and saving,
+                  // and the step row moved while the queue row did not — which
+                  // is exactly what this branch does and exactly what nothing
+                  // recorded. One line either way, so the next report arrives
+                  // with its own answer.
+                  Diag.event(
+                    'queue.save',
+                    queue == null
+                        ? 'no target'
+                        : queue == _loadedQueue
+                        ? 'unchanged, not written '
+                              '(capacity ${_loadedQueue?.capacity})'
+                        : 'writing capacity ${_loadedQueue?.capacity} '
+                              '-> ${queue.capacity}, rule ${queue.rule?.name}',
+                  );
                   Navigator.of(context).pop(
                     _StepDraft(
                       workcenterId: _target?.startsWith('wc:') ?? false

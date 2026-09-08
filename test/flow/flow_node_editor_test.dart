@@ -563,6 +563,60 @@ void main() {
       expect(writes.saved.single.capacity, 2);
     });
 
+    testWidgets('the queue is written after the step, from a closed dialog', (
+      tester,
+    ) async {
+      // **The defect the field hit four times in one evening.** The queue is
+      // written *after* the step, which is an await — and `_saveQueue` used to
+      // reach for its repository through the `ref` of a widget that had by then
+      // been unmounted. Riverpod throws on that, so the step row moved, the
+      // queue row did not, and the only trace was a platform error in the log.
+      //
+      // Reproduced by making the step write take a turn of the event loop and
+      // then tearing the host down, which is what closing the dialog does.
+      final writes = _RecordingQueues();
+
+      await pumpHost(
+        tester,
+        (context, ref) => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: boundStep(),
+          queues: {'wc-1': queueRow('wc-1', rule: null, capacity: null)},
+        ),
+        overrides: [
+          flowTargetsProvider('study-1').overrideWith(
+            (ref) async => (workcenters: [clad], pools: <WorkcenterPool>[]),
+          ),
+          flowQueuesRepositoryProvider.overrideWithValue(writes),
+          studiesRepositoryProvider.overrideWithValue(_SlowSteps()),
+        ],
+      );
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await tester.enterText(
+        find.ancestor(
+          of: find.text(l10n.laneCapacity),
+          matching: find.byType(TextField),
+        ),
+        '2',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.actionSave));
+      await tester.pump();
+      // The host goes while the step write is still in flight, which is the
+      // race the dialog closing creates.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+
+      expect(
+        writes.saved.single.capacity,
+        2,
+        reason: 'the queue write must not depend on a widget that has gone',
+      );
+    });
+
     testWidgets('changing the queue type writes it', (tester) async {
       // The other half: the rule above must not be so eager that a deliberate
       // edit is dropped too.
@@ -789,6 +843,15 @@ void main() {
 class _SilentSteps implements StudiesRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
+}
+
+/// Like [_SilentSteps], but the step write takes a turn of the event loop —
+/// long enough for the dialog's host to be torn down before the queue write
+/// runs, which is the order the app actually does it in.
+class _SlowSteps implements StudiesRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      Future<void>.delayed(Duration.zero);
 }
 
 /// A stand-in that records what the step dialog asked to be written.
