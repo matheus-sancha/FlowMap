@@ -39,9 +39,9 @@ first. Nothing here restates a decision — it points at the one place each live
 |---|---|---|---|
 | 1 | Queue as an aspect | **v27** | [#5](https://github.com/matheus-sancha/FlowMap/issues/5) — **done, driven** |
 | 2 | Priority goes | **v28** | [#6](https://github.com/matheus-sancha/FlowMap/issues/6) — **done** |
-| 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, driven in part** |
-| 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive owed** |
-| 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built, drive owed** |
+| 3 | Navigation | — | [#7](https://github.com/matheus-sancha/FlowMap/issues/7) — **built, driven in part** — light mode driven 2026-09-08, two defects fixed; the four study tabs still unopened |
+| 4 | Grids | — | [#10](https://github.com/matheus-sancha/FlowMap/issues/10) — **built, drive still owed** — unwalked across three sittings |
+| 5 | Occupation | **v29** | [#9](https://github.com/matheus-sancha/FlowMap/issues/9) — **built and driven, 2026-09-08** — all nine Occupation checks and all three slicer/granularity checks pass |
 | — | ~~Part identity~~ | — | [#12](https://github.com/matheus-sancha/FlowMap/issues/12) — **executed, not phased** |
 | 6 | Occupation, round two | — | [#13](https://github.com/matheus-sancha/FlowMap/issues/13), [#16](https://github.com/matheus-sancha/FlowMap/issues/16) — **executed and driven** |
 | — | ~~Text clean-up~~ | — | [#15](https://github.com/matheus-sancha/FlowMap/issues/15) — **executed, not phased** |
@@ -56,8 +56,13 @@ two migrations land while the presentation layer is still the one the tests were
 and the large surface work then runs on a settled model. It is also the order the tickets already
 recorded their migration numbers in, so no resolution has to be corrected.
 
-Schema is at **v29** (`database.dart:78`). **147 runs are stored** — 146 with step rows and one
-empty. (`DRIVE-2026-08-29.md` says 104; that was true at schema v22 on 29 August.)
+Schema is at **v30** (`database.dart:78`). **164 runs are stored** — 163 with step rows, 20 of them
+with the monthly capacity the Occupation view needs. (`DRIVE-2026-08-29.md` says 104; that was true
+at schema v22 on 29 August.)
+
+**The 2026-09-08 sitting is the first drive here to return confirmations rather than adjustments.**
+`DRIVE-2026-09-07.md` sections 1–3 are answered; **4, 5, 6 and 7 are not**, and 4 and 5 have been
+owed since 2026-08-31.
 
 ---
 
