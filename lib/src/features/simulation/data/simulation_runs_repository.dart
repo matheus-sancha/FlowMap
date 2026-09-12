@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../../app/build_info.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../application/run_metrics.dart';
@@ -248,6 +249,11 @@ class SimulationRunsRepository {
               guard: result.guard,
               abortReason: Value(result.abort?.name),
               scheduleHorizon: Value(result.scheduleHorizon),
+              // **Which build made it** (#24). `kBuildLabel` is what the
+              // diagnostics header and both exports already stamp, so a run, a
+              // file and a log all name the build the same way. Null is
+              // reserved for runs made before this column existed.
+              appVersion: const Value(kBuildLabel),
               createdAt: DateTime.now(),
             ),
           );

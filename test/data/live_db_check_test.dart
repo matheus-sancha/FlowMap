@@ -6,7 +6,9 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
+import 'package:flowmap/src/data/database/migration_backup.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 /// Drives the pending migration against a **copy of the real database**.
 ///
@@ -79,6 +81,29 @@ void main() {
       markTestSkipped('set FLOWMAP_LIVE_DB to a copy of flowmap.sqlite');
       return;
     }
+
+    // **The backup, before anything opens the file** (#28, v31).
+    //
+    // This is the one claim here that has to be made *first*: `copyAside` is
+    // called from `_openOnDevice` ahead of Drift, so a check that ran after
+    // `AppDatabase` would be asserting about a database already being migrated.
+    // Passing an explicit executor below deliberately bypasses the production
+    // open path, so the call is made here exactly as `_openOnDevice` makes it.
+    final liveFile = File(path);
+    final backup = await MigrationBackup.copyAside(
+      liveFile,
+      schemaVersion: AppDatabase(NativeDatabase.memory()).schemaVersion,
+    );
+    expect(
+      backup,
+      isNotNull,
+      reason: 'no backup was taken of a database a migration is about to run '
+          'on — the whole of what makes a half-failed upgrade recoverable',
+    );
+    expect(backup!.lengthSync(), liveFile.lengthSync());
+    // ignore: avoid_print
+    print('backup written: ${p.basename(backup.path)} '
+        '(${(backup.lengthSync() / 1024 / 1024).toStringAsFixed(1)} MB)');
 
     final db = AppDatabase(NativeDatabase(File(path)));
     addTearDown(db.close);
@@ -485,5 +510,27 @@ void main() {
     // ignore: avoid_print
     print('runs that can draw the occupation grid: '
         '${graphable.length} of ${runs.length}');
+
+    // --- v31: which build made this run, and the backup ahead of it (#24, #28)
+
+    // **Nothing is backfilled, and the durable form of that is the ordering**
+    // (see the note at the top of this file). Every run stored before v31 has a
+    // null stamp; stamping them would be the one change that makes the app lie
+    // about its own records, since they span three engine generations and #19
+    // moved what a run *means* with no migration at all.
+    final stamped = runs.where((r) => r.appVersion != null).toList();
+    expect(
+      stamped,
+      isEmpty,
+      reason: 'the v31 migration stamped a run it did not make; '
+          '${stamped.length} of ${runs.length} carry a build label',
+    );
+
+    // And every one of them is still here and still readable — the migration
+    // adds a column and touches no row.
+    expect(runs, isNotEmpty, reason: 'the stored runs survived the migration');
+    // ignore: avoid_print
+    print('runs carried through v31 unstamped: ${runs.length}');
+
   });
 }

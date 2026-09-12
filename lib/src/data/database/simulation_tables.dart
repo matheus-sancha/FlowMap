@@ -61,6 +61,29 @@ class SimulationRuns extends Table {
   /// omission.
   DateTimeColumn get scheduleHorizon => dateTime().nullable()();
 
+  /// The build that produced this run — `kBuildLabel` at the moment it was
+  /// stored (#24).
+  ///
+  /// **This is the column [#11] refused, and the reason it refused was sound
+  /// until the file could travel.** Its argument was that `created_at` already
+  /// dates the run, which is true *on one machine*, where the person reading it
+  /// knows what was installed when. A run arriving inside a `.flowmap` from
+  /// another install has a `created_at` that says nothing about which build
+  /// made it.
+  ///
+  /// **Schema version cannot stand in for it.** #19 changed what a run *means*
+  /// — capacity stopped being clipped to demand — with no migration at all,
+  /// while #20 bumped to v30. Two runs both at v30 can therefore disagree about
+  /// the plant, and only the build separates them.
+  ///
+  /// **Null means "made before builds were stamped"**, which is every run
+  /// stored up to v31. They are shown and never compared against a stamped one;
+  /// two *equally* unknown runs still compare, which is what keeps the 165
+  /// already in this file usable. **Deliberately not backfilled**: those runs
+  /// span three engine generations, and stamping them all with the current
+  /// build would make the app lie about its own records.
+  TextColumn get appVersion => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
 
   @override

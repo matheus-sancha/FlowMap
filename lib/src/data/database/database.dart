@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../features/diagnostics/application/diagnostics.dart';
 import '../app_directory.dart';
 import 'enums.dart';
+import 'migration_backup.dart';
 import 'project_tables.dart';
 import 'seed_data.dart';
 import 'simulation_tables.dart';
@@ -69,13 +70,31 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _openOnDevice() => LazyDatabase(() async {
     final dir = await appDataDirectory();
     await dir.create(recursive: true);
-    return NativeDatabase.createInBackground(
-      File(p.join(dir.path, 'flowmap.sqlite')),
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // **Before anything opens it.** The backup exists for a migration that
+    // fails halfway, and a copy taken after Drift has the file is a copy of a
+    // database already being changed. `copyAside` is a no-op on a fresh install
+    // and on a file already at this version, and it never throws — insurance
+    // that could deny you the building is worse than none.
+    final backup = await MigrationBackup.copyAside(
+      file,
+      schemaVersion: _schemaVersion,
+      onError: (error) => Diag.event('db.backup', 'failed: $error'),
     );
+    if (backup != null) {
+      Diag.event('db.backup', 'wrote ${p.basename(backup.path)}');
+    }
+
+    return NativeDatabase.createInBackground(file);
   });
 
+  /// The one place the number lives, so [_openOnDevice] can ask what a
+  /// migration would be *to* before there is an instance to ask.
+  static const int _schemaVersion = 31;
+
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => _schemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1208,6 +1227,23 @@ class AppDatabase extends _$AppDatabase {
         // **No stored run is touched.** The 150 keep what they have; a re-run
         // is what moves, and only at a type someone has marked.
         await _ensureColumn(m, workcenterTypes, workcenterTypes.isLabourPaced);
+      }
+
+      if (from < 31) {
+        // **Which build made this run** (#24). One nullable column on a table
+        // that predates it, no rebuild — the same shape as v26, v29 and v30.
+        //
+        // **Deliberately not backfilled.** Every run already stored keeps a
+        // null, and null means *"made before builds were stamped"* rather than
+        // *"unknown for some other reason"*. Stamping the 165 with the current
+        // build would be the one change that makes the app lie about its own
+        // records: they span three engine generations, and #19 moved what a run
+        // means with no migration at all, so two of them at the same schema
+        // version can still disagree about the plant.
+        //
+        // **No stored run is touched**, which is also what makes this the first
+        // migration since v2.0 opened that puts nothing at risk.
+        await _ensureColumn(m, simulationRuns, simulationRuns.appVersion);
       }
 
       // Reference-data seeding runs outside every version guard, on every

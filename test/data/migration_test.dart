@@ -2888,4 +2888,47 @@ void main() {
       expect(types.every((t) => !t.isLabourPaced), isTrue);
     });
   });
+
+  group('v30 to v31: which build made this run (#24)', () {
+    test('every stored run keeps a null stamp, and is otherwise untouched',
+        () async {
+      // **Null is the answer, not an oversight.** A backfill would be the one
+      // change that makes the app lie about its own records: the runs already
+      // stored span three engine generations, and #19 moved what a run *means*
+      // with no migration at all — so two runs at the same schema version can
+      // still disagree about the plant.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "float_red_days, float_green_days, occupation_amber_pct, "
+        "occupation_red_pct, created_at, updated_at) "
+        "VALUES ('proj-1', 'P', 'plant-1', 'sp-1', 0, 30, 85, 100, $now, $now)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, project_id, dispatch, run_start, "
+        "run_end, guard, created_at) "
+        "VALUES ('run-1', 'proj-1', '', $now, $now, $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE simulation_runs DROP COLUMN app_version')
+        ..execute('PRAGMA user_version = 30')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final runs = await db.select(db.simulationRuns).get();
+      expect(runs, hasLength(1));
+      expect(runs.single.appVersion, isNull);
+      // The row the migration landed on is otherwise as it was.
+      expect(runs.single.id, 'run-1');
+      expect(runs.single.projectId, 'proj-1');
+      expect(runs.single.dispatch, '');
+    });
+  });
 }
