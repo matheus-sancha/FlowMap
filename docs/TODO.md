@@ -61,6 +61,14 @@ it protects; `.flowmap` before templates and before the drop that carries the ex
 before compare has anything to compare; and `flowmap_mark.dart` before the PDF header can carry the
 mark.
 
+> **Phases 2 and 3 are provisional, 2026-09-12.** The field asked for a **document model** — a
+> project saved in a folder on a PC or a shared drive, opened, worked on and saved, one writer at a
+> time. That overturns `DESIGN.md` §2 and is charted as
+> [#37](https://github.com/matheus-sancha/FlowMap/issues/37). The `.flowmap` **format survives**;
+> *what opening one does* does not, and duplication may become **Save As**. **Phase 1 is
+> unaffected** — the `%APPDATA%` database exists under every reading, and a run carries its stamp
+> wherever it is stored. Do not build 2 or 3 until #37 closes.
+
 **Nothing in v2.1 reaches the engine.** The last engine change was v2.0's phase 10. This is the
 first plan since v2.0 opened for which **no stored run is at risk**, and the 165 stored runs are
 untouched by every phase below.
