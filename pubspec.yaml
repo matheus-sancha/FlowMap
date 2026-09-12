@@ -51,6 +51,9 @@ dependencies:
   pdf: ^3.12.0
   file_selector: ^1.1.0
   excel: ^4.0.6
+  # Reading and writing `.flowmap` documents, which are zips (#24, #37).
+  # Already resolved transitively via `excel`; named here because lib/ imports it.
+  archive: ^3.6.1
 
 dev_dependencies:
   flutter_test:
