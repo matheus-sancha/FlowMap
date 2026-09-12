@@ -45,8 +45,8 @@ Unchanged from v2.0, and worth restating because the audience changed:
 | # | Phase | Schema | Tickets |
 |---|---|---|---|
 | 1 | Safety and the stamp | **v31** | [#28](https://github.com/matheus-sancha/FlowMap/issues/28), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
-| 2 | `.flowmap` | — | [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
-| 3 | Copies | — | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
+| 2 | The document | — | [#37](https://github.com/matheus-sancha/FlowMap/issues/37), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
+| 3 | Templates and Save As | — | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
 | 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) |
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) |
 | 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) |
@@ -61,13 +61,6 @@ it protects; `.flowmap` before templates and before the drop that carries the ex
 before compare has anything to compare; and `flowmap_mark.dart` before the PDF header can carry the
 mark.
 
-> **Phases 2 and 3 are provisional, 2026-09-12.** The field asked for a **document model** — a
-> project saved in a folder on a PC or a shared drive, opened, worked on and saved, one writer at a
-> time. That overturns `DESIGN.md` §2 and is charted as
-> [#37](https://github.com/matheus-sancha/FlowMap/issues/37). The `.flowmap` **format survives**;
-> *what opening one does* does not, and duplication may become **Save As**. **Phase 1 is
-> unaffected** — the `%APPDATA%` database exists under every reading, and a run carries its stamp
-> wherever it is stored. Do not build 2 or 3 until #37 closes.
 
 **Nothing in v2.1 reaches the engine.** The last engine change was v2.0's phase 10. This is the
 first plan since v2.0 opened for which **no stored run is at risk**, and the 165 stored runs are
@@ -94,33 +87,62 @@ question.
 hand against a copy of the real database, asserting that the backup file exists before the migration
 runs and that all **165** stored runs survive with `app_version` null.
 
-### Phase 2 — `.flowmap`
+### Phase 2 — The document
 
-The file format, both kinds, and binding.
-[#24](https://github.com/matheus-sancha/FlowMap/issues/24) defines the container — a zip holding
-`manifest.json` plus JSON payloads, the manifest readable alone so a file from a newer build is
-refused with a sentence rather than a crash.
-[#23](https://github.com/matheus-sancha/FlowMap/issues/23) defines what binds: a **dispatch target**
-matched by name, with types → workcenters → pools created in that order when missing, pool members
-resolved before the pool.
+A project becomes a file you open and save
+([#37](https://github.com/matheus-sancha/FlowMap/issues/37)), in the format
+[#24](https://github.com/matheus-sancha/FlowMap/issues/24) defined — a zip holding `manifest.json`
+plus JSON payloads, the manifest readable alone so a file from a newer build is refused with a
+sentence rather than a crash.
 
-The heaviest phase, and the one carrying the most rejected alternatives. Read both tickets before
-starting; in particular, **queue settings do not travel** and a **sqlite file was rejected** as the
-format for a reason that is not obvious.
+**The document carries the plant.** Resources travel inside it — 135 rows against 630 of project
+data — so a document opened anywhere shows the same workcenters and produces the same numbers, which
+is the whole of what makes sharing mean anything. **It carries no runs**: those are 488,849 rows
+against 630, so they stay on the machine that made them, keyed to the document, and a colleague
+**re-runs** rather than receives (§4.4 guarantees the same inputs give the same run). A document is
+**~765 rows**.
 
-**Evidence owed: a drive sheet**, and it must include a round trip — export a study, import it into
-a second project, and confirm the created workcenters carry their schedules.
+**There is no Save button.** The local Drift database is the working copy, every edit commits there
+exactly as today, and the file is written through automatically — debounced, with a *saved / saving…*
+state. All nine repositories are untouched. **Every write is whole, to a temporary name, then an
+atomic rename**: a zipped document is only safe on a synced folder if it is never observed
+half-written, and that is a property of the save path rather than of the format.
 
-### Phase 3 — Copies
+**The lock is a heartbeat** — user, machine, and a timestamp refreshed about every minute — **and
+staleness heals itself**, so a crash or a dropped VPN frees the file in minutes and nobody has to
+understand locks or decide to break one.
+
+Also here: **the existing project migrates** to a document on first launch, which affects exactly one
+machine, because every employee installs fresh.
+
+**Read #37 before starting.** It rejects the two options that look cheapest — a live SQLite the app
+opens directly, and an explicit Save — and the reasons are not obvious from the code.
+
+**Evidence owed: a drive sheet**, and it must include the two things only a person can see: a
+document opened from a **network or synced folder**, and a second machine opening a document the
+first still holds.
+
+### Phase 3 — Templates and Save As
 
 Templates from [#25](https://github.com/matheus-sancha/FlowMap/issues/25) — a folder of `.flowmap`
-files at `%APPDATA%\com.sancha\flowmap\templates\`, listed from disk, with every fact on the row
-read from the manifest — and project duplication from
-[#30](https://github.com/matheus-sancha/FlowMap/issues/30).
+files at `%APPDATA%\com.sancha\flowmap\templates\`, listed from disk, with every fact on the row read
+from the manifest — and **Save As**, which is what duplicating a project becomes once a project is a
+file ([#30](https://github.com/matheus-sancha/FlowMap/issues/30)).
 
-**No schema for either.** Templates need none by construction; duplication touches ten-plus tables
-and **its guard must enumerate columns rather than list them**, because §2.6b caught `duplicateStudy`
-silently dropping a column twice, once for `batch_number` *"since the column arrived."*
+**Binding lives here now, not in phase 2.** A document brings its own plant, so opening one binds
+nothing — but a **template** is still a flow landing on a plant that is not its own, which is exactly
+what [#23](https://github.com/matheus-sancha/FlowMap/issues/23) answered: a **dispatch target**
+matched by name, types → workcenters → pools created in that order when missing, pool members
+resolved before the pool. Applying a template also binds three references on the study's own row —
+`productionCellId`, `productionLineId` and `paceSetterTargetId`.
+
+**Queue settings never travel with a template**, because they are project-scoped and **6 of 15 are
+shared between studies**.
+
+**No schema.** Save As is a file write, and its guard is still #30's: **enumerate the columns rather
+than list them**, because §2.6b caught `duplicateStudy` silently dropping a column twice, once for
+`batch_number` *"since the column arrived"* — and loading and writing a document is the same
+field-by-field hazard in a new place.
 
 This phase fills `router.dart:168`, **the last placeholder in the app**.
 
@@ -139,6 +161,9 @@ both-unstamped branch of the comparability rule is what makes the 165 usable at 
 pair **can never share a run** — `setIncludedInSimulation` allows at most one flagged study per
 production line — so comparison always spans two runs, and the empty state must teach *duplicate,
 then flag and run each separately*.
+
+**And #37 narrowed its reach:** runs stay on the machine that made them, so comparison **never
+crosses the shared drive** — it compares what was run here, on documents opened here.
 
 **Evidence owed: a drive sheet.** It will open empty: no two live studies share a cell and line.
 
@@ -181,11 +206,14 @@ a README line — plus `READ ME FIRST.txt`, the trilingual `manual.html`, and `e
 
 **One drop, at the end, to all twenty.** No pilot: each phase is driven by the developer instead,
 and the first drop carries no migration risk because a fresh install creates rather than migrates.
-The install-time risks it does carry — SmartScreen, and the example import — arrive on twenty
+The install-time risks it does carry — SmartScreen, and opening the example — arrive on twenty
 machines at once, which was the stated cost of choosing one drop.
 
-**The example does a second job:** it exercises phase 2's import path on **every single install**,
-which is twenty independent tests of the newest code in the build.
+**The example is a document to open, not a file to import** (#37), and it does a second job: opening
+it exercises phase 2's document path on **every single install**, which is twenty independent tests
+of the newest code in the build. It **opens with empty results**, because a document carries no
+runs — pressing Simulate is the first thing anyone does with it, and §4.4 means they get the same
+numbers the developer did.
 
 **Evidence owed: a document, and a cold install.** The manual is the first artefact in this repo
 that is neither a query nor a drive sheet. The cold install is one machine that is not the
