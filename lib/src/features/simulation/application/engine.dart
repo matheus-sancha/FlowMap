@@ -1191,6 +1191,23 @@ class _Engine {
       // start: the jam belongs to the order the workcenter could not put down.
       if (_rowOfServer[server.id] case final index?) {
         final row = _rows[index];
+        // **Every field, because this rebuilds the row rather than amending
+        // it.** Three were missing — `processSeconds`,
+        // `processSecondsBeforeRework` and `changeoverSeconds` — so a step
+        // whose workcenter was ever blocked threw away work the engine had
+        // already measured, and threw it away *after* measuring it, which is
+        // why nothing upstream could notice.
+        //
+        // It is not a reporting gap: `occupation_graph.dart` reads demand out
+        // of exactly these columns, so a blocked step contributed **nothing**
+        // to the Occupation view. The live database had 201 such steps in one
+        // run of 1,871 — about a ninth of the work absent from a figure people
+        // are asked to act on, with null and "was blocked" correlating
+        // perfectly and no exceptions either way.
+        //
+        // A rebuild that copies *most* fields is the shape of the fault, so the
+        // guard is a test that a blocked step keeps its work, not vigilance
+        // here.
         _rows[index] = SimOrderStep(
           studyId: row.studyId,
           orderId: row.orderId,
@@ -1200,6 +1217,9 @@ class _Engine {
           processStart: row.processStart,
           processEnd: row.processEnd,
           changeoverIncurred: row.changeoverIncurred,
+          changeoverSeconds: row.changeoverSeconds,
+          processSecondsBeforeRework: row.processSecondsBeforeRework,
+          processSeconds: row.processSeconds,
           laneNodeId: row.laneNodeId,
           blocked: held,
         );

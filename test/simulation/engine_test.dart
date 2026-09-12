@@ -688,6 +688,44 @@ void main() {
       }
     });
 
+    test('a blocked step keeps the work it already measured', () {
+      // **The fault this exists for was a rebuild that copied most fields.**
+      // Recording a block replaces the whole row, and it used to omit
+      // `processSeconds`, `processSecondsBeforeRework` and
+      // `changeoverSeconds` — so a step whose workcenter was ever blocked
+      // discarded work the engine had already computed, *after* computing it.
+      //
+      // It reached the Occupation view, which reads demand out of exactly
+      // these columns: on the live database, 201 steps of one run's 1,871
+      // carried a block and therefore contributed nothing at all to the load.
+      // Null and "was blocked" correlated perfectly, with no exceptions either
+      // way, which is what a dropped field looks like from the data.
+      final result = twoWorkcenters(capacity: 1);
+
+      final held = result.steps.where((s) => s.blocked > Duration.zero);
+      expect(held, isNotEmpty, reason: 'the fixture must actually block');
+
+      for (final step in held) {
+        expect(
+          step.processSeconds,
+          isNotNull,
+          reason: 'a blocked step forgot what its work cost',
+        );
+        expect(
+          step.processSecondsBeforeRework,
+          isNotNull,
+          reason: 'a blocked step forgot its work before rework',
+        );
+        // FAST does one-hour jobs, blocked or not: holding a finished order is
+        // not work, and must not change what the work cost.
+        expect(step.processSeconds, const Duration(hours: 1).inSeconds);
+      }
+
+      // And the whole run agrees: no step is a hybrid of two moments (§7.10).
+      final some = result.steps.where((s) => s.processSeconds != null).length;
+      expect(some, result.steps.length);
+    });
+
     test('blocked time is not busy time', () {
       final result = twoWorkcenters(capacity: 1);
 
