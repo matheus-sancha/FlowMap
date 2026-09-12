@@ -9,6 +9,196 @@ by decision. It is not lost: the last version is at the **`v1.0`** tag
 What was scrapped was the *forward* plan only. The shipped app is **Version 1.0**, tagged at
 `0d32838`, and is not touched again.
 
+## Version 2.1
+
+Work happens on branch **`v2.1`**.
+
+The plan below is the output of the wayfinder map
+**[FlowMap v2.1 — a build the plant installs, and a study that travels](https://github.com/matheus-sancha/FlowMap/issues/21)**,
+whose last ticket was
+[What are v2.1's phases, and in what order?](https://github.com/matheus-sancha/FlowMap/issues/36).
+Every phase below is the *summary*; the ticket linked beside it holds the reasoning, the rejected
+alternatives and the live-database evidence, and is what a session building that phase should read
+first. Nothing here restates a decision — it points at the one place each lives.
+
+**Version 2.0 is complete and closed.** Its section below stays as the record. Its map closed with
+sections 5–7 of `docs/DRIVE-2026-09-07.md` **abandoned rather than deferred**, including one defect
+confirmed by reading; nothing from that sheet is inherited here.
+
+### How a phase works
+
+Unchanged from v2.0, and worth restating because the audience changed:
+
+- **Shippable and drivable on its own.** A phase ends with the suite green, `flutter analyze` clean,
+  and the evidence that phase owes recorded.
+- **Its strings land in all three locales.** `app_en.arb`, `app_es.arb`, `app_pt.arb` and a
+  `flutter gen-l10n`, in the same commit as the code. `l10n_test.dart` asserts
+  `lib/src/l10n/untranslated.json` is empty, so a phase cannot ship English-only without failing the
+  build.
+- **Migrations are one per phase and never combined.** v2.1 has exactly **one** migration, so this
+  costs nothing — but it is why the stamp sits alone in phase 1.
+- **One word: `workcenter`.** *Station* is retired (`DESIGN.md` §3.0). A study is written
+  `name (cell · line)` wherever it stands beside a cell or a line.
+
+### The phases
+
+| # | Phase | Schema | Tickets |
+|---|---|---|---|
+| 1 | Safety and the stamp | **v31** | [#28](https://github.com/matheus-sancha/FlowMap/issues/28), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
+| 2 | `.flowmap` | — | [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
+| 3 | Copies | — | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
+| 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) |
+| 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) |
+| 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) |
+| 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) |
+
+**Grouped by what one sitting can build and drive.** A phase too big to drive in one sitting is a
+phase that will not be driven, which is v2.0's own lesson: five phases were built between
+2026-08-30 and 08-31 and three were never looked at by the person who asked for them.
+
+**The order is fixed by four dependencies and nothing else:** the backup ships before the migration
+it protects; `.flowmap` before templates and before the drop that carries the example; the v31 stamp
+before compare has anything to compare; and `flowmap_mark.dart` before the PDF header can carry the
+mark.
+
+**Nothing in v2.1 reaches the engine.** The last engine change was v2.0's phase 10. This is the
+first plan since v2.0 opened for which **no stored run is at risk**, and the 165 stored runs are
+untouched by every phase below.
+
+### Phase 1 — Safety and the stamp · schema v31
+
+The migration backup from [#28](https://github.com/matheus-sancha/FlowMap/issues/28), then
+`simulation_runs.app_version` from [#24](https://github.com/matheus-sancha/FlowMap/issues/24).
+
+**In this order and in this phase, deliberately.** `onUpgrade`'s own preamble records that a
+migration cannot run inside a transaction — `alterTable` needs foreign keys off — so a step that
+throws leaves the database part-upgraded with its version counter unchanged, and *"a machine here
+reached exactly that… and could not be opened again at all."* v31 is the first migration to run
+since that was written down, so the backup goes in ahead of it.
+
+**What the backup protects is not the drop.** A fresh install **creates** the schema at v31 rather
+than migrating to it, so the twenty employees run no migration at all on their first launch. The
+backup protects the developer's own 170 MB database and **every upgrade after this one** — which is
+where field migration risk actually begins, and which #28 ruled out of scope as the second-build
+question.
+
+**Evidence owed: a query.** A live-database check in the shape of `live_db_check_test.dart`, run by
+hand against a copy of the real database, asserting that the backup file exists before the migration
+runs and that all **165** stored runs survive with `app_version` null.
+
+### Phase 2 — `.flowmap`
+
+The file format, both kinds, and binding.
+[#24](https://github.com/matheus-sancha/FlowMap/issues/24) defines the container — a zip holding
+`manifest.json` plus JSON payloads, the manifest readable alone so a file from a newer build is
+refused with a sentence rather than a crash.
+[#23](https://github.com/matheus-sancha/FlowMap/issues/23) defines what binds: a **dispatch target**
+matched by name, with types → workcenters → pools created in that order when missing, pool members
+resolved before the pool.
+
+The heaviest phase, and the one carrying the most rejected alternatives. Read both tickets before
+starting; in particular, **queue settings do not travel** and a **sqlite file was rejected** as the
+format for a reason that is not obvious.
+
+**Evidence owed: a drive sheet**, and it must include a round trip — export a study, import it into
+a second project, and confirm the created workcenters carry their schedules.
+
+### Phase 3 — Copies
+
+Templates from [#25](https://github.com/matheus-sancha/FlowMap/issues/25) — a folder of `.flowmap`
+files at `%APPDATA%\com.sancha\flowmap\templates\`, listed from disk, with every fact on the row
+read from the manifest — and project duplication from
+[#30](https://github.com/matheus-sancha/FlowMap/issues/30).
+
+**No schema for either.** Templates need none by construction; duplication touches ten-plus tables
+and **its guard must enumerate columns rather than list them**, because §2.6b caught `duplicateStudy`
+silently dropping a column twice, once for `batch_number` *"since the column arrived."*
+
+This phase fills `router.dart:168`, **the last placeholder in the app**.
+
+**Evidence owed: a drive sheet.**
+
+### Phase 4 — Compare
+
+The third mode from [#26](https://github.com/matheus-sancha/FlowMap/issues/26):
+`Study | Simulation | Compare`, a verdict on **OTD**, the inputs that differed, then a metric table.
+
+**This amends [#7](https://github.com/matheus-sancha/FlowMap/issues/7)**, which settled on two modes
+after four driven rounds of a prototype. The reopening was deliberate; #7 is annotated.
+
+**Two things this phase must handle on day one.** Every stored run is **unstamped**, so the
+both-unstamped branch of the comparability rule is what makes the 165 usable at all. And a scenario
+pair **can never share a run** — `setIncludedInSimulation` allows at most one flagged study per
+production line — so comparison always spans two runs, and the empty state must teach *duplicate,
+then flag and run each separately*.
+
+**Evidence owed: a drive sheet.** It will open empty: no two live studies share a cell and line.
+
+### Phase 5 — Small surface
+
+The slicer's opening range from [#31](https://github.com/matheus-sancha/FlowMap/issues/31) — stops
+unchanged, the range opening on first release → last delivery — and About from
+[#32](https://github.com/matheus-sancha/FlowMap/issues/32), filling §12's reserved rail slot with
+the build label, the data folder and the diagnostics log.
+
+Also the guard: **a release build whose `BUILD_LABEL` is unset fails to build.** There is no
+packaging script to enforce it in, which is phase 7's problem; the assertion is this phase's.
+
+**Evidence owed: a drive sheet.**
+
+### Phase 6 — The mark and the PDF
+
+`flowmap_mark.dart` traced from `docs/brand/flowmap-mark-reference.png`
+([#33](https://github.com/matheus-sancha/FlowMap/issues/33)) — themed bars, seed-blue arrow, a
+compact variant, and `app_icon.ico` generated from the same geometry — then the PDF work from
+[#27](https://github.com/matheus-sancha/FlowMap/issues/27): `vsm_symbols.dart` replayed into the
+document, an embedded font, and the simulation report with the occupation chart.
+
+**One phase because the mark blocks the PDF header**, and splitting them would mean building the
+header twice. Also here: the **first-load and failure state**, which is where a migration that goes
+wrong has to be readable by someone who cannot read a stack trace.
+
+**Three defects this phase fixes, all found by generating the document and decompressing it:** the
+material-flow arrow is the ASCII character `>`; the inventory triangles `▽`/`▲` do not draw at all;
+the em dash is dropped silently.
+
+**Evidence owed: a drive sheet *and* a test.** `flow_pdf_test.dart` claims PDF content *"cannot be
+read back out"* — it can, and a test asserting every `FlowPdfStrings` value reaches the content
+stream would have caught the dropped em dash.
+
+### Phase 7 — The drop
+
+The packaging script — **which does not exist**; `build_info.dart` credits one and the repo has only
+a README line — plus `READ ME FIRST.txt`, the trilingual `manual.html`, and `example.flowmap`.
+
+**One drop, at the end, to all twenty.** No pilot: each phase is driven by the developer instead,
+and the first drop carries no migration risk because a fresh install creates rather than migrates.
+The install-time risks it does carry — SmartScreen, and the example import — arrive on twenty
+machines at once, which was the stated cost of choosing one drop.
+
+**The example does a second job:** it exercises phase 2's import path on **every single install**,
+which is twenty independent tests of the newest code in the build.
+
+**Evidence owed: a document, and a cold install.** The manual is the first artefact in this repo
+that is neither a query nor a drive sheet. The cold install is one machine that is not the
+developer's, unpacking the zip with no dev tooling and no existing data folder.
+
+### Standing constraints
+
+- **Nothing in the suite renders a pixel.** 1,146 tests say nothing about a screen, a PDF page, or a
+  16 px icon. Four of the seven phases owe a drive sheet for that reason.
+- **The audience changed the stakes.** Twenty machines, people who cannot read a stack trace,
+  machines nobody can inspect, data nobody else has a copy of.
+- **`simulation_runs` holds 165 stored runs at schema v30, none of them stamped.** Phase 1 adds the
+  stamp going forward; it does not backfill, because those runs span three engine generations and a
+  backfill would make the app lie about its own records.
+- **Three phases have unusually good oracles and should use them:** the PDF content stream can be
+  decompressed and asserted (phase 6), the project copier can be guarded by enumerating columns
+  (phase 3), and the example import self-tests on every install (phase 7).
+- `docs/DESIGN.md` is why, `docs/HISTORY.md` is what happened. §10.2 is **wrong in two places** until
+  phase 3 rewrites it — its contents list and its binding rule.
+
+---
 ## Version 2.0
 
 Work happens on branch **`v2.0`**.
