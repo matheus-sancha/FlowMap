@@ -346,6 +346,21 @@ void main() {
 
     // And no run is a hybrid of two moments, which is the other half of the
     // same rule: a run recorded its work throughout or it never did.
+    //
+    // **Amended at v31, because the claim was right and the data was wrong.**
+    // It fired on this database and the cause was not a migration: recording a
+    // block rebuilt the step row and dropped `process_seconds`,
+    // `process_seconds_before_rework` and `changeover_seconds`
+    // (`engine.dart:1194`), so a step whose workcenter was ever blocked threw
+    // away work already measured — and `occupation_graph.dart` reads demand out
+    // of exactly those columns, so that load was simply absent from the view.
+    //
+    // The fix stops new runs carrying it. **The runs already stored keep it**,
+    // because a run is a record and not a recomputation, so `isEmpty` can never
+    // be true here again. The durable form is this file's own: **the ordering**.
+    // Every run made after v31 carries an `app_version`; every run that carries
+    // one was made by a build with the fix in it, and must be whole. Ordinary
+    // use can only reinforce that, because every new run is stamped.
     final hybrid = {
       for (final run in runs)
         if (steps.where((s) => s.runId == run.id).toList() case final own
@@ -354,10 +369,21 @@ void main() {
                 own.any((s) => s.processSeconds != null))
           run.id,
     };
+    final stampedAndHybrid = {
+      for (final run in runs)
+        if (run.appVersion != null && hybrid.contains(run.id)) run.id,
+    };
     expect(
-      hybrid,
+      stampedAndHybrid,
       isEmpty,
-      reason: 'a run half-carrying its work is a run of two moments (§7.10)',
+      reason: 'a run made by a build that stamps itself still half-carries its '
+          'work, so engine.dart:1194 has regressed — a rebuild that copies '
+          'most fields is the shape of that fault (§7.10)',
+    );
+    // ignore: avoid_print
+    print(
+      'runs half-carrying their work: ${hybrid.length} of ${runs.length}, '
+      'all of them unstamped and so made before the fix',
     );
 
     // --- v22: the takt each order opened under -------------------------------
