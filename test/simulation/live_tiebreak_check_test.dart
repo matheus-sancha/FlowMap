@@ -137,7 +137,7 @@ void main() {
 
     // **The claim, and it is a claim about the whole run, not a sample.** The
     // need date is inserted *below* arrival, so it cannot reorder two orders
-    // that reached a station at different moments. Whatever moved, the run as a
+    // that reached a workcenter at different moments. Whatever moved, the run as a
     // whole still does the same work: the same orders visit the same steps.
     expect(
       onlyBefore + onlyAfter,

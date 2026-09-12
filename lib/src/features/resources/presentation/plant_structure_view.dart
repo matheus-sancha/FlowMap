@@ -282,7 +282,7 @@ class _LineTile extends ConsumerWidget {
                 const SizedBox(width: 8),
                 // A workcenter belongs to the plant, not to this line, so an
                 // existing one can be shown here **as well as** wherever else
-                // it is filed — a station that genuinely serves two lines is
+                // it is filed — a workcenter that genuinely serves two lines is
                 // drawn under both.
                 TextButton.icon(
                   onPressed: () => _showExistingWorkcenter(
@@ -305,7 +305,7 @@ class _LineTile extends ConsumerWidget {
 
 /// Also draws an existing plant workcenter under this line.
 ///
-/// **Adds, never moves.** Membership is a set: a station that genuinely serves
+/// **Adds, never moves.** Membership is a set: a workcenter that genuinely serves
 /// two lines belongs under both, and the single home line this replaces meant
 /// filing it here silently took it out of the other one.
 ///
@@ -455,7 +455,7 @@ class _WorkcenterTile extends ConsumerWidget {
           [
             type?.name ?? l10n.workcenterTypeUnset,
             // Said on the row, so a reader of one line's group knows this
-            // station is shared before they plan around it.
+            // workcenter is shared before they plan around it.
             if (lines.length > 1) l10n.workcenterOnLines('${lines.length}'),
           ].join(' · '),
         ),

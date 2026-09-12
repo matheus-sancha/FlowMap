@@ -481,7 +481,7 @@ class ProcessTimeEdit {
 
   final String partId;
 
-  /// The flow node the cell belongs to (§9), not the station it points at.
+  /// The flow node the cell belongs to (§9), not the workcenter it points at.
   final String nodeId;
 
   /// Null clears the cell — "this part does not visit this step".
@@ -527,7 +527,7 @@ class PartTimeWrite {
   /// block has no id until the write happens.
   final String partKey;
 
-  /// The flow node the cell belongs to (§9), not the station it points at.
+  /// The flow node the cell belongs to (§9), not the workcenter it points at.
   final String nodeId;
 
   /// Null clears the cell — the part does not visit that step (§5.1).

@@ -56,7 +56,7 @@ class Projects extends Table {
   ///
   /// Above [occupationAmberPct] is amber, above [occupationRedPct] is red;
   /// at or below the amber threshold is good. Defaults 85 and 100 — 100 because
-  /// a station asked for more than it has open is over by definition, and 85
+  /// a workcenter asked for more than it has open is over by definition, and 85
   /// because a month that close has no room for the changeover the next order
   /// brings.
   ///
@@ -153,8 +153,8 @@ class TaktPeriods extends Table {
   ///
   /// **Stored with its unit rather than as canonical seconds**, because "3
   /// days" cannot be reduced to a duration without knowing whose working day is
-  /// meant, and the answer differs per workcenter: a 1-shift station and a
-  /// 3-shift station have very different days. The flow equivalent resolves it
+  /// meant, and the answer differs per workcenter: a 1-shift workcenter and a
+  /// 3-shift workcenter have very different days. The flow equivalent resolves it
   /// per workcenter at calculation time (DESIGN.md §6.1) — one takt of *that*
   /// workcenter's capacity. Hours, minutes and seconds are literal and resolve
   /// the same everywhere.
@@ -261,7 +261,7 @@ class Studies extends Table {
   /// Derived by work content across the demand when null, which is what
   /// `_paceSetter` has always done. It is selectable now because the pacemaker
   /// gained a second job: §7.2 gates a release on whether the lane in front of
-  /// it has room, so a station chosen silently by summing batch sizes would be
+  /// it has room, so a workcenter chosen silently by summing batch sizes would be
   /// a gate that moves when the demand is edited and tells nobody.
   ///
   /// A target id — workcenter or pool — the convention `part_process_times`
@@ -346,12 +346,12 @@ class FlowNodes extends Table {
   /// place a pre-v17 setup can be recovered by hand.
   IntColumn get changeoverSeconds => integer().withDefault(const Constant(0))();
 
-  /// A changeover, in two halves: [setupValue] rigs the station for the order
+  /// A changeover, in two halves: [setupValue] rigs the workcenter for the order
   /// and [teardownValue] strips it afterwards (DESIGN.md §7.6).
   ///
   /// **Stored as a value plus a [TaktUnit], never as canonical seconds**, for
   /// the same reason takt and [equivalentValue] are: `days` here means
-  /// productive days of *this* station, and cannot be reduced to a duration
+  /// productive days of *this* workcenter, and cannot be reduced to a duration
   /// without saying whose day is meant (§6.1). One kind of day per dialog is
   /// §17.4's rule, and the field two below this one already uses that one.
   ///
@@ -360,7 +360,7 @@ class FlowNodes extends Table {
   TextColumn get setupUnit => textEnum<TaktUnit>().nullable()();
 
   /// The teardown, charged **with the next order's setup rather than at the end
-  /// of this one** — the station remembers what it owes, because whether a
+  /// of this one** — the workcenter remembers what it owes, because whether a
   /// strip-down is needed depends on what comes next and the engine has not
   /// picked it yet (DESIGN.md §7.6).
   ///
@@ -371,7 +371,7 @@ class FlowNodes extends Table {
   TextColumn get teardownUnit => textEnum<TaktUnit>().nullable()();
 
   /// How much of `setup + teardown` is still charged when the previous order at
-  /// this station was the **same part**, as a percentage.
+  /// this workcenter was the **same part**, as a percentage.
   ///
   /// Null is 0 %, which is exactly what this app did before v17: like-with-like
   /// was free. 100 % makes batching buy nothing. It governs the pair rather than
@@ -382,8 +382,8 @@ class FlowNodes extends Table {
   /// Pins this step out of §6.2.1's takt rebalancing (DESIGN.md §7.7.4).
   ///
   /// **Per step, not per workcenter**, for §7.6's reason — it is this line's
-  /// use of the station, and a duplicated study must be re-tunable without
-  /// disturbing the original. Célula 11B, 11C and 11D share four stations
+  /// use of the workcenter, and a duplicated study must be re-tunable without
+  /// disturbing the original. Célula 11B, 11C and 11D share four workcenters
   /// between them, so a flag on the machine would change three studies from a
   /// screen showing one.
   ///
@@ -391,7 +391,7 @@ class FlowNodes extends Table {
   /// enable one, so every step already in the tree keeps today's behaviour with
   /// no backfill — the same call §7.6 made for the same-part percentage.
   ///
-  /// A pinned station is **transparent** to its group rather than a wall: it is
+  /// A pinned workcenter is **transparent** to its group rather than a wall: it is
   /// the same operation, so the members either side of it still balance with
   /// each other (§6.2.1).
   BoolColumn get balanceDisabled => boolean().nullable()();
@@ -399,13 +399,13 @@ class FlowNodes extends Table {
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).
   ///
-  /// A property of the **yardstick**, not of the station: an inspection that
+  /// A property of the **yardstick**, not of the workcenter: an inspection that
   /// genuinely takes a fraction of a takt would otherwise drag every real
   /// part's equivalence at that step toward zero and skew the balance measure.
   /// Null follows the line's takt, which is the usual case.
   ///
   /// Stored as a value plus a [TaktUnit] — not a canonical duration — for the
-  /// same reason takt is: `days` here means productive days of *this* station.
+  /// same reason takt is: `days` here means productive days of *this* workcenter.
   RealColumn get equivalentValue => real().nullable()();
   TextColumn get equivalentUnit => textEnum<TaktUnit>().nullable()();
 
@@ -434,16 +434,16 @@ class FlowNodes extends Table {
   /// The queue discipline of the lane, or null to follow the run's rule
   /// (DESIGN.md §5.5, §7.4).
   ///
-  /// **The rule lives here rather than on the station**, which reverses §7.4 as
+  /// **The rule lives here rather than on the workcenter**, which reverses §7.4 as
   /// it was first built. On a physical FIFO lane you cannot take from the back,
   /// so a discipline is not a property of the channel — it is how the next
-  /// station *chooses* from what is standing in front of it, and that is a
-  /// thing the map draws. Stored on the station it was invisible; stored here
+  /// workcenter *chooses* from what is standing in front of it, and that is a
+  /// thing the map draws. Stored on the workcenter it was invisible; stored here
   /// it sits on the node the reader is already looking at.
   ///
   /// §5.1's spine is what makes this a total order: a step has at most one lane
   /// in front of it, so there is exactly one comparator per queue. That is the
-  /// ambiguity a station-level rule could not avoid — one machine can be a
+  /// ambiguity a workcenter-level rule could not avoid — one machine can be a
   /// candidate for its own step and for a pool's.
   TextColumn get laneRule => textEnum<DispatchRule>().nullable()();
 
@@ -462,11 +462,11 @@ class FlowNodes extends Table {
 
   // **`label` went in v27** (#5). It overrode the target's name on the process
   // box, the demand grid's column headings and the Gantt's step title — so a
-  // box could be captioned something its station was not called. Only 2 of the
+  // box could be captioned something its workcenter was not called. Only 2 of the
   // live database's 25 steps carried one, and both were the *same* step in two
   // studies spelling one pool two ways (`Clad Pool`, `CLAD Pool`): it was not
   // naming a visit, it was working around a target name too long for the box.
-  // A box is its station. See `flowStepTitle`.
+  // A box is its workcenter. See `flowStepTitle`.
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -536,10 +536,10 @@ class PartProcessTimes extends Table {
 
   /// The **flow node** whose step this time belongs to (§9).
   ///
-  /// **Keyed by the step since v24, not by the station it points at.** It was
+  /// **Keyed by the step since v24, not by the workcenter it points at.** It was
   /// the target, and two steps aiming at one workcenter were then two columns
   /// over one stored value — editing either edited both, and the engine charged
-  /// the same work on each pass. That was written down as right: *"the station
+  /// the same work on each pass. That was written down as right: *"the workcenter
   /// takes the same time per piece on both passes."* Driving §8.6 overturned
   /// it. A routing goes back to a machine because the second pass is a
   /// *different operation* — rough then finish, tack then final weld — and the
@@ -624,7 +624,7 @@ class DemandOrders extends Table {
   ];
 }
 
-/// One station's queue discipline, where it differs from the run's
+/// One workcenter's queue discipline, where it differs from the run's
 /// (DESIGN.md §7.4).
 ///
 /// **Keyed by target, exactly as [PartProcessTimes] is.** A pool's members are
@@ -635,13 +635,13 @@ class DemandOrders extends Table {
 /// reference two tables.
 ///
 /// **Project-scoped, not study-scoped.** A run builds one resource model of the
-/// plant and a station exists in it once however many studies point at it
+/// plant and a workcenter exists in it once however many studies point at it
 /// (§7.7) — so a study-scoped rule would let two studies demand different
 /// disciplines of one machine, with nothing able to choose between them. The
 /// step editor writes it from inside a study and says so.
 ///
 /// **A missing row means "use the run's rule."** Storing the default instead
-/// would make a station that was never touched indistinguishable from one
+/// would make a workcenter that was never touched indistinguishable from one
 /// deliberately set back to FIFO, and would freeze the run's own setting out of
 
 /// The decorative layer (DESIGN.md §5.2): standard VSM symbols that document

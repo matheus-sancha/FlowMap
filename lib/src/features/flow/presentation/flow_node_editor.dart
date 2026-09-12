@@ -279,7 +279,7 @@ class _QueueDraft {
     this.stockUnit,
   });
 
-  /// How the station ahead picks out of it, or null for an untyped queue:
+  /// How the workcenter ahead picks out of it, or null for an untyped queue:
   /// material piles up and nobody has decided in what order it comes off (§7.3).
   final DispatchRule? rule;
 
@@ -336,7 +336,7 @@ class _StepDialog extends StatefulWidget {
   ///
   /// The whole map's worth rather than this step's, because the target picker
   /// above can be changed while the dialog is open and the queue section has to
-  /// follow it — including onto a station another study has already described.
+  /// follow it — including onto a workcenter another study has already described.
   final Map<String, ProjectQueue> queues;
 
   final FlowStepView? existing;
@@ -388,7 +388,7 @@ class _StepDialogState extends State<_StepDialog> {
   //
   // Loaded from whatever the target picker is on, and reloaded whenever it
   // moves, so the heading and the row that Save writes are always the same
-  // station. The controllers are rebuilt in place rather than recreated: a
+  // workcenter. The controllers are rebuilt in place rather than recreated: a
   // `TextEditingController` outlives the value it is showing.
   final TextEditingController _queueCapacity = TextEditingController();
   final TextEditingController _stockQuantity = TextEditingController();
@@ -474,7 +474,7 @@ class _StepDialogState extends State<_StepDialog> {
   };
 
   /// `CLAD04` or `CAL Pool` — what the section is headed with, and what the
-  /// shared-queue line names. The station's own name rather than the step's
+  /// shared-queue line names. The workcenter's own name rather than the step's
   /// label: the other study's step may call its visit something else, and both
   /// wait in this one line.
   String get _targetName {
@@ -628,7 +628,7 @@ class _StepDialogState extends State<_StepDialog> {
                 ],
                 // **The queue section follows this picker.** Repointing a step
                 // from CLAD17 to CLAD09 means the fields on screen describe a
-                // station the step no longer feeds, so they are reloaded from
+                // workcenter the step no longer feeds, so they are reloaded from
                 // the new target — including from a row another study has
                 // already configured, which is then shown rather than
                 // overwritten. What the heading names is what Save writes.
@@ -639,15 +639,15 @@ class _StepDialogState extends State<_StepDialog> {
               ),
               const SizedBox(height: 12),
               // **No Label field** (#5, v27). What this step *is* was the
-              // station above; what it costs is below. The caption in between
-              // let a box be called something its station was not, and was only
+              // workcenter above; what it costs is below. The caption in between
+              // let a box be called something its workcenter was not, and was only
               // ever used to shorten a target name that did not fit.
               _ValueAndUnit(
                 controller: _equivalent,
                 unit: _equivalentUnit,
                 label: l10n.stepEquivalentTime,
                 hint: l10n.stepEquivalentFollowsTakt,
-                // `days` here is this station's productive day, exactly as for
+                // `days` here is this workcenter's productive day, exactly as for
                 // takt — so `1 day` equals one takt-day, and the same is true of
                 // the two fields below (§6.1.1, §17.4). A definition a wrong
                 // answer depends on, so it keeps an affordance rather than being
@@ -660,14 +660,14 @@ class _StepDialogState extends State<_StepDialog> {
               const SizedBox(height: 8),
               // §7.7.4. **Always here, greyed with a reason where it cannot
               // apply** — the field asked for this switch after an evening
-              // spent unable to find out why a station was not being
+              // spent unable to find out why a workcenter was not being
               // rebalanced, and the three reasons are all things the app knows.
               // Hiding it (§2.1's rule for the same-part percentage) would
               // protect the dialog's height and leave all three silent.
               _RebalanceField(
                 value: _rebalances,
                 standing: widget.existing?.standing,
-                stationName: _targetName,
+                workcenterName: _targetName,
                 typeName: widget.existing?.typeName,
                 filled: widget.existing?.processTime,
                 capacity: widget.existing?.equivalentProcessTime,
@@ -716,7 +716,7 @@ class _StepDialogState extends State<_StepDialog> {
               // --- the queue in front of this step (§7.3) ---
               //
               // Only on a bound step: there is no floor space in front of a step
-              // that names no station, and nothing to key a row by.
+              // that names no workcenter, and nothing to key a row by.
               if (_targetId != null) ...[
                 const SizedBox(height: 16),
                 // **Headed by the caption the map will draw** (#5, v27), so the
@@ -729,7 +729,7 @@ class _StepDialogState extends State<_StepDialog> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // **Said, not left to be discovered.** One queue per station is
+                // **Said, not left to be discovered.** One queue per workcenter is
                 // the whole correction §7.3 made, and a planner editing this
                 // from inside one study has to know the other study's orders
                 // stand in the same line.
@@ -945,15 +945,15 @@ class _StepDialogState extends State<_StepDialog> {
 /// Whether this step shares its work with the like machines beside it (§7.7.4).
 ///
 /// **Greyed with a reason rather than hidden** where it cannot apply. The switch
-/// is on by default and does nothing on a station that has no like neighbour —
+/// is on by default and does nothing on a workcenter that has no like neighbour —
 /// but "does nothing" is exactly what a reader needs told, because the question
-/// this round came out of was *why is my station not being rebalanced?* and the
+/// this round came out of was *why is my workcenter not being rebalanced?* and the
 /// answer was invisible in all three of its forms.
 class _RebalanceField extends StatelessWidget {
   const _RebalanceField({
     required this.value,
     required this.standing,
-    required this.stationName,
+    required this.workcenterName,
     required this.typeName,
     required this.onChanged,
     this.filled,
@@ -970,14 +970,14 @@ class _RebalanceField extends StatelessWidget {
   /// no neighbours to be like.
   final BalanceStanding? standing;
 
-  final String stationName;
+  final String workcenterName;
   final String? typeName;
 
-  /// What the balance filled this station to, what one takt of its capacity is,
+  /// What the balance filled this workcenter to, what one takt of its capacity is,
   /// and the rework between them (§9.8).
   ///
   /// **Carried so the caption can explain a gap the box cannot.** A balanced
-  /// station shows a derived share *below* its flow equivalent — 87.9 h against
+  /// workcenter shows a derived share *below* its flow equivalent — 87.9 h against
   /// 91.1 h on the plant this was found on — and that reads as the balance
   /// stopping short. It is not: 87.9 h of content is charged 91.1 h once 3.7 %
   /// rework is paid, which is exactly one takt. The box shows two figures and
@@ -998,7 +998,7 @@ class _RebalanceField extends StatelessWidget {
     null => null,
     BalanceStanding.balanced =>
       // The plain sentence wherever there is no rework to explain — which is
-      // every station that balanced exactly as it always did.
+      // every workcenter that balanced exactly as it always did.
       (rework ?? 0) <= 0 || filled == null || capacity == null
           ? l10n.stepRebalanceOn(typeName ?? '')
           : l10n.stepRebalanceOnWithRework(
@@ -1016,8 +1016,8 @@ class _RebalanceField extends StatelessWidget {
       filled == null || capacity == null
           ? l10n.stepRebalanceOn(typeName ?? '')
           // Over when the *charged* content passes a takt, not the measured
-          // content: rework is what the station pays on top, and comparing the
-          // two raw figures would call a station over that is not.
+          // content: rework is what the workcenter pays on top, and comparing the
+          // two raw figures would call a workcenter over that is not.
           : (filled!.inSeconds * (1 + (rework ?? 0)) > capacity!.inSeconds
                 ? l10n.stepRebalanceRemainderOver
                 : l10n.stepRebalanceRemainder)(
@@ -1025,7 +1025,7 @@ class _RebalanceField extends StatelessWidget {
               _hours(filled!),
               _hours(capacity!),
             ),
-    BalanceStanding.noType => l10n.stepRebalanceNoType(stationName),
+    BalanceStanding.noType => l10n.stepRebalanceNoType(workcenterName),
     BalanceStanding.noWorkHere => l10n.stepRebalanceNoWork,
     BalanceStanding.noLikeNeighbour => l10n.stepRebalanceNoNeighbour(
       typeName ?? '',
@@ -1039,7 +1039,7 @@ class _RebalanceField extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     // Nothing to share with, so the switch is inert — but visible, and
-    // captioned with why. A pinned station keeps its switch live so it can be
+    // captioned with why. A pinned workcenter keeps its switch live so it can be
     // unpinned again.
     final canApply =
         standing == null ||
@@ -1111,7 +1111,7 @@ class _FieldGroup extends StatelessWidget {
 /// was that the dialogs explain too much; the rule that came out of it is that
 /// help restating a label is deleted and help carrying a *definition* keeps an
 /// affordance. `days` is the definition that matters here — it means this
-/// station's productive day in all three fields, and §17.4 is the scar that
+/// workcenter's productive day in all three fields, and §17.4 is the scar that
 /// makes saying so non-optional.
 class _ValueAndUnit extends StatelessWidget {
   const _ValueAndUnit({
@@ -1316,7 +1316,7 @@ class _QueueTypeField extends StatelessWidget {
 
 /// [_ValueAndUnit] for a plain duration rather than a takt.
 ///
-/// A separate widget rather than a generic one: `days` means this station's
+/// A separate widget rather than a generic one: `days` means this workcenter's
 /// productive day in a [TaktUnit] and a flat 24 hours in a [DurationUnit]
 /// (§17.3), and a control that took either would be one edit away from
 /// offering the wrong meaning of the word.

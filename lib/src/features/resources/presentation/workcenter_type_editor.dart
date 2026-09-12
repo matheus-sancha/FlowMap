@@ -133,8 +133,8 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
                 const SizedBox(height: 8),
                 // **The one thing here that changes a number.** §12.7b: a
                 // definition a wrong conclusion depends on, and the field drew
-                // exactly that conclusion — crewing a station up and expecting
-                // it to go faster, on a model that said every station was
+                // exactly that conclusion — crewing a workcenter up and expecting
+                // it to go faster, on a model that said every workcenter was
                 // machine-paced.
                 // **A named choice between two, not a switch.** A switch says
                 // *on or off* and leaves the reader to guess what off is; the

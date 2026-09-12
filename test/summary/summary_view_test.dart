@@ -298,7 +298,7 @@ void main() {
       expect(summary.targets.single.work, const Duration(hours: 10));
     });
 
-    test('a station two steps visit carries both visits', () {
+    test('a workcenter two steps visit carries both visits', () {
       final summary = buildSummary(
         flow: flowOf(
           nodes: [
@@ -339,7 +339,7 @@ void main() {
       expect(summary.bottleneck?.title, 'CLAD04');
     });
 
-    test('a station with no hours is not ranked as the bottleneck', () {
+    test('a workcenter with no hours is not ranked as the bottleneck', () {
       final summary = buildSummary(
         flow: flowOf(
           nodes: [step(0, 'OPEN'), step(1, 'SHUT')],
@@ -365,7 +365,7 @@ void main() {
       );
 
       // A division by zero dressed up as "infinitely busy" would rank a shut
-      // station first and hide the real constraint.
+      // workcenter first and hide the real constraint.
       final shut = summary.targets.firstWhere((t) => t.targetId == 'SHUT');
       expect(shut.occupation, isNull);
       expect(summary.bottleneck?.targetId, 'OPEN');
@@ -428,7 +428,7 @@ void main() {
     test('is charged only when the part changes', () {
       // Like with like is genuinely cheaper, which is what makes the sequence
       // worth optimising (§7.6, §6.3). Both sequences pay one setup for the
-      // cold start — an empty station is set up for nothing — so what the
+      // cold start — an empty workcenter is set up for nothing — so what the
       // sequence buys is the two changes it avoids, not all three setups.
       expect(requiredWith(['p1', 'p1', 'p1']), const Duration(hours: 1));
       expect(requiredWith(['p1', 'p2', 'p1']), const Duration(hours: 3));
@@ -436,7 +436,7 @@ void main() {
 
     test('a repeat pays a percentage of it rather than nothing (§7.6)', () {
       // The lever the field asked for: like-with-like need not be *free*, and
-      // saying it is free is only right for a station that keeps its tooling.
+      // saying it is free is only right for a workcenter that keeps its tooling.
       // At 50 % the two repeats cost half a setup each, which is what makes
       // this the Summary agreeing with the engine rather than a second opinion.
       expect(

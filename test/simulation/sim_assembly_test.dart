@@ -29,7 +29,7 @@ void main() {
     int changeover = 0,
     bool? pinned,
   }) => FlowNode(
-    // **The station's own id, since §9.** A process time is keyed by the flow
+    // **The workcenter's own id, since §9.** A process time is keyed by the flow
     // node now, so these fixtures would otherwise have to restate every
     // `processTimes` map as node positions and stop reading as a routing.
     // Giving the node the id of what it targets keeps them legible and keeps
@@ -198,8 +198,8 @@ void main() {
       //
       // That is the defect this pins. On célula 11D a 4-day takt at 83.2 %
       // released every 3.33 working days rather than 4 — an order every 15 h
-      // 13 min sooner than any station filled to one takt could take one, which
-      // stacked into a 55-day queue at the first cladding station.
+      // 13 min sooner than any workcenter filled to one takt could take one, which
+      // stacked into a 55-day queue at the first cladding workcenter.
       final built = assembleSimStudy(
         study: study,
         nodes: [
@@ -233,7 +233,7 @@ void main() {
 
     test('the pace setter is still chosen on productive work content', () {
       // The two days answer different questions and only one of them moved.
-      // Which station is busiest is a question about work, so it reads the
+      // Which workcenter is busiest is a question about work, so it reads the
       // productive day; how often a slot opens is a question about the clock.
       final built = assembleSimStudy(
         study: study,
@@ -259,7 +259,7 @@ void main() {
     });
 
     test('work content counts batch size, so the mix can move the pace', () {
-      // Two parts that barely touch each other's station. Which one is built
+      // Two parts that barely touch each other's workcenter. Which one is built
       // in larger batches decides where the work lands — batch size cannot
       // flip the ranking within a single order, because it scales every step
       // of that order alike.
@@ -504,7 +504,7 @@ void main() {
     expect(built.orders, hasLength(2));
   });
 
-  group('stationPools — which pool a run says a station ran in (§3.1)', () {
+  group('simWorkcenterPools — which pool a run says a workcenter ran in (§3.1)', () {
     SimStudy built({
       required List<FlowNode> nodes,
       Map<String, List<String>> pools = const {},
@@ -526,7 +526,7 @@ void main() {
     )!;
 
     test('a pool names every one of its members', () {
-      final map = stationPools([
+      final map = simWorkcenterPools([
         built(
           nodes: [step(0, poolId: 'pool-1')],
           pools: {
@@ -542,23 +542,23 @@ void main() {
       expect(map['L2']!.id, 'pool-1');
     });
 
-    test('a station named directly is absent, not grouped under nothing', () {
-      final map = stationPools([
+    test('a workcenter named directly is absent, not grouped under nothing', () {
+      final map = simWorkcenterPools([
         built(nodes: [step(0, workcenterId: 'W')]),
       ]);
 
-      // Absent rather than present-with-a-null-id: a station that no step
+      // Absent rather than present-with-a-null-id: a workcenter that no step
       // reached through a pool has nothing to say, and a row saying "no pool"
       // would be a row the views have to skip.
       expect(map.containsKey('W'), isFalse);
     });
 
-    test('two pools over one station leave it ungrouped, naming both', () {
+    test('two pools over one workcenter leave it ungrouped, naming both', () {
       // The case §7.7 makes reachable and `WorkcenterPoolMembers` allows: two
       // studies in one run, each reaching L1 through a different pool. There is
       // no correct single answer, so there is no grouping — and the names still
       // say why it is standing on its own.
-      final map = stationPools([
+      final map = simWorkcenterPools([
         built(
           nodes: [step(0, poolId: 'pool-1')],
           pools: {
@@ -585,8 +585,8 @@ void main() {
   /// The rule is pinned in `takt_balance_test.dart`; what matters here is that
   /// assembly feeds it the run's takt and hands each step a *per part* share.
   group('a group of like machines is rebalanced (§7.4)', () {
-    /// Two stations, both 10-hour productive days, under a 3-hour takt.
-    SimStudy? twoStations({
+    /// Two workcenters, both 10-hour productive days, under a 3-hour takt.
+    SimStudy? twoWorkcenters({
       Map<String, String> types = const {'W': 'Cladding', 'X': 'Cladding'},
       Map<String, Map<String, Duration>> processTimes = const {
         'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
@@ -609,7 +609,7 @@ void main() {
     const takt3h = (value: 3.0, unit: TaktUnit.hours);
 
     test('the first fills to takt and the last takes the remainder', () {
-      final built = twoStations()!;
+      final built = twoWorkcenters()!;
 
       // Four hours of cladding at a 3-hour takt: 3 on the first, 1 on the last.
       expect(
@@ -628,7 +628,7 @@ void main() {
       // outside any group, a walk before a release instant exists — is asking
       // what the plant measured. A share belongs to an order, and an order
       // arrives with a takt.
-      final built = twoStations()!;
+      final built = twoWorkcenters()!;
 
       expect(
         built.steps.first.processTimeFor('p1', built.parts['p1']),
@@ -640,7 +640,7 @@ void main() {
       // Keys are figures, so asking at 4 hours a line that only runs at 3 is
       // asking about a plant that does not exist. The measurement stands rather
       // than the nearest split being substituted for it.
-      final built = twoStations()!;
+      final built = twoWorkcenters()!;
 
       expect(
         built.steps.first.processTimeFor(
@@ -655,16 +655,16 @@ void main() {
     test('the stored times are untouched — only the step carries the split', () {
       // §5.5's rule: the rule never overwrites the observation. `SimPart` is
       // what the run stores and what a reader gets back.
-      final built = twoStations()!;
+      final built = twoWorkcenters()!;
 
       expect(built.parts['p1']!.timeAt('W'), const Duration(hours: 2));
       expect(built.parts['p1']!.timeAt('X'), const Duration(hours: 2));
     });
 
-    test('two stations of different types are not a group', () {
+    test('two workcenters of different types are not a group', () {
       // Which is every flow that existed before this rule, so it has to come
       // out byte for byte as it did.
-      final built = twoStations(types: const {'W': 'Cladding', 'X': 'Testing'})!;
+      final built = twoWorkcenters(types: const {'W': 'Cladding', 'X': 'Testing'})!;
 
       expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
       expect(
@@ -674,7 +674,7 @@ void main() {
     });
 
     test('a run with no types at all balances nothing', () {
-      final built = twoStations(types: const {})!;
+      final built = twoWorkcenters(types: const {})!;
 
       expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
     });
@@ -683,7 +683,7 @@ void main() {
       // The work content being split is a part's, and two parts of one flow
       // legitimately balance differently — which is why the share is keyed by
       // part rather than folded into the step.
-      final built = twoStations(
+      final built = twoWorkcenters(
         parts: [part('p1', 'PN1'), part('p2', 'PN2')],
         processTimes: const {
           'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
@@ -707,11 +707,11 @@ void main() {
       );
     });
 
-    test('a station this part does not run on is not a member (§7.7.1)', () {
+    test('a workcenter this part does not run on is not a member (§7.7.1)', () {
       // The engine reads the same rule as the map, so the defect had to be
       // fixed in one place — a run that put 94.3 h on a machine the part never
       // visits would have queued and costed an operation that does not exist.
-      final built = twoStations(
+      final built = twoWorkcenters(
         processTimes: const {
           'p1': {'W': Duration.zero, 'X': Duration(hours: 4)},
         },
@@ -785,7 +785,7 @@ void main() {
       )!;
 
       // Four hours of work: 3 + 1 at the first takt, and all four on the first
-      // station at the second, where one takt is wider than the whole group.
+      // workcenter at the second, where one takt is wider than the whole group.
       expect(
         built.steps.first.processTimeFor(
           'p1',

@@ -268,7 +268,7 @@ class _NameFieldState extends ConsumerState<_NameField> {
 /// The pattern every workcenter in the project reads its open hours from.
 ///
 /// **Editable, and it was not reachable before.** Changing it re-times every
-/// station in the project, which is exactly the experiment a planner runs — and
+/// workcenter in the project, which is exactly the experiment a planner runs — and
 /// until now the only way to run it was to create a second project.
 class _PatternField extends ConsumerWidget {
   const _PatternField({required this.project, required this.patterns});
@@ -514,7 +514,7 @@ class _FloatFieldState extends ConsumerState<_FloatField> {
 }
 
 /// One write path into `projects`, so two fields cannot disagree about the
-/// third — the argument `station_cards.dart` already makes about the dialog
+/// third — the argument `workcenter_cards.dart` already makes about the dialog
 /// §6.3 deleted.
 ///
 /// `updateProject` takes the whole row, so every caller has to pass what it is

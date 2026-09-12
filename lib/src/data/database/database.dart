@@ -291,7 +291,7 @@ class AppDatabase extends _$AppDatabase {
       }
 
       if (from < 12) {
-        // Field feedback: a batch carries the planner's own number, a station
+        // Field feedback: a batch carries the planner's own number, a workcenter
         // may override the run's dispatch rule, and a run records enough of an
         // order to print a production plan from it.
         //
@@ -404,8 +404,8 @@ class AppDatabase extends _$AppDatabase {
 
       if (from < 15) {
         // Field feedback: the inventories should govern the flow. The queue
-        // discipline moves off the station and onto the lane in front of it
-        // (§5.5, §7.4), lanes gain a capacity that blocks upstream, a station
+        // discipline moves off the workcenter and onto the lane in front of it
+        // (§5.5, §7.4), lanes gain a capacity that blocks upstream, a workcenter
         // may run more than one order at once (§3.1), and a study may add a
         // margin ahead of its derived cold start (§7.8).
         //
@@ -500,7 +500,7 @@ class AppDatabase extends _$AppDatabase {
 
       if (from < 17) {
         // Field feedback: a changeover is two halves, not one. Setup rigs the
-        // station and teardown strips it, both are optional, and a repeat of the
+        // workcenter and teardown strips it, both are optional, and a repeat of the
         // same part pays a percentage of the pair rather than nothing (§7.6).
         // The run records what it charged, because a percentage cannot be read
         // back off a bool. And a stored run learns which cell and line each of
@@ -546,10 +546,10 @@ class AppDatabase extends _$AppDatabase {
         // Carry every stored changeover onto the setup it became.
         //
         // `changeover_seconds` was canonical seconds and `seconds` is a literal
-        // TaktUnit that resolves identically at every station (§6.1), so this
+        // TaktUnit that resolves identically at every workcenter (§6.1), so this
         // preserves the typed figure exactly. What it does not preserve is the
         // charge: §7.6 stops derating setup by availability in the same round,
-        // so a 90-minute setup on a 74 % station occupies 90 minutes rather than
+        // so a 90-minute setup on a 74 % workcenter occupies 90 minutes rather than
         // 121.6. That is the point of the change and it is why every stored run
         // is invalidated by it.
         //
@@ -567,7 +567,7 @@ class AppDatabase extends _$AppDatabase {
 
       if (from < 18) {
         // Field feedback, 2026-08-15: a pool's members read as three loose
-        // machines. §3.1 is right that a run's stations are real workcenters —
+        // machines. §3.1 is right that a run's workcenters are real workcenters —
         // that is what lets a run say which one ran an order — but nothing
         // recorded which pool they came from, so nothing could group them.
         //
@@ -624,7 +624,7 @@ class AppDatabase extends _$AppDatabase {
         // *after* it on its own spine — that step's target is what the node was
         // really describing. Several nodes therefore land on one row: on the
         // database this was written against, 15 nodes fold onto 10 targets,
-        // because the two studies share five stations and disagree about two of
+        // because the two studies share five workcenters and disagree about two of
         // their names.
         //
         // **First study wins, by study then position.** The first node to reach
@@ -796,9 +796,9 @@ class AppDatabase extends _$AppDatabase {
         // §16.19 called safe, after v19's fold was the one migration in this
         // repo that moved data between concepts (§16.21).
         //
-        // Field, against célula 11D: a station a part does not run on was being
+        // Field, against célula 11D: a workcenter a part does not run on was being
         // given a share of its neighbours' work, and there was no way to pin a
-        // station out of §6.2.1's rebalancing at all. The first was a defect and
+        // workcenter out of §6.2.1's rebalancing at all. The first was a defect and
         // is fixed in code; this is the flag for the second.
         //
         // **Null is off, so rebalancing stays on.** Every step already in the
@@ -838,8 +838,8 @@ class AppDatabase extends _$AppDatabase {
       if (from < 21) {
         // What the work at a step actually cost, so §7.4's balance can be read
         // off a run at all. The step rows bracket the work on the calendar and
-        // nothing recorded the work itself, so a station given a bigger share
-        // and a station that merely crossed a weekend looked the same on the
+        // nothing recorded the work itself, so a workcenter given a bigger share
+        // and a workcenter that merely crossed a weekend looked the same on the
         // Gantt. One nullable column on a table that predates it — no rebuild,
         // the shape §16.19 called for.
         //
@@ -886,7 +886,7 @@ class AppDatabase extends _$AppDatabase {
       }
 
       if (from < 23) {
-        // **A stay in a queue belongs to a step, not to a station** (§8.6).
+        // **A stay in a queue belongs to a step, not to a workcenter** (§8.6).
         //
         // Found by driving: two steps of one study pointed at CEU32, the run
         // computed 1775 steps in 1110 ms and then could not be stored —
@@ -904,9 +904,9 @@ class AppDatabase extends _$AppDatabase {
         //
         // **`node_id` becomes `target_id`, which is what it always held.**
         // `engine.dart` writes `waiting.lane.targetId` into it and has since
-        // §7.3 moved the queue onto the station. The name is what made this
+        // §7.3 moved the queue onto the workcenter. The name is what made this
         // defect invisible for six rounds: a key on "node" read as one stay per
-        // step and meant one stay per station.
+        // step and meant one stay per workcenter.
         // **Only where the old shape is actually there.** A database coming
         // from v19 or earlier had this table created by that step's
         // `_ensureTable`, which builds from the *current* definition — so it
@@ -944,7 +944,7 @@ class AppDatabase extends _$AppDatabase {
             // gets the step it was always about. A stay that produced *no* step
             // is an order the guard caught still queueing; there is no step to
             // name, and v22's own key guarantees at most one such row per order
-            // per station, so taking the target as its surrogate collides with
+            // per workcenter, so taking the target as its surrogate collides with
             // nothing and loses nothing.
             //
             // Deriving rather than dropping, because §7.10's posture is that a
@@ -978,7 +978,7 @@ class AppDatabase extends _$AppDatabase {
       }
 
       if (from < 24) {
-        // **A process time belongs to a step, not to the station it points at**
+        // **A process time belongs to a step, not to the workcenter it points at**
         // (§9). Found by driving §8.6: adding a second CEU30 to a flow gave two
         // columns over one value, so editing either edited both and the engine
         // charged identical work on each pass. §8.6 made a revisit storable and
@@ -986,7 +986,7 @@ class AppDatabase extends _$AppDatabase {
         //
         // **Every step inherits its target's time**, so nothing changes until
         // somebody edits one of them — today's numbers are the starting state,
-        // and a study that never revisits a station cannot tell this happened.
+        // and a study that never revisits a workcenter cannot tell this happened.
         //
         // **A time whose target has no step is dropped.** It cannot be keyed to
         // a node that does not exist, and it was already unreachable: no column
@@ -1082,9 +1082,9 @@ class AppDatabase extends _$AppDatabase {
       }
 
       if (from < 27) {
-        // **A queue is an aspect of its target, and a box is its station**
+        // **A queue is an aspect of its target, and a box is its workcenter**
         // (#5). Two names go: the queue's, which was never identity, and the
-        // step's label, which let a box be captioned something its station was
+        // step's label, which let a box be captioned something its workcenter was
         // not called.
         //
         // **`DROP COLUMN` rather than the v3 rebuild.** SQLite has supported
@@ -1133,7 +1133,7 @@ class AppDatabase extends _$AppDatabase {
       if (from < 28) {
         // **Study priority goes** (#6). It was a lever nobody ever pulled,
         // wired *below* arrival in the fall-through so it could not have
-        // expedited anything if they had: two orders that reach a station at
+        // expedited anything if they had: two orders that reach a workcenter at
         // different times never reach the priority key at all.
         //
         // Two columns, and they are dropped for different reasons. The study's
@@ -1201,7 +1201,7 @@ class AppDatabase extends _$AppDatabase {
         // **Every existing type defaults to machine-paced**, which is what the
         // model has assumed all along, so nothing moves until someone says
         // otherwise. That is deliberate: the flag changes what a run computes
-        // at any station carrying it, and a migration that silently repaced
+        // at any workcenter carrying it, and a migration that silently repaced
         // half a plant would invalidate every stored figure for it without
         // anyone asking.
         //

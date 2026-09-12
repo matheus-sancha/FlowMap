@@ -1011,7 +1011,7 @@ class _StepBox extends ConsumerWidget {
                     ),
                     // A pool is several machines behind one box, and a reader
                     // comparing two boxes has to know which one is four
-                    // stations. `#4` is how a shop floor writes it — drawn
+                    // workcenters. `#4` is how a shop floor writes it — drawn
                     // rather than chipped, so it is part of the map.
                     if (step.poolMemberCount != null) ...[
                       const SizedBox(width: 6),
@@ -1060,7 +1060,7 @@ class _StepBox extends ConsumerWidget {
                         //
                         // **And a rebalanced step is marked too** (§7.4). What
                         // is shown there is the group's work split against the
-                        // takt, not what was measured at this station, so a
+                        // takt, not what was measured at this workcenter, so a
                         // reader comparing the box with the demand grid would
                         // otherwise find two numbers and no explanation — which
                         // is exactly how §7.6's inverted metric survived.
@@ -1083,7 +1083,7 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : formatDurationHms(step.processTime!),
                       ),
-                      // One takt of this station's own capacity (§6.1) — the
+                      // One takt of this workcenter's own capacity (§6.1) — the
                       // yardstick the row above is measured against. Shown
                       // whatever the data source, so a part's process time can
                       // be read against the takt without changing anything;
@@ -1095,7 +1095,7 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : formatDurationHms(step.equivalentProcessTime!),
                       ),
-                      // How many takts of this station's capacity the part
+                      // How many takts of this workcenter's capacity the part
                       // actually consumes (DESIGN.md §6.2). Only under a demand
                       // source: the equivalent's own equivalence is 1.00 by
                       // construction, and a row of ones says nothing.
@@ -1131,7 +1131,7 @@ class _StepBox extends ConsumerWidget {
                       // Required hours over available productive hours for
                       // the period (§8.1). It comes from the Summary because
                       // that is the only thing that knows what demand asks of
-                      // this station; a station two steps both visit reports
+                      // this workcenter; a workcenter two steps both visit reports
                       // the load of both, because it is one machine.
                       _DataRow(
                         label: l10n.occupation,
@@ -1159,7 +1159,7 @@ class _StepBox extends ConsumerWidget {
 
   String _occupation(WidgetRef ref, FlowStepView step) {
     final value = _occupationValue(ref, step);
-    // A dash, never a zero: a station nobody has given demand to is not idle,
+    // A dash, never a zero: a workcenter nobody has given demand to is not idle,
     // it is unmeasured, and the two must not look alike.
     return value == null ? '—' : '${(value * 100).round()}%';
   }
@@ -1322,7 +1322,7 @@ class _QueueNode extends ConsumerWidget {
                       ),
                 style: theme.textTheme.bodySmall,
               ),
-            // `FIFO · CEU27` — derived from the type and the station, never
+            // `FIFO · CEU27` — derived from the type and the workcenter, never
             // typed (#5, v27). Drawn on every queue, including an empty one:
             // the caption is the only permanent mark a queue with nothing in it
             // has, and it is now always available because an unset rule is

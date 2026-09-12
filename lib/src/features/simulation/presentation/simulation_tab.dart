@@ -40,11 +40,11 @@ class RunsMenu extends ConsumerWidget {
         ref.watch(projectRunsProvider(projectId)).value ?? const <RunListing>[];
     if (runs.isEmpty) return const SizedBox.shrink();
 
-    // The date, what the run dispatched by when every station agreed — `mixed`
+    // The date, what the run dispatched by when every workcenter agreed — `mixed`
     // when they did not (§7.3) — and the takt it ran at (§7.7.2). The takt is
     // what tells two runs of one study apart in the menu, which is what makes
     // "run it twice and compare" (§7.7) legible without opening each. A full
-    // breakdown does not fit a menu row; the per-station list is on the run
+    // breakdown does not fit a menu row; the per-workcenter list is on the run
     // header the row opens.
     String label(RunListing listing) {
       final date = dateStyle.format(listing.run.createdAt);
@@ -183,11 +183,7 @@ class RunResults extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: _Overview(slice: slice),
               ),
-              _PlanTab(
-                slice: slice,
-                projectName: projectName,
-                run: run,
-              ),
+              _PlanTab(slice: slice, projectName: projectName, run: run),
               GanttView(slice: slice),
               OccupationView(slice: slice, project: project),
               _FloatTab(slice: slice, project: project),
@@ -257,17 +253,31 @@ class _ResultsTabBarState extends State<_ResultsTabBar>
         // The destination is *Simulation results* and this tab is *Simulation
         // Overview*, deliberately not the same words — so the way in and the
         // first thing inside never read as one thing (#7).
-        Tab(child: namedHelp(context, l10n.simTabOverview, l10n.simRankingsHelp)),
-        Tab(child: namedHelp(context, l10n.simTabPlan, l10n.simProductionPlanHelp)),
+        Tab(
+          child: namedHelp(context, l10n.simTabOverview, l10n.simRankingsHelp),
+        ),
+        Tab(
+          child: namedHelp(
+            context,
+            l10n.simTabPlan,
+            l10n.simProductionPlanHelp,
+          ),
+        ),
         Tab(child: namedHelp(context, l10n.simGanttView, l10n.simGanttGapHelp)),
         Tab(text: l10n.occupationView),
-        Tab(child: namedHelp(context, l10n.floatMatrixTitle, l10n.floatMatrixHelp)),
+        Tab(
+          child: namedHelp(
+            context,
+            l10n.floatMatrixTitle,
+            l10n.floatMatrixHelp,
+          ),
+        ),
       ],
     );
   }
 }
 
-/// The metrics card, the studies the run covers, and the three station tables.
+/// The metrics card, the studies the run covers, and the three workcenter tables.
 ///
 /// **The paired layout** (#7): Queue and Share side by side, because §8.1 makes
 /// them one ranking read two ways, with Parts full width beneath. Collapses back
@@ -299,7 +309,7 @@ class _Overview extends StatelessWidget {
             // *Rejected: repeating it on the filter bar* — a note on a bar that
             // is usually irrelevant is a note people stop reading. It belongs
             // beside the numbers that would be misread.
-            if (slice.stationsAreWholeRun) ...[
+            if (slice.workcentersAreWholeRun) ...[
               const SizedBox(width: 6),
               Icon(
                 Icons.info_outline,
@@ -309,7 +319,7 @@ class _Overview extends StatelessWidget {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  l10n.simStationsWholeRun,
+                  l10n.simWorkcentersWholeRun,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.tertiary,
                   ),
@@ -399,7 +409,13 @@ class _RunCoverage extends StatelessWidget {
               if (shown.contains(study.studyId))
                 Chip(
                   avatar: const Icon(Icons.check, size: 16),
-                  label: Text(study.name),
+                  label: Text(
+                    qualifiedStudyLabel(
+                      study.name,
+                      study.productionCellName,
+                      study.productionLineName,
+                    ),
+                  ),
                 )
               else
                 // Greyed and explained, rather than absent: a study missing
@@ -407,7 +423,8 @@ class _RunCoverage extends StatelessWidget {
                 // the run, which is the thing this row exists to say.
                 Chip(
                   label: Text(
-                    '${study.name} — ${l10n.simRunCoversFiltered}',
+                    '${qualifiedStudyLabel(study.name, study.productionCellName, study.productionLineName)}'
+                    ' — ${l10n.simRunCoversFiltered}',
                     style: TextStyle(color: theme.colorScheme.outline),
                   ),
                   side: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -433,7 +450,6 @@ class _FloatTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
@@ -568,20 +584,20 @@ class _RunHeader extends StatelessWidget {
               ),
             ),
           ),
-        // Which station dispatched by what, and only when they disagree. A
+        // Which workcenter dispatched by what, and only when they disagree. A
         // header saying `mixed` without saying what the mixture was tells the
         // reader the run is not one thing without telling them what it is;
-        // repeating one shared rule per station would be the same word ten
+        // repeating one shared rule per workcenter would be the same word ten
         // times (§7.3).
         if (run.queues.isMixed)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               [
-                for (final station in run.queues.stations)
+                for (final workcenter in run.queues.workcenters)
                   l10n.simRunQueueRow(
-                    station.name,
-                    dispatchRuleLabel(l10n, station.rule),
+                    workcenter.name,
+                    dispatchRuleLabel(l10n, workcenter.rule),
                   ),
               ].join('  ·  '),
               style: theme.textTheme.bodySmall?.copyWith(
@@ -647,19 +663,12 @@ class _PlanTabState extends State<_PlanTab> {
               const Spacer(),
               SegmentedButton<bool>(
                 segments: [
-                  ButtonSegment(
-                    value: false,
-                    label: Text(l10n.simPlanByStudy),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    label: Text(l10n.simPlanCombined),
-                  ),
+                  ButtonSegment(value: false, label: Text(l10n.simPlanByStudy)),
+                  ButtonSegment(value: true, label: Text(l10n.simPlanCombined)),
                 ],
                 selected: {_combined},
                 showSelectedIcon: false,
-                onSelectionChanged: (s) =>
-                    setState(() => _combined = s.first),
+                onSelectionChanged: (s) => setState(() => _combined = s.first),
               ),
               // Beside the thing it exports rather than on the tab's chrome:
               // a project-level export button would not say which table it
@@ -973,7 +982,7 @@ class _PlanTable extends StatelessWidget {
           ResultColumn(label: l10n.simPlanOrderEnd, width: 120),
           // **What the order opened under** (§7.9), introducing the three
           // figures it explains rather than sitting among the dates: an order's
-          // work at each station is the balance's split against this, so two
+          // work at each workcenter is the balance's split against this, so two
           // rows of one part with different Theoretical LTs differ here first.
           //
           // Blank on a run stored before v22, which held one takt throughout
@@ -1290,35 +1299,35 @@ class _MetricRow extends StatelessWidget {
 }
 
 /// §8.1's first post-run ranking: where orders wait.
-/// A station, and the pool it ran in where the run recorded one (DESIGN.md
+/// A workcenter, and the pool it ran in where the run recorded one (DESIGN.md
 /// §3.1).
 ///
 /// **Beside the name rather than as a grouping**, which is where this differs
 /// from the Gantt. §8.1's two tables *are* rankings — the first row is the
-/// station that queued most — and clustering a pool's members together would
+/// workcenter that queued most — and clustering a pool's members together would
 /// mean the top row was no longer the answer to the question the table asks.
 /// The Gantt has no such ordering to lose: it goes down the page in flow order,
 /// where a pool's machines already sit together.
 ///
-/// A station reached through more than one pool carries both names and belongs
+/// A workcenter reached through more than one pool carries both names and belongs
 /// to neither, which is exactly what the run stored (§7.10).
-class _StationName extends StatelessWidget {
-  const _StationName({required this.station});
+class _WorkcenterName extends StatelessWidget {
+  const _WorkcenterName({required this.workcenter});
 
-  final WorkcenterRunMetrics station;
+  final WorkcenterRunMetrics workcenter;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pool = station.poolName;
-    if (pool == null) return Text(station.name);
+    final pool = workcenter.poolName;
+    if (pool == null) return Text(workcenter.name);
 
     // One line, because a `DataTable` row is a fixed height and a second line
     // would be clipped rather than shown.
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: station.name),
+          TextSpan(text: workcenter.name),
           TextSpan(
             text: '  $pool',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -1357,12 +1366,12 @@ class _QueueTable extends StatelessWidget {
         initialColumn: 2,
         initialAscending: false,
         columns: [
-          // Wider than it was, for the pool a station ran in (§3.1).
+          // Wider than it was, for the pool a workcenter ran in (§3.1).
           ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.utilization, width: 120),
           ResultColumn(label: l10n.simQueue, width: 130),
           ResultColumn(label: l10n.simQueueAverage, width: 130),
-          // Beside utilization rather than folded into it: a station at 40 %
+          // Beside utilization rather than folded into it: a workcenter at 40 %
           // and blocked half the run is a different plant from one at 40 % and
           // idle, and only the first is fixed downstream (§8.3).
           ResultColumn(label: l10n.simBlocked, width: 130),
@@ -1370,29 +1379,29 @@ class _QueueTable extends StatelessWidget {
           ResultColumn(label: l10n.simChangeovers, width: 130),
         ],
         rows: metrics.workcenters,
-        sortKeyOf: (station, column) => switch (column) {
-          0 => station.name,
-          1 => station.utilization,
-          2 => station.queueTime,
-          3 => station.averageQueue,
-          4 => station.blocked,
-          5 => station.visits,
-          _ => station.changeovers,
+        sortKeyOf: (workcenter, column) => switch (column) {
+          0 => workcenter.name,
+          1 => workcenter.utilization,
+          2 => workcenter.queueTime,
+          3 => workcenter.averageQueue,
+          4 => workcenter.blocked,
+          5 => workcenter.visits,
+          _ => workcenter.changeovers,
         },
-        cellAt: (station, column) => switch (column) {
-          0 => _StationName(station: station),
+        cellAt: (workcenter, column) => switch (column) {
+          0 => _WorkcenterName(workcenter: workcenter),
           1 => Tooltip(
             message: l10n.simUtilizationHelp,
-            child: Text(_percent(station.utilization)),
+            child: Text(_percent(workcenter.utilization)),
           ),
-          2 => Text(_duration(l10n, station.queueTime)),
-          3 => Text(_duration(l10n, station.averageQueue)),
+          2 => Text(_duration(l10n, workcenter.queueTime)),
+          3 => Text(_duration(l10n, workcenter.averageQueue)),
           4 => Tooltip(
             message: l10n.simBlockedHelp,
-            child: Text(_duration(l10n, station.blocked)),
+            child: Text(_duration(l10n, workcenter.blocked)),
           ),
-          5 => Text('${station.visits}'),
-          _ => Text('${station.changeovers}'),
+          5 => Text('${workcenter.visits}'),
+          _ => Text('${workcenter.changeovers}'),
         },
       ),
     );
@@ -1430,14 +1439,14 @@ class _ShareTable extends StatelessWidget {
         // Share of flow is contributed time over the same total, so the two
         // columns are one ordering — sorting either gives the same rows in the
         // same places, which is honest rather than redundant.
-        sortKeyOf: (station, column) => switch (column) {
-          0 => station.name,
-          _ => station.contributedTime,
+        sortKeyOf: (workcenter, column) => switch (column) {
+          0 => workcenter.name,
+          _ => workcenter.contributedTime,
         },
-        cellAt: (station, column) => switch (column) {
-          0 => _StationName(station: station),
-          1 => Text(_duration(l10n, station.contributedTime)),
-          _ => Text(_percent(metrics.shareOfFlow(station))),
+        cellAt: (workcenter, column) => switch (column) {
+          0 => _WorkcenterName(workcenter: workcenter),
+          1 => Text(_duration(l10n, workcenter.contributedTime)),
+          _ => Text(_percent(metrics.shareOfFlow(workcenter))),
         },
       ),
     );

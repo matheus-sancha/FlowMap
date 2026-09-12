@@ -19,11 +19,11 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Run by hand with `--tags live` and `FLOWMAP_LIVE_DB` pointing at a copy. It
 /// answers the half of check 2 the field could not drive: whether a flow that
-/// visits one station twice charges each pass its own time, and whether the
+/// visits one workcenter twice charges each pass its own time, and whether the
 /// Gantt's rows still settle when that revisit makes the precedence graph
 /// cyclic (§9.6).
 void main() {
-  test('a revisited station charges each pass its own time', () async {
+  test('a revisited workcenter charges each pass its own time', () async {
     final path = Platform.environment['FLOWMAP_LIVE_DB'];
     if (path == null || !File(path).existsSync()) {
       markTestSkipped('set FLOWMAP_LIVE_DB to a copy of flowmap.sqlite');
@@ -66,7 +66,7 @@ void main() {
     // **Found by shape, not by name.** The first version of this looked for a
     // study called `copy`, which is a fact about one afternoon: the fixture is
     // a scratch duplicate and the field will delete it. Any study whose flow
-    // reaches one station twice answers the same question, and a database with
+    // reaches one workcenter twice answers the same question, and a database with
     // none has nothing to say here — which is the durable form
     // `live_db_check_test.dart` spent two broken assertions learning.
     final study = input.studies
@@ -81,7 +81,7 @@ void main() {
         )
         .firstOrNull;
     if (study == null) {
-      markTestSkipped('no study in this database visits a station twice');
+      markTestSkipped('no study in this database visits a workcenter twice');
       return;
     }
     // ignore: avoid_print
@@ -111,12 +111,12 @@ void main() {
       for (final e in twice) {
         // ignore: avoid_print
         print(
-          '  order ${entry.key.substring(0, 8)} station ${e.key.substring(0, 8)}: '
+          '  order ${entry.key.substring(0, 8)} workcenter ${e.key.substring(0, 8)}: '
           '${e.value.map((s) => '${((s.process?.inMinutes ?? 0) / 60).toStringAsFixed(2)} h').join('  then  ')}',
         );
       }
     }
-    expect(shown, greaterThan(0), reason: 'no order visited one station twice');
+    expect(shown, greaterThan(0), reason: 'no order visited one workcenter twice');
 
     // --- §9.6: the row order still settles -----------------------------------
 

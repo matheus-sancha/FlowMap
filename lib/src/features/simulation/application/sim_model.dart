@@ -15,7 +15,7 @@ import '../../calendar/application/working_calendar.dart';
 import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
 
-/// [DispatchRule] moved to the schema's enums when a station gained the right
+/// [DispatchRule] moved to the schema's enums when a workcenter gained the right
 /// to override the run's rule (§7.4) — a stored column has to name it, and the
 /// schema cannot import this file. Re-exported so the engine, the assembly and
 /// every caller still take it from here, which is where it reads as belonging.
@@ -38,7 +38,7 @@ class SimWorkcenter {
 
   /// How many orders it runs at once (§3.1).
   ///
-  /// The engine gives the station this many servers, each with its own clock
+  /// The engine gives the workcenter this many servers, each with its own clock
   /// and its own last-part memory — so two units of one machine pay changeovers
   /// independently, which is what two units are.
   ///
@@ -49,7 +49,7 @@ class SimWorkcenter {
   /// reads per machine while §8.4's occupation halves.
   final int units;
 
-  /// `CLAD04` — what a result names, so a bottleneck reads as a station rather
+  /// `CLAD04` — what a result names, so a bottleneck reads as a workcenter rather
   /// than as a uuid.
   final String name;
 
@@ -66,17 +66,17 @@ class SimWorkcenter {
   /// The engine reads neither — §7.4 forms its balance groups on the type *name*
   /// out of `SimResourceContext`, before a run exists. These are here to be
   /// copied into the stored run, which is the only thing that needs them and the
-  /// only thing a retyped station would otherwise silently rewrite.
+  /// only thing a retyped workcenter would otherwise silently rewrite.
   ///
-  /// Null on a station whose type was never set, which the plant allows and
+  /// Null on a workcenter whose type was never set, which the plant allows and
   /// §7.4 already reads as *"nothing says it is like its neighbours"*.
   final String? typeId;
   final String? typeName;
 
-  /// Whether the crew is this station's throughput (§7.5, v30).
+  /// Whether the crew is this workcenter's throughput (§7.5, v30).
   ///
   /// Carried from the workcenter *type*, because the pacing is a property of
-  /// what kind of machine it is. **False is what every station was**: a CNC's
+  /// what kind of machine it is. **False is what every workcenter was**: a CNC's
   /// operators only open its shift. True divides the work by the crew on shift,
   /// which is the only honest thing to say about a bench or a spray booth.
   final bool labourPaced;
@@ -97,7 +97,7 @@ typedef SimTakt = ({double value, TaktUnit unit});
 ///
 /// **The engine is handed durations and never a schedule to interpret**, which
 /// is the same division [SimStudy.releaseInterval] drew when there was only one
-/// of these: what `days` means is a question about a station's calendar, and the
+/// of these: what `days` means is a question about a workcenter's calendar, and the
 /// assembler is where that is answered.
 class SimTaktPeriod {
   const SimTaktPeriod({
@@ -152,7 +152,7 @@ class SimStep {
   final int position;
 
   /// The queue orders wait in to reach this step, shared with every other step
-  /// that targets the same station or pool.
+  /// that targets the same workcenter or pool.
   final SimQueue queue;
 
   /// What the process box is labelled.
@@ -171,7 +171,7 @@ class SimStep {
   ///
   /// **Keyed by part and held on the step**, rather than folded into
   /// [SimPart.processTimes] before the engine sees them. Those are keyed by
-  /// *target*, and two steps of one group are two stations only if they name
+  /// *target*, and two steps of one group are two workcenters only if they name
   /// two — a flow that visits one machine twice in a row would collide on the
   /// key and take one member's share for both.
   ///
@@ -201,7 +201,7 @@ class SimStep {
 
   /// The pool this step targets, or null where it names a single workcenter
   /// (§3.1). Carried so a finished run can record which pool each of its
-  /// stations was dispatched through (§7.10) — [candidates] says *which*
+  /// workcenters was dispatched through (§7.10) — [candidates] says *which*
   /// machines, and says nothing about what they were collectively called.
   ///
   /// Not derived from `candidates.length`: a pool with one member is still a
@@ -209,14 +209,14 @@ class SimStep {
   final String? poolId;
   final String? poolName;
 
-  /// The two halves of a changeover: [setupValue] rigs the station for an order
+  /// The two halves of a changeover: [setupValue] rigs the workcenter for an order
   /// and [teardownValue] strips it afterwards (§7.6).
   ///
   /// **Unresolved on purpose.** A step may target a pool, and a pool's members
   /// do not share a working day — so `1 day` of setup is a different duration at
   /// each of three cladding machines. Resolving here would need one of them
   /// nominated to stand for the rest, which is exactly the invention §3.2
-  /// rejected when it refused to model a two-unit station as two machines. The
+  /// rejected when it refused to model a two-unit workcenter as two machines. The
   /// engine resolves against the server it is about to occupy, where the answer
   /// is not a guess.
   final double? setupValue;
@@ -268,13 +268,13 @@ class SimStep {
 
   bool get hasChangeover => setupValue != null || teardownValue != null;
 
-  /// Rigging this station for an order, at a station whose productive day is
+  /// Rigging this workcenter for an order, at a workcenter whose productive day is
   /// [productiveDay] and given whether the part [repeated] from the order
   /// before it.
   Duration setupAt(Duration productiveDay, {required bool repeated}) =>
       _resolve(setupValue, setupUnit, productiveDay, repeated);
 
-  /// Stripping this station after an order.
+  /// Stripping this workcenter after an order.
   ///
   /// **Charged by whoever comes next, not by the order that incurred it** — the
   /// engine holds it on the server until there is an answer to *is a strip-down
@@ -285,7 +285,7 @@ class SimStep {
 
   /// **Each half carries its own step's discount.** Usually the teardown owed
   /// and the setup arriving belong to the same step and this is the same thing
-  /// as discounting the pair; they differ only when one station is the target of
+  /// as discounting the pair; they differ only when one workcenter is the target of
   /// two steps, and then each half is governed by the step that specified it
   /// rather than by whichever happened to arrive second.
   Duration _resolve(
@@ -351,7 +351,7 @@ class SimQueue {
   /// target share this id, and that identity is the whole point.
   final String targetId;
 
-  /// How the station chooses what to take next (§7.4), or **null for a lane
+  /// How the workcenter chooses what to take next (§7.4), or **null for a lane
   /// nobody has given a discipline**.
   ///
   /// **Nullable since v28, and this is a correction phase 1's drive forced.**
@@ -369,7 +369,7 @@ class SimQueue {
   /// ([effectiveRule]), which is the only place it ever meant anything.
   final DispatchRule? rule;
 
-  /// What the station actually does with this lane: the discipline someone set,
+  /// What the workcenter actually does with this lane: the discipline someone set,
   /// or FIFO where nobody set one (§5.5).
   ///
   /// **The one place the default belongs.** Every reader that wants to know how
@@ -510,7 +510,7 @@ class SimStudy {
   /// The gap between release slots **at this study's first release** (§7.2).
   ///
   /// Resolved by the caller, not here: a takt in days means productive days of
-  /// a particular station (§6.1), and which station is the question §8.2 has
+  /// a particular workcenter (§6.1), and which workcenter is the question §8.2 has
   /// already answered — the bottleneck sets the pace (§18.8). The engine is
   /// handed a duration and a clock to measure it on.
   ///
@@ -529,7 +529,7 @@ class SimStudy {
   ///
   /// Non-empty, it is authoritative: an instant no period covers has **no
   /// cadence**, and a study with no cadence does not open orders. That is what
-  /// `WorkcenterScheduleSpec` already does one level down, where a station whose
+  /// `WorkcenterScheduleSpec` already does one level down, where a workcenter whose
   /// schedule has run out is closed rather than still staffed as it last was.
   final List<SimTaktPeriod> taktPeriods;
 
@@ -616,19 +616,19 @@ class SimStudy {
   Iterable<SimStep> get steps => nodes;
 }
 
-/// The pool a run's station belonged to, as far as the run can tell
+/// The pool a run's workcenter belonged to, as far as the run can tell
 /// (DESIGN.md §3.1, §7.10).
 ///
 /// [id] null means **ungrouped**, never "every pool" — the same rule §12.1
 /// wrote for a pre-v17 run's cell. [name] is still worth having when [id] is
-/// null: it says which pools the station served, which is the reason it is
+/// null: it says which pools the workcenter served, which is the reason it is
 /// standing on its own.
 ///
-/// Resolved by `stationPools` in `sim_assembly.dart`, stored on the run, and
-/// read back beside the station it describes so the grouping cannot drift when
+/// Resolved by `simWorkcenterPools` in `sim_assembly.dart`, stored on the run, and
+/// read back beside the workcenter it describes so the grouping cannot drift when
 /// the plant is re-pooled.
-class StationPool {
-  const StationPool({required this.id, required this.name});
+class SimWorkcenterPool {
+  const SimWorkcenterPool({required this.id, required this.name});
 
   final String? id;
   final String name;

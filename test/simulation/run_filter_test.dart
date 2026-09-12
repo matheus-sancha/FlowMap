@@ -10,22 +10,19 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final start = DateTime(2026, 1, 1);
 
-  SimulationRunStudy study(
-    String id, {
-    String? cell,
-    String? line,
-  }) => SimulationRunStudy(
-    runId: 'run-1',
-    studyId: id,
-    name: id,
-    releaseSeconds: 3600,
-    wipCap: null,
-    startBufferDays: 0,
-    productionCellId: cell,
-    productionCellName: cell,
-    productionLineId: line,
-    productionLineName: line,
-  );
+  SimulationRunStudy study(String id, {String? cell, String? line}) =>
+      SimulationRunStudy(
+        runId: 'run-1',
+        studyId: id,
+        name: id,
+        releaseSeconds: 3600,
+        wipCap: null,
+        startBufferDays: 0,
+        productionCellId: cell,
+        productionCellName: cell,
+        productionLineId: line,
+        productionLineName: line,
+      );
 
   SimOrderOutcome outcome(
     String id, {
@@ -102,9 +99,7 @@ void main() {
       id: 'run-1',
       projectId: 'proj-1',
       createdAt: start,
-      queues: const RunQueues([
-        (name: 'CLAD04', rule: DispatchRule.fifo),
-      ]),
+      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
       studies: [
         study('a', cell: 'cell-1', line: 'line-1'),
         study('b', cell: 'cell-2', line: 'line-2'),
@@ -132,7 +127,7 @@ void main() {
     expect(view.isWholeRun, isTrue);
     expect(view.metrics.orders, 3);
     expect(view.plan, hasLength(3));
-    expect(view.stationsAreWholeRun, isFalse);
+    expect(view.workcentersAreWholeRun, isFalse);
   });
 
   test('a study filter keeps its own orders, steps and plan rows', () {
@@ -145,9 +140,9 @@ void main() {
     expect(view.plan.orders.map((r) => r.outcome.orderId), ['o1', 'o2']);
   });
 
-  test('the stations narrow, but their open time does not', () {
+  test('the workcenters narrow, but their open time does not', () {
     // **Per column, not per table.** This asserted that a slice reported every
-    // station in the plant, on the argument that utilisation cannot be
+    // workcenter in the plant, on the argument that utilisation cannot be
     // narrowed. Utilisation cannot; the rows, the queue and the visits can, and
     // ranking the whole plant under a filter is what the field reported as
     // "the ranked by queue table does not filter".
@@ -163,12 +158,12 @@ void main() {
       const Duration(hours: 200),
       reason: 'the whole run, not study a alone',
     );
-    expect(view.stationsAreWholeRun, isTrue);
+    expect(view.workcentersAreWholeRun, isTrue);
   });
 
-  test('a cell filter narrows the studies, and the stations follow', () {
+  test('a cell filter narrows the studies, and the workcenters follow', () {
     // Workcenters belong to a plant rather than to a cell (§7.10), so a cell
-    // filter is a study filter one level up — and the stations that survive are
+    // filter is a study filter one level up — and the workcenters that survive are
     // the ones those studies' orders actually reached. Study b runs on TTAT
     // alone.
     final view = filterRun(run(), const RunFilter(cellIds: {'cell-2'}));
@@ -194,7 +189,10 @@ void main() {
       plan: before.plan,
     );
 
-    expect(filterRun(withoutCells, const RunFilter(cellIds: {'cell-1'})).studyIds, isEmpty);
+    expect(
+      filterRun(withoutCells, const RunFilter(cellIds: {'cell-1'})).studyIds,
+      isEmpty,
+    );
     // And with no cell filter they are all still there.
     expect(filterRun(withoutCells, const RunFilter()).studyIds, {'a', 'b'});
   });
@@ -222,7 +220,10 @@ void main() {
       );
 
       expect(view.result.orders.map((o) => o.orderId), contains('o3'));
-      expect(view.result.orders.where((o) => o.delivered == null), hasLength(1));
+      expect(
+        view.result.orders.where((o) => o.delivered == null),
+        hasLength(1),
+      );
     });
 
     test('order-level figures recompute over the slice', () {
@@ -246,14 +247,14 @@ void main() {
 
       expect(view.metrics.orders, 0);
       expect(view.plan, isEmpty);
-      // And the stations go with them: a slice no order reached is a slice no
-      // station worked in. The whole-run figures that survive are *columns* of
+      // And the workcenters go with them: a slice no order reached is a slice no
+      // workcenter worked in. The whole-run figures that survive are *columns* of
       // a row, so with no rows there is nothing left to describe.
       expect(view.metrics.workcenters, isEmpty);
     });
   });
 
-  /// A queue belongs to the station it stands in front of, not to a study
+  /// A queue belongs to the workcenter it stands in front of, not to a study
   /// (§7.3, v19) — so filtering by study must not take it away.
   ///
   /// **The field reported this as "when filtering one study, I can't see the
@@ -262,7 +263,7 @@ void main() {
   /// last, so on the real run eight of ten lanes carry one study's id and two
   /// carry the other's. Filtering to either study dropped most of the queues.
   group('a shared queue survives a study filter (§7.3)', () {
-    /// Two studies feeding one station, both queuing in the one lane in front
+    /// Two studies feeding one workcenter, both queuing in the one lane in front
     /// of it — and the lane stamped with study `b`, as the repository stamps it.
     StoredRun shared() {
       final orders = [
@@ -306,9 +307,7 @@ void main() {
         id: 'run-shared',
         projectId: 'proj-1',
         createdAt: start,
-        queues: const RunQueues([
-          (name: 'CLAD04', rule: DispatchRule.fifo),
-        ]),
+        queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
         studies: [
           study('a', cell: 'cell-1', line: 'line-1'),
           study('b', cell: 'cell-2', line: 'line-2'),
@@ -393,75 +392,76 @@ void main() {
     });
   });
 
+  /// Two studies in different cells and lines, each making its own part and
+  /// booked to its own project.
+  ///
+  /// | order | study | cell | line | part | project |
+  /// |---|---|---|---|---|---|
+  /// | `o1` | a | Cell 1 | Line 1 | PN1 | MANIFOLD |
+  /// | `o2` | b | Cell 2 | Line 2 | PN2 | Global 23 |
+  ///
+  /// Shared by the picker group and #29's study-naming group, which are about
+  /// the same two menus: what they offer, and what each entry is called.
+  StoredRun twoLines() {
+    final orders = [
+      outcome('o1', studyId: 'a', need: DateTime(2026, 3, 1), sequence: 0),
+      outcome(
+        'o2',
+        studyId: 'b',
+        need: DateTime(2026, 4, 1),
+        sequence: 0,
+        partId: 'p2',
+      ),
+    ];
+    final result = SimRunResult(
+      start: start,
+      end: DateTime(2026, 12, 31),
+      guard: DateTime(2027, 1, 1),
+      steps: [step('o1', 'wc-1'), step('o2', 'wc-2')],
+      orders: orders,
+      emptySlots: const [],
+      busyByWorkcenter: const {'wc-1': Duration(hours: 100)},
+      openByWorkcenter: const {'wc-1': Duration(hours: 200)},
+    );
+
+    return StoredRun(
+      id: 'run-two-lines',
+      projectId: 'proj-1',
+      createdAt: start,
+      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
+      studies: [
+        study('a', cell: 'cell-1', line: 'line-1'),
+        study('b', cell: 'cell-2', line: 'line-2'),
+      ],
+      result: result,
+      metrics: summariseRun(
+        result: result,
+        partNumbers: const {'p1': 'PN1', 'p2': 'PN2'},
+        workcenterNames: const {'wc-1': 'CLAD04', 'wc-2': 'TTAT'},
+        theoreticalByOrder: const {},
+      ),
+      plan: [
+        for (final o in orders)
+          ProductionPlanRow(
+            outcome: o,
+            partNumber: o.partId == 'p1' ? 'PN1' : 'PN2',
+            partDescription: null,
+            customerProject: o.orderId == 'o1' ? 'MANIFOLD' : 'Global 23',
+            batchNumber: null,
+            batchSize: 1,
+            materialDate: null,
+            theoreticalLeadTime: const Duration(hours: 1),
+          ),
+      ],
+    );
+  }
+
   /// What each picker offers, given what the others narrowed to (§7.6).
   ///
   /// Two field complaints, one rule: *"Cells and Lines are showing cells and
   /// lines that don't have studies, only the resources"*, and *"if a user
   /// selects a study only show the part numbers of that study"*.
   group('the pickers offer what could still narrow (§7.6)', () {
-    /// Two studies in different cells and lines, each making its own part and
-    /// booked to its own project.
-    ///
-    /// | order | study | cell | line | part | project |
-    /// |---|---|---|---|---|---|
-    /// | `o1` | a | Cell 1 | Line 1 | PN1 | MANIFOLD |
-    /// | `o2` | b | Cell 2 | Line 2 | PN2 | Global 23 |
-    StoredRun twoLines() {
-      final orders = [
-        outcome('o1', studyId: 'a', need: DateTime(2026, 3, 1), sequence: 0),
-        outcome(
-          'o2',
-          studyId: 'b',
-          need: DateTime(2026, 4, 1),
-          sequence: 0,
-          partId: 'p2',
-        ),
-      ];
-      final result = SimRunResult(
-        start: start,
-        end: DateTime(2026, 12, 31),
-        guard: DateTime(2027, 1, 1),
-        steps: [step('o1', 'wc-1'), step('o2', 'wc-2')],
-        orders: orders,
-        emptySlots: const [],
-        busyByWorkcenter: const {'wc-1': Duration(hours: 100)},
-        openByWorkcenter: const {'wc-1': Duration(hours: 200)},
-      );
-
-      return StoredRun(
-        id: 'run-two-lines',
-        projectId: 'proj-1',
-        createdAt: start,
-        queues: const RunQueues([
-          (name: 'CLAD04', rule: DispatchRule.fifo),
-        ]),
-        studies: [
-          study('a', cell: 'cell-1', line: 'line-1'),
-          study('b', cell: 'cell-2', line: 'line-2'),
-        ],
-        result: result,
-        metrics: summariseRun(
-          result: result,
-          partNumbers: const {'p1': 'PN1', 'p2': 'PN2'},
-          workcenterNames: const {'wc-1': 'CLAD04', 'wc-2': 'TTAT'},
-          theoreticalByOrder: const {},
-        ),
-        plan: [
-          for (final o in orders)
-            ProductionPlanRow(
-              outcome: o,
-              partNumber: o.partId == 'p1' ? 'PN1' : 'PN2',
-              partDescription: null,
-              customerProject: o.orderId == 'o1' ? 'MANIFOLD' : 'Global 23',
-              batchNumber: null,
-              batchSize: 1,
-              materialDate: null,
-              theoreticalLeadTime: const Duration(hours: 1),
-            ),
-        ],
-      );
-    }
-
     test('with nothing selected, everything the run has is offered', () {
       final options = runFilterOptions(twoLines(), const RunFilter());
 
@@ -573,7 +573,10 @@ void main() {
       // The pane below says nothing has been run. A menu of things that cannot
       // narrow it would be describing the plant rather than the screen.
       const options = RunFilterOptions();
-      expect(runFilterOptions(null, const RunFilter()).studies, options.studies);
+      expect(
+        runFilterOptions(null, const RunFilter()).studies,
+        options.studies,
+      );
       expect(runFilterOptions(null, const RunFilter()).cells, isEmpty);
     });
 
@@ -631,9 +634,7 @@ void main() {
         id: 'run-booked',
         projectId: 'proj-1',
         createdAt: start,
-        queues: const RunQueues([
-          (name: 'CLAD04', rule: DispatchRule.fifo),
-        ]),
+        queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
         studies: [
           study('a', cell: 'cell-1', line: 'line-1'),
           study('b', cell: 'cell-2', line: 'line-2'),
@@ -703,10 +704,7 @@ void main() {
       // And it is not swept up by a named project.
       expect(
         orderIds(
-          filterRun(
-            booked(),
-            const RunFilter(customerProjects: {'MANIFOLD'}),
-          ),
+          filterRun(booked(), const RunFilter(customerProjects: {'MANIFOLD'})),
         ),
         isNot(contains('o3')),
       );
@@ -781,19 +779,16 @@ void main() {
     });
 
     test('order-level figures recompute over the slice', () {
-      final view = filterRun(
-        booked(),
-        const RunFilter(partNumbers: {'PN1'}),
-      );
+      final view = filterRun(booked(), const RunFilter(partNumbers: {'PN1'}));
 
       expect(view.metrics.orders, 2);
-      // And the stations narrow with them: PN1 never went through wc-2's
-      // sibling, so only the stations these two orders touched have rows.
-      expect(
-        view.metrics.workcenters.map((w) => w.name).toSet(),
-        {'CLAD04', 'TTAT'},
-      );
-      expect(view.stationsAreWholeRun, isTrue);
+      // And the workcenters narrow with them: PN1 never went through wc-2's
+      // sibling, so only the workcenters these two orders touched have rows.
+      expect(view.metrics.workcenters.map((w) => w.name).toSet(), {
+        'CLAD04',
+        'TTAT',
+      });
+      expect(view.workcentersAreWholeRun, isTrue);
     });
 
     test('a slice s signature is fixed when the slice is taken', () {
@@ -964,8 +959,51 @@ void main() {
       expect(picked.start, DateTime(2026, 6));
     });
   });
-}
 
+  group('a study says which cell and line it belongs to (#29)', () {
+    // The live plant names study `Célula 11B` after cell `Célula 11` while
+    // scoping it to line `Fluxo 11B`. It takes the word from one and the
+    // suffix from the other and is neither, and the Studies and Cells menus
+    // of one filter bar offer both.
+    test('the plant naming that has already produced two defects', () {
+      expect(
+        qualifiedStudyLabel('Célula 11B', 'Célula 11', 'Fluxo 11B'),
+        'Célula 11B (Célula 11 · Fluxo 11B)',
+      );
+    });
+
+    test('a run stored without the snapshot keeps the bare name', () {
+      // §7.10 snapshots the cell and line onto the run's study row, but runs
+      // predate that. A parenthesis holding a dash is worse than no
+      // parenthesis.
+      expect(qualifiedStudyLabel('Célula 11B', null, null), 'Célula 11B');
+    });
+
+    test('one of the two is still worth saying', () {
+      expect(
+        qualifiedStudyLabel('Célula 11B', null, 'Fluxo 11B'),
+        'Célula 11B (Fluxo 11B)',
+      );
+      expect(
+        qualifiedStudyLabel('Célula 11B', 'Célula 11', null),
+        'Célula 11B (Célula 11)',
+      );
+    });
+
+    test('the Studies picker offers the qualified name', () {
+      // The defect path itself: the menu entry, not the helper.
+      final options = runFilterOptions(twoLines(), const RunFilter());
+      expect(options.studies.values, [
+        'a (cell-1 · line-1)',
+        'b (cell-2 · line-2)',
+      ]);
+      // The Cells and Lines menus stay bare — they are already unambiguous,
+      // and it is the study that borrows their words.
+      expect(options.cells.values, ['cell-1', 'cell-2']);
+      expect(options.lines.values, ['line-1', 'line-2']);
+    });
+  });
+}
 
 /// The plan's order rows, for tests that are about orders (§8.5).
 ///

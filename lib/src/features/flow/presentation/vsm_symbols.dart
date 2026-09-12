@@ -237,7 +237,7 @@ abstract final class VsmSymbols {
   /// The pool badge: a stroked square carrying `#N` (DESIGN.md §3.1).
   ///
   /// A pool is several machines behind one box, and a reader comparing two
-  /// boxes has to know which one is four stations. This was a Material chip —
+  /// boxes has to know which one is four workcenters. This was a Material chip —
   /// a filled, rounded, `secondaryContainer` pill sitting inside a map drawn in
   /// thin strokes, which read as a piece of app furniture rather than part of
   /// the drawing. Same stroke and colour as the factory and the triangle now,

@@ -217,7 +217,7 @@ void main() {
       expect(row(book, 'Run', 0).first.toString(), contains('0.1.0-test'));
       expect(row(book, 'Run', 1).first.toString(), 'H2 2026');
       expect(row(book, 'Run', 2).first.toString(), '8/8/2026 · mixed');
-      // What each station dispatched by, and only when they differed (§7.3):
+      // What each workcenter dispatched by, and only when they differed (§7.3):
       // without it the file says the run was not one thing without saying what
       // it was.
       expect(

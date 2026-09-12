@@ -4,7 +4,7 @@
 /// flattened: the Summary states one occupation for a whole run, so a plant
 /// that is comfortable in January and drowning in April reads as an average
 /// neither month has. §10.2 gave a run the two things this needs — what rework
-/// cost, and what a *month* of a station was worth — and this is what reads
+/// cost, and what a *month* of a workcenter was worth — and this is what reads
 /// them.
 ///
 /// Pure and free of Drift, so what a bar means is a unit test.
@@ -14,18 +14,18 @@ import '../data/simulation_runs_repository.dart';
 import 'run_filter.dart';
 import '../../../common/period_granularity.dart';
 
-/// Which stations are in view, on top of the study and order filters
+/// Which workcenters are in view, on top of the study and order filters
 /// [RunFilter] already carries.
 ///
 /// **A second filter rather than more fields on the first**, because the two
 /// narrow different things and combining them would hide that. [RunFilter]
 /// chooses whose *demand* is coloured — its cells and lines are a study filter
-/// one level up (§7.10) and never touch a station. This chooses which
-/// **stations** are drawn at all, and a station it excludes contributes neither
+/// one level up (§7.10) and never touch a workcenter. This chooses which
+/// **workcenters** are drawn at all, and a workcenter it excludes contributes neither
 /// bar nor capacity line.
 
 /// One column of the chart: a month, its three segments, what else was asked of
-/// those stations, and what they had.
+/// those workcenters, and what they had.
 class OccupationMonth {
   const OccupationMonth({
     required this.month,
@@ -34,73 +34,73 @@ class OccupationMonth {
     required this.changeover,
     required this.other,
     required this.capacity,
-    required this.stations,
-    required this.stationsOver,
+    required this.workcenters,
+    required this.workcentersOver,
   });
 
   /// First instant of the month, local — the same key the capacity rows are
   /// stored under, so a bar and its line cannot land in different columns.
   final DateTime month;
 
-  /// Work before rework, in seconds of the stations' open clock (§10.2).
+  /// Work before rework, in seconds of the workcenters' open clock (§10.2).
   final Duration process;
 
   /// What rework added on top — `processSeconds - processSecondsBeforeRework`,
-  /// subtracted rather than multiplied out so a station with none reads a true
+  /// subtracted rather than multiplied out so a workcenter with none reads a true
   /// zero.
   final Duration rework;
 
   /// Setup and teardown actually charged (§7.6).
   ///
-  /// **In the bar rather than left out.** A bar omitting it would draw a station
+  /// **In the bar rather than left out.** A bar omitting it would draw a workcenter
   /// under its line while the Summary read 96 %, and §7.6 is the record of what
   /// a surface agreeing with itself and disagreeing with its own metric costs.
   final Duration changeover;
 
-  /// Demand at these stations from orders an **order-level** filter excluded —
+  /// Demand at these workcenters from orders an **order-level** filter excluded —
   /// a customer project, a part number, an order number.
   ///
   /// **An order-level filter colours the bar; it never shrinks it.** Filtered to
   /// one project, its own demand may sit comfortably under the line while
-  /// everything the station is actually asked for breaks it, and a bar that
+  /// everything the workcenter is actually asked for breaks it, and a bar that
   /// dropped the rest would let a planner filter an overload away. So it stays
   /// in the stack as a fourth, neutral segment and [total] is always the
-  /// station's true load.
+  /// workcenter's true load.
   ///
   /// **Zero under a structural filter, always.** Study, cell, line, type and
-  /// workcenter choose the *station set*, so demand and capacity move together
+  /// workcenter choose the *workcenter set*, so demand and capacity move together
   /// and there is no remainder to hold — the bar is fully coloured. It did not
   /// used to be, and the field reported it: those filters were being passed
   /// through to `kept`, so narrowing to one study painted every other study's
-  /// work at a shared station grey.
+  /// work at a shared workcenter grey.
   final Duration other;
 
-  /// Open time those stations had in this month, units already multiplied in.
+  /// Open time those workcenters had in this month, units already multiplied in.
   ///
   /// **Never pro-rated and never moved by a filter**: a denominator computed
   /// from one line's share of another line's demand is not a number the plant
   /// has.
   final Duration capacity;
 
-  /// How many stations are in view, and how many of them individually asked for
+  /// How many workcenters are in view, and how many of them individually asked for
   /// more than they had this month.
   ///
   /// **The badge that stops an aggregate reading as an occupation.** Summed over
-  /// twelve stations the ratio answers a real question about plant hours and
+  /// twelve workcenters the ratio answers a real question about plant hours and
   /// headcount, and answers nothing at all about whether any one machine is
   /// overloaded — §8.1's ranking is where a bottleneck is found.
-  final int stations;
-  final int stationsOver;
+  final int workcenters;
+  final int workcentersOver;
 
   /// The three coloured segments — what the filter's own orders asked for, and
   /// what the Summary calls `required`.
   Duration get required => process + rework + changeover;
 
-  /// Everything those stations were asked for, filtered or not.
+  /// Everything those workcenters were asked for, filtered or not.
   Duration get total => required + other;
 
   /// [total] over [capacity], or null where there is no capacity to divide by —
-  /// a month every station in view was closed for, which is a real state and is
+  /// a month every workcenter in view was closed for, which is a real state and is
   /// drawn as a floor rather than as a bar of infinite height.
   double? get occupation =>
       capacity == Duration.zero ? null : total.inSeconds / capacity.inSeconds;
@@ -137,7 +137,7 @@ class OccupationPivotRow {
 
 /// The pivot: lines down, workcenter types across.
 ///
-/// **Columns are types rather than stations**, which is defensible in a way
+/// **Columns are types rather than workcenters**, which is defensible in a way
 /// summing unlike machines is not — `takt_balance.dart` already treats
 /// *"workcenters of the same type in the sequence"* as one group that can share
 /// work.
@@ -155,7 +155,7 @@ class OccupationPivot {
   final Map<String, String> typeNames;
   final List<OccupationPivotRow> rows;
 
-  /// The TOTAL row: **every line touching those stations, filtered out or not**,
+  /// The TOTAL row: **every line touching those workcenters, filtered out or not**,
   /// which is the same rule as the chart's neutral segment.
   ///
   /// Under a filter this will therefore *not* equal the sum of the cells above
@@ -170,14 +170,14 @@ class OccupationGraph {
   const OccupationGraph({
     required this.months,
     required this.pivot,
-    required this.stationsInView,
+    required this.workcentersInView,
   });
 
   final List<OccupationMonth> months;
   final OccupationPivot pivot;
 
   /// Workcenter ids the chart aggregated, for the caption that says how many.
-  final Set<String> stationsInView;
+  final Set<String> workcentersInView;
 
   bool get isEmpty => months.isEmpty;
 
@@ -209,13 +209,13 @@ OccupationGraph? occupationGraph({
       if (row.typeId != null && row.typeName != null) row.typeId!: row.typeName!,
   };
 
-  // **The shared station resolution** (#9). The chart used to carry its own
-  // `OccupationStations`, owned by the Occupation view and reaching nothing
+  // **The shared workcenter resolution** (#9). The chart used to carry its own
+  // `OccupationWorkcenters`, owned by the Occupation view and reaching nothing
   // else — so narrowing to one workcenter narrowed this chart while the Gantt
-  // and the queue tables went on drawing the whole plant. Both station filters
-  // are on `RunFilter` now, and studies, cells and lines narrow the station set
-  // too, through the stations their studies visited.
-  final inView = stationsInView(run, filter);
+  // and the queue tables went on drawing the whole plant. Both workcenter filters
+  // are on `RunFilter` now, and studies, cells and lines narrow the workcenter set
+  // too, through the workcenters their studies visited.
+  final inView = workcentersInView(run, filter);
   if (inView.isEmpty) return null;
 
   // The orders an **order-level** filter keeps, taken through `filterRun` so
@@ -225,15 +225,15 @@ OccupationGraph? occupationGraph({
   // **Structural filters are stripped out of this, and were not** — the field
   // reported the neutral segment appearing under a study, cell, line, type or
   // workcenter filter, and it was right. This passed the whole `filter`, so a
-  // structural filter narrowed the station set *and* dropped every other
-  // study's orders out of `kept`, painting their work at those shared stations
+  // structural filter narrowed the workcenter set *and* dropped every other
+  // study's orders out of `kept`, painting their work at those shared workcenters
   // grey. `occupation_grid.dart` has always stripped them; the chart never did,
   // which quietly broke this library's own claim that the two surfaces cannot
   // disagree about what is being looked at.
   //
-  // A structural filter therefore leaves the bar entirely coloured: the station
+  // A structural filter therefore leaves the bar entirely coloured: the workcenter
   // set moved, so demand and capacity moved with it, and there is no remainder
-  // for the neutral segment to hold. The bar is still the stations' **full**
+  // for the neutral segment to hold. The bar is still the workcenters' **full**
   // load, which is what stops a filter from making an overload disappear.
   final kept = {
     for (final outcome
@@ -256,9 +256,9 @@ OccupationGraph? occupationGraph({
   final rework = <DateTime, Duration>{};
   final changeover = <DateTime, Duration>{};
   final other = <DateTime, Duration>{};
-  // Per station per month, so a month can say how many individual machines are
+  // Per workcenter per month, so a month can say how many individual machines are
   // over rather than only whether the sum is.
-  final loadByStation = <DateTime, Map<String, Duration>>{};
+  final loadByWorkcenter = <DateTime, Map<String, Duration>>{};
 
   for (final step in run.result.steps) {
     if (!inView.contains(step.workcenterId)) continue;
@@ -277,7 +277,7 @@ OccupationGraph? occupationGraph({
     final work = Duration(seconds: before);
     final extra = Duration(seconds: total - before);
 
-    (loadByStation[month] ??= {}).update(
+    (loadByWorkcenter[month] ??= {}).update(
       step.workcenterId,
       (had) => had + work + extra + setup,
       ifAbsent: () => work + extra + setup,
@@ -292,7 +292,7 @@ OccupationGraph? occupationGraph({
     }
   }
 
-  // Every month the run spans at the stations in view, whether or not anything
+  // Every month the run spans at the workcenters in view, whether or not anything
   // arrived in it: a quiet month is a fact about the plan and a gap in the axis
   // would hide it.
   // **Filtered monthly, then folded — the grid's order exactly** (#17). The
@@ -303,11 +303,11 @@ OccupationGraph? occupationGraph({
     for (final id in inView) ...?monthly[id]?.keys,
   }.where(filter.includesDate).toSet();
 
-  final capacityByStation = <String, Map<DateTime, Duration>>{
+  final capacityByWorkcenter = <String, Map<DateTime, Duration>>{
     for (final entry in monthly.entries) entry.key: <DateTime, Duration>{},
   };
   for (final entry in monthly.entries) {
-    final folded = capacityByStation[entry.key]!;
+    final folded = capacityByWorkcenter[entry.key]!;
     for (final month in entry.value.entries) {
       if (!keptMonths.contains(month.key)) continue;
       folded.update(
@@ -326,9 +326,9 @@ OccupationGraph? occupationGraph({
         var capacity = Duration.zero;
         var over = 0;
         for (final id in inView) {
-          final had = capacityByStation[id]?[month] ?? Duration.zero;
+          final had = capacityByWorkcenter[id]?[month] ?? Duration.zero;
           capacity += had;
-          final asked = loadByStation[month]?[id] ?? Duration.zero;
+          final asked = loadByWorkcenter[month]?[id] ?? Duration.zero;
           if (had > Duration.zero && asked > had) over++;
         }
         return OccupationMonth(
@@ -338,8 +338,8 @@ OccupationGraph? occupationGraph({
           changeover: changeover[month] ?? Duration.zero,
           other: other[month] ?? Duration.zero,
           capacity: capacity,
-          stations: inView.length,
-          stationsOver: over,
+          workcenters: inView.length,
+          workcentersOver: over,
         );
       }(),
   ];
@@ -356,7 +356,7 @@ OccupationGraph? occupationGraph({
     for (final month in months) {
       capacityByType[type] =
           (capacityByType[type] ?? Duration.zero) +
-          (capacityByStation[id]?[month] ?? Duration.zero);
+          (capacityByWorkcenter[id]?[month] ?? Duration.zero);
     }
   }
 
@@ -428,7 +428,7 @@ OccupationGraph? occupationGraph({
 
   return OccupationGraph(
     months: columns,
-    stationsInView: inView,
+    workcentersInView: inView,
     pivot: OccupationPivot(
       typeIds: typeIds,
       typeNames: typeNames,

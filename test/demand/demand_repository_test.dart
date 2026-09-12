@@ -22,7 +22,7 @@ void main() {
 
   /// The flow steps those two workcenters are reached through.
   ///
-  /// **A process time is keyed by the step since §9**, not by the station, so a
+  /// **A process time is keyed by the step since §9**, not by the workcenter, so a
   /// study with no flow has nowhere to hang one — and the foreign key says so
   /// rather than letting a workcenter id stand in and look self-consistent.
   late String stepA;

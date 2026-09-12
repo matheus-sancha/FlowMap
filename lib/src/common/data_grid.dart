@@ -307,7 +307,7 @@ class _DataGridState extends State<DataGrid> {
 
   /// Likewise for the heading: a column with a `helper` under its title is two
   /// lines where a column without one is one, so a frozen part number beside a
-  /// helper-bearing station would start its rows higher than the pane next to it.
+  /// helper-bearing workcenter would start its rows higher than the pane next to it.
   ///
   /// **Unchanged by a column's `ⓘ`**, which is the point of declaring it: the
   /// heading's children are [Flexible], so a taller title takes the room it has

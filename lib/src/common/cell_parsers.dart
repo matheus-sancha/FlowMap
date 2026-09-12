@@ -81,7 +81,7 @@ String _stripAccents(String text) {
 /// do not overlap in any way that matters: a plant running at 0.74 % is not a
 /// case worth reserving syntax for, and one running at 74 % is the common one.
 /// So a value at or below 1 is read as a fraction and anything above it as a
-/// percentage — with `1` itself meaning 100 %, since a station at 1 % is not
+/// percentage — with `1` itself meaning 100 %, since a workcenter at 1 % is not
 /// what anyone means either.
 ///
 /// A comma is a decimal point. Both other languages write `0,74`, and rejecting

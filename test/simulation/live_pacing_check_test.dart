@@ -20,11 +20,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// Run by hand with `--tags live` and `FLOWMAP_LIVE_DB` pointing at a copy.
 ///
 /// What it has to show: marking a type **Operator Pace** moves *that type's
-/// stations and nothing else*, and moves them the right way — **capacity up,
+/// workcenters and nothing else*, and moves them the right way — **capacity up,
 /// demand unchanged**. A crew does not make the job smaller; it makes more of
 /// the day available to do it in.
 ///
-/// The baseline is the same plant with every station machine-paced, built in
+/// The baseline is the same plant with every workcenter machine-paced, built in
 /// memory from the same rows, so the diff is the pacing and nothing else.
 void main() {
   test('a crew is more room, and only where the type says so', () async {
@@ -101,15 +101,15 @@ void main() {
           for (final e in input.workcenters.entries)
             e.key: machinePaced(e.value),
         },
-        scheduledStations: {
-          for (final e in input.scheduledStations.entries)
+        scheduledWorkcenters: {
+          for (final e in input.scheduledWorkcenters.entries)
             e.key: machinePaced(e.value),
         },
         scheduleHorizon: input.scheduleHorizon,
       ),
     );
 
-    // --- the same plant with every station machine-paced --------------------
+    // --- the same plant with every workcenter machine-paced --------------------
 
     // The baseline is the model as it was before v30, built in memory from the
     // same rows — so the diff below is the pacing and nothing else. Repaced
@@ -126,7 +126,7 @@ void main() {
       runSimulation(
         studies: input.studies,
         workcenters: paced,
-        scheduledStations: input.scheduledStations,
+        scheduledWorkcenters: input.scheduledWorkcenters,
         scheduleHorizon: input.scheduleHorizon,
       ),
     );
@@ -138,7 +138,7 @@ void main() {
         if (before[name] != after[name]) name,
     ];
     // ignore: avoid_print
-    print('stations whose grid moved: $moved');
+    print('workcenters whose grid moved: $moved');
     for (final name in moved) {
       final was = before[name]!;
       final now = after[name]!;

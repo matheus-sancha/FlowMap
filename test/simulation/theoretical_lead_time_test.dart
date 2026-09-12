@@ -174,7 +174,7 @@ void main() {
       expect(problems, [TheoreticalLeadTimeProblem.noProcessTime]);
     });
 
-    test('a station that never opens fails loudly rather than looping', () {
+    test('a workcenter that never opens fails loudly rather than looping', () {
       final shut = WorkcenterScheduleSpec([
         WorkcenterSchedulePeriodSpec(
           startDate: DateTime(2026, 1, 1),
@@ -308,7 +308,7 @@ void main() {
       expect(endOf(nodes, start!), need);
     });
 
-    test('a flow that revisits a station round-trips too', () {
+    test('a flow that revisits a workcenter round-trips too', () {
       // **The case the two walks used to disagree on.** `A → B → A` shares one
       // floor space at A, so the two days of stock there are charged once — and
       // the backward walk has to charge them at the step the forward walk does,
@@ -352,7 +352,7 @@ void main() {
     });
 
     test('the stock is charged once, not once per visit', () {
-      // Two steps on one station, and the plant has one pile in front of it —
+      // Two steps on one workcenter, and the plant has one pile in front of it —
       // the dedup both walks share (§7.3). Two days of it, so charging it twice
       // would move the start date by two more.
       final once = startFor([

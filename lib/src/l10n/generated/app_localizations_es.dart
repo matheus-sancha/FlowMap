@@ -123,7 +123,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get projectPatternHelp =>
-      'El patrón de turnos del que cada centro de trabajo de este proyecto lee sus horas abiertas. Cambiarlo recalcula el horario de todas las estaciones, y toda cifra derivada de ellas.';
+      'El patrón de turnos del que cada centro de trabajo de este proyecto lee sus horas abiertas. Cambiarlo recalcula el horario de todos los centros de trabajo, y toda cifra derivada de ellos.';
 
   @override
   String get calendarExceptions => 'Excepciones';
@@ -133,7 +133,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'compartido por todos los estudios de esta línea';
 
   @override
-  String get schedulesStationsScope => 'el flujo de este estudio';
+  String get schedulesWorkcentersScope => 'el flujo de este estudio';
 
   @override
   String get workcenters => 'Centros de trabajo';
@@ -155,7 +155,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get workcenterLinesHelp =>
-      'Solo organizativo. Cualquier estudio de cualquier línea puede usar este centro de trabajo marque lo que marque, y una estación que sirve a dos líneas va bajo las dos.';
+      'Solo organizativo. Cualquier estudio de cualquier línea puede usar este centro de trabajo marque lo que marque, y un centro de trabajo que sirve a dos líneas va bajo las dos.';
 
   @override
   String get workcenterNoLines =>
@@ -616,14 +616,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get summaryOverloaded =>
-      'Por encima del 100 %: esta estación no puede con ello, se ordene como se ordene la secuencia.';
+      'Por encima del 100 %: este centro de trabajo no puede con ello, se ordene como se ordene la secuencia.';
 
   @override
   String get summaryWithinCapacity => 'Dentro de la capacidad de este periodo.';
 
   @override
   String get summaryNoDemandTakt =>
-      'Aún no hay takt de demanda: hace falta una estación con horas y pedidos con fecha en este periodo.';
+      'Aún no hay takt de demanda: hace falta un centro de trabajo con horas y pedidos con fecha en este periodo.';
 
   @override
   String summaryBottleneck(String name, String occupation) {
@@ -637,7 +637,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String summaryVisitsHelp(String count) {
-    return 'El flujo pasa $count veces por esta estación, y cada visita la carga.';
+    return 'El flujo pasa $count veces por este centro de trabajo, y cada visita lo carga.';
   }
 
   @override
@@ -665,7 +665,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String summaryPaceSetter(String name, String available) {
-    return 'Medido en $name, la estación más cargada, que tiene $available disponibles este periodo.';
+    return 'Medido en $name, el centro de trabajo más cargado, que tiene $available disponibles este periodo.';
   }
 
   @override
@@ -673,7 +673,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get summaryTaktConfiguredHelp =>
-      'El takt al que está configurada esta línea, resuelto en la estación que marca el ritmo.';
+      'El takt al que está configurada esta línea, resuelto en el centro de trabajo que marca el ritmo.';
 
   @override
   String get summaryTaktRaw => 'Takt de demanda bruto';
@@ -1090,7 +1090,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepTeardownHelp =>
-      'Desmontar la estación después de una orden. Se cobra junto con la preparación de la orden siguiente, porque si hace falta depende de lo que venga después.';
+      'Desmontar el centro de trabajo después de una orden. Se cobra junto con la preparación de la orden siguiente, porque si hace falta depende de lo que venga después.';
 
   @override
   String get stepSamePart => 'Misma pieza';
@@ -1107,14 +1107,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get laneCapacityHelp =>
-      'Cuántas órdenes caben aquí. Déjalo vacío para ilimitado. Cuando está lleno, la estación anterior no puede dejar la orden terminada y se detiene, que es como la congestión sube por la línea. Distinto de las piezas de arriba: esa cifra es lo que hay hoy, esta es lo que permite el suelo.';
+      'Cuántas órdenes caben aquí. Déjalo vacío para ilimitado. Cuando está lleno, el centro de trabajo anterior no puede dejar la orden terminada y se detiene, que es como la congestión sube por la línea. Distinto de las piezas de arriba: esa cifra es lo que hay hoy, esta es lo que permite el suelo.';
 
   @override
   String get workcenterParallelCapacity => 'Órdenes a la vez';
 
   @override
   String get workcenterParallelCapacityHelp =>
-      'Cuántas órdenes procesa esta estación en paralelo. Uno es una sola máquina. Más de uno son unidades independientes, cada una con sus propios cambios de referencia — y el doble de capacidad en todo lo que se mide. Usa un pool cuando las máquinas sean realmente separadas y quieras ver cuál hizo qué.';
+      'Cuántas órdenes procesa este centro de trabajo en paralelo. Uno es una sola máquina. Más de uno son unidades independientes, cada una con sus propios cambios de referencia — y el doble de capacidad en todo lo que se mide. Usa un pool cuando las máquinas sean realmente separadas y quieras ver cuál hizo qué.';
 
   @override
   String get studyStartBuffer => 'Margen de inicio (días naturales)';
@@ -1128,7 +1128,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get studyPaceSetterHelp =>
-      'La estación cuyo reloj marca la cadencia de liberación, y cuyo carril decide cuándo puede entrar otra orden. Déjalo en automático para usar el paso más cargado.';
+      'El centro de trabajo cuyo reloj marca la cadencia de liberación, y cuyo carril decide cuándo puede entrar otra orden. Déjalo en automático para usar el paso más cargado.';
 
   @override
   String get studyPaceSetterAutomatic => 'Automático — el paso más cargado';
@@ -1138,7 +1138,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simBlockedHelp =>
-      'Tiempo que la estación pasó sujetando una orden terminada porque el carril siguiente estaba lleno. No cuenta como ocupado: una estación atascada está ocupada y no produce nada.';
+      'Tiempo que el centro de trabajo pasó sujetando una orden terminada porque el carril siguiente estaba lleno. No cuenta como ocupado: un centro de trabajo atascado está ocupado y no produce nada.';
 
   @override
   String get simEmptySlotLaneFull => 'Carril lleno';
@@ -1154,7 +1154,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepEquivalentHelp =>
-      'El takt propio de este paso, usado por el equivalente del flujo en lugar del de la línea. Déjalo vacío para seguir el takt de la línea. Rellénalo cuando un takt completo desequilibraría la comparación — una inspección que vale solo una fracción. Los días son días productivos de esta estación, así que 1 día equivale a un día de takt.';
+      'El takt propio de este paso, usado por el equivalente del flujo en lugar del de la línea. Déjalo vacío para seguir el takt de la línea. Rellénalo cuando un takt completo desequilibraría la comparación — una inspección que vale solo una fracción. Los días son días productivos de este centro de trabajo, así que 1 día equivale a un día de takt.';
 
   @override
   String get stepProblemUnbound =>
@@ -1236,7 +1236,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simFilterPeriodHelp =>
-      'Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.';
+      'Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros de trabajo siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.';
 
   @override
   String get simFilterPeriodStart => 'Primer mes';
@@ -1274,7 +1274,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simWorkspace => 'Simulación';
 
   @override
-  String get simStationsWholeRun =>
+  String get simWorkcentersWholeRun =>
       'Utilización y Bloqueado describen la corrida completa — la corrida no guarda lo que haría falta para acotar el tiempo abierto. Las demás columnas siguen el filtro.';
 
   @override
@@ -1333,7 +1333,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simulationAbortNothingToRun =>
-      'No se pudo empezar nada: el calendario de todas las estaciones está cerrado, o ningún estudio tenía una primera orden costeable.';
+      'No se pudo empezar nada: el calendario de todos los centros de trabajo está cerrado, o ningún estudio tenía una primera orden costeable.';
 
   @override
   String get simOnTimeDelivery => 'Entregas a tiempo';
@@ -1398,7 +1398,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simRankingsHelp =>
-      'Ambas clasificaciones están aquí porque su desacuerdo es el diagnóstico: una cola larga en una estación poco ocupada es un problema de secuenciación, no de capacidad.';
+      'Ambas clasificaciones están aquí porque su desacuerdo es el diagnóstico: una cola larga en un centro de trabajo poco ocupado es un problema de secuenciación, no de capacidad.';
 
   @override
   String get simQueue => 'Cola';
@@ -1435,7 +1435,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simOnTime => 'A tiempo';
 
   @override
-  String get simNothingRanked => 'Ninguna estación ejecutó nada.';
+  String get simNothingRanked => 'Ningún centro de trabajo ejecutó nada.';
 
   @override
   String simRunSpan(String start, String end) {
@@ -1502,7 +1502,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get simGanttGapHelp =>
-      'Una barra es la estación comprometida con esa orden, incluidas las horas cerradas. Un hueco es una estación que no está procesando: cerrada o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.';
+      'Una barra es el centro de trabajo comprometido con esa orden, incluidas las horas cerradas. Un hueco es un centro de trabajo que no está procesando: cerrado o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.';
 
   @override
   String simGanttOrder(String number) {
@@ -1582,14 +1582,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simGanttStillWaiting => 'Seguía aquí al terminar la simulación';
 
   @override
-  String get simGanttRowsStations => 'Centros';
+  String get simGanttRowsWorkcenters => 'Centros de trabajo';
 
   @override
-  String get simGanttRowsWithLanes => 'Centros + carriles';
+  String get simGanttRowsWithLanes => 'Centros de trabajo + carriles';
 
   @override
   String get simGanttRowsHelp =>
-      'Si se dibujan las bandas de cola entre centros. Sin ellas el gráfico se lee como un flujo; con ellas, como una cola.';
+      'Si se dibujan las bandas de cola entre centros de trabajo. Sin ellas el gráfico se lee como un flujo; con ellas, como una cola.';
 
   @override
   String get simGanttZoomIn => 'Acercar';
@@ -1623,7 +1623,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String flowQueueShared(String target) {
-    return 'Una cola por estación: todos los pasos que alimentan $target esperan en esta, en este estudio y en los demás.';
+    return 'Una cola por centro de trabajo: todos los pasos que alimentan $target esperan en esta, en este estudio y en los demás.';
   }
 
   @override
@@ -1634,7 +1634,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get flowQueueTypeHelp =>
-      'Cómo elige la estación siguiente la próxima orden de esta cola. Una cola sin tipo es una fila a la que nadie ha dado una regla; las cuatro reglas son disciplinas, y el mapa dibuja cada una distinta. El rótulo de la cola en el mapa es este tipo y la estación ante la que está.';
+      'Cómo elige el centro de trabajo siguiente la próxima orden de esta cola. Una cola sin tipo es una fila a la que nadie ha dado una regla; las cuatro reglas son disciplinas, y el mapa dibuja cada una distinta. El rótulo de la cola en el mapa es este tipo y el centro de trabajo ante el que está.';
 
   @override
   String get flowQueueStock => 'Lo que hay ahora';
@@ -1662,7 +1662,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get flowBatchHelp =>
-      'Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa la estación diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene.';
+      'Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa el centro de trabajo diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene.';
 
   @override
   String get validationNumber => 'Introduce un número';
@@ -1697,16 +1697,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String stepBalancedHelp(String type, String measured) {
-    return 'Reequilibrado entre las estaciones de $type contiguas en este flujo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió $measured, y la tabla de demanda lo sigue guardando.';
+    return 'Reequilibrado entre los centros de trabajo de $type contiguos en este flujo: cada uno se llena hasta su takt y el último se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió $measured, y la tabla de demanda lo sigue guardando.';
   }
 
   @override
   String get stepRebalance =>
-      'Reequilibrar con máquinas contiguas del mismo tipo';
+      'Reequilibrar con centros de trabajo contiguos del mismo tipo';
 
   @override
   String get stepRebalanceHelp =>
-      'Las estaciones del mismo tipo que están una al lado de la otra reparten su trabajo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Desactívalo para fijar esta estación en lo que se midió en ella.';
+      'Los centros de trabajo del mismo tipo que están uno al lado del otro reparten su trabajo: cada uno se llena hasta su takt y el último se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Desactívalo para fijar este centro de trabajo en lo que se midió en él.';
 
   @override
   String stepRebalanceNoType(String name) {
@@ -1720,11 +1720,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stepRebalanceNoWork =>
-      'Esta pieza no tiene tiempo aquí, así que la estación no reparte trabajo.';
+      'Esta pieza no tiene tiempo aquí, así que el centro de trabajo no reparte trabajo.';
 
   @override
   String stepRebalanceOn(String type) {
-    return 'Repartiendo trabajo con las estaciones $type contiguas.';
+    return 'Repartiendo trabajo con los centros de trabajo $type contiguos.';
   }
 
   @override
@@ -1786,12 +1786,12 @@ class AppLocalizationsEs extends AppLocalizations {
     String capacity,
     String rework,
   ) {
-    return 'Comparte trabajo con las estaciones $type contiguas. Llenada hasta $filled de $capacity: con un $rework% de retrabajo, ese contenido ocupa un takt completo.';
+    return 'Comparte trabajo con los centros de trabajo $type contiguos. Llenado hasta $filled de $capacity: con un $rework% de retrabajo, ese contenido ocupa un takt completo.';
   }
 
   @override
   String stepRebalanceRemainder(String type, String filled, String capacity) {
-    return 'Comparte trabajo con las estaciones $type contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: $filled, dentro de las $capacity que cabe en un takt.';
+    return 'Comparte trabajo con los centros de trabajo $type contiguos. Ellos se llenan hasta su takt y este se queda con lo que sobra: $filled, dentro de las $capacity que cabe en un takt.';
   }
 
   @override
@@ -1800,7 +1800,7 @@ class AppLocalizationsEs extends AppLocalizations {
     String filled,
     String capacity,
   ) {
-    return 'Comparte trabajo con las estaciones $type contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: $filled, por encima de las $capacity que cabe en un takt. El grupo necesita más de lo que tienen sus estaciones.';
+    return 'Comparte trabajo con los centros de trabajo $type contiguos. Ellos se llenan hasta su takt y este se queda con lo que sobra: $filled, por encima de las $capacity que cabe en un takt. El grupo necesita más de lo que tienen sus centros de trabajo.';
   }
 
   @override
@@ -1810,14 +1810,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get occupationType => 'Tipo';
 
   @override
-  String get occupationStation => 'Estación';
-
-  @override
   String get occupationLine => 'Línea';
 
   @override
   String get occupationUngraphable =>
-      'Esta simulación se hizo antes de que la app registrara cuánto valía un mes de una estación, así que no se puede graficar. Vuelve a simular para obtener el gráfico.';
+      'Esta simulación se hizo antes de que la app registrara cuánto valía un mes de un centro de trabajo, así que no se puede graficar. Vuelve a simular para obtener el gráfico.';
 
   @override
   String get projectSettingsFloat => 'Umbrales de holgura';
@@ -1945,7 +1942,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get occupationBands =>
-      'Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.';
+      'Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro de trabajo al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.';
 
   @override
   String get occupationProcess => 'Proceso';
@@ -1960,12 +1957,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get occupationOutsideFilter => 'Fuera del filtro';
 
   @override
-  String occupationStations(int count) {
+  String occupationWorkcentersAggregated(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count centros agregados',
-      one: '1 centro agregado',
+      other: '$count centros de trabajo agregados',
+      one: '1 centro de trabajo agregado',
     );
     return '$_temp0';
   }

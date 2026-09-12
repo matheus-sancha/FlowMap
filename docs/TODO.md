@@ -73,7 +73,7 @@ A queue was only ever keyed by its target, so it does not need a name of its own
 - `project_queues.name` is dropped; the caption is **derived** as `<queue type> - <target>` —
   `FIFO - CLAD07`, and `Queue - CEU27` for an untyped lane, renamed from *Push*. The striped VSM
   arrow keeps the word *Push*.
-- The step's `label` goes with it, so a box is its station everywhere.
+- The step's `label` goes with it, so a box is its workcenter everywhere.
 - The invariant: **one queue per dispatch target, not per workcenter.** A machine reached both
   directly and through a pool genuinely has two lines.
 - **Short queue-type names, in three languages.** The derived caption needs them —
@@ -285,23 +285,23 @@ could not settle.
 
 #### Phase 5 — Occupation · schema v29
 
-**A station × month grid, not a chart.** Across all three runs that can draw this view — 3 of 147;
+**A workcenter × month grid, not a chart.** Across all three runs that can draw this view — 3 of 147;
 the rest predate v25's monthly capacity — the aggregate bar has **never once broken its capacity
-line** (peak 87 %) while single stations hit **149 %**.
+line** (peak 87 %) while single workcenters hit **149 %**.
 
 - **`period_matrix.dart` extracted here rather than in phase 4**, so it has both its callers from
   the start: the float matrix and this grid.
 - `occupation_graph.dart` → rows × months, two groupings (per workcenter, per line), three units
   (`%`, `733/499` hours, `-234` gap).
-- `occupation_view.dart` → the grid, a PLANT row shown only when nothing has narrowed the station
+- `occupation_view.dart` → the grid, a PLANT row shown only when nothing has narrowed the workcenter
   set, two switches. **The stacked-bar painter and its legend are deleted.**
-- `run_filter.dart` gains `typeIds` and `workcenterIds`; `OccupationStations` is absorbed and
-  deleted. **Structural filters** (studies, cells, lines, type, workcenter) choose the station set
+- `run_filter.dart` gains `typeIds` and `workcenterIds`; `OccupationWorkcenters` is absorbed and
+  deleted. **Structural filters** (studies, cells, lines, type, workcenter) choose the workcenter set
   so demand and capacity move together; **order-level filters** (projects, parts, order numbers)
   leave capacity fixed and dim the remainder.
-- `simulation_workspace.dart` — the two station pickers are **promoted** into the shared filter
+- `simulation_workspace.dart` — the two workcenter pickers are **promoted** into the shared filter
   bar, not deleted. `gantt_view.dart` and `simulation_tab.dart` obey them, because their rows are
-  stations too.
+  workcenters too.
 - **Schema v29**: `occupationAmberPct` and `occupationRedPct` on the project, defaulting to 85 and
   100, plus the settings surface beside the float thresholds.
 - `tokens.dart` — **`OccupationRamp` is retired.** It coloured a stack that no longer exists;
@@ -334,15 +334,15 @@ chart either — but the number is in `HISTORY.md` §6.3 rather than left to be 
    than the generated Material roles it read in v1.0.
 2. **The grid ignored study, cell and line filters entirely.** It applied only `typeIds` and
    `workcenterIds`, under a comment claiming the other three were handled elsewhere — they were
-   handled nowhere. Both surfaces now share one `stationsInView` in `run_filter.dart`, because two
+   handled nowhere. Both surfaces now share one `workcentersInView` in `run_filter.dart`, because two
    callers computing it separately is how it came to be applied in neither.
-3. **The rows were too narrow** for a two-line station header. 34 pt → 48 pt.
+3. **The rows were too narrow** for a two-line workcenter header. 34 pt → 48 pt.
 
 **Still owed: `docs/DRIVE-occupation.md`** — the grid on the real run, both groupings, all three
 units, and a project whose thresholds have been changed from the defaults. What the suite already
 covers, so the drive need not: that a structural filter never shrinks what a machine was asked for,
 that an order-level filter moves the share and not the band, that the PLANT row disappears the moment
-the station set is narrowed, and that an aggregate can never be worse than its worst member — which
+the workcenter set is narrowed, and that an aggregate can never be worse than its worst member — which
 is the property that killed the chart, stated as arithmetic.
 
 ---
@@ -374,7 +374,7 @@ them, and they are still *deciding*, not built.
   filtered*, which makes it a **drill-down rather than a plant average**, so #9's arithmetic stops
   being an objection to the chart leading. The chart opens first, the % label counts the grey
   segment, all three coloured segments survive, and there is now an **hours axis pinned outside the
-  horizontal scroll** with **dotted** gridlines. One named cost: the stations-over badge is gone, so
+  horizontal scroll** with **dotted** gridlines. One named cost: the workcenters-over badge is gone, so
   an unnarrowed chart no longer hints that April's 87 % holds seven overloaded machines.
   **`docs/DRIVE-occupation.md` is still owed** and now owes the new chart too.
   [#14](https://github.com/matheus-sancha/FlowMap/issues/14) is still open — the **PLANT row into a
@@ -418,15 +418,15 @@ them, and they are still *deciding*, not built.
   is why it is a phase and not another execution inside its ticket.
 
   **What changes.** `engine.dart:1211` loops `for (var month = start; month.isBefore(_now); ...)` —
-  the run's own start and end. It loops each station's **schedule periods** instead, and it writes a
-  row for every station that *has* a period rather than only those the run gave work to. Both
-  clippings are one loop and one station set.
+  the run's own start and end. It loops each workcenter's **schedule periods** instead, and it writes a
+  row for every workcenter that *has* a period rather than only those the run gave work to. Both
+  clippings are one loop and one workcenter set.
 
-  - **Bounded per station, by its own periods** — so the grid goes ragged and a station whose
+  - **Bounded per workcenter, by its own periods** — so the grid goes ragged and a workcenter whose
     schedule stops earlier is *blank* there rather than zero. §10.2's distinction: nobody has said is
     not the same claim as said zero.
-  - **`scheduleHorizon` is computed over the stations the run USES, not the ones it can draw.** It is
-    the *minimum* of each schedule's last end date, and on the live database the one idle station
+  - **`scheduleHorizon` is computed over the workcenters the run USES, not the ones it can draw.** It is
+    the *minimum* of each schedule's last end date, and on the live database the one idle workcenter
     (`CLAD09`) ends **2026-12-31** while all seventeen busy ones end **2027-12-31** — so writing its
     capacity without this separation would drag the horizon back a year and start firing the
     schedule-tail warning on runs that have nothing wrong with them. **This is the trap in the
@@ -442,9 +442,9 @@ them, and they are still *deciding*, not built.
   ```
   resource model=17  scheduled=18  horizon=2027-12-31
   scheduled but unrouted: [CLAD09]
-  capacity rows=636 across 18 stations
+  capacity rows=636 across 18 workcenters
   CLAD09: 24 months, 2025-01 → 2026-12, steps=false
-  the run spans 15 months, its stations 36
+  the run spans 15 months, its workcenters 36
   ```
 
   **636 rows, not the 648 the ticket predicted.** 648 was 18 × 36 — the unragged arithmetic — and
@@ -454,22 +454,22 @@ them, and they are still *deciding*, not built.
 
   **Three things the ticket did not price, found while building it.**
 
-  - **The set is a union, not a replacement.** A station can be routed to with no schedule of its
+  - **The set is a union, not a replacement.** A workcenter can be routed to with no schedule of its
     own, and swapping the sets would have deleted its rows. It keeps them, bounded by the run as
     before.
-  - **The idle station needed an identity, not just capacity.** `stationsInView` iterates
+  - **The idle workcenter needed an identity, not just capacity.** `workcentersInView` iterates
     `openByWorkcenterMonth.keys` — which the ticket read as *filterable with no change* — but the
     name and the type it filters and labels by come from `simulation_run_workcenters`, and that
     table was written from the resource model. `CLAD09` would have drawn as a **uuid** and vanished
     under any type filter. Its whole-run open time is written too, so it appears in the utilization
-    table at 0 % — which is that table's own stated purpose: *a station that sat idle all run is
+    table at 0 % — which is that table's own stated purpose: *a workcenter that sat idle all run is
     evidence too*.
   - **The months no longer sum to the whole-run open time.** That invariant had a test and a
     comment claiming the two were one walk cut up. They are two walks over two spans now, by
     design, and the test says so instead.
 
   **What it gets for free**, because three readers already derive from this one table:
-  `stationsInView` iterates `openByWorkcenterMonth.keys`, so the idle station becomes filterable
+  `workcentersInView` iterates `openByWorkcenterMonth.keys`, so the idle workcenter becomes filterable
   with no change; and #17's `runMonths` unions the capacity months, so the period slicer grows from
   15 stops to 36 and its Year granularity goes from two columns to three — **no code in #17 moves**.
 
@@ -488,7 +488,7 @@ them, and they are still *deciding*, not built.
   **The model states something false about the plant.** §7.5 says *"any count ≥ 1 runs
   identically"* and rejects operators as capacity because *"two operators on one CNC do not double
   its output"* — true of a CNC, false of a spray booth, a bench or an inspection table. Some
-  stations are **machine-paced** and some are **labour-paced**, and the docs assert the first for
+  workcenters are **machine-paced** and some are **labour-paced**, and the docs assert the first for
   all of them. That is why this is in scope at all: the map rules out new capability, and makes an
   exception for the field showing the existing model wrong.
 
@@ -509,7 +509,7 @@ them, and they are still *deciding*, not built.
     type is marked. The run already copies the type in (§7.10), so a stored run can say how it was
     paced.
   - **No marker on the run.** The 150 stored keep what they have, as #11 and #19 both decided.
-  - **Capacity stays open hours and demand falls** — the grid measures station occupancy, and
+  - **Capacity stays open hours and demand falls** — the grid measures workcenter occupancy, and
     reading it as labour-hours over crew × open gives the identical ratio.
 
   **Built 2026-09-07**, 1,123 tests, analyze clean — and **corrected the same evening**. It first
@@ -517,18 +517,18 @@ them, and they are still *deciding*, not built.
   *"I don't want the demand to drop, I want the capacity to increase."* The room is what grows.
 
   A **Machine Pace / Operator Pace** dropdown on the type, defaulting to Machine Pace. At an
-  operator-paced station the monthly capacity is **operator-hours** — each shift's open time
+  operator-paced workcenter the monthly capacity is **operator-hours** — each shift's open time
   weighted by the crew standing in it — and the step stores the work's **labour content**, which
-  the crew does not change. The station is still held for less time, so dates and queueing move.
-  *Utilization keeps station-hours on both sides* (§8.3): its numerator is how long the machine was
+  the crew does not change. The workcenter is still held for less time, so dates and queueing move.
+  *Utilization keeps workcenter-hours on both sides* (§8.3): its numerator is how long the machine was
   held, so its denominator has to be the machine's clock too.
 
   The owed query is `test/simulation/live_pacing_check_test.dart` — the same plant against itself
-  with every station forced machine-paced, so the diff is the pacing and nothing else:
+  with every workcenter forced machine-paced, so the diff is the pacing and nothing else:
 
   ```
   operator-paced on this plant: [Coating]
-  stations whose grid moved: [Coating]
+  workcenters whose grid moved: [Coating]
     Coating  demand 6335h -> 6335h, capacity 17742h -> 48992h
   ```
 

@@ -23,7 +23,7 @@ const _taktColumn = 2;
 /// The line's takt periods, typed in place (DESIGN.md §6.1, §12.6).
 ///
 /// Public because §12.6's Schedules tab shows it beside the exceptions and the
-/// stations. It reads its own periods rather than being handed them: the tab
+/// workcenters. It reads its own periods rather than being handed them: the tab
 /// composing it has three tables to place and no business knowing what any of
 /// them is made of.
 class TaktGrid extends ConsumerWidget {

@@ -139,7 +139,7 @@ void main() {
   );
 
   group('what a box costs an order (§7.6)', () {
-    test('a batch of ten occupies the station ten times as long', () {
+    test('a batch of ten occupies the workcenter ten times as long', () {
       // The gap that made the map and the run irreconcilable: process times are
       // per piece, and the map had no notion of a batch at all — so an order of
       // ten read a tenth of what the engine charged it.
@@ -176,7 +176,7 @@ void main() {
     test('a changeover lengthens the step, and the flow', () {
       // It was on the box as a figure and in no total, so typing a setup moved
       // one row and nothing else — reported from the field. The engine has
-      // always charged it as part of a station's occupancy (§7.6).
+      // always charged it as part of a workcenter's occupancy (§7.6).
       final without = build(
         nodes: [step(0, workcenterId: 'CLAD04')],
         contexts: {'CLAD04': context('CLAD04')},
@@ -198,7 +198,7 @@ void main() {
       );
 
       expect(withSetup.steps.single.changeover, const Duration(hours: 3));
-      // The work is unchanged; what the order occupies the station for is not.
+      // The work is unchanged; what the order occupies the workcenter for is not.
       expect(
         withSetup.steps.single.processTime,
         without.steps.single.processTime,
@@ -370,12 +370,12 @@ void main() {
       expect(view.steps.single.equivalence, isNull);
     });
 
-    test('one station visited twice costs what each visit was given', () {
+    test('one workcenter visited twice costs what each visit was given', () {
       // The bug the whole of §9 was about, arriving on the map: the box read
       // its cells by *workcenter*, so every part on every study reported
       // `noProcessTime` while the grid was plainly showing the times. Two
       // passes over one machine — rough then finish — is also the shape that
-      // cannot be expressed at all by a station-keyed lookup.
+      // cannot be expressed at all by a workcenter-keyed lookup.
       final view = build(
         nodes: [
           step(0, workcenterId: 'CLAD04'),
@@ -482,7 +482,7 @@ void main() {
         pieces: const {'p1': 1, 'p2': 99},
       );
 
-      // Counting p2's absence as zero would claim the station is faster than
+      // Counting p2's absence as zero would claim the workcenter is faster than
       // any piece passing through it ever is (§5.1).
       expect(view.steps.single.processTime, const Duration(hours: 10));
     });

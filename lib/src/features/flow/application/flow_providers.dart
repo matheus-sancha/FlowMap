@@ -100,7 +100,7 @@ class FlowBatchOverride extends _$FlowBatchOverride {
 ///
 /// **The most common one**, not the first and not the mean: a part ordered in
 /// tens with one sample of one should read ten. Ties break to the larger, which
-/// is the more conservative statement of what a station is occupied for.
+/// is the more conservative statement of what a workcenter is occupied for.
 int modalBatchSize(Iterable<int> batches) {
   final counts = <int, int>{};
   for (final batch in batches) {

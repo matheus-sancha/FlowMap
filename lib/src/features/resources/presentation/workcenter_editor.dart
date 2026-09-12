@@ -30,7 +30,7 @@ class WorkcenterDraft {
 /// Creates or edits a workcenter.
 ///
 /// Lines are optional checkboxes rather than a required parent: a workcenter
-/// belongs to its plant, studies on any line may use it, and one station often
+/// belongs to its plant, studies on any line may use it, and one workcenter often
 /// serves several lines at once.
 Future<WorkcenterDraft?> showWorkcenterEditor(
   BuildContext context, {
@@ -89,7 +89,7 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
     super.dispose();
   }
 
-  /// At least one, always: a station that runs no orders is a station that is
+  /// At least one, always: a workcenter that runs no orders is a workcenter that is
   /// closed, and an unstaffed shift already says that (§4.2).
   int? get _unitsValue {
     final value = int.tryParse(_units.text.trim());
@@ -187,7 +187,7 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
                 alignment: Alignment.centerLeft,
                 // Beside the name of the thing it explains (§12.7b). It is the
                 // same sentence the add-existing dialog shows, from the same
-                // key — ticking a line does not restrict who may use a station,
+                // key — ticking a line does not restrict who may use a workcenter,
                 // which is a wrong conclusion the boxes invite.
                 child: namedHelp(
                   context,
@@ -208,7 +208,7 @@ class _WorkcenterEditorDialogState extends State<_WorkcenterEditorDialog> {
                   ),
                 )
               else
-                // Checkboxes, not a dropdown: a station that serves two lines is
+                // Checkboxes, not a dropdown: a workcenter that serves two lines is
                 // filed under both, and a single-choice control is what made
                 // adding it to a second line silently remove it from the first.
                 ConstrainedBox(

@@ -49,7 +49,7 @@ void main() {
       expect(groups.last.indices, [3, 4]);
     });
 
-    test('a lone station is not a group and keeps what was measured', () {
+    test('a lone workcenter is not a group and keeps what was measured', () {
       // The case that has to stay exactly as it was: a flow of unlike machines
       // must behave as it did before this rule existed.
       final groups = balanceFlow([
@@ -66,7 +66,7 @@ void main() {
     });
 
     test('a step with no type joins nothing, and breaks the run', () {
-      // An unbound step, or one whose station was never typed. It cannot be
+      // An unbound step, or one whose workcenter was never typed. It cannot be
       // balanced against anything, and it separates what is on either side of
       // it for the same reason a furnace does.
       final groups = balanceFlow([
@@ -81,7 +81,7 @@ void main() {
 
   group('the split', () {
     test('each fills to takt and the last takes the remainder', () {
-      // 90 minutes of work across three 40-minute stations: 40, 40, and 10 left
+      // 90 minutes of work across three 40-minute workcenters: 40, 40, and 10 left
       // over on the last.
       final groups = balanceFlow([
         step('Cladding', measured: 30),
@@ -96,7 +96,7 @@ void main() {
       });
     });
 
-    test('the last station may be over takt, and that is the finding', () {
+    test('the last workcenter may be over takt, and that is the finding', () {
       // 150 minutes across three: the group is the bottleneck and the overflow
       // shows at the end of the run rather than being smeared across it.
       final groups = balanceFlow([
@@ -108,8 +108,8 @@ void main() {
       expect(groups.single.derived[2], const Duration(minutes: 70));
     });
 
-    test('a group with slack leaves later stations empty', () {
-      // 30 minutes across three 40-minute stations: the first swallows it and
+    test('a group with slack leaves later workcenters empty', () {
+      // 30 minutes across three 40-minute workcenters: the first swallows it and
       // the two behind it have nothing left to do.
       final groups = balanceFlow([
         step('Cladding', measured: 25),
@@ -163,8 +163,8 @@ void main() {
       });
     });
 
-    test('each station fills to its own takt, not to a shared one', () {
-      // A three-shift station and a one-shift one of the same type: one takt is
+    test('each workcenter fills to its own takt, not to a shared one', () {
+      // A three-shift workcenter and a one-shift one of the same type: one takt is
       // worth more clock at the first, so it takes more of the work.
       final group = balanceFlow([
         step('Cladding', measured: 60, cap: const Duration(minutes: 60)),
@@ -178,9 +178,9 @@ void main() {
     });
   });
 
-  /// A zero is how the plant says a part does not route through a station
+  /// A zero is how the plant says a part does not route through a workcenter
   /// (§7.7.1). Giving one a share puts work on a machine the part never visits.
-  group('a station this part does not run on', () {
+  group('a workcenter this part does not run on', () {
     test('a zero keeps its zero and is not a member', () {
       // The defect, as data. `P1000247599` stores 0 h at CEU30 and 146 h at
       // CEU32; §7.4 gave CEU30 94.3 h of CEU32's work.
@@ -199,7 +199,7 @@ void main() {
 
     test('a null is not a member either', () {
       // A blank cell is a different statement from a zero — it blocks the run
-      // (§6.2) rather than saying the part skips the station — but neither is
+      // (§6.2) rather than saying the part skips the workcenter — but neither is
       // positive work, so neither takes a share.
       expect(
         balanceFlow([step('Machining'), step('Machining', measured: 146)]),
@@ -207,7 +207,7 @@ void main() {
       );
     });
 
-    test('a station sitting out does not wall off its neighbours', () {
+    test('a workcenter sitting out does not wall off its neighbours', () {
       // Transparent, not a wall: it is the same operation, it simply has no
       // work of this part. Walling here would stop two machines sharing for a
       // reason nobody asked for and nothing on screen would say.
@@ -223,12 +223,12 @@ void main() {
         0: const Duration(minutes: 40),
         2: const Duration(minutes: 80),
       });
-      // And the station sitting out is untouched — no share, no entry.
+      // And the workcenter sitting out is untouched — no share, no entry.
       expect(group.derived.containsKey(1), isFalse);
     });
 
     test('a member sitting out takes its missing takt with it', () {
-      // A station with no schedule would stop the group (see below) — but only
+      // A workcenter with no schedule would stop the group (see below) — but only
       // if it is a member. One this part does not run on has no cap to fill and
       // its missing schedule is not this group's problem.
       final group = balanceFlow([
@@ -241,9 +241,9 @@ void main() {
     });
   });
 
-  /// Pinning a station out of its group (§7.7.4). On by default, so a pin is
+  /// Pinning a workcenter out of its group (§7.7.4). On by default, so a pin is
   /// always something someone chose.
-  group('a station pinned by the user', () {
+  group('a workcenter pinned by the user', () {
     test('keeps its measurement and takes no share', () {
       final group = balanceFlow([
         step('Cladding', measured: 30),
@@ -253,7 +253,7 @@ void main() {
 
       expect(group.indices, [0, 2]);
       // Only the two that share are in the pot — the pinned one's 30 stays its
-      // own, which is what "leave this station alone" has to mean.
+      // own, which is what "leave this workcenter alone" has to mean.
       expect(group.measuredTotal, const Duration(minutes: 60));
       expect(group.derived, {
         0: const Duration(minutes: 40),
@@ -263,7 +263,7 @@ void main() {
 
     test('is transparent, not a wall', () {
       // The decision that only bites at three members or more: pinning the
-      // middle station must not stop the outer two sharing, because it is the
+      // middle workcenter must not stop the outer two sharing, because it is the
       // same operation and only its content is fixed.
       final group = balanceFlow([
         step('Cladding', measured: 50),
@@ -277,7 +277,7 @@ void main() {
     });
 
     test('pinning one of a pair leaves the other whole', () {
-      // Every group on the real plant is exactly two stations, so this is the
+      // Every group on the real plant is exactly two workcenters, so this is the
       // case the field will actually see: nothing moves at all.
       expect(
         balanceFlow([
@@ -337,9 +337,9 @@ void main() {
       expect(standings[2], BalanceStanding.balancedRemainder);
     });
 
-    test('a station sitting out does not become the remainder taker', () {
+    test('a workcenter sitting out does not become the remainder taker', () {
       // The last *member*, not the last step of the type-run. A zero is out of
-      // the pot entirely (§7.7.1), so the remainder falls on the last station
+      // the pot entirely (§7.7.1), so the remainder falls on the last workcenter
       // that actually has work.
       final standings = balanceStandings([
         step('Cladding', measured: 30),
@@ -352,7 +352,7 @@ void main() {
       expect(standings[2], BalanceStanding.noWorkHere);
     });
 
-    test('a lone station of its type says so', () {
+    test('a lone workcenter of its type says so', () {
       // The sentence that would have answered this round's opening question in
       // one click.
       expect(
@@ -361,7 +361,7 @@ void main() {
       );
     });
 
-    test('an untyped station says that first, before anything else', () {
+    test('an untyped workcenter says that first, before anything else', () {
       // CLAD06 on the real plant: it sits beside CLAD25 and would be a group,
       // and the reason it is not is the missing type rather than the
       // neighbour.
@@ -405,21 +405,21 @@ void main() {
 
   group('the cap allows for rework (§9.8)', () {
     // **The defect the field found by reading a Gantt**: the balance filled
-    // each station to one takt of its capacity using *measured* work, and the
+    // each workcenter to one takt of its capacity using *measured* work, and the
     // engine then charged `measured × (1 + rework) ÷ availability`. Availability
-    // cancels; rework does not — so a balanced station was over its takt by
-    // exactly `(1 + rework)`, every time, on every station with any.
+    // cancels; rework does not — so a balanced workcenter was over its takt by
+    // exactly `(1 + rework)`, every time, on every workcenter with any.
     //
     // Measured on the live plant at two availabilities, 1.00 and 0.83, and the
     // overshoot was 1.037 in both.
 
-    /// What the engine charges for [measured] at a station, in its open clock.
+    /// What the engine charges for [measured] at a workcenter, in its open clock.
     Duration charged(Duration measured, double rework, double availability) =>
         Duration(
           seconds: (measured.inSeconds * (1 + rework) / availability).round(),
         );
 
-    test('a station filled to the cap is charged exactly one takt', () {
+    test('a workcenter filled to the cap is charged exactly one takt', () {
       // CLAD06 as it stands: 22.78 h open a day, availability 1.00, rework
       // 3.7 %, a four-day takt.
       const openPerDay = Duration(minutes: 1367); // 22.78 h
@@ -431,7 +431,7 @@ void main() {
       final cap = contentThatFitsInOneTakt(capacity, rework);
 
       // The whole claim, in one line: fill to the cap, pay the rework, and the
-      // station has used one takt of its open time and no more.
+      // workcenter has used one takt of its open time and no more.
       final used = charged(cap, rework, availability);
       expect(used.inMinutes, closeTo((openPerDay * taktDays).inMinutes, 1));
     });
@@ -468,7 +468,7 @@ void main() {
     });
 
     test('no rework leaves the cap exactly as it was', () {
-      // Every station without rework must balance byte for byte as before, or
+      // Every workcenter without rework must balance byte for byte as before, or
       // this round would move figures it has no business moving.
       const capacity = Duration(hours: 100);
       expect(contentThatFitsInOneTakt(capacity, 0), capacity);

@@ -81,7 +81,7 @@ class SummaryTab extends ConsumerWidget {
   }
 }
 
-/// The one sentence a reader takes away: which station constrains this period,
+/// The one sentence a reader takes away: which workcenter constrains this period,
 /// and by how much (DESIGN.md §8.1).
 class _Headline extends StatelessWidget {
   const _Headline({required this.summary});
@@ -143,7 +143,7 @@ class _OccupationTable extends StatelessWidget {
     return Card(
       // **Sortable** (#10): the rule is that a surface sorts unless its row
       // order is itself data, and this table's order is alphabetical by
-      // station — a presentation choice, not a record. Sorting by Occupation
+      // workcenter — a presentation choice, not a record. Sorting by Occupation
       // descending is the question the tab exists to answer.
       child: SortableResultTable<TargetOccupation>(
         // As tall as it is, and as wide as the window allows. A row per
@@ -167,7 +167,7 @@ class _OccupationTable extends StatelessWidget {
           2 => target.availableProductive,
           3 => target.occupation,
           4 => target.operatorsAllocated,
-          // A station with no figure sorts as zero rather than scattering.
+          // A workcenter with no figure sorts as zero rather than scattering.
           _ => target.operatorsNeeded ?? 0,
         },
         cellAt: (target, column) {

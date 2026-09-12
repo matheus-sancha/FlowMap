@@ -253,9 +253,9 @@ void main() {
     });
 
     test('an emptied staffing cell keeps what was there', () {
-      // Blank is not an instruction to unstaff a station: `staffing_codec`
+      // Blank is not an instruction to unstaff a workcenter: `staffing_codec`
       // reads an unreadable entry as zero operators, and letting a blank mean
-      // that would take a station's capacity away by accident.
+      // that would take a workcenter's capacity away by accident.
       final writes = planSchedulePeriodWrite(
         periods: periods,
         row: 0,

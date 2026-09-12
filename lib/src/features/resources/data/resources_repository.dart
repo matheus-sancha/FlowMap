@@ -274,7 +274,7 @@ class ResourcesRepository {
         name: Value(name),
         typeId: Value(typeId),
         // Absent rather than null when the caller was not editing it, so a
-        // screen that does not offer the field cannot reset a station to one.
+        // screen that does not offer the field cannot reset a workcenter to one.
         parallelCapacity: parallelCapacity == null
             ? const Value.absent()
             : Value(parallelCapacity),

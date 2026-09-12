@@ -75,7 +75,7 @@ void main() {
   testWidgets('it pushes content down rather than covering it', (tester) async {
     // The whole reason this is a banner and not a snackbar: since the Gantt
     // took the full body height (§8.6), a bar that never goes away would park
-    // permanently over the last station's row.
+    // permanently over the last workcenter's row.
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

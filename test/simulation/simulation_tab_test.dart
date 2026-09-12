@@ -411,7 +411,7 @@ void main() {
     // 3 of 4 on time.
     expect(find.text('On-time delivery: 75%'), findsOne);
     expect(find.textContaining('3 of 4 orders on time'), findsOne);
-    // Both rankings, and the station named from the stored snapshot rather
+    // Both rankings, and the workcenter named from the stored snapshot rather
     // than from a workcenter row that may no longer exist.
     expect(find.text('Ranked by queue time'), findsOne);
     expect(find.text('Ranked by share of the flow'), findsOne);
@@ -420,7 +420,7 @@ void main() {
     expect(find.text('PN1'), findsWidgets);
   });
 
-  testWidgets('the run header names the queue every station shared', (
+  testWidgets('the run header names the queue every workcenter shared', (
     tester,
   ) async {
     await pump(
@@ -443,13 +443,13 @@ void main() {
     );
 
     expect(find.textContaining('FIFO'), findsOne);
-    // And nothing beneath it. Repeating one shared rule per station is the
+    // And nothing beneath it. Repeating one shared rule per workcenter is the
     // same word twice, and the header used to carry a count of overrides of a
     // rule the run no longer has (§7.3).
     expect(find.textContaining('CLAD04:'), findsNothing);
   });
 
-  testWidgets('a run whose stations differ says mixed, and says which', (
+  testWidgets('a run whose workcenters differ says mixed, and says which', (
     tester,
   ) async {
     await pump(
@@ -729,7 +729,7 @@ void main() {
       );
     }
     expect(
-      find.textContaining('A gap is a station not running'),
+      find.textContaining('A gap is a workcenter not running'),
       findsNothing,
       reason: 'behind the affordance, not painted beside it',
     );

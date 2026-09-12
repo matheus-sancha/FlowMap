@@ -92,7 +92,7 @@ class _ProjectWorkspaceScreenState
   ///
   /// **A banner rather than a snackbar.** A snackbar anchors to the bottom of
   /// the window, and since the Gantt took the full body height (§8.6) one that
-  /// never goes away parks permanently over the last station's row and the
+  /// never goes away parks permanently over the last workcenter's row and the
   /// scrollbar gutter §2.11 added to reach it. A banner pushes content down
   /// instead of covering it — and a run's outcome is a statement about the
   /// project that should stay until it is read, which is not what a snackbar

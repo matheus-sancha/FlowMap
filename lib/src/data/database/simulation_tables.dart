@@ -4,7 +4,7 @@ import 'project_tables.dart';
 
 // What a run stores (DESIGN.md §7.10): a header, the frozen input snapshot,
 // one row per order-step, the per-order outcomes, the slots that went out
-// empty, and each station's busy and open time.
+// empty, and each workcenter's busy and open time.
 //
 // **Nothing here points at a study, a part or a workcenter with a foreign
 // key**, and the names are copied in rather than joined to. That is the whole
@@ -155,8 +155,8 @@ class SimulationRunStudies extends Table {
   /// to `studies`, which is the only other place this could be read.
   ///
   /// **A cell or line filter is a study filter one level up.** Workcenters
-  /// belong to a plant rather than to a cell, so stations are never filtered
-  /// this way — the studies narrow, and their stations follow.
+  /// belong to a plant rather than to a cell, so workcenters are never filtered
+  /// this way — the studies narrow, and their workcenters follow.
   ///
   /// Null on every run made before v17.
   TextColumn get productionCellId => text().nullable()();
@@ -281,7 +281,7 @@ class SimulationRunSteps extends Table {
   BoolColumn get changeoverIncurred =>
       boolean().withDefault(const Constant(false))();
 
-  /// What the changeover actually cost this step, in seconds of the station's
+  /// What the changeover actually cost this step, in seconds of the workcenter's
   /// open time (§7.6).
   ///
   /// A bool could say *whether* a changeover was paid and that was enough while
@@ -294,7 +294,7 @@ class SimulationRunSteps extends Table {
   /// on these tables since v12 — not "no changeover", which is zero.
   IntColumn get changeoverSeconds => integer().nullable()();
 
-  /// What the **work** cost at this step, in seconds of the station's open
+  /// What the **work** cost at this step, in seconds of the workcenter's open
   /// clock — `per-piece × batch × (1 + rework) ÷ availability`, changeover
   /// excluded (§7.4, §7.6).
   ///
@@ -303,8 +303,8 @@ class SimulationRunSteps extends Table {
   /// their difference is an elapsed span that swallows nights, weekends and
   /// shutdowns — a 76-hour operation reads as 148 hours across a normal week.
   /// That is the right figure for drawing a bar and the wrong one for checking
-  /// what a station was asked to do, and until this column there was no second
-  /// figure to check it against: §7.4's balance moves work *between* stations,
+  /// what a workcenter was asked to do, and until this column there was no second
+  /// figure to check it against: §7.4's balance moves work *between* workcenters,
   /// and a reader could not see the split it produced anywhere in the run.
   ///
   /// Recomputing it on read is not open to us — it needs the batch, the
@@ -328,12 +328,12 @@ class SimulationRunSteps extends Table {
   /// which is the only reason the column exists.
   ///
   /// Null on every run made before v25, which is *made before a run said this*
-  /// rather than "no rework" — that is zero, and a station with none records it
+  /// rather than "no rework" — that is zero, and a workcenter with none records it
   /// honestly as `processSeconds == processSecondsBeforeRework`.
   IntColumn get processSecondsBeforeRework => integer().nullable()();
 
   /// The lane the order waited in before this step, or null when the step had
-  /// none and it queued at the station itself (§5.5).
+  /// none and it queued at the workcenter itself (§5.5).
   ///
   /// With it, [queueStart] and [processStart] become the two ends of a stay in
   /// a named lane — which is what makes `simulation_run_lane_visits` derivable
@@ -341,14 +341,14 @@ class SimulationRunSteps extends Table {
   /// before lanes governed anything.
   TextColumn get laneNodeId => text().nullable()();
 
-  /// How long the station stood holding this order after finishing it, because
+  /// How long the workcenter stood holding this order after finishing it, because
   /// the lane ahead was full (§5.5).
   ///
-  /// Blocking is after service — a station cannot know in advance whether there
+  /// Blocking is after service — a workcenter cannot know in advance whether there
   /// will be room, so it finishes and then waits — which means [processEnd] is
-  /// when the work stopped and `processEnd + this` is when the station was free
+  /// when the work stopped and `processEnd + this` is when the workcenter was free
   /// again. Kept apart from the work for the reason it is kept out of
-  /// `busySeconds` on the station: a jammed machine is occupied and not
+  /// `busySeconds` on the workcenter: a jammed machine is occupied and not
   /// producing, and folding the two would make utilization report the jam as
   /// output.
   ///
@@ -378,17 +378,17 @@ class SimulationRunEmptySlots extends Table {
   Set<Column<Object>> get primaryKey => {runId, studyId, slotAt};
 }
 
-/// A station that ran on something other than the run's rule (§7.4).
+/// A workcenter that ran on something other than the run's rule (§7.4).
 ///
-/// One row per **override**, not per station: a run of forty workcenters that
+/// One row per **override**, not per workcenter: a run of forty workcenters that
 /// changed two writes two rows, and a run that changed nothing writes none.
 /// Without this, [SimulationRuns.dispatch] would report `FIFO` for a run in
-/// which three stations dispatched by due date — and M5's comparison could not
+/// which three workcenters dispatched by due date — and M5's comparison could not
 
-/// What one station did across the run — utilization's two halves (§8.3).
+/// What one workcenter did across the run — utilization's two halves (§8.3).
 ///
 /// Busy and open are recorded rather than derived from the step rows: open time
-/// is a property of the station's calendar, not of anything an order did, and
+/// is a property of the workcenter's calendar, not of anything an order did, and
 /// it is exactly what makes utilization different from occupation.
 class SimulationRunWorkcenters extends Table {
   TextColumn get runId =>
@@ -396,23 +396,23 @@ class SimulationRunWorkcenters extends Table {
 
   TextColumn get workcenterId => text()();
 
-  /// `CLAD04` — copied in, so a bottleneck still reads as a station after the
+  /// `CLAD04` — copied in, so a bottleneck still reads as a workcenter after the
   /// workcenter is renamed or removed from the plant.
   TextColumn get name => text()();
 
-  /// Open time the station spent running (§8.3's utilization numerator).
+  /// Open time the workcenter spent running (§8.3's utilization numerator).
   IntColumn get busySeconds => integer()();
 
   /// Open time it had available across the run — the denominator.
   ///
-  /// Already multiplied by [units]: a station with two of them has twice the
+  /// Already multiplied by [units]: a workcenter with two of them has twice the
   /// time to be busy in, and utilization is meaningless if the numerator counts
   /// two servers and the denominator one.
   IntColumn get openSeconds => integer()();
 
   /// Open time it spent holding a finished order with nowhere to put it (§5.5).
   ///
-  /// **Not part of [busySeconds].** A blocked station is occupied and producing
+  /// **Not part of [busySeconds].** A blocked workcenter is occupied and producing
   /// nothing, so counting it as busy would report a jam as output — and on a
   /// line whose constraint already sits at 86 % utilization that is not a
   /// rounding error. Reported as its own column, which is what §5.5 meant by
@@ -422,21 +422,21 @@ class SimulationRunWorkcenters extends Table {
 
   /// How many orders it could run at once when the run was made (§3.1).
   ///
-  /// Copied in like [name], for the same reason: a station re-rated from one
+  /// Copied in like [name], for the same reason: a workcenter re-rated from one
   /// unit to two afterwards must not silently rewrite what a finished run's
   /// utilization meant.
   IntColumn get units => integer().withDefault(const Constant(1))();
 
-  /// The pool this station was dispatched through in this run (§3.1), copied in
+  /// The pool this workcenter was dispatched through in this run (§3.1), copied in
   /// like [name] and for the same reason: moving CLAD07 to another pool
-  /// afterwards must not regroup a finished run's stations.
+  /// afterwards must not regroup a finished run's workcenters.
   ///
   /// **Null means ungrouped, never "every pool".** A workcenter may belong to
   /// several pools — `WorkcenterPoolMembers`' key is `{poolId, workcenterId}` —
   /// so with two studies in one run, line A can reach CLAD07 through `CAL`
   /// while line B reaches it through `All Lathes`. Resolved at write time by
-  /// `stationPools`: **exactly one pool is stored, none or several store null**
-  /// and the station reads ungrouped. Treating a blank as a wildcard is the
+  /// `simWorkcenterPools`: **exactly one pool is stored, none or several store null**
+  /// and the workcenter reads ungrouped. Treating a blank as a wildcard is the
   /// mistake §12.1 already wrote a rule against for the pre-v17 cell.
   ///
   /// Null on every run made before v18, which therefore group nothing.
@@ -446,12 +446,12 @@ class SimulationRunWorkcenters extends Table {
   /// [name].
   ///
   /// **Set even when [poolId] is null and several pools were involved**, as
-  /// `CAL Pool · All Lathes`: the station is not grouped, and a reader still
+  /// `CAL Pool · All Lathes`: the workcenter is not grouped, and a reader still
   /// deserves to see why it is standing on its own. Null only when no step
   /// reached it through a pool at all.
   TextColumn get poolName => text().nullable()();
 
-  /// The queue this station dispatched by when the run was made (§7.4, §12.6).
+  /// The queue this workcenter dispatched by when the run was made (§7.4, §12.6).
   ///
   /// Copied in for §7.10's reason and no other: the queue lives on the project
   /// and can be retuned tomorrow, and a run that read it back would silently
@@ -474,14 +474,14 @@ class SimulationRunWorkcenters extends Table {
   /// **`Workcenters.typeId` is in the plant and a run has never carried it**, so
   /// §10.3's type filter and the columns of its pivot could not be read off a
   /// stored run at all — and joining back to find out is exactly what §7.10
-  /// forbids, because a station retyped since would silently re-column every
+  /// forbids, because a workcenter retyped since would silently re-column every
   /// run in the picker.
   ///
   /// The **name** travels beside the id for the reason [poolName] does: a type
-  /// deleted since still named this station when it ran, and a pivot headed by
+  /// deleted since still named this workcenter when it ran, and a pivot headed by
   /// a uuid is not a pivot anyone can read.
   ///
-  /// Both null on a run made before v25, and on a station whose type was never
+  /// Both null on a run made before v25, and on a workcenter whose type was never
   /// set — which is a real state the plant allows and §7.4 already treats as
   /// *"nothing says it is like its neighbours"*.
   TextColumn get typeId => text().nullable()();
@@ -499,7 +499,7 @@ class SimulationRunWorkcenters extends Table {
 ///
 /// It also carries the geometry the Gantt needs. §7.10 joins to nothing and the
 /// flow may have been edited since, so without [position] there is no way to
-/// place a lane row between the two station rows it connects.
+/// place a lane row between the two workcenter rows it connects.
 class SimulationRunLanes extends Table {
   TextColumn get runId =>
       text().references(SimulationRuns, #id, onDelete: KeyAction.cascade)();
@@ -513,7 +513,7 @@ class SimulationRunLanes extends Table {
   /// labelled, which is what an unnamed buffer on the map looks like.
   TextColumn get name => text().nullable()();
 
-  /// Its place on the spine, so a lane row can be drawn between the stations it
+  /// Its place on the spine, so a lane row can be drawn between the workcenters it
   /// sits between.
   IntColumn get position => integer()();
 
@@ -549,15 +549,15 @@ class SimulationRunLaneVisits extends Table {
   /// The **workcenter or pool** whose queue this is (§7.3, §8.6).
   ///
   /// **Renamed from `node_id` at v23, which is what it never was.** §7.3 moved
-  /// the queue off the flow and onto the station — `engine.dart` writes
+  /// the queue off the flow and onto the workcenter — `engine.dart` writes
   /// `waiting.lane.targetId` here — and the column name stayed behind. A name
   /// that says node while holding a workcenter is what made §8.6 invisible:
   /// the key built on it read as "one order queues once per step" and meant
-  /// "one order queues once per station".
+  /// "one order queues once per workcenter".
   ///
   /// **On a pre-v19 run this holds a flow node after all**, and the old name
   /// was right for it. A lane *was* a node until §7.3 moved the queue onto the
-  /// station, so runs made before that recorded the inventory node's id here.
+  /// workcenter, so runs made before that recorded the inventory node's id here.
   /// Observed on the live database at the v23 migration: **31 480 rows across
   /// 37 runs, all made 2026-08-15 and 16**, against zero in every run since.
   /// Nothing was rewritten — §7.10 forbids joining a finished run back to a
@@ -570,8 +570,8 @@ class SimulationRunLaneVisits extends Table {
   ///
   /// **This is what makes a visit unique, and [targetId] is not.** A part may
   /// go back to a machine for a second operation — ordinary routing, which the
-  /// engine has always modelled — and both stays are then in one station's
-  /// queue. Keyed by the station, the second stay collided with the first and
+  /// engine has always modelled — and both stays are then in one workcenter's
+  /// queue. Keyed by the workcenter, the second stay collided with the first and
   /// the run was computed and then thrown away with a UNIQUE constraint the
   /// screen reported only as "could not be completed".
   ///
@@ -583,14 +583,14 @@ class SimulationRunLaneVisits extends Table {
   /// **On rows migrated from v22 it may hold a [targetId] instead.** A stay
   /// that produced no step — an order the guard caught still queueing — has no
   /// step to name, and the old key already guaranteed at most one such row per
-  /// order per station, so nothing collides and nothing is lost. It means a
+  /// order per workcenter, so nothing collides and nothing is lost. It means a
   /// pre-v23 run cannot say which step a stay belonged to, which is true.
   TextColumn get stepNodeId => text()();
 
   /// When the order took a place in the lane.
   DateTimeColumn get enteredAt => dateTime()();
 
-  /// When the station ahead pulled it out. Null means it was still in the lane
+  /// When the workcenter ahead pulled it out. Null means it was still in the lane
   /// when the run ended, which is the honest reading of an order the guard
   /// caught mid-flight.
   DateTimeColumn get leftAt => dateTime().nullable()();
@@ -599,10 +599,10 @@ class SimulationRunLaneVisits extends Table {
   Set<Column<Object>> get primaryKey => {runId, orderId, stepNodeId};
 }
 
-/// How much open time one station had in one **month** of a run (§10.2).
+/// How much open time one workcenter had in one **month** of a run (§10.2).
 ///
 /// **A run has only ever known its whole-span open time**, which
-/// `run_filter.dart` states as a standing limitation: *"a station's busy, open
+/// `run_filter.dart` states as a standing limitation: *"a workcenter's busy, open
 /// and blocked time keep describing the whole run."* §10.3 draws a capacity
 /// line per month, and one number spanning eighteen months is no denominator
 /// for any of them — so this closes that limitation for this metric and leaves
@@ -613,8 +613,8 @@ class SimulationRunLaneVisits extends Table {
 /// exceptions as they stood; recomputing them on read would redraw a finished
 /// run's capacity line the first time somebody adds a shutdown.
 ///
-/// Rows exist only for months the run actually spans, and only for stations it
-/// reached. A month a station was closed for the whole of is stored as zero
+/// Rows exist only for months the run actually spans, and only for workcenters it
+/// reached. A month a workcenter was closed for the whole of is stored as zero
 /// rather than left out — *closed* and *not in this run* are different answers
 /// and the graph draws them differently.
 class SimulationRunWorkcenterMonths extends Table {
@@ -626,8 +626,8 @@ class SimulationRunWorkcenterMonths extends Table {
   /// `queueStart` into, so a bar and its line cannot land in different columns.
   DateTimeColumn get month => dateTime()();
 
-  /// Open seconds in that month, **already multiplied by the station's units**,
-  /// exactly as `openSeconds` is on the whole-run row. A two-unit station has
+  /// Open seconds in that month, **already multiplied by the workcenter's units**,
+  /// exactly as `openSeconds` is on the whole-run row. A two-unit workcenter has
   /// twice the capacity and one clock, and the two figures must agree about
   /// which of those they are stating.
   IntColumn get openSeconds => integer()();

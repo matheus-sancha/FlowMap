@@ -3,7 +3,7 @@ import 'package:drift/drift.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../application/run_metrics.dart';
-import '../application/sim_assembly.dart' show stationPools;
+import '../application/sim_assembly.dart' show simWorkcenterPools;
 import '../application/sim_model.dart';
 import '../application/sim_result.dart';
 
@@ -15,7 +15,7 @@ import '../application/sim_result.dart';
 /// Gantts, queue histories, bottleneck evidence, "why was PN2 late" — is a
 /// query over these rows rather than another run.
 ///
-/// The snapshot columns (study names, part numbers, station names, each order's
+/// The snapshot columns (study names, part numbers, workcenter names, each order's
 /// theoretical lead time) are what keep that true after the plant beneath the
 /// run is edited. Nothing here joins back to a study, a part or a workcenter.
 class SimulationRunsRepository {
@@ -23,7 +23,7 @@ class SimulationRunsRepository {
 
   final AppDatabase _db;
 
-  /// The project's runs, newest first, each with what its stations dispatched
+  /// The project's runs, newest first, each with what its workcenters dispatched
   /// by (§7.3).
   ///
   /// Ties break by id. Dates are stored to the second, the convention the rest
@@ -32,21 +32,21 @@ class SimulationRunsRepository {
   /// reorders itself between rebuilds is the kind of thing a user reports as a
   /// bug in the run itself.
   ///
-  /// **The stations come with the list rather than on demand.** The history
+  /// **The workcenters come with the list rather than on demand.** The history
   /// menu labels every row with its queue type, so a per-run query would be one
-  /// query per menu item; this is one row per station per run, which on the real
+  /// query per menu item; this is one row per workcenter per run, which on the real
   /// database is 35 runs of about ten. Reading them here is also what lets the
   /// menu row and the run header be folded by the same code — a menu saying
   /// `FIFO` over a header saying `mixed` is exactly the disagreement §12.6 is
   /// about.
   Stream<List<RunListing>> watchRuns(String projectId) {
-    final stations = _db.simulationRunWorkcenters;
+    final workcenters = _db.simulationRunWorkcenters;
     final studies = _db.simulationRunStudies;
     final query =
         _db.select(_db.simulationRuns).join([
             leftOuterJoin(
-              stations,
-              stations.runId.equalsExp(_db.simulationRuns.id),
+              workcenters,
+              workcenters.runId.equalsExp(_db.simulationRuns.id),
             ),
             // The takt is on the study rows (§7.7.2), joined here so the menu can
             // tell two runs of one study apart by what they ran at — which is
@@ -63,7 +63,7 @@ class SimulationRunsRepository {
               mode: OrderingMode.desc,
             ),
             OrderingTerm(expression: _db.simulationRuns.id),
-            OrderingTerm(expression: stations.name),
+            OrderingTerm(expression: workcenters.name),
           ]);
 
     return query.watch().map((rows) {
@@ -72,19 +72,19 @@ class SimulationRunsRepository {
       final headers = <String, SimulationRun>{};
       final byRun = <String, List<({String name, DispatchRule rule})>>{};
       final takts = <String, List<List<(double, String?)>>>{};
-      // The two joins multiply: one row per (station × study), so a station or a
+      // The two joins multiply: one row per (workcenter × study), so a workcenter or a
       // study is seen once per row of the other and has to be counted once.
-      final seenStations = <String, Set<String>>{};
+      final seenWorkcenters = <String, Set<String>>{};
       final seenStudies = <String, Set<String>>{};
       for (final row in rows) {
         final header = row.readTable(_db.simulationRuns);
         headers[header.id] = header;
         final queues = byRun.putIfAbsent(header.id, () => []);
-        final station = row.readTableOrNull(stations);
-        if (station != null &&
-            (seenStations[header.id] ??= {}).add(station.workcenterId)) {
-          final rule = _stationRule(station.queueType, header.dispatch);
-          if (rule != null) queues.add((name: station.name, rule: rule));
+        final workcenter = row.readTableOrNull(workcenters);
+        if (workcenter != null &&
+            (seenWorkcenters[header.id] ??= {}).add(workcenter.workcenterId)) {
+          final rule = _workcenterRule(workcenter.queueType, header.dispatch);
+          if (rule != null) queues.add((name: workcenter.name, rule: rule));
         }
         final study = row.readTableOrNull(studies);
         if (study != null &&
@@ -112,7 +112,7 @@ class SimulationRunsRepository {
   /// actually opened under (§7.9).
   ///
   /// **A second query rather than a third join.** The takt lives on the orders
-  /// now, and a run has hundreds of those against a handful of stations — a
+  /// now, and a run has hundreds of those against a handful of workcenters — a
   /// third join would multiply the cartesian by the demand and make the menu's
   /// query grow with the plant. Run in step with the listing instead: a run's
   /// header row and its orders are written and deleted together, so the main
@@ -183,8 +183,8 @@ class SimulationRunsRepository {
     required String projectId,
     required SimRunResult result,
     required List<SimStudy> studies,
-    /// **Identity for every station the result mentions**, which since phase 9
-    /// is wider than the resource model: a scheduled station the routings never
+    /// **Identity for every workcenter the result mentions**, which since phase 9
+    /// is wider than the resource model: a scheduled workcenter the routings never
     /// reach has capacity rows and must still be stored under its own name and
     /// type, or §10.2's grid draws a uuid. Pass the union.
     required Map<String, SimWorkcenter> workcenters,
@@ -211,14 +211,14 @@ class SimulationRunsRepository {
       studies: studies,
       workcenters: workcenters,
     );
-    // Which pool each station was dispatched through, resolved now rather than
+    // Which pool each workcenter was dispatched through, resolved now rather than
     // joined later: the plant can be re-grouped tomorrow and this run has to
     // keep saying what it observed (§7.10).
-    final pools = stationPools(studies);
-    // The queue each station dispatched by, copied in for the same reason
+    final pools = simWorkcenterPools(studies);
+    // The queue each workcenter dispatched by, copied in for the same reason
     // (§7.10): the queue lives on the project and can be retuned tomorrow, and
     // a run that read it back would silently change what it claims to have
-    // done. Keyed by station rather than by target, because that is what the
+    // done. Keyed by workcenter rather than by target, because that is what the
     // row is — a pool's members all carry the pool's queue.
     final queues = <String, SimQueue>{
       for (final study in studies)
@@ -239,7 +239,7 @@ class SimulationRunsRepository {
               // The column is `NOT NULL` and stays on the schema so the runs
               // made before v19 keep the rule they really were made with; empty
               // parses to no rule, so it contributes nothing to the fold in
-              // [_stationRule] and every station of a v19 run speaks for itself.
+              // [_workcenterRule] and every workcenter of a v19 run speaks for itself.
               // Widening it to nullable would rebuild the table, which §16.11
               // is the record of the cost of.
               dispatch: '',
@@ -339,7 +339,7 @@ class SimulationRunsRepository {
               processSecondsBeforeRework: Value(
                 step.processSecondsBeforeRework,
               ),
-              // The lane it was pulled out of, and how long the station then
+              // The lane it was pulled out of, and how long the workcenter then
               // stood holding it (§5.5). Both are read back below, and a column
               // written by nobody is the failure §1.5 found once already.
               laneNodeId: Value(step.laneNodeId),
@@ -357,8 +357,8 @@ class SimulationRunsRepository {
             ),
         ]);
 
-        // Every station in the model, not only the ones an order reached: a
-        // station that sat idle all run is evidence too, and its open time is
+        // Every workcenter in the model, not only the ones an order reached: a
+        // workcenter that sat idle all run is evidence too, and its open time is
         // the denominator that says so.
         b.insertAll(_db.simulationRunWorkcenters, [
           for (final entry in result.openByWorkcenter.entries)
@@ -369,30 +369,30 @@ class SimulationRunsRepository {
               busySeconds: (result.busyByWorkcenter[entry.key] ?? Duration.zero)
                   .inSeconds,
               openSeconds: entry.value.inSeconds,
-              // Kept out of `busySeconds` on purpose (§8.3): a station holding
+              // Kept out of `busySeconds` on purpose (§8.3): a workcenter holding
               // a finished order it cannot put down is occupied and producing
               // nothing, and folding the two would report the jam as output.
               blockedSeconds: Value(
                 (result.blockedByWorkcenter[entry.key] ?? Duration.zero)
                     .inSeconds,
               ),
-              // Copied in like the name, and for the same reason: a station
+              // Copied in like the name, and for the same reason: a workcenter
               // re-rated from one unit to two afterwards would otherwise
               // silently change what this run's utilization meant (§3.1).
               units: Value(workcenters[entry.key]?.units ?? 1),
-              // Null id where the station was named directly, or reached
+              // Null id where the workcenter was named directly, or reached
               // through more than one pool — ungrouped either way, and the
               // name still says which pools it served (§3.1).
               poolId: Value(pools[entry.key]?.id),
               poolName: Value(pools[entry.key]?.name),
-              // **How the station dispatched, not what someone chose** —
+              // **How the workcenter dispatched, not what someone chose** —
               // so the default belongs here. This column answers the history
               // picker's "what rule did this run use?", and an untyped lane
               // ran FIFO (§5.5). The lane's own row keeps the null, because
               // there the question is what the map should caption.
               queueType: Value(queues[entry.key]?.effectiveRule.name),
               queueCapacity: Value(queues[entry.key]?.capacity),
-              // Copied in for the same reason the pool name is: a station
+              // Copied in for the same reason the pool name is: a workcenter
               // retyped afterwards would otherwise re-column every stored run
               // in the picker (§7.10, §10.2).
               typeId: Value(workcenters[entry.key]?.typeId),
@@ -400,7 +400,7 @@ class SimulationRunsRepository {
             ),
         ]);
 
-        // A row per station per month of the run (§10.2). Written from the
+        // A row per workcenter per month of the run (§10.2). Written from the
         // same walk that produced the whole-run figure above, so the months sum
         // to it rather than being a second opinion about the same calendar.
         b.insertAll(_db.simulationRunWorkcenterMonths, [
@@ -418,12 +418,12 @@ class SimulationRunsRepository {
         //
         // All of it copied in: the name a reader recognises, the discipline
         // that decided the order, the capacity that decided the blocking, and
-        // the position §8.6 needs to draw a lane row between the two station
+        // the position §8.6 needs to draw a lane row between the two workcenter
         // rows it connects. §7.10 joins to nothing, and the flow beneath a run
         // may be edited the moment after it is stored.
         //
         // **One row per target now, not per study.** A queue belongs to the
-        // station it stands in front of (§5.5), so two studies feeding CLAD07
+        // workcenter it stands in front of (§5.5), so two studies feeding CLAD07
         // store the one queue they share — and `node_id` holds the *target* id,
         // which is what a lane is identified by since v19. The first study to
         // name a target writes it; the second finds it already there.
@@ -439,7 +439,7 @@ class SimulationRunsRepository {
               nodeId: entry.key,
               // **Null since v27** (#5). The 147 runs stored before it keep the
               // caption they were saved with and draw it; a run stored now
-              // derives one from `rule` and the station's name, both of which
+              // derives one from `rule` and the workcenter's name, both of which
               // this table and `simulation_run_workcenters` already carry.
               name: const Value(null),
               position: entry.value.node.position,
@@ -454,7 +454,7 @@ class SimulationRunsRepository {
         ]);
 
         // One stay per order per lane, read off the steps: an order enters a
-        // lane when it starts queueing and leaves it when the station pulls it,
+        // lane when it starts queueing and leaves it when the workcenter pulls it,
         // which `queueStart` and `processStart` already record. Deriving rather
         // than having the engine keep a second list of the same fact — two
         // records of one event are two things to keep in step.
@@ -513,13 +513,13 @@ class SimulationRunsRepository {
     final slots = await (_db.select(
       _db.simulationRunEmptySlots,
     )..where((s) => s.runId.equals(runId))).get();
-    final stations = await (_db.select(
+    final workcenters = await (_db.select(
       _db.simulationRunWorkcenters,
     )..where((w) => w.runId.equals(runId))).get();
     final byOrderId = {for (final row in orders) row.orderId: row};
     // Empty on every run made before v25, which is what makes §10.3 offer no
     // graph rather than an empty one.
-    final stationMonths = await (_db.select(
+    final workcenterMonths = await (_db.select(
       _db.simulationRunWorkcenterMonths,
     )..where((m) => m.runId.equals(runId))).get();
     final lanes = await (_db.select(
@@ -529,12 +529,12 @@ class SimulationRunsRepository {
       _db.simulationRunLaneVisits,
     )..where((v) => v.runId.equals(runId))).get();
 
-    // What each station dispatched by (§7.3), by name so the breakdown reads
-    // as a list of stations rather than of uuids.
+    // What each workcenter dispatched by (§7.3), by name so the breakdown reads
+    // as a list of workcenters rather than of uuids.
     final queues = RunQueues(
       [
-        for (final row in stations)
-          if (_stationRule(row.queueType, header.dispatch) case final rule?)
+        for (final row in workcenters)
+          if (_workcenterRule(row.queueType, header.dispatch) case final rule?)
             (name: row.name, rule: rule),
       ]..sort((a, b) => a.name.compareTo(b.name)),
     );
@@ -593,24 +593,24 @@ class SimulationRunsRepository {
           ),
       ],
       busyByWorkcenter: {
-        for (final row in stations)
+        for (final row in workcenters)
           row.workcenterId: Duration(seconds: row.busySeconds),
       },
       openByWorkcenter: {
-        for (final row in stations)
+        for (final row in workcenters)
           row.workcenterId: Duration(seconds: row.openSeconds),
       },
       openByWorkcenterMonth: {
-        for (final row in stationMonths)
+        for (final row in workcenterMonths)
           row.workcenterId: {
-            for (final month in stationMonths.where(
+            for (final month in workcenterMonths.where(
               (m) => m.workcenterId == row.workcenterId,
             ))
               month.month: Duration(seconds: month.openSeconds),
           },
       },
       blockedByWorkcenter: {
-        for (final row in stations)
+        for (final row in workcenters)
           row.workcenterId: Duration(seconds: row.blockedSeconds),
       },
       lanes: [
@@ -699,29 +699,29 @@ class SimulationRunsRepository {
         result: result,
         partNumbers: {for (final row in orders) row.partId: row.partNumber},
         workcenterNames: {
-          for (final row in stations) row.workcenterId: row.name,
+          for (final row in workcenters) row.workcenterId: row.name,
         },
-        // The whole run, so a scheduled station nobody loaded keeps its name
+        // The whole run, so a scheduled workcenter nobody loaded keeps its name
         // and its type for §10.3's grid and its filters.
         includeUnvisited: true,
         // Read back rather than re-derived: the pools the plant has today are
         // not necessarily the ones this run dispatched through (§7.10). A row
         // written before v18 has neither column and is simply absent, which is
-        // a station that groups under nothing.
+        // a workcenter that groups under nothing.
         pools: {
-          for (final row in stations)
+          for (final row in workcenters)
             if (row.poolName != null)
-              row.workcenterId: StationPool(
+              row.workcenterId: SimWorkcenterPool(
                 id: row.poolId,
                 name: row.poolName!,
               ),
         },
         // The type the run copied in (§10.2), for the same reason as the pool
-        // above: a station retyped since must not re-column a stored run.
-        // Absent on every row written before v25 and on a station that has no
+        // above: a workcenter retyped since must not re-column a stored run.
+        // Absent on every row written before v25 and on a workcenter that has no
         // type, which the plant allows.
         types: {
-          for (final row in stations)
+          for (final row in workcenters)
             if (row.typeId != null && row.typeName != null)
               row.workcenterId: (id: row.typeId!, name: row.typeName!),
         },
@@ -745,16 +745,16 @@ class SimulationRunsRepository {
   static T? _parseOrNull<T extends Enum>(List<T> values, String name) =>
       values.where((v) => v.name == name).firstOrNull;
 
-  /// What one station of a run dispatched by (§7.3).
+  /// What one workcenter of a run dispatched by (§7.3).
   ///
   /// **The run-level rule fills in, and is the only thing it is still read
-  /// for.** A run made before v19 recorded no queue type per station and really
+  /// for.** A run made before v19 recorded no queue type per workcenter and really
   /// did dispatch the whole plant by one rule, so reading it here is what keeps
   /// the 35 stored runs saying what they did. A v19 run writes the column empty
-  /// (see `saveRun`), which parses to null — so a station that also has no queue
+  /// (see `saveRun`), which parses to null — so a workcenter that also has no queue
   /// type recorded has nothing to say and is left out rather than reported as
   /// FIFO.
-  static DispatchRule? _stationRule(String? queueType, String runRule) =>
+  static DispatchRule? _workcenterRule(String? queueType, String runRule) =>
       _parseOrNull(DispatchRule.values, queueType ?? runRule);
 }
 
@@ -820,25 +820,25 @@ typedef RunListing = ({
   List<List<(double, String?)>> takts,
 });
 
-/// What each station of a run dispatched by, as the run recorded it (§7.3).
+/// What each workcenter of a run dispatched by, as the run recorded it (§7.3).
 ///
 /// **This replaced `simulation_runs.dispatch` as the thing a run is labelled
-/// with.** The queue type belongs to a station since v19, so a header claiming
+/// with.** The queue type belongs to a workcenter since v19, so a header claiming
 /// the run had one rule was describing a decision the engine had stopped making
-/// — and the count of stations that "overrode" it described an override of
+/// — and the count of workcenters that "overrode" it described an override of
 /// nothing.
 ///
-/// [uniform] and [isMixed] are both derived from [stations], so the one-line
+/// [uniform] and [isMixed] are both derived from [workcenters], so the one-line
 /// label and the breakdown beneath it cannot disagree about the same run.
 class RunQueues {
-  const RunQueues(this.stations);
+  const RunQueues(this.workcenters);
 
-  /// Every station that recorded a queue type, by name.
-  final List<({String name, DispatchRule rule})> stations;
+  /// Every workcenter that recorded a queue type, by name.
+  final List<({String name, DispatchRule rule})> workcenters;
 
-  /// The one type every station shared, or null when they differed.
+  /// The one type every workcenter shared, or null when they differed.
   ///
-  /// Also null when the run recorded no station at all, which [isMixed]
+  /// Also null when the run recorded no workcenter at all, which [isMixed]
   /// separates: one is `mixed`, the other is a run with nothing to say.
   DispatchRule? get uniform {
     final types = _types;
@@ -848,7 +848,7 @@ class RunQueues {
   bool get isMixed => _types.length > 1;
 
   Set<DispatchRule> get _types => {
-    for (final station in stations) station.rule,
+    for (final workcenter in workcenters) workcenter.rule,
   };
 
   /// How this reads in one line: the shared type's name, or `mixed`.
@@ -886,7 +886,7 @@ class StoredRun {
   final String projectId;
   final DateTime createdAt;
 
-  /// What each station dispatched by, as the run recorded it (§7.3).
+  /// What each workcenter dispatched by, as the run recorded it (§7.3).
   final RunQueues queues;
 
   /// The production plan (§8.5), in date order, all studies together.

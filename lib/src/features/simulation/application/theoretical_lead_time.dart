@@ -23,7 +23,7 @@
 /// cannot happen. Keeping both out of one traversal is what stops them drifting
 /// while keeping each honest about its own question.
 ///
-/// **Stock is counted once per target.** Two steps of one flow on one station
+/// **Stock is counted once per target.** Two steps of one flow on one workcenter
 /// share a floor space, and the map dedupes it the same way — charging it twice
 /// is the doubling §7.3 exists to undo.
 ///
@@ -60,7 +60,7 @@ class TheoreticalLeadTime {
   final DateTime start;
   final DateTime end;
 
-  /// Open time actually spent at the stations, buffers excluded — the
+  /// Open time actually spent at the workcenters, buffers excluded — the
   /// value-adding part, for PCE.
   final Duration workingTime;
 
@@ -93,7 +93,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
       switch (node) {
         case SimStep():
           // A pool step is costed on the member that would run it if the pool
-          // were empty — its first, which is the same station the map draws
+          // were empty — its first, which is the same workcenter the map draws
           // its capacity from. Members are interchangeable (§3.1), so which
           // one is not a question this measure has to answer.
           final workcenter = workcenters[node.candidates.firstOrNull];
@@ -108,7 +108,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
             return null;
           }
 
-          // A changeover typed in `days` means this station's productive day
+          // A changeover typed in `days` means this workcenter's productive day
           // (§7.6), so it has to be resolved before either half is charged.
           // **Charged in full**: an order walking a plant it has to itself
           // starts cold, so nothing repeats.
@@ -123,7 +123,7 @@ TheoreticalLeadTime? theoreticalLeadTime({
             batchSize: batchSize,
             availability: workcenter.schedule.availabilityOn(cursor),
             rework: workcenter.schedule.reworkOn(cursor),
-            // The crew divides the work at a labour-paced station (§7.5), and
+            // The crew divides the work at a labour-paced workcenter (§7.5), and
             // the theoretical walk has to charge what the run will or the two
             // disagree about the same order — which is what §8.2's efficiency
             // ratio is the ratio *of*.
@@ -132,8 +132,8 @@ TheoreticalLeadTime? theoreticalLeadTime({
                 : 1,
           );
 
-          // The queue first: an order joins the line in front of the station
-          // before the station touches it. On the wall clock, because stock
+          // The queue first: an order joins the line in front of the workcenter
+          // before the workcenter touches it. On the wall clock, because stock
           // stands there whether or not the plant is open.
           if (counted.add(node.queue.targetId)) {
             cursor = cursor.add(node.queueStock);
@@ -224,7 +224,7 @@ DateTime? coldStartDate({
               batchSize: batchSize,
               // Read at the far end of the step, which is where the cursor is
               // on the way back. A schedule boundary inside one order's time
-              // at one station is not a case worth splitting a step over.
+              // at one workcenter is not a case worth splitting a step over.
               availability: workcenter.schedule.availabilityOn(cursor),
               rework: workcenter.schedule.reworkOn(cursor),
               operators: workcenter.labourPaced

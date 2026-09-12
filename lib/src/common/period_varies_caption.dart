@@ -18,7 +18,7 @@ import 'unit_labels.dart';
 /// the two surfaces cannot disagree about whether the span crosses one.
 ///
 /// Falls back to the icon for a staffing-only change: [scheduleVaries] is the
-/// broader "takt or staffing moved", and staffing is fifty stations with no one
+/// broader "takt or staffing moved", and staffing is fifty workcenters with no one
 /// sentence to name it.
 class PeriodVariesCaption extends StatelessWidget {
   const PeriodVariesCaption({

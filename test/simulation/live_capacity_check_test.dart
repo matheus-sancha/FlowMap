@@ -26,10 +26,10 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// What it has to show, from #19:
 ///
-/// - the newest run goes from **17 stations × 15 months = 255 rows** to the
+/// - the newest run goes from **17 workcenters × 15 months = 255 rows** to the
 ///   whole of what the plant has scheduled;
 /// - `CLAD09` appears **with capacity and no demand**;
-/// - its columns **stop at 2026-12** while the busy stations run to 2027-12;
+/// - its columns **stop at 2026-12** while the busy workcenters run to 2027-12;
 /// - and `scheduleHorizon` **still reads 2027-12-31** — the trap.
 ///
 /// **The row count is 636, not the 648 #19 predicted.** 648 was 18 × 36, the
@@ -64,28 +64,28 @@ void main() {
     // ignore: avoid_print
     print(
       'resource model=${input.workcenters.length}  '
-      'scheduled=${input.scheduledStations.length}  '
+      'scheduled=${input.scheduledWorkcenters.length}  '
       'horizon=${input.scheduleHorizon}',
     );
 
     // --- the two sets are different, and that is the phase -------------------
 
     expect(
-      input.scheduledStations.length,
+      input.scheduledWorkcenters.length,
       greaterThan(input.workcenters.length),
-      reason: 'the plant schedules more stations than the routings reach',
+      reason: 'the plant schedules more workcenters than the routings reach',
     );
     final idle = {
-      for (final entry in input.scheduledStations.entries)
+      for (final entry in input.scheduledWorkcenters.entries)
         if (!input.workcenters.containsKey(entry.key)) entry.key: entry.value,
     };
     // ignore: avoid_print
     print('scheduled but unrouted: ${idle.values.map((w) => w.name).toList()}');
     expect(idle, isNotEmpty, reason: 'CLAD09 is why this phase exists');
 
-    // --- the horizon is over the stations the run USES ------------------------
+    // --- the horizon is over the workcenters the run USES ------------------------
 
-    // The trap. Every busy station is scheduled to 2027-12-31 and the idle one
+    // The trap. Every busy workcenter is scheduled to 2027-12-31 and the idle one
     // stops a year earlier, so a horizon taken over the wider set would read
     // 2026-12-31 and start firing §11.1's tail warning on a run with nothing
     // wrong with it.
@@ -94,11 +94,11 @@ void main() {
         .map((p) => p.endDate)
         .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
     // ignore: avoid_print
-    print('the idle stations are defined to $idleEnd');
+    print('the idle workcenters are defined to $idleEnd');
     expect(
       input.scheduleHorizon!.isAfter(idleEnd!),
       isTrue,
-      reason: 'the idle station must not have moved the horizon',
+      reason: 'the idle workcenter must not have moved the horizon',
     );
 
     // --- the run, and what it now writes down --------------------------------
@@ -106,7 +106,7 @@ void main() {
     final result = runSimulation(
       studies: input.studies,
       workcenters: input.workcenters,
-      scheduledStations: input.scheduledStations,
+      scheduledWorkcenters: input.scheduledWorkcenters,
       scheduleHorizon: input.scheduleHorizon,
     );
     expect(result.abort, isNull);
@@ -118,15 +118,15 @@ void main() {
     // ignore: avoid_print
     print(
       'capacity rows=$rows across '
-      '${result.openByWorkcenterMonth.length} stations',
+      '${result.openByWorkcenterMonth.length} workcenters',
     );
     expect(
       result.openByWorkcenterMonth.length,
-      input.scheduledStations.length,
-      reason: 'every scheduled station is on the chart',
+      input.scheduledWorkcenters.length,
+      reason: 'every scheduled workcenter is on the chart',
     );
 
-    // --- the idle station has capacity, no demand, and stops early -----------
+    // --- the idle workcenter has capacity, no demand, and stops early -----------
 
     final worked = {for (final step in result.steps) step.workcenterId};
     for (final entry in idle.entries) {
@@ -145,7 +145,7 @@ void main() {
         reason: '$name is open, which is what makes it idle rather than absent',
       );
       // Ragged: it stops where its own schedule stops, not where the busy
-      // stations do.
+      // workcenters do.
       final busiest = result.openByWorkcenterMonth[input.workcenters.keys.first]!
           .keys
           .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
@@ -166,11 +166,11 @@ void main() {
     }
     final busy = result.openByWorkcenterMonth[input.workcenters.keys.first]!;
     // ignore: avoid_print
-    print('the run spans ${runMonths.length} months, its stations ${busy.length}');
+    print('the run spans ${runMonths.length} months, its workcenters ${busy.length}');
     expect(
       busy.length,
       greaterThan(runMonths.length),
-      reason: 'a scheduled station is open before and after the run',
+      reason: 'a scheduled workcenter is open before and after the run',
     );
   });
 }

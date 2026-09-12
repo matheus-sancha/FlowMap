@@ -40,17 +40,17 @@
   "exceptionsScope": "Applies to the whole project — every study in it.",
   "projectSettings": "Project settings",
   "projectSettingsIdentity": "Identity",
-  "projectPatternHelp": "The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every station, and every figure derived from one.",
+  "projectPatternHelp": "The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every workcenter, and every figure derived from one.",
   "calendarExceptions": "Exceptions",
   "schedulesTaktScope": "shared by every study on this line",
-  "schedulesStationsScope": "this study's flow",
+  "schedulesWorkcentersScope": "this study's flow",
   "workcenters": "Workcenters",
   "workcenterNew": "New Workcenter",
   "workcenterType": "Workcenter type",
   "workcenterTypes": "Workcenter types",
   "workcenterTypeNew": "New workcenter type",
   "workcenterLines": "Drawn under these lines",
-  "workcenterLinesHelp": "Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.",
+  "workcenterLinesHelp": "Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a workcenter that serves two lines belongs under both.",
   "workcenterNoLines": "This plant has no production lines yet.",
   "workcenterOnLines": "on {count} lines",
   "@workcenterOnLines": {
@@ -226,9 +226,9 @@
   "summaryOperatorsNeeded": "Operators needed",
   "summaryNoSteps": "This flow has no bound process steps yet.",
   "summaryNothingToRank": "Nothing to rank yet: no step has both a schedule and demand.",
-  "summaryOverloaded": "Above 100 %: this station cannot do it however the sequence is arranged.",
+  "summaryOverloaded": "Above 100 %: this workcenter cannot do it however the sequence is arranged.",
   "summaryWithinCapacity": "Within capacity for this period.",
-  "summaryNoDemandTakt": "No demand takt yet: it needs a station with hours and orders due in this period.",
+  "summaryNoDemandTakt": "No demand takt yet: it needs a workcenter with hours and orders due in this period.",
   "summaryBottleneck": "Bottleneck: {name} at {occupation}",
   "@summaryBottleneck": {
     "placeholders": {
@@ -248,7 +248,7 @@
       }
     }
   },
-  "summaryVisitsHelp": "The flow routes through this station {count} times, and every visit loads it.",
+  "summaryVisitsHelp": "The flow routes through this workcenter {count} times, and every visit loads it.",
   "@summaryVisitsHelp": {
     "placeholders": {
       "count": {
@@ -292,7 +292,7 @@
       }
     }
   },
-  "summaryPaceSetter": "Measured at {name}, the busiest station, which has {available} available this period.",
+  "summaryPaceSetter": "Measured at {name}, the busiest workcenter, which has {available} available this period.",
   "@summaryPaceSetter": {
     "placeholders": {
       "name": {
@@ -304,7 +304,7 @@
     }
   },
   "summaryTaktConfigured": "Configured takt",
-  "summaryTaktConfiguredHelp": "The takt this line is set to run at, resolved at the pace-setting station.",
+  "summaryTaktConfiguredHelp": "The takt this line is set to run at, resolved at the pace-setting workcenter.",
   "summaryTaktRaw": "Raw demand takt",
   "summaryTaktRawHelp": "Available time over {orders} orders due. What a visitor expects.",
   "@summaryTaktRawHelp": {
@@ -570,26 +570,26 @@
   "stepProcessTime": "Process time",
   "stepSetup": "Setup",
   "stepTeardown": "Teardown",
-  "stepTeardownHelp": "Stripping the station after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.",
+  "stepTeardownHelp": "Stripping the workcenter after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.",
   "stepSamePart": "Same part",
   "stepSamePartHelp": "How much of the setup and teardown is still charged when the previous order was the same part. 0% makes a repeat free; 100% means batching buys nothing.",
   "stepChangeover": "Changeover",
   "laneCapacity": "Lane capacity (orders)",
-  "laneCapacityHelp": "How many orders fit here. Leave blank for unlimited. When it is full the station behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.",
+  "laneCapacityHelp": "How many orders fit here. Leave blank for unlimited. When it is full the workcenter behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.",
   "workcenterParallelCapacity": "Orders at once",
-  "workcenterParallelCapacityHelp": "How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.",
+  "workcenterParallelCapacityHelp": "How many orders this workcenter runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.",
   "studyStartBuffer": "Start buffer (calendar days)",
   "studyStartBufferHelp": "Extra margin ahead of the calculated start. A run begins at the first order's need date, less its theoretical lead time, less this. Calendar days, because slippage happens whether or not the plant is open.",
   "studyPaceSetter": "Pacemaker",
-  "studyPaceSetterHelp": "The station whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.",
+  "studyPaceSetterHelp": "The workcenter whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.",
   "studyPaceSetterAutomatic": "Automatic — the busiest step",
   "simBlocked": "Blocked",
-  "simBlockedHelp": "Time the station spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed station is occupied and producing nothing.",
+  "simBlockedHelp": "Time the workcenter spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed workcenter is occupied and producing nothing.",
   "simEmptySlotLaneFull": "Lane full",
   "stepOperators": "Operators",
   "stepEquivalentTime": "Process specific takt time",
   "stepEquivalentFollowsTakt": "Follows takt",
-  "stepEquivalentHelp": "This step's own takt, used by the flow equivalent instead of the line's. Leave blank to follow the line's takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station's productive days, so 1 day equals one takt-day.",
+  "stepEquivalentHelp": "This step's own takt, used by the flow equivalent instead of the line's. Leave blank to follow the line's takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this workcenter's productive days, so 1 day equals one takt-day.",
   "stepProblemUnbound": "No workcenter or pool selected.",
   "stepProblemArchived": "Its workcenter has been archived or deleted.",
   "stepProblemNoSchedule": "No schedule period covers this month.",
@@ -612,7 +612,7 @@
   "footerProcessTime": "Process time",
   "footerLeadTime": "Lead time (working days)",
   "footerLeadTimeRunning": "Lead time (running days)",
-  "footerLeadTimeRunningHelp": "The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each station’s real calendar instead, so the two can differ and the run is what happened.",
+  "footerLeadTimeRunningHelp": "The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each workcenter’s real calendar instead, so the two can differ and the run is what happened.",
   "footerPce": "Process efficiency",
   "exportGenerated": "FlowMap {build} · generated {timestamp}",
   "@exportGenerated": {
@@ -637,7 +637,7 @@
   "simFilterCells": "Cells",
   "simFilterLines": "Lines",
   "simFilterPeriod": "Period",
-  "simFilterPeriodHelp": "Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.",
+  "simFilterPeriodHelp": "Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Workcenter utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.",
   "simFilterPeriodStart": "First month",
   "simFilterPeriodEnd": "Last month",
   "simFilterAll": "all",
@@ -656,7 +656,7 @@
   },
   "simFilterClear": "Clear Filters",
   "simWorkspace": "Simulation",
-  "simStationsWholeRun": "Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.",
+  "simWorkcentersWholeRun": "Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.",
   "simulationRun": "Simulate",
   "simulationRunning": "Running…",
   "dispatchFifo": "FIFO — by arrival",
@@ -679,7 +679,7 @@
       }
     }
   },
-  "simulationAbortNothingToRun": "Nothing could be started: every station’s calendar is shut, or no study had a costable first order.",
+  "simulationAbortNothingToRun": "Nothing could be started: every workcenter’s calendar is shut, or no study had a costable first order.",
   "simOnTimeDelivery": "On-time delivery",
   "simOnTimeOfOrders": "{onTime} of {orders} orders on time",
   "@simOnTimeOfOrders": {
@@ -717,7 +717,7 @@
   "simEmptySlotsHelp": "Slots that came round with nothing to put in them: the head of the sequence had no material yet, or the flow was already at its WIP cap. The sequence is the thing under study, so an empty slot is counted rather than quietly repaired.",
   "simByQueue": "Ranked by queue time",
   "simByShare": "Ranked by share of the flow",
-  "simRankingsHelp": "Both rankings are here because their disagreement is the diagnostic: a long queue at a station that is not busy is a sequencing problem, not a capacity one.",
+  "simRankingsHelp": "Both rankings are here because their disagreement is the diagnostic: a long queue at a workcenter that is not busy is a sequencing problem, not a capacity one.",
   "simQueue": "Queue",
   "simQueueAverage": "Average queue",
   "simVisits": "Visits",
@@ -729,7 +729,7 @@
   "simPerPart": "Per part number",
   "simOrders": "Orders",
   "simOnTime": "On time",
-  "simNothingRanked": "No station ran anything.",
+  "simNothingRanked": "No workcenter ran anything.",
   "simRunSpan": "{start} → {end}",
   "@simRunSpan": {
     "placeholders": {
@@ -778,7 +778,7 @@
   "simRunDeleteBody": "The run and everything it recorded go. The studies it was made from are untouched.",
   "simGanttView": "Production Gantt",
   "simGanttEmpty": "This run recorded no steps, so there is nothing to draw.",
-  "simGanttGapHelp": "A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.",
+  "simGanttGapHelp": "A bar is the workcenter committed to that order, closed hours included. A gap is a workcenter not running: closed, or starved. How much of it was open at all is in the Queue table.",
   "simGanttOrder": "Order {number}",
   "@simGanttOrder": {
     "placeholders": {
@@ -821,9 +821,9 @@
   },
   "simGanttLaneUncapped": "Lane has no limit",
   "simGanttStillWaiting": "Still standing here when the run ended",
-  "simGanttRowsStations": "Stations",
-  "simGanttRowsWithLanes": "Stations + lanes",
-  "simGanttRowsHelp": "Whether the queue bands between stations are drawn. Without them the chart reads as a flow; with them it reads as a queue.",
+  "simGanttRowsWorkcenters": "Workcenters",
+  "simGanttRowsWithLanes": "Workcenters + lanes",
+  "simGanttRowsHelp": "Whether the queue bands between workcenters are drawn. Without them the chart reads as a flow; with them it reads as a queue.",
   "simGanttZoomIn": "Zoom in",
   "simGanttZoomOut": "Zoom out",
   "simGanttFloored": "{count, plural, =1{1 bar drawn wider than it is} other{{count} bars drawn wider than they are}}",
@@ -838,7 +838,7 @@
   "exportExcel": "Export to Excel",
   "simExportRunSheet": "Run",
   "flowQueueEdit": "Set the queue in front of this step",
-  "flowQueueShared": "One queue per station: every step that feeds {target} waits in this one, in this study and in every other.",
+  "flowQueueShared": "One queue per workcenter: every step that feeds {target} waits in this one, in this study and in every other.",
   "@flowQueueShared": {
     "placeholders": {
       "target": {
@@ -848,7 +848,7 @@
   },
   "flowQueueName": "Name",
   "flowQueueType": "Queue type",
-  "flowQueueTypeHelp": "How the station ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue's caption on the map is this type and the station it stands in front of.",
+  "flowQueueTypeHelp": "How the workcenter ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue's caption on the map is this type and the workcenter it stands in front of.",
   "flowQueueStock": "What is standing here now",
   "queueTypeQueue": "Queue — a line, no rule",
   "queueShortFifo": "FIFO",
@@ -857,7 +857,7 @@
   "queueShortShortestProcessing": "SPT",
   "queueShortQueue": "Queue",
   "queueTypeSupermarket": "Supermarket — not yet",
-  "flowBatchHelp": "How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.",
+  "flowBatchHelp": "How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a workcenter ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.",
   "validationNumber": "Enter a number",
   "validationAboveZero": "Enter a number above zero",
   "simEmptySlotAwaitingMaterial": "Awaiting material",
@@ -868,7 +868,7 @@
   "flowEndStockHelp": "An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.",
   "flowEndStockNone": "Not counted",
   "stepBalancedMark": "⇄",
-  "stepBalancedHelp": "Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.",
+  "stepBalancedHelp": "Rebalanced across the {type} workcenters next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.",
   "@stepBalancedHelp": {
     "placeholders": {
       "type": {
@@ -879,12 +879,12 @@
       }
     }
   },
-  "stepRebalance": "Rebalance with adjacent like machines",
-  "stepRebalanceHelp": "Stations of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this station at what was measured on it.",
+  "stepRebalance": "Rebalance with adjacent like workcenters",
+  "stepRebalanceHelp": "Workcenters of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this workcenter at what was measured on it.",
   "stepRebalanceNoType": "{name} has no workcenter type, so nothing says it is like its neighbours.",
   "stepRebalanceNoNeighbour": "No adjacent step shares the type {type}.",
-  "stepRebalanceNoWork": "This part has no time here, so the station is not sharing work.",
-  "stepRebalanceOn": "Sharing work with the adjacent {type} stations.",
+  "stepRebalanceNoWork": "This part has no time here, so the workcenter is not sharing work.",
+  "stepRebalanceOn": "Sharing work with the adjacent {type} workcenters.",
   "@stepRebalanceNoType": {
     "placeholders": {
       "name": {
@@ -963,7 +963,7 @@
   "languageEn": "English",
   "languageEs": "Español",
   "languagePt": "Português",
-  "stepRebalanceOnWithRework": "Sharing work with the adjacent {type} stations. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.",
+  "stepRebalanceOnWithRework": "Sharing work with the adjacent {type} workcenters. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.",
   "@stepRebalanceOnWithRework": {
     "placeholders": {
       "type": {
@@ -980,7 +980,7 @@
       }
     }
   },
-  "stepRebalanceRemainder": "Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.",
+  "stepRebalanceRemainder": "Sharing work with the adjacent {type} workcenters. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.",
   "@stepRebalanceRemainder": {
     "placeholders": {
       "type": {
@@ -994,7 +994,7 @@
       }
     }
   },
-  "stepRebalanceRemainderOver": "Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its stations have.",
+  "stepRebalanceRemainderOver": "Sharing work with the adjacent {type} workcenters. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its workcenters have.",
   "@stepRebalanceRemainderOver": {
     "placeholders": {
       "type": {
@@ -1010,9 +1010,8 @@
   },
   "occupationView": "Occupation",
   "occupationType": "Type",
-  "occupationStation": "Station",
   "occupationLine": "Line",
-  "occupationUngraphable": "This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.",
+  "occupationUngraphable": "This run was made before the app recorded what a month of a workcenter was worth, so it cannot be graphed. Run the simulation again to get a chart.",
   "projectSettingsFloat": "Float thresholds",
   "projectSettingsFloatHelp": "Where the float matrix turns red and green. Between the two is amber.",
   "projectFloatRed": "Red at or below (days)",
@@ -1079,13 +1078,13 @@
   "occupationWorkcenter": "Workcenter",
   "occupationAmberAbove": "Amber above",
   "occupationRedAbove": "Red above",
-  "occupationBands": "Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.",
+  "occupationBands": "Where the Occupation grid turns amber and red. A workcenter asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.",
   "occupationProcess": "Process",
   "occupationRework": "Rework",
   "occupationChangeover": "Changeover",
   "occupationOutsideFilter": "Outside the filter",
-  "occupationStations": "{count, plural, =1{1 station aggregated} other{{count} stations aggregated}}",
-  "@occupationStations": {
+  "occupationWorkcentersAggregated": "{count, plural, =1{1 workcenter aggregated} other{{count} workcenters aggregated}}",
+  "@occupationWorkcentersAggregated": {
     "placeholders": {
       "count": {
         "type": "int"

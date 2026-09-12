@@ -98,16 +98,16 @@ enum StepProblem {
   noProcessTime,
 }
 
-/// What a process box is labelled: its station (DESIGN.md §5.4).
+/// What a process box is labelled: its workcenter (DESIGN.md §5.4).
 ///
-/// **A box is its station, and it takes one name** (#5, v27). The step's own
+/// **A box is its workcenter, and it takes one name** (#5, v27). The step's own
 /// `label` used to win over this and is gone: only 2 of the live database's 25
 /// steps carried one, both on the *same* step in two studies, spelling one pool
 /// `Clad Pool` and `CLAD Pool`. That is the identical failure §16.20's fold
 /// caught between `FIFO BAN` and `FIFO BAN11` — the label was not naming a
 /// visit, it was working around a target name too long for a 140 pt box.
 ///
-/// _Rejected: keeping it to tell two visits to one station apart._ §16.22 is
+/// _Rejected: keeping it to tell two visits to one workcenter apart._ §16.22 is
 /// the argument for it — a routing goes back to a machine because the second
 /// pass is a different operation. But **no spine in the live database revisits
 /// a target**, and `PartProcessTimes` is keyed by `nodeId`, so two passes keep
@@ -196,11 +196,11 @@ enum FlowConnectionKind {
 /// What to draw on the link **into** [downstream].
 ///
 /// The kind belongs to the arrow's destination, not its source: a queue forms
-/// in front of a station, and it is that station's discipline the channel
+/// in front of a workcenter, and it is that workcenter's discipline the channel
 /// describes. The last link of the spine runs into the customer, which is not a
-/// station and has no queue, so it falls back to the study's own kind.
+/// workcenter and has no queue, so it falls back to the study's own kind.
 ///
-/// **A stored discipline is a decision; an unset one is not.** Every station
+/// **A stored discipline is a decision; an unset one is not.** Every workcenter
 /// dispatches FIFO by default (§7.4), so drawing a channel wherever a queue
 /// *behaves* as FIFO would put one on every link and say nothing. An unset rule
 /// therefore draws the push arrow — which is what an uncontrolled pile is, and
@@ -244,7 +244,7 @@ class FlowQueueView {
   /// under, and what the editor writes back to.
   final String targetId;
 
-  /// `CLAD04` or `CAL Pool` — the station's own name.
+  /// `CLAD04` or `CAL Pool` — the workcenter's own name.
   ///
   /// The editor names the target and says the queue is shared by every step
   /// that feeds it (§7.3). Since v27 it is also the *only* name in play: a
@@ -261,7 +261,7 @@ class FlowQueueView {
   /// [connectionKindInto].
   final DispatchRule? rule;
 
-  /// Orders it holds before the station behind it is blocked. Null is
+  /// Orders it holds before the workcenter behind it is blocked. Null is
   /// unlimited.
   final int? capacity;
 
@@ -342,7 +342,7 @@ class FlowEndStockView {
 
   /// [quantity] × the line's takt — how long that pile represents.
   ///
-  /// **The line's takt, never a station's equivalent.** Stock at the ends
+  /// **The line's takt, never a workcenter's equivalent.** Stock at the ends
   /// drains at the rate units leave the line, which is the same argument
   /// [FlowQueueView] makes for a quantity queue.
   final Duration wait;
@@ -351,10 +351,10 @@ class FlowEndStockView {
   /// pile is adjacent to — the first for [FlowEnd.inbound], the last for
   /// [FlowEnd.outbound].
   ///
-  /// **Borrowed, because an endpoint is not a station and has no day of its
+  /// **Borrowed, because an endpoint is not a workcenter and has no day of its
   /// own.** It only matters when the takt is stated in `days`, where it is the
   /// unit conversion rather than a claim about the endpoint (§6.1.1). The
-  /// adjacent station is the honest lender: raw material drains at the rate the
+  /// adjacent workcenter is the honest lender: raw material drains at the rate the
   /// first box consumes it, and finished goods pile at the rate the last box
   /// makes them.
   final Duration? referenceWorkingDay;
@@ -414,7 +414,7 @@ class FlowStepView {
   /// nothing and so stands in front of no floor space.
   ///
   /// Drawn on the link *into* this box rather than on the box, because that is
-  /// where the queue is: between the station before it and this one.
+  /// where the queue is: between the workcenter before it and this one.
   final FlowQueueView? queue;
 
   /// `CLAD04` or the pool's name — what the box is labelled.
@@ -455,10 +455,10 @@ class FlowStepView {
   /// other way round where each of those would have to remember to ask.
   final Duration? processTime;
 
-  /// What was actually measured at this station, before §7.4 rebalanced it.
+  /// What was actually measured at this workcenter, before §7.4 rebalanced it.
   ///
   /// Equal to [processTime] everywhere except inside a balance group, where the
-  /// two differ by whatever the takt moved between stations. It is the figure
+  /// two differ by whatever the takt moved between workcenters. It is the figure
   /// the demand grid holds and edits, so a surface showing what someone typed
   /// shows this — and a surface showing what the flow costs shows the other.
   ///
@@ -475,7 +475,7 @@ class FlowStepView {
   /// Why this step is or is not taking a derived share (§7.7.4).
   ///
   /// **Carried rather than re-derived by whatever displays it.** The step
-  /// dialog says in words why a station is not being rebalanced, and a caption
+  /// dialog says in words why a workcenter is not being rebalanced, and a caption
   /// worked out separately from the split could disagree with the figure beside
   /// it — which is worse than no caption, and is the failure this whole round
   /// came out of.
@@ -485,7 +485,7 @@ class FlowStepView {
   /// would otherwise have been in one.
   bool get isPinned => node.balanceDisabled ?? false;
 
-  /// One takt of this station's productive capacity — the flow equivalent's
+  /// One takt of this workcenter's productive capacity — the flow equivalent's
   /// process time here (DESIGN.md §6.1), or the step's own Process Specific
   /// Takt Time where it carries one (§6.1.1).
   ///
@@ -494,7 +494,7 @@ class FlowStepView {
   /// ```
   ///
   /// **Availability is in it; rework is not.** Availability is a property of
-  /// the station's capacity, so it belongs here; rework is a loss on the work a
+  /// the workcenter's capacity, so it belongs here; rework is a loss on the work a
   /// *part* requires, so it attaches to that part's process time instead.
   ///
   /// Computed whatever the data source, because it is the **yardstick**: it is
@@ -502,7 +502,7 @@ class FlowStepView {
   /// nothing without it.
   final Duration? equivalentProcessTime;
 
-  /// `part_pt ÷ FE_pt` at this step — how many takts of this station's capacity
+  /// `part_pt ÷ FE_pt` at this step — how many takts of this workcenter's capacity
   /// the part being shown actually consumes (DESIGN.md §6.2).
   ///
   /// Null under [FlowDataSource.flowEquivalent], where it would be 1.0 by
@@ -534,16 +534,16 @@ class FlowStepView {
   /// exist to prevent.
   final double samePartFraction;
 
-  /// What the calendar says the station is open, before any loss.
+  /// What the calendar says the workcenter is open, before any loss.
   final Duration openPerWorkingDay;
 
-  /// `open × availability` — the 16.77 h of a 22:40 station at 74 %.
+  /// `open × availability` — the 16.77 h of a 22:40 workcenter at 74 %.
   ///
   /// The divisor the ladder renders days against, which is what makes one takt
   /// read as exactly the takt: `50.32 h ÷ 16.77 h = 3.0 d`.
   final Duration productivePerWorkingDay;
 
-  /// What the calendar says the station is open across the **whole** viewed
+  /// What the calendar says the workcenter is open across the **whole** viewed
   /// span, weekends and exceptions accounted for — a walk of real dates, not
   /// [openPerWorkingDay] multiplied by a working-day count.
   ///
@@ -593,14 +593,14 @@ class FlowStepView {
   ///
   /// **The changeover is in the rung since the map went per order.** It was on
   /// the box as a figure and in no total, so typing a setup moved one row and
-  /// nothing else; the engine has always charged it as part of a station's
+  /// nothing else; the engine has always charged it as part of a workcenter's
   /// occupancy (§7.6), and a ladder that left it out could not be compared with
   /// what a run reports. The queue's wait is its own rung above the link.
   Duration get ladderTime => (processTime ?? Duration.zero) + changeover;
 
   /// The working day the ladder renders [ladderTime] against, so a rung can
   /// read `3.8 d` the way a value-stream map draws it. Null — and the rung
-  /// falls back to hours — when no schedule gives this station a working day.
+  /// falls back to hours — when no schedule gives this workcenter a working day.
   Duration? get referenceWorkingDay =>
       productivePerWorkingDay == Duration.zero ? null : productivePerWorkingDay;
 
@@ -706,7 +706,7 @@ class FlowView {
   /// The queues the flow stands in, in flow order.
   ///
   /// **Deduplicated by target**, because two steps of one study may feed the
-  /// same station and the plant has one floor space there. Counting it twice is
+  /// same workcenter and the plant has one floor space there. Counting it twice is
   /// the doubling §7.3 exists to undo, and it would land in the lead-time
   /// ladder as well as in the picture.
   Iterable<FlowQueueView> get queues {
@@ -718,10 +718,10 @@ class FlowView {
     ];
   }
 
-  /// Time at the stations — the `Process time` footer figure, and the sum of
+  /// Time at the workcenters — the `Process time` footer figure, and the sum of
   /// the ladder's lower rungs (§17.4).
   ///
-  /// **Work plus changeover**, because that is what an order occupies a station
+  /// **Work plus changeover**, because that is what an order occupies a workcenter
   /// for and what §7.6 charges it. It is therefore the map's statement of the
   /// same quantity §7.9 walks as the theoretical lead time, and the gap between
   /// this and what a run observes is the queueing — which is the one thing a run
@@ -754,7 +754,7 @@ class FlowView {
   /// is the number a planner expects to see beside a working-day lead time.
   ///
   /// **It will not match the simulation**, and that is not a defect in either.
-  /// A run walks each station's real calendar (§7.2), so it charges the
+  /// A run walks each workcenter's real calendar (§7.2), so it charges the
   /// weekends and shutdowns this plant actually has; the map states the
   /// convention. When they differ, the run is what happened.
   ///
@@ -795,7 +795,7 @@ class FlowView {
   /// the one formatter the boxes, rungs and footer all share.
   ///
   /// A derived divisor rather than a chosen one: the steps of a flow do not
-  /// have to share a working day — a single-shift station and a three-shift one
+  /// have to share a working day — a single-shift workcenter and a three-shift one
   /// legitimately differ — so there is no one day to pick, only the one that
   /// makes the total agree with the rungs it is a total of. Null for an empty
   /// flow, where the formatter's own 24-hour fallback is as good an answer as
@@ -926,7 +926,7 @@ FlowView buildFlowView({
   );
 
   // **Built twice, because a balance group is a property of the flow and
-  // `_buildStep` sees one node** (§7.4). The first pass is what each station
+  // `_buildStep` sees one node** (§7.4). The first pass is what each workcenter
   // measured and what one takt is worth at it; the balance reads the sequence
   // of those, and the second pass hands each group member its share.
   //
@@ -965,10 +965,10 @@ FlowView buildFlowView({
   ];
 
   // The ends borrow the adjacent step's productive day, because an endpoint is
-  // not a station (see [FlowEndStockView.referenceWorkingDay]). On an empty
+  // not a workcenter (see [FlowEndStockView.referenceWorkingDay]). On an empty
   // flow there is nothing to borrow from and a takt in `days` cannot be
   // resolved, which lands the pile at zero — the same answer a queue with no
-  // bound station already gives.
+  // bound workcenter already gives.
   return FlowView(
     study: study,
     nodes: views,
@@ -1103,13 +1103,13 @@ FlowStepView _buildStep({
   // workcenter that is the same figure again; for a pool it is the whole
   // group, which is the point of having one.
   //
-  // **A station's parallel units multiply here and nowhere else** (§3.1). A
+  // **A workcenter's parallel units multiply here and nowhere else** (§3.1). A
   // pool of three is the precedent: its members raise this total while
   // `productivePerDay` below stays one machine's clock, so §8.4's occupation
   // halves for two units and §6.1's equivalent still reads per machine. Putting
   // units into the clock instead would also stretch the release cadence, since
   // §7.2 measures a takt in days on the pace setter's productive day — and how
-  // many machines a station has is not how long its day is.
+  // many machines a workcenter has is not how long its day is.
   final capacityMembers = node.poolId != null
       ? (poolMembers[node.poolId] ?? const <String>[])
       : [?targetId];
@@ -1133,7 +1133,7 @@ FlowStepView _buildStep({
   //
   //     takt × (open_hours_per_working_day × availability)
   //
-  // Availability is part of the station's capacity, so it is in here; rework is
+  // Availability is part of the workcenter's capacity, so it is in here; rework is
   // a loss on the work a *part* needs, so it is not. A step may state this
   // itself instead of taking one takt — an inspection worth a fraction of a
   // takt, so the equivalent is not skewed at that step.
@@ -1144,7 +1144,7 @@ FlowStepView _buildStep({
 
   // The full changeover — teardown then setup — as a part change would pay it
   // (§7.6). Resolved here rather than at the top of this function because
-  // `days` means this station's productive day, which is not known until the
+  // `days` means this workcenter's productive day, which is not known until the
   // schedule has been read.
   //
   // **The repeat percentage is deliberately not applied.** The box states what
@@ -1184,7 +1184,7 @@ FlowStepView _buildStep({
   }
 
   // What the box shows. The equivalent needs no demand at all; the other two
-  // read a real part's stored time and charge this station's rework against it
+  // read a real part's stored time and charge this workcenter's rework against it
   // (DESIGN.md §6.2).
   var processTime = equivalentProcessTime;
   if (dataSource.isDemandPart && problems.isEmpty) {
@@ -1202,7 +1202,7 @@ FlowStepView _buildStep({
     // work belongs to the group. That is true of a *blank* and false of a
     // *zero*, and nothing here distinguished them — so a part storing `0` at
     // CEU30 to say it does not route there was handed 94.3 h of CEU32's work.
-    // The balance now takes only stations with positive time, so a null here is
+    // The balance now takes only workcenters with positive time, so a null here is
     // a null again: an unanswered question, and §6.2 is right that it blocks.
     if (processTime == null) problems.add(StepProblem.noProcessTime);
   }
@@ -1251,7 +1251,7 @@ FlowStepView _buildStep({
 /// (§7.3, §5.5).
 ///
 /// Null only when the step targets nothing: there is no floor space in front of
-/// a step that names no station.
+/// a step that names no workcenter.
 ///
 /// **A target with no stored row still has a queue**, with everything about it
 /// unset. Every step has a queue in front of it (§7.3) — what differs is the
@@ -1338,11 +1338,11 @@ FlowQueueView? _buildQueue({
   );
 }
 
-/// A real part's process time at one step, with that station's rework charged
+/// A real part's process time at one step, with that workcenter's rework charged
 /// against it (DESIGN.md §6.2).
 ///
 /// **Keyed by the step, not by what it targets** (§9). Reading it by target id
-/// compiles and returns null on every box, so a flow that visits one station
+/// compiles and returns null on every box, so a flow that visits one workcenter
 /// twice — and every flow that does not — reported the part uncosted while the
 /// grid was showing its times. A pool step still needs no special case: the
 /// step is one step whichever member stands in for it (§3.1).
@@ -1385,7 +1385,7 @@ Duration? _demandProcessTime({
     case FlowDataSource.weightedVariants:
       // Sigma(pt x pieces) / Sigma pieces, over the parts that actually visit
       // this step. A part that skips it is left out of the denominator too:
-      // averaging its absence in would claim the station is faster than any
+      // averaging its absence in would claim the workcenter is faster than any
       // piece passing through it ever is (§5.1).
       var work = 0.0;
       var pieces = 0;

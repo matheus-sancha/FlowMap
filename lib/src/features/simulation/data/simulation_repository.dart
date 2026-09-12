@@ -12,7 +12,7 @@ import '../application/sim_model.dart';
 ///
 /// The loading half of `sim_assembly.dart`: this reads the rows and builds the
 /// calendars, and every decision about what they mean — what a quantity buffer
-/// becomes, which station paces the releases, whether a study can run at all —
+/// becomes, which workcenter paces the releases, whether a study can run at all —
 /// stays in the pure assembler beside it, where it is a unit test rather than a
 /// question you answer by pressing Simulate.
 ///
@@ -71,15 +71,15 @@ class SimulationRepository {
         )..where((w) => w.plantId.equals(project.plantId))).get();
     final byId = {for (final row in workcenterRows) row.id: row};
 
-    // Read before the loop below so a station can carry its own type into the
-    // run (§10.2). By id *and* by name: the balance compares two stations by
+    // Read before the loop below so a workcenter can carry its own type into the
+    // run (§10.2). By id *and* by name: the balance compares two workcenters by
     // name (§7.4) and §10.3's pivot columns need an identity a rename cannot
     // move, so the run keeps both.
     final typeRows = await _db.select(_db.workcenterTypes).get();
     final typeNames = {for (final type in typeRows) type.id: type.name};
     // Whether a type's crew is its throughput (§7.5, v30). Read here with the
     // names because it travels the same way: a property of the type, copied
-    // onto each station so the engine never joins back to the plant.
+    // onto each workcenter so the engine never joins back to the plant.
     final labourPaced = {
       for (final type in typeRows)
         if (type.isLabourPaced) type.id,
@@ -106,10 +106,10 @@ class SimulationRepository {
       );
     }
 
-    // **Every station the plant has scheduled**, which is a wider set than the
+    // **Every workcenter the plant has scheduled**, which is a wider set than the
     // routings reach and is what monthly capacity is written for (phase 9).
     //
-    // A station with a schedule and no demand is *idle*; a station with neither
+    // A workcenter with a schedule and no demand is *idle*; a workcenter with neither
     // is *unmodelled*, and drawing it as a row of zeroes would invent a machine
     // nobody has said anything about. So the schedule is the filter — on the
     // live plant that is 18 of 42 workcenters, and 17 of the 18 already carry
@@ -117,13 +117,13 @@ class SimulationRepository {
     //
     // The schedule is read before the calendar because it is the cheap half of
     // the pair and it decides: 24 of the 42 are answered without a calendar
-    // walk. Stations already assembled above are reused rather than rebuilt.
-    final scheduledStations = <String, SimWorkcenter>{};
+    // walk. Workcenters already assembled above are reused rather than rebuilt.
+    final scheduledWorkcenters = <String, SimWorkcenter>{};
     for (final row in workcenterRows) {
       final existing = workcenters[row.id];
       if (existing != null) {
         if (existing.schedule.periods.isNotEmpty) {
-          scheduledStations[row.id] = existing;
+          scheduledWorkcenters[row.id] = existing;
         }
         continue;
       }
@@ -137,7 +137,7 @@ class SimulationRepository {
         workcenterId: row.id,
       );
       if (calendar == null) continue;
-      scheduledStations[row.id] = SimWorkcenter(
+      scheduledWorkcenters[row.id] = SimWorkcenter(
         id: row.id,
         name: row.name,
         calendar: calendar,
@@ -150,7 +150,7 @@ class SimulationRepository {
     }
 
     // Workcenter → the name of its type, which is the identity §7.4 balances
-    // on. By name rather than by id because the balance compares two stations
+    // on. By name rather than by id because the balance compares two workcenters
     // and a name is what a reader would compare them by — and because the type
     // rows are a handful, so the join is one query for the whole plant.
     final workcenterTypeNames = {
@@ -206,12 +206,12 @@ class SimulationRepository {
         line.id: line.name,
     };
 
-    // A takt in days means productive days of a station (§6.1), so resolving
-    // one into a duration needs each station's own open time.
+    // A takt in days means productive days of a workcenter (§6.1), so resolving
+    // one into a duration needs each workcenter's own open time.
     //
     // **Read at the run's start, once, and that is now the only thing here that
     // is.** §7.9 made the *takt* the order's — every period the line states is
-    // resolved and the engine reads the one in force — but a station's own
+    // resolved and the engine reads the one in force — but a workcenter's own
     // staffing is a second axis and this round did not touch it. A workcenter
     // whose shift pattern changes in July still reports one productive day for
     // the whole run, exactly as it always has, and the takt periods are
@@ -222,7 +222,7 @@ class SimulationRepository {
     };
 
     // **The same day, derated once.** Both figures come from the one call above
-    // so a station cannot report an open day the productive one disagrees with
+    // so a workcenter cannot report an open day the productive one disagrees with
     // — which is the shape §7.2's cadence defect had.
     Map<String, Duration> productiveOn(DateTime asOf) => {
       for (final entry in openOn(asOf).entries)
@@ -303,17 +303,17 @@ class SimulationRepository {
       return SimRunInput(
         studies: assembled,
         workcenters: workcenters,
-        scheduledStations: scheduledStations,
+        scheduledWorkcenters: scheduledWorkcenters,
         readiness: readiness,
-        // **Over the stations the run USES, not the ones it can draw**, and
+        // **Over the workcenters the run USES, not the ones it can draw**, and
         // this is the trap in phase 9. On the live plant the one idle
-        // scheduled station ends 2026-12-31 while all seventeen busy ones end
-        // 2027-12-31, so `scheduledStations.values` here would drag the
+        // scheduled workcenter ends 2026-12-31 while all seventeen busy ones end
+        // 2027-12-31, so `scheduledWorkcenters.values` here would drag the
         // horizon back a year and fire §11.1's warning on runs with nothing
         // wrong with them.
         scheduleHorizon: _horizonOf(
           takts: [for (final study in flagged) demand[study.id]!.takt],
-          stations: workcenters.values,
+          workcenters: workcenters.values,
         ),
       );
     }
@@ -357,13 +357,13 @@ typedef _StudyDemand = ({
 /// earliest of them at least one schedule is being carried forward — and a
 /// figure is only as defined as the least-defined thing that produced it.
 /// Taking the maximum would say the run was covered right up to whichever
-/// station happened to have the longest schedule.
+/// workcenter happened to have the longest schedule.
 ///
 /// Null when nothing has any periods, which is a state the readiness panel
 /// already blocks on: there is no horizon to be past.
 DateTime? _horizonOf({
   required Iterable<TaktScheduleSpec> takts,
-  required Iterable<SimWorkcenter> stations,
+  required Iterable<SimWorkcenter> workcenters,
 }) {
   DateTime? earliest;
   void consider(Iterable<DateTime> ends) {
@@ -375,8 +375,8 @@ DateTime? _horizonOf({
   for (final takt in takts) {
     consider([for (final period in takt.periods) period.endDate]);
   }
-  for (final station in stations) {
-    consider([for (final period in station.schedule.periods) period.endDate]);
+  for (final workcenter in workcenters) {
+    consider([for (final period in workcenter.schedule.periods) period.endDate]);
   }
   return earliest;
 }

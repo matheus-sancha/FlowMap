@@ -60,7 +60,7 @@ void main() {
       result: result,
       metrics: metrics,
       plan: const [],
-      stationsAreWholeRun: true,
+      workcentersAreWholeRun: true,
     );
   }
 

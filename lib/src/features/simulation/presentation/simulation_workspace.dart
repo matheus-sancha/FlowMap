@@ -67,10 +67,10 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
   final _orders = <int>{};
 
   /// **#9's two, promoted out of the Occupation view.** They were
-  /// `OccupationStations`, owned by that view and reaching nothing else — so a
+  /// `OccupationWorkcenters`, owned by that view and reaching nothing else — so a
   /// reader narrowing to one workcenter narrowed a chart and left the Gantt and
   /// the queue tables drawing the whole plant. They are structural filters like
-  /// the cells and lines beside them, and every surface whose rows are stations
+  /// the cells and lines beside them, and every surface whose rows are workcenters
   /// obeys them now.
   final _types = <String>{};
   final _workcenters = <String>{};
@@ -290,7 +290,7 @@ class _FilterBar extends StatelessWidget {
                   const SizedBox(width: 8),
                   // **A cell or line filter is a study filter one level up**
                   // (§7.10): workcenters belong to a plant, not to a cell, so
-                  // these narrow which studies are in view and the stations
+                  // these narrow which studies are in view and the workcenters
                   // follow from them.
                   _MultiPicker(
                     label: l10n.simFilterCells,
@@ -307,9 +307,9 @@ class _FilterBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   // **#9's two, beside the other structural filters** — these
-                  // choose the station set, so demand and capacity move
+                  // choose the workcenter set, so demand and capacity move
                   // together and a cell still reads everyone's demand over that
-                  // station's full capacity. Next to Cells and Lines rather
+                  // workcenter's full capacity. Next to Cells and Lines rather
                   // than next to §7.5's three, because what a filter *does* is
                   // the thing worth grouping by: these four narrow the plant,
                   // the three after them narrow the orders.
@@ -321,7 +321,7 @@ class _FilterBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   _MultiPicker(
-                    label: l10n.occupationStation,
+                    label: l10n.occupationWorkcenter,
                     options: options.workcenters,
                     selected: workcenters,
                     onChanged: onChanged,

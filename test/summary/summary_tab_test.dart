@@ -58,7 +58,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('names the bottleneck and lists every station', (tester) async {
+  testWidgets('names the bottleneck and lists every workcenter', (tester) async {
     await pump(
       tester,
       SummaryView(
@@ -151,7 +151,7 @@ void main() {
     expect(find.textContaining('No demand takt yet'), findsOneWidget);
   });
 
-  testWidgets('a station short of process times is flagged', (tester) async {
+  testWidgets('a workcenter short of process times is flagged', (tester) async {
     await pump(
       tester,
       SummaryView(

@@ -31,8 +31,8 @@ import 'sim_result.dart';
 
 /// Fixed sizes, in logical pixels.
 abstract final class GanttMetrics {
-  /// One station's band. Fixed: §8.6 zooms in X only, so a taller pane shows
-  /// more stations rather than fatter ones.
+  /// One workcenter's band. Fixed: §8.6 zooms in X only, so a taller pane shows
+  /// more workcenters rather than fatter ones.
   static const rowHeight = 30.0;
 
   /// The bar inside it, centred.
@@ -43,14 +43,14 @@ abstract final class GanttMetrics {
   /// A lane's band is as deep as the lane is, so a full lane is visibly full
   /// rather than something a reader has to infer from a gap in the row below
   /// it. Shorter than [rowHeight] because a lane of three would otherwise be
-  /// three times the height of the station it feeds and dominate a chart whose
-  /// subject is the stations.
+  /// three times the height of the workcenter it feeds and dominate a chart whose
+  /// subject is the workcenters.
   static const laneSlotHeight = 10.0;
 
   /// The waiting bar inside that slot.
   static const laneBarHeight = 7.0;
 
-  /// Above and below a lane's stack, so its orders do not touch the station
+  /// Above and below a lane's stack, so its orders do not touch the workcenter
   /// bands either side.
   static const lanePadding = 3.0;
 
@@ -58,7 +58,7 @@ abstract final class GanttMetrics {
   ///
   /// An uncapped lane takes its depth from how full it actually got (§5.5), and
   /// CEU27's held **8 orders at once** on the 2026-08-09 run — 80 px of band
-  /// above a 30 px station, for a lane whose depth is an observation rather
+  /// above a 30 px workcenter, for a lane whose depth is an observation rather
   /// than a rule. Past this the stack is drawn full and the count is in the
   /// label, which is the same bargain [minBarWidth] makes: legible beats
   /// literal, and the number is never hidden.
@@ -68,7 +68,7 @@ abstract final class GanttMetrics {
   ///
   /// At whole-run scale a step of a few hours is a fraction of a pixel and
   /// would simply not be there, which is worse than being drawn wider than it
-  /// is: a station's row would read as empty during hours it was running. The
+  /// is: a workcenter's row would read as empty during hours it was running. The
   /// bars that hit this floor are counted ([GanttLayout.flooredBars]) so the
   /// view can say so while it is true and stop when it stops being true.
   static const minBarWidth = 2.0;
@@ -136,7 +136,7 @@ class GanttPart {
   final int colourIndex;
 }
 
-/// One order's visit to one station: the span the station was committed to it.
+/// One order's visit to one workcenter: the span the workcenter was committed to it.
 ///
 /// `processStart → processEnd`, **closed hours included**. The engine ends a
 /// step at `calendar.advance(now, occupancy)`, so a two-open-hour job started on
@@ -174,7 +174,7 @@ class GanttBar {
   final DateTime end;
 
   /// What the order waited here before this bar began. Reported in the hover
-  /// card rather than drawn: one station can hold dozens of orders at once, and
+  /// card rather than drawn: one workcenter can hold dozens of orders at once, and
   /// drawing those spans would smear the row solid over the bars underneath.
   final Duration wait;
 
@@ -187,27 +187,27 @@ class GanttBar {
   /// [occupied] is this same work laid on the calendar, so it is longer by
   /// whatever closed time the bar crossed: a 76-hour operation spanning a
   /// weekend draws 148 hours wide. That makes the bar useless for checking
-  /// §7.4's balance, which moves work *between* two stations — so the card
+  /// §7.4's balance, which moves work *between* two workcenters — so the card
   /// states this beside it. Null on a run stored before v21, where the card
   /// omits the line rather than inventing one.
   final Duration? process;
 
-  /// Which unit of the station ran it, as far as the chart can tell: the
+  /// Which unit of the workcenter ran it, as far as the chart can tell: the
   /// topmost sub-row no overlapping bar is using.
   ///
-  /// **A station's bars stopped tiling when §3.2 landed.** §8.6 was written when
+  /// **A workcenter's bars stopped tiling when §3.2 landed.** §8.6 was written when
   /// every workcenter was one server, so two bars could not overlap and one
-  /// sub-row was enough; a station given parallel units genuinely runs two
+  /// sub-row was enough; a workcenter given parallel units genuinely runs two
   /// orders at once, and drawing both at one height puts one on top of the
   /// other. Found by looking at it — TTAT is set to two units on célula 11B.
   ///
   /// **Derived, not stored.** `simulation_run_workcenters` keeps no unit count,
   /// and §7.10 forbids joining back to the plant to ask — but the overlap is in
-  /// the steps, so the depth a station needs is the depth it was observed to
-  /// use. A station that never ran two at once draws exactly as it did before.
+  /// the steps, so the depth a workcenter needs is the depth it was observed to
+  /// use. A workcenter that never ran two at once draws exactly as it did before.
   final int slot;
 
-  /// Wall-clock time the station was committed.
+  /// Wall-clock time the workcenter was committed.
   Duration get occupied => end.difference(start);
 
   GanttBar _atSlot(int slot) => GanttBar(
@@ -228,7 +228,7 @@ class GanttBar {
 ///
 /// Read off [SimOrderStep] rather than stored twice — `queueStart` is when the
 /// order entered the lane in front of that step and `processStart` is when the
-/// station took it — with [SimOpenLaneVisit] supplying the orders the guard
+/// workcenter took it — with [SimOpenLaneVisit] supplying the orders the guard
 /// caught still standing there, which produce no step at all.
 class GanttLaneVisit {
   const GanttLaneVisit({
@@ -249,7 +249,7 @@ class GanttLaneVisit {
 
   final DateTime entered;
 
-  /// When the station pulled it out — or the run's end, when [open].
+  /// When the workcenter pulled it out — or the run's end, when [open].
   final DateTime left;
 
   /// Which slot down the band it is drawn in, 0 at the top.
@@ -266,10 +266,10 @@ class GanttLaneVisit {
   Duration get waited => left.difference(entered);
 }
 
-/// A band down the chart: either a station or the lane feeding it.
+/// A band down the chart: either a workcenter or the lane feeding it.
 ///
 /// A union rather than a flag, because the two carry different things and are
-/// drawn differently — a station's bars tile along one line, a lane's stack
+/// drawn differently — a workcenter's bars tile along one line, a lane's stack
 /// down its depth — and a reader of this file should not have to know which
 /// fields are live for which kind.
 sealed class GanttBand {
@@ -283,7 +283,7 @@ sealed class GanttBand {
   double get height;
 }
 
-/// One station's row.
+/// One workcenter's row.
 class GanttRow extends GanttBand {
   const GanttRow({
     required this.workcenterId,
@@ -296,17 +296,17 @@ class GanttRow extends GanttBand {
 
   final String workcenterId;
 
-  /// The pool the run says this station was dispatched through (§3.1), or null
+  /// The pool the run says this workcenter was dispatched through (§3.1), or null
   /// where it ran on its own name — or was reached through more than one pool,
   /// or the run predates v18. A non-null [poolId] is what keeps it adjacent to
   /// its siblings and puts `CLAD Pool · ` in front of every one of their labels.
   ///
-  /// [poolName] can outlive [poolId]: a station reached two ways names them
+  /// [poolName] can outlive [poolId]: a workcenter reached two ways names them
   /// both and groups under neither.
   final String? poolId;
   final String? poolName;
 
-  /// The name the station had when the run was made (§7.10).
+  /// The name the workcenter had when the run was made (§7.10).
   @override
   final String name;
 
@@ -317,11 +317,11 @@ class GanttRow extends GanttBand {
   /// than one unit (§3.2).
   final List<GanttBar> bars;
 
-  /// How many orders this station was ever running at once, at least one.
+  /// How many orders this workcenter was ever running at once, at least one.
   ///
-  /// Bounded by the station's parallel capacity, which the run does not store —
+  /// Bounded by the workcenter's parallel capacity, which the run does not store —
   /// so this is what was observed rather than what was allowed, and a two-unit
-  /// station that never had two orders in hand at the same moment draws one
+  /// workcenter that never had two orders in hand at the same moment draws one
   /// deep. That is the honest reading: the chart shows the run, not the plant.
   final int depth;
 
@@ -329,7 +329,7 @@ class GanttRow extends GanttBand {
   double get height => depth * GanttMetrics.rowHeight;
 }
 
-/// One lane's band, drawn immediately above the station it feeds (§3.4, §8.6).
+/// One lane's band, drawn immediately above the workcenter it feeds (§3.4, §8.6).
 class GanttLaneRow extends GanttBand {
   const GanttLaneRow({
     required this.laneNodeId,
@@ -342,7 +342,7 @@ class GanttLaneRow extends GanttBand {
 
   final String laneNodeId;
 
-  /// `FIFO · CEU27` — derived from the lane's rule and the station it feeds
+  /// `FIFO · CEU27` — derived from the lane's rule and the workcenter it feeds
   /// since v27, or, on a run stored before then, the name that was typed.
   @override
   final String name;
@@ -384,20 +384,20 @@ class GanttChart {
     required this.end,
   });
 
-  /// One per station, **in the order the work flows through them** — the first
-  /// station of the routing on the first row, so an order is read diagonally
+  /// One per workcenter, **in the order the work flows through them** — the first
+  /// workcenter of the routing on the first row, so an order is read diagonally
   /// down the chart the way it is read left to right along the map (§5.1) —
-  /// with each lane's band immediately above the station it feeds, so the chart
+  /// with each lane's band immediately above the workcenter it feeds, so the chart
   /// reads down the page the way the line runs.
   ///
   /// Ties fall back to `RunMetrics.workcenters`, the Queue table's ranking, so
-  /// stations at one position in the routing — a pool's three machines — still
-  /// come out busiest-first and in the same order twice running. A station that
+  /// workcenters at one position in the routing — a pool's three machines — still
+  /// come out busiest-first and in the same order twice running. A workcenter that
   /// never ran has no row.
   final List<GanttBand> rows;
 
-  /// Just the station bands, in the same order.
-  Iterable<GanttRow> get stations => rows.whereType<GanttRow>();
+  /// Just the workcenter bands, in the same order.
+  Iterable<GanttRow> get workcenters => rows.whereType<GanttRow>();
 
   /// Just the lane bands, in the same order.
   Iterable<GanttLaneRow> get lanes => rows.whereType<GanttLaneRow>();
@@ -408,7 +408,7 @@ class GanttChart {
 
   /// The run's own start and end, widened if a bar somehow falls outside them.
   ///
-  /// The axis covers **the run**, not merely the work: a station idle for the
+  /// The axis covers **the run**, not merely the work: a workcenter idle for the
   /// last three months of a run should read as idle for three months rather
   /// than as the run having ended when the last bar did.
   final DateTime start;
@@ -429,8 +429,8 @@ class GanttChart {
 ///
 /// **One chart for the whole run, all studies together** — deliberately the
 /// opposite of §8.5's per-study sectioning, and for a stated reason: the plan's
-/// rows are orders and an order belongs to one line, but a station is shared.
-/// Splitting per study would draw a station idle during hours it was in fact
+/// rows are orders and an order belongs to one line, but a workcenter is shared.
+/// Splitting per study would draw a workcenter idle during hours it was in fact
 /// running another study's order, which is the one thing §7.7 exists to model.
 ///
 /// A step whose order or part the run cannot name is dropped. It cannot happen
@@ -443,7 +443,7 @@ class GanttChart {
 /// **A callback, because the caption is localized and this file is pure.** Since
 /// v27 a new run stores no lane name: the caption is `<type> · <target>`, both
 /// halves of which the run already copies in — the lane's `rule` and the
-/// station's name — so it is derived at render and reads in the reader's own
+/// workcenter's name — so it is derived at render and reads in the reader's own
 /// language. Runs stored before v27 carry the name that was typed, and the
 /// default below draws it.
 typedef GanttLaneCaption = String Function(SimLane lane);
@@ -474,14 +474,14 @@ GanttChart buildGanttChart({
 
   var start = result.start;
   var end = result.end;
-  final byStation = <String, List<GanttBar>>{};
+  final byWorkcenter = <String, List<GanttBar>>{};
 
   for (final step in result.steps) {
     final outcome = ordersById[step.orderId];
     final part = outcome == null ? null : partsById[outcome.partId];
     if (outcome == null || part == null) continue;
 
-    byStation
+    byWorkcenter
         .putIfAbsent(step.workcenterId, () => [])
         .add(
           GanttBar(
@@ -504,12 +504,12 @@ GanttChart buildGanttChart({
   }
 
   // **What a lane feeds, and what a header labels, is the group** — the pool
-  // where the station ran in one (§3.1), the station itself otherwise. Read off
+  // where the workcenter ran in one (§3.1), the workcenter itself otherwise. Read off
   // the metrics, which read it off the run, so a plant re-pooled since cannot
   // move a band (§7.10).
   final groupOf = {
-    for (final station in metrics.workcenters)
-      station.workcenterId: station.poolId ?? station.workcenterId,
+    for (final workcenter in metrics.workcenters)
+      workcenter.workcenterId: workcenter.poolId ?? workcenter.workcenterId,
   };
 
   // Down the page in the order the work happens, with the Queue table's
@@ -519,16 +519,16 @@ GanttChart buildGanttChart({
   // **A group sorts where its busiest member would have sorted.** Each takes
   // the earliest routing rank and the best Queue rank any of its members has —
   // so a pool cannot be split by one machine also appearing later in the flow,
-  // and an ungrouped station is its own group and lands exactly where it always
+  // and an ungrouped workcenter is its own group and lands exactly where it always
   // did. Ranking a group by its name instead would have been simpler and would
-  // have thrown away the Queue table's order for every station that is not in
+  // have thrown away the Queue table's order for every workcenter that is not in
   // a pool.
   final groupFlow = <String, int>{};
   final groupQueue = <String, int>{};
   for (var i = 0; i < metrics.workcenters.length; i++) {
-    final station = metrics.workcenters[i];
-    final group = groupOf[station.workcenterId]!;
-    final rank = flow[station.workcenterId] ?? _unrouted;
+    final workcenter = metrics.workcenters[i];
+    final group = groupOf[workcenter.workcenterId]!;
+    final rank = flow[workcenter.workcenterId] ?? _unrouted;
     if (rank < (groupFlow[group] ?? _unrouted)) groupFlow[group] = rank;
     groupQueue[group] = groupQueue[group] ?? i;
   }
@@ -536,16 +536,16 @@ GanttChart buildGanttChart({
   final ordered =
       [
         for (var i = 0; i < metrics.workcenters.length; i++)
-          (station: metrics.workcenters[i], queueRank: i),
+          (workcenter: metrics.workcenters[i], queueRank: i),
       ]..sort((a, b) {
-        final groupA = groupOf[a.station.workcenterId]!;
-        final groupB = groupOf[b.station.workcenterId]!;
+        final groupA = groupOf[a.workcenter.workcenterId]!;
+        final groupB = groupOf[b.workcenter.workcenterId]!;
         final byFlow = (groupFlow[groupA] ?? _unrouted).compareTo(
           groupFlow[groupB] ?? _unrouted,
         );
         if (byFlow != 0) return byFlow;
         // Two groups can share a routing rank — a step on a pool and a step on
-        // a lone station at one position — and their members must not
+        // a lone workcenter at one position — and their members must not
         // interleave, or a header would sit above a machine belonging to the
         // other. Ordered by the Queue ranking rather than by name, which is
         // what keeps this identical to the old two-clause sort wherever no
@@ -559,21 +559,21 @@ GanttChart buildGanttChart({
         return byGroup != 0 ? byGroup : a.queueRank.compareTo(b.queueRank);
       });
 
-  final stations = <GanttRow>[];
+  final workcenters = <GanttRow>[];
   for (final entry in ordered) {
-    final bars = byStation[entry.station.workcenterId];
+    final bars = byWorkcenter[entry.workcenter.workcenterId];
     if (bars == null) continue;
 
     bars.sort((a, b) {
       final byStart = a.start.compareTo(b.start);
-      // Order id last, so a station handed two bars starting in the same
+      // Order id last, so a workcenter handed two bars starting in the same
       // second draws them the same way twice running.
       return byStart != 0 ? byStart : a.orderId.compareTo(b.orderId);
     });
 
     // The topmost sub-row free when each bar starts. One unit re-uses slot 0
-    // throughout, which is what keeps every single-unit station drawn exactly
-    // as it was before §3.2 gave a station more than one.
+    // throughout, which is what keeps every single-unit workcenter drawn exactly
+    // as it was before §3.2 gave a workcenter more than one.
     final freeAt = <DateTime>[];
     final placed = <GanttBar>[];
     for (final bar in bars) {
@@ -587,14 +587,14 @@ GanttChart buildGanttChart({
       placed.add(bar._atSlot(slot));
     }
 
-    stations.add(
+    workcenters.add(
       GanttRow(
-        workcenterId: entry.station.workcenterId,
-        name: entry.station.name,
+        workcenterId: entry.workcenter.workcenterId,
+        name: entry.workcenter.name,
         bars: placed,
         depth: freeAt.isEmpty ? 1 : freeAt.length,
-        poolId: entry.station.poolId,
-        poolName: entry.station.poolName,
+        poolId: entry.workcenter.poolId,
+        poolName: entry.workcenter.poolName,
       ),
     );
   }
@@ -612,22 +612,22 @@ GanttChart buildGanttChart({
           groupOf: groupOf,
           laneCaption: laneCaption,
           poolNameOf: {
-            for (final station in metrics.workcenters)
-              if (station.poolId != null && station.poolName != null)
-                station.poolId!: station.poolName!,
+            for (final workcenter in metrics.workcenters)
+              if (workcenter.poolId != null && workcenter.poolName != null)
+                workcenter.poolId!: workcenter.poolName!,
           },
         )
       : const <String, List<GanttLaneRow>>{};
 
   // **Emitted a group at a time.** A pool's members sit under one header, the
   // lanes that feed the pool are drawn once above them rather than once per
-  // machine, and a station standing on its own draws exactly as it always did.
+  // machine, and a workcenter standing on its own draws exactly as it always did.
   final rows = <GanttBand>[];
   var group = _noGroup;
-  for (final station in stations) {
-    final key = groupOf[station.workcenterId]!;
+  for (final workcenter in workcenters) {
+    final key = groupOf[workcenter.workcenterId]!;
     if (key == group) {
-      rows.add(station);
+      rows.add(workcenter);
       continue;
     }
     group = key;
@@ -640,31 +640,31 @@ GanttChart buildGanttChart({
     // a band that belongs to nothing.
     //
     // The lanes come first: an order stands in the lane and is then taken by
-    // the station, so upstream is up the page.
+    // the workcenter, so upstream is up the page.
     rows.addAll(lanes[key] ?? const []);
-    rows.add(station);
+    rows.add(workcenter);
   }
 
   return GanttChart(rows: rows, parts: parts, start: start, end: end);
 }
 
 /// No group has been opened yet. A sentinel rather than null, so the first
-/// station always opens one and the loop has no special first case.
+/// workcenter always opens one and the loop has no special first case.
 const _noGroup = '';
 
 /// Each lane's band, keyed by the workcenter whose row it is drawn above.
 ///
 /// **The lane is placed by the step it feeds, not by its stored position.**
 /// `SimLane.position` is a place on one study's spine, and the chart merges
-/// every study into one set of station rows (§7.7) — so a spine position cannot
+/// every study into one set of workcenter rows (§7.7) — so a spine position cannot
 /// be turned into a row index without the very join to the flow §7.10 forbids.
 /// What the run does keep is which lane each step waited in, and `routingRanks`
-/// already places the stations; a lane therefore goes directly above the
-/// station its own visits were pulled into.
+/// already places the workcenters; a lane therefore goes directly above the
+/// workcenter its own visits were pulled into.
 ///
 /// A lane no step ever names is **dropped rather than guessed at**. It means no
 /// order passed that point, so the run holds nothing that says where it sat.
-/// Drawing it at an invented position would put a band between two stations it
+/// Drawing it at an invented position would put a band between two workcenters it
 /// may never have joined, which is worse than a chart that shows only the
 /// buffers the run can actually place.
 ///
@@ -700,7 +700,7 @@ Map<String, List<GanttLaneRow>> _laneRows({
     final laneId = step.laneNodeId;
     if (laneId == null || !laneById.containsKey(laneId)) continue;
     // The group rather than the machine. Every step out of one lane feeds one
-    // step of one study, so its candidates are one pool or one station — the
+    // step of one study, so its candidates are one pool or one workcenter — the
     // group is the same whichever member happened to take this order, which is
     // what makes `putIfAbsent` safe here where taking the first workcenter was
     // not.
@@ -819,7 +819,7 @@ List<GanttLaneVisit> _stackVisits(
       GanttLaneVisit(
         orderId: stay.orderId,
         orderNumber: outcome.sequence + 1,
-        // **The order's study, not the lane's.** A queue belongs to the station
+        // **The order's study, not the lane's.** A queue belongs to the workcenter
         // it stands in front of since v19 (§7.3), so a lane shared by two
         // studies carries whichever study's id was written last — and the hover
         // card, which names the study on a multi-study run, would have named the
@@ -838,22 +838,22 @@ List<GanttLaneVisit> _stackVisits(
   return visits;
 }
 
-/// A station nothing routed through, which sorts last.
+/// A workcenter nothing routed through, which sorts last.
 const _unrouted = 1 << 30;
 
-/// Where each station sits down the page: the order the work happens in.
+/// Where each workcenter sits down the page: the order the work happens in.
 ///
 /// **A topological order over what the run observed, not an index into a step
 /// list** (§8.9). Within one order the steps are a sequence, so every
-/// consecutive pair says "this station came before that one"; those pairs are
+/// consecutive pair says "this workcenter came before that one"; those pairs are
 /// the only statement about the flow a stored run actually contains, and
-/// sorting the stations to respect all of them is what puts the chart in
+/// sorting the workcenters to respect all of them is what puts the chart in
 /// routing order.
 ///
 /// **What this replaces, and why it had to go.** It used to take the earliest
-/// *index* a station reached in any order's step list. That works only while
+/// *index* a workcenter reached in any order's step list. That works only while
 /// every routing is the same length: a part that skips two steps reaches its
-/// fourth station at index 1, so a station deep in one flow ties with a station
+/// fourth workcenter at index 1, so a workcenter deep in one flow ties with a workcenter
 /// early in another. On the real plant it tied TCN20 with CEU30 and BAN11 with
 /// CEU32, and the tie fell through to the Queue table's busiest-first
 /// ranking — which is a statement about load standing in for a statement about
@@ -865,7 +865,7 @@ const _unrouted = 1 << 30;
 /// order broke two of them and this breaks none.
 ///
 /// **Cycles are removed before levelling, not tolerated during it** (§9.6).
-/// Since §8.6 a routing may visit one station twice, and that is a genuine
+/// Since §8.6 a routing may visit one workcenter twice, and that is a genuine
 /// cycle: on the real plant 11D runs `CEU30 → TCN20 → CEU30`, so each of the
 /// two comes before the other. Relaxing over a cyclic graph does not settle —
 /// it climbs until the pass cap and drags everything the cycle reaches up with
@@ -876,7 +876,7 @@ const _unrouted = 1 << 30;
 /// computed on what is left. One edge was dropped on the live plant, and 11B
 /// and 11C came out exactly right.
 ///
-/// **Which visit a revisited station is drawn at is not decided here, and
+/// **Which visit a revisited workcenter is drawn at is not decided here, and
 /// cannot be.** It gets one row; `CEU30 → TCN20 → CEU30` says it belongs both
 /// above and below, and no single position honours both. The walk settles it
 /// deterministically and the answer is stable for a given run, but it is a
@@ -884,13 +884,13 @@ const _unrouted = 1 << 30;
 /// it would rather read.
 ///
 /// **A depth, not an order — and the difference is what keeps the Queue table
-/// in the picture.** Stations with no routing relationship between them come
+/// in the picture.** Workcenters with no routing relationship between them come
 /// out at the same depth and stay tied, so `buildGanttChart`'s existing clause
 /// still hands them to the ranking and the busier is drawn first. A
 /// topological *sequence* would have numbered them all distinctly and taken
 /// that decision away without anyone asking; on the live plant the ties that
 /// survive are exactly the four cladding machines of one pool and the two
-/// pairs of CEU stations that sit in parallel across studies.
+/// pairs of CEU workcenters that sit in parallel across studies.
 ///
 /// Deterministic, as §4.4 requires: relaxation over a fixed graph reaches one
 /// fixed point regardless of iteration order.
@@ -900,7 +900,7 @@ Map<String, int> routingRanks(SimRunResult result) {
     byOrder.putIfAbsent(step.orderId, () => []).add(step);
   }
 
-  final stations = <String>{};
+  final workcenters = <String>{};
   final after = <String, Set<String>>{};
 
   for (final steps in byOrder.values) {
@@ -915,11 +915,11 @@ Map<String, int> routingRanks(SimRunResult result) {
     });
 
     for (var i = 0; i < steps.length; i++) {
-      stations.add(steps[i].workcenterId);
+      workcenters.add(steps[i].workcenterId);
       if (i + 1 >= steps.length) continue;
       final from = steps[i].workcenterId;
       final to = steps[i + 1].workcenterId;
-      // A station immediately following itself is a two-unit stay, not a
+      // A workcenter immediately following itself is a two-unit stay, not a
       // precedence — and it would be a self-loop nothing could ever satisfy.
       if (from == to) continue;
       after.putIfAbsent(from, () => <String>{}).add(to);
@@ -927,14 +927,14 @@ Map<String, int> routingRanks(SimRunResult result) {
   }
 
   // **The cycles come out first.** A depth-first walk keeps every edge except
-  // the ones pointing back at a station already open on the stack — those are
+  // the ones pointing back at a workcenter already open on the stack — those are
   // exactly the edges that close a loop, and dropping them leaves a graph the
   // levels below can settle on. Roots and neighbours are taken in id order, so
   // one run always draws the same chart (§4.4).
   const white = 0, grey = 1, black = 2;
-  final colour = {for (final station in stations) station: white};
+  final colour = {for (final workcenter in workcenters) workcenter: white};
   final forward = <String, Set<String>>{};
-  final sorted = stations.toList()..sort();
+  final sorted = workcenters.toList()..sort();
 
   for (final root in sorted) {
     if (colour[root] != white) continue;
@@ -968,16 +968,16 @@ Map<String, int> routingRanks(SimRunResult result) {
 
   // **How deep in the flow, not what order to draw** — the distinction the
   // first attempt at this got wrong. A topological *sequence* gives every
-  // station a distinct number, which silently takes the decision away from the
-  // Queue table: two stations with no routing relationship between them would
+  // workcenter a distinct number, which silently takes the decision away from the
+  // Queue table: two workcenters with no routing relationship between them would
   // then be ordered by whatever the sort happened to yield rather than by which
   // of them queued more. A *level* leaves them equal and says so.
   //
-  // Longest path from any source: a station sits one below the deepest thing
+  // Longest path from any source: a workcenter sits one below the deepest thing
   // that feeds it. Relaxed to a fixed point over the acyclic graph above, which
   // is what makes the fixed point exist.
-  final ranks = {for (final station in stations) station: 0};
-  for (var pass = 0; pass <= stations.length; pass++) {
+  final ranks = {for (final workcenter in workcenters) workcenter: 0};
+  for (var pass = 0; pass <= workcenters.length; pass++) {
     var moved = false;
     for (final entry in forward.entries) {
       for (final downstream in entry.value) {
@@ -993,7 +993,7 @@ Map<String, int> routingRanks(SimRunResult result) {
   return ranks;
 }
 
-/// Something the pointer can be over: a station's bar or an order waiting in a
+/// Something the pointer can be over: a workcenter's bar or an order waiting in a
 /// lane. Both answer [barAt], and the hover card asks which it got.
 sealed class GanttHit {
   const GanttHit();
@@ -1068,7 +1068,7 @@ class GanttRowLayout {
   /// The top of the band, which is [GanttBand.height] tall.
   final double top;
 
-  /// Populated for a station band.
+  /// Populated for a workcenter band.
   final List<GanttPlacedBar> bars;
 
   /// Populated for a lane band.
@@ -1224,7 +1224,7 @@ GanttLayout layoutGantt({
 /// **A lane band is picked by slot, not as one strip.** Its stays do not tile —
 /// that is the whole point of stacking them — so two orders waiting at once are
 /// only distinguishable by which slot the pointer is in. The band is scanned
-/// for the row under the pointer and then along it, which is the station rule
+/// for the row under the pointer and then along it, which is the workcenter rule
 /// applied one level down.
 GanttHit? barAt(GanttLayout layout, Offset position) {
   if (position.dy < GanttMetrics.axisHeight) return null;
@@ -1237,7 +1237,7 @@ GanttHit? barAt(GanttLayout layout, Offset position) {
       case GanttRow():
         // By sub-row first, for the same reason a lane is picked by slot: two
         // units running at once are only told apart by which one the pointer
-        // is over. A one-unit station has a single sub-row and this is the
+        // is over. A one-unit workcenter has a single sub-row and this is the
         // whole band, exactly as it was.
         final slot = ((position.dy - row.top) / GanttMetrics.rowHeight).floor();
         for (final placed in row.bars) {

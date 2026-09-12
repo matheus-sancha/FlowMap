@@ -173,7 +173,7 @@ class WorkingCalendar {
 
   /// How many operators are on the shift covering [t] (DESIGN.md §7.5, v30).
   ///
-  /// **At a labour-paced station this is the throughput**, so it divides the
+  /// **At a labour-paced workcenter this is the throughput**, so it divides the
   /// work in `effectiveProcessTime`. Read at the instant work *starts* and held
   /// for the whole job, which is how availability already behaves — a job
   /// beginning at 22:00 under a two-operator night shift is costed at two even
@@ -250,13 +250,13 @@ class WorkingCalendar {
   }
 
   /// Open time between [from] and [to], **each hour weighted by the crew
-  /// standing in it** — operator-hours rather than station-hours (§7.5, v30).
+  /// standing in it** — operator-hours rather than workcenter-hours (§7.5, v30).
   ///
-  /// **What a labour-paced station's capacity is measured in.** Where the
-  /// machine-paced reading asks how long the station was open, this asks how
+  /// **What a labour-paced workcenter's capacity is measured in.** Where the
+  /// machine-paced reading asks how long the workcenter was open, this asks how
   /// much *work* could have been done in that time: a shift open eight hours
   /// with three people offers twenty-four, and doubling the crew doubles the
-  /// answer. It is the same quantity `units` already produces for a station
+  /// answer. It is the same quantity `units` already produces for a workcenter
   /// with two machines, counted in people instead.
   ///
   /// **Sliced at every shift boundary rather than merged**, because the crew is

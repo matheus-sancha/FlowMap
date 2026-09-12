@@ -364,7 +364,7 @@ void main() {
       );
     });
 
-    test('zero work is the deadline itself, when the station is open', () {
+    test('zero work is the deadline itself, when the workcenter is open', () {
       expect(
         dayShift.retreat(DateTime(2026, 8, 3, 8, 0), Duration.zero),
         DateTime(2026, 8, 3, 8, 0),

@@ -37,25 +37,25 @@ SimRunResult runSimulation({
   /// `PeriodSchedule` already does, and the run's job is to say that happened
   /// rather than to behave differently.
   DateTime? scheduleHorizon,
-  /// **Every station with a schedule, not only the ones this run gave work to**
+  /// **Every workcenter with a schedule, not only the ones this run gave work to**
   /// — the set monthly capacity is written for (§10.2, phase 9).
   ///
   /// [workcenters] is what the routings reach, so capacity used to exist only
-  /// where demand did and a station nobody routed to was invisible rather than
+  /// where demand did and a workcenter nobody routed to was invisible rather than
   /// idle. This set is the plant's own answer to *who is open*, and the two are
-  /// **unioned** rather than swapped: a station can be routed to without a
+  /// **unioned** rather than swapped: a workcenter can be routed to without a
   /// schedule of its own, and it keeps the rows it has always had.
   ///
   /// It is deliberately not folded into [workcenters], and the reason is
-  /// [scheduleHorizon]: letting an unused station into the *resource model*
+  /// [scheduleHorizon]: letting an unused workcenter into the *resource model*
   /// would drag the horizon back to wherever its schedule happens to stop and
   /// fire §11.1's warning on runs with nothing wrong with them. The horizon is
-  /// computed over the stations the run **uses**; capacity is written for the
-  /// stations that are **open**.
+  /// computed over the workcenters the run **uses**; capacity is written for the
+  /// workcenters that are **open**.
   ///
-  /// Empty means *the run's own stations*, which is what a caller with no
+  /// Empty means *the run's own workcenters*, which is what a caller with no
   /// plant-wide view can honestly say.
-  Map<String, SimWorkcenter> scheduledStations = const {},
+  Map<String, SimWorkcenter> scheduledWorkcenters = const {},
 }) {
   final plan = planRun(studies: studies, workcenters: workcenters);
   final from = start ?? plan.start;
@@ -88,7 +88,7 @@ SimRunResult runSimulation({
   return _Engine(
     studies: studies,
     workcenters: workcenters,
-    scheduledStations: scheduledStations,
+    scheduledWorkcenters: scheduledWorkcenters,
     start: from,
     startByStudy: startByStudy,
     guard: guard ?? plan.guardFrom(from),
@@ -118,7 +118,7 @@ class RunPlan {
   /// This was collapsed to the minimum and every study was scheduled there. A
   /// study released three months early delivers three months early, so its
   /// float read as slack that did not exist and OTD was flattered; worse, its
-  /// orders occupied **shared** stations for three months of simulated time
+  /// orders occupied **shared** workcenters for three months of simulated time
   /// they would never have been there, competing for capacity with the study
   /// that legitimately started. Measuring real contention is what a run is for
   /// (§7.7), so a multi-study run reported queueing that could not happen.
@@ -317,7 +317,7 @@ class _EventQueue {
 
 /// One unit of a workcenter, during a run.
 ///
-/// A station with `units > 1` has several of these, and they are independent in
+/// A workcenter with `units > 1` has several of these, and they are independent in
 /// every way that matters: each has its own clock, its own busy total and its
 /// own [lastPartId], so two units of one machine pay changeovers separately —
 /// which is what running two orders at once means (§3.1).
@@ -335,7 +335,7 @@ class _Server {
   /// The part it last ran, for the changeover rule (§7.6).
   ///
   /// Null at cold start, and since v17 that is **not** a free pass: an empty
-  /// station is set up for nothing, so no previous order counts as not the same
+  /// workcenter is set up for nothing, so no previous order counts as not the same
   /// part and the first order pays in full. That removes the one special case
   /// the rule used to carry.
   String? lastPartId;
@@ -344,12 +344,12 @@ class _Server {
   ///
   /// **Teardown is charged with the next setup rather than at the end of the
   /// order that incurred it.** Setup looks backwards and `lastPartId` already
-  /// answers it; teardown looks forwards — a station is only stripped because
+  /// answers it; teardown looks forwards — a workcenter is only stripped because
   /// something different is coming — and at the moment an order finishes the
   /// engine has not picked the next one. So the debt is remembered and settled
   /// when the answer exists, which is what a changeover physically is.
   ///
-  /// The last order at a station never pays it, and that is correct rather than
+  /// The last order at a workcenter never pays it, and that is correct rather than
   /// an omission: nothing waits on it, so it moves no figure anyone reads.
   SimStep? teardownOwed;
 
@@ -421,16 +421,16 @@ class _Engine {
     required this.start,
     required this.guard,
     required this.scheduleHorizon,
-    this.scheduledStations = const {},
+    this.scheduledWorkcenters = const {},
     this.startByStudy = const {},
   });
 
   final List<SimStudy> studies;
   final Map<String, SimWorkcenter> workcenters;
 
-  /// The stations monthly capacity is written for. See `runSimulation`; empty
+  /// The workcenters monthly capacity is written for. See `runSimulation`; empty
   /// falls back to [workcenters].
-  final Map<String, SimWorkcenter> scheduledStations;
+  final Map<String, SimWorkcenter> scheduledWorkcenters;
 
   final DateTime start;
 
@@ -496,9 +496,9 @@ class _Engine {
   SimRunResult run() {
     for (final entry in workcenters.entries) {
       // One server per unit (§3.1). The id carries the index so a finish event
-      // names the unit that finished rather than the station it belongs to —
+      // names the unit that finished rather than the workcenter it belongs to —
       // two units of one machine can be busy with different orders, and a
-      // station-keyed event could not say which had ended.
+      // workcenter-keyed event could not say which had ended.
       final units = entry.value.units < 1 ? 1 : entry.value.units;
       for (var unit = 0; unit < units; unit++) {
         _servers['${entry.key}#$unit'] = _Server(
@@ -627,7 +627,7 @@ class _Engine {
     } else if (_gateIsFull(study, order, study.taktKeyAt(_now))) {
       // Nowhere to put it. Two lanes can say so, and both are places nothing
       // upstream can be blocked on behalf of: the lane at the head of the flow,
-      // which has no station behind it, and the pacemaker's, which is where
+      // which has no workcenter behind it, and the pacemaker's, which is where
       // lean injects the schedule and therefore what the release is really
       // pulled by. §7.2's slots are strict, so the slot is spent rather than
       // deferred.
@@ -673,7 +673,7 @@ class _Engine {
   /// period, and stops for good where there is none.
   ///
   /// **That is what a schedule running out already means one level down**,
-  /// where `WorkcenterScheduleSpec` leaves a station with no operators rather
+  /// where `WorkcenterScheduleSpec` leaves a workcenter with no operators rather
   /// than carrying its last staffing forward.
   DateTime? _nextSlot(SimStudy study) {
     final interval = study.intervalAt(_now);
@@ -729,7 +729,7 @@ class _Engine {
   /// schedule at the pacemaker, so the question "may another order start" is
   /// really "can the pacemaker take one" — and gating there makes the
   /// constraint govern the line directly rather than through a chain of blocked
-  /// stations propagating backwards, which on célula 11B is four stations deep.
+  /// workcenters propagating backwards, which on célula 11B is four workcenters deep.
   /// The entry lane is checked too because nothing upstream of it can be
   /// blocked on its behalf.
   ///
@@ -760,17 +760,17 @@ class _Engine {
   /// than as a delay here.
   ///
   /// **A step worth zero to this order is not a step it visits** (§8.1). Zero
-  /// is what a part's routing records where it does not go through a station —
+  /// is what a part's routing records where it does not go through a workcenter —
   /// `SimulationRunSteps.processSeconds`' own doc says so — and the engine used
   /// to queue the order there anyway: it took a slot on the lane, occupied the
-  /// station for no time, and stored a step row. On a capped lane that slot is
-  /// one a real order needed, and on the Gantt those rows pushed every station
+  /// workcenter for no time, and stored a step row. On a capped lane that slot is
+  /// one a real order needed, and on the Gantt those rows pushed every workcenter
   /// behind them one place later, which is how CEU32 came to be drawn above
   /// CEU30 on a chart of a line that runs CEU30 first.
   ///
   /// **Judged under [takt], because zero-ness is not a property of the step.**
   /// `processTimeFor` prefers `balancedProcessTimes[takt]` over the part's own
-  /// figure, and §7.4's rebalance is free to empty a station out of a routing
+  /// figure, and §7.4's rebalance is free to empty a workcenter out of a routing
   /// at one takt and fill it at another — §7.9 measured exactly that, CEU32 at
   /// 0.0 h under a five-day takt and busy under four. So the takt an order
   /// opened under decides which steps it has, and it is fixed for that order's
@@ -781,13 +781,13 @@ class _Engine {
   /// declined to admit the order, and the order never completed at all.
   ///
   /// That was overturned by the field on 2026-08-29, after §9 gave a flow a
-  /// second visit to one station and left fifteen parts to be told, one cell
+  /// second visit to one workcenter and left fifteen parts to be told, one cell
   /// at a time, that they cost `00:00:00` there. *"If it is empty consider
   /// 0."*
   ///
   /// **What it costs is on record rather than hidden**: a time nobody typed and
   /// a step a part genuinely skips are now the same thing to the engine, so a
-  /// forgotten cell no longer stops the run — it quietly takes the station out
+  /// forgotten cell no longer stops the run — it quietly takes the workcenter out
   /// of that part's routing, and every figure downstream is short by whatever
   /// should have been there. That was §11's *"one intolerable bug"* when the
   /// distinction was drawn; the field has weighed the typing against it and
@@ -867,11 +867,11 @@ class _Engine {
       progressed = false;
 
       // **Unload before dispatching.** Taking an order out of a lane is what
-      // makes room in it, so a station blocked on that lane can move the moment
+      // makes room in it, so a workcenter blocked on that lane can move the moment
       // the pick happens — and it must be offered the space before the next
       // order is admitted, or a jam would clear only when something else
       // happened to arrive. Held in the same settle loop as dispatch so one
-      // release can cascade back up a line of blocked stations at one instant.
+      // release can cascade back up a line of blocked workcenters at one instant.
       for (final server in _servers.values.toList()) {
         if (server.blockedSince == null) continue;
         final waiting = _running[server.id];
@@ -888,7 +888,7 @@ class _Engine {
           if (busy != 0) return busy;
           final name = a.workcenter.name.compareTo(b.workcenter.name);
           if (name != 0) return name;
-          // Two units of one station share a name, so the id is what stops a
+          // Two units of one workcenter share a name, so the id is what stops a
           // genuine tie between them being resolved by map order (§4.4).
           return a.id.compareTo(b.id);
         });
@@ -966,7 +966,7 @@ class _Engine {
   ///
   /// **The need date refills the slot study priority held** (#6, v28). Priority
   /// sat here, below arrival, which is why it could never expedite anything:
-  /// two orders reaching a station at different times never get this far. What
+  /// two orders reaching a workcenter at different times never get this far. What
   /// the slot actually decides is a *tie* on arrival — 78 of them in the live
   /// database's 189,623 step rows, and **27 were settled by comparing two
   /// UUIDs**, so *"why did this order go first?"* was unanswerable a third of
@@ -1023,7 +1023,7 @@ class _Engine {
     final availability = schedule.availabilityOn(_now);
 
     // **The crew on the shift this work starts in** (§7.5, v30), and only where
-    // the station's type says the crew *is* its throughput. Read at `_now` and
+    // the workcenter's type says the crew *is* its throughput. Read at `_now` and
     // held for the whole job, exactly as availability above is — a job
     // beginning at 22:00 under a two-operator night shift is costed at two even
     // if it runs into a three-operator morning. Letting the rate change
@@ -1044,7 +1044,7 @@ class _Engine {
     final productiveDay =
         server.workcenter.calendar.openTimePerWorkingDay(_now) * availability;
 
-    // No previous order counts as *not the same part*: an empty station at cold
+    // No previous order counts as *not the same part*: an empty workcenter at cold
     // start is set up for nothing.
     final repeated = server.lastPartId == waiting.order.partId;
 
@@ -1060,7 +1060,7 @@ class _Engine {
     // the trap §6.1 warns about from the capacity side. Rework attaches to the
     // part's work only.
     // Kept apart from the changeover rather than only summed, because the work
-    // is what §7.4's balance moves between stations and a run had no way to
+    // is what §7.4's balance moves between workcenters and a run had no way to
     // state it: the step rows bracket the work on the calendar, so a bigger
     // share and a longer weekend look identical (§7.10, v21).
     final work = effectiveProcessTime(
@@ -1071,15 +1071,15 @@ class _Engine {
       operators: operators,
     );
     // **The same work in labour hours** — what the crew between them spent,
-    // rather than how long the station was held (§7.5, v30). The two are the
-    // same number everywhere but an operator-paced station, and there they
+    // rather than how long the workcenter was held (§7.5, v30). The two are the
+    // same number everywhere but an operator-paced workcenter, and there they
     // differ by the crew: three people hold a bench for four hours and spend
     // twelve.
     //
     // This is what a step *stores*, because it is the half §10.3 draws against
-    // an operator-paced capacity — counting a crewed station's demand in
-    // station-hours against a denominator in operator-hours would divide the
-    // crew out twice. The span the station was actually held for is
+    // an operator-paced capacity — counting a crewed workcenter's demand in
+    // workcenter-hours against a denominator in operator-hours would divide the
+    // crew out twice. The span the workcenter was actually held for is
     // `processStart → processEnd`, which is what the Gantt draws and what
     // `busyByWorkcenter` sums, so nothing that measures occupancy reads this.
     final labour = effectiveProcessTime(
@@ -1111,7 +1111,7 @@ class _Engine {
       ..busyUntil = end
       ..lastPartId = waiting.order.partId
       // The debt this order leaves behind, settled by whoever arrives next. It
-      // replaces rather than accumulates: a station holds one job's tooling, so
+      // replaces rather than accumulates: a workcenter holds one job's tooling, so
       // there is only ever one strip-down outstanding.
       ..teardownOwed = waiting.step
       ..busy += occupancy;
@@ -1162,7 +1162,7 @@ class _Engine {
   /// Moves the order a server has finished on to its next queue, or blocks.
   ///
   /// **Blocking is after service**, which is not a simplification but the
-  /// physical case: a station cannot know whether the lane ahead will have room
+  /// physical case: a workcenter cannot know whether the lane ahead will have room
   /// until it has something to put down. So it finishes, and then waits — and
   /// while it waits it is neither idle nor working, which is what carries the
   /// jam backwards up the line.
@@ -1176,7 +1176,7 @@ class _Engine {
     );
 
     // Nothing ahead: the flow is finished and the customer is an unlimited
-    // sink, so the last station can never block. That is also why a linear
+    // sink, so the last workcenter can never block. That is also why a linear
     // spine cannot deadlock — the head of the chain always drains (§5.1).
     if (next != null && !_hasRoom(study, next)) {
       server.blockedSince ??= _now;
@@ -1188,7 +1188,7 @@ class _Engine {
       server.blocked += held;
       server.blockedSince = null;
       // Written onto the step that was blocked, not onto the one about to
-      // start: the jam belongs to the order the station could not put down.
+      // start: the jam belongs to the order the workcenter could not put down.
       if (_rowOfServer[server.id] case final index?) {
         final row = _rows[index];
         _rows[index] = SimOrderStep(
@@ -1242,54 +1242,54 @@ class _Engine {
       }
     }
 
-    // Open time each station had between the cold start and the last event —
+    // Open time each workcenter had between the cold start and the last event —
     // utilization's denominator, and what makes it different from occupation.
     //
     // **Multiplied by the unit count**, because the numerator is summed across
-    // units below: a two-unit station that ran both of them flat out is 100 %
+    // units below: a two-unit workcenter that ran both of them flat out is 100 %
     // utilised, and a denominator counting one clock would report it at 200 %.
-    // Asked once per station rather than once per server — the calendar walk is
-    // the expensive part (§16.9) and every unit of a station shares one.
-    /// What a station offers between two instants, in the unit its pacing
+    // Asked once per workcenter rather than once per server — the calendar walk is
+    // the expensive part (§16.9) and every unit of a workcenter shares one.
+    /// What a workcenter offers between two instants, in the unit its pacing
     /// measures capacity in (§7.5, v30).
     ///
-    /// **Machine-paced is station-hours × units** — how long the machines were
+    /// **Machine-paced is workcenter-hours × units** — how long the machines were
     /// open, which is what capacity has always meant here. **Operator-paced is
     /// operator-hours**: the same open time weighted by the crew standing in
     /// it, because at a bench the people are the capacity and adding one adds
     /// room. Both are *resource* hours; the resource differs.
     ///
-    /// `units` does not multiply an operator-paced station: two benches with
+    /// `units` does not multiply an operator-paced workcenter: two benches with
     /// one crew between them are not two crews, and the crew is already
-    /// counted. A station that is genuinely both says so with its type and its
+    /// counted. A workcenter that is genuinely both says so with its type and its
     /// Orders at once, and this is where they would disagree.
     Duration capacityOf(
-      SimWorkcenter station,
+      SimWorkcenter workcenter,
       DateTime from,
       DateTime to,
       int units,
-    ) => station.labourPaced
-        ? station.calendar.operatorTimeBetween(from, to)
-        : station.calendar.openTimeBetween(from, to) * units;
+    ) => workcenter.labourPaced
+        ? workcenter.calendar.operatorTimeBetween(from, to)
+        : workcenter.calendar.openTimeBetween(from, to) * units;
 
-    // **One station set, and it is a union** (phase 9). This used to be
+    // **One workcenter set, and it is a union** (phase 9). This used to be
     // [workcenters] — what the routings reach — so capacity existed only where
-    // demand did and a scheduled station nobody routed to was invisible rather
+    // demand did and a scheduled workcenter nobody routed to was invisible rather
     // than idle. Occupation is demand against capacity, and a denominator
     // clipped to its own numerator cannot show a plant with room to spare.
     //
     // A union rather than a replacement, because neither set contains the
-    // other: a station can be routed to with no schedule of its own, and it
+    // other: a workcenter can be routed to with no schedule of its own, and it
     // keeps the rows it has always had.
     final open = <String, Duration>{};
     final openByMonth = <String, Map<DateTime, Duration>>{};
-    final capacityStations = scheduledStations.isEmpty
+    final capacityWorkcenters = scheduledWorkcenters.isEmpty
         ? workcenters
-        : {...workcenters, ...scheduledStations};
-    for (final entry in capacityStations.entries) {
+        : {...workcenters, ...scheduledWorkcenters};
+    for (final entry in capacityWorkcenters.entries) {
       final units = entry.value.units < 1 ? 1 : entry.value.units;
       try {
-        // **Station-hours, even at an operator-paced station.** This is
+        // **Workcenter-hours, even at an operator-paced workcenter.** This is
         // utilization's denominator (§8.3) and its numerator is how long the
         // machine was *held* — a question about the machine, so both halves
         // count the machine's clock. Occupation asks the other question and
@@ -1301,12 +1301,12 @@ class _Engine {
       }
     }
 
-    // The same walk cut into months (§10.2), **bounded per station by its own
-    // schedule** rather than by the run — so the grid goes ragged: a station
+    // The same walk cut into months (§10.2), **bounded per workcenter by its own
+    // schedule** rather than by the run — so the grid goes ragged: a workcenter
     // whose schedule stops a year earlier is *blank* past it rather than zero.
     // §10.2's own distinction — nobody has said is not the same claim as said
     // zero.
-    for (final entry in capacityStations.entries) {
+    for (final entry in capacityWorkcenters.entries) {
       final units = entry.value.units < 1 ? 1 : entry.value.units;
       final periods = entry.value.schedule.periods;
       // Sorted by start date, so the last period is not necessarily the one
@@ -1314,8 +1314,8 @@ class _Engine {
       final DateTime from0;
       final DateTime to0;
       if (periods.isEmpty) {
-        // No schedule to be bounded by — the run is all this station can be
-        // asked about. Reached by callers that pass no [scheduledStations].
+        // No schedule to be bounded by — the run is all this workcenter can be
+        // asked about. Reached by callers that pass no [scheduledWorkcenters].
         from0 = start;
         to0 = _now;
       } else {
@@ -1337,7 +1337,7 @@ class _Engine {
         try {
           months[month] = capacityOf(entry.value, from, to, units);
         } on StateError {
-          // A station with no staffed shift in that month has no open time in
+          // A workcenter with no staffed shift in that month has no open time in
           // it, which is a real answer and is drawn as a floor rather than as a
           // gap (§10.2).
           months[month] = Duration.zero;
@@ -1346,9 +1346,9 @@ class _Engine {
       openByMonth[entry.key] = months;
     }
 
-    // Busy time summed back across a station's units, so everything downstream
+    // Busy time summed back across a workcenter's units, so everything downstream
     // — the Queue table, the bottleneck ranking, the Summary — keeps reading one
-    // row per station and never learns that servers exist.
+    // row per workcenter and never learns that servers exist.
     final busy = <String, Duration>{};
     final blocked = <String, Duration>{};
     for (final server in _servers.values) {
@@ -1381,9 +1381,9 @@ class _Engine {
       openByWorkcenterMonth: openByMonth,
       blockedByWorkcenter: blocked,
       // Every lane the run walked, so §8.6 can place a row for one that never
-      // held anything — an empty lane between two busy stations is a fact
+      // held anything — an empty lane between two busy workcenters is a fact
       // about the line, not a row to leave out.
-      // **One row per target, not per study.** A queue belongs to the station it
+      // **One row per target, not per study.** A queue belongs to the workcenter it
       // stands in front of, so two studies feeding CLAD07 report the one queue
       // they actually share — which is what stopped the Gantt drawing it twice.
       // The first study to name a target reports it: arbitrary, stable, and what

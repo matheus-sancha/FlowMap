@@ -6,12 +6,12 @@
 /// A study's Simulation tab and the combined workspace therefore read the same
 /// `StoredRun` through this, and cannot disagree about a number.
 ///
-/// **Order-level figures follow the filter; station-level figures do not**, and
+/// **Order-level figures follow the filter; workcenter-level figures do not**, and
 /// the card says which. Utilisation's denominator is `openSeconds`, stored as a
-/// run total, and rebuilding open time for a subset needs each station's
+/// run total, and rebuilding open time for a subset needs each workcenter's
 /// calendar — which §7.10 deliberately does not store and which is the exact
 /// cost that got §3.5 dropped. Every order carries its own dates, so counts,
-/// on-time, lead times and float recompute cleanly; a station's busy, open and
+/// on-time, lead times and float recompute cleanly; a workcenter's busy, open and
 /// blocked time keep describing the whole run.
 ///
 /// Pure and free of Drift, so what a filter *means* is a unit test.
@@ -21,7 +21,7 @@ import 'package:flutter/material.dart' show DateTimeRange;
 
 import '../data/simulation_runs_repository.dart';
 import 'run_metrics.dart';
-import 'sim_model.dart' show StationPool;
+import 'sim_model.dart' show SimWorkcenterPool;
 import 'sim_result.dart';
 
 /// Which slice is being read. Every field null or empty is the whole run.
@@ -55,8 +55,8 @@ class RunFilter {
   final Set<String> studyIds;
 
   /// **A cell or line filter is a study filter one level up.** Workcenters
-  /// belong to a plant rather than to a cell (§7.10), so stations are never
-  /// narrowed this way — the studies are, and their stations follow.
+  /// belong to a plant rather than to a cell (§7.10), so workcenters are never
+  /// narrowed this way — the studies are, and their workcenters follow.
   final Set<String> cellIds;
   final Set<String> lineIds;
 
@@ -83,16 +83,16 @@ class RunFilter {
   /// offering it has to say so rather than implying it found one thing.
   final Set<int> orderNumbers;
 
-  /// **The two station filters** — workcenter type, and individual stations
-  /// (#9, absorbed from `OccupationStations`).
+  /// **The two workcenter filters** — workcenter type, and individual workcenters
+  /// (#9, absorbed from `OccupationWorkcenters`).
   ///
   /// **A different class of filter from everything above, and the Occupation
   /// grid is what made the difference matter.** The filters above are
-  /// *order-level*: they choose whose demand is counted, and a station's
+  /// *order-level*: they choose whose demand is counted, and a workcenter's
   /// capacity is untouched by them. These two are **structural** — they choose
-  /// which stations are in view at all, so demand and capacity move together
-  /// and a cell still reads *everyone's* demand at that station over that
-  /// station's full capacity.
+  /// which workcenters are in view at all, so demand and capacity move together
+  /// and a cell still reads *everyone's* demand at that workcenter over that
+  /// workcenter's full capacity.
   ///
   /// So filtering to one line leaves CLAD04 at 99 % rather than dropping it to
   /// that line's own share: **a filter chooses what you look at; it never
@@ -102,9 +102,9 @@ class RunFilter {
   /// chart it replaces got into that state.
   ///
   /// `studyIds`, `cellIds` and `lineIds` are structural too, one level up: they
-  /// choose studies, and a study's stations follow.
+  /// choose studies, and a study's workcenters follow.
   ///
-  /// **They reach every surface whose rows are stations** — the Gantt's Y axis
+  /// **They reach every surface whose rows are workcenters** — the Gantt's Y axis
   /// *is* the workcenter, and the Overview's queue and share tables are keyed on
   /// workcenters. The production plan and the float matrix are per-order and
   /// per-part, so they ignore these, exactly as §12.1's whole-run caveat already
@@ -112,21 +112,21 @@ class RunFilter {
   final Set<String> typeIds;
   final Set<String> workcenterIds;
 
-  /// Whether this filter names particular stations, so a total across them
+  /// Whether this filter names particular workcenters, so a total across them
   /// cannot wear the plant's name (#9).
-  bool get narrowsStations =>
+  bool get narrowsWorkcenters =>
       typeIds.isNotEmpty ||
       workcenterIds.isNotEmpty ||
       studyIds.isNotEmpty ||
       cellIds.isNotEmpty ||
       lineIds.isNotEmpty;
 
-  /// Whether [workcenterId] of [typeId] survives the two station filters.
+  /// Whether [workcenterId] of [typeId] survives the two workcenter filters.
   ///
-  /// Empty means every station, including one with no type at all — a type
-  /// filter that silently dropped untyped stations would be a filter nobody
+  /// Empty means every workcenter, including one with no type at all — a type
+  /// filter that silently dropped untyped workcenters would be a filter nobody
   /// asked for.
-  bool includesStation({required String workcenterId, String? typeId}) {
+  bool includesWorkcenter({required String workcenterId, String? typeId}) {
     if (workcenterIds.isNotEmpty && !workcenterIds.contains(workcenterId)) {
       return false;
     }
@@ -207,7 +207,7 @@ class FilteredRun {
     required this.result,
     required this.metrics,
     required this.plan,
-    required this.stationsAreWholeRun,
+    required this.workcentersAreWholeRun,
   }) : signature = _signatureOf(run, filter, studyIds);
 
   final StoredRun run;
@@ -219,15 +219,15 @@ class FilteredRun {
   /// Orders, steps and lane visits of those studies, inside the period.
   final SimRunResult result;
 
-  /// Order-level figures for the slice; **station-level figures for the whole
+  /// Order-level figures for the slice; **workcenter-level figures for the whole
   /// run**, because the run does not carry what a windowed denominator needs.
   final RunMetrics metrics;
 
   final List<PlanEntry> plan;
 
-  /// Whether the station figures describe more than the slice, so the view can
+  /// Whether the workcenter figures describe more than the slice, so the view can
   /// say so rather than letting them read as filtered.
-  final bool stationsAreWholeRun;
+  final bool workcentersAreWholeRun;
 
   bool get isWholeRun => filter.isWholeRun;
 
@@ -269,7 +269,7 @@ class FilteredRun {
       '|${(filter.orderNumbers.toList()..sort()).join(',')}'
       // **And #9's two**, for the same reason and with the same failure if they
       // are left out: `GanttView.didUpdateWidget` compares this string, so a
-      // station filter missing from it would narrow every table on the page and
+      // workcenter filter missing from it would narrow every table on the page and
       // leave the chart drawing the plant it drew before. That is precisely the
       // defect §7.5's three were added to fix, one round later.
       '|${(filter.typeIds.toList()..sort()).join(',')}'
@@ -302,17 +302,17 @@ class RunFilterOptions {
 
   final Map<String, String> parts;
 
-  /// **The stations, offered from the run rather than from the plant** (#9) —
+  /// **The workcenters, offered from the run rather than from the plant** (#9) —
   /// the same rule as the cells and lines, and for the same reason: a menu
   /// listing every workcenter in the plant would be mostly entries that select
   /// nothing.
   ///
-  /// Unlike every other facet, these are read off the run's **stations** rather
-  /// than its orders: a station the run recorded is a station the run used,
+  /// Unlike every other facet, these are read off the run's **workcenters** rather
+  /// than its orders: a workcenter the run recorded is a workcenter the run used,
   /// whether or not an order survives the other filters. Narrowing them by the
-  /// order-level filters would empty the station menu whenever a part filter
+  /// order-level filters would empty the workcenter menu whenever a part filter
   /// happened to exclude that machine — which is a picker that hides the
-  /// stations you are trying to look at.
+  /// workcenters you are trying to look at.
   final Map<String, String> types;
   final Map<String, String> workcenters;
 
@@ -346,6 +346,29 @@ class RunFilterOptions {
 /// Computed in one pass over the orders rather than by calling [filterRun] once
 /// per picker: this runs on every keystroke of the filter bar, and [filterRun]
 /// re-summarises the whole run.
+/// How a study is named wherever it stands beside a cell or a line (#29).
+///
+/// **A study's name is not a study's identity, and on the live plant it looks
+/// exactly like a cell's.** Study `Célula 11B` belongs to cell `Célula 11` and
+/// is scoped to line `Fluxo 11B` — it takes the word from one and the suffix
+/// from the other and matches neither. In one filter bar the Studies menu
+/// offers `Célula 11B` and the Cells menu offers `Célula 11`, and telling them
+/// apart requires knowing which menu you opened.
+///
+/// That is not hypothetical: on 2026-09-08 a drive check written for *line*
+/// `Fluxo 11B` (7 workcenters) was walked against *study* `Célula 11B` (9), so
+/// it could not do what it was written to do and the grid read as broken when
+/// it was correct. The same conflation had already been written into the v2.0
+/// map as one sentence merging a line's name with a study's workcenter count.
+///
+/// The cell and line are already snapshotted onto the run's study row, so this
+/// costs a read. Where either is missing — a run stored before §7.10 carried
+/// them — the bare name is still better than a parenthesis with a dash in it.
+String qualifiedStudyLabel(String name, String? cell, String? line) {
+  if (cell == null && line == null) return name;
+  return '$name (${[cell, line].nonNulls.join(' · ')})';
+}
+
 RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
   if (run == null) return const RunFilterOptions();
 
@@ -394,7 +417,11 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
     final place = byStudy && byCell && byLine;
 
     if (others && byCell && byLine && study != null) {
-      studies[outcome.studyId] = study.name;
+      studies[outcome.studyId] = qualifiedStudyLabel(
+        study.name,
+        study.productionCellName,
+        study.productionLineName,
+      );
     }
     if (others && byStudy && byLine) {
       if (study?.productionCellId case final id?) {
@@ -413,27 +440,26 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
     if (place && others) inView.add(outcome.studyId);
   }
 
-  Map<String, String> sorted(Map<String, String> by) =>
-      Map.fromEntries(
-        by.entries.toList()..sort((a, b) => a.value.compareTo(b.value)),
-      );
+  Map<String, String> sorted(Map<String, String> by) => Map.fromEntries(
+    by.entries.toList()..sort((a, b) => a.value.compareTo(b.value)),
+  );
 
-  // The run's own stations, each offered when the *other* station filter does
+  // The run's own workcenters, each offered when the *other* workcenter filter does
   // not exclude it — the same ignore-your-own-facet rule the pickers above use.
   final types = <String, String>{};
   final workcenters = <String, String>{};
-  for (final station in run.metrics.workcenters) {
+  for (final workcenter in run.metrics.workcenters) {
     final byType =
-        filter.typeIds.isEmpty || filter.typeIds.contains(station.typeId);
-    final byStation =
+        filter.typeIds.isEmpty || filter.typeIds.contains(workcenter.typeId);
+    final byWorkcenter =
         filter.workcenterIds.isEmpty ||
-        filter.workcenterIds.contains(station.workcenterId);
-    if (byStation) {
-      if (station.typeId case final id? when station.typeName != null) {
-        types[id] = station.typeName!;
+        filter.workcenterIds.contains(workcenter.workcenterId);
+    if (byWorkcenter) {
+      if (workcenter.typeId case final id? when workcenter.typeName != null) {
+        types[id] = workcenter.typeName!;
       }
     }
-    if (byType) workcenters[station.workcenterId] = station.name;
+    if (byType) workcenters[workcenter.workcenterId] = workcenter.name;
   }
 
   return RunFilterOptions(
@@ -450,14 +476,14 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
   );
 }
 
-/// The stations a run shows under [filter] — **the one station resolution**,
+/// The workcenters a run shows under [filter] — **the one workcenter resolution**,
 /// shared by the Occupation chart and the Occupation grid (#9).
 ///
 /// **All five structural filters, and studies reach it through their steps.**
-/// `typeIds` and `workcenterIds` name stations directly. `studyIds`, `cellIds`
-/// and `lineIds` name *studies*, and a study narrows the station set to the
-/// stations it actually visited in this run — read off the steps rather than the
-/// flow, because a station a study routes through but never used has no demand
+/// `typeIds` and `workcenterIds` name workcenters directly. `studyIds`, `cellIds`
+/// and `lineIds` name *studies*, and a study narrows the workcenter set to the
+/// workcenters it actually visited in this run — read off the steps rather than the
+/// flow, because a workcenter a study routes through but never used has no demand
 /// and no reason to be a row.
 ///
 /// **This exists because it was got wrong once.** The grid applied only the two
@@ -465,7 +491,7 @@ RunFilterOptions runFilterOptions(StoredRun? run, RunFilter filter) {
 /// they were handled nowhere, so choosing a study narrowed every other surface
 /// on the page and left the grid drawing the whole plant. Two callers computing
 /// it separately is how that happens twice.
-Set<String> stationsInView(StoredRun run, RunFilter filter) {
+Set<String> workcentersInView(StoredRun run, RunFilter filter) {
   final typeOf = {
     for (final row in run.metrics.workcenters) row.workcenterId: row.typeId,
   };
@@ -488,7 +514,7 @@ Set<String> stationsInView(StoredRun run, RunFilter filter) {
               study.studyId,
         };
 
-  final Set<String>? studyStations = allowedStudies == null
+  final Set<String>? studyWorkcenters = allowedStudies == null
       ? null
       : {
           for (final step in run.result.steps)
@@ -497,8 +523,8 @@ Set<String> stationsInView(StoredRun run, RunFilter filter) {
 
   return {
     for (final id in run.result.openByWorkcenterMonth.keys)
-      if (filter.includesStation(workcenterId: id, typeId: typeOf[id]) &&
-          (studyStations == null || studyStations.contains(id)))
+      if (filter.includesWorkcenter(workcenterId: id, typeId: typeOf[id]) &&
+          (studyWorkcenters == null || studyWorkcenters.contains(id)))
         id,
   };
 }
@@ -531,10 +557,10 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
 
   // What the view reports as its studies: the resolved set, or everything the
   // run listed when nothing narrowed it.
-  final studyIds =
-      allowed ?? {for (final study in run.studies) study.studyId};
+  final studyIds = allowed ?? {for (final study in run.studies) study.studyId};
 
-  bool keepsStudy(String studyId) => allowed == null || allowed.contains(studyId);
+  bool keepsStudy(String studyId) =>
+      allowed == null || allowed.contains(studyId);
 
   // **Two sources, and the split is deliberate.** A part number is on the
   // metrics, which every run has; the customer project is on the plan, which is
@@ -581,29 +607,29 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
   final orders = run.result.orders.where(keepsOrder).toList();
   final keptOrderIds = {for (final outcome in orders) outcome.orderId};
 
-  // **And the station filters narrow the steps** (#9). Every surface whose rows
-  // are stations reads them from here — the Gantt's Y axis *is* the workcenter,
+  // **And the workcenter filters narrow the steps** (#9). Every surface whose rows
+  // are workcenters reads them from here — the Gantt's Y axis *is* the workcenter,
   // and the Overview's queue and share tables are keyed on workcenters — so
   // narrowing the steps is what makes one picker govern all of them. The
   // production plan and the float matrix are per-order and per-part and so are
   // untouched, exactly as §12.1's whole-run caveat already handles figures a
   // filter cannot reach.
   //
-  // **A station filter drops steps, never orders.** An order that visits CLAD06
+  // **A workcenter filter drops steps, never orders.** An order that visits CLAD06
   // and CEU27 keeps both its outcome and its float when the view narrows to
   // CLAD06; only its CEU27 bar leaves. Dropping the order instead would make a
-  // station filter silently an order filter, which is the mistake #9 rejected
+  // workcenter filter silently an order filter, which is the mistake #9 rejected
   // one level up.
-  final stationTypeOf = {
-    for (final station in run.metrics.workcenters)
-      station.workcenterId: station.typeId,
+  final workcenterTypeOf = {
+    for (final workcenter in run.metrics.workcenters)
+      workcenter.workcenterId: workcenter.typeId,
   };
   final steps = [
     for (final step in run.result.steps)
       if (keptOrderIds.contains(step.orderId) &&
-          filter.includesStation(
+          filter.includesWorkcenter(
             workcenterId: step.workcenterId,
-            typeId: stationTypeOf[step.workcenterId],
+            typeId: workcenterTypeOf[step.workcenterId],
           ))
         step,
   ];
@@ -611,7 +637,7 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
   // **Which queues the slice still stands in, read off the steps that survived.**
   //
   // This was `keepsStudy(lane.studyId)`, which stopped being right when v19 made
-  // a queue belong to the station it stands in front of rather than to a study
+  // a queue belong to the workcenter it stands in front of rather than to a study
   // (§7.3). One row is written per *target* now, and the study on it is whichever
   // study happened to be written last — so on the real run eight of ten lanes
   // carry one study's id and two carry the other's, and filtering to either
@@ -639,8 +665,7 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     // unused cadence is a fact about the study.
     emptySlots: [
       for (final slot in run.result.emptySlots)
-        if (keepsStudy(slot.studyId) && filter.includesDate(slot.at))
-          slot,
+        if (keepsStudy(slot.studyId) && filter.includesDate(slot.at)) slot,
     ],
     busyByWorkcenter: run.result.busyByWorkcenter,
     openByWorkcenter: run.result.openByWorkcenter,
@@ -670,18 +695,18 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
       for (final part in run.metrics.parts) part.partId: part.partNumber,
     },
     workcenterNames: {
-      for (final station in run.metrics.workcenters)
-        station.workcenterId: station.name,
+      for (final workcenter in run.metrics.workcenters)
+        workcenter.workcenterId: workcenter.name,
     },
     // Carried through the slice for the same reason as the names: a filtered
-    // view must group its stations exactly as the unfiltered one does, or the
+    // view must group its workcenters exactly as the unfiltered one does, or the
     // two would describe two different plants (§12.1).
     pools: {
-      for (final station in run.metrics.workcenters)
-        if (station.poolName != null)
-          station.workcenterId: StationPool(
-            id: station.poolId,
-            name: station.poolName!,
+      for (final workcenter in run.metrics.workcenters)
+        if (workcenter.poolName != null)
+          workcenter.workcenterId: SimWorkcenterPool(
+            id: workcenter.poolId,
+            name: workcenter.poolName!,
           ),
     },
     // The theoretical walk is stored per order on the plan row rather than on
@@ -701,7 +726,7 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
     filter: filter,
     studyIds: studyIds,
     result: result,
-    // **Per column, not per table.** The stations used to be spliced back
+    // **Per column, not per table.** The workcenters used to be spliced back
     // wholesale from the unfiltered run, on the argument that a busy total for
     // the slice over an open total for the run is a utilisation that means
     // nothing. True of utilisation — and it was applied to five other columns
@@ -731,7 +756,7 @@ FilteredRun filterRun(StoredRun run, RunFilter filter) {
         })
           entry,
     ],
-    stationsAreWholeRun: !filter.isWholeRun,
+    workcentersAreWholeRun: !filter.isWholeRun,
   );
 }
 

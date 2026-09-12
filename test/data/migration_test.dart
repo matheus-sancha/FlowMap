@@ -1393,7 +1393,7 @@ void main() {
     expect(nodes.map((n) => n.laneCapacity), everyElement(isNull));
 
     // The defaults land on rows that already existed, which is what makes them
-    // safe: every station is one unit and every study has no buffer, exactly as
+    // safe: every workcenter is one unit and every study has no buffer, exactly as
     // they behaved before the columns were there.
     final workcenters = await db.select(db.workcenters).get()
       ..sort((a, b) => a.id.compareTo(b.id));
@@ -1404,14 +1404,14 @@ void main() {
     expect(study.paceSetterTargetId, isNull);
 
     // A run stored before lanes had capacity says nothing was ever blocked and
-    // every station was one unit, which is true of it.
+    // every workcenter was one unit, which is true of it.
     final step = await db.select(db.simulationRunSteps).getSingle();
     expect(step.blockedSeconds, 0);
 
-    final station = await db.select(db.simulationRunWorkcenters).getSingle();
-    expect(station.blockedSeconds, 0);
-    expect(station.units, 1);
-    expect(station.busySeconds, 3600);
+    final workcenter = await db.select(db.simulationRunWorkcenters).getSingle();
+    expect(workcenter.blockedSeconds, 0);
+    expect(workcenter.units, 1);
+    expect(workcenter.busySeconds, 3600);
 
     final runStudy = await db.select(db.simulationRunStudies).getSingle();
     expect(runStudy.startBufferDays, 0);
@@ -1628,7 +1628,7 @@ void main() {
 
     // **The changeover carried onto the setup, and its length is unchanged.**
     // 5400 seconds stored as `5400 seconds` rather than `90 minutes`: the unit
-    // is literal and resolves identically at every station (§6.1), so this is
+    // is literal and resolves identically at every workcenter (§6.1), so this is
     // the same duration written in the one unit that cannot mean two things.
     // Reducing it to `1.5 hours` would have been prettier and would have been
     // the first place a productive day could sneak in.
@@ -1684,7 +1684,7 @@ void main() {
     );
   });
 
-  test('v17 to v18: a run\'s stations arrive without a pool', () async {
+  test('v17 to v18: a run\'s workcenters arrive without a pool', () async {
     final file = File(p.join(dir.path, 'flowmap.sqlite'));
 
     // v17's shape: v16's tables plus the five columns v17 added. Built from the
@@ -1788,21 +1788,21 @@ void main() {
     final db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
 
-    final station = await db.select(db.simulationRunWorkcenters).getSingle();
+    final workcenter = await db.select(db.simulationRunWorkcenters).getSingle();
 
     // **Both null, and the pool in the plant is why that matters.** `wc-1` is a
     // member of `CAL Pool` today; this run predates the columns that would have
     // said so, and a backfill from current membership would have it group under
     // a heading it never dispatched through. Null means ungrouped, never
     // "every pool" (§12.1).
-    expect(station.poolId, isNull);
-    expect(station.poolName, isNull);
+    expect(workcenter.poolId, isNull);
+    expect(workcenter.poolName, isNull);
 
     // What the run did record is untouched — the step is additive and rebuilds
     // no table, which is the fourth migration running that can say so (§16.11).
-    expect(station.name, 'CLAD07');
-    expect(station.busySeconds, 3600);
-    expect(station.openSeconds, 7200);
+    expect(workcenter.name, 'CLAD07');
+    expect(workcenter.busySeconds, 3600);
+    expect(workcenter.openSeconds, 7200);
 
     expect(
       await db.customSelect('PRAGMA user_version').getSingle().then(
@@ -2327,7 +2327,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       final rows = await db.select(db.simulationRunLaneVisits).get();
       expect(rows.length, 1);
-      expect(rows.single.targetId, 'wc-2', reason: 'node_id held the station');
+      expect(rows.single.targetId, 'wc-2', reason: 'node_id held the workcenter');
       expect(
         rows.single.stepNodeId,
         'node-1',
@@ -2337,10 +2337,10 @@ void main() {
       await db.close();
     });
 
-    test('a stay with no step keeps the station as its surrogate', () async {
+    test('a stay with no step keeps the workcenter as its surrogate', () async {
       // An order the guard caught still queueing produced no step, so there is
       // nothing to name. v22's own key guaranteed at most one such row per
-      // order per station, so the target collides with nothing.
+      // order per workcenter, so the target collides with nothing.
       final file = await v22WithVisits(
         visits: [(order: 'o9', lane: 'wc-2', step: null)],
       );
@@ -2374,7 +2374,7 @@ void main() {
 
     test('the new key admits what the old one refused', () async {
       // The defect itself, at the far end of a migration: once upgraded, the
-      // table takes two stays of one order in one station's queue — which is
+      // table takes two stays of one order in one workcenter's queue — which is
       // what a part going back for a second operation produces, and what v22
       // rejected with a UNIQUE constraint after the run had been computed.
       final file = await v22WithVisits(
@@ -2463,7 +2463,7 @@ void main() {
       await db.close();
     });
 
-    test('a station used twice becomes two cells at the same value', () async {
+    test('a workcenter used twice becomes two cells at the same value', () async {
       // **What the round is for.** They start equal, so nothing about today's
       // numbers changes — and they can now diverge, which is what a routing
       // revisit means.
@@ -2500,7 +2500,7 @@ void main() {
 
     test('the new key admits what the old one could not hold', () async {
       // Two visits, two different times — impossible under v23, where the two
-      // steps shared one row keyed by the station.
+      // steps shared one row keyed by the workcenter.
       final file = await v23With(
         steps: [('node-1', 'wc-1'), ('node-2', 'wc-1')],
         times: [('part-a', 'wc-1', 7200)],
@@ -2567,12 +2567,12 @@ void main() {
       final db = AppDatabase(NativeDatabase(file));
       // Opening it runs the migration; the assertion is that all three landed.
       final step = await db.select(db.simulationRunSteps).getSingle();
-      final station = await db.select(db.simulationRunWorkcenters).getSingle();
+      final workcenter = await db.select(db.simulationRunWorkcenters).getSingle();
       final months = await db.select(db.simulationRunWorkcenterMonths).get();
 
       expect(step.processSecondsBeforeRework, isNull);
-      expect(station.typeId, isNull);
-      expect(station.typeName, isNull);
+      expect(workcenter.typeId, isNull);
+      expect(workcenter.typeName, isNull);
       expect(months, isEmpty);
       await db.close();
     });
@@ -2647,7 +2647,7 @@ void main() {
     });
   });
 
-  group('v26 to v27: a queue is an aspect, and a box is its station (#5)', () {
+  group('v26 to v27: a queue is an aspect, and a box is its workcenter (#5)', () {
     /// A v26 database with both columns present and filled, so the step can
     /// actually be exercised rather than skipped.
     Future<File> v26() async {
@@ -2855,7 +2855,7 @@ void main() {
   group('v29 to v30: whether a type’s crew is its throughput (#20)', () {
     test('every existing type stays machine-paced', () async {
       // **The default has to be the old behaviour**, because the flag changes
-      // what a run computes at any station carrying it. A migration that
+      // what a run computes at any workcenter carrying it. A migration that
       // silently repaced half a plant would invalidate every stored figure for
       // it without anyone asking.
       final file = File(p.join(dir.path, 'flowmap.sqlite'));

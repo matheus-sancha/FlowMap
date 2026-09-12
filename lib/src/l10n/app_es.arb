@@ -37,17 +37,17 @@
   "exceptionsScope": "Se aplica a todo el proyecto — a todos sus estudios.",
   "projectSettings": "Ajustes del proyecto",
   "projectSettingsIdentity": "Identidad",
-  "projectPatternHelp": "El patrón de turnos del que cada centro de trabajo de este proyecto lee sus horas abiertas. Cambiarlo recalcula el horario de todas las estaciones, y toda cifra derivada de ellas.",
+  "projectPatternHelp": "El patrón de turnos del que cada centro de trabajo de este proyecto lee sus horas abiertas. Cambiarlo recalcula el horario de todos los centros de trabajo, y toda cifra derivada de ellos.",
   "calendarExceptions": "Excepciones",
   "schedulesTaktScope": "compartido por todos los estudios de esta línea",
-  "schedulesStationsScope": "el flujo de este estudio",
+  "schedulesWorkcentersScope": "el flujo de este estudio",
   "workcenters": "Centros de trabajo",
   "workcenterNew": "Nuevo Centro de Trabajo",
   "workcenterType": "Tipo de centro de trabajo",
   "workcenterTypes": "Tipos de centro de trabajo",
   "workcenterTypeNew": "Nuevo tipo de centro de trabajo",
   "workcenterLines": "Se muestra bajo estas líneas",
-  "workcenterLinesHelp": "Solo organizativo. Cualquier estudio de cualquier línea puede usar este centro de trabajo marque lo que marque, y una estación que sirve a dos líneas va bajo las dos.",
+  "workcenterLinesHelp": "Solo organizativo. Cualquier estudio de cualquier línea puede usar este centro de trabajo marque lo que marque, y un centro de trabajo que sirve a dos líneas va bajo las dos.",
   "workcenterNoLines": "Esta planta aún no tiene líneas de producción.",
   "workcenterOnLines": "en {count} líneas",
   "@workcenterOnLines": {
@@ -202,9 +202,9 @@
   "summaryOperatorsNeeded": "Operarios necesarios",
   "summaryNoSteps": "Este flujo aún no tiene pasos de proceso asignados.",
   "summaryNothingToRank": "Nada que clasificar todavía: ningún paso tiene horario y demanda a la vez.",
-  "summaryOverloaded": "Por encima del 100 %: esta estación no puede con ello, se ordene como se ordene la secuencia.",
+  "summaryOverloaded": "Por encima del 100 %: este centro de trabajo no puede con ello, se ordene como se ordene la secuencia.",
   "summaryWithinCapacity": "Dentro de la capacidad de este periodo.",
-  "summaryNoDemandTakt": "Aún no hay takt de demanda: hace falta una estación con horas y pedidos con fecha en este periodo.",
+  "summaryNoDemandTakt": "Aún no hay takt de demanda: hace falta un centro de trabajo con horas y pedidos con fecha en este periodo.",
   "summaryBottleneck": "Cuello de botella: {name} al {occupation}",
   "@summaryBottleneck": {
     "placeholders": {
@@ -224,7 +224,7 @@
       }
     }
   },
-  "summaryVisitsHelp": "El flujo pasa {count} veces por esta estación, y cada visita la carga.",
+  "summaryVisitsHelp": "El flujo pasa {count} veces por este centro de trabajo, y cada visita lo carga.",
   "@summaryVisitsHelp": {
     "placeholders": {
       "count": {
@@ -268,7 +268,7 @@
       }
     }
   },
-  "summaryPaceSetter": "Medido en {name}, la estación más cargada, que tiene {available} disponibles este periodo.",
+  "summaryPaceSetter": "Medido en {name}, el centro de trabajo más cargado, que tiene {available} disponibles este periodo.",
   "@summaryPaceSetter": {
     "placeholders": {
       "name": {
@@ -280,7 +280,7 @@
     }
   },
   "summaryTaktConfigured": "Takt configurado",
-  "summaryTaktConfiguredHelp": "El takt al que está configurada esta línea, resuelto en la estación que marca el ritmo.",
+  "summaryTaktConfiguredHelp": "El takt al que está configurada esta línea, resuelto en el centro de trabajo que marca el ritmo.",
   "summaryTaktRaw": "Takt de demanda bruto",
   "summaryTaktRawHelp": "Tiempo disponible sobre {orders} pedidos requeridos. Lo que espera un visitante.",
   "@summaryTaktRawHelp": {
@@ -489,26 +489,26 @@
   "stepProcessTime": "Tiempo de proceso",
   "stepSetup": "Preparación",
   "stepTeardown": "Desmontaje",
-  "stepTeardownHelp": "Desmontar la estación después de una orden. Se cobra junto con la preparación de la orden siguiente, porque si hace falta depende de lo que venga después.",
+  "stepTeardownHelp": "Desmontar el centro de trabajo después de una orden. Se cobra junto con la preparación de la orden siguiente, porque si hace falta depende de lo que venga después.",
   "stepSamePart": "Misma pieza",
   "stepSamePartHelp": "Qué parte de la preparación y el desmontaje se sigue cobrando cuando la orden anterior era de la misma pieza. 0% hace gratis una repetición; 100% significa que agrupar no ahorra nada.",
   "stepChangeover": "Cambio de formato",
   "laneCapacity": "Capacidad del carril (órdenes)",
-  "laneCapacityHelp": "Cuántas órdenes caben aquí. Déjalo vacío para ilimitado. Cuando está lleno, la estación anterior no puede dejar la orden terminada y se detiene, que es como la congestión sube por la línea. Distinto de las piezas de arriba: esa cifra es lo que hay hoy, esta es lo que permite el suelo.",
+  "laneCapacityHelp": "Cuántas órdenes caben aquí. Déjalo vacío para ilimitado. Cuando está lleno, el centro de trabajo anterior no puede dejar la orden terminada y se detiene, que es como la congestión sube por la línea. Distinto de las piezas de arriba: esa cifra es lo que hay hoy, esta es lo que permite el suelo.",
   "workcenterParallelCapacity": "Órdenes a la vez",
-  "workcenterParallelCapacityHelp": "Cuántas órdenes procesa esta estación en paralelo. Uno es una sola máquina. Más de uno son unidades independientes, cada una con sus propios cambios de referencia — y el doble de capacidad en todo lo que se mide. Usa un pool cuando las máquinas sean realmente separadas y quieras ver cuál hizo qué.",
+  "workcenterParallelCapacityHelp": "Cuántas órdenes procesa este centro de trabajo en paralelo. Uno es una sola máquina. Más de uno son unidades independientes, cada una con sus propios cambios de referencia — y el doble de capacidad en todo lo que se mide. Usa un pool cuando las máquinas sean realmente separadas y quieras ver cuál hizo qué.",
   "studyStartBuffer": "Margen de inicio (días naturales)",
   "studyStartBufferHelp": "Margen adicional antes del inicio calculado. Una simulación empieza en la fecha de necesidad de la primera orden, menos su lead time teórico, menos esto. Días naturales, porque los retrasos ocurren esté la planta abierta o no.",
   "studyPaceSetter": "Marcapasos",
-  "studyPaceSetterHelp": "La estación cuyo reloj marca la cadencia de liberación, y cuyo carril decide cuándo puede entrar otra orden. Déjalo en automático para usar el paso más cargado.",
+  "studyPaceSetterHelp": "El centro de trabajo cuyo reloj marca la cadencia de liberación, y cuyo carril decide cuándo puede entrar otra orden. Déjalo en automático para usar el paso más cargado.",
   "studyPaceSetterAutomatic": "Automático — el paso más cargado",
   "simBlocked": "Bloqueado",
-  "simBlockedHelp": "Tiempo que la estación pasó sujetando una orden terminada porque el carril siguiente estaba lleno. No cuenta como ocupado: una estación atascada está ocupada y no produce nada.",
+  "simBlockedHelp": "Tiempo que el centro de trabajo pasó sujetando una orden terminada porque el carril siguiente estaba lleno. No cuenta como ocupado: un centro de trabajo atascado está ocupado y no produce nada.",
   "simEmptySlotLaneFull": "Carril lleno",
   "stepOperators": "Operarios",
   "stepEquivalentTime": "Takt time específico del proceso",
   "stepEquivalentFollowsTakt": "Sigue el takt",
-  "stepEquivalentHelp": "El takt propio de este paso, usado por el equivalente del flujo en lugar del de la línea. Déjalo vacío para seguir el takt de la línea. Rellénalo cuando un takt completo desequilibraría la comparación — una inspección que vale solo una fracción. Los días son días productivos de esta estación, así que 1 día equivale a un día de takt.",
+  "stepEquivalentHelp": "El takt propio de este paso, usado por el equivalente del flujo en lugar del de la línea. Déjalo vacío para seguir el takt de la línea. Rellénalo cuando un takt completo desequilibraría la comparación — una inspección que vale solo una fracción. Los días son días productivos de este centro de trabajo, así que 1 día equivale a un día de takt.",
   "stepProblemUnbound": "No se ha seleccionado centro de trabajo ni pool.",
   "stepProblemArchived": "Su centro de trabajo ha sido archivado o eliminado.",
   "stepProblemNoSchedule": "Ningún periodo de programación cubre este mes.",
@@ -531,7 +531,7 @@
   "simFilterCells": "Células",
   "simFilterLines": "Líneas",
   "simFilterPeriod": "Periodo",
-  "simFilterPeriodHelp": "Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.",
+  "simFilterPeriodHelp": "Selecciona los pedidos por su fecha de necesidad — la única de las fechas de un pedido que nunca está vacía, así que un pedido que la corrida nunca completó sigue apareciendo en su periodo. La utilización y el tiempo bloqueado de los centros de trabajo siguen describiendo la corrida completa, porque la corrida no guarda lo que haría falta para acotarlos.",
   "simFilterPeriodStart": "Primer mes",
   "simFilterPeriodEnd": "Último mes",
   "simFilterAll": "todos",
@@ -550,7 +550,7 @@
   },
   "simFilterClear": "Quitar Filtros",
   "simWorkspace": "Simulación",
-  "simStationsWholeRun": "Utilización y Bloqueado describen la corrida completa — la corrida no guarda lo que haría falta para acotar el tiempo abierto. Las demás columnas siguen el filtro.",
+  "simWorkcentersWholeRun": "Utilización y Bloqueado describen la corrida completa — la corrida no guarda lo que haría falta para acotar el tiempo abierto. Las demás columnas siguen el filtro.",
   "simulationRun": "Simular",
   "simulationRunning": "Ejecutando…",
   "dispatchFifo": "FIFO — por llegada",
@@ -573,7 +573,7 @@
       }
     }
   },
-  "simulationAbortNothingToRun": "No se pudo empezar nada: el calendario de todas las estaciones está cerrado, o ningún estudio tenía una primera orden costeable.",
+  "simulationAbortNothingToRun": "No se pudo empezar nada: el calendario de todos los centros de trabajo está cerrado, o ningún estudio tenía una primera orden costeable.",
   "simOnTimeDelivery": "Entregas a tiempo",
   "simOnTimeOfOrders": "{onTime} de {orders} órdenes a tiempo",
   "@simOnTimeOfOrders": {
@@ -611,7 +611,7 @@
   "simEmptySlotsHelp": "Ranuras que llegaron sin nada que poner en ellas: la cabeza de la secuencia aún no tenía material, o el flujo ya estaba en su límite de WIP. La secuencia es lo que se estudia, así que una ranura vacía se cuenta en lugar de repararse en silencio.",
   "simByQueue": "Ordenado por tiempo en cola",
   "simByShare": "Ordenado por peso en el flujo",
-  "simRankingsHelp": "Ambas clasificaciones están aquí porque su desacuerdo es el diagnóstico: una cola larga en una estación poco ocupada es un problema de secuenciación, no de capacidad.",
+  "simRankingsHelp": "Ambas clasificaciones están aquí porque su desacuerdo es el diagnóstico: una cola larga en un centro de trabajo poco ocupado es un problema de secuenciación, no de capacidad.",
   "simQueue": "Cola",
   "simQueueAverage": "Cola media",
   "simVisits": "Visitas",
@@ -623,7 +623,7 @@
   "simPerPart": "Por número de pieza",
   "simOrders": "Órdenes",
   "simOnTime": "A tiempo",
-  "simNothingRanked": "Ninguna estación ejecutó nada.",
+  "simNothingRanked": "Ningún centro de trabajo ejecutó nada.",
   "simRunSpan": "{start} → {end}",
   "@simRunSpan": {
     "placeholders": {
@@ -672,7 +672,7 @@
   "simRunDeleteBody": "Se borra la ejecución y todo lo que registró. Los estudios con los que se hizo no se tocan.",
   "simGanttView": "Gantt de producción",
   "simGanttEmpty": "Esta ejecución no registró ningún paso, así que no hay nada que dibujar.",
-  "simGanttGapHelp": "Una barra es la estación comprometida con esa orden, incluidas las horas cerradas. Un hueco es una estación que no está procesando: cerrada o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.",
+  "simGanttGapHelp": "Una barra es el centro de trabajo comprometido con esa orden, incluidas las horas cerradas. Un hueco es un centro de trabajo que no está procesando: cerrado o sin material. Cuánto de ese hueco estaba siquiera abierto se responde en la tabla de colas.",
   "simGanttOrder": "Orden {number}",
   "@simGanttOrder": {
     "placeholders": {
@@ -715,9 +715,9 @@
   },
   "simGanttLaneUncapped": "El carril no tiene límite",
   "simGanttStillWaiting": "Seguía aquí al terminar la simulación",
-  "simGanttRowsStations": "Centros",
-  "simGanttRowsWithLanes": "Centros + carriles",
-  "simGanttRowsHelp": "Si se dibujan las bandas de cola entre centros. Sin ellas el gráfico se lee como un flujo; con ellas, como una cola.",
+  "simGanttRowsWorkcenters": "Centros de trabajo",
+  "simGanttRowsWithLanes": "Centros de trabajo + carriles",
+  "simGanttRowsHelp": "Si se dibujan las bandas de cola entre centros de trabajo. Sin ellas el gráfico se lee como un flujo; con ellas, como una cola.",
   "simGanttZoomIn": "Acercar",
   "simGanttZoomOut": "Alejar",
   "simGanttFloored": "{count, plural, =1{1 barra dibujada más ancha de lo que es} other{{count} barras dibujadas más anchas de lo que son}}",
@@ -732,7 +732,7 @@
   "exportExcel": "Exportar a Excel",
   "simExportRunSheet": "Ejecución",
   "flowQueueEdit": "Definir la cola delante de este paso",
-  "flowQueueShared": "Una cola por estación: todos los pasos que alimentan {target} esperan en esta, en este estudio y en los demás.",
+  "flowQueueShared": "Una cola por centro de trabajo: todos los pasos que alimentan {target} esperan en esta, en este estudio y en los demás.",
   "@flowQueueShared": {
     "placeholders": {
       "target": {
@@ -742,7 +742,7 @@
   },
   "flowQueueName": "Nombre",
   "flowQueueType": "Tipo de cola",
-  "flowQueueTypeHelp": "Cómo elige la estación siguiente la próxima orden de esta cola. Una cola sin tipo es una fila a la que nadie ha dado una regla; las cuatro reglas son disciplinas, y el mapa dibuja cada una distinta. El rótulo de la cola en el mapa es este tipo y la estación ante la que está.",
+  "flowQueueTypeHelp": "Cómo elige el centro de trabajo siguiente la próxima orden de esta cola. Una cola sin tipo es una fila a la que nadie ha dado una regla; las cuatro reglas son disciplinas, y el mapa dibuja cada una distinta. El rótulo de la cola en el mapa es este tipo y el centro de trabajo ante el que está.",
   "flowQueueStock": "Lo que hay ahora",
   "queueTypeQueue": "Cola — una fila, sin regla",
   "queueShortFifo": "FIFO",
@@ -751,7 +751,7 @@
   "queueShortShortestProcessing": "SPT",
   "queueShortQueue": "Cola",
   "queueTypeSupermarket": "Supermercado — todavía no",
-  "flowBatchHelp": "Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa la estación diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene.",
+  "flowBatchHelp": "Cuántas piezas cuesta cada caja. Los tiempos de proceso son por pieza, así que una orden de diez ocupa el centro de trabajo diez veces más — que es lo que cobra la simulación. Déjalo vacío para seguir las órdenes que esta pieza tiene.",
   "validationNumber": "Introduce un número",
   "validationAboveZero": "Introduce un número mayor que cero",
   "simEmptySlotAwaitingMaterial": "Esperando material",
@@ -762,7 +762,7 @@
   "flowEndStockHelp": "Una observación de lo que hay hoy en planta, en piezas, mostrada como días según el takt del período en pantalla. Cuenta para el lead time y para los días de stock, y nada se despacha desde aquí: los pedidos se liberan por takt, no se retiran de una estantería. Déjalo en blanco si nadie lo ha contado.",
   "flowEndStockNone": "Sin contar",
   "stepBalancedMark": "⇄",
-  "stepBalancedHelp": "Reequilibrado entre las estaciones de {type} contiguas en este flujo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió {measured}, y la tabla de demanda lo sigue guardando.",
+  "stepBalancedHelp": "Reequilibrado entre los centros de trabajo de {type} contiguos en este flujo: cada uno se llena hasta su takt y el último se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Aquí se midió {measured}, y la tabla de demanda lo sigue guardando.",
   "@stepBalancedHelp": {
     "placeholders": {
       "type": {
@@ -773,12 +773,12 @@
       }
     }
   },
-  "stepRebalance": "Reequilibrar con máquinas contiguas del mismo tipo",
-  "stepRebalanceHelp": "Las estaciones del mismo tipo que están una al lado de la otra reparten su trabajo: cada una se llena hasta su takt y la última se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Desactívalo para fijar esta estación en lo que se midió en ella.",
+  "stepRebalance": "Reequilibrar con centros de trabajo contiguos del mismo tipo",
+  "stepRebalanceHelp": "Los centros de trabajo del mismo tipo que están uno al lado del otro reparten su trabajo: cada uno se llena hasta su takt y el último se queda con el resto, así que cambiar el takt mueve el reparto sin ninguna otra edición. Desactívalo para fijar este centro de trabajo en lo que se midió en él.",
   "stepRebalanceNoType": "{name} no tiene tipo de centro de trabajo, así que nada dice que sea igual a sus vecinas.",
   "stepRebalanceNoNeighbour": "Ningún paso contiguo comparte el tipo {type}.",
-  "stepRebalanceNoWork": "Esta pieza no tiene tiempo aquí, así que la estación no reparte trabajo.",
-  "stepRebalanceOn": "Repartiendo trabajo con las estaciones {type} contiguas.",
+  "stepRebalanceNoWork": "Esta pieza no tiene tiempo aquí, así que el centro de trabajo no reparte trabajo.",
+  "stepRebalanceOn": "Repartiendo trabajo con los centros de trabajo {type} contiguos.",
   "@stepRebalanceNoType": {
     "placeholders": {
       "name": {
@@ -857,7 +857,7 @@
   "languageEn": "English",
   "languageEs": "Español",
   "languagePt": "Português",
-  "stepRebalanceOnWithRework": "Comparte trabajo con las estaciones {type} contiguas. Llenada hasta {filled} de {capacity}: con un {rework}% de retrabajo, ese contenido ocupa un takt completo.",
+  "stepRebalanceOnWithRework": "Comparte trabajo con los centros de trabajo {type} contiguos. Llenado hasta {filled} de {capacity}: con un {rework}% de retrabajo, ese contenido ocupa un takt completo.",
   "@stepRebalanceOnWithRework": {
     "placeholders": {
       "type": {
@@ -874,13 +874,12 @@
       }
     }
   },
-  "stepRebalanceRemainder": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, dentro de las {capacity} que cabe en un takt.",
-  "stepRebalanceRemainderOver": "Comparte trabajo con las estaciones {type} contiguas. Ellas se llenan hasta su takt y esta se queda con lo que sobra: {filled}, por encima de las {capacity} que cabe en un takt. El grupo necesita más de lo que tienen sus estaciones.",
+  "stepRebalanceRemainder": "Comparte trabajo con los centros de trabajo {type} contiguos. Ellos se llenan hasta su takt y este se queda con lo que sobra: {filled}, dentro de las {capacity} que cabe en un takt.",
+  "stepRebalanceRemainderOver": "Comparte trabajo con los centros de trabajo {type} contiguos. Ellos se llenan hasta su takt y este se queda con lo que sobra: {filled}, por encima de las {capacity} que cabe en un takt. El grupo necesita más de lo que tienen sus centros de trabajo.",
   "occupationView": "Ocupación",
   "occupationType": "Tipo",
-  "occupationStation": "Estación",
   "occupationLine": "Línea",
-  "occupationUngraphable": "Esta simulación se hizo antes de que la app registrara cuánto valía un mes de una estación, así que no se puede graficar. Vuelve a simular para obtener el gráfico.",
+  "occupationUngraphable": "Esta simulación se hizo antes de que la app registrara cuánto valía un mes de un centro de trabajo, así que no se puede graficar. Vuelve a simular para obtener el gráfico.",
   "projectSettingsFloat": "Umbrales de holgura",
   "projectSettingsFloatHelp": "Dónde la matriz de holgura se pone roja y verde. Entre las dos, ámbar.",
   "projectFloatRed": "Rojo en o por debajo de (días)",
@@ -940,12 +939,12 @@
   "occupationWorkcenter": "Centro de trabajo",
   "occupationAmberAbove": "Ámbar por encima de",
   "occupationRedAbove": "Rojo por encima de",
-  "occupationBands": "Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.",
+  "occupationBands": "Dónde la cuadrícula de ocupación pasa a ámbar y a rojo. Un centro de trabajo al que se le piden más horas de las que tiene abiertas está excedido por definición; la banda ámbar es el margen que queda para el cambio que trae el siguiente pedido.",
   "occupationProcess": "Proceso",
   "occupationRework": "Retrabajo",
   "occupationChangeover": "Cambio",
   "occupationOutsideFilter": "Fuera del filtro",
-  "occupationStations": "{count, plural, =1{1 centro agregado} other{{count} centros agregados}}",
+  "occupationWorkcentersAggregated": "{count, plural, =1{1 centro de trabajo agregado} other{{count} centros de trabajo agregados}}",
   "occupationTipDemand": "Demanda",
   "occupationTipCapacity": "Capacidad",
   "occupationHours": "{hours} h",

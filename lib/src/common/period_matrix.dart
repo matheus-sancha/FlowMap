@@ -21,7 +21,7 @@
 ///
 /// **Known asymmetry, accepted.** The two share the chrome and not the row
 /// semantics: float's row *r* means *"the order ranked r that month"*, each
-/// column independently sorted and ragged, while occupation's rows are stations
+/// column independently sorted and ragged, while occupation's rows are workcenters
 /// or lines that persist across the row. So this takes `cellAt(row, column)` and
 /// the row's meaning stays the caller's — which is the honest seam, and the
 /// reason this is not `FloatMatrixTable` with a flag.
@@ -40,7 +40,7 @@ class PeriodMatrixRow {
   /// `CEU27`, or the rank `1` on the float matrix.
   final String label;
 
-  /// A second line under it — the pool a station ran in, or the cell a line
+  /// A second line under it — the pool a workcenter ran in, or the cell a line
   /// sits in. Null where there is nothing to qualify.
   final String? qualifier;
 
@@ -192,7 +192,7 @@ class PeriodMatrix extends StatelessWidget {
   ///
   /// **Offered, and one of the two callers declines it** (#10). *A surface
   /// sorts unless its row order is itself data*: the Occupation grid's rows are
-  /// stations, so ordering them by April is a question a planner asks — while
+  /// workcenters, so ordering them by April is a question a planner asks — while
   /// the float matrix's row *r* **means** rank *r* in that column, and sorting
   /// it would produce a table that looks fine and says something false.
   ///
@@ -220,7 +220,7 @@ class PeriodMatrix extends StatelessWidget {
   ///
   /// **At the bottom, and always shown** — both of which changed in #14. It was
   /// `pinned`, drawn at the top, and hidden the moment a filter narrowed the
-  /// station set, because #9 judged *"a partial wearing the plant's name"*
+  /// workcenter set, because #9 judged *"a partial wearing the plant's name"*
   /// worse than no row at all. Renaming it from PLANT to **TOTAL** dissolved
   /// that: a total only ever claims to be the total of the rows above it, which
   /// is true under every filter — and a filtered view is exactly when someone

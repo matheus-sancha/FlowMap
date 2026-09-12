@@ -1,12 +1,12 @@
 import '../../../data/database/enums.dart';
 import 'schedule_periods.dart';
 
-/// What a [TaktUnit] value is worth at a station whose ordinary working day is
+/// What a [TaktUnit] value is worth at a workcenter whose ordinary working day is
 /// [workingDay] (DESIGN.md §6.1).
 ///
-/// **`days` is the only unit that has to ask.** A 3-day takt at a station open
-/// 22:40 a day is 68 hours and at a single-shift station 26:24, and both are
-/// "three days of that station's own capacity". Hours, minutes and seconds are
+/// **`days` is the only unit that has to ask.** A 3-day takt at a workcenter open
+/// 22:40 a day is 68 hours and at a single-shift workcenter 26:24, and both are
+/// "three days of that workcenter's own capacity". Hours, minutes and seconds are
 /// literal and resolve identically everywhere.
 ///
 /// One definition, because three separate things are now expressed this way and
@@ -32,7 +32,7 @@ Duration taktUnitDuration(double value, TaktUnit unit, Duration workingDay) =>
 ///
 /// The takt is a **value plus a unit**, not a duration. "3 days" only becomes a
 /// duration once you say whose working day is meant, and the answer differs per
-/// workcenter — a station on one shift and a station on three do not have the
+/// workcenter — a workcenter on one shift and a workcenter on three do not have the
 /// same day. So the resolution happens at the workcenter, in [equivalentAt].
 class TaktPeriodSpec implements DatedPeriod {
   const TaktPeriodSpec({
@@ -56,7 +56,7 @@ class TaktPeriodSpec implements DatedPeriod {
   ///
   /// A 3-day takt at a workcenter open 22:40 a day is 68 hours; the same takt
   /// at a single-shift workcenter open 8:48 a day is 26:24. Both are "one takt
-  /// of that station's own capacity", which is the comparison the equivalency
+  /// of that workcenter's own capacity", which is the comparison the equivalency
   /// method exists to make.
   Duration equivalentAt(Duration openPerWorkingDay) =>
       taktUnitDuration(value, unit, openPerWorkingDay);

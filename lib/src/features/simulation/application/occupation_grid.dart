@@ -1,11 +1,11 @@
-/// The Occupation grid: which station is over capacity, in which month, and by
+/// The Occupation grid: which workcenter is over capacity, in which month, and by
 /// how many hours (DESIGN.md §10.3, #9).
 ///
-/// **A station × month grid, not a chart**, and the live database is why. Across
+/// **A workcenter × month grid, not a chart**, and the live database is why. Across
 /// all three stored runs that can draw this view at all — 3 of 147; the other
 /// 144 predate v25's monthly capacity — the aggregate bar the old chart drew
 /// **never once broke its capacity line**, peaking at 87 %. Over the same months
-/// single stations reached 149 % and seven of seventeen were over in one month.
+/// single workcenters reached 149 % and seven of seventeen were over in one month.
 /// The figure the view was built around could not report the finding the view
 /// exists to find.
 ///
@@ -26,19 +26,19 @@ import '../../../common/period_granularity.dart';
 
 /// What the rows of the grid are.
 enum OccupationGrouping {
-  /// One row per station: all demand at it over its own capacity that month.
+  /// One row per workcenter: all demand at it over its own capacity that month.
   /// The default, and the grouping that answers the view's question.
   workcenter,
 
-  /// One row per production line: **everyone's** demand at the stations that
-  /// line depends on, over those stations' capacity.
+  /// One row per production line: **everyone's** demand at the workcenters that
+  /// line depends on, over those workcenters' capacity.
   ///
   /// Arithmetically identical to filtering to that line, so the bands carry over
   /// unchanged and a line row is one PLANT row per line. This is the retired
   /// pivot's replacement, at one grain instead of two.
   ///
   /// **Known cost, accepted:** on the live plant the three lines read 79–82 %
-  /// every month, because they share four of their stations. It separates them
+  /// every month, because they share four of their workcenters. It separates them
   /// only where they do not overlap.
   ///
   /// *Rejected: the line's own demand ÷ all capacity in view.* Rows would sum to
@@ -47,28 +47,28 @@ enum OccupationGrouping {
   /// and the view would need a second colour vocabulary.
   line,
 
-  /// One row per workcenter type: all demand at the stations of that type over
-  /// those stations' capacity.
+  /// One row per workcenter type: all demand at the workcenters of that type over
+  /// those workcenters' capacity.
   ///
-  /// **The one grouping whose rows genuinely partition.** A station carries
-  /// exactly one type, so unlike [line] — where two lines sharing four stations
-  /// count them both — no station is in two rows and none is in none. The rows
+  /// **The one grouping whose rows genuinely partition.** A workcenter carries
+  /// exactly one type, so unlike [line] — where two lines sharing four workcenters
+  /// count them both — no workcenter is in two rows and none is in none. The rows
   /// therefore sum to the TOTAL row, which is the clean decomposition [line]
   /// was asked for and could not be.
   ///
-  /// **Membership is the station's, not the run's.** [line] reads its stations
-  /// from the steps, because a line depends on a station by using it; a type is
-  /// a property of the machine, so a scheduled station the run never touched is
+  /// **Membership is the workcenter's, not the run's.** [line] reads its workcenters
+  /// from the steps, because a line depends on a workcenter by using it; a type is
+  /// a property of the machine, so a scheduled workcenter the run never touched is
   /// in its type's row with capacity and no demand. That is the answer to *have
   /// I got enough cladding capacity* rather than *what did cladding do* — and
   /// on the live plant it moves Cladding from 67 % to 58 %, because one of its
   /// seven machines has never had work.
   ///
   /// **Recorded, and chosen with the cost stated:** nothing on the row says so.
-  /// The qualifier slot could carry *7 stations, 1 idle*, and the offer was
+  /// The qualifier slot could carry *7 workcenters, 1 idle*, and the offer was
   /// declined — the third time this view has been offered a way to show that an
   /// aggregate hides its members, after the plant row's 87 % over a 149 %
-  /// station and the stations-over badge twice.
+  /// workcenter and the workcenters-over badge twice.
   type,
 }
 
@@ -85,7 +85,7 @@ enum OccupationUnit {
   /// derived figure expands to show its inputs.
   hours,
 
-  /// `-234` h: open minus asked, negative when the station is over.
+  /// `-234` h: open minus asked, negative when the workcenter is over.
   gap,
 }
 
@@ -100,15 +100,15 @@ class OccupationRow {
 
   final String id;
 
-  /// The station or line, as the run recorded it (§7.10).
+  /// The workcenter or line, as the run recorded it (§7.10).
   final String name;
 
-  /// The pool a station ran in, or the cell a line sits in — the second line of
+  /// The pool a workcenter ran in, or the cell a line sits in — the second line of
   /// the row header, and null when there is nothing to qualify.
   final String? qualifier;
 
   /// By month. A month the row has no capacity in is absent rather than zero:
-  /// a station that did not exist yet and a station asked for nothing are
+  /// a workcenter that did not exist yet and a workcenter asked for nothing are
   /// different facts, and only one of them is a finding.
   final Map<DateTime, OccupationCell> cells;
 
@@ -159,7 +159,7 @@ class OccupationRow {
   }
 }
 
-/// One cell: what was asked of a station in a month, and what it had.
+/// One cell: what was asked of a workcenter in a month, and what it had.
 class OccupationCell {
   const OccupationCell({
     required this.asked,
@@ -172,10 +172,10 @@ class OccupationCell {
 
   /// **Everyone's demand**, never the filtered line's own share.
   ///
-  /// A structural filter chooses which stations are in view; it does not shrink
+  /// A structural filter chooses which workcenters are in view; it does not shrink
   /// what a machine was asked for. Filtered to one line, CLAD04 still reads
   /// 99 % because another line is also on it — which is the difference between
-  /// *"this station is full"* and *"my orders fill this station"*, and only the
+  /// *"this workcenter is full"* and *"my orders fill this workcenter"*, and only the
   /// first is a capacity finding.
   final Duration asked;
 
@@ -202,7 +202,7 @@ class OccupationCell {
   /// opposite action, and the chart this replaces had nothing that said which.
   final Duration filtered;
 
-  /// Asked over open, or null where the station had no open time at all.
+  /// Asked over open, or null where the workcenter had no open time at all.
   double? get ratio =>
       open == Duration.zero ? null : asked.inSeconds / open.inSeconds;
 
@@ -222,17 +222,17 @@ class OccupationGrid {
     required this.total,
   });
 
-  /// Every month the run spans at the stations in view, whether or not anything
+  /// Every month the run spans at the workcenters in view, whether or not anything
   /// arrived in one: a quiet month is a fact about the plan and a gap in the
   /// axis would hide it.
   final List<DateTime> months;
 
   final List<OccupationRow> rows;
 
-  /// Every station in view as one row, drawn along the bottom (#14).
+  /// Every workcenter in view as one row, drawn along the bottom (#14).
   ///
   /// **Always present, which it was not.** This was `plant`, and it went null
-  /// the moment any filter narrowed the station set, because #9 judged *"a
+  /// the moment any filter narrowed the workcenter set, because #9 judged *"a
   /// partial total wearing the plant's name"* worse than no row at all.
   /// Renaming it **TOTAL** dissolved that objection rather than answering it: a
   /// total claims only the rows above it, which is true under every filter —
@@ -252,7 +252,7 @@ OccupationGrid? occupationGrid({
   RunFilter filter = const RunFilter(),
   OccupationGrouping grouping = OccupationGrouping.workcenter,
   PeriodGranularity granularity = PeriodGranularity.month,
-  /// What to call the bucket for stations carrying no type, under
+  /// What to call the bucket for workcenters carrying no type, under
   /// [OccupationGrouping.type]. Passed in rather than composed here because
   /// this file is pure and the label is one of three locales' — the same reason
   /// the line rows take their names from the run rather than from the plant.
@@ -261,21 +261,21 @@ OccupationGrid? occupationGrid({
   final monthly = run.result.openByWorkcenterMonth;
   if (monthly.isEmpty) return null;
 
-  final stations = {
+  final workcenters = {
     for (final row in run.metrics.workcenters) row.workcenterId: row,
   };
 
-  // **One station resolution, shared with the chart** — see
-  // `stationsInView`. It lives in `run_filter.dart` because it is filter
+  // **One workcenter resolution, shared with the chart** — see
+  // `workcentersInView`. It lives in `run_filter.dart` because it is filter
   // semantics, and because computing it in two places is how the study filter
   // came to be applied in neither.
-  final inView = stationsInView(run, filter);
+  final inView = workcentersInView(run, filter);
   if (inView.isEmpty) return null;
 
   // The orders an **order-level** filter keeps, taken through `filterRun` so
   // the grid and every table beside it cannot disagree about which orders are in
   // the slice. Structural filters are stripped out of this: they choose the
-  // station set, and letting them shrink the demand as well is exactly the
+  // workcenter set, and letting them shrink the demand as well is exactly the
   // mistake #9 rejected — no single line is ever over 100 %, so the view would
   // stop finding overloads the moment anyone filtered.
   final kept = {
@@ -307,7 +307,7 @@ OccupationGrid? occupationGrid({
   // **Capacity is the sum of the months in each period, never a mean of their
   // ratios** — #14's arithmetic for the TOTAL column, for its reason: averaging
   // three monthly percentages would weight a 733 h month like a 499 h one.
-  final capacityByStation = <String, Map<DateTime, Duration>>{
+  final capacityByWorkcenter = <String, Map<DateTime, Duration>>{
     for (final entry in monthly.entries)
       entry.key: {
         for (final month in entry.value.entries)
@@ -316,14 +316,14 @@ OccupationGrid? occupationGrid({
       },
   };
   for (final entry in monthly.entries) {
-    final folded = capacityByStation[entry.key]!;
+    final folded = capacityByWorkcenter[entry.key]!;
     for (final month in entry.value.entries) {
       if (!keptMonths.contains(month.key)) continue;
       folded.update(granularity.startOf(month.key), (had) => had + month.value);
     }
   }
 
-  // Demand per station per month, and the filtered share of it.
+  // Demand per workcenter per month, and the filtered share of it.
   final asked = <String, Map<DateTime, Duration>>{};
   final mine = <String, Map<DateTime, Duration>>{};
   // The kept orders' demand broken into the chart's three segments, so the
@@ -387,7 +387,7 @@ OccupationGrid? occupationGrid({
     var rework = Duration.zero;
     var changeover = Duration.zero;
     for (final id in ids) {
-      open += capacityByStation[id]?[month] ?? Duration.zero;
+      open += capacityByWorkcenter[id]?[month] ?? Duration.zero;
       demand += asked[id]?[month] ?? Duration.zero;
       filtered += mine[id]?[month] ?? Duration.zero;
       process += mineProcess[id]?[month] ?? Duration.zero;
@@ -414,12 +414,12 @@ OccupationGrid? occupationGrid({
   switch (grouping) {
     case OccupationGrouping.workcenter:
       for (final id in inView) {
-        final station = stations[id];
+        final workcenter = workcenters[id];
         rows.add(
           OccupationRow(
             id: id,
-            name: station?.name ?? id,
-            qualifier: station?.poolName,
+            name: workcenter?.name ?? id,
+            qualifier: workcenter?.poolName,
             cells: cellsFor([id]),
           ),
         );
@@ -432,8 +432,8 @@ OccupationGrid? occupationGrid({
       });
 
     case OccupationGrouping.line:
-      // Which stations each line's studies actually touched. A line depends on
-      // a station if any of its orders visited it — read from the run rather
+      // Which workcenters each line's studies actually touched. A line depends on
+      // a workcenter if any of its orders visited it — read from the run rather
       // than from the plant, which may have been rearranged since (§7.10).
       final lineOf = {
         for (final study in run.studies)
@@ -471,22 +471,22 @@ OccupationGrid? occupationGrid({
       });
 
     case OccupationGrouping.type:
-      // **The station's own type, not the run's steps.** A machine belongs to a
-      // type whether or not anything ran on it, so a scheduled station the run
+      // **The workcenter's own type, not the run's steps.** A machine belongs to a
+      // type whether or not anything ran on it, so a scheduled workcenter the run
       // never touched is in its type's row carrying capacity and no demand —
       // which is the question this grouping answers.
       //
-      // The type is read from the stored run (§7.10), so a station retyped
+      // The type is read from the stored run (§7.10), so a workcenter retyped
       // since still groups as it did when it ran.
       final byType = <String, ({String name, Set<String> ids})>{};
       for (final id in inView) {
-        final station = stations[id];
-        // A run stored before a station was typed carries a null here. It gets
+        final workcenter = workcenters[id];
+        // A run stored before a workcenter was typed carries a null here. It gets
         // its own bucket rather than being dropped: the rows partition the
-        // stations in view, and a row silently missing from that partition is
+        // workcenters in view, and a row silently missing from that partition is
         // a TOTAL that does not add up — the fault #14 spent its argument on.
-        final key = station?.typeId ?? '';
-        final name = station?.typeName ?? untypedLabel;
+        final key = workcenter?.typeId ?? '';
+        final name = workcenter?.typeName ?? untypedLabel;
         (byType[key] ??= (name: name, ids: <String>{})).ids.add(id);
       }
       for (final entry in byType.entries) {
@@ -510,7 +510,7 @@ OccupationGrid? occupationGrid({
   return OccupationGrid(
     months: months,
     rows: rows,
-    // Every station in view, under every filter (#14).
+    // Every workcenter in view, under every filter (#14).
     total: OccupationRow(
       id: '',
       name: '',

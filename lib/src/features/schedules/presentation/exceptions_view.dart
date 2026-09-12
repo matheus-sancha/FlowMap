@@ -20,7 +20,7 @@ import 'date_range_field.dart';
 /// every other workcenter shares.
 ///
 /// Project-scoped, and shown on the Workcenters tab beside the schedules it
-/// overrides: the two answer one question — what is this station open for —
+/// overrides: the two answer one question — what is this workcenter open for —
 /// and separating them would make the answer live in two places.
 class CalendarExceptionsView extends ConsumerWidget {
   const CalendarExceptionsView({
@@ -356,7 +356,7 @@ class _ExceptionDialogState extends ConsumerState<_ExceptionDialog> {
         const <String, List<String>>{};
 
     // Pools are offered in the same picker as workcenters and expanded on
-    // save. A pool is a name for a set of stations, not a fourth kind of
+    // save. A pool is a name for a set of workcenters, not a fourth kind of
     // place, so the schema needs no fourth scope.
     final targets = <({String id, String label})>[
       for (final pool in pools)

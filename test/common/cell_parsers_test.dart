@@ -54,7 +54,7 @@ void main() {
     });
 
     test('1 and 100 are both 100 %', () {
-      // The one place the ranges touch. A station at 1 % is not what anyone
+      // The one place the ranges touch. A workcenter at 1 % is not what anyone
       // means, so `1` reads as the whole of it.
       expect(parseFraction('1'), 1.0);
       expect(parseFraction('100'), 1.0);

@@ -257,7 +257,7 @@ void main() {
         tester,
       ) async {
         // The other half of §7.4's "under or over": a group with slack leaves its
-        // last station short of a takt, and that is not a warning about anything.
+        // last workcenter short of a takt, and that is not a warning about anything.
         // 57.1 h charged at 3.7 % is 59.2 h, inside 76.2 h.
         await openStep(
           tester,
@@ -277,10 +277,10 @@ void main() {
         );
       });
 
-      testWidgets('a station that did fill to its takt still says so', (
+      testWidgets('a workcenter that did fill to its takt still says so', (
         tester,
       ) async {
-        // The sentence §9.8 added is unchanged for the stations it was written
+        // The sentence §9.8 added is unchanged for the workcenters it was written
         // for — this round parts the two, it does not replace one with the other.
         await openStep(
           tester,
@@ -342,7 +342,7 @@ void main() {
     testWidgets('a step that targets nothing has no queue section', (
       tester,
     ) async {
-      // There is no floor space in front of a step that names no station, and
+      // There is no floor space in front of a step that names no workcenter, and
       // nothing to key a row by.
       await openStep(tester);
 

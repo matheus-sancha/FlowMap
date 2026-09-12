@@ -282,13 +282,13 @@ void main() {
     ) async {
       // The matrix measures itself on the row header, and a two-line *cell* is
       // the other thing that needs the height. Per workcenter, a plant whose
-      // stations are all outside a pool has no qualifier anywhere — so without
+      // workcenters are all outside a pool has no qualifier anywhere — so without
       // this the Hours unit would overflow every row.
       await tester.pumpWidget(
         host(
           PeriodMatrix(
             months: months,
-            headerLabel: 'STATION',
+            headerLabel: 'WORKCENTER',
             rows: const [PeriodMatrixRow(label: 'CEU27')],
             cellAt: (row, month) => const PeriodMatrixCell(
               text: '733',

@@ -13,7 +13,7 @@ import 'package:flowmap/src/features/simulation/application/sim_model.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Demand against capacity, station by station and month by month (§10.3, #9).
+/// Demand against capacity, workcenter by workcenter and month by month (§10.3, #9).
 ///
 /// Built from a **stored** run rather than a fresh result, because that is what
 /// the grid reads and because the thing it needs — the monthly capacity — is a
@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// **This file was `occupation_graph_test.dart`** and its nine tests were about
 /// a stacked bar: three segments summing to the required time, a neutral
-/// segment for load outside the filter, a per-month count of stations over, and
+/// segment for load outside the filter, a per-month count of workcenters over, and
 /// a pivot of lines against types. The chart was deleted (#9) and so were they.
 /// What survived is the fixture — two lines sharing MILL02, which is the shape
 /// every rule here is still about — and the three claims that were never about
@@ -93,7 +93,7 @@ void main() {
     ],
   );
 
-  /// [from] and [to] are the station's **schedule**, which since phase 9 is
+  /// [from] and [to] are the workcenter's **schedule**, which since phase 9 is
   /// what the capacity table spans — not the run. A fixture scheduled 2020 to
   /// 2030 draws a hundred and twenty empty columns beside its demand, which is
   /// correct and is not what most tests here are about.
@@ -248,7 +248,7 @@ void main() {
     () async {
       // **The rule the whole design turns on**, and the one the chart got wrong.
       // MILL02 is shared by both lines: filtered to one, the *cell* must still
-      // read everyone's demand over MILL02's full capacity, or no station would
+      // read everyone's demand over MILL02's full capacity, or no workcenter would
       // ever be over 100 % under a filter and the view would stop finding
       // overloads the moment anyone used it.
       final run = await stored();
@@ -277,7 +277,7 @@ void main() {
   test(
     'an order-level filter moves the share and leaves the number alone',
     () async {
-      // The other half: project, part and order number cannot choose stations, so
+      // The other half: project, part and order number cannot choose workcenters, so
       // capacity is untouched and the cell dims instead. This is what tells
       // "CEU27 is at 100 % and 80 of it is yours" from "CEU32 is at 147 % and
       // none of it is" — same colour, opposite action.
@@ -335,7 +335,7 @@ void main() {
     // narrowed every other surface on the page and left this one drawing the
     // whole plant.
     //
-    // Both studies here visit both stations, so a study filter cannot remove a
+    // Both studies here visit both workcenters, so a study filter cannot remove a
     // row from this fixture — what it can show is that the filter is *read*.
     // A study nothing matches must leave no grid, which is only true if the
     // set is being consulted.
@@ -347,13 +347,13 @@ void main() {
         filter: const RunFilter(studyIds: {'nobody'}),
       ),
       isNull,
-      reason: 'a study filter that matches nothing leaves no stations in view',
+      reason: 'a study filter that matches nothing leaves no workcenters in view',
     );
   });
 
-  test('a line filter narrows the stations, so the plant row goes', () async {
+  test('a line filter narrows the workcenters, so the plant row goes', () async {
     // **This rule was reversed by #14, deliberately.** It used to be: a line
-    // filter is structural, so it narrows the station set, and the moment
+    // filter is structural, so it narrows the workcenter set, and the moment
     // anything does the PLANT row has to go — a total across a subset would
     // wear the plant's name.
     //
@@ -373,7 +373,7 @@ void main() {
   });
 
   test(
-    'a station filter drops the station and its capacity, and the total follows',
+    'a workcenter filter drops the workcenter and its capacity, and the total follows',
     () async {
       final run = await stored();
       final whole = occupationGrid(run: run)!;
@@ -387,14 +387,14 @@ void main() {
 
       // **And the TOTAL row now totals what is left** (#14) rather than
       // vanishing: with CLAD04 alone in view, the aggregate is CLAD04's own
-      // demand, not the two stations' — which is the whole point of it
+      // demand, not the two workcenters' — which is the whole point of it
       // surviving a filter.
       final onlyRow = one.rows.single;
       for (final month in onlyRow.cells.keys) {
         expect(
           one.total.cells[month]!.asked,
           onlyRow.cells[month]!.asked,
-          reason: 'a total over one station is that station',
+          reason: 'a total over one workcenter is that workcenter',
         );
       }
       expect(
@@ -409,7 +409,7 @@ void main() {
     },
   );
 
-  test('the TOTAL row is the sum of the stations above it', () async {
+  test('the TOTAL row is the sum of the workcenters above it', () async {
     final run = await stored();
     final grid = occupationGrid(run: run)!;
     final plant = grid.total;
@@ -428,20 +428,20 @@ void main() {
     }
   });
 
-  test('a plant total can hide a station that is over', () async {
+  test('a plant total can hide a workcenter that is over', () async {
     // **The finding that killed the chart**, as a property. On the live
-    // database the aggregate never once broke its line while single stations
+    // database the aggregate never once broke its line while single workcenters
     // reached 149 % — so the grid must be able to show a plant under its
-    // threshold with a station above it, which an aggregate figure cannot.
+    // threshold with a workcenter above it, which an aggregate figure cannot.
     final run = await stored();
     final grid = occupationGrid(run: run)!;
 
-    final worstStation = grid.rows
+    final worstWorkcenter = grid.rows
         .map((r) => r.peak ?? 0)
         .fold<double>(0, (a, b) => a > b ? a : b);
     final worstPlant = grid.total.peak ?? 0;
     expect(
-      worstStation,
+      worstWorkcenter,
       greaterThanOrEqualTo(worstPlant),
       reason:
           'an aggregate can never be worse than its worst member, which is '
@@ -450,11 +450,11 @@ void main() {
   });
 
   test(
-    'per line, a row is everyone at the stations that line touches',
+    'per line, a row is everyone at the workcenters that line touches',
     () async {
       // Arithmetically identical to filtering to that line — which is what lets
       // the bands carry over unchanged and makes a line row one PLANT row per
-      // line. Both lines here touch both stations, so both rows equal the plant.
+      // line. Both lines here touch both workcenters, so both rows equal the plant.
       final run = await stored();
       final byLine = occupationGrid(
         run: run,
@@ -472,7 +472,7 @@ void main() {
             row.cells[month]!.asked,
             plant.cells[month]!.asked,
             reason:
-                'both lines touch both stations, so both see all of it — '
+                'both lines touch both workcenters, so both see all of it — '
                 'the known cost #9 accepted',
           );
         }
@@ -546,13 +546,13 @@ void main() {
       // workcenter. I don't want that."
       //
       // `occupationGraph` passed the *whole* filter through to `kept`, so a
-      // structural filter narrowed the station set and simultaneously dropped
+      // structural filter narrowed the workcenter set and simultaneously dropped
       // every other study's orders out of the kept set — painting their work at
-      // the shared stations grey. `occupation_grid.dart` has always stripped
+      // the shared workcenters grey. `occupation_grid.dart` has always stripped
       // the structural filters out of that computation; the chart never did.
       //
-      // Both studies visit both stations here, so a line filter cannot change
-      // which stations are in view: any grey it produces is the defect and
+      // Both studies visit both workcenters here, so a line filter cannot change
+      // which workcenters are in view: any grey it produces is the defect and
       // nothing else.
       final run = await stored();
 
@@ -591,8 +591,8 @@ void main() {
       'a structural filter never shrinks what a machine was asked for',
       () async {
         // The property that stops a filter making an overload disappear. Both
-        // studies visit both stations, so narrowing to one line leaves the same
-        // stations in view — and therefore the same total demand on them, now
+        // studies visit both workcenters, so narrowing to one line leaves the same
+        // workcenters in view — and therefore the same total demand on them, now
         // entirely coloured rather than partly grey.
         final whole = occupationGraph(run: await stored())!;
         final line = occupationGraph(
@@ -613,7 +613,7 @@ void main() {
       'the coloured segments sum to the whole bar when nothing is grey',
       () async {
         // What the reader is actually looking at once the neutral segment is
-        // gone: three colours that account for every hour the stations were
+        // gone: three colours that account for every hour the workcenters were
         // asked for.
         final graph = occupationGraph(
           run: await stored(rework: 0.25),
@@ -665,7 +665,7 @@ void main() {
     });
 
     test('the corner is the total of the totals', () async {
-      // The TOTAL row × TOTAL column intersection: every station, every month.
+      // The TOTAL row × TOTAL column intersection: every workcenter, every month.
       final grid = occupationGrid(run: await stored())!;
 
       final fromRows = grid.rows.fold(
@@ -977,8 +977,8 @@ void main() {
   });
 
   group('per workcenter type (the drive, 2026-09-07)', () {
-    /// A run whose plant carries [extra] stations beyond the two the studies
-    /// route to — so a station can be *scheduled and idle*, which is the state
+    /// A run whose plant carries [extra] workcenters beyond the two the studies
+    /// route to — so a workcenter can be *scheduled and idle*, which is the state
     /// this grouping exists to put somewhere.
     Future<StoredRun> storedWith(Map<String, SimWorkcenter> extra) async {
       final projectId = await seedProject();
@@ -994,10 +994,10 @@ void main() {
       return (await runs.loadRun(runId))!;
     }
 
-    test('the rows partition the stations, so they sum to TOTAL', () async {
-      // **The property this grouping was chosen for.** A station carries one
-      // type, so no station is in two rows and none is in none — which the line
-      // grouping can never say, because two lines sharing a station count it
+    test('the rows partition the workcenters, so they sum to TOTAL', () async {
+      // **The property this grouping was chosen for.** A workcenter carries one
+      // type, so no workcenter is in two rows and none is in none — which the line
+      // grouping can never say, because two lines sharing a workcenter count it
       // twice.
       final run = await stored();
       final byType = occupationGrid(
@@ -1036,13 +1036,13 @@ void main() {
       expect(
         summed,
         greaterThan(byLine.total.cells[month]!.asked),
-        reason: 'both lines touch both stations, so the rows double-count',
+        reason: 'both lines touch both workcenters, so the rows double-count',
       );
     });
 
-    test('a scheduled station with no demand is still in its type', () async {
+    test('a scheduled workcenter with no demand is still in its type', () async {
       // **Membership is the machine's, not the run's.** The line grouping reads
-      // its stations from the steps; a type is a property of the station, so an
+      // its workcenters from the steps; a type is a property of the workcenter, so an
       // idle one carries capacity into its type's row and pulls the percentage
       // down. That is the answer to *have I got enough cladding capacity*.
       final run = await storedWith({
@@ -1083,8 +1083,8 @@ void main() {
           reason: 'and no demand');
     });
 
-    test('a station with no type gets a row rather than vanishing', () async {
-      // A run stored before a station was typed carries a null. Dropping it
+    test('a workcenter with no type gets a row rather than vanishing', () async {
+      // A run stored before a workcenter was typed carries a null. Dropping it
       // would leave a TOTAL that does not add up, which is the fault #14 spent
       // its whole argument preventing.
       final run = await storedWith({

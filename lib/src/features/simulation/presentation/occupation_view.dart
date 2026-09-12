@@ -4,7 +4,7 @@
 /// bar should be deleted outright, and it was — the live database is a strong
 /// argument for the grid: across the runs that can draw this view the aggregate
 /// bar has **never once broken its capacity line**, peak 87 %, while single
-/// stations reached 149 % and seven of seventeen were over in one month. A small
+/// workcenters reached 149 % and seven of seventeen were over in one month. A small
 /// red `7` above an 87 % bar was carrying the whole signal.
 ///
 /// **The field then said the chart was wanted adjusted, not deleted**, which
@@ -19,18 +19,18 @@
 ///
 /// **#13 is why the argument above does not stop the chart leading.** The chart
 /// is *demand against capacity of whatever is selected* — so the
-/// aggregate is not hiding a station, it is answering the question that was
+/// aggregate is not hiding a workcenter, it is answering the question that was
 /// asked. Narrow with the structural filters and the same label reads 147 %;
 /// leave them wide and 87 % is a true statement about the plant. The reader
 /// drills, and the chart does not have to second-guess them.
 ///
 /// **What that costs, recorded rather than lost.** #13 also dropped the small
-/// red count of stations over their own line, so on an unnarrowed chart nothing
+/// red count of workcenters over their own line, so on an unnarrowed chart nothing
 /// says that April's comfortable 87 % holds seven overloaded machines. That was
 /// chosen with the cost stated: one figure per column, and the grid one press
 /// away.
 ///
-/// What the grid adds that the chart could not: a per-station figure, so an
+/// What the grid adds that the chart could not: a per-workcenter figure, so an
 /// overloaded machine is visible under an aggregate that is not; two groupings;
 /// three units; and the project's own bands. What the chart keeps that the grid
 /// does not: the process / rework / changeover split, which exists nowhere else
@@ -40,11 +40,11 @@
 /// a bar has a size and not only a ratio.
 ///
 /// **The two switches govern the grid half only.** The chart is always the
-/// aggregate of the stations in view, so grouping and unit do nothing to it;
+/// aggregate of the workcenters in view, so grouping and unit do nothing to it;
 /// they sit directly over the rows they reorder, and adjacency is what says so.
 ///
-/// **One filter, both surfaces.** They read the same `stationsInView`, so they
-/// cannot disagree about which stations are being looked at.
+/// **One filter, both surfaces.** They read the same `workcentersInView`, so they
+/// cannot disagree about which workcenters are being looked at.
 library;
 
 import 'package:flutter/material.dart';
@@ -190,7 +190,7 @@ class _OccupationViewState extends State<OccupationView> {
         subtext: subtext,
         background: background,
         foreground: foreground,
-        // **The chart's hover, on a cell** (#14). Same builder, so a station's
+        // **The chart's hover, on a cell** (#14). Same builder, so a workcenter's
         // month and the plant's month are explained in the same words and the
         // same order.
         richTooltip: occupationTooltip(
@@ -278,7 +278,7 @@ class _OccupationViewState extends State<OccupationView> {
               // left gutter and one horizontal scrollbar.
               //
               // These two switches govern the grid half only; the chart is
-              // always the aggregate of the stations in view. Adjacency is what
+              // always the aggregate of the workcenters in view. Adjacency is what
               // says so — they sit directly over the rows they reorder.
               SegmentedButton<OccupationGrouping>(
                 segments: [
@@ -291,7 +291,7 @@ class _OccupationViewState extends State<OccupationView> {
                     label: Text(l10n.occupationByLine),
                   ),
                   // **The third grouping, and the only one whose rows
-                  // partition** — a station carries exactly one type, so unlike
+                  // partition** — a workcenter carries exactly one type, so unlike
                   // the line rows these sum to TOTAL.
                   ButtonSegment(
                     value: OccupationGrouping.type,
@@ -407,7 +407,7 @@ class _OccupationViewState extends State<OccupationView> {
                   }
                 }),
                 // **Along the bottom, and always** (#14). #9 hid this row
-                // the moment a filter narrowed the stations, because a
+                // the moment a filter narrowed the workcenters, because a
                 // partial total wearing the *plant's* name is a lie. Calling
                 // it TOTAL makes it true again — it claims only the rows
                 // above it — and a narrowed view is exactly when someone
@@ -522,7 +522,7 @@ class _Bands extends StatelessWidget {
   }
 }
 
-/// What the four segments are, and how many stations the bars aggregate.
+/// What the four segments are, and how many workcenters the bars aggregate.
 class _Legend extends StatelessWidget {
   const _Legend({required this.graph});
 
@@ -562,7 +562,7 @@ class _Legend extends StatelessWidget {
         if (graph.months.any((m) => m.other > Duration.zero))
           swatch(colours.other, l10n.occupationOutsideFilter),
         Text(
-          l10n.occupationStations(graph.stationsInView.length),
+          l10n.occupationWorkcentersAggregated(graph.workcentersInView.length),
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
@@ -879,10 +879,10 @@ class _OccupationPainter extends CustomPainter {
       );
 
       // **The month's occupation, above its bar** (#13) — demand over capacity
-      // for the stations in view, counting the neutral segment, so the figure
-      // is the stations' true load rather than the filter's share of it.
+      // for the workcenters in view, counting the neutral segment, so the figure
+      // is the workcenters' true load rather than the filter's share of it.
       //
-      // Absent where there is no capacity to divide by: a month every station
+      // Absent where there is no capacity to divide by: a month every workcenter
       // was closed for is a real state, and `0 %` would be a claim about a
       // plant that was not open.
       if (month.occupation case final ratio?) {

@@ -14,7 +14,7 @@ void main() {
     home: Scaffold(body: SizedBox(width: 600, height: 400, child: child)),
   );
 
-  /// Three stations, deliberately not in any column's order, so no assertion
+  /// Three workcenters, deliberately not in any column's order, so no assertion
   /// below can pass by accident on the order they were handed in.
   const rows = [
     (name: 'CEU27', queue: 30, visits: 1),
@@ -33,7 +33,7 @@ void main() {
         initialColumn: initialColumn,
         initialAscending: initialAscending,
         columns: const [
-          ResultColumn(label: 'Station', width: 140),
+          ResultColumn(label: 'Workcenter', width: 140),
           ResultColumn(label: 'Queue', width: 100),
           // The column with no key: a heading that must never sort.
           ResultColumn(label: 'Notes', width: 100),
@@ -67,7 +67,7 @@ void main() {
     await tester.pumpWidget(host(table()));
     expect(namesOn(tester), ['BAN11', 'CEU27', 'TTAT']);
 
-    await tester.tap(find.text('Station'));
+    await tester.tap(find.text('Workcenter'));
     await tester.pumpAndSettle();
     expect(namesOn(tester), ['TTAT', 'CEU27', 'BAN11']);
   });
@@ -80,7 +80,7 @@ void main() {
     // *second* press is the one that looks like it worked — so the arrow and
     // the rows agree throughout and the table is simply wrong on first press.
     await tester.pumpWidget(host(table()));
-    await tester.tap(find.text('Station'));
+    await tester.tap(find.text('Workcenter'));
     await tester.pumpAndSettle();
     expect(namesOn(tester), ['TTAT', 'CEU27', 'BAN11'], reason: 'descending');
 
@@ -89,7 +89,7 @@ void main() {
     expect(
       namesOn(tester),
       ['BAN11', 'TTAT', 'CEU27'],
-      reason: 'Queue ascending, not descending inherited from Station',
+      reason: 'Queue ascending, not descending inherited from Workcenter',
     );
   });
 

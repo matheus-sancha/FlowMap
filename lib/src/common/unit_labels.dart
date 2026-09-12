@@ -35,7 +35,7 @@ String taktLabel(AppLocalizations l10n, double value, TaktUnit unit) =>
 
 /// What a dispatch rule is called (DESIGN.md §7.4).
 ///
-/// Here rather than on the Simulation tab, because a station's own rule is now
+/// Here rather than on the Simulation tab, because a workcenter's own rule is now
 /// set on the flow map too and both have to name it the same way.
 String dispatchRuleLabel(AppLocalizations l10n, DispatchRule rule) =>
     switch (rule) {
@@ -91,7 +91,7 @@ String emptySlotReasonLabel(AppLocalizations l10n, EmptySlotReason reason) =>
       EmptySlotReason.laneFull => l10n.simEmptySlotLaneFull,
     };
 
-/// What a whole run dispatched by, in one line (§7.3): the type every station
+/// What a whole run dispatched by, in one line (§7.3): the type every workcenter
 /// shared, or `mixed` when they differed.
 ///
 /// Null when the run recorded nothing to name — and every caller drops the

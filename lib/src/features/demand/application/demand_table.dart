@@ -22,9 +22,9 @@ class DemandColumn {
   /// The flow node this column was drawn from, and **what its process time is
   /// keyed by** since §9.
   ///
-  /// Two columns may share a [targetId] — a part that visits one station twice
+  /// Two columns may share a [targetId] — a part that visits one workcenter twice
   /// — and until v24 they were two columns over *one* stored value, on the
-  /// argument that the station takes the same time per piece on both passes.
+  /// argument that the workcenter takes the same time per piece on both passes.
   /// Driving §8.6 overturned that: a routing revisits a machine because the
   /// second pass is a different operation, and the model could not say so. They
   /// are two independent cells now.
@@ -90,7 +90,7 @@ class DemandTable {
   /// "takes no time and is almost always a typo", and the engine refused to
   /// admit an order with a blank at a step. The field overturned it on
   /// 2026-08-29 — *"if it is empty consider 0"* — after §9 gave a flow a second
-  /// visit to one station and left fifteen cells to be filled with `00:00:00`
+  /// visit to one workcenter and left fifteen cells to be filled with `00:00:00`
   /// to say what a blank already said.
   ///
   /// The cost is that a forgotten cell now reads as a deliberate skip. Recorded
@@ -106,7 +106,7 @@ class DemandTable {
   /// What one piece of [partId] costs across the whole flow — the numerator of
   /// `eq(part, flow)` (§6.2).
   ///
-  /// Summed over the **columns**, not over the stored rows: a station visited
+  /// Summed over the **columns**, not over the stored rows: a workcenter visited
   /// twice is paid for twice, and a stored time for a step no longer in the
   /// flow is not paid for at all.
   Duration totalFor(String partId) {

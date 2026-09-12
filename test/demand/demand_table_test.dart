@@ -77,7 +77,7 @@ void main() {
       expect(table.totalFor('p1'), const Duration(hours: 58));
     });
 
-    test('two visits to one station cost what each of them was given', () {
+    test('two visits to one workcenter cost what each of them was given', () {
       // **§9's headline case, and it could not be written before.** These two
       // columns share a target and until v24 shared a stored value too, so the
       // second pass was always charged whatever the first was. It is charged

@@ -5,14 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('the most common batch wins, not the first and not the mean', () {
     // A part ordered in tens with one sample of one should read ten: the map is
-    // stating what a station is usually occupied for, and a mean would state a
+    // stating what a workcenter is usually occupied for, and a mean would state a
     // lot nobody orders.
     expect(modalBatchSize([10, 10, 1, 10]), 10);
     expect(modalBatchSize([1, 10, 10]), 10);
   });
 
   test('a tie breaks to the larger lot', () {
-    // The more conservative statement of what a station is occupied for.
+    // The more conservative statement of what a workcenter is occupied for.
     expect(modalBatchSize([4, 9]), 9);
   });
 

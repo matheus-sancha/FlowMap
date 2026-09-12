@@ -138,7 +138,7 @@ void main() {
     updatedAt: now,
   );
 
-  /// Three pieces standing in front of the one station this fixture has.
+  /// Three pieces standing in front of the one workcenter this fixture has.
   final stocked = {
     'WC': ProjectQueue(
       projectId: 'project-1',
@@ -223,7 +223,7 @@ void main() {
   });
 
   group('the exported map reads the same days as the screen', () {
-    test('a rung is measured against its own station working day', () async {
+    test('a rung is measured against its own workcenter working day', () async {
       final view = viewWith([step(0)]);
       final format = _Format();
       await buildFlowPdf(
@@ -278,7 +278,7 @@ void main() {
       );
 
       // Measured against the box beside each, the way every other rung is
-      // measured against its own station's day.
+      // measured against its own workcenter's day.
       expect(view.inbound!.rungWorkingDay, isNotNull);
       expect(
         format.calls,

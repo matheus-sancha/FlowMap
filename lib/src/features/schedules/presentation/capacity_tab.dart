@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import 'station_cards.dart';
+import 'workcenter_cards.dart';
 import 'takt_grid.dart';
 
 /// What this line can give, and at what pace (DESIGN.md §12.6, §8.3).
@@ -13,9 +13,9 @@ import 'takt_grid.dart';
 /// rather than the question being asked of it.
 ///
 /// Two tables, and the merge that put three here is undone. §6.3 added the
-/// project's calendar exceptions to this tab on §4.3's argument that a station's
+/// project's calendar exceptions to this tab on §4.3's argument that a workcenter's
 /// schedule and the exceptions overriding it answer one question — they do, and
-/// the answer is a *station's* open time, which is read here. But an exception
+/// the answer is a *workcenter's* open time, which is read here. But an exception
 /// is stored per project and applied to a plant, a line or a workcenter, and
 /// nothing about one is the study's. It has its own destination now (§12.1),
 /// which is the only honest place for it.
@@ -38,7 +38,7 @@ class CapacityTab extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // A fixed band: a takt schedule is a handful of periods, and the
-        // stations below are as long as the plant decides. Giving the long one
+        // workcenters below are as long as the plant decides. Giving the long one
         // a capped height inside a page scroll is the shape §8.6 moved the
         // Gantt out of.
         SizedBox(
@@ -53,8 +53,8 @@ class CapacityTab extends ConsumerWidget {
         Expanded(
           child: _Section(
             title: l10n.workcenters,
-            scope: l10n.schedulesStationsScope,
-            child: StationCards(project: project, study: study),
+            scope: l10n.schedulesWorkcentersScope,
+            child: WorkcenterCards(project: project, study: study),
           ),
         ),
       ],

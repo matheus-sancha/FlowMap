@@ -260,7 +260,7 @@ void main() {
     });
 
     test('availability is in the capacity; rework is not', () {
-      // Availability belongs to the station's capacity. Rework is a loss on the
+      // Availability belongs to the workcenter's capacity. Rework is a loss on the
       // work a *part* needs, so it attaches to demand process times (M3) and
       // must not move the equivalent.
       final derated = build(
@@ -285,7 +285,7 @@ void main() {
 
     test('one takt reads as exactly the takt on the ladder', () {
       // Availability cancels: 50.32 h ÷ 16.77 h = 3.0 days. This is why a 3-day
-      // takt must show 3 days however bad the station's uptime.
+      // takt must show 3 days however bad the workcenter's uptime.
       for (final availability in [1.0, 0.74, 0.5]) {
         final view = build(
           nodes: [step(0, workcenterId: 'WC')],
@@ -324,7 +324,7 @@ void main() {
       expect(steps[1].usesLocalEquivalent, isTrue);
     });
 
-    test('a step equivalent in days means productive days of that station', () {
+    test('a step equivalent in days means productive days of that workcenter', () {
       // `1 day` equals one takt-day, so a step overridden to the takt's own
       // value reads identically to one left alone.
       final view = build(
@@ -422,8 +422,8 @@ void main() {
     });
 
     test('one takt is one working day of the ladder, whatever the shifts', () {
-      // The ladder renders days against the station's own working day, so a
-      // 1-day takt reads 1.0 d on a three-shift station and on a one-shift one.
+      // The ladder renders days against the workcenter's own working day, so a
+      // 1-day takt reads 1.0 d on a three-shift workcenter and on a one-shift one.
       for (final operators in [
         const [1, 1, 1],
         const [1, 0, 0],
@@ -587,7 +587,7 @@ void main() {
 
     test('a fixed wait is measured in calendar days', () {
       // The bug this replaced: a 48-hour cooling wait was divided by the
-      // station's 16.77-hour productive day and read as 2.9 d, so the map
+      // workcenter's 16.77-hour productive day and read as 2.9 d, so the map
       // disagreed with the "2 days" that had been typed into it.
       //
       // **Every fixed wait is a calendar wait now.** `project_queues` carries no
@@ -624,7 +624,7 @@ void main() {
     });
 
     test('a one-piece queue reads the same as the step it feeds', () {
-      // Both are one takt of the same station, so the triangle and the box
+      // Both are one takt of the same workcenter, so the triangle and the box
       // beside it must agree.
       final view = build(
         nodes: [step(0, workcenterId: 'WC')],
@@ -664,7 +664,7 @@ void main() {
       expect(queue.hasStock, isFalse);
     });
 
-    test('two steps on one station share one queue, counted once', () {
+    test('two steps on one workcenter share one queue, counted once', () {
       // The doubling the field reported, as arithmetic: the plant has one floor
       // space in front of CLAD04 and the ladder must not charge for two.
       final view = build(
@@ -773,8 +773,8 @@ void main() {
     });
 
     test('the totals are the sum of the rungs above them', () {
-      // Three steps, each one takt of its own station: 3 + 3 + 3 = 9 days,
-      // whatever the stations' hours (DESIGN.md §17.4).
+      // Three steps, each one takt of its own workcenter: 3 + 3 + 3 = 9 days,
+      // whatever the workcenters' hours (DESIGN.md §17.4).
       final view = build(
         nodes: [
           step(0, workcenterId: 'THREE'),
@@ -789,7 +789,7 @@ void main() {
 
       expect(view.processTimeInDays, closeTo(9, 1e-9));
       expect(view.leadTimeInDays, closeTo(9, 1e-9));
-      // Not any one station's day: a weighted one that makes the total agree
+      // Not any one workcenter's day: a weighted one that makes the total agree
       // with the rungs it totals.
       expect(
         view.leadTime.inSeconds / view.leadTimeWorkingDay!.inSeconds,
@@ -1174,10 +1174,10 @@ void main() {
       }
     });
 
-    test('a station visited twice is charged to the ladder once', () {
+    test('a workcenter visited twice is charged to the ladder once', () {
       // §17.4's rule is that the footer totals are the sum of the rungs, and
       // §7.3's is that one floor space is one queue — so the second link into a
-      // station reads zero rather than repeating the wait.
+      // workcenter reads zero rather than repeating the wait.
       final layout = layoutFlow(
         build(
           nodes: [
@@ -1247,8 +1247,8 @@ void main() {
       );
       final layout = layoutFlow(view);
 
-      // The queue comes first: an order joins the line in front of the station
-      // before the station touches it.
+      // The queue comes first: an order joins the line in front of the workcenter
+      // before the workcenter touches it.
       final waiting = layout.ladder[0];
       final processing = layout.ladder[1];
       expect(processing.isWaiting, isFalse);
@@ -1282,7 +1282,7 @@ void main() {
 
       // A link into a box is a queue's slot, as wide as the box, so the ladder
       // rung over it matches the ones either side. The last link runs into the
-      // customer, which is not a station and has no queue to make room for.
+      // customer, which is not a workcenter and has no queue to make room for.
       expect(
         layout.connections.map((c) => c.to.dx - c.from.dx),
         [FlowMetrics.queueSlot, FlowMetrics.queueSlot, FlowMetrics.gap],
@@ -1298,9 +1298,9 @@ void main() {
   });
 
   group('what an arrow is (§5.2, §7.3)', () {
-    /// Two stations, and the queue in front of the second. The rule lives on
+    /// Two workcenters, and the queue in front of the second. The rule lives on
     /// the queue now, keyed by the target the link runs into — which is the
-    /// station the reader can see it in front of.
+    /// workcenter the reader can see it in front of.
     List<FlowConnectionKind> kinds({DispatchRule? rule, int? wipCap}) =>
         layoutFlow(
           build(
@@ -1331,7 +1331,7 @@ void main() {
     });
 
     test('each rule draws its own channel, labelled', () {
-      // Supplier -> CLAD04 -> CEU27 -> customer. Only the link into the station
+      // Supplier -> CLAD04 -> CEU27 -> customer. Only the link into the workcenter
       // whose queue carries the rule is a channel, because that is the one the
       // rule describes.
       for (final (rule, expected, label) in [
@@ -1370,7 +1370,7 @@ void main() {
     });
 
     test('a shared queue is drawn once, on the first link into it', () {
-      // Two steps on one station: the plant has one floor space there, and a
+      // Two steps on one workcenter: the plant has one floor space there, and a
       // triangle on both links would be the doubling all over again.
       final layout = layoutFlow(
         build(
@@ -1388,7 +1388,7 @@ void main() {
         null,
         null,
       ]);
-      // The kind still follows the queue on every link into that station: what
+      // The kind still follows the queue on every link into that workcenter: what
       // is deduplicated is the stock, not the discipline.
       expect(layout.connections.last.kind, FlowConnectionKind.push);
     });
@@ -1468,9 +1468,9 @@ void main() {
   ///
   /// The rule itself is pinned in `takt_balance_test.dart`; what these ask is
   /// that the flow feeds it the right three things — the type, the measurement
-  /// and one takt of each station's capacity — and that the totals follow.
+  /// and one takt of each workcenter's capacity — and that the totals follow.
   group('the takt rebalances a group of like machines', () {
-    /// Three cladding stations in a row, each measured at [each] hours.
+    /// Three cladding workcenters in a row, each measured at [each] hours.
     FlowView threeClads({
       required List<int> measured,
       String type = 'Cladding',
@@ -1490,7 +1490,7 @@ void main() {
       demand: FlowDemandInput(
         processTimes: {
           'p1': {
-            // Keyed by the step, not the station it aims at (§9).
+            // Keyed by the step, not the workcenter it aims at (§9).
             for (var i = 0; i < 3; i++) 'node-$i': Duration(hours: measured[i]),
           },
         },
@@ -1606,9 +1606,9 @@ void main() {
       expect(view.steps.map((s) => s.isBalanced), [false, false]);
     });
 
-    test('a station this part does not run on keeps its zero (§7.7.1)', () {
+    test('a workcenter this part does not run on keeps its zero (§7.7.1)', () {
       // The defect §7.4 shipped with, on the shape that found it: a zero is how
-      // the plant says a part does not route through a station, and this test
+      // the plant says a part does not route through a workcenter, and this test
       // used to assert the opposite — that the takt could put work there.
       //
       // Against the real database, `P1000247599` stores 0 h at CEU30 and 146 h
@@ -1622,7 +1622,7 @@ void main() {
       expect(view.steps.elementAt(1).processTime, const Duration(hours: 52));
     });
 
-    test('one station of a pair at zero leaves the other whole', () {
+    test('one workcenter of a pair at zero leaves the other whole', () {
       // The live case, exactly: one member is not a group, so nothing moves.
       final view = build(
         nodes: [
@@ -1647,10 +1647,10 @@ void main() {
       expect(view.steps.every((s) => s.isBalanced), isFalse);
     });
 
-    test('a pinned station keeps its measurement (§7.7.4)', () {
+    test('a pinned workcenter keeps its measurement (§7.7.4)', () {
       // The flag reaches the map. Pinning one of a pair means nothing moves at
       // all, which is the case the real plant will see — every group on it is
-      // exactly two stations.
+      // exactly two workcenters.
       final view = build(
         nodes: [
           step(0, workcenterId: 'CEU30', balanceDisabled: true),
@@ -1690,7 +1690,7 @@ void main() {
     test('a blank blocks the step again (§7.7.1)', () {
       // §7.4 weakened this so a group member with no time could take a share.
       // A blank is an unanswered question, not a statement that the part skips
-      // the station — the two were collapsed and that is what caused the bug.
+      // the workcenter — the two were collapsed and that is what caused the bug.
       final view = build(
         nodes: [
           step(0, workcenterId: 'CEU30'),
@@ -1713,7 +1713,7 @@ void main() {
       expect(view.steps.first.processTime, isNull);
     });
 
-    test('two stations of a type that are not adjacent are two groups', () {
+    test('two workcenters of a type that are not adjacent are two groups', () {
       // Adjacency is what makes the rule physical — work cannot move across an
       // intervening furnace — so neither cladding is balanced against the
       // other and both keep what was measured.
@@ -1749,7 +1749,7 @@ void main() {
   /// Stock at the two ends of the flow (§7.3) — the raw material in front of
   /// the first box and the finished goods after the last.
   group('the flow ends carry stock', () {
-    // One step on a three-shift station under a 3-day takt, so a piece is 68
+    // One step on a three-shift workcenter under a 3-day takt, so a piece is 68
     // hours and the arithmetic below is checkable by hand.
     FlowView oneStep({
       Value<int?> inbound = const Value.absent(),
@@ -1829,7 +1829,7 @@ void main() {
     });
 
     test('each end borrows the productive day of the box beside it', () {
-      // A three-shift station at one end and a one-shift station at the other,
+      // A three-shift workcenter at one end and a one-shift workcenter at the other,
       // so a takt in `days` resolves differently at each — which is the whole
       // reason the day is borrowed rather than assumed.
       final view = build(

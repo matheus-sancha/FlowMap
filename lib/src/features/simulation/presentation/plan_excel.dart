@@ -61,7 +61,7 @@ class PlanExcelStrings {
   /// `8/8/2026 · FIFO`, or the date alone when the run named no queue type.
   final String runLabel;
 
-  /// One line per station, and only when they did not all dispatch alike
+  /// One line per workcenter, and only when they did not all dispatch alike
   /// (§7.3). Empty on a run whose queues agreed, which [runLabel] already names.
   final List<String> queueTypes;
 
@@ -360,10 +360,10 @@ Future<void> exportPlanExcel(
       },
       queueTypes: [
         if (run.queues.isMixed)
-          for (final station in run.queues.stations)
+          for (final workcenter in run.queues.workcenters)
             l10n.simRunQueueRow(
-              station.name,
-              dispatchRuleLabel(l10n, station.rule),
+              workcenter.name,
+              dispatchRuleLabel(l10n, workcenter.rule),
             ),
       ],
       // The three duration columns carry their unit, because a column has one

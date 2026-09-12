@@ -55,7 +55,7 @@ void main() {
     final cellId = await resources.createCell(plantId: plantId, name: 'Cell A');
     lineId = await resources.createLine(cellId: cellId, name: 'Line 1');
 
-    // Two adjacent stations, both untyped to begin with — which is every flow
+    // Two adjacent workcenters, both untyped to begin with — which is every flow
     // in the app before §6.2.1 existed, and the state the balance finds no
     // group in.
     cladId = await resources.createWorkcenter(
@@ -165,7 +165,7 @@ void main() {
     return input;
   }
 
-  /// What the balance placed on each station, keyed by station.
+  /// What the balance placed on each workcenter, keyed by workcenter.
   ///
   /// Written over every study rather than over the one there is, because the
   /// first value this provider produces carries none at all — see below.
@@ -183,7 +183,7 @@ void main() {
     // readiness panel behind it. So the starting state is settled for, exactly
     // as the state under test is.
     //
-    // Nothing is alike yet, so there is no group and every station keeps what
+    // Nothing is alike yet, so there is no group and every workcenter keeps what
     // was measured at it — asserted rather than assumed, because a test whose
     // first state is already its second one would pass against a provider that
     // never rebuilt at all.
@@ -201,8 +201,8 @@ void main() {
       );
     }
 
-    // Two like stations in a row is a group, and 4 h of work fits inside one
-    // 6 h takt — so the first station is filled to what it can hold and the
+    // Two like workcenters in a row is a group, and 4 h of work fits inside one
+    // 6 h takt — so the first workcenter is filled to what it can hold and the
     // last is left the remainder, which here is none (§6.2.1).
     final after = await assembledUntil((input) => sharesOf(input).isNotEmpty);
     expect(
@@ -212,7 +212,7 @@ void main() {
     );
   });
 
-  test('untyping a station puts the work back where it was measured', () async {
+  test('untyping a workcenter puts the work back where it was measured', () async {
     for (final id in [cladId, millId]) {
       await resources.updateWorkcenter(
         id,
@@ -232,7 +232,7 @@ void main() {
     expect(
       sharesOf(after),
       isEmpty,
-      reason: 'a station with no type is in no group (§6.2.1)',
+      reason: 'a workcenter with no type is in no group (§6.2.1)',
     );
   });
 }

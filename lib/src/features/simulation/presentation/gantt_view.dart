@@ -1,7 +1,7 @@
 /// The Gantt (DESIGN.md §8.6).
 ///
 /// Y is the workcenter, X is time, the bars are orders — one chart for the whole
-/// run, all studies together, because a station is shared and splitting per
+/// run, all studies together, because a workcenter is shared and splitting per
 /// study would draw it idle during hours it was running another line's order.
 ///
 /// **Everything geometric is in `gantt_layout.dart`** and nothing here decides a
@@ -38,7 +38,7 @@ import '../application/gantt_layout.dart';
 import '../application/run_filter.dart';
 import '../data/simulation_runs_repository.dart';
 
-/// The frozen left column carrying the station names.
+/// The frozen left column carrying the workcenter names.
 ///
 /// Outside the horizontal scroll view, so the row a bar belongs to is readable
 /// however far into the run the reader has scrolled — the answer `DataGrid`
@@ -186,7 +186,7 @@ class _GanttViewState extends State<GanttView> {
   /// The order the reader is following, or null.
   ///
   /// **An order id, not a hit.** An order is on the chart many times over — one
-  /// bar per station it visited and one stay per lane it waited in — and
+  /// bar per workcenter it visited and one stay per lane it waited in — and
   /// following it is the whole point, so what is remembered is the order rather
   /// than the bar that was clicked. It is also why this cannot be the order
   /// *number*: that is a position in one study's sequence, so on a two-study run
@@ -319,7 +319,7 @@ class _GanttViewState extends State<GanttView> {
     super.dispose();
   }
 
-  /// Whether the queue bands between stations are drawn (§8.6).
+  /// Whether the queue bands between workcenters are drawn (§8.6).
   ///
   /// **View state, not a stored preference.** It survives switching to the
   /// results and back, the way the zoom does, and resets on restart — a setting
@@ -330,16 +330,16 @@ class _GanttViewState extends State<GanttView> {
   GanttChart _buildChart() {
     // **The lane caption is composed here, where the locale is** (#5, v27). A
     // run stored since v27 keeps no lane name: `<type> · <target>` is derived
-    // from the rule and the station the run already copied in, so one stored run
+    // from the rule and the workcenter the run already copied in, so one stored run
     // reads `Queue · CEU27` in English and `Fila · CEU27` in Portuguese. A run
     // stored before v27 carries the name someone typed, and that is drawn as it
     // always was — it is what the map said when the run happened (§7.10).
     final l10n = AppLocalizations.of(context);
     final targetNames = {
-      for (final station in widget.slice.metrics.workcenters) ...{
-        station.workcenterId: station.name,
-        if (station.poolId != null && station.poolName != null)
-          station.poolId!: station.poolName!,
+      for (final workcenter in widget.slice.metrics.workcenters) ...{
+        workcenter.workcenterId: workcenter.name,
+        if (workcenter.poolId != null && workcenter.poolName != null)
+          workcenter.poolId!: workcenter.poolName!,
       },
     };
     final rules = {
@@ -356,7 +356,7 @@ class _GanttViewState extends State<GanttView> {
         return flowQueueCaption(
           queueTypeShortLabel(l10n, rules[lane.nodeId]),
           // The lane is keyed by the queue's *target*, so this names the
-          // station or the pool the line stands in front of.
+          // workcenter or the pool the line stands in front of.
           targetNames[lane.nodeId],
         );
       },
@@ -668,7 +668,7 @@ class _Chart extends StatelessWidget {
                   labelWidth: labelWidth,
                   facts: facts[_orderIdOf(bar)],
                   studies: studies,
-                  station: _stationOf(layout, bar),
+                  workcenter: _workcenterOf(layout, bar),
                 ),
             ],
           );
@@ -683,14 +683,14 @@ class _Chart extends StatelessWidget {
   /// while every band was `rowHeight` tall. Lane bands are as deep as the lane
   /// is (§8.6), so the index is carried on the hit instead — the layout knows
   /// it for nothing and no arithmetic can drift from it.
-  static String _stationOf(GanttLayout layout, GanttHit hit) =>
+  static String _workcenterOf(GanttLayout layout, GanttHit hit) =>
       hit.bandIndex < layout.rows.length
       ? layout.rows[hit.bandIndex].band.name
       : '';
 
   /// The order behind a hit, whichever kind it is. A stay in a lane belongs to
   /// an order exactly as a bar does, so the card says the same two things about
-  /// both — the project and the description are the order's, not the station's.
+  /// both — the project and the description are the order's, not the workcenter's.
   static String _orderIdOf(GanttHit hit) => switch (hit) {
     GanttPlacedBar(:final bar) => bar.orderId,
     GanttPlacedVisit(:final visit) => visit.orderId,
@@ -858,7 +858,7 @@ String? _poolOf(GanttBand band) => switch (band) {
 
 /// How a band's own name is set.
 ///
-/// **A lane is italic and dimmed; a station is upright and plain.** That is the
+/// **A lane is italic and dimmed; a workcenter is upright and plain.** That is the
 /// one distinction the label column carries, so it is stated once here and read
 /// by both the measurement and the widget — two copies of it would be two rules
 /// that agree until one is edited.
@@ -878,7 +878,7 @@ TextStyle _bandNameStyle(GanttBand band, ThemeData theme) {
 /// Dimmer and a size smaller than the name it qualifies, because it repeats
 /// down every member of the pool and the machine is what the reader is looking
 /// for. **It keeps the row's own slant** — italic over a lane, upright over a
-/// station — so the row still reads as one label rather than as two fragments
+/// workcenter — so the row still reads as one label rather than as two fragments
 /// that happen to be adjacent.
 TextStyle _poolStyle(GanttBand band, ThemeData theme) =>
     _bandNameStyle(band, theme).copyWith(
@@ -915,7 +915,7 @@ double ganttLabelWidth(GanttChart chart, ThemeData theme) {
   return (widest + _labelPadding + 0.5).clamp(_labelMinWidth, _labelMaxWidth);
 }
 
-/// The station and lane names, one per band, aligned to the bands beside them.
+/// The workcenter and lane names, one per band, aligned to the bands beside them.
 class _Labels extends StatelessWidget {
   const _Labels({required this.layout, required this.width});
 
@@ -1126,7 +1126,7 @@ class _Footer extends StatelessWidget {
             icon: const Icon(Icons.view_stream_outlined),
             selectedIcon: const Icon(Icons.table_rows_outlined),
             tooltip:
-                '${showLanes ? l10n.simGanttRowsWithLanes : l10n.simGanttRowsStations}'
+                '${showLanes ? l10n.simGanttRowsWithLanes : l10n.simGanttRowsWorkcenters}'
                 ' — ${l10n.simGanttRowsHelp}',
             onPressed: () => onShowLanes(!showLanes),
           ),
@@ -1202,7 +1202,7 @@ class _HoverCard extends StatelessWidget {
     required this.labelWidth,
     required this.facts,
     required this.studies,
-    required this.station,
+    required this.workcenter,
   });
 
   /// The bar or the stay in a lane. One card describes both, because a reader
@@ -1231,7 +1231,7 @@ class _HoverCard extends StatelessWidget {
   final _OrderFacts? facts;
 
   final Map<String, String> studies;
-  final String station;
+  final String workcenter;
 
   @override
   Widget build(BuildContext context) {
@@ -1333,7 +1333,7 @@ class _HoverCard extends StatelessWidget {
                     ),
                   const SizedBox(height: 6),
                   _CardLine(
-                    text: study == null ? station : '$station  ·  $study',
+                    text: study == null ? workcenter : '$workcenter  ·  $study',
                   ),
                   // What the batch is *for*, which is the order's own answer and
                   // the reason §16.15 moved it off the part. Omitted rather than
@@ -1343,7 +1343,7 @@ class _HoverCard extends StatelessWidget {
                     _CardValue(label: l10n.simGanttProject, value: project),
                   _CardLine(text: l10n.simRunSpan(instant(from), instant(to))),
                   switch (hit) {
-                    // What the station was committed to it for — elapsed, so
+                    // What the workcenter was committed to it for — elapsed, so
                     // closed time is in it (§8.6).
                     GanttPlacedBar(:final bar) => _CardValue(
                       label: l10n.simGanttCommitted,
@@ -1361,7 +1361,7 @@ class _HoverCard extends StatelessWidget {
                     // cannot be read out of** (§7.4, v21). `Committed` is this
                     // laid on the calendar, so the two differ by the nights and
                     // weekends the bar crossed — and only this one says what the
-                    // station was asked to do, which is where §7.4's balance
+                    // workcenter was asked to do, which is where §7.4's balance
                     // between two like machines becomes checkable at all.
                     // Omitted on a pre-v21 run rather than shown as zero: a step
                     // the part does not route through legitimately records zero
@@ -1533,21 +1533,21 @@ class GanttPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     // Alternate bands, so a bar hours away from its label still reads as that
-    // row's. Counted over **stations only**: the lanes between them get a fill
+    // row's. Counted over **workcenters only**: the lanes between them get a fill
     // of their own below, and striping the merged sequence would put the
     // stripe on a lane half the time and break the alternation a reader is
-    // using to follow one station across.
-    var stations = 0;
+    // using to follow one workcenter across.
+    var workcenters = 0;
     for (final row in layout.rows) {
       switch (row.band) {
         case GanttRow():
-          if (stations.isOdd) {
+          if (workcenters.isOdd) {
             canvas.drawRect(
               Rect.fromLTWH(0, row.top, size.width, row.band.height),
               bandPaint,
             );
           }
-          stations++;
+          workcenters++;
 
         case GanttLaneRow():
           // A lane is a channel, and the map draws it as one (§2.5): a fill
@@ -1586,7 +1586,7 @@ class GanttPainter extends CustomPainter {
       rulePaint,
     );
 
-    // The waiting orders, under the bars so a station's work always wins the
+    // The waiting orders, under the bars so a workcenter's work always wins the
     // pixel where the two meet.
     for (final row in layout.rows) {
       for (final placed in row.visits) {
@@ -1601,7 +1601,7 @@ class GanttPainter extends CustomPainter {
         // **Washed out and outlined, never solid.** The same part colour, so an
         // order is followed down the chart by hue, but a waiting order must not
         // read as a running one — which is the whole reason §2.7 refused to
-        // draw queue spans on a station's own row.
+        // draw queue spans on a workcenter's own row.
         //
         // A stay already sits at 0.30, so following an order takes it down
         // rather than up: the dimmed figure is a fraction of a fraction, and

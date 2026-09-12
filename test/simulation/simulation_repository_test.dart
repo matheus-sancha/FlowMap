@@ -114,7 +114,7 @@ void main() {
     );
     final steps = targets ?? [cladId, millId];
     // **The ids the steps came back with**, because §9 keys a process time by
-    // the node rather than by the station it points at - and the foreign key
+    // the node rather than by the workcenter it points at - and the foreign key
     // refuses a workcenter id standing in for one.
     final stepIds = <String>[];
     for (var i = 0; i < steps.length; i++) {
@@ -159,7 +159,7 @@ void main() {
     expect(input.studies.single.name, 'Current state');
     expect(input.readiness.single.problems, isEmpty);
 
-    // Both stations of the flow are in the model, each once, with the
+    // Both workcenters of the flow are in the model, each once, with the
     // project's calendar under them.
     expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
     expect(
@@ -189,9 +189,9 @@ void main() {
     final result = await compute(runSimulationOffThread, (
       studies: input.studies,
       workcenters: input.workcenters,
-      // A second map of `SimWorkcenter`, and a station in it may be in neither
+      // A second map of `SimWorkcenter`, and a workcenter in it may be in neither
       // study — phase 9 sends the plant's scheduled set across as well.
-      scheduledStations: input.scheduledStations,
+      scheduledWorkcenters: input.scheduledWorkcenters,
       // A `DateTime` has to cross the isolate too, and null is not a test of
       // that — the horizon is what §11.1's warning is built on, so a value
       // that could not be sent would surface as Simulate throwing.
@@ -534,7 +534,7 @@ void main() {
       await taktFor(lineId);
       await seedStudy(name: 'Current state', line: lineId);
 
-      // One station defined only to mid-August. Past that date the run is
+      // One workcenter defined only to mid-August. Past that date the run is
       // carrying its schedule forward, whatever the others say — so a figure
       // is only as defined as the least-defined thing that produced it.
       // Taking the maximum here would report the run covered to December.
@@ -570,10 +570,10 @@ void main() {
   });
 
   group('capacity follows the schedule, not the demand (phase 9)', () {
-    /// A station the plant has scheduled and no study routes to — and it stops
+    /// A workcenter the plant has scheduled and no study routes to — and it stops
     /// **half a year before** the two that carry work, which is the shape of
     /// the trap this phase is mostly about.
-    Future<String> idleStation() async {
+    Future<String> idleWorkcenter() async {
       final id = await resources.createWorkcenter(
         plantId: plantId,
         name: 'IDLE01',
@@ -594,7 +594,7 @@ void main() {
     test('it is capacity, and deliberately not a resource', () async {
       await taktFor(lineId);
       await seedStudy(name: 'Current state', line: lineId);
-      final idle = await idleStation();
+      final idle = await idleWorkcenter();
 
       final input = await simulation.assembleRun(projectId);
 
@@ -602,12 +602,12 @@ void main() {
       expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
       // The capacity set is what the plant has scheduled — a superset.
       expect(
-        input.scheduledStations.keys,
+        input.scheduledWorkcenters.keys,
         unorderedEquals([cladId, millId, idle]),
       );
     });
 
-    test('a station with no schedule at all stays out of both', () async {
+    test('a workcenter with no schedule at all stays out of both', () async {
       await taktFor(lineId);
       await seedStudy(name: 'Current state', line: lineId);
       // Scheduled by nobody, in any project: *unmodelled*, not idle. A row of
@@ -621,21 +621,21 @@ void main() {
       final input = await simulation.assembleRun(projectId);
 
       expect(
-        input.scheduledStations.values.map((w) => w.name),
+        input.scheduledWorkcenters.values.map((w) => w.name),
         isNot(contains('UNKNOWN01')),
       );
     });
 
-    test('the idle station does not drag the horizon back', () async {
+    test('the idle workcenter does not drag the horizon back', () async {
       // **The trap in the phase.** `scheduleHorizon` is the *minimum* of each
-      // schedule's last end date, so admitting a station with no work to the
+      // schedule's last end date, so admitting a workcenter with no work to the
       // resource model in order to give it capacity rows would pull the
       // horizon back to whenever that machine happens to stop — here half a
       // year — and start firing §11.1's warning on a run with nothing wrong
-      // with it. The horizon is computed over the stations the run uses.
+      // with it. The horizon is computed over the workcenters the run uses.
       await taktFor(lineId);
       await seedStudy(name: 'Current state', line: lineId);
-      await idleStation();
+      await idleWorkcenter();
 
       final input = await simulation.assembleRun(projectId);
 
@@ -645,13 +645,13 @@ void main() {
     test('it gets capacity rows, bounded by its own schedule', () async {
       await taktFor(lineId);
       await seedStudy(name: 'Current state', line: lineId);
-      final idle = await idleStation();
+      final idle = await idleWorkcenter();
 
       final input = await simulation.assembleRun(projectId);
       final result = runSimulation(
         studies: input.studies,
         workcenters: input.workcenters,
-        scheduledStations: input.scheduledStations,
+        scheduledWorkcenters: input.scheduledWorkcenters,
         scheduleHorizon: input.scheduleHorizon,
       );
 
@@ -668,7 +668,7 @@ void main() {
       );
       expect(months.values.every((open) => open > Duration.zero), isTrue);
 
-      // And the stations that do carry work span their own full schedule,
+      // And the workcenters that do carry work span their own full schedule,
       // which outlasts the run rather than stopping with it.
       expect(
         result.openByWorkcenterMonth[cladId]!.keys,

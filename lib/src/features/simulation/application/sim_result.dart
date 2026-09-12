@@ -44,19 +44,19 @@ class SimOrderStep {
   /// (§7.6).
   final bool changeoverIncurred;
 
-  /// What that changeover cost, in seconds of the station's open time.
+  /// What that changeover cost, in seconds of the workcenter's open time.
   ///
   /// Null only on a run read back from before v17 — a fresh run always states
   /// it, including as zero. That is the distinction the column exists to keep:
   /// zero means nothing was charged, null means nobody recorded it.
   final int? changeoverSeconds;
 
-  /// What the **work** cost here, in seconds of the station's open clock —
+  /// What the **work** cost here, in seconds of the workcenter's open clock —
   /// changeover excluded (§7.4).
   ///
   /// [occupied] is the same work laid on the calendar and is therefore longer
   /// by whatever closed time it crossed; this is the figure that says what the
-  /// station was asked to do, and the only one in which §7.4's balance is
+  /// workcenter was asked to do, and the only one in which §7.4's balance is
   /// visible. Null on a run read back from before v21.
   final int? processSeconds;
 
@@ -77,7 +77,7 @@ class SimOrderStep {
 
   /// What rework cost at this step, or null where either figure is missing.
   ///
-  /// **Subtracted rather than multiplied out**, so a station with no rework
+  /// **Subtracted rather than multiplied out**, so a workcenter with no rework
   /// reads a true zero rather than a rounding of one.
   Duration? get reworkTime =>
       processSeconds == null || processSecondsBeforeRework == null
@@ -85,7 +85,7 @@ class SimOrderStep {
       : Duration(seconds: processSeconds! - processSecondsBeforeRework!);
 
   /// The lane the order waited in before this step, or null when the step has
-  /// none and the order queued at the station itself (§5.5).
+  /// none and the order queued at the workcenter itself (§5.5).
   ///
   /// [queueStart] is when it entered that lane and [processStart] is when it was
   /// pulled out, so a lane's occupancy over time is readable off these rows
@@ -95,10 +95,10 @@ class SimOrderStep {
   /// How long the workcenter stood holding this order after finishing it,
   /// because the lane ahead was full (§5.5).
   ///
-  /// Blocking is **after service**: a station cannot know whether there will be
+  /// Blocking is **after service**: a workcenter cannot know whether there will be
   /// room until it has something to put down, so it finishes and then waits.
   /// [processEnd] is when the work stopped; `processEnd + blocked` is when the
-  /// station was free again.
+  /// workcenter was free again.
   final Duration blocked;
 
   /// Time spent queueing — the difference between this run and the theoretical
@@ -108,7 +108,7 @@ class SimOrderStep {
   /// Wall-clock time the workcenter was committed, closed hours included.
   ///
   /// Work only. The blocked tail is [blocked] and is deliberately not folded in
-  /// here: a jammed station is occupied and producing nothing, and adding the
+  /// here: a jammed workcenter is occupied and producing nothing, and adding the
   /// two would make utilization report the jam as output.
   Duration get occupied => processEnd.difference(processStart);
 }
@@ -225,7 +225,7 @@ class SimLane {
 
   /// **Recovery-only. Do not read this for behaviour** (§16.20).
   ///
-  /// v19 made a queue belong to a *target*, so a lane feeding a station two
+  /// v19 made a queue belong to a *target*, so a lane feeding a workcenter two
   /// studies both step on is one row and this holds whichever study was written
   /// last — on the newest stored run, eight of ten lanes carry one study's id
   /// and two carry the other's. `filterRun` and the hover card each asked it
@@ -255,7 +255,7 @@ class SimLane {
   /// else on a stored run (§7.10).
   ///
   /// **Read, since v27.** It was written from the first and never read back;
-  /// the lane's caption is now derived from it and the station it feeds, so a
+  /// the lane's caption is now derived from it and the workcenter it feeds, so a
   /// run made in one language reads in the reader's. Null on a run stored before
   /// the column existed, and null for a lane nobody gave a rule to — which is an
   /// untyped queue, not FIFO (§5.5).
@@ -288,7 +288,7 @@ class SimOpenLaneVisit {
   final String laneNodeId;
 
   /// The flow node it is waiting *for* (§8.6). Two stays of one order in one
-  /// station's queue are told apart by this and by nothing else.
+  /// workcenter's queue are told apart by this and by nothing else.
   final String stepNodeId;
 
   final DateTime enteredAt;
@@ -300,7 +300,7 @@ enum SimAbortReason {
   /// capacity and orders would never have completed (§7.8).
   horizonExceeded,
 
-  /// Nothing could be started at all — every station's calendar is shut, or no
+  /// Nothing could be started at all — every workcenter's calendar is shut, or no
   /// study had a costable first order.
   nothingToRun,
 }
@@ -370,14 +370,14 @@ class SimRunResult {
   /// sum to each other by construction.
   ///
   /// Empty on a result assembled before v25 and on one whose calendars could
-  /// not be walked, which is the same empty a station with no schedule already
+  /// not be walked, which is the same empty a workcenter with no schedule already
   /// reports as `Duration.zero` above.
   final Map<String, Map<DateTime, Duration>> openByWorkcenterMonth;
 
   /// Time each workcenter spent holding a finished order it could not put down,
   /// because the lane ahead was full (§5.5).
   ///
-  /// **Not part of [busyByWorkcenter].** A blocked station is occupied and
+  /// **Not part of [busyByWorkcenter].** A blocked workcenter is occupied and
   /// producing nothing; folding the two would let a jam read as output, and on
   /// a line whose constraint already sits at 86 % utilization that is not a
   /// rounding error. Empty on every run made before lanes had capacity.

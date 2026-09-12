@@ -46,7 +46,7 @@ void main() {
     });
 
     test('a peak of zero offers no axis at all', () {
-      // Every station in view closed for every month is a real state — and an
+      // Every workcenter in view closed for every month is a real state — and an
       // axis from 0 to 0 is a scale with no meaning rather than an empty one.
       expect(hoursTicks(0, 'en_US'), isEmpty);
       expect(hoursTicks(-1, 'en_US'), isEmpty);

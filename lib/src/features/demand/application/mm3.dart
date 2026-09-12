@@ -119,7 +119,7 @@ class Mm3Step {
   ///
   /// Carried beside [targetId] rather than instead of it, because the two
   /// answer different questions here: a time belongs to the step, and a chart
-  /// is scoped to the station. A flow that visits one workcenter twice has two
+  /// is scoped to the workcenter. A flow that visits one workcenter twice has two
   /// steps with their own times and one MM3 column.
   final String nodeId;
 
@@ -222,7 +222,7 @@ Mm3Series computeMm3({
 /// The step carrying the most work across the whole sequence — what the scope
 /// selector opens on (DESIGN.md §6.3).
 ///
-/// The busiest station is where a lumpy sequence hurts first, so it is the one
+/// The busiest workcenter is where a lumpy sequence hurts first, so it is the one
 /// worth showing before the user has chosen anything.
 String? busiestTargetId({
   required List<DemandOrder> orders,
@@ -232,9 +232,9 @@ String? busiestTargetId({
   final work = <String, double>{};
   for (final order in orders) {
     for (final step in steps) {
-      // **Read by the step, summed by the station** (§9). The time belongs
+      // **Read by the step, summed by the workcenter** (§9). The time belongs
       // to the node; the busiest *workcenter* is what this is looking for, so
-      // two visits to one station add up on it rather than competing.
+      // two visits to one workcenter add up on it rather than competing.
       final stored = table.times[order.partId]?[step.nodeId];
       if (stored == null) continue;
       work[step.targetId] =

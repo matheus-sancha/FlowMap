@@ -325,7 +325,7 @@ abstract class AppLocalizations {
   /// No description provided for @projectPatternHelp.
   ///
   /// In en, this message translates to:
-  /// **'The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every station, and every figure derived from one.'**
+  /// **'The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every workcenter, and every figure derived from one.'**
   String get projectPatternHelp;
 
   /// No description provided for @calendarExceptions.
@@ -340,11 +340,11 @@ abstract class AppLocalizations {
   /// **'shared by every study on this line'**
   String get schedulesTaktScope;
 
-  /// No description provided for @schedulesStationsScope.
+  /// No description provided for @schedulesWorkcentersScope.
   ///
   /// In en, this message translates to:
   /// **'this study\'s flow'**
-  String get schedulesStationsScope;
+  String get schedulesWorkcentersScope;
 
   /// No description provided for @workcenters.
   ///
@@ -385,7 +385,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterLinesHelp.
   ///
   /// In en, this message translates to:
-  /// **'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.'**
+  /// **'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a workcenter that serves two lines belongs under both.'**
   String get workcenterLinesHelp;
 
   /// No description provided for @workcenterNoLines.
@@ -1231,7 +1231,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryOverloaded.
   ///
   /// In en, this message translates to:
-  /// **'Above 100 %: this station cannot do it however the sequence is arranged.'**
+  /// **'Above 100 %: this workcenter cannot do it however the sequence is arranged.'**
   String get summaryOverloaded;
 
   /// No description provided for @summaryWithinCapacity.
@@ -1243,7 +1243,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryNoDemandTakt.
   ///
   /// In en, this message translates to:
-  /// **'No demand takt yet: it needs a station with hours and orders due in this period.'**
+  /// **'No demand takt yet: it needs a workcenter with hours and orders due in this period.'**
   String get summaryNoDemandTakt;
 
   /// No description provided for @summaryBottleneck.
@@ -1261,7 +1261,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryVisitsHelp.
   ///
   /// In en, this message translates to:
-  /// **'The flow routes through this station {count} times, and every visit loads it.'**
+  /// **'The flow routes through this workcenter {count} times, and every visit loads it.'**
   String summaryVisitsHelp(String count);
 
   /// No description provided for @summaryMissingTimes.
@@ -1293,7 +1293,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryPaceSetter.
   ///
   /// In en, this message translates to:
-  /// **'Measured at {name}, the busiest station, which has {available} available this period.'**
+  /// **'Measured at {name}, the busiest workcenter, which has {available} available this period.'**
   String summaryPaceSetter(String name, String available);
 
   /// No description provided for @summaryTaktConfigured.
@@ -1305,7 +1305,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryTaktConfiguredHelp.
   ///
   /// In en, this message translates to:
-  /// **'The takt this line is set to run at, resolved at the pace-setting station.'**
+  /// **'The takt this line is set to run at, resolved at the pace-setting workcenter.'**
   String get summaryTaktConfiguredHelp;
 
   /// No description provided for @summaryTaktRaw.
@@ -2013,7 +2013,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepTeardownHelp.
   ///
   /// In en, this message translates to:
-  /// **'Stripping the station after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.'**
+  /// **'Stripping the workcenter after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.'**
   String get stepTeardownHelp;
 
   /// No description provided for @stepSamePart.
@@ -2043,7 +2043,7 @@ abstract class AppLocalizations {
   /// No description provided for @laneCapacityHelp.
   ///
   /// In en, this message translates to:
-  /// **'How many orders fit here. Leave blank for unlimited. When it is full the station behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.'**
+  /// **'How many orders fit here. Leave blank for unlimited. When it is full the workcenter behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.'**
   String get laneCapacityHelp;
 
   /// No description provided for @workcenterParallelCapacity.
@@ -2055,7 +2055,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterParallelCapacityHelp.
   ///
   /// In en, this message translates to:
-  /// **'How many orders this station runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.'**
+  /// **'How many orders this workcenter runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.'**
   String get workcenterParallelCapacityHelp;
 
   /// No description provided for @studyStartBuffer.
@@ -2079,7 +2079,7 @@ abstract class AppLocalizations {
   /// No description provided for @studyPaceSetterHelp.
   ///
   /// In en, this message translates to:
-  /// **'The station whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.'**
+  /// **'The workcenter whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.'**
   String get studyPaceSetterHelp;
 
   /// No description provided for @studyPaceSetterAutomatic.
@@ -2097,7 +2097,7 @@ abstract class AppLocalizations {
   /// No description provided for @simBlockedHelp.
   ///
   /// In en, this message translates to:
-  /// **'Time the station spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed station is occupied and producing nothing.'**
+  /// **'Time the workcenter spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed workcenter is occupied and producing nothing.'**
   String get simBlockedHelp;
 
   /// No description provided for @simEmptySlotLaneFull.
@@ -2127,7 +2127,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepEquivalentHelp.
   ///
   /// In en, this message translates to:
-  /// **'This step\'s own takt, used by the flow equivalent instead of the line\'s. Leave blank to follow the line\'s takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station\'s productive days, so 1 day equals one takt-day.'**
+  /// **'This step\'s own takt, used by the flow equivalent instead of the line\'s. Leave blank to follow the line\'s takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this workcenter\'s productive days, so 1 day equals one takt-day.'**
   String get stepEquivalentHelp;
 
   /// No description provided for @stepProblemUnbound.
@@ -2217,7 +2217,7 @@ abstract class AppLocalizations {
   /// No description provided for @footerLeadTimeRunningHelp.
   ///
   /// In en, this message translates to:
-  /// **'The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each station’s real calendar instead, so the two can differ and the run is what happened.'**
+  /// **'The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each workcenter’s real calendar instead, so the two can differ and the run is what happened.'**
   String get footerLeadTimeRunningHelp;
 
   /// No description provided for @footerPce.
@@ -2265,7 +2265,7 @@ abstract class AppLocalizations {
   /// No description provided for @simFilterPeriodHelp.
   ///
   /// In en, this message translates to:
-  /// **'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Station utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.'**
+  /// **'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Workcenter utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.'**
   String get simFilterPeriodHelp;
 
   /// No description provided for @simFilterPeriodStart.
@@ -2334,11 +2334,11 @@ abstract class AppLocalizations {
   /// **'Simulation'**
   String get simWorkspace;
 
-  /// No description provided for @simStationsWholeRun.
+  /// No description provided for @simWorkcentersWholeRun.
   ///
   /// In en, this message translates to:
   /// **'Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.'**
-  String get simStationsWholeRun;
+  String get simWorkcentersWholeRun;
 
   /// No description provided for @simulationRun.
   ///
@@ -2433,7 +2433,7 @@ abstract class AppLocalizations {
   /// No description provided for @simulationAbortNothingToRun.
   ///
   /// In en, this message translates to:
-  /// **'Nothing could be started: every station’s calendar is shut, or no study had a costable first order.'**
+  /// **'Nothing could be started: every workcenter’s calendar is shut, or no study had a costable first order.'**
   String get simulationAbortNothingToRun;
 
   /// No description provided for @simOnTimeDelivery.
@@ -2541,7 +2541,7 @@ abstract class AppLocalizations {
   /// No description provided for @simRankingsHelp.
   ///
   /// In en, this message translates to:
-  /// **'Both rankings are here because their disagreement is the diagnostic: a long queue at a station that is not busy is a sequencing problem, not a capacity one.'**
+  /// **'Both rankings are here because their disagreement is the diagnostic: a long queue at a workcenter that is not busy is a sequencing problem, not a capacity one.'**
   String get simRankingsHelp;
 
   /// No description provided for @simQueue.
@@ -2613,7 +2613,7 @@ abstract class AppLocalizations {
   /// No description provided for @simNothingRanked.
   ///
   /// In en, this message translates to:
-  /// **'No station ran anything.'**
+  /// **'No workcenter ran anything.'**
   String get simNothingRanked;
 
   /// No description provided for @simRunSpan.
@@ -2727,7 +2727,7 @@ abstract class AppLocalizations {
   /// No description provided for @simGanttGapHelp.
   ///
   /// In en, this message translates to:
-  /// **'A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.'**
+  /// **'A bar is the workcenter committed to that order, closed hours included. A gap is a workcenter not running: closed, or starved. How much of it was open at all is in the Queue table.'**
   String get simGanttGapHelp;
 
   /// No description provided for @simGanttOrder.
@@ -2838,22 +2838,22 @@ abstract class AppLocalizations {
   /// **'Still standing here when the run ended'**
   String get simGanttStillWaiting;
 
-  /// No description provided for @simGanttRowsStations.
+  /// No description provided for @simGanttRowsWorkcenters.
   ///
   /// In en, this message translates to:
-  /// **'Stations'**
-  String get simGanttRowsStations;
+  /// **'Workcenters'**
+  String get simGanttRowsWorkcenters;
 
   /// No description provided for @simGanttRowsWithLanes.
   ///
   /// In en, this message translates to:
-  /// **'Stations + lanes'**
+  /// **'Workcenters + lanes'**
   String get simGanttRowsWithLanes;
 
   /// No description provided for @simGanttRowsHelp.
   ///
   /// In en, this message translates to:
-  /// **'Whether the queue bands between stations are drawn. Without them the chart reads as a flow; with them it reads as a queue.'**
+  /// **'Whether the queue bands between workcenters are drawn. Without them the chart reads as a flow; with them it reads as a queue.'**
   String get simGanttRowsHelp;
 
   /// No description provided for @simGanttZoomIn.
@@ -2901,7 +2901,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowQueueShared.
   ///
   /// In en, this message translates to:
-  /// **'One queue per station: every step that feeds {target} waits in this one, in this study and in every other.'**
+  /// **'One queue per workcenter: every step that feeds {target} waits in this one, in this study and in every other.'**
   String flowQueueShared(String target);
 
   /// No description provided for @flowQueueName.
@@ -2919,7 +2919,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowQueueTypeHelp.
   ///
   /// In en, this message translates to:
-  /// **'How the station ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue\'s caption on the map is this type and the station it stands in front of.'**
+  /// **'How the workcenter ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue\'s caption on the map is this type and the workcenter it stands in front of.'**
   String get flowQueueTypeHelp;
 
   /// No description provided for @flowQueueStock.
@@ -2973,7 +2973,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowBatchHelp.
   ///
   /// In en, this message translates to:
-  /// **'How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a station ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.'**
+  /// **'How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a workcenter ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.'**
   String get flowBatchHelp;
 
   /// No description provided for @validationNumber.
@@ -3039,19 +3039,19 @@ abstract class AppLocalizations {
   /// No description provided for @stepBalancedHelp.
   ///
   /// In en, this message translates to:
-  /// **'Rebalanced across the {type} stations next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.'**
+  /// **'Rebalanced across the {type} workcenters next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.'**
   String stepBalancedHelp(String type, String measured);
 
   /// No description provided for @stepRebalance.
   ///
   /// In en, this message translates to:
-  /// **'Rebalance with adjacent like machines'**
+  /// **'Rebalance with adjacent like workcenters'**
   String get stepRebalance;
 
   /// No description provided for @stepRebalanceHelp.
   ///
   /// In en, this message translates to:
-  /// **'Stations of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this station at what was measured on it.'**
+  /// **'Workcenters of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this workcenter at what was measured on it.'**
   String get stepRebalanceHelp;
 
   /// No description provided for @stepRebalanceNoType.
@@ -3069,13 +3069,13 @@ abstract class AppLocalizations {
   /// No description provided for @stepRebalanceNoWork.
   ///
   /// In en, this message translates to:
-  /// **'This part has no time here, so the station is not sharing work.'**
+  /// **'This part has no time here, so the workcenter is not sharing work.'**
   String get stepRebalanceNoWork;
 
   /// No description provided for @stepRebalanceOn.
   ///
   /// In en, this message translates to:
-  /// **'Sharing work with the adjacent {type} stations.'**
+  /// **'Sharing work with the adjacent {type} workcenters.'**
   String stepRebalanceOn(String type);
 
   /// No description provided for @simRunTakt.
@@ -3165,7 +3165,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepRebalanceOnWithRework.
   ///
   /// In en, this message translates to:
-  /// **'Sharing work with the adjacent {type} stations. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.'**
+  /// **'Sharing work with the adjacent {type} workcenters. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.'**
   String stepRebalanceOnWithRework(
     String type,
     String filled,
@@ -3176,13 +3176,13 @@ abstract class AppLocalizations {
   /// No description provided for @stepRebalanceRemainder.
   ///
   /// In en, this message translates to:
-  /// **'Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.'**
+  /// **'Sharing work with the adjacent {type} workcenters. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.'**
   String stepRebalanceRemainder(String type, String filled, String capacity);
 
   /// No description provided for @stepRebalanceRemainderOver.
   ///
   /// In en, this message translates to:
-  /// **'Sharing work with the adjacent {type} stations. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its stations have.'**
+  /// **'Sharing work with the adjacent {type} workcenters. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its workcenters have.'**
   String stepRebalanceRemainderOver(
     String type,
     String filled,
@@ -3201,12 +3201,6 @@ abstract class AppLocalizations {
   /// **'Type'**
   String get occupationType;
 
-  /// No description provided for @occupationStation.
-  ///
-  /// In en, this message translates to:
-  /// **'Station'**
-  String get occupationStation;
-
   /// No description provided for @occupationLine.
   ///
   /// In en, this message translates to:
@@ -3216,7 +3210,7 @@ abstract class AppLocalizations {
   /// No description provided for @occupationUngraphable.
   ///
   /// In en, this message translates to:
-  /// **'This run was made before the app recorded what a month of a station was worth, so it cannot be graphed. Run the simulation again to get a chart.'**
+  /// **'This run was made before the app recorded what a month of a workcenter was worth, so it cannot be graphed. Run the simulation again to get a chart.'**
   String get occupationUngraphable;
 
   /// No description provided for @projectSettingsFloat.
@@ -3432,7 +3426,7 @@ abstract class AppLocalizations {
   /// No description provided for @occupationBands.
   ///
   /// In en, this message translates to:
-  /// **'Where the Occupation grid turns amber and red. A station asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.'**
+  /// **'Where the Occupation grid turns amber and red. A workcenter asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.'**
   String get occupationBands;
 
   /// No description provided for @occupationProcess.
@@ -3459,11 +3453,11 @@ abstract class AppLocalizations {
   /// **'Outside the filter'**
   String get occupationOutsideFilter;
 
-  /// No description provided for @occupationStations.
+  /// No description provided for @occupationWorkcentersAggregated.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 station aggregated} other{{count} stations aggregated}}'**
-  String occupationStations(int count);
+  /// **'{count, plural, =1{1 workcenter aggregated} other{{count} workcenters aggregated}}'**
+  String occupationWorkcentersAggregated(int count);
 
   /// No description provided for @occupationTipDemand.
   ///

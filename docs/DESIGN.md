@@ -41,6 +41,40 @@ the schema.
 
 Identity lives in **Resources**; period-scoped numbers live in the **Project**.
 
+### 3.0 One word per concept
+
+**A workcenter is a *workcenter*, everywhere.** Schema, Dart, screen, help text, exports, this file
+and `HISTORY.md`. It was also called a *station* for most of the app's life — 42 uses in the English
+strings against 35 of *workcenter*, and 44 of 82 source files carrying both, with `SimWorkcenter`
+and `StationPool` six hundred lines apart in one file. Settled on 2026-09-12 by
+[#29](https://github.com/matheus-sancha/FlowMap/issues/29).
+
+*Workcenter* won because the expensive half was already there: every table, column and Drift row
+said `Workcenter` and not one identifier under `lib/src/data` said `station`, so converging on it
+cost no migration and could not touch a stored run. *Station* was shorter and more common in the
+prose, and that is the whole of what was given up.
+
+**The cost this was paying sat in the other two languages.** The translators followed the English
+faithfully, so one concept became two full terms in each: *estación* (34) beside *centro de trabajo*
+(25), *estação* beside *centro de trabalho*, plus a bare *centros* abbreviation in four more keys.
+The Occupation screen rendered *Station* and *Workcenter* side by side. es and pt now say **centro
+de trabajo** and **centro de trabalho** and nothing else — note the gender changes with the noun,
+so the articles and adjectives around it moved too.
+
+**What is *not* a workcenter.** A **machine** is a unit *inside* one: parallel capacity above one
+means that many independent machines under a single workcenter (§3.1 covers when they should be a
+pool instead), and *Machine Pace* / *Operator Pace* is the pacing mode of a workcenter type (§7.5).
+Those uses stay.
+
+**Studies, cells and lines are three concepts that look alike in the live plant**, which is the
+other half of the same ticket. Study `Célula 11B` belongs to cell `Célula 11` and is scoped to line
+`Fluxo 11B`: it takes the word from one and the suffix from the other and is neither. The app cannot
+rename a customer's data, so wherever a study is named beside a cell or a line it is written
+**`name (cell · line)`** — the studies sidebar, the run filter's Studies menu, and the *Run covers*
+chips. This is not tidiness: the conflation produced a false drive finding on 2026-09-08 and had
+already been written into the v2.0 map as one sentence merging a line's name with a study's
+workcenter count.
+
 | Resources (identity) | Project (per-project data) |
 |---|---|
 | Plant, Production Cell, Production Line, Workcenter (name, type), Workcenter Pool, Shift Pattern | Which shift pattern the plant uses, takt schedule per line, workcenter schedule periods, calendar exceptions |
@@ -85,16 +119,16 @@ _Rejected: pool as an N-slot capacity bucket._ Loses per-machine availability/op
 say which machine ran an order.
 
 **A run keeps the members and gains the name.** Field feedback, 2026-08-15, from the first run driven
-with two studies in it: `CLAD07` read as a loose machine, because a run's stations are workcenters
+with two studies in it: `CLAD07` read as a loose machine, because a run's workcenters are workcenters
 and nothing recorded what the reader had actually typed on the map. The members stay individual —
 that is what says which machine ran an order, and it is the per-machine yardstick this section
 protects — and the pool is stored beside them (§7.10) so the surfaces can put the word back.
 
 **The Gantt groups; the Queue and Share tables label.** The chart runs down the page in flow order,
 where a pool's machines already sit together, so naming the pool on each of their rows costs nothing
-and its lane has somewhere to attach (§8.6). §8.1's two tables are *rankings*: their first row is the station that
+and its lane has somewhere to attach (§8.6). §8.1's two tables are *rankings*: their first row is the workcenter that
 queued most, and clustering their rows by pool would mean the first row stopped answering that. They
-name the pool beside the station instead.
+name the pool beside the workcenter instead.
 
 _Rejected: one aggregate row per pool._ Closest to how a planner speaks about it, and it needs a
 summed denominator that discards exactly the per-machine reading the paragraphs above are defending.
@@ -105,16 +139,16 @@ each has its own clock, its own busy total and its own memory of the last part i
 of one machine pay changeovers separately. That is what running two orders at once *is*.
 
 **A pool is the precedent, not the alternative**, and the arithmetic is deliberately identical: a
-station's units raise its capacity exactly as a pool's members do, and leave the per-machine
+workcenter's units raise its capacity exactly as a pool's members do, and leave the per-machine
 yardstick alone. So §8.4's occupation halves for two units while §6.1's flow equivalent still reads
 one machine — which is what a pool of three already does, reporting 63 % occupation against an
 equivalent of 0.99.
 
 **Units multiply capacity and never the clock.** §7.2 measures a takt given in days on the pace
 setter's *productive day*, so folding units into that figure would stretch the release cadence — and
-how many machines a station has is not how long its day is. Utilization's denominator does take
+how many machines a workcenter has is not how long its day is. Utilization's denominator does take
 them, because its numerator is summed across units: counting one clock against two servers' work is
-how a busy station comes to report 200 %.
+how a busy workcenter comes to report 200 %.
 
 _Rejected: modelling it as a pool of invented members._ It needs no code at all — and it puts two
 machines that do not exist into the plant, the Summary, the Queue table and every Gantt thereafter.
@@ -187,7 +221,7 @@ effective_process_time = process_time × (1 + rework) ÷ availability
 A 10 h job on a 74 % / 3.7 % workcenter occupies it for 14.0 h of open working time.
 
 **It derates the part's work only, not the changeover** (§7.6). Setup and teardown are typed in a
-station's productive day, which already has availability taken out of it, so derating the result as
+workcenter's productive day, which already has availability taken out of it, so derating the result as
 well would apply the loss twice — the trap this section's own rule exists to prevent, seen from the
 capacity side in §6.1.
 
@@ -250,13 +284,13 @@ genuinely are variants of one shaft remain variants of one shaft.
 **A link that carries a queue is drawn as wide as a process box.** The lead-time ladder puts one rung
 over each link and one under each box, so equal slots make equal rungs — and a 64 px gap truncated
 `FIFO COATING` to `FIFO COA…` the first time this was driven. The one link that stays narrow is the
-last, into the customer: not a station, no queue, nothing to make room for. _Rejected: sizing the
+last, into the customer: not a workcenter, no queue, nothing to make room for. _Rejected: sizing the
 ladder independently of the map._ Rungs would be equal at any gap width, but a rung that does not sit
 under the box or link it measures reads as the wrong one's time.
 
 **The ladder alternates strictly, and a queue rung is drawn even when it is zero.** That is what makes
 the comb regular; a queue holding nothing has a real answer rather than no answer. A link whose queue
-is null contributes zero — an unbound step has no floor space, and the *second* link into a station a
+is null contributes zero — an unbound step has no floor space, and the *second* link into a workcenter a
 flow visits twice was already counted at the first — which is what keeps the rungs summing to the
 footer's lead time (§17.4). The first build overlapped a queue's rung with the process rungs either
 side by half a gap, and `LeadTimeLadderPainter` draws its riser at each rung's `left`: the path
@@ -268,17 +302,17 @@ for the reason §1.7 gave the badge: a symbol drawn in a different weight reads 
 map rather than part of it. The channel is sized to the 64 px gap the layout leaves between nodes,
 and drops its label rather than overrunning its own rails when a gap is narrower than the word.
 
-- **The kind belongs to the arrow's destination.** A queue forms in front of a station, so it is that
-  station's discipline the channel describes. The last link runs into the customer, which is not a
-  station and has no queue, and falls back to the study's own kind.
+- **The kind belongs to the arrow's destination.** A queue forms in front of a workcenter, so it is that
+  workcenter's discipline the channel describes. The last link runs into the customer, which is not a
+  workcenter and has no queue, and falls back to the study's own kind.
 - **An unset rule draws a push, not a FIFO.** The engine takes an undisciplined pile in arrival order
   because something has to be first, so "does this queue behave as FIFO" would be true everywhere and
   a channel on every link would say nothing. A stored rule is a decision; an absent one is not.
 - **A queue beats the cap on the link it marks.** The cap describes the flow, the queue describes one
   line in it, and the more specific of the two is what gets drawn.
-- **A shared queue is drawn once.** Two steps of one flow on one station have one floor space between
+- **A shared queue is drawn once.** Two steps of one flow on one workcenter have one floor space between
   them, so the triangle and its figure go on the first link into it — and the lead-time ladder counts
-  it once. The *discipline* still marks every link into that station: what is deduplicated is the
+  it once. The *discipline* still marks every link into that workcenter: what is deduplicated is the
   stock, not the rule.
 
 _Rejected: a push/pull/FIFO picker per link, storing nothing._ Total freedom to draw the current
@@ -315,7 +349,7 @@ multiplied by nothing — so an order of ten read a tenth of what the engine cha
 lead time could not be compared with any figure a run reports. It now shows
 `pt × batch × (1 + rework)`, and the **changeover is in the lead-time ladder** rather than being a
 figure on the box that fed no total. Reported from the field as *"I'm adding setup and breakdown
-time, but it's not changing the LT of the station"*, which it did not.
+time, but it's not changing the LT of the workcenter"*, which it did not.
 
 - **The batch comes from the demand, and is overridable.** A field on the toolbar beside the part
   picker opens on the batch that part's orders actually use — the most common one, ties to the larger
@@ -379,11 +413,11 @@ Two modes:
 - **DURATION** — a fixed wait (24 h cooling, 2 days transport) in working or calendar time.
 
 **In simulation a buffer costs nothing to pass through.** The figure on it is an *observation of a
-current state* — what is standing between two stations today — and how long an order really waits is
+current state* — what is standing between two workcenters today — and how long an order really waits is
 the question a run exists to answer. Imposing the observed figure as a delay makes a run partly a
 restatement of what was typed into it, and charges the order twice over: the fixed wait, and then
-the queue at the next station anyway. So an order passes straight through and waits, if it waits, in
-that station's queue, where the engine measures it and the Queue table reports it.
+the queue at the next workcenter anyway. So an order passes straight through and waits, if it waits, in
+that workcenter's queue, where the engine measures it and the Queue table reports it.
 
 The figure keeps its two real jobs, neither of which is the engine's: the **lead-time ladder on the
 map**, which is read off the flow rather than off a run, and the **days-of-stock** a current-state
@@ -427,9 +461,9 @@ therefore parts company with a queue's: a queue is in front of every step whethe
 thought about it, so its triangle has to mean *stock stands here*; an end pile exists only once it
 has been counted, so its triangle means *this was counted* and the figure says what the count was.
 
-**Each end borrows the productive day of the box beside it**, because an endpoint is not a station
+**Each end borrows the productive day of the box beside it**, because an endpoint is not a workcenter
 and has none of its own. It matters only where the takt is stated in `days`, where it is the unit
-conversion rather than a claim about the endpoint (§6.1.1), and the adjacent station is the honest
+conversion rather than a claim about the endpoint (§6.1.1), and the adjacent workcenter is the honest
 lender: raw material drains at the rate the first box consumes it, and finished goods pile at the
 rate the last box makes them. An empty flow has nothing to borrow from, so a takt in days cannot be
 resolved and the pile lands at zero — the same answer a queue in front of an unbound step gives.
@@ -449,21 +483,21 @@ nulled the opposite endpoint. A seventh field on that method would be a seventh 
 
 _This replaced "an order simply waits that long between steps."_ It survived until the model was
 driven against a real plant, where six buffers named `FIFO CLAD09`, `FIFO TTAT`, `FIFO CEU27` and so
-on held every order for a fixed 14 days of a 39.8-day lead time whether or not the next station was
-free. The names are the tell: what was being modelled was the queue between stations, and a queue is
+on held every order for a fixed 14 days of a 39.8-day lead time whether or not the next workcenter was
+free. The names are the tell: what was being modelled was the queue between workcenters, and a queue is
 an outcome.
 
 _Left open: a genuine process delay._ Cooling, curing and transport really do take their time
-whether or not the next station is free, and nothing now expresses that — a 24 h cooling rack is
+whether or not the next workcenter is free, and nothing now expresses that — a 24 h cooling rack is
 modelled as free. It needs a per-node switch saying which of the two a buffer is, and the day a
 plant has one is the day to add it.
 
-**The queue carries a discipline** (§7.4) **and a capacity in orders**; when it is full the station
+**The queue carries a discipline** (§7.4) **and a capacity in orders**; when it is full the workcenter
 behind it has finished an order it cannot put down, and stops. That is what the names on a real map
 mean — `FIFO CEU27` is not a three-day delay, it is a channel with a rule and a floor space.
 
 **Where it is edited: in the process step dialog**, under the workcenter the step targets. Choosing
-the queue type is part of putting a station on the map — *"when a workcenter is added the user must
+the queue type is part of putting a workcenter on the map — *"when a workcenter is added the user must
 select the type"* — so it belongs in the dialog that adds the workcenter. Clicking the channel opens
 that same dialog. The section **names the target and says the queue is shared** by every step that
 feeds it, which is the answer to the complaint that started §7.3 and is not something a reader should
@@ -480,7 +514,7 @@ queue is not an afterthought to a step, it is part of describing one.
 - **The section follows the target picker.** Repointing a step from CLAD17 to CLAD09 reloads the
   fields from CLAD09's row — including one another study wrote, which is then *shown* rather than
   overwritten. What the heading names is what Save writes. On insert the section is absent until a
-  workcenter is chosen, because a step that names no station has no floor space in front of it.
+  workcenter is chosen, because a step that names no workcenter has no floor space in front of it.
 - **The row is written only when a queue field changed.** A step dialog is opened to change a label
   far more often than to retune a floor space, and the row is shared — five targets on the real
   database are reached by both studies. Writing on every save would let one study revert another's
@@ -489,26 +523,26 @@ queue is not an afterthought to a step, it is part of describing one.
 - **The queues are handed to the dialog, not fetched by it.** The canvas is already watching them —
   it cannot draw a channel otherwise — so the answer is on screen before the click.
 
-_Rejected: editing it on Capacity beside the station schedules._ Same key, same scope, same tab, and
-it would put everything about a station in one place — but reading a rule on one surface and setting
+_Rejected: editing it on Capacity beside the workcenter schedules._ Same key, same scope, same tab, and
+it would put everything about a workcenter in one place — but reading a rule on one surface and setting
 it on another is the split §6.4 has just finished undoing on the Flow toolbar. _Rejected: keeping it
 on the connector as well._ Two write paths into one shared row is how the two come to disagree
 (§12.6).
 
 **The working-time switch did not come across.** A fixed wait on an inventory node could be declared
 wall-clock or working-time; `project_queues` stores no such flag, so every fixed wait is a calendar
-wait and a quantity is takt-derived and therefore in the station's own hours. That is the honest pair
+wait and a quantity is takt-derived and therefore in the workcenter's own hours. That is the honest pair
 — cooling and transport really do run through a Saturday — and inventing the column inside a re-model
 is what the paragraph below already declines to do.
 
-**Blocking is after service.** A station cannot know whether the lane ahead will have room until it
+**Blocking is after service.** A workcenter cannot know whether the lane ahead will have room until it
 has something to put down, so it finishes and then waits. While it waits it is neither idle nor
 working, and that is what carries a jam backwards up the line. The held time is recorded per step
-and per station and kept **out of `busySeconds`**: a blocked station is occupied and producing
+and per workcenter and kept **out of `busySeconds`**: a blocked workcenter is occupied and producing
 nothing, and folding the two would make utilization report the jam as output (§8.3).
 
 **A full lane at the head of the flow sends a release slot out empty**, with its own reason. There
-is no station behind it to block, so the only thing that can be held back is the release itself —
+is no workcenter behind it to block, so the only thing that can be held back is the release itself —
 and §7.2's slots are strict, so the slot is spent rather than deferred. Kept distinct from the WIP
 cap's reason on purpose: one is a policy set for the whole flow, the other is the floor running out
 in one place, and counting them together would say "the line was held back" without saying by what.
@@ -521,7 +555,7 @@ what every lane was before.
 _Rejected: capacity-limited buffers that block upstream_ — **reversed.** The original objection was
 that it couples the engine, can deadlock, and needs blocking-time metrics to be interpretable. The
 third is answered above. The second does not arise on §5.1's spine: it is linear with no branches
-and no rework loops, so the last station always has an unlimited sink ahead of it and a blocked
+and no rework loops, so the last workcenter always has an unlimited sink ahead of it and a blocked
 chain always drains from the head. The rejection was written against a general graph.
 
 ---
@@ -539,8 +573,8 @@ open_hours_per_working_day(W) = union of staffed shift windows, breaks removed
 
 **Takt is stored as a value plus a unit, never as a canonical duration.** "3
 days" cannot be reduced to seconds without saying whose working day is meant,
-and the answer differs per workcenter: a 3-day takt is 68 h at a station open
-22:40 a day and 26:24 at one open 8:48. Both are "one takt of that station's own
+and the answer differs per workcenter: a 3-day takt is 68 h at a workcenter open
+22:40 a day and 26:24 at one open 8:48. Both are "one takt of that workcenter's own
 capacity", which is the comparison this method exists to make. Hours, minutes
 and seconds are literal and resolve identically everywhere
 (`TaktPeriodSpec.equivalentAt`).
@@ -556,7 +590,7 @@ productive_hours_per_working_day(W) = open_hours_per_working_day(W) × availabil
 FE_pt(W)                            = takt × productive_hours_per_working_day(W)
 ```
 
-Availability is a property of the station's capacity, so it is in the hours per
+Availability is a property of the workcenter's capacity, so it is in the hours per
 day. Rework is a loss on the work a **part** requires, so it attaches to demand
 part process times instead (§6.2) and never moves the equivalent.
 
@@ -573,7 +607,7 @@ The worked reference — ABC three shifts at 74 %, takt 3 days:
 
 **The ladder measures days in productive days** — it divides by the same 16.77.
 That is why availability cancels for the equivalent and one takt reads as
-exactly `3.0 d` however bad a station's uptime, while a real part at 57 h reads
+exactly `3.0 d` however bad a workcenter's uptime, while a real part at 57 h reads
 `3.40 d`. The box, the ladder and the footer totals all read the one figure, so
 PCE stays a ratio of like with like.
 
@@ -584,15 +618,15 @@ is what the field is called on screen (`flow_nodes.equivalent_value` +
 `equivalent_unit`, null = follow the line's takt; the columns keep their
 original names, since renaming them would cost a table rebuild for nothing).
 
-This is a property of the **yardstick, not the station**: an inspection that
+This is a property of the **yardstick, not the workcenter**: an inspection that
 genuinely takes a fraction of a takt would otherwise make the equivalent claim a
 full takt there, dragging every real part's equivalence at that step toward zero
 and skewing the balance measure. It is stated as an absolute value with a
-[TaktUnit], where `days` means productive days of that station — so `1 day`
+[TaktUnit], where `days` means productive days of that workcenter — so `1 day`
 equals one takt-day, and a step overridden to the takt's own value reads
 identically to one left alone.
 
-Stored per **flow step**, not per workcenter: the same station is not worth the
+Stored per **flow step**, not per workcenter: the same workcenter is not worth the
 same share of a 1-day line and a 4-day one, and a duplicated study must be
 rebalanceable without disturbing the original. Overridden steps are marked on the
 map, because a reader comparing two boxes has to know one is not measured in
@@ -626,7 +660,7 @@ eq(part, W)    = part_pt(W) ÷ FE_pt(W)          per workcenter / process type
 eq(part, flow) = Σ part_pt  ÷ Σ FE_pt           whole flow
 ```
 
-`part_pt(W)` is the **stored per-piece time with that station's rework charged
+`part_pt(W)` is the **stored per-piece time with that workcenter's rework charged
 against it** — `55 h × 1.037 = 57.035 h` in §6.1's worked reference. Availability
 is not applied here a second time: it is already in `FE_pt`'s productive day, and
 the ladder divides by the same day, so it cancels exactly where it should.
@@ -639,7 +673,7 @@ half-hour inspection has not made the flow 1.5× harder.
 
 **A step the selected part has no process time for is a blocking error** (§11),
 not a zero and not a quiet fall-back to the takt. The yardstick is still computed
-there, because it is a property of the station and the reader may need it; what
+there, because it is a property of the workcenter and the reader may need it; what
 is missing is the part's own number, and the map says so.
 
 The two data sources that read this:
@@ -651,7 +685,7 @@ The two data sources that read this:
   step, over the orders with a need date **inside the viewed period**. Weighted by
   *pieces*, not by order count, because process times are per piece (§7.6). A
   part that skips the step is left out of the denominator too: averaging its
-  absence in would claim the station is faster than any piece passing through it
+  absence in would claim the workcenter is faster than any piece passing through it
   ever is.
 
 A step targeting a pool reads the **pool's** cell (§3.1, §9), never that of the
@@ -672,7 +706,7 @@ it, which is what leaves every flow of unlike machines behaving exactly as it di
 
 **The type is the identity.** Types are user-defined and free to create, so a plant needing model
 precision makes `CNC Lathe — Mazak` and `CNC Lathe — Haas` two types, rather than the schema gaining
-a second identity axis whose blank default would balance everything together. A station with no type
+a second identity axis whose blank default would balance everything together. A workcenter with no type
 is in no group **and breaks the run**, for the same reason a furnace does: nothing says it is like
 its neighbours.
 
@@ -695,19 +729,19 @@ measured   30   30   30      takt = 40
 derived    40   40   10      fill each to its own takt, remainder on the last
 ```
 
-**Each station fills to its *own* takt**, which is one takt of its own capacity (§6.1) and therefore
-worth more clock at a three-shift station than at a one-shift one. The last is the station allowed to
+**Each workcenter fills to its *own* takt**, which is one takt of its own capacity (§6.1) and therefore
+worth more clock at a three-shift workcenter than at a one-shift one. The last is the workcenter allowed to
 be under or over: under when the group has slack, over when it is the bottleneck — and either way the
 overflow is visible at the end of the run rather than smeared across it where nobody would see it.
 
 **So the last member reports a standing of its own, and reads a sentence of its own.** It holds a
 remainder rather than a fill, and the caption written for a fill says the content shown *"uses one
-whole takt"* — true of every station that filled, false of the one that did not. Driving §9.5 read it
+whole takt"* — true of every workcenter that filled, false of the one that did not. Driving §9.5 read it
 on CEU32 at `Filled to 165.2 h of 90.7 h`, which is two takts and a bit. The split is untouched;
-what changed is that `balanceStandings` now says which of the two a station earned, and the over case
-says the thing worth telling a planner: **the group needs more than its stations have.** Over is
+what changed is that `balanceStandings` now says which of the two a workcenter earned, and the over case
+says the thing worth telling a planner: **the group needs more than its workcenters have.** Over is
 judged on the *charged* content — `filled × (1 + rework)` against one takt — because rework is what the
-station pays on top, and comparing the raw figures would call a station over that is not.
+workcenter pays on top, and comparing the raw figures would call a workcenter over that is not.
 
 **Levelling the group instead was put to the field on 2026-08-29 and declined.** Filling the first
 member pins it at 100 % occupation by construction, which on célula 11D left CLAD06 at 100 % across
@@ -715,7 +749,7 @@ its whole active window while CLAD17 ran at 33 %; levelling would have read 89 %
 is a description of how the cell runs**, not a simplification of it, and the field's words above
 stand. `TODO.md` §11 carries the numbers it was judged on.
 
-**The split is derived, never written.** What is stored is what was measured at each station, exactly
+**The split is derived, never written.** What is stored is what was measured at each workcenter, exactly
 as before; the group's work content is the sum of those, and the split is computed against the takt in
 force. Change the takt and the balance follows with no action, which is the whole ask. It is also
 §5.5's rule applied a third time — **never overwrite an observation with a rule** — because a written
@@ -723,7 +757,7 @@ split would be stale the moment takt moved, and a later takt change would leave 
 silently, which is the unbalanced line this exists to prevent.
 
 **No schema step was needed, and that is worth stating** because the round that specified this
-assumed one. The per-station cells the demand table already holds *are* the measurement, and their
+assumed one. The per-workcenter cells the demand table already holds *are* the measurement, and their
 sum *is* the group's work content. Nothing new is stored.
 
 **The map and the engine balance against different takts, and that is correct.** The map uses the
@@ -752,7 +786,7 @@ of one flow legitimately balance differently, and keying by target instead would
 that visits one machine twice in a row.
 
 **A rebalanced box is marked**, on screen and on paper. What it shows is the group's work split
-against the takt rather than what was measured at that station, so a reader comparing the box with
+against the takt rather than what was measured at that workcenter, so a reader comparing the box with
 the demand grid would otherwise find two numbers and no explanation. The screen's mark carries a
 tooltip naming the type and stating what was measured there; the printed map has the mark alone,
 because a map on a wall cannot be hovered.
@@ -763,9 +797,9 @@ that shows a figure other than the one entered into it is a cell that argues wit
 grid is the observation and the map is the derived split, and the mark on the box is what tells a
 reader the two are answering different questions.
 
-**Only stations with positive work are members**, and this paragraph replaces one that said the
-opposite. **A zero is how a plant says a part does not route through a station** — every part on the
-real database carries an explicit cell for every station in its flow, some of them zero — so a member
+**Only workcenters with positive work are members**, and this paragraph replaces one that said the
+opposite. **A zero is how a plant says a part does not route through a workcenter** — every part on the
+real database carries an explicit cell for every workcenter in its flow, some of them zero — so a member
 with no positive time is left out of the pot and keeps its zero. It is left out **transparently**: it
 is the same operation, so the members either side of it still balance with each other.
 
@@ -782,31 +816,31 @@ are different statements — a blank is an unanswered question and a zero is an 
 correction is that the balance now takes only positive times, so the per-step rule never had to be
 weakened at all.
 
-**A group is therefore two or more stations that each have work.** `CEU30 = 0, CEU32 = 146` is one
+**A group is therefore two or more workcenters that each have work.** `CEU30 = 0, CEU32 = 146` is one
 member, so it is no group and CEU32 keeps every minute of it.
 
-**A station can be pinned out of its group** (§7.7.4). `flow_nodes.balance_disabled`, nullable, and
+**A workcenter can be pinned out of its group** (§7.7.4). `flow_nodes.balance_disabled`, nullable, and
 **null is off — rebalancing is on by default**, so no study already in the tree changes and no
 backfill is needed.
 
 **Per step, not per workcenter**, and the argument is §7.6's own: it is this line's use of the
-station, and a duplicated study must be re-tunable without disturbing the original. Célula 11B, 11C
-and 11D share four stations between them, so a flag on the machine would change three studies from a
-screen showing one. Group membership is a *flow* fact anyway — whether a station's work can move
+workcenter, and a duplicated study must be re-tunable without disturbing the original. Célula 11B, 11C
+and 11D share four workcenters between them, so a flag on the machine would change three studies from a
+screen showing one. Group membership is a *flow* fact anyway — whether a workcenter's work can move
 depends on what is beside it, which differs per study by construction.
 
-**A pinned station is transparent, not a wall.** With `A B C D` all one type and C pinned, A, B and D
+**A pinned workcenter is transparent, not a wall.** With `A B C D` all one type and C pinned, A, B and D
 still balance across it. It is the same operation and only its content is fixed, so walling the group
 there would stop D sharing for a reason nobody asked for and nothing on screen would say. That is
-what parts a pin from an **untyped** station, which has to be a wall because nothing says it is like
+what parts a pin from an **untyped** workcenter, which has to be a wall because nothing says it is like
 its neighbours at all.
 
 _Academic on the current plant and worth saying:_ every group on the real database is exactly two
-stations, and at two members a pin and a wall give the same answer. This is a decision about what the
+workcenters, and at two members a pin and a wall give the same answer. This is a decision about what the
 rule means.
 
 **The switch is always visible in the step dialog, greyed with a reason where it cannot apply.** The
-round this came from began with an evening spent unable to find out why a station was not being
+round this came from began with an evening spent unable to find out why a workcenter was not being
 rebalanced, and all three reasons are things the app knows: *the workcenter has no type*, *no
 adjacent step shares its type*, *this part has no time here*. `balanceStandings` returns them from
 the same walk that computes the split, so a caption can never disagree with the figure on the box.
@@ -815,13 +849,13 @@ _Rejected: hiding the switch where it cannot apply_ (§2.1's rule for the same-p
 protects the height of a dialog that already scrolls at 700 px, and it leaves all three reasons
 silent — which is exactly where the round started.
 
-**A station that is not participating gets no mark on the map.** Marking every non-participant would
+**A workcenter that is not participating gets no mark on the map.** Marking every non-participant would
 put a glyph on seven of célula 11D's nine boxes and say nothing. The user has told the app to leave
-the station alone and the map obeys quietly.
+the workcenter alone and the map obeys quietly.
 
 _Worth knowing, and it follows from the rule rather than qualifying it:_ **the split can empty a
-station out of a part's routing.** Where a group's whole work content fits inside one takt, the first
-station takes all of it and the rest derive zero — on 11D, `P7000109738P01` has 15 h stored at CEU32
+workcenter out of a part's routing.** Where a group's whole work content fits inside one takt, the first
+workcenter takes all of it and the rest derive zero — on 11D, `P7000109738P01` has 15 h stored at CEU32
 and the map shows 0 h there. That is "top the first workcenter at the takt" working as specified,
 and it means a derived zero and a stored zero look alike on the map while meaning different things.
 
@@ -829,9 +863,9 @@ and it means a derived zero and a stored zero look alike on the map while meanin
 there is no cap to fill to, so the split would be an invention; the measured figures stand and the
 step's own readiness problem says why.
 
-_The cost, stated plainly:_ a station's process time inside a group stops being what the map shows
+_The cost, stated plainly:_ a workcenter's process time inside a group stops being what the map shows
 for it. The formula owns that, and a planner who wants CLAD07 at forty minutes because that is what
-fits has nowhere to say so. The day that is wanted is the day a per-station override arrives, and it
+fits has nowhere to say so. The day that is wanted is the day a per-workcenter override arrives, and it
 will need a "measured beside chosen" pair on the grid — which is exactly the shape this section
 rejected for the map, and would be right there for a different reason.
 
@@ -900,35 +934,35 @@ reordering.
 
 **Why the pacemaker's lane and not just the first.** Lean injects the schedule at the pacemaker, so
 "may another order start" is really "can the pacemaker take one" — and gating there makes the
-constraint govern the line directly rather than through a chain of blocked stations propagating
-backwards, which on célula 11B is four stations deep. The entry lane is checked as well because
+constraint govern the line directly rather than through a chain of blocked workcenters propagating
+backwards, which on célula 11B is four workcenters deep. The entry lane is checked as well because
 nothing upstream of it can be blocked on its behalf. Both are no-ops until someone types a capacity.
 
 The user's sequence is the thing under study — the app must not silently repair a bad one.
 
-**How fast slots come round, as built.** A cadence needs one station's clock. The engine is handed a
-resolved interval and the id of the station whose open time it is measured in; slots then walk that
+**How fast slots come round, as built.** A cadence needs one workcenter's clock. The engine is handed a
+resolved interval and the id of the workcenter whose open time it is measured in; slots then walk that
 calendar, so a 3-day takt is three *working* days apart rather than 72 hours.
 
 **Measured on the pace setter's open day, not its productive one.** §6.1's "a takt in days means
-productive days of a station" is about *work content* — what fits in a takt, which availability
+productive days of a workcenter" is about *work content* — what fits in a takt, which availability
 derates. When the next slot opens is a question about the clock, and the clock the engine walks is
 the open one. Resolving the cadence against the productive day made the two disagree by exactly the
 availability: on célula 11D a 4-day takt at 83.2 % came round every 3.33 working days instead of 4,
-releasing an order **15 h 13 min sooner than any station filled to that takt could take one**. Since
-§7.4 fills the first station of a like-machine group to exactly one takt, that station is critically
+releasing an order **15 h 13 min sooner than any workcenter filled to that takt could take one**. Since
+§7.4 fills the first workcenter of a like-machine group to exactly one takt, that workcenter is critically
 loaded by construction and the deficit had nowhere to go — sixty orders stacked it into a 55-day
-queue at CLAD06 while the last station of its own group ran at 22 %. The two days are carried
+queue at CLAD06 while the last workcenter of its own group ran at 22 %. The two days are carried
 separately on the resource context so neither can stand in for the other.
 
-**Which station that is, as built.** The study may name its pacemaker; the default is the step whose
+**Which workcenter that is, as built.** The study may name its pacemaker; the default is the step whose
 work content across the whole demand is largest, ties broken by position (§4.4). It became a choice
 rather than a derivation when it gained the second job above: a gate that moves to another machine
 because someone edited a batch size, and tells nobody, is a gate nobody can reason about (§18.8). A
 named pacemaker that is no longer in the flow falls back to the derivation rather than failing the
 study — a deleted node should not read as a broken study.
 
-The station is the **busiest step by work content across the whole demand** — `Σ (part_pt × batch)`
+The workcenter is the **busiest step by work content across the whole demand** — `Σ (part_pt × batch)`
 at each step, over every order in the sequence. Deliberately not §8.2's occupation-based bottleneck,
 which is the right answer to a different question: occupation is *per period*, and a run spans years.
 This one needs no period and cannot change under the run's own feet. Ties break by id, so two runs
@@ -948,7 +982,7 @@ year at 4 and no run could reach the second period at all.
 **An instant no takt period covers has no cadence, and a line with no cadence opens nothing.** The
 study looks again at the start of the next period; where there is none, it stops releasing and its
 remaining orders surface as §7.8's *"N orders never completed"*. That is what
-`WorkcenterScheduleSpec` already does one level down — a station whose schedule has run out is
+`WorkcenterScheduleSpec` already does one level down — a workcenter whose schedule has run out is
 closed, not still staffed as it last was — and it is why the takt is not carried forward instead:
 §9.2's rule is that forgiving is not guessing.
 
@@ -973,34 +1007,34 @@ Four rules: **FIFO** by arrival, **LIFO**, **EDD** (earliest need date) and **SP
 processing time) — "what if we dispatched by due date" is exactly the experiment this app exists to
 run.
 
-**The queue in front of a station keeps the rule, and there is no run-level rule left** (§7.3, v19).
+**The queue in front of a workcenter keeps the rule, and there is no run-level rule left** (§7.3, v19).
 `project_queues.rule` is it, keyed `{projectId, targetId}`; unset reads as FIFO, which is what a shop
 floor does. One place a dispatch decision is made, and the map draws every one of them.
 
 This is the third position this section has held, and the two moves were not the same mistake. The
-first build put the rule on the *station*, which governed a queue the reader could not see it on. The
+first build put the rule on the *workcenter*, which governed a queue the reader could not see it on. The
 second moved it onto the **lane** — the inventory node in front of the step — which was right about
 where a discipline belongs and wrong about what a queue is: a node on one study's spine, so two
 studies through CLAD07 had one each. §7.3's re-model keeps the argument and fixes the key.
 
 - **A queue has exactly one comparator**, because there is exactly one queue per target and every
-  step feeding that target reads it. The ambiguity a station-level rule could not resolve — a machine
+  step feeding that target reads it. The ambiguity a workcenter-level rule could not resolve — a machine
   that is a candidate for its own step and for a pool's — does not arise: the pool is a target in its
   own right and carries its own queue.
-- **The run records what each station dispatched by**, in `simulation_run_workcenters.queue_type`
+- **The run records what each workcenter dispatched by**, in `simulation_run_workcenters.queue_type`
   and `queue_capacity`, copied in for §7.10's reason. A run read back next month still says what each
-  station did after the queues have been retuned, and M5's comparison can say *which* queues differed
+  workcenter did after the queues have been retuned, and M5's comparison can say *which* queues differed
   rather than only that something did.
 
 **What a run is labelled with follows from that.** The runs-history row, the run header and the Excel
-stamp read the date plus the queue type **when every station shared one**, and `mixed` otherwise —
-and when it is mixed the header and the stamp list each station under it, because `mixed` alone says
+stamp read the date plus the queue type **when every workcenter shared one**, and `mixed` otherwise —
+and when it is mixed the header and the stamp list each workcenter under it, because `mixed` alone says
 the run is not one thing without saying what it is. A full breakdown does not fit a menu row, so the
 menu stops at the one word.
 
 - **One fold, read three times.** `RunQueues` derives both the one-line label and the breakdown from
-  the same list of stations, so a menu row reading `FIFO` over a header reading `mixed` is not a
-  state the code can reach — and the history query joins the stations in with the run list rather
+  the same list of workcenters, so a menu row reading `FIFO` over a header reading `mixed` is not a
+  state the code can reach — and the history query joins the workcenters in with the run list rather
   than asking per row.
 - **The takt on that row is the run's *sequence*, not its first figure** (§7.9). `taktSequences`
   folds each study's orders into the takts it opened under, in order and distinct only where
@@ -1012,24 +1046,24 @@ menu stops at the one word.
   keep the menu's query trivial and give the label its own copy of the fact, which can only agree by
   being written correctly where a query agrees by construction — the same argument that put one fold
   behind `RunQueues`. It is a **second query rather than a third join**: the takt lives on the orders
-  now, and a run has hundreds of those against a handful of stations, so joining them would multiply
+  now, and a run has hundreds of those against a handful of workcenters, so joining them would multiply
   the cartesian by the demand. Run in step with the listing, since a run's header row and its orders
   are written and deleted together.
 - **`simulation_runs.dispatch` stays on the schema and stops being written.** The 35 runs made before
-  v19 really did dispatch the whole plant by one rule, and reading it as the fill-in for a station
+  v19 really did dispatch the whole plant by one rule, and reading it as the fill-in for a workcenter
   that recorded no type is the only thing it is still for. A v19 run writes it empty, which parses to
-  no rule at all rather than to FIFO: a station with nothing recorded is left out of the run's
+  no rule at all rather than to FIFO: a workcenter with nothing recorded is left out of the run's
   account of itself, because a run's job is to say what it observed. Widening the column to nullable
   would rebuild the table, and §16.11 is the record of what that costs.
-- **A queue type the build has never heard of drops that station and opens the run.** The same
+- **A queue type the build has never heard of drops that workcenter and opens the run.** The same
   fallback rule the rest of §7.10's enums have, one level gentler: a list of runs that cannot be
-  opened at all is a worse answer than one run that names one station fewer.
+  opened at all is a worse answer than one run that names one workcenter fewer.
 - **The dispatch dropdown in the Simulate popover has gone**, with the run-level rule it set. So has
   the `dispatchOverrides` line on the run header, which counted overrides of a rule that no longer
   exists.
 
 _The cost, and it is real._ §0's confounder run compared a whole plant under one rule against
-another by turning one knob; that becomes an edit per station.
+another by turning one knob; that becomes an edit per workcenter.
 
 _Rejected: FEFO as a fifth rule._ It was asked for by name, and for this line the expiry that
 matters *is* the need date — so it is EDD under the name the floor uses, and no expiry column is
@@ -1043,7 +1077,7 @@ question does not arise, and the whole function went.
 ### 7.5 Operators
 
 A workcenter is a **single server** by default: one order at a time. Parallel capacity is modelled
-either by putting several workcenters in a pool or by raising the station's own
+either by putting several workcenters in a pool or by raising the workcenter's own
 `parallel_capacity` (§3.1), which gives it that many independent servers. **Operators Needed** is
 computed from load (required hours ÷ productive hours per operator) and compared against
 Allocated — the "6.7 operators required" figure.
@@ -1052,7 +1086,7 @@ Allocated — the "6.7 operators required" figure.
 shift with 0 operators is closed; any count ≥ 1 runs identically"* and rejected operators as
 capacity because *"two operators on one CNC do not double its output"*. The second sentence is
 true and the first does not follow from it: a CNC is **machine-paced** and its crew only opens the
-shift, but a spray booth, a bench, an inspection table and a weld station are **labour-paced** —
+shift, but a spray booth, a bench, an inspection table and a weld workcenter are **labour-paced** —
 the crew is the constraint, and adding to it is how the work goes faster. On the live plant that is
 about half the types. The claim was corrected by the field, which crewed Coating from 1/1/1 to
 3/2/2 and watched nothing move.
@@ -1065,13 +1099,13 @@ there, and it makes them go **faster**. Three people on one part is not three pa
 **The model carries it since v30.** A workcenter type is **Machine Pace** or **Operator Pace**, and
 at an operator-paced one the crew on shift does two things.
 
-**It enlarges the room.** The station's monthly capacity is counted in **operator-hours** — each
-shift's open time weighted by the people standing in it — where a machine-paced station's is
-station-hours × units. Both are *resource* hours; the resource differs. Adding a person to a bench
-adds capacity, which is what the field asked for and what "capacity" has to mean at a station whose
+**It enlarges the room.** The workcenter's monthly capacity is counted in **operator-hours** — each
+shift's open time weighted by the people standing in it — where a machine-paced workcenter's is
+workcenter-hours × units. Both are *resource* hours; the resource differs. Adding a person to a bench
+adds capacity, which is what the field asked for and what "capacity" has to mean at a workcenter whose
 capacity is people.
 
-**And it makes the station finish sooner**, as a fourth term in §4.4's arithmetic:
+**And it makes the workcenter finish sooner**, as a fourth term in §4.4's arithmetic:
 
 ```
 effective = per_piece × batch × (1 + rework) ÷ availability ÷ operators
@@ -1079,16 +1113,16 @@ effective = per_piece × batch × (1 + rework) ÷ availability ÷ operators
 
 **The work itself does not shrink.** A process time is **one operator's labour content**, so a step
 *stores* what the crew between them spent while `processStart → processEnd` brackets how long the
-station was held. Three people hold a bench for four hours and spend twelve, and §10.3 draws the
-twelve against a capacity counted in operator-hours — counting station-hours against operator-hours
+workcenter was held. Three people hold a bench for four hours and spend twelve, and §10.3 draws the
+twelve against a capacity counted in operator-hours — counting workcenter-hours against operator-hours
 would divide the crew out twice.
 
 *Utilization is untouched* (§8.3). Its numerator is how long the machine was **held**, so its
-denominator stays station-hours: it asks a question about the machine, and gets the machine's clock
+denominator stays workcenter-hours: it asks a question about the machine, and gets the machine's clock
 on both sides. Occupation asks whether there is enough resource, and gets the resource's.
 
 Every type defaults to Machine Pace, so nothing moved when this shipped. *Changeover is not divided
-by the crew* and stays in station-hours — 3.4 % of the demand on the live plant, and recorded here
+by the crew* and stays in workcenter-hours — 3.4 % of the demand on the live plant, and recorded here
 rather than solved.
 
 **The crew is read where the work starts and held for the whole job**, exactly as availability is,
@@ -1119,7 +1153,7 @@ heavy fabrication, and it makes the Batch Size column inert in every calculation
 _Rejected: overlapping/piece transfer._ Multiplies event count by batch size and stops an order
 being a single object moving through the flow.
 
-**A changeover has two halves.** Setup rigs the station for the order that is arriving and teardown
+**A changeover has two halves.** Setup rigs the workcenter for the order that is arriving and teardown
 strips it after the order that left. Both are optional and both are per flow step.
 
 This reverses a standing rejection — *"a separate batch-independent setup component alongside
@@ -1131,19 +1165,19 @@ two things.
 
 **Teardown is charged with the next order's setup, not at the end of the order that incurred it.**
 Setup looks backwards — *was the previous order the same part* — and the engine already knows the
-answer. Teardown looks **forwards**: a station is only stripped because something different is
-coming, and when an order finishes the engine has not yet picked what follows. So the station
+answer. Teardown looks **forwards**: a workcenter is only stripped because something different is
+coming, and when an order finishes the engine has not yet picked what follows. So the workcenter
 **remembers the teardown it owes** and settles it when the next order arrives. No lookahead, no
 clairvoyance, and the result is what a changeover physically is: strip the last job, rig the next.
 
-**The last order at a station never pays its teardown.** Correct rather than omitted — nothing waits
+**The last order at a workcenter never pays its teardown.** Correct rather than omitted — nothing waits
 on it, so charging it would push the run past its final delivery for something no figure reads.
 
 **A repeat pays a percentage rather than nothing.** `same_part%` is per step, defaults to 0, and
 governs `setup + teardown` as a pair. Zero is exactly what this app did before v17, so an upgraded
 study behaves identically until a number is typed into it; 100 % is the other end, where batching
 buys nothing at all. Each half carries its own step's percentage, which matters only when one
-station is the target of two steps — then each is governed by the step that specified it rather than
+workcenter is the target of two steps — then each is governed by the step that specified it rather than
 by whichever happened to arrive second.
 
 _Rejected: teardown charged after every order regardless of what follows._ Right if the time were
@@ -1154,25 +1188,25 @@ _Rejected: a second percentage for teardown._ A strip-down and a rig-up need not
 the same fraction, so it is more faithful. But they are always charged together under one rule, so
 the second number would only ever move with the first, and nobody has a figure for it.
 
-**No previous order counts as *not the same part*.** An empty station at cold start is set up for
+**No previous order counts as *not the same part*.** An empty workcenter at cold start is set up for
 nothing, so the first order of a run pays in full. This reverses the old behaviour, and what it buys
 is that the rule has no special case left: setup is charged unless the part repeated, in one
 sentence.
 
 **Setup and teardown are a value plus a [TaktUnit], resolved at the server.** `days` means that
-station's **productive** day, exactly as it does for takt (§6.1) and for the Process Specific Takt
+workcenter's **productive** day, exactly as it does for takt (§6.1) and for the Process Specific Takt
 sitting beside them in the same editor (§6.1.1) — one kind of day per dialog (§17.4). They are not
 reduced to seconds at assembly, because a step may target a **pool** and a pool's members do not
 share a working day: `1 day` of setup is ten hours at one machine and twenty-four at another, and
-picking a representative member would be inventing a station.
+picking a representative member would be inventing a workcenter.
 
 **Availability does not derate the changeover**, and this changed with the units. §6.1 requires the
 loss be applied exactly once, and a setup typed in productive days has already had it taken out of
 the day it is measured in — so the old `changeover ÷ availability` would have counted it twice. A
-literal setup is now literal: an hour is an hour however bad the station's uptime. The part's own
+literal setup is now literal: an hour is an hour however bad the workcenter's uptime. The part's own
 work is still derated, which is the half §4.4 owns.
 
-**Every stored run made before this is invalidated by it** — a 90-minute setup at a 74 % station
+**Every stored run made before this is invalidated by it** — a 90-minute setup at a 74 % workcenter
 occupied 121.6 minutes and now occupies 90. The third such break, after §5.5's buffers and §7.4's
 lanes.
 
@@ -1215,7 +1249,7 @@ study whose own cold start is three months later **does not release until then**
 This was `min()` across the studies, with every study's first slot scheduled at that one instant —
 the per-study figure was computed correctly and discarded a line later. The damage was not only
 cosmetic. A study released three months early delivers three months early, so its float reads as
-slack that does not exist and OTD is flattered; worse, its orders occupy **shared stations** for
+slack that does not exist and OTD is flattered; worse, its orders occupy **shared workcenters** for
 three months of simulated time they would never have been there, competing for capacity with the
 study that legitimately started. Measuring real contention is the whole purpose of a run (§7.7), so
 a multi-study run was reporting queueing that could not happen.
@@ -1254,7 +1288,7 @@ back. Nothing needs one today. Do not reintroduce the claim without deciding whi
 spans it is about.
 
 **Stock is counted once per target, at the same step in both directions.** Two steps of one flow on
-one station share a floor space, and the map dedupes it the same way — charging it twice is the
+one workcenter share a floor space, and the map dedupes it the same way — charging it twice is the
 doubling §7.3 exists to undo. The step it is charged at is the **first** in flow order to reach that
 target, and `coldStartDate` walking backwards must use that same step rather than the first one it
 happens to meet, which is the last in flow order.
@@ -1341,22 +1375,22 @@ something could not be answered without them:
   material date, and since v13 the part's description — §8.5's plan cannot be printed from a join
   that may no longer resolve. Also each order's theoretical lead time (§7.9), stored rather than
   recomputed because the walk needs the plant as it was.
-- **Per station**: name, busy and open time. Open time is a property of the calendar rather than of
+- **Per workcenter**: name, busy and open time. Open time is a property of the calendar rather than of
   anything an order did, and it is what makes utilization different from occupation (§8.3).
-- **Per station, since v18: the pool it was dispatched through** (§3.1), id and name both. Nothing
-  said which of a run's machines belonged together, so a pool of three read as three loose stations
+- **Per workcenter, since v18: the pool it was dispatched through** (§3.1), id and name both. Nothing
+  said which of a run's machines belonged together, so a pool of three read as three loose workcenters
   and its lane had nowhere to attach but one of them (§8.6). **Resolved when the run is written, by
-  `stationPools`** — reading the plant's membership at open time would regroup every historical run
+  `simWorkcenterPools`** — reading the plant's membership at open time would regroup every historical run
   the day a machine moves pools, which is the drift this whole section exists to prevent.
 
   **A workcenter may sit in several pools**, so there is not always one answer: `{poolId,
   workcenterId}` is the membership key, and with two studies in one run line A can reach CLAD07
   through `CAL Pool` while line B reaches it through `All Lathes`. **Exactly one pool is a grouping;
   none or several is a label** — the id is null in both the other cases and the name survives
-  carrying what it served, so a station standing on its own says why rather than merely standing
+  carrying what it served, so a workcenter standing on its own says why rather than merely standing
   there. Null is *ungrouped*, never *every pool*, which is the rule below applied a third time.
-- **Per override**: the stations that dispatched by something other than the run's rule (§7.4).
-  Without them the header would report one rule for a run in which three stations used another.
+- **Per override**: the workcenters that dispatched by something other than the run's rule (§7.4).
+  Without them the header would report one rule for a run in which three workcenters used another.
 - **Per step, since v17: what the changeover cost** in seconds, not merely that one happened. The
   bool was enough while the answer was all-or-nothing; a repeat charged at a percentage (§7.6) is
   neither incurred nor not, and the run is the only place the setup rule can be checked against what
@@ -1365,15 +1399,15 @@ something could not be answered without them:
 - **Per step, since v21: what the *work* cost**, in seconds, changeover excluded. The step's own
   start and end bracket that work on the **calendar**, so their difference carries every night and
   weekend it crossed — 76 hours of work reads 148 hours wide across a normal week. That is the right
-  figure for drawing a bar and the wrong one for asking what a station was *asked to do*, and
+  figure for drawing a bar and the wrong one for asking what a workcenter was *asked to do*, and
   §6.2.1's balance moves exactly that between two like machines: without this column the split a run
   actually used could not be read back off it at all. Nor recomputed — it needs the batch, the
   availability and the rework as they stood.
 - **Per study, since v17: the cell and the production line** it sat in, ids and names both. §12.1's
   combined view filters by them, and this is the rule's own consequence — the study may since have
   moved or been deleted, so the filter cannot go and ask. **A cell or line filter is a study filter
-  one level up**: workcenters belong to a *plant*, not to a cell, so stations are never filtered this
-  way — the studies narrow and their stations follow.
+  one level up**: workcenters belong to a *plant*, not to a cell, so workcenters are never filtered this
+  way — the studies narrow and their workcenters follow.
 - **Per study, since v20: the takt it ran at** — the value a human typed, its unit, the interval it
   resolved to against the pace setter's productive day, and the date of the next takt change falling
   inside the run's span. **The takt at that study's first release**, since §7.9 made the takt the
@@ -1402,18 +1436,18 @@ Primary ranking: **Occupation** = required ÷ available productive hours per wor
 available before any simulation, so the Summary flags constraints from static data alone; > 100 %
 is a hard constraint. After a run, workcenters are also ranked by total queue hours and by share of
 total lead time contributed. The headline names one bottleneck; the table shows both rankings,
-because their disagreement is itself diagnostic — high queue at a low-occupation station means a
+because their disagreement is itself diagnostic — high queue at a low-occupation workcenter means a
 sequencing problem, not a capacity one.
 
 ### 8.1.1 The two rankings, as built
 
-`RunMetrics` ranks stations by **queue time** and, separately, by **share of the flow's total
+`RunMetrics` ranks workcenters by **queue time** and, separately, by **share of the flow's total
 time**. They are computed apart and both kept, because §8.1's whole point is that their disagreement
 is the diagnostic — the second ranking would be redundant if it were derived from the first.
 
-**Both tables name a station's pool beside it and neither groups by it** (§3.1). A ranking's first
+**Both tables name a workcenter's pool beside it and neither groups by it** (§3.1). A ranking's first
 row is its answer, and clustering a pool's members together would mean the top row was no longer the
-station that queued most — so the pool is a suffix on the Workcenter cell, on one line because a
+workcenter that queued most — so the pool is a suffix on the Workcenter cell, on one line because a
 `DataTable` row is a fixed height. The Gantt does group, because flow order has already put a pool's
 machines together and it has no ranking to lose (§8.6).
 
@@ -1476,7 +1510,7 @@ adjusted one is what actually matters under a mixed part mix.
 | **Occupation** | static output | required hours ÷ available productive hours for a period |
 | **Utilization** | simulated output | busy time ÷ open time observed in a run |
 
-Both denominators are **unit-hours**: a station with `parallel_capacity` 2 has twice the available
+Both denominators are **unit-hours**: a workcenter with `parallel_capacity` 2 has twice the available
 time and twice the open time, because both numerators are summed across its units (§3.1).
 
 Occupation and Utilization differ whenever sequencing or starvation gets in the way. Defined once
@@ -1494,16 +1528,16 @@ occupation = required ÷ available
 
 - **Availability appears once, in the denominator.** The part's own time is left alone. Applying it
   to both sides is §4.4's oldest trap and would square the loss.
-- **Ranked by target, not by step.** Two steps of a flow may visit the same station, and the
-  station has one calendar and one set of hours: its load is the sum of both visits, and both
+- **Ranked by target, not by step.** Two steps of a flow may visit the same workcenter, and the
+  workcenter has one calendar and one set of hours: its load is the sum of both visits, and both
   process boxes report that same figure. A `×2` on the row says why.
 - **Changeover is charged, because the sequence is known.** An order pays in full when the order
-  before it *at that station* was a different part, and the step's `same_part%` of it when it was
+  before it *at that workcenter* was a different part, and the step's `same_part%` of it when it was
   the same (§7.6) — walked over the whole sequence, so the first order of the month is compared with
   the one that really preceded it rather than starting the month clean. Only the very first order of
   a sequence has nothing before it, and that counts as a change, which is the engine's own rule.
   **Repeats are summed separately from changes** because each step carries its own percentage and
-  two steps at one station need not agree.
+  two steps at one workcenter need not agree.
 - **A pool is measured against the whole pool.** Four lathes are four lathes' worth of hours,
   because an order goes to whichever frees first (§3.1). The first version read every pool figure
   off its first member, so a full pool of four reported four times the occupation it had —
@@ -1514,8 +1548,8 @@ occupation = required ÷ available
   *machine's* capacity (§6.1) because the dummy part is one piece, and one piece runs on one lathe
   however many there are. The two figures answer different questions and only one of them was
   wrong.
-- **A station with no open hours is not the bottleneck.** Its occupation is a dash: a division by
-  zero dressed up as "infinitely busy" would rank a shut station first and hide the real
+- **A workcenter with no open hours is not the bottleneck.** Its occupation is a dash: a division by
+  zero dressed up as "infinitely busy" would rank a shut workcenter first and hide the real
   constraint.
 - **A part due here with no process time is counted and flagged**, not treated as free. Until it is
   entered the required hours are an understatement, and the table says so rather than looking
@@ -1524,14 +1558,14 @@ occupation = required ÷ available
   single server (§7.5) — a second operator on one CNC does not double its output — so the only
   honest meaning of "operators needed" is the crew the current pattern would have to become to
   carry this load. Headcount is what makes it actionable. *Note the CNC in that sentence:* §7.5 now
-  distinguishes machine-paced from labour-paced stations, and at a labour-paced one the crew
+  distinguishes machine-paced from labour-paced workcenters, and at a labour-paced one the crew
   genuinely is the throughput. This figure is unaffected either way — it restates the load as
   people, which is the same restatement whichever paces the work — but the reasoning behind it only
   holds for the machine-paced case, and the sentence should not be read as denying the other.
-- **Available working time for the demand takt is the bottleneck's.** A line is a set of stations
+- **Available working time for the demand takt is the bottleneck's.** A line is a set of workcenters
   with different calendars and no single figure of its own; the constraint is what sets the pace,
   so its hours are the ones demand has to fit into, and the configured takt is resolved at that
-  same station so all three figures are in the same hours. Confirmed in the field (§18.8).
+  same workcenter so all three figures are in the same hours. Confirmed in the field (§18.8).
 - **The Summary shares the map's period navigator.** A user who steps the Flow tab to `Sep 2026`
   and then opens Summary is asking about September; a second period control would be a second
   answer to the same question.
@@ -1539,7 +1573,7 @@ occupation = required ÷ available
 _Rejected: the mockup's naming ("Utilization 100 %" on the box)._ It conflates an input with an
 output, and the inconsistency becomes permanent once it is in three `.arb` files and every PDF.
 
-### 8.4.1 The Occupation grid — station × month
+### 8.4.1 The Occupation grid — workcenter × month
 
 **A grid *and* a chart, switched**, since v2.0's phase 5
 ([#9](https://github.com/matheus-sancha/FlowMap/issues/9)). #9 concluded the stacked bar should be
@@ -1547,17 +1581,17 @@ deleted and it was; **the field then said it was wanted adjusted rather than rem
 settles it — that is what a drive is for, and it outranks the ticket. The grid is the default, and
 everything below is why; the chart keeps the process / rework / changeover split, which exists
 nowhere else, and the shape of a month read against the one before it. Both read the same
-`stationsInView`, so they cannot disagree about which stations are being looked at.
+`workcentersInView`, so they cannot disagree about which workcenters are being looked at.
 The question it answers:
 
-> **Which station is over capacity, in which month, and by how many hours?**
+> **Which workcenter is over capacity, in which month, and by how many hours?**
 
 The plant-level question is answered too, but as one row rather than as the
 figure.
 
 **The live database is the argument.** Across the three stored runs that could
 draw the old chart at all, the aggregate bar **never once broke its capacity
-line** — peak 87 % — while single stations reached 149 % and seven of seventeen
+line** — peak 87 % — while single workcenters reached 149 % and seven of seventeen
 were over in one month. The figure the view was built around could not report the
 finding the view exists to find; a small red `7` floating above an 87 % bar was
 carrying the whole signal. Two of the four stack segments were hairlines
@@ -1566,17 +1600,17 @@ besides, at 3 % and 2 %.
 **One filter model, in two classes**, and this is the part worth reading twice.
 
 *Structural* — studies, cells, lines, workcenter type, workcenter — **choose the
-station set, so demand and capacity move together.** A cell always reads
-*everyone's* demand at that station over that station's **full** capacity.
+workcenter set, so demand and capacity move together.** A cell always reads
+*everyone's* demand at that workcenter over that workcenter's **full** capacity.
 Filtered to one line, CLAD04 still reads 99 % because another line is also on
 it. **A filter chooses what you look at; it never shrinks what a machine was
 asked for.** *Rejected: narrowing demand to the filtered line's own orders* — no
 single line is ever over 100 %, so the view would stop finding overloads the
 moment anyone filtered, which is how the chart got into that state. This is also
-what retires the grey `other` segment: once the station set *is* what the filter
+what retires the grey `other` segment: once the workcenter set *is* what the filter
 selects, there is no "outside the filter" left to draw.
 
-*Order-level* — projects, parts, order numbers — **cannot choose stations, so
+*Order-level* — projects, parts, order numbers — **cannot choose workcenters, so
 capacity is untouched.** They highlight and dim: the cell keeps the plant's
 number and its band, and a fill along the base is the filtered orders' share of
 it. *"CEU27 is at 100 % and 80 of it is yours"* — reschedule. *"CEU32 is at
@@ -1585,10 +1619,10 @@ the chart had nothing that told them apart.
 
 The period is neither: it narrows the **columns**, and capacity with them.
 
-**The two station filters live on the shared bar**, not on this view. They were
-`OccupationStations`, owned here and reaching nothing else — so narrowing to one
+**The two workcenter filters live on the shared bar**, not on this view. They were
+`OccupationWorkcenters`, owned here and reaching nothing else — so narrowing to one
 workcenter narrowed a chart while the Gantt and the queue tables went on drawing
-the whole plant. Every surface whose rows are stations obeys them now; the plan
+the whole plant. Every surface whose rows are workcenters obeys them now; the plan
 and the float matrix are per-order and per-part and ignore them, exactly as
 §12.1's whole-run caveat already handles figures a filter cannot reach.
 
@@ -1598,8 +1632,8 @@ of two at two.
 
 | | |
 |---|---|
-| per workcenter | one row per station: all demand at it ÷ its capacity that month |
-| per line | one row per line: **everyone's** demand at the stations that line depends on ÷ those stations' capacity — arithmetically identical to filtering to that line, so the bands carry over |
+| per workcenter | one row per workcenter: all demand at it ÷ its capacity that month |
+| per line | one row per line: **everyone's** demand at the workcenters that line depends on ÷ those workcenters' capacity — arithmetically identical to filtering to that line, so the bands carry over |
 | `%` | `147%` |
 | `hours` | `733/499` — asked of ÷ open |
 | `gap` | `-234` h |
@@ -1609,51 +1643,51 @@ and another 9,384, and a ratio makes a ramp-up month look like a full one. It is
 §15's rule that a derived figure expands to show its inputs.
 
 *Known cost of the per-line grouping, accepted:* on the live plant the three
-lines read 79–82 % every month, because they share four of their stations. It
+lines read 79–82 % every month, because they share four of their workcenters. It
 separates them only where they do not overlap. *Rejected: the line's own demand ÷
 all capacity in view* — rows would sum to the plant row exactly and read as a
 clean decomposition, but they would be *shares* rather than occupations, so the
 bands would be meaningless.
 
-**The PLANT row appears only when nothing has narrowed the station set.** Once a
+**The PLANT row appears only when nothing has narrowed the workcenter set.** Once a
 line or a type is chosen, a total across what is left would be a partial wearing
 the plant's name.
 
 **Capacity is the plant's, not the run's** (phase 9). The monthly rows a run
-writes span **each station's own schedule**, and cover **every station the plant
+writes span **each workcenter's own schedule**, and cover **every workcenter the plant
 has scheduled** rather than only the ones the routings reached. Occupation is
 demand against capacity, and a denominator clipped to its own numerator cannot
-draw a plant with room to spare: a station open all March and idle until June
+draw a plant with room to spare: a workcenter open all March and idle until June
 used to begin in June, and a machine nobody routed to had no row at all. The grid
-therefore goes **ragged** — a station whose schedule stops a year earlier is
+therefore goes **ragged** — a workcenter whose schedule stops a year earlier is
 *blank* past it rather than zero, which is this section's own distinction between
 nobody has said and said zero.
 
-A station with **no schedule in any project is left out entirely**: it is
+A workcenter with **no schedule in any project is left out entirely**: it is
 *unmodelled*, not idle, and a row of zeroes would invent a machine nobody has
 said anything about. On the live plant that is 24 of 42 workcenters; 18 are
 scheduled and 17 of those carry work.
 
 *Two consequences, both accepted.* The monthly rows **no longer sum to the
-whole-run open time** — utilization's denominator (§8.3) is what the station was
+whole-run open time** — utilization's denominator (§8.3) is what the workcenter was
 open for while the run was on the clock, and the two spans stopped being the same
 span. And a TOTAL column over the whole schedule reads far lower than one over
 the run's own months (68.4 % → 28.5 % on the live plant), because months with
 real capacity and no demand join the denominator; §8.4's TOTAL is a ratio of sums
 over *what is shown*, so one drag of the period slicer restores it.
 
-**The schedule horizon is computed over the stations the run *uses*, not the ones
+**The schedule horizon is computed over the workcenters the run *uses*, not the ones
 it can draw** — and this is the trap the phase was mostly about. §11.1's horizon
-is the *minimum* of each schedule's last end date, so admitting an idle station to
+is the *minimum* of each schedule's last end date, so admitting an idle workcenter to
 the resource model in order to give it capacity rows would drag the horizon back
-to wherever that machine happens to stop. On the live plant the one idle station
+to wherever that machine happens to stop. On the live plant the one idle workcenter
 ends 2026-12-31 while all seventeen busy ones end 2027-12-31, so the tail warning
 would have started firing on runs with nothing wrong with them. Capacity is
-written for the stations that are **open**; the horizon answers for the stations
+written for the workcenters that are **open**; the horizon answers for the workcenters
 the run **used**.
 
 **Bands are the project's own two thresholds** (v29), defaulting to 85 and 100 —
-the float matrix's shape, on the same settings card. 100 because a station asked
+the float matrix's shape, on the same settings card. 100 because a workcenter asked
 for more than it has open is over by definition; 85 because a month that close
 has no room for the changeover the next order brings. *Rejected: a third `idle
 below` threshold* — owning a machine nobody loads is a real finding, but it is a
@@ -1672,7 +1706,7 @@ drawn per column across each column's full width — deliberately, because capac
 is a step function — and that is what read as disconnected segments. With the
 chart gone there is no line to centre.
 
-**One named loss.** A line's own share of a station is not on the **grid**, because cell and line
+**One named loss.** A line's own share of a workcenter is not on the **grid**, because cell and line
 are structural and do not dim — only project and part show a share. The chart's pivot was the one
 place that number lived, and the chart still has it.
 
@@ -1705,7 +1739,7 @@ Date | Order Start | Order End | Takt | Theoretical LT | Actual LT | Efficiency 
 of the Simulation tab's results.
 
 **Takt introduces the three figures it explains, rather than sitting among the dates** (§7.9). An
-order's work at each station is the balance's split of its group against the takt it opened under, so
+order's work at each workcenter is the balance's split of its group against the takt it opened under, so
 two rows of one part with different Theoretical LTs differ *here* first — and a reader scanning for
 why finds the cause immediately left of the effects. It cost Float one more column of scroll, which
 §12.6 already names as the thing this table is closest to losing.
@@ -1788,21 +1822,21 @@ is what §7.10 says that storage exists for. The one column a later round did ha
 geometry at all — it is a figure the card states and the bars cannot carry, and it is below.
 
 All studies together is deliberately the opposite of §8.5's per-study sectioning, and for a stated
-reason: the plan's rows are orders and an order belongs to one line, but **a station is shared**.
-Splitting per study would draw a station idle during hours it was in fact running another study's
+reason: the plan's rows are orders and an order belongs to one line, but **a workcenter is shared**.
+Splitting per study would draw a workcenter idle during hours it was in fact running another study's
 order, which is the one thing §7.7 exists to model.
 
-- **A bar is the station committed to an order** — `processStart → processEnd`, **closed hours
+- **A bar is the workcenter committed to an order** — `processStart → processEnd`, **closed hours
   included**. A step ends at `calendar.advance(now, occupancy)`, so a two-open-hour job started on a
   Friday afternoon reaches Monday morning. That is the same wall-clock span the plan's Order Start
   and Order End are measured across and the same one §8.3 calls occupation, so the tab has one
   meaning of a duration rather than two.
-- **A station's bars take a sub-row each, and the band is as deep as the station was busy.** A pool
+- **A workcenter's bars take a sub-row each, and the band is as deep as the workcenter was busy.** A pool
   still reaches the run as several candidates (§3.1), so three cladding machines are three rows;
   what this answers is one machine with more than one unit.
 
   _This sentence used to read "bars tile without overlapping: every workcenter is its own server."_
-  That was true when it was written and **§3.2 made it false**, by letting a station hold more than
+  That was true when it was written and **§3.2 made it false**, by letting a workcenter hold more than
   one order at a time — and nothing came back to the chart, so two concurrent orders were drawn on
   top of each other. Found by looking at it, on a TTAT set to two units. It is worth keeping as an
   instance of the hazard §2.5 names from the other direction: a premise recorded as a principle
@@ -1810,18 +1844,18 @@ order, which is the one thing §7.7 exists to model.
 
   **The depth is derived, not stored.** `simulation_run_workcenters` keeps no unit count and §7.10
   forbids joining back to the plant to ask, but the overlap is already in the steps — so the depth a
-  station needs is the depth it was observed to use. A two-unit station that never held two orders
+  workcenter needs is the depth it was observed to use. A two-unit workcenter that never held two orders
   at one instant draws one deep, which is the honest reading: the chart shows the run, not the
   plant.
 - **A gap means "not running" — closed and starved alike.** Splitting a bar at closed time would
   need calendars a stored run does not have; `simulation_run_workcenters` keeps a total open time
-  and nothing finer. How much of a gap was even available is answered by the station's utilization
+  and nothing finer. How much of a gap was even available is answered by the workcenter's utilization
   and open time in the Queue table, which is where that question belongs.
-- **Queue spans are not drawn on a station's own row.** One station can hold dozens of orders at
+- **Queue spans are not drawn on a workcenter's own row.** One workcenter can hold dozens of orders at
   once — the real run has 4487 days of queue at CEU27 — and drawing those there would smear the row
-  solid over the bars underneath. Queue is reported per station in the Queue table, per order by
+  solid over the bars underneath. Queue is reported per workcenter in the Queue table, per order by
   §8.5's two lead-time columns, and per step in the hover card.
-- **A lane gets a band of its own, immediately above the station it feeds**, so the chart reads down
+- **A lane gets a band of its own, immediately above the workcenter it feeds**, so the chart reads down
   the page the way the line runs (§5.5). Orders **stack** inside it and the band is as deep as the
   lane is, so a full lane is something the reader sees rather than infers from a gap in the row
   below it. They are drawn in the part's own colour but washed out and outlined, never solid: an
@@ -1829,18 +1863,18 @@ order, which is the one thing §7.7 exists to model.
 
   **This is what makes drawing a queue affordable at all**, and it is the premise the rejection
   above did not have. A capacity bounds the band's height by a number the user typed, where a
-  station's row is bounded by nothing.
+  workcenter's row is bounded by nothing.
 
   **A lane is placed by the step it feeds, not by its stored position.** `SimLane.position` is a
-  place on one study's spine, and the chart merges every study into one set of station rows (§7.7),
+  place on one study's spine, and the chart merges every study into one set of workcenter rows (§7.7),
   so a spine position cannot become a row index without the join to the flow §7.10 forbids. What the
   run does keep is which lane each step waited in, and `queueStart → processStart` is the stay
   itself. **A lane no step ever
   names is not drawn**: no order passed that point, so the run holds nothing that says where it sat,
-  and an invented position would put a band between two stations it may never have joined.
+  and an invented position would put a band between two workcenters it may never have joined.
 
   **What it is placed above is the step's *target*, not a machine** — the pool where the step named
-  one, the station otherwise. This sentence used to read "a lane fed by a pool sits above the first
+  one, the workcenter otherwise. This sentence used to read "a lane fed by a pool sits above the first
   of that pool's machines, which is where the ordering has already put the busiest of them", and it
   was wrong twice over: the code took whichever member happened to pull an order out of the lane
   first, and even the intent was wrong, because a lane feeds a pool rather than a member of one. The
@@ -1848,7 +1882,7 @@ order, which is the one thing §7.7 exists to model.
   siblings. It now sits above the pool's members as a group, carrying the pool's name (§3.1).
 
   **A target carries a list of bands, not one.** This was a map keyed by workcenter, so a second lane
-  feeding one station silently overwrote the first — and two studies both stepping on one pool, each
+  feeding one workcenter silently overwrote the first — and two studies both stepping on one pool, each
   with a lane in front of it, is exactly how that arises (§7.7). One FIFO left the chart with nothing
   on screen saying it had, which is worse than drawing it in the wrong place: a band drawn wrongly is
   a misread, a band not drawn is a run the reader cannot ask about. Both defects came back from the
@@ -1864,19 +1898,19 @@ order, which is the one thing §7.7 exists to model.
   **Bands are therefore not a uniform height**, which is the one thing this cost elsewhere. Anything
   that had been dividing a row index back out of a rect's top now takes it from the layout, which
   knew it already.
-- **Rows are in flow order** — the first station of the routing on the first row — so an order is
+- **Rows are in flow order** — the first workcenter of the routing on the first row — so an order is
   read diagonally down the chart the way it is read left to right along the map (§5.1). Built from
-  steps, so a station that never ran has no row.
+  steps, so a workcenter that never ran has no row.
 
   **The run stores no node positions**, because §7.10's rule is that a run joins to nothing and the
   flow it was made from may have been edited since. So the order is derived from the steps: §5.1
-  makes a study's topology a linear spine, so one order visits its stations in exactly the routing's
+  makes a study's topology a linear spine, so one order visits its workcenters in exactly the routing's
   order, and the order it visited them in *is* the routing. Measured from `queueStart` — when the
-  order arrived, not when it got served — or a station that made everything wait would float up the
-  list. A station shared by two studies takes the **earliest** position it holds in either, since
+  order arrived, not when it got served — or a workcenter that made everything wait would float up the
+  list. A workcenter shared by two studies takes the **earliest** position it holds in either, since
   §7.7 gives it one row whichever line is being read.
 
-  **`RunMetrics.workcenters` breaks the ties**, so stations at one position in the routing — a
+  **`RunMetrics.workcenters` breaks the ties**, so workcenters at one position in the routing — a
   pool's three machines (§3.1) — still come out busiest-queue first and in the same order twice
   running.
 
@@ -1887,8 +1921,8 @@ order, which is the one thing §7.7 exists to model.
   order underneath it.
 
   _The first attempt ordered groups by name_, which was simpler and threw away the Queue ranking for
-  every station **not** in a pool: an ungrouped station is its own group, so ranking groups
-  alphabetically ranked those stations alphabetically. Ranking by the best member's Queue position
+  every workcenter **not** in a pool: an ungrouped workcenter is its own group, so ranking groups
+  alphabetically ranked those workcenters alphabetically. Ranking by the best member's Queue position
   instead makes the sort identical to the old two-clause one wherever no pool is involved, which is
   the property worth having — a run with no pools in it must draw exactly as it did before.
 
@@ -1897,7 +1931,7 @@ order, which is the one thing §7.7 exists to model.
   empty lane between the axis and the first thing with bars. *"It looks like there is a pool lane,
   then a fifo, then the clads."* A band that belongs to nothing looks like a band with nothing in it,
   so it is gone and every member and every lane feeding the pool is labelled `CLAD Pool · CLAD07`
-  instead. The band union is a station or a lane, which is what this section said it was before the
+  instead. The band union is a workcenter or a lane, which is what this section said it was before the
   heading was added.
 
   **The label column is measured, not fixed**, and the pool is what gets cut when it must be. The two
@@ -1911,10 +1945,10 @@ order, which is the one thing §7.7 exists to model.
   not per build** — `build` runs on every hover, and the width cannot change with the pointer.
 
   _The prefix is dimmed and a size smaller, and keeps its row's own slant_ — italic over a lane,
-  upright over a station — because it repeats down every member of the pool while the machine is what
+  upright over a workcenter — because it repeats down every member of the pool while the machine is what
   the reader is looking for, and because the row has to read as one label rather than two fragments
   that happen to be adjacent. That is the same distinction the column already drew between a lane and
-  a station, applied one level in.
+  a workcenter, applied one level in.
 
   _This reversed the first decision, which was that rows follow the Queue ranking outright so the
   bottleneck is the first row read._ It survived until the chart was driven against a real plant,
@@ -2023,19 +2057,19 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   widgets on the real run and 20 000 at §14 scale. One card, positioned at whichever bar is under
   the pointer, and `IgnorePointer` so it cannot take the hover away from what it is describing. It
   is **anchored to the bar rather than followed to the cursor** — it then moves only when the answer
-  changes, and it is easier to read for standing still. It names the order, the part, the station,
+  changes, and it is easier to read for standing still. It names the order, the part, the workcenter,
   the span, the committed duration, the wait before starting, and the changeover at every scale
   including the zooms where the mark on the bar is omitted for want of room.
 
   **It states the work beside the committed span, because the span cannot be read back into it**
   (§6.2.1, v21). The committed duration is elapsed, so it holds the closed time the bar crossed — a
-  station given a bigger share of its group's work and one that merely ran over a weekend draw the
+  workcenter given a bigger share of its group's work and one that merely ran over a weekend draw the
   same width. That made a rebalance visible on the map and invisible in the run of it, which is the
   one place a planner goes to find out what a change actually did. The work is the figure the balance
   moves; the card carries both, and the difference between them is the plant's own closed time.
 
   **A run made before v21 omits the line rather than showing a zero.** A step whose part does not
-  route through its station records zero work on purpose (§6.2.1), so a blank standing in for one
+  route through its workcenter records zero work on purpose (§6.2.1), so a blank standing in for one
   would read as a routing the part does not have — §7.10's own rule that a blank means *this run did
   not record that*, arriving where the two readings are furthest apart.
 
@@ -2070,7 +2104,7 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
 - **Tapping a bar follows its order** (§7.5). Every other bar and every other stay fades back, and
   the order's own gain the stroke the hover already uses — so one order's path down the plant reads
   at a glance instead of being swept for. An order is on the chart many times over, which is the
-  whole point: one bar per station it visited, one stay per lane it waited in.
+  whole point: one bar per workcenter it visited, one stay per lane it waited in.
 
   **What is remembered is an order id, not a hit and not an order number.** Not a hit, because the
   bar that was clicked is one of many and the others are the answer. Not a number, because that is a
@@ -2092,7 +2126,7 @@ it reads the layout, paints it, and hands the pointer straight back to `barAt`.
   The gesture sits **inside both scroll views**, beside the ctrl-scroll and for the same reason: the
   position it reports is then in the content coordinates `barAt` answers in, with no offset to
   subtract back out.
-- **What a gap means is on screen.** A gap is a station not running — closed and starved alike — and
+- **What a gap means is on screen.** A gap is a workcenter not running — closed and starved alike — and
   this chart cannot tell the two apart, because splitting a bar at closed time would need calendars
   a stored run does not have. The line above the chart says so and names the Queue table as where
   "how much of that gap was open at all" is answered.
@@ -2132,7 +2166,7 @@ _Rejected: rotating hue off the seed colour._ Never runs out and always in the a
 adjacent hues stop being distinguishable past six or seven parts, and adding a part recolours a run
 that has not changed.
 
-_Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared station.
+_Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared workcenter.
 Within one study — the common case — every bar is the same colour.
 
 _Rejected: colour by part number rather than by part._ `DemandParts` is unique on
@@ -2177,7 +2211,7 @@ metric is for.
 **So the headline excludes the warm-up, and the plan shows every order.**
 
 - **Warm-up is every order released before its own study's first delivery.** Until one order has
-  crossed the whole flow, no downstream station has seen contention at all, so those orders are not
+  crossed the whole flow, no downstream workcenter has seen contention at all, so those orders are not
   measuring the same plant the rest are. Defined off the run's own numbers rather than as a fixed
   count, so it scales with the flow instead of needing a tuning knob.
 
@@ -2415,7 +2449,7 @@ informative — and the user cannot know how far to extend their periods until t
 **The horizon is the earliest of each schedule's own last date, not the latest.** Past the first one
 to run out, at least one schedule is being carried forward, and a figure is only as defined as the
 least-defined thing that produced it. Taking the maximum would report a run as covered to whichever
-station happened to have the longest schedule.
+workcenter happened to have the longest schedule.
 
 **It is stored on the run** (`simulation_runs.schedule_horizon`, §16.17), because how far the
 periods reach is a fact about the plant and §7.10 forbids a stored run joining back to one — so a
@@ -2555,7 +2589,7 @@ to the project (§7.7), so it should not require being on one of six tabs to sta
   **A banner, not a snackbar, and it stays until it is dismissed.** It was a plain `SnackBar` on
   Flutter's four-second default, which is not long enough to read a figure you asked for and is
   anchored to the bottom of the window — where, since the Gantt took the full body height (§8.6), a
-  bar that never went away would park permanently over the last station's row and the scrollbar
+  bar that never went away would park permanently over the last workcenter's row and the scrollbar
   gutter §2.11 added to reach it. A banner pushes content down instead of covering it, and a run's
   outcome is a statement about the project rather than a transient acknowledgement.
 
@@ -2576,7 +2610,7 @@ sending someone a link to, and because the window should reopen where it was lef
 
 Four filters — studies, cells, lines and a period. **Cells and lines are study filters one level up**:
 workcenters belong to a plant rather than to a cell (§7.10), so they narrow which studies are in view
-and the stations follow. The period selects orders by **need date**, the only one of an order's dates
+and the workcenters follow. The period selects orders by **need date**, the only one of an order's dates
 that is never blank — so an order the run never completed still appears in its period, and §7.8's
 abort case is exactly what a planner filters to find. Filtering by delivery would drop those and make
 every filtered view optimistic.
@@ -2593,11 +2627,11 @@ nothing on screen saying which was which. `run_filter.dart` reads one `StoredRun
 `RunFilter`, so the study tab and the combined view cannot report different numbers for the same
 study.
 
-**Order-level figures follow the filter; station-level figures do not, and the view says so.**
+**Order-level figures follow the filter; workcenter-level figures do not, and the view says so.**
 Counts, on-time, lead times, float, the plan and the Gantt all recompute over the slice, because
 every order carries its own dates. Utilisation cannot: its denominator is `openSeconds`, stored as a
-run total, and rebuilding open time for a subset needs each station's calendar — which §7.10
-deliberately does not store and which is the exact cost that got §3.5 dropped. So the stations keep
+run total, and rebuilding open time for a subset needs each workcenter's calendar — which §7.10
+deliberately does not store and which is the exact cost that got §3.5 dropped. So the workcenters keep
 describing the whole run and are labelled as doing so.
 
 Two rules that only writing it settled, both of which had already gone wrong once:
@@ -2639,7 +2673,7 @@ they narrow the same set of orders the period already did.
 - **All three are in `FilteredRun.signature`**, or a chart would keep drawing the slice before last —
   the run id and the studies are unchanged by every one of them.
 
-**A lane is kept by the steps that name it, not by its study.** A queue belongs to the station it
+**A lane is kept by the steps that name it, not by its study.** A queue belongs to the workcenter it
 stands in front of since v19 (§7.3), so `simulation_run_lanes` writes one row per *target* and stamps
 it with whichever study was written last — on the real run eight of ten lanes carry one study's id
 and two carry the other's. Filtering by study therefore took most of the queues away, which the field
@@ -2691,7 +2725,7 @@ the Gantt was dropped back onto the tables at every keystroke. The key was also 
 and selection. The state that must not survive a new slice is discarded by the widget that owns it,
 which is where that decision belongs.
 
-**The Gantt's rows can be narrowed to the stations alone.** The lane bands are what make the chart
+**The Gantt's rows can be narrowed to the workcenters alone.** The lane bands are what make the chart
 read as a queue; without them it reads as a flow, which is the other thing a reader comes to it for.
 A parameter to `buildGanttChart`, so `barAt`, the hover card and the floored-bar count all follow —
 nothing in the view decides a position, which is the third time §8.6's pure-geometry split has paid
@@ -2718,7 +2752,7 @@ rather than the one being read.
 - **A lane's rule and capacity** are on the inventory node's editor, below its figure and above its
   label, separated by a rule. The figure is an observation of today and these two are decisions about
   the future — the same distinction the schema makes by giving capacity its own column (§16.16).
-- **A station's parallel capacity** is on the workcenter editor, beside its type. That dialog gained
+- **A workcenter's parallel capacity** is on the workcenter editor, beside its type. That dialog gained
   a scroll view with it, for the reason the step and inventory dialogs already had one.
 - **A study's start buffer and pacemaker** are a `Run settings` item on the study's menu in the
   sidebar, beside Rename and Duplicate. A dialog rather than a panel: neither is read while working,
@@ -2727,7 +2761,7 @@ rather than the one being read.
   the same dialog and were left for the round that needs them. *`priority` was reached in M5 and
   deleted in v28* (§16.24).
 - **Blocked time** is a column in the Queue table, beside utilization rather than folded into it: a
-  station at 40 % and blocked half the run is a different plant from one at 40 % and idle, and only
+  workcenter at 40 % and blocked half the run is a different plant from one at 40 % and idle, and only
   the first is fixed downstream (§8.3).
 
 ### 12.2 Canvas
@@ -2776,7 +2810,7 @@ dialogs, the right trade for infrequent deliberate operations.
 
 All durations stored as **integer seconds**, except the three that cannot be: takt, a step's Process
 Specific Takt and its setup and teardown are a **value plus a unit**, because `days` means a
-station's productive day and there is no station to ask until one is named (§6.1, §7.6). Process
+workcenter's productive day and there is no workcenter to ask until one is named (§6.1, §7.6). Process
 time, changeover and takt carry a display unit
 (d/h/min/s) — a 3-day takt reads `3 d`, a 30-hour process time reads `30:00:00`. Inputs accept
 `1.5h`, `90m`, `30:00`, `2d` and normalise on commit. Dates are stored as local dates — a shift
@@ -2853,7 +2887,7 @@ all of them narrow on purpose.
 |---|---|
 | Queue ranking, Share of flow — §8.1's one question read two ways, and re-ranking is what you go there to do | Production plan, *by study* — the order is that study's release sequence |
 | Parts table, Summary table | Float matrix — row *r* means rank *r* in that column |
-| Occupation grid — stations by a month, worst first | Every editable grid — sequence order is the record |
+| Occupation grid — workcenters by a month, worst first | Every editable grid — sequence order is the record |
 
 *Rejected: every read-only table sorts.* Simpler to state, and clicking a heading on the plan or the
 matrix produces a table that looks fine and says something false.
@@ -2976,7 +3010,7 @@ is written down rather than left to be discovered.
 
 **The parts grid freezes its part number** (`DataGrid.frozenColumns`), because a bar you can drag is
 not on its own an answer to fifteen workcenters: the grid is ~2 500 px wide, and scrolling out to the
-twelfth station takes with it the one column that says which part the row you are typing into belongs
+twelfth workcenter takes with it the one column that says which part the row you are typing into belongs
 to. The row header goes with it.
 
 - **Two lists, kept equal.** The frozen cells sit outside the horizontal scroll view — that is what
@@ -3046,7 +3080,7 @@ on every visit. Fifteen of them, worst first at 352 characters over the Gantt wi
 guessable *and* two tables misread as redundant, with no third category to remember.
 
 - **Prose that restates the heading, the columns or the picture is deleted, not moved.** *One row
-  per station, one bar per order* describes what the Gantt visibly is. *Workcenters of this type
+  per workcenter, one bar per order* describes what the Gantt visibly is. *Workcenters of this type
   are drawn with it* restates what picking an icon does. *Reorder on the Sequence tab and watch it
   flatten* describes something you can watch.
 - **What survives goes behind a tappable `ⓘ` beside the name of the thing it explains** —
@@ -3119,8 +3153,8 @@ rank 3 in April are unrelated orders* gets worse rather than better. It stays mo
   nothing in the suite renders a pixel to catch that — so a test asserts the two column lists are
   equal at all four granularities.
 
-**The cost, measured and accepted: coarsening hides overload.** The view exists to find a station
-asking for more than it has, and the live database's worst station reads **148.5 % in a month,
+**The cost, measured and accepted: coarsening hides overload.** The view exists to find a workcenter
+asking for more than it has, and the live database's worst workcenter reads **148.5 % in a month,
 128.2 % in its quarter, 118.9 % in its semester and 101.8 % in the year**. Averaging a bad March
 against a quiet April is what a wider column *is*. Month therefore stays the default, and the
 control is a dropdown rather than a segmented button so the coarse values are a deliberate reach
@@ -3527,7 +3561,7 @@ Decisions taken while building it, beyond §9.1, §9.2, §6.2 and §8.4:
 ### 16.7 Schema v7, from field feedback
 
 - **A workcenter is filed under a *set* of lines.** `workcenters.home_line_id` allowed exactly one,
-  so "add existing" to a second line was a move, not an addition — and a station shared by two
+  so "add existing" to a second line was a move, not an addition — and a workcenter shared by two
   lines, the case §7.7 exists for, could not be drawn. Replaced by `workcenter_lines`, a plain
   join table. The editor offers checkboxes rather than a dropdown, since a single-choice control is
   what made the removal silent.
@@ -3554,7 +3588,7 @@ no UI.
   then handed to a pure engine — which is what lets it be driven from a three-line test and, when
   the UI lands, from a background isolate (§7.1), because an isolate can only be passed things that
   hold no database connection.
-- **The resource model is one workcenter per station**, however many studies point at it (§7.7).
+- **The resource model is one workcenter per workcenter**, however many studies point at it (§7.7).
   That is the whole reason a run is a plant-level object rather than a study-level one.
 - **A buffer's wait is resolved before the run.** A quantity buffer is `pieces × takt` and which
   takt depends on the period — a question the map already answers. The engine is handed a duration
@@ -3582,17 +3616,17 @@ pass that starts whatever can start.
   §7.4's rules, and two studies releasing on the same slot ignored their priorities. Caught by the
   test for exactly that. An event may schedule another at the same instant; that is picked up by the
   same pass, not left for the next.
-- **The dispatch decision is made when a station actually opens**, not when it goes idle. A server
+- **The dispatch decision is made when a workcenter actually opens**, not when it goes idle. A server
   with work but closed schedules a wake at its next opening and chooses there, so an order arriving
   overnight is not beaten to the shift by one that merely queued first.
-- **Free stations are tried least-busy first, then by name** — §3.1's pool tie-break, and the reason
+- **Free workcenters are tried least-busy first, then by name** — §3.1's pool tie-break, and the reason
   a run of the same inputs cannot reorder itself.
 - **Every ordering falls through to keys that cannot tie**: arrival, then need date, then
   sequence number, then order id. The second key was the study's priority until v28 (§16.24).
   Determinism is not a nice-to-have here (§4.4) — the output is a headcount decision.
 - **The first order of a run never pays a changeover** — _true when this was written, reversed in
   v17._ Cold start meant no previous order and §7.6 charged only for a *different* part number. It
-  now charges unless the part **repeated**, so an empty station pays in full: it is set up for
+  now charges unless the part **repeated**, so an empty workcenter pays in full: it is set up for
   nothing. Kept here rather than deleted because the reversal is the point — the old rule was a
   special case, and removing it is what let §7.6 become one sentence.
 - **The engine's occupancy and the Summary's occupation are the same arithmetic.** Inflating a
@@ -3648,7 +3682,7 @@ Simulation tab (§12.1) is the first thing in the app that can start one.
 
   **What the second pass settles is smaller since §7.9**: the engine reads the takt at each slot from
   the schedule it was handed, so a run spanning a change no longer depends on this pass to notice
-  one. What it still fixes is each station's productive day and the takt a study reports as its first
+  one. What it still fixes is each workcenter's productive day and the takt a study reports as its first
   release's.
 - **Readiness is carried per study, and `canRun` requires all of them.** "A step has no workcenter"
   is not actionable until you know whose step it is, and a run the user asked for over three studies
@@ -3723,15 +3757,15 @@ one half-rebuilt on a machine that has already survived §16.11 once.
   deleted. **Never backfilled** — a run stored before v12 has no answer, and a blank saying so is
   true; filling them from today's demand would make one run a hybrid of two moments, which is the
   exact thing the copy-in rule exists to prevent.
-- **`workcenter_dispatch`** — a station's queue discipline where it differs from the run's (§7.4).
+- **`workcenter_dispatch`** — a workcenter's queue discipline where it differs from the run's (§7.4).
   Keyed by target, so a pool is a target for the reason `part_process_times` is keyed that way: the
   queue forms at the pool, not at whichever member stands for it on the map. Project-scoped, because
-  a run builds one resource model and a station exists in it once however many studies point at it
+  a run builds one resource model and a workcenter exists in it once however many studies point at it
   (§7.7) — a study-scoped rule would let two studies demand different disciplines of one machine.
-  A missing row means "use the run's rule", which keeps a station never touched distinguishable from
+  A missing row means "use the run's rule", which keeps a workcenter never touched distinguishable from
   one deliberately set back to FIFO.
 - **`simulation_run_dispatch`** — one row per override, so a stored run still explains its own
-  numbers. `simulation_runs.dispatch` alone would report FIFO for a run in which three stations
+  numbers. `simulation_runs.dispatch` alone would report FIFO for a run in which three workcenters
   dispatched by due date, and M5's comparison could not say the dispatch is what differed.
 - **`DispatchRule` moved to `data/database/enums.dart`.** A stored column has to name it, and the
   schema cannot import `sim_model`, which reaches the calendar. `sim_model` re-exports it, so every
@@ -3821,7 +3855,7 @@ of what a database that cannot be opened costs.
 
 ### 16.16 Schema v15, from field feedback
 
-The inventories take over the governance of the flow (§5.5, §7.4), a station may run more than one
+The inventories take over the governance of the flow (§5.5, §7.4), a workcenter may run more than one
 order at once (§3.1), and a study may add a margin ahead of its derived cold start (§7.8).
 
 **Purely additive**: six columns and two tables, no rebuild anywhere. That is deliberate rather than
@@ -3830,9 +3864,9 @@ upgrade (§16.11), and a step that rebuilds nothing cannot leave anything half-r
 
 | Change | Why |
 |---|---|
-| `flow_nodes.lane_rule` — nullable `DispatchRule` | The queue discipline, moved off the station. Null follows the run's rule. |
+| `flow_nodes.lane_rule` — nullable `DispatchRule` | The queue discipline, moved off the workcenter. Null follows the run's rule. |
 | `flow_nodes.lane_capacity` — nullable int, **in orders** | How many the lane holds; null is unlimited, which is what every lane was. **Its own column, not `inventory_quantity`** — that figure is an observation of today's WIP, and §5.5's correction is that an observation must not be read as a rule. |
-| `workcenters.parallel_capacity` — int, default 1 | How many orders the station runs at once (§3.1). |
+| `workcenters.parallel_capacity` — int, default 1 | How many orders the workcenter runs at once (§3.1). |
 | `studies.start_buffer_days` — int, default 0 | Calendar days of margin ahead of §7.8's cold start. |
 | `studies.pace_setter_target_id` — nullable text | The chosen pacemaker; null derives it as before (§18.8). |
 | `simulation_run_studies.start_buffer_days`, `simulation_run_steps.blocked_seconds`, `simulation_run_workcenters.blocked_seconds` + `units` | §7.10's copy-in rule: a run says what it was run with. |
@@ -3893,12 +3927,12 @@ database half-copied (§16.11).
 **Setup is a value plus a unit, not canonical seconds**, and that is the whole reason it could not
 reuse the column it replaces. `flow_nodes.changeover_seconds` was seconds, which is exact and says
 nothing; a setup of `1 day` cannot be reduced to a duration without saying whose working day is
-meant, and the answer differs per station — the same argument §6.1 makes for takt and §6.1.1 makes
+meant, and the answer differs per workcenter — the same argument §6.1 makes for takt and §6.1.1 makes
 for the Process Specific Takt sitting two fields above it in the same dialog. `days` means that
-station's **productive** day in all three, so the dialog has one kind of day (§17.4).
+workcenter's **productive** day in all three, so the dialog has one kind of day (§17.4).
 
 **The carry is selective, and the source column stays.** Every non-zero `changeover_seconds` was
-copied to `setup_value` with unit `seconds` — literal, and identical at every station, so the typed
+copied to `setup_value` with unit `seconds` — literal, and identical at every workcenter, so the typed
 figure survives exactly. A zero carries as **null**, because zero and nothing charged were always the
 same thing and null is what an untouched node reads as. `changeover_seconds` itself is **kept and no
 longer read**: dropping a column means a `TableMigration` rebuilding from the current Dart
@@ -3906,7 +3940,7 @@ definition, which is the trap this file has hit three times (§16.13, §16.15, �
 the only place a pre-v17 setup can be recovered by hand.
 
 **What the migration preserves is the figure, not the charge.** §7.6 stops derating setup by
-availability in the same round, so a 90-minute setup at a 74 % station occupies 90 minutes rather
+availability in the same round, so a 90-minute setup at a 74 % workcenter occupies 90 minutes rather
 than 121.6. That is the point of the change rather than a side effect of it, and it is why every
 stored run is invalidated by v17 — the third time, after §5.5's buffers and §7.4's lanes.
 
@@ -3922,7 +3956,7 @@ The v16 → v17 fixture carries a **populated** changeover for §16.14's reason:
 nulls passes whether or not the carry ran. Removing the `UPDATE` fails it on `5400` against `null`,
 which is the check that the test is about the migration rather than about the schema.
 
-### 16.19 Schema v18, the pool a station ran in
+### 16.19 Schema v18, the pool a workcenter ran in
 
 Two nullable columns on `simulation_run_workcenters` — `pool_id` and `pool_name` — for §3.1's
 complaint that a pool's members read as loose machines. The shape §16.18 used for the studies' cell
@@ -3934,7 +3968,7 @@ already survived an interrupted upgrade (§16.11).
 `workcenter_pool_members` may say something different today from what the run dispatched through; a
 backfill would make every stored run claim a grouping it never observed. So the 35 runs already on
 the real database group nothing, which is §7.10's blank-is-not-a-wildcard rule rather than a gap.
-The v17 → v18 fixture puts the station **in** a pool in the plant and asserts the run's columns are
+The v17 → v18 fixture puts the workcenter **in** a pool in the plant and asserts the run's columns are
 still null, which is what makes the test about the decision rather than about the DDL.
 
 **No stored run is invalidated**, and after §16.18 that is worth stating. No figure moves, no charge
@@ -3947,7 +3981,7 @@ to be. The v16 → v17 test's version assertion now reads `db.schemaVersion` rat
 what it was ever asserting is that the upgrade ran to completion, and pinning the number made the
 arrival of a later version read as that step failing.
 
-### 16.20 Schema v19, a queue belongs to a station
+### 16.20 Schema v19, a queue belongs to a workcenter
 
 **The first migration in this repo that moves data between concepts**, and after four consecutive
 migrations that only added nullable columns it is worth saying which parts of §16.11's rule still
@@ -3957,7 +3991,7 @@ apply and which do not.
 |---|---|---|
 | `project_queues` | new, keyed `{project_id, target_id}` — name, rule, capacity, and the stock standing there as mode + quantity/seconds + unit | §7.3's queue, one per thing a step targets |
 | `studies` | `inbound_stock`, `outbound_stock` | the flow's two ends (§7.3) — **added ahead of their surface; nothing reads or writes them yet** |
-| `simulation_run_workcenters` | `queue_type`, `queue_capacity` | what each station of a run dispatched by, copied in per §7.10 |
+| `simulation_run_workcenters` | `queue_type`, `queue_capacity` | what each workcenter of a run dispatched by, copied in per §7.10 |
 
 **The key is `{project, target}`, which is the seam the workcenter schedule already uses.** A target
 is a workcenter or a pool as a whole, so `CAL Pool` has one queue and its three machines pull from
@@ -3973,7 +4007,7 @@ finding them populated by nothing is reading the truth, not a bug.
 Each `inventory` node becomes part of the queue in front of the step **after** it on its own spine —
 that step's target is what the node was really describing. Several nodes therefore land on one row:
 on the database this was written against, **15 nodes fold onto 10 targets**, because the two studies
-share five stations and disagree about two of the names. That count *is* the field's complaint seen
+share five workcenters and disagree about two of the names. That count *is* the field's complaint seen
 as data — there is one floor space in front of BAN11 and the map was carrying `FIFO BAN` and
 `FIFO BAN11` for it.
 
@@ -4006,8 +4040,8 @@ would corrupt.
 - **`simulation_runs.dispatch` is written empty rather than made nullable.** The column is `NOT NULL`
   and widening it means a `TableMigration` rebuilding the largest header table in the app — the trap
   §16.11, §16.13, §16.15 and §16.16 are each a record of. Empty parses to no rule, so it contributes
-  nothing and every station of a v19 run speaks for itself; the 35 runs made before v19 keep the
-  single rule they really were made with, and it fills in for them per station.
+  nothing and every workcenter of a v19 run speaks for itself; the 35 runs made before v19 keep the
+  single rule they really were made with, and it fills in for them per workcenter.
 - **`SimLane.study_id` and `SimLane.position` are kept and no longer read.** v19 made a queue belong
   to a target, so a lane's study is whichever one was written last — on the newest stored run, eight
   of ten lanes carry one study's id and two carry the other's. Two surfaces went on asking it and
@@ -4027,7 +4061,7 @@ fold was the one migration in this repo that moved data between concepts.
 
 | Table | Columns | For |
 |---|---|---|
-| `flow_nodes` | `balance_disabled` | pinning a station out of §6.2.1's rebalancing (§7.7.4) |
+| `flow_nodes` | `balance_disabled` | pinning a workcenter out of §6.2.1's rebalancing (§7.7.4) |
 | `simulation_run_studies` | `takt_value`, `takt_unit`, `next_takt_change` | what a run ran at, and whether the takt changed inside its span (§7.7.2, §7.7.3) |
 
 **Nothing is backfilled, and that is the whole of the step.** A null in a disable flag is *off*, so
@@ -4063,7 +4097,7 @@ asserted by the unit it writes rather than by the absence of anything else.
 ### 16.22 Schema v21, what the work at a step cost
 
 **One nullable column on a table that predates it** — `simulation_run_steps.process_seconds`, the
-work charged at that step in seconds of the station's open clock, changeover excluded. Nothing is
+work charged at that step in seconds of the workcenter's open clock, changeover excluded. Nothing is
 rebuilt, which is the shape §16.19 called safe and the second migration since v19's fold to keep
 it.
 
@@ -4083,7 +4117,7 @@ question.
 **Nothing is backfilled.** Deriving it for a stored run needs the batch, the availability and the
 rework as they stood, and a run joins to nothing (§7.10) — so a pre-v21 run says nothing and the
 hover card omits the line. **Null is not zero here, and the distinction is load-bearing**: a step
-whose part does not route through its station records zero work on purpose (§6.2.1), so a blank
+whose part does not route through its workcenter records zero work on purpose (§6.2.1), so a blank
 standing in for one would assert a routing the part does not have.
 
 **No stored run is invalidated.** No figure moves, no charge changes, and no metric is computed from
@@ -4159,7 +4193,7 @@ neither indexed nor part of a key — v27's argument, which is that a `TableMigr
 for every column the *current* Dart definition names while dropping one by name cannot.
 
 **It was a lever nobody had ever pulled, wired where pulling it would not have helped.** Priority sat
-*below* arrival in the fall-through, so two orders reaching a station at different times never got to
+*below* arrival in the fall-through, so two orders reaching a workcenter at different times never got to
 it — it could not expedite anything even for someone who set it. One read site, `engine.dart`. And
 the live database proves it never fired: **all 3 studies and all 324 stored study rows across 147
 runs sit at the default 100**, so the drop is a provable no-op on every run ever stored.
@@ -4216,7 +4250,7 @@ Reported against the built map, and it had two independent causes:
   calendar time unless its working-time flag is set, so 48 h of cooling read as
   2.9 d against a 16.77-hour day. A calendar wait is now measured in calendar
   days; only working-time waits and quantity buffers — whose wait is
-  takt-derived — use the station's productive day
+  takt-derived — use the workcenter's productive day
   (`FlowInventoryView.isCalendarWait`).
 - **The triangle and its own rung rendered differently.** The triangle showed
   the value as typed while the rung showed the ladder's units, putting two
@@ -4224,12 +4258,12 @@ Reported against the built map, and it had two independent causes:
   the value as typed lives in the editor, where it is entered.
 
 A one-piece quantity buffer and the step it feeds are asserted equal, since both
-are one takt of the same station.
+are one takt of the same workcenter.
 
 ### 17.2 Running days in the footer — a conversion, after all
 
 The footer states the lead time twice: **`Lead time (working days)`**, which is
-the ladder's own figure summed in each station's productive day, and
+the ladder's own figure summed in each workcenter's productive day, and
 **`Lead time (running days)`**, which is that **× 1.4**.
 
 **This reverses what this section used to say, and the reversal is the point.**
@@ -4254,7 +4288,7 @@ split is cleaner than the compromise was:
   `17 running days` beside it, and expects that to be the same arithmetic on
   every map they have ever read. It is a restatement, the two cannot disagree,
   and that is what makes it legible.
-- **The simulation is the measurement.** §7.2 walks each station's real calendar
+- **The simulation is the measurement.** §7.2 walks each workcenter's real calendar
   and charges the weekends and shutdowns this plant actually has. When the two
   differ, the run is what happened.
 
@@ -4334,7 +4368,7 @@ overrun.
 Three places did not.
 
 - **The PDF's ladder and buffers were in 24-hour days** while the canvas drew
-  the same rungs in each station's productive day. A one-takt step read `3.0 d`
+  the same rungs in each workcenter's productive day. A one-takt step read `3.0 d`
   on screen and `2.1 d` on the printed map. The renderer took a
   `String Function(Duration)`, which simply could not be handed a working day —
   the type made the bug unfixable at the call site. It now takes a
@@ -4346,7 +4380,7 @@ Three places did not.
   ladder days — each node against its own rung's working day — and rendered
   against the divisor that reproduces that sum. A derived divisor rather than a
   chosen one, because the steps of a flow legitimately differ in how long their
-  day is, so there is no single station's day to pick; only the one that makes
+  day is, so there is no single workcenter's day to pick; only the one that makes
   a total agree with what it totals. A calendar wait keeps its plain 24 hours,
   which is what its own rung reads (§17.1).
 - **The PDF named the data source and the override marker wrongly.** The header

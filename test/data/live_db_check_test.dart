@@ -124,15 +124,15 @@ void main() {
     expect(dropped, isEmpty, reason: 'both superseded tables are dropped');
 
     // v15's three new settings are asserted **in their domain, not at their
-    // defaults**. The first version of this test demanded one unit per station,
+    // defaults**. The first version of this test demanded one unit per workcenter,
     // a zero buffer and no pacemaker — which is only true for the instant
     // between the migration and the first hand-driven check, and §4 asks for
     // exactly those three to be changed. It failed on 2026-08-11 against a
     // TTAT the field had set to two units, which is the check working
     // correctly and the assertion being wrong.
-    final stations = await db.select(db.workcenters).get();
-    expect(stations.every((w) => w.parallelCapacity >= 1), isTrue);
-    for (final w in stations.where((w) => w.parallelCapacity != 1)) {
+    final workcenters = await db.select(db.workcenters).get();
+    expect(workcenters.every((w) => w.parallelCapacity >= 1), isTrue);
+    for (final w in workcenters.where((w) => w.parallelCapacity != 1)) {
       // ignore: avoid_print
       print('units: ${w.name} = ${w.parallelCapacity}');
     }
@@ -303,7 +303,7 @@ void main() {
     // (§7.10). A backfill here would be an invention wearing a run's authority.
     //
     // Null is not zero on this column either. A step whose part does not route
-    // through its station records zero work on purpose (§6.2.1), so what is
+    // through its workcenter records zero work on purpose (§6.2.1), so what is
     // asked is whether a value is *there*, never whether it is small.
     //
     // Written in the durable form from the start rather than as `isEmpty`,
@@ -375,7 +375,7 @@ void main() {
     // ignore: avoid_print
     print('run steps: ${steps.length}');
 
-    // --- v27: a queue is an aspect, and a box is its station (#5) -----------
+    // --- v27: a queue is an aspect, and a box is its workcenter (#5) -----------
 
     // Both columns are gone. Asked of the database rather than inferred from
     // the row class, because it is the *table* the step had to change and this

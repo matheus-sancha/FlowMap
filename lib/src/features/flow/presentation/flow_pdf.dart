@@ -18,7 +18,7 @@ import 'period_label.dart';
 /// How the document renders a duration.
 ///
 /// Carries the working day rather than just the duration, because a "day" on a
-/// value-stream map is a station's own productive day, not 24 hours — and a
+/// value-stream map is a workcenter's own productive day, not 24 hours — and a
 /// renderer that could not be told which one would silently print the map in
 /// different units from the screen (DESIGN.md §6.1, §17.4).
 typedef FlowDurationFormat =
@@ -232,7 +232,7 @@ Future<Uint8List> buildFlowPdf({
                 ),
                 _stepBox(node, strings, formatDuration),
               ],
-              // Into the customer, which is not a station and has no queue.
+              // Into the customer, which is not a workcenter and has no queue.
               _arrow(
                 connectionKindInto(null, hasWipCap: view.study.wipCap != null),
                 formatDuration: formatDuration,

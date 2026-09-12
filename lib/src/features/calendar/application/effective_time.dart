@@ -14,11 +14,11 @@ library;
 /// A 10 h piece, batch 1, on a 74 % available workcenter with 3.7 % rework
 /// holds it for 14.0 h of open working time.
 ///
-/// **[operators] is 1 everywhere but a labour-paced station** (§7.5, v30). A
+/// **[operators] is 1 everywhere but a labour-paced workcenter** (§7.5, v30). A
 /// process time is *one operator's labour content*, so a crew of three does it
 /// in a third of the time — three people on one part is not three parts at
-/// once, it is the same part sooner. At a machine-paced station the crew only
-/// opens the shift and this stays 1, which is what every station did before the
+/// once, it is the same part sooner. At a machine-paced workcenter the crew only
+/// opens the shift and this stays 1, which is what every workcenter did before the
 /// distinction existed.
 ///
 /// **Availability appears exactly once in the whole app, and this is it.** The

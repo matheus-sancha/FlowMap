@@ -19,28 +19,28 @@ library;
 /// and a rule that named either of them could not be shared by both.
 typedef BalanceStep = ({
   /// The workcenter type, which is the identity a group is formed on. Null
-  /// where the step names no station, or its station has no type — either way
+  /// where the step names no workcenter, or its workcenter has no type — either way
   /// it can belong to no group.
   String? typeName,
 
-  /// What was measured at this station: the observation, straight from the
+  /// What was measured at this workcenter: the observation, straight from the
   /// demand table.
   ///
   /// **Zero means the part does not route here, and null means nobody has
   /// said** — and neither takes a share (§7.7.1). They are different statements
   /// everywhere else in the app: a blank cell is a blocking readiness error
   /// (§6.2) and a zero is the plant saying it looked and the answer is none.
-  /// Here they land in the same place, because a station with no positive work
-  /// is a station this part does not use.
+  /// Here they land in the same place, because a workcenter with no positive work
+  /// is a workcenter this part does not use.
   Duration? measured,
 
-  /// **How much measured content fits in one takt at this station** — the cap
-  /// it fills to. Null where the takt or the station's schedule could not be
+  /// **How much measured content fits in one takt at this workcenter** — the cap
+  /// it fills to. Null where the takt or the workcenter's schedule could not be
   /// resolved.
   ///
   /// **Not one takt of capacity, which is what this was until §9.8.** The
-  /// engine charges `measured × (1 + rework) ÷ availability` in the station's
-  /// open clock, so filling to `productive × takt` put every balanced station
+  /// engine charges `measured × (1 + rework) ÷ availability` in the workcenter's
+  /// open clock, so filling to `productive × takt` put every balanced workcenter
   /// over its takt by exactly `(1 + rework)`:
   ///
   ///     cap     = O·a·T                   filled with measured work
@@ -53,12 +53,12 @@ typedef BalanceStep = ({
   /// field reading a Gantt: *"the balancing should consider the rework,
   /// otherwise the balancing will always be over the takt time."*
   ///
-  /// So callers pass `productive × takt ÷ (1 + rework)` and a station filled to
+  /// So callers pass `productive × takt ÷ (1 + rework)` and a workcenter filled to
   /// it is charged exactly one takt. **Each member divides by its own rework**,
   /// because each fills to its own cap and is charged at its own rate.
   ///
   /// **Changeover is deliberately not reserved.** Whether an order pays one is
-  /// sequence-dependent — it turns on the part before it at this station — and
+  /// sequence-dependent — it turns on the part before it at this workcenter — and
   /// the split is computed per part, per takt, with no sequence in view.
   /// Reserving the full setup would over-reserve every repeat and under-fill
   /// the first member for nothing; reserving none is exact whenever the part
@@ -67,12 +67,12 @@ typedef BalanceStep = ({
   /// decision rather than the next thing somebody finds.
   Duration? takt,
 
-  /// Pinned by the user (§7.7.4): this station keeps what was measured at it
+  /// Pinned by the user (§7.7.4): this workcenter keeps what was measured at it
   /// and takes no share.
   ///
-  /// **Transparent, not a wall.** The members either side of a pinned station
+  /// **Transparent, not a wall.** The members either side of a pinned workcenter
   /// still balance with each other — it is the same operation, its content is
-  /// simply fixed. That is what parts it from an *untyped* station, which has
+  /// simply fixed. That is what parts it from an *untyped* workcenter, which has
   /// to be a wall because nothing says it is like its neighbours at all.
   bool pinned,
 });
@@ -90,7 +90,7 @@ enum BalanceStanding {
   /// filling to a takt of its own.
   ///
   /// **Parted from [balanced] because the sentence beside them is not the
-  /// same.** A filled station holds exactly one takt once rework is paid, which
+  /// same.** A filled workcenter holds exactly one takt once rework is paid, which
   /// is what its caption says; the last one holds the remainder and is
   /// *"allowed to be under or over"* — so on a group over capacity the caption
   /// written for a fill claimed that two-and-a-bit takts of content used one.
@@ -104,7 +104,7 @@ enum BalanceStanding {
   /// The workcenter has no type, so nothing says it is like its neighbours.
   noType,
 
-  /// This part has no work here, so the station is not in the pot (§7.7.1).
+  /// This part has no work here, so the workcenter is not in the pot (§7.7.1).
   noWorkHere,
 
   /// No adjacent step shares its type, so there is nothing to share work with.
@@ -129,7 +129,7 @@ class BalanceGroup {
   /// The indices of its members in the list handed to [balanceFlow], in flow
   /// order.
   ///
-  /// **The stations that take a share**, not every step of the type-run it was
+  /// **The workcenters that take a share**, not every step of the type-run it was
   /// found in: one whose measured time is zero does not route here and is left
   /// out (§7.7.1), without breaking the run for the ones either side of it.
   final List<int> indices;
@@ -151,18 +151,18 @@ class BalanceGroup {
 /// intervening furnace. Adjacency is what makes the rule physical.
 ///
 /// **A group of one is not a group.** There is nothing to move the work to, so
-/// a lone station keeps what was measured at it and never appears here — which
+/// a lone workcenter keeps what was measured at it and never appears here — which
 /// is what keeps a flow of unlike machines behaving exactly as it did before
 /// this rule existed.
 ///
-/// **Only stations with positive work are members** (§7.7.1). A zero is how the
-/// plant says a part does not route through a station, so `CEU30 = 0 h,
+/// **Only workcenters with positive work are members** (§7.7.1). A zero is how the
+/// plant says a part does not route through a workcenter, so `CEU30 = 0 h,
 /// CEU32 = 146 h` is one member and therefore no group at all — CEU32 keeps its
-/// 146 h. A station sitting out is **transparent**: the members either side of
+/// 146 h. A workcenter sitting out is **transparent**: the members either side of
 /// it still balance with each other.
 ///
 /// **Fill each to its own takt and leave the remainder on the last**, which is
-/// what was asked for. The last station is the one allowed to be under or over:
+/// what was asked for. The last workcenter is the one allowed to be under or over:
 /// under when the group has slack, over when it is the bottleneck, and either
 /// way the overflow is visible at the end of the run rather than smeared across
 /// it where nobody would see it.
@@ -199,12 +199,12 @@ List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
     final run = [for (var i = start; i <= end; i++) i];
     start = end + 1;
 
-    // **Only the stations this part actually runs on** (§7.7.1). A zero is how
-    // the plant says a part does not route through a station, and giving one a
+    // **Only the workcenters this part actually runs on** (§7.7.1). A zero is how
+    // the plant says a part does not route through a workcenter, and giving one a
     // share puts work on a machine the part never visits — 94.3 h onto CEU30
     // for `P1000247599`, which is the defect this rule was corrected for.
     //
-    // **Left out without breaking the run.** A station that does not take a
+    // **Left out without breaking the run.** A workcenter that does not take a
     // share is transparent to the ones either side of it: it is the same
     // operation, it simply has no work of this part. Walling the group at it
     // would stop two machines sharing work for a reason nobody asked for and
@@ -213,12 +213,12 @@ List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
     if (indices.length < 2) continue;
 
     // Positive by construction now, so there is no zero-total case left to
-    // guard: a group is two or more stations that each have work.
+    // guard: a group is two or more workcenters that each have work.
     final total = indices.fold(
       Duration.zero,
       (sum, i) => sum + steps[i].measured!,
     );
-    // Asked of the members only. A station sitting out has no cap to fill and
+    // Asked of the members only. A workcenter sitting out has no cap to fill and
     // its missing schedule is not this group's problem.
     if (indices.any((i) => steps[i].takt == null)) continue;
 

@@ -2,9 +2,16 @@
 
 Split out of `docs/TODO.md` on 2026-08-15, so that file could become a plan again rather than an
 archive with a plan on the end of it. **§5 was moved across on 2026-08-29** for the same reason, and
-closed the last of `TODO.md`'s §0. **Nothing here has been rewritten.** The rounds below are
-verbatim, including the reasoning that was wrong at the time and the note saying so — that is what
-they are for.
+closed the last of `TODO.md`'s §0. **Nothing here has been rewritten, with one exception.** The
+rounds below are verbatim, including the reasoning that was wrong at the time and the note saying
+so — that is what they are for.
+
+**The exception, 2026-09-12:** every occurrence of *station* in this file was replaced by
+*workcenter*, 106 of them, when
+[#29](https://github.com/matheus-sancha/FlowMap/issues/29) settled the app on one word for one
+concept. It was a deliberate choice to sweep the log as well as the spec, taken so that no reader
+ever meets the retired term — but it means a round below may not be worded exactly as it was
+written. Only that noun moved; no figure, date, run identifier or piece of reasoning was touched.
 
 `docs/DESIGN.md` remains the source of truth for *why the app is the way it is*. This file is the
 source of truth for *what was done, when, and what it met when it ran*: run identifiers, migration
@@ -15,7 +22,7 @@ after every drop rather than trusting memory.
 Read a figure in here against the engine of its own date. **Four changes have invalidated every
 stored run as they landed** — §2.12 (buffers stopped charging their wait), §3.1 (the dispatch rule
 moved onto the lane), §5's round one (availability came off setup, and cold start started paying
-one), and `TODO.md`'s §8.1, which stops an order queueing at a station its part never visits. So a
+one), and `TODO.md`'s §8.1, which stops an order queueing at a workcenter its part never visits. So a
 number below describes the model as it stood, not as it stands.
 
 **A fifth change moves some runs but not all of them: §6.2, v28**, which refilled the dispatch
@@ -24,17 +31,17 @@ in 189,623 step rows — so most of a run is untouched and no figure here is ret
 
 **A seventh changes what a run computes, and only where a type has been marked: phase 10,
 2026-09-07, v30.** A workcenter type is **Machine Pace** or **Operator Pace**. At an operator-paced
-one the crew on shift is the capacity: the station's monthly capacity is counted in
+one the crew on shift is the capacity: the workcenter's monthly capacity is counted in
 **operator-hours** — each shift's open time weighted by the people standing in it — while the work
 itself is unchanged, because a process time is one operator's labour content and three people do
-not make the job smaller. The crew does make the station finish *sooner*, so dates and queueing
+not make the job smaller. The crew does make the workcenter finish *sooner*, so dates and queueing
 move too.
 
 Every type ships **Machine Pace**, which is what the model assumed before the distinction existed,
 so nothing moved on the day it landed and nothing moves until someone marks a type. Where one is
 marked the break is real: on the live plant, marking *Coating* at a crew of `3/3/2` takes its
 capacity from **17,742 h to 48,992 h** with its demand unchanged at **6,335 h**, and moves no other
-station at all. Runs stored before a type was marked describe the plant as it was paced then;
+workcenter at all. Runs stored before a type was marked describe the plant as it was paced then;
 `created_at` dates them and this line is the record.
 
 *Corrected the same day.* This first shipped dividing the **demand** rather than multiplying the
@@ -42,13 +49,13 @@ capacity — 6,335 h became 2,772 h — which reads as the work getting smaller.
 grows; the field said so and the model says so now.
 
 **A sixth changes what a run writes down without changing what it computes: phase 9, 2026-09-07**,
-which stopped clipping monthly capacity to the run. Every station the plant has *scheduled* now gets
-capacity rows spanning its own schedule, where before only the stations the routings reached got
+which stopped clipping monthly capacity to the run. Every workcenter the plant has *scheduled* now gets
+capacity rows spanning its own schedule, where before only the workcenters the routings reached got
 them and only for the run's own months. No order moves and no date changes — the engine's answer is
 identical — but the occupation grid of a run stored before this date is narrower than one stored
 after, and **no marker distinguishes them**: `created_at` dates the run, and this line is the
-record. On the live plant the newest run goes from **255 capacity rows across 17 stations and 15
-months to 636 across 18 stations and up to 36**, and its whole-plant TOTAL column falls from 68.4 %
+record. On the live plant the newest run goes from **255 capacity rows across 17 workcenters and 15
+months to 636 across 18 workcenters and up to 36**, and its whole-plant TOTAL column falls from 68.4 %
 to 28.5 % because months with real capacity and no demand join the denominator. Per-month figures
 are untouched. The 150 runs stored before it keep what they have (§7.10).
 
@@ -69,7 +76,7 @@ hand-driven verification, and the two §4 items that need a second look after th
 format in the demand grid and in Excel, and the results banner.
 
 **§3's round one is done, in five commits, and about half of it has now been driven by hand.** The
-lanes govern the flow, a station may hold more than one order, the pacemaker gates the release, a
+lanes govern the flow, a workcenter may hold more than one order, the pacemaker gates the release, a
 study may add a start buffer, and every one of those is reachable from the UI. **All five of §4's
 round-one checks have now met the real database**, in Release `0.1.0-2026-08-11` — evidence under
 §4. The round did what it was for: with the gate on the capped lane, the average order lost 16 days
@@ -89,7 +96,7 @@ recorded in §1 and §2 describes a smaller problem than the one on the screen n
 measurements. (The header said 2026-08-10 until 2026-08-11; the runs are dated 08-09 in the file.)
 
 **§3 is the plan that came out of that session**, settled by interview. Round one has landed and
-moved the dispatch rule off the station onto the inventory node, which invalidated those nine runs
+moved the dispatch rule off the workcenter onto the inventory node, which invalidated those nine runs
 — and they have since been superseded by four v15 runs. **Read figures against `2f4c8db4`**
 (2026-08-11, capacity 2 on `FIFO CEU27`, pacemaker CEU27, 30-day buffer — the configuration the
 round was arguing for), with `676fb0e3` as the capped-but-ungated comparison and `5bf76ac1` as the
@@ -185,7 +192,7 @@ Landed as described, plus two things only doing it could show, both in §16.13:
 |---|---|
 | `demand_orders.batch_number` — nullable text | The identifier of a part number's batch within a customer project. A **free-text label**: no unique key, no validation, blank allowed. It is the planner's number from their own system, the way a works order number would be — and unlike `customer_project` it is not part of what identifies anything, because the order already has an identity in its sequence position. |
 | `simulation_run_orders` + `customer_project`, `batch_number`, `batch_size`, `material_date` — all nullable | The Production Plan (§1.5) needs them, and §7.10's rule is that a run copies values in rather than joining, so it stays readable after the demand beneath it is edited. **Nullable, and not backfilled**: the existing Célula 11B run predates them and shows blanks, which is true. Backfilling from today's demand would make one stored run a hybrid of two moments, which is exactly what the copy-in rule exists to prevent. |
-| New `workcenter_dispatch(project_id, target_id, rule)` | §1.3's per-station queue discipline. |
+| New `workcenter_dispatch(project_id, target_id, rule)` | §1.3's per-workcenter queue discipline. |
 | New `simulation_run_dispatch(run_id, target_id, name, rule)` | §1.3's snapshot. |
 
 Add a v11 → v12 fixture to `test/data/migration_test.dart`, and check the half-upgraded-database
@@ -202,7 +209,7 @@ Flip it to `need date − delivered` in one place: `RunMetrics.averageFloat`, `s
 `run_metrics_test.dart`, and the +230.7 d recorded above becomes −230.7 d. One definition, so the
 plan's column and the tab's headline figure cannot disagree.
 
-### 1.3 A queue discipline per station — **done 2026-08-05**
+### 1.3 A queue discipline per workcenter — **done 2026-08-05**
 
 One thing the interview did not anticipate, now in §7.4: the rule is stored per *target* but the
 engine picks per *server*, and one machine can be a candidate for two steps — its own and a pool's.
@@ -214,22 +221,22 @@ before the stream emits, so the step editor's dialog never opened. The map is no
 and passed in. **Worth remembering — the same shape would hang any dialog that reads a stream that way.**
 
 
-§7.4 has one dispatch rule for the whole run. Each station gets its own FIFO / EDD / SPT instead,
+§7.4 has one dispatch rule for the whole run. Each workcenter gets its own FIFO / EDD / SPT instead,
 defaulting to the run's, so nothing changes until something is changed.
 
 - **Keyed by `target_id`** — a workcenter id or a pool id, the convention `part_process_times` and
   the demand grid already use. §3.1 makes pool members interchangeable, so the queue forms at the
   pool and the rule belongs to the pool, not to whichever lathe stands for it on the map.
-- **Project-scoped, not study-scoped.** §7.7 builds one resource model per run: a station exists
+- **Project-scoped, not study-scoped.** §7.7 builds one resource model per run: a workcenter exists
   once however many studies point at it, so a study-scoped rule could have two studies demanding
   different disciplines of one machine, and the engine would have no way to choose.
 - **Edited in the flow step editor**, which is the only surface that already knows a node's target
   whether it is a workcenter or a pool — and it is where the queue is visible. Needs a line of
-  helper text saying the setting belongs to the station across every study in the project, so the
+  helper text saying the setting belongs to the workcenter across every study in the project, so the
   shared effect is stated rather than discovered.
 - **Recorded in the run.** `simulation_runs.dispatch` alone would report "FIFO" for a run in which
-  three stations ran EDD. One row per overridden station with its name copied in, as
-  `simulation_run_workcenters` copies `CLAD04`; the run label reads `FIFO (3 stations overridden)`.
+  three workcenters ran EDD. One row per overridden workcenter with its name copied in, as
+  `simulation_run_workcenters` copies `CLAD04`; the run label reads `FIFO (3 workcenters overridden)`.
   Without this, M5's run comparison could not tell you that the dispatch is what changed.
 
 Ties still break by (arrival, study priority, sequence #), so a run of the same inputs still
@@ -291,8 +298,8 @@ Date | Delivery Date | Float`
 
 ### 1.6 Arrows become derived — **done 2026-08-05**
 
-The interview left "a link into a FIFO station" ambiguous, and it matters: under the default rule
-*every* station is FIFO, so a lane would have been drawn on every link and said nothing. Only an
+The interview left "a link into a FIFO workcenter" ambiguous, and it matters: under the default rule
+*every* workcenter is FIFO, so a lane would have been drawn on every link and said nothing. Only an
 **explicitly stored** FIFO draws one — which is exactly the "a missing row is not the same as FIFO"
 distinction §1.3 already built and tested.
 
@@ -313,7 +320,7 @@ Two inputs, both already real and both typed somewhere they can be validated, wh
 
 - **No WIP cap** → hatched push arrows, as now.
 - **A CONWIP cap (§7.3)** → open pull arrows. A release that requires a completion is a pull system.
-- **A link into a FIFO station** → drawn as a FIFO lane.
+- **A link into a FIFO workcenter** → drawn as a FIFO lane.
 
 Needs `VsmSymbols.drawPullArrow` and a lane rendering, and `flow_pdf.dart` draws the same shapes
 from the same descriptions so the PDF follows for free. Left open: whether a FIFO lane should carry
@@ -391,13 +398,13 @@ the dispatch overrides, and one `§8.4` in `demand_paste.dart` still pointed at 
 meant the production plan. `engine.dart`'s `§8.4` is correct — it really is about the Summary's
 occupation arithmetic.
 
-Sections touched across §1: **§5.2** (arrow kinds), **§5.4** (node notes), **§7.4** (per-station
+Sections touched across §1: **§5.2** (arrow kinds), **§5.4** (node notes), **§7.4** (per-workcenter
 dispatch), **§7.10** (what a run stores), **§8** (float's sign), **§8.5** (the plan, new),
 **§9.1** and **§9.2** (batch number, import synonyms), **§12.1** (Simulate on the app bar),
 **§16.13** (schema v12, new), **§17.5** (`flow_nodes.notes` now reached).
 
 
-None of the above is real until §5.2 (arrow semantics), §7.4 (per-station dispatch), §7.10 (what a
+None of the above is real until §5.2 (arrow semantics), §7.4 (per-workcenter dispatch), §7.10 (what a
 run stores), §8 (float's sign), §9.1 and §9.3 (the batch number and the synonym rule) say it, in the
 same commits that change the behaviour.
 
@@ -507,7 +514,7 @@ shorten `Order start` to `Inicio` / `Início`, so they take `Fin` / `Fim`.
 
 **Nothing else moves.** `SimOrderOutcome.delivered`, the `delivered` column, the `Delivered 31 of
 33` metric and `On-time delivery` all stay: those measure the promise to the customer, which is a
-different question from when the order came off the last station, and OTD is the term the industry
+different question from when the order came off the last workcenter, and OTD is the term the industry
 uses. One label, three files, no migration.
 
 ### 2.3 The Production Plan's three new columns — **done 2026-08-06**
@@ -610,7 +617,7 @@ shaft, and drawing it as one is why it reads wrong on screen.
   lane is its own figure, because the notation makes it one.* The old sentence was a principle
   invented to describe an implementation, and the drawing is the thing being corrected.
 - **The condition is unchanged.** Only an **explicitly** stored FIFO draws a lane (§5.2, §7.4).
-  Under the default rule every station dispatches FIFO, so "any FIFO station" would put a lane on
+  Under the default rule every workcenter dispatches FIFO, so "any FIFO workcenter" would put a lane on
   every link of every default map and say nothing — the outcome §1.6 recorded and rejected.
 - **The PDF still labels rather than redraws.** §5.2 chose that deliberately and `flow_pdf.dart`
   builds from the `pdf` package's own widgets; it keeps printing `FIFO` under the arrow.
@@ -708,9 +715,9 @@ from the history menu opens its Gantt with it — §8.5's rule for the plan, app
 
 - **One chart for the whole run, all studies together** — deliberately the opposite of §8.5's
   per-study sectioning, and for a stated reason: the plan's rows are orders and an order belongs to
-  one line, but a **station is shared**. Splitting per study would draw a station idle during hours
+  one line, but a **workcenter is shared**. Splitting per study would draw a workcenter idle during hours
   it was in fact running another study's order, which is the one thing §7.7 exists to model.
-- **A bar is the station committed to an order**, `processStart → processEnd`, **closed hours
+- **A bar is the workcenter committed to an order**, `processStart → processEnd`, **closed hours
   included** — the second thing the interview moved. The first draft said "bars are process only"
   and left the inverse of the gap rule unstated, which is the half a reader gets wrong:
   `engine.dart:642` ends a step at `calendar.advance(now, occupancy)`, so a two-open-hour job started
@@ -722,14 +729,14 @@ from the history menu opens its Gantt with it — §8.5's rule for the plan, app
 - **A gap means "not running" — closed and starved alike**, and both halves are said on screen.
   Splitting a bar at closed time would need calendars a stored run does not have —
   `run_metrics.dart:196` records exactly that, and `simulation_run_workcenters` keeps only a total
-  `openSeconds`. The station's utilization and open time sit in the Queue table, which is where "how
+  `openSeconds`. The workcenter's utilization and open time sit in the Queue table, which is where "how
   much of that gap was even available" is answered.
 - **Queue spans are not drawn.** CEU27 holds 4487 days of queue, which is dozens of orders waiting at
   once, and drawing those would smear the row solid over the bars underneath. Queue is reported per
-  station in the Queue table, per order by §2.3's two columns, and per step in the hover card.
+  workcenter in the Queue table, per order by §2.3's two columns, and per step in the hover card.
 - **Rows follow `metrics.workcenters`**, in the Queue table's own order, so the bottleneck is the
-  first row read and the two cannot disagree about which station is which. Built from steps, so a
-  station that never ran has no row.
+  first row read and the two cannot disagree about which workcenter is which. Built from steps, so a
+  workcenter that never ran has no row.
 - **X-only zoom, fitted once per run.** Rows keep a fixed height and their labels stay pinned in a
   frozen left column. The third thing the interview moved: the canvas refits itself on every viewport
   change (§12.2) because a map has no intrinsic scale, but a time axis does — so a wider pane keeps
@@ -759,7 +766,7 @@ from the history menu opens its Gantt with it — §8.5's rule for the plan, app
   away on a number out of the pure function.
 - **Hover is a `MouseRegion` and a painted card.** A Material `Tooltip` carries a fixed message per
   widget, so naming the bar under the cursor would mean one widget per bar — 231 now, 20 000 at §14
-  scale. The card names the order, the part, the station, the span, the committed duration, the wait
+  scale. The card names the order, the part, the workcenter, the span, the committed duration, the wait
   before starting and whether a changeover was paid.
 - **Geometry lives in a pure `gantt_layout.dart` under `application/`**, in two functions rather than
   one: `buildGanttChart(StoredRun)` resolves rows and bars in `DateTime` terms — the join, once per
@@ -804,7 +811,7 @@ _Rejected: hue rotation off the seed colour._ Never runs out, always in the app'
 adjacent hues stop being distinguishable past six or seven parts, and adding a part recolours a run
 that has not changed.
 
-_Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared station.
+_Rejected: colour by study._ Fewer colours to pick, and it shows contention at a shared workcenter.
 Within one study — the common case — every bar is the same colour.
 
 _Rejected: golden-image tests for the painter._ They would catch the class of defect §2.5 and §2.10
@@ -838,7 +845,7 @@ Study column; then §4 drives it by hand. §2.10 is the evidence that last step 
      nothing reads. One line at the call site: `buildGanttChart(result: run.result, metrics:
      run.metrics)`.
    - **The axis covers the run, not the work.** Left unstated by the interview, and the two differ:
-     taking the span from the bars would make a station idle for the last three months read as the
+     taking the span from the bars would make a workcenter idle for the last three months read as the
      run having ended when the last bar did. It is `result.start`/`result.end`, widened only if a
      bar somehow falls outside them.
 4. ~~The view — segmented control, painter, hover, zoom cluster, legend strip, `HorizontalScroll`'s
@@ -858,7 +865,7 @@ Study column; then §4 drives it by hand. §2.10 is the evidence that last step 
    - **`intl` exports a `TextDirection`** that shadows the one a `TextPainter` needs, so the import
      is `show DateFormat`. A one-line fix, but the error names the getter rather than the clash.
    - **The row order is the Queue table's, ties broken by name** — and the first draft of the widget
-     tests assumed alphabetical station order was the *chart's* rule rather than the ranking's. They
+     tests assumed alphabetical workcenter order was the *chart's* rule rather than the ranking's. They
      reach for a row by name now: asserting the order there would have been a second, weaker copy of
      what `run_metrics_test` already owns.
 
@@ -993,9 +1000,9 @@ day §2.7 landed.
 
   **The run stores no node positions**, so the order had to be derived: §7.10 joins to nothing, and
   the flow may have been edited since. §5.1's linear spine is what makes it exact — one order visits
-  its stations in routing order, so the order it visited them in *is* the routing. Two details that
-  only writing it settled: it is measured from `queueStart` rather than `processStart`, or a station
-  that made everything wait floats up the list; and a station shared by two studies takes the
+  its workcenters in routing order, so the order it visited them in *is* the routing. Two details that
+  only writing it settled: it is measured from `queueStart` rather than `processStart`, or a workcenter
+  that made everything wait floats up the list; and a workcenter shared by two studies takes the
   earliest position it holds in either, because §7.7 gives it one row whichever line is read.
   `metrics.workcenters` breaks ties, which is what keeps a pool's three machines together and in a
   stable order.
@@ -1021,10 +1028,10 @@ order simply waits that long between steps." The spec was wrong for what the fie
 **What the model showed.** Célula 11B's six inventory nodes are named `FIFO CLAD09`, `FIFO TTAT`,
 `FIFO CEU27`, `FIFO CEU26`, `FIFO BAN`, `FIFO END`, `FIFO COATING`, five of them DURATION at
 3/3/3/2/2/1 days in calendar time. The names are the tell: what is being modelled is the **queue
-between stations**, and a queue is an outcome. Measured on the stored run, per order: **14.0 d of
-buffer delay**, 5.9 d of queueing at stations, 19.9 d of processing, 39.8 d of lead time. So 35 % of
+between workcenters**, and a queue is an outcome. Measured on the stored run, per order: **14.0 d of
+buffer delay**, 5.9 d of queueing at workcenters, 19.9 d of processing, 39.8 d of lead time. So 35 % of
 every order's lead time was a fixed wait that ignored the plant — and it was charged twice, since
-the order then queued at the station anyway.
+the order then queued at the workcenter anyway.
 
 **It had to come out of the theoretical walk as well**, which is the part the interview did not
 anticipate. §7.9 counted `Σ inventory delays`, and that figure is only meaningful as a floor under
@@ -1040,7 +1047,7 @@ The stored columns are untouched: the map's lead-time ladder and its days-of-sto
 neither goes near a run.
 
 **Left open, and worth knowing:** a genuine process delay — cooling, curing, transport — really does
-take its time whether or not the next station is free, and nothing now expresses that. A 24 h
+take its time whether or not the next workcenter is free, and nothing now expresses that. A 24 h
 cooling rack is modelled as free. It needs a per-node switch saying which of the two a buffer is;
 the day a plant has one is the day to add it. Recorded in §5.5.
 
@@ -1064,7 +1071,7 @@ did. Re-run before reading any figure against anything.
 Measured off run `01e61863`, 2025-11-10 → 2026-11-13. The demand has grown to **60 orders**, so
 none of §2's recorded figures carry over.
 
-| Station | Bars | Max waiting at once | Avg wait |
+| Workcenter | Bars | Max waiting at once | Avg wait |
 |---|---|---|---|
 | CEU27 | 60 | **8** | **21.3 d** |
 | CLAD08 | 28 | 1 | 2.7 d |
@@ -1076,7 +1083,7 @@ none of §2's recorded figures carry over.
 
 Four things it settles before any of the work below, and each of them moved a decision:
 
-- **CEU27 holds the whole queue** — 1 275 order-days of it. Every other station is starved rather
+- **CEU27 holds the whole queue** — 1 275 order-days of it. Every other workcenter is starved rather
   than congested, which is what §2.12 predicted would happen once the buffers stopped charging their
   14 days: the wait did not vanish, it moved to where the plant actually causes it.
 - **TTAT is not a constraint.** Zero average wait, never more than one order queued. §3.2 is a
@@ -1084,7 +1091,7 @@ Four things it settles before any of the work below, and each of them moved a de
 - **The sequence is scrambled by the pool, not by the dispatch rule.** TTAT ran order 4 before 3, 8
   before 7, 17 before 16, 19 before 18, 28 before 27 — and TTAT is strictly FIFO and never reorders
   anything. Cladding is a pool of two running at different speeds, so orders leave it out of
-  sequence and every station downstream faithfully serves them in the order they turn up. **The
+  sequence and every workcenter downstream faithfully serves them in the order they turn up. **The
   dispatch rule was not the problem**, which is why §3.1 is about governance rather than about
   comparators.
 - **The map claims 21 days the run ignores.** All seven 11B inventory nodes are DURATION —
@@ -1104,12 +1111,12 @@ Landed in three commits, written up as **§16.16** (the schema), **§5.5** (what
 - **`workcenters` needed a `columnTransformer` constant in the v3 and v7 steps.** Third time this
   file has hit that trap, and the first on a second table.
 - **A run of consecutive buffers had to be given a meaning**, and the interview had not covered it.
-  It collapses to the last — the lane the station actually pulls from — and the earlier ones stay
+  It collapses to the last — the lane the workcenter actually pulls from — and the earlier ones stay
   free to pass through. Two in a row is a modelling oddity rather than a case with an agreed
   meaning, and summing capacities while recording occupancy on one node would have been incoherent.
   11B alternates strictly, so nothing real is affected.
 - **A full lane at the *head* of a flow had to do something**, which the interview also had not
-  covered: there is no station behind it to block, so it sends the release slot out empty under its
+  covered: there is no workcenter behind it to block, so it sends the release slot out empty under its
   own reason. §3.4's pacemaker gate then sits on top of that rather than replacing it.
 
 _Rejected: dropping `workcenter_dispatch` in the schema commit._ It would have stranded every reader
@@ -1119,12 +1126,12 @@ that removes the code reading it.
 
 *"I don't know if the dispatch method for the flow is making much sense — the inventories should have
 the governance over it?"* Yes, and the answer is larger than the question: the discipline **moves
-onto the buffer** and the station keeps none.
+onto the buffer** and the workcenter keeps none.
 
 The argument is that on a physical FIFO lane you cannot take from the back, so "LIFO lane" is not a
-property of the channel — it is how the next station **chooses** from what is standing in front of
-it. Which is precisely what §7.4's per-station rule already was, stored where the map cannot draw it.
-An invisible station property governing a queue the map draws as a visible lane is the whole
+property of the channel — it is how the next workcenter **chooses** from what is standing in front of
+it. Which is precisely what §7.4's per-workcenter rule already was, stored where the map cannot draw it.
+An invisible workcenter property governing a queue the map draws as a visible lane is the whole
 complaint.
 
 - **The rule lives on the inventory node.** FIFO, LIFO, EDD and SPT. FEFO was asked for and is EDD
@@ -1135,7 +1142,7 @@ complaint.
   migrate onto the lane immediately upstream of each target, and CLAD09 — which is in no flow —
   migrates to nothing and is dropped. `simulation_run_dispatch` becomes lane-keyed; it is empty
   today, so nothing is lost.
-- **This reverses §1.3**, knowingly. That item put the rule on the station and flattened pool
+- **This reverses §1.3**, knowingly. That item put the rule on the workcenter and flattened pool
   membership onto the server because *"one machine can be a candidate for two steps — its own and a
   pool's,"* and a rule travelling with the step would leave two orders at one machine governed by
   different comparators. §5.1's spine is what makes the reversal safe: a step has **at most one lane
@@ -1146,7 +1153,7 @@ complaint.
   the spine does not have. **Its own column, not `inventory_quantity`**: that figure means *N pieces
   standing there today*, an observation, and §2.12's entire lesson is that an observation must not be
   used as a rule. Nullable means every existing node keeps today's unbounded behaviour.
-- **Blocking after service, recorded separately.** A station that finishes an order into a full lane
+- **Blocking after service, recorded separately.** A workcenter that finishes an order into a full lane
   holds it and stays occupied until room appears — physical, and the only version that needs no
   clairvoyance. Blocked seconds are stored per step and per workcenter and kept **out of
   `busySeconds`**, or a jammed CEU27 at 86 % utilization would report as a productive one and §8.3's
@@ -1154,18 +1161,18 @@ complaint.
 - **§5.5's deadlock objection does not apply.** That rejection — *"it couples the engine, can
   deadlock, and needs blocking-time metrics to be interpretable"* — was written against a general
   graph. §5.1's spine is linear with no branches and no rework loops, so a blocked chain always
-  drains from the last station and cannot deadlock. The third clause stands and is answered above.
+  drains from the last workcenter and cannot deadlock. The third clause stands and is answered above.
 - **A full lane can send a release slot out empty**, with a new `EmptySlotReason`. This reuses
   §7.3's machinery wholesale and finally lets the empty-slot count distinguish *no material* from
   *nowhere to put it* — which is §18.5's open question answering itself. The run already records 6
   `awaitingMaterial` slots, so the shape is proven.
 - **The lane that gates release is the pace setter's**, not the first step's. Lean puts the schedule
   in at the pacemaker, and it makes the constraint govern the line directly rather than through a
-  chain of blocked stations propagating backwards. In 11B those are different lanes: the first step
+  chain of blocked workcenters propagating backwards. In 11B those are different lanes: the first step
   is the CLAD Pool, the pace setter is CEU27.
 - **So the pace setter becomes user-selectable**, defaulting to the derivation `_paceSetter` does
   today and shown on the Flow tab. It now decides both the release cadence and when the line stops,
-  and a gate that can move to another station because someone edited a batch size is a gate nobody
+  and a gate that can move to another workcenter because someone edited a batch size is a gate nobody
   can reason about. One nullable column on `studies`; the derivation stays as the default.
 
 The run has to store lane visits — order in, order out, per lane, with the lane's name, discipline
@@ -1183,7 +1190,7 @@ _Rejected: defaulting a lane's capacity from its stored figure._ Every 11B lane 
 day one with no typing — by reading an observation as a rule, which is §2.12 arriving from the other
 direction.
 
-### 3.2 A station can hold more than one order — **done 2026-08-10**
+### 3.2 A workcenter can hold more than one order — **done 2026-08-10**
 
 Landed as described, in §3.1 of DESIGN.md and §8.3's glossary. One thing the plan did not settle,
 decided while writing it:
@@ -1198,11 +1205,11 @@ decided while writing it:
 
 The test that earns its place: four orders alternating two parts pay **three changeovers on one unit
 and none on two**, because the units settle onto one part each. That is only true because
-`lastPartId` lives on the unit rather than on the station.
+`lastPartId` lives on the unit rather than on the workcenter.
 
 
 *"TTAT can process two orders at the same time."* Workcenters gain a nullable parallel capacity,
-default 1, and the engine builds that many servers for the station rather than one.
+default 1, and the engine builds that many servers for the workcenter rather than one.
 
 **Two independent units, not a batch process** — and the run says which: TTAT's process times are
 0.3, 0.4, 0.7, 1.4 and 3.4 days across different orders, so they scale with batch size. An oven or
@@ -1211,9 +1218,9 @@ loading policy and a process time that belongs to the load rather than to the ba
 contradicts §7.6's per-piece model. That is a different feature, and this is not it.
 
 **Capacity means the same thing everywhere.** §8.4's occupation is `load ÷ available`, §6.1's flow
-equivalent divides by a station's productive day, and utilization's denominator is `openSeconds` —
+equivalent divides by a workcenter's productive day, and utilization's denominator is `openSeconds` —
 all three assume one unit, so a two-unit TTAT would read 200 % loaded on the Summary while the run
-reported it comfortable. All of them take the capacity. **Any station given one has its existing
+reported it comfortable. All of them take the capacity. **Any workcenter given one has its existing
 Summary figures change**, correctly but visibly, so it wants a line in the release note.
 
 _Rejected: a pool of TTAT-A and TTAT-B._ Works today with no code — by inventing two machines that
@@ -1269,10 +1276,10 @@ The order number is appended to a bar's label above 92 px, where the part number
 Strictly additional: a bar between the two widths reads exactly as it did before.
 
 **Driven 2026-08-11, in Release `0.1.0-2026-08-11b`, and it found one defect** — the only thing that
-looked off, and a real one: **a station running two or more orders at once drew them on top of each
+looked off, and a real one: **a workcenter running two or more orders at once drew them on top of each
 other.** Not a drawing bug but a stale premise. §8.6 said bars tile without overlapping because every
 workcenter was its own server, which **§3.2 made false this round** without anything coming back to
-the chart; TTAT is the two-unit station, which is where it showed. Station bars take a sub-row each
+the chart; TTAT is the two-unit workcenter, which is where it showed. Workcenter bars take a sub-row each
 now, by the same greedy pass the lane stacks use, and §8.6 records what happened. Four tests, 643 in
 all.
 
@@ -1288,16 +1295,16 @@ all.
 
 _Original wording, for the record:_
 
-- **A lane row per inventory node, between the two station rows it connects**, so the chart reads
+- **A lane row per inventory node, between the two workcenter rows it connects**, so the chart reads
   down the page the way the line runs. **Orders stack inside it and the row's height is the
   capacity**, so a full lane is visibly full and blocking is something the reader *sees* rather than
   infers. Same part colours, drawn hatched or outlined so a waiting order never reads as a running
   one. Uncapped lanes need a height rule — the open question in this item.
 - **This is what makes drawing the queue affordable at all.** §2.7 rejected queue spans because
   *"CEU27 holds dozens of orders waiting at once, and drawing those would smear the row solid"* — and
-  it would, on a station row. A capacity bounds the height by a number the user typed, which is the
+  it would, on a workcenter row. A capacity bounds the height by a number the user typed, which is the
   premise that rejection did not have.
-- **Row placement needs the stored lane visits** from §3.1. `routingRanks` derives station order from
+- **Row placement needs the stored lane visits** from §3.1. `routingRanks` derives workcenter order from
   the run because §7.10 forbids joining to the flow, and buffers leave no trace in
   `simulation_run_steps` today.
 - **Bar labels gain the order number**: part number first, order number appended when the bar is wide
@@ -1312,20 +1319,20 @@ stays, and it stays as a decision that has now been **checked against the runnin
 only reasoned about. §8.6 needs no change; the sentence it already carries is the one that stands.
 
 Worth keeping, because the cost of the reversal is what makes dropping it cheap: this was the only
-item in round two that needed **new stored data and a schema bump**. Each station's calendar would
+item in round two that needed **new stored data and a schema bump**. Each workcenter's calendar would
 have had to be snapshotted into the run — shift pattern, staffing and exceptions — because §7.10
 forbids joining to the live plant, and shading that changed silently when someone edited a shift
 pattern would be worse than none.
 
 **If it ever comes back**, the design was settled and only the wanting was missing: snapshot per
-station (compact — `ShiftPatternSpec` is a weekday bitmask plus shift windows, and
+workcenter (compact — `ShiftPatternSpec` is a weekday bitmask plus shift windows, and
 `staffing_codec.dart` already renders operators as `1/1/1`), rebuild `WorkingCalendar` in the view
 and compute closed spans **for the visible window only**, the way `ganttTicks` already does for the
 same reason (§16.9's ~13 µs per local `DateTime`).
 
 _Rejected then and still rejected: one shading for the whole chart from the pace setter._ One
 snapshot instead of eight and it reads like every other Gantt tool — and it is a lie on every row
-whose station works a different pattern.
+whose workcenter works a different pattern.
 
 _The original request was_ **"Gantt not showing the weekends/holidays."** _It is answered by the
 Queue table, which is where "how much of that gap was even available" already lives._
@@ -1389,7 +1396,7 @@ Flutter's 4-second default (`project_workspace_screen.dart:221`), so it is not c
 
 **A `MaterialBanner` above the tabs**, carrying the headline figure, `View results` and a close
 button. A snackbar anchors to the bottom of the window, and since §2.7 gave the Gantt the full body
-height, a bar that never goes away parks permanently over the last station's row and the scrollbar
+height, a bar that never goes away parks permanently over the last workcenter's row and the scrollbar
 gutter §2.11 added to get at it. A banner pushes content down instead of covering it, and a
 persistent statement about the project is not what a snackbar is for.
 
@@ -1420,9 +1427,9 @@ Written as each piece lands rather than swept up at the end — §1.10 and §2.9
 doing it that way finds things. Sections this round will touch: **§5.2** (the supermarket stays
 decorative; the decorative layer becomes reachable), **§5.5** (lanes govern: discipline, capacity,
 blocking), **§6.1** and **§8.3** and **§8.4** (parallel capacity means the same thing everywhere),
-**§7.2** (a full lane sends a slot out empty), **§7.3**, **§7.4** (the rule moves off the station),
+**§7.2** (a full lane sends a slot out empty), **§7.3**, **§7.4** (the rule moves off the workcenter),
 **§7.7**, **§7.8** (the start buffer), **§7.10** (lane visits, blocked seconds), **§8.6** (lane rows,
-bar labels, and a station's sub-rows), **§12.1** (the results banner), **§12.4**
+bar labels, and a workcenter's sub-rows), **§12.1** (the results banner), **§12.4**
 (dates follow the setting), **§13.1** (the export's number formats), **§16.16** (schema v15, new),
 **§17.5**, **§18.5** (empty slots, answered) and **§18.8** (the pace setter is chosen, not derived).
 
@@ -1477,8 +1484,8 @@ here; what is still owed stayed behind in the plan.
       rather than a defect.
 - [x] ~~**Give `FIFO CEU27` a capacity** and re-run.~~ Set to **2**, run twice — `7f541565` and
       `676fb0e3`, against `5bf76ac1` as the uncapped v15 baseline. **Blocked time appeared exactly
-      where it should and nowhere else: TTAT 216.4 d, every other station 0.0 d.** TTAT is the
-      station immediately behind the capped lane, and nothing propagated past it because
+      where it should and nowhere else: TTAT 216.4 d, every other workcenter 0.0 d.** TTAT is the
+      workcenter immediately behind the capped lane, and nothing propagated past it because
       `FIFO TTAT` above it is uncapped. **Utilization stayed at 20 %**, which is §3.1's requirement
       observed rather than asserted.
 - [x] ~~**Name CEU27 the pacemaker.**~~ Done 2026-08-11 in Release `0.1.0-2026-08-11`, run
@@ -1560,7 +1567,7 @@ grounds that it adds a second time field per step **and a rule for how setup and
 interact**. This design has no such rule: setup and teardown are two halves of one changeover,
 charged together, governed by one test and one percentage.
 
-- **Setup** — rigging the station for the order. Value + unit.
+- **Setup** — rigging the workcenter for the order. Value + unit.
 - **Teardown** — stripping it afterwards. Value + unit. **Named `Teardown`, not `Breakdown`**,
   deliberately: in a plant "breakdown" means the machine failed, and §4.4's Availability *is* the
   breakdown-maintenance figure and is drawn on the same process box. Two fields on one box, one
@@ -1581,12 +1588,12 @@ charge = previous part == this part ? (teardown_owed + setup) × samePart%
                                     : (teardown_owed + setup)
 ```
 
-**The last order at a station never pays its teardown**, and that is correct rather than an
+**The last order at a workcenter never pays its teardown**, and that is correct rather than an
 omission: nothing waits on it, so it changes no figure that anyone reads.
 
 **Stored per flow step, three columns on `flow_nodes`.** Per step rather than per workcenter for
-§6.1.1's reason — it is this line's use of the station, and a duplicated study must be re-tunable
-without disturbing the original — and because §1.3 already learned that a setting on a station
+§6.1.1's reason — it is this line's use of the workcenter, and a duplicated study must be re-tunable
+without disturbing the original — and because §1.3 already learned that a setting on a workcenter
 shared by two studies is one nobody can reason about locally.
 
 _Rejected: teardown charged after every order regardless of what follows._ Right if the time were
@@ -1606,7 +1613,7 @@ The unit picker is where this gets a trap in it. `engine.dart:812` charges
 hours as well would count the loss twice."*
 
 Meanwhile the dialog two fields above will already contain a `days`: Process Specific Takt's, which
-means that station's **productive** day (§6.1.1). Two meanings of `days` in one dialog is §17.4's
+means that workcenter's **productive** day (§6.1.1). Two meanings of `days` in one dialog is §17.4's
 scar — *"one kind of day per screen"* — arriving in the one place it has never been.
 
 So: **`days` in Setup and Teardown means the same productive day it means in Process Specific
@@ -1621,21 +1628,21 @@ ABC, 3 shifts, 74 %  → productive day = 16.77 h
 **The cost is real and visible: every stored run's figures move.** A release-note line, and §0's
 verification has to be finished before this lands or it cannot be finished at all.
 
-_Rejected: `days` means the station's open day, derate kept._ No engine change and no stored run
+_Rejected: `days` means the workcenter's open day, derate kept._ No engine change and no stored run
 moves. But Setup's day (22:40) and Process Specific Takt's day (16:46) would sit two fields apart
 meaning different things, which is the defect §17.4 exists to record.
 _Rejected: `days` is a literal 24 h._ No day to define and no derate question — but two days of
-setup on a one-shift station becomes six working days of occupancy, and §6.1 already ruled that
+setup on a one-shift workcenter becomes six working days of occupancy, and §6.1 already ruled that
 `1 day = 24 h calendar` makes a figure say nothing about capacity.
 
 #### 1.3 Cold start pays a setup
 
 `engine.dart:796` returns zero when `lastPartId` is null, on the reading that the plant is handed
-over already set for what it is about to run. An empty station at the start of a run is set up for
+over already set for what it is about to run. An empty workcenter at the start of a run is set up for
 nothing, so **the first order pays in full** — and the rule collapses to one sentence with no
 special case: *no previous order counts as not the same part.*
 
-One extra setup per station per run, so runs get marginally longer. On the same commit as §1.2, so
+One extra setup per workcenter per run, so runs get marginally longer. On the same commit as §1.2, so
 it is one re-run rather than two.
 
 #### 1.4 The run records the changeover it charged
@@ -1669,8 +1676,8 @@ in at save time, exactly as v12 copied `customer_project` and v13 `part_descript
 35 existing runs. Purely additive with no `TableMigration` trap: nothing rebuilds that table.
 
 **Worth knowing before it is built: a cell or line filter is a *study* filter one level up.**
-Workcenters belong to a **plant**, not to a cell or a line, so stations cannot be filtered that way
-at all. The filter narrows which studies are in view, and the stations follow from them.
+Workcenters belong to a **plant**, not to a cell or a line, so workcenters cannot be filtered that way
+at all. The filter narrows which studies are in view, and the workcenters follow from them.
 
 #### 1.6 The migration, and what it needs
 
@@ -1795,8 +1802,8 @@ they are read in — what this step *is*, then what it is called, then what it c
 different methods and only one of them is a day.**
 
 - `Lead time` (`flow_view.dart:518`) is Σ of each node's **ladder days**, where a day is that
-  station's *productive* day (§6.1) — 16.77 h at ABC three shifts / 74 %, ~7 h at a one-shift
-  station — then divided by a **derived** divisor chosen to make the total agree with the rungs
+  workcenter's *productive* day (§6.1) — 16.77 h at ABC three shifts / 74 %, ~7 h at a one-shift
+  workcenter — then divided by a **derived** divisor chosen to make the total agree with the rungs
   above it (§17.4). Six of those is not six days on anyone's calendar.
 - `N running days` (`flow_view.dart:660`) is a real calendar walk, inclusive of both ends, weekends
   and closed time included (§17.2).
@@ -1810,13 +1817,13 @@ open. The 1.4 then **falls out** of a five-day week rather than being imposed, a
 seven-day plant and higher across a shutdown — all of which a fixed factor gets wrong.
 
 **A day is a working day when at least one workcenter the flow uses is open on it.** The union, not
-a representative station: it reads as *a day the line could make progress*, it needs no station to
-be nominated, and it is stable when a step is re-bound. A Saturday one station works counts; a
+a representative workcenter: it reads as *a day the line could make progress*, it needs no workcenter to
+be nominated, and it is stable when a step is re-bound. A Saturday one workcenter works counts; a
 Sunday nobody works does not.
 
 Two consequences worth stating rather than discovering:
 
-- **A flow containing one seven-day station reports running ≈ working**, and the two figures
+- **A flow containing one seven-day workcenter reports running ≈ working**, and the two figures
   converge. That is true, and it will look like the feature is broken until somebody reads this
   paragraph.
 - **The walk starts at the first day of the viewed period** (§17.2), which may itself be closed. It
@@ -2055,8 +2062,8 @@ float are already defined against, so the filter and the metrics agree by constr
 `delivered` would drop every failure and make the filtered view systematically optimistic in the
 runs most worth looking at.
 
-**Station utilisation does not follow the period filter, and the card says so.** The denominator is
-`openSeconds`, stored as a run total, and rebuilding open time for a sub-window needs each station's
+**Workcenter utilisation does not follow the period filter, and the card says so.** The denominator is
+`openSeconds`, stored as a run total, and rebuilding open time for a sub-window needs each workcenter's
 calendar — which §7.10 deliberately does not store, and which is the exact cost that got §3.5
 dropped in round two. Order-level figures recompute cleanly because every order carries its own
 dates; utilisation and blocked time keep reporting the whole run, labelled.
@@ -2071,7 +2078,7 @@ Period  2026-Q3        Studies ▾2   Cell ▾all
   CEU27  util 86 %  blocked 4.6 d  ⚠ whole run
 ```
 
-_Left open, and the day it is wanted is the day §3.5 comes back:_ snapshotting each station's shift
+_Left open, and the day it is wanted is the day §3.5 comes back:_ snapshotting each workcenter's shift
 pattern, staffing and exceptions into the run would make utilisation follow the filter honestly —
 and would make closed-time shading on the Gantt possible at the same time. §3.5 records the design
 in full; only the wanting was ever missing.
@@ -2081,10 +2088,10 @@ in full; only the wanting was ever missing.
 Field feedback, 2026-08-15: *"a filter for the Gantt chart so the user can select to only show
 workcenter or workcenters + inventory."*
 
-§3.4 gives célula 11B **14 rows** — seven stations interleaved with seven lanes — and the lane rows
+§3.4 gives célula 11B **14 rows** — seven workcenters interleaved with seven lanes — and the lane rows
 are exactly what is in the way when the chart is being read as a flow rather than as a queue.
 
-**A two-state toggle beside the zoom cluster**: `Stations` / `Stations + lanes`, defaulting to both,
+**A two-state toggle beside the zoom cluster**: `Workcenters` / `Workcenters + lanes`, defaulting to both,
 so today's chart is unchanged until something is changed. Held in the view's state the way zoom is —
 it survives switching to Results and back, and resets on restart, which is what a view control
 should do rather than a stored preference.
@@ -2096,8 +2103,8 @@ learn about a hidden row.
 
 It applies in both the study tab's Gantt and §4.4's workspace, since they are the same widget.
 
-_Rejected: a per-row filter menu with a checkbox per station and lane._ It answers this and also
-"just show me CEU27 and TTAT", which is the question a forty-station plant asks. More UI than the ask,
+_Rejected: a per-row filter menu with a checkbox per workcenter and lane._ It answers this and also
+"just show me CEU27 and TTAT", which is the question a forty-workcenter plant asks. More UI than the ask,
 and it needs a way to state what is currently hidden or a reader misreads a chart with rows silently
 missing. Worth revisiting at §14 scale.
 _Rejected: remembering the toggle across sessions._ §3.6's `app_settings` makes it nearly free, but a
@@ -2210,7 +2217,7 @@ at the top of `live_db_check_test.dart` arriving a third time.
 ### 6.3 Schema v29 — the Occupation view becomes a grid
 
 The stacked bar, its capacity line, its four-segment legend and its
-`CustomPainter` are deleted; the view is a station × month grid banded against
+`CustomPainter` are deleted; the view is a workcenter × month grid banded against
 two thresholds the project now carries. Ticket
 [#9](https://github.com/matheus-sancha/FlowMap/issues/9), reasoning in
 `DESIGN.md` §10.3.
@@ -2257,7 +2264,7 @@ field words on 2026-08-15 and held — one `helperText` left in the tree, ninete
 | String | Said | Why it went |
 |---|---|---|
 | `workcenterTypeIconHelp` | Workcenters of this type are drawn with it | Picking an icon visibly draws it |
-| first sentence of `simGanttGapHelp` | One row per station, one bar per order… | Describes the picture below it |
+| first sentence of `simGanttGapHelp` | One row per workcenter, one bar per order… | Describes the picture below it |
 | first sentence of `simProductionPlanHelp` | What this run says each order does | Restates the tab |
 | last sentence of `mm3Help` | Reorder on the Sequence tab and watch it flatten | You can watch it flatten |
 | `workcenterAddExistingHelp` | A workcenter belongs to the plant… | The same claim as `workcenterLinesHelp`, differently worded; they share one key now |
@@ -2328,8 +2335,8 @@ Ticket [#17](https://github.com/matheus-sancha/FlowMap/issues/17), reasoning in 
 semester **3**, year **2**. Quarter is the one that reads.
 
 **And what it costs, which is the finding.** Coarsening **hides overload** — the same run's worst
-station reads **148.5 %** in a month, **128.2 %** in its quarter, **118.9 %** in its semester and
-**101.8 %** in the year. The view exists to find a station asking for more than it has; a wider
+workcenter reads **148.5 %** in a month, **128.2 %** in its quarter, **118.9 %** in its semester and
+**101.8 %** in the year. The view exists to find a workcenter asking for more than it has; a wider
 column averages a bad March against a quiet April. Month stays the default and the control is a
 dropdown, so the coarse values are a deliberate reach.
 

@@ -98,7 +98,7 @@ void main() {
     );
   }
 
-  /// Two stations, three orders of two parts, and a changeover — enough that
+  /// Two workcenters, three orders of two parts, and a changeover — enough that
   /// every table below gets rows and the two rankings have something to rank.
   ({List<SimStudy> studies, Map<String, SimWorkcenter> plant}) model() {
     final plant = {
@@ -182,7 +182,7 @@ void main() {
     return (studies: [study], plant: plant);
   }
 
-  group('a flow that visits one station twice (§8.6)', () {
+  group('a flow that visits one workcenter twice (§8.6)', () {
     /// One study, three steps, and the **middle and last both point at
     /// `wc-2`** — a part going back to a machine for a second operation.
     ({List<SimStudy> studies, Map<String, SimWorkcenter> plant}) revisiting() {
@@ -209,7 +209,7 @@ void main() {
             candidates: const ['wc-2'],
             demandKey: 'wc-2',
             // **The same queue as node-2**, because §7.3 gives the queue to
-            // the station rather than to the step. That sharing is correct and
+            // the workcenter rather than to the step. That sharing is correct and
             // is precisely what broke the save.
             queue: SimQueue(targetId: 'wc-2'),
           ),
@@ -286,12 +286,12 @@ void main() {
       )..where((v) => v.runId.equals(runId))).get();
 
       final atCeu = visits.where((v) => v.targetId == 'wc-2').toList();
-      // Two orders, two visits each to the one station's queue.
+      // Two orders, two visits each to the one workcenter's queue.
       expect(atCeu.length, 4);
       expect(
         atCeu.map((v) => v.stepNodeId).toSet(),
         {'node-1', 'node-2'},
-        reason: 'the two stays name the two steps, not the one station',
+        reason: 'the two stays name the two steps, not the one workcenter',
       );
       for (final order in ['o0', 'o1']) {
         expect(
@@ -403,7 +403,7 @@ void main() {
       }
     });
 
-    test('a station with no rework reads a true zero, not a rounding',
+    test('a workcenter with no rework reads a true zero, not a rounding',
         () async {
       // The distinction the column has to keep: *no rework* and *nobody
       // recorded it* are different answers, and only the second is null.
@@ -422,8 +422,8 @@ void main() {
       expect(steps.every((s) => s.processSecondsBeforeRework != null), isTrue);
     });
 
-    test('a station carries its own type into the run', () async {
-      // Copied in for the reason the pool name is: a station retyped afterwards
+    test('a workcenter carries its own type into the run', () async {
+      // Copied in for the reason the pool name is: a workcenter retyped afterwards
       // must not re-column a run already in the picker (§7.10).
       final projectId = await seedProject();
       final (:studies, :plant) = model();
@@ -455,12 +455,12 @@ void main() {
     test('the months follow the schedule, not the run (phase 9)', () async {
       // **Two questions, two spans — and they stopped being the same span.**
       // The whole-run figure is utilization's denominator (§8.3): what the
-      // station was open for while the run was on the clock. The monthly rows
+      // workcenter was open for while the run was on the clock. The monthly rows
       // are occupation's (§10.2), and clipping them to the run made capacity
-      // exist only where demand did — a station open all March and idle until
+      // exist only where demand did — a workcenter open all March and idle until
       // June began in June, and a plant with room to spare could not be drawn.
       //
-      // So the months now span the station's **own schedule** and deliberately
+      // So the months now span the workcenter's **own schedule** and deliberately
       // no longer add back to the run's open time. They were never a second
       // opinion about the calendar and still are not; they answer a wider
       // question about it. This test is the one that used to assert the sum.
@@ -474,7 +474,7 @@ void main() {
         workcenters: plant,
       );
 
-      final stations = await (db.select(
+      final workcenters = await (db.select(
         db.simulationRunWorkcenters,
       )..where((w) => w.runId.equals(runId))).get();
       final months = await (db.select(
@@ -482,23 +482,23 @@ void main() {
       )..where((m) => m.runId.equals(runId))).get();
 
       expect(months, isNotEmpty, reason: 'a run spans at least one month');
-      // The fixture schedules every station 2020 → 2030 and the run is one
+      // The fixture schedules every workcenter 2020 → 2030 and the run is one
       // month inside it, so the two figures are far apart rather than
       // arguably equal.
-      for (final station in stations) {
-        final mine = months.where((m) => m.workcenterId == station.workcenterId);
+      for (final workcenter in workcenters) {
+        final mine = months.where((m) => m.workcenterId == workcenter.workcenterId);
         expect(mine, isNotEmpty);
         expect(
           mine.fold(0, (sum, m) => sum + m.openSeconds),
-          greaterThan(station.openSeconds),
-          reason: '${station.name}: the schedule outlasts the run',
+          greaterThan(workcenter.openSeconds),
+          reason: '${workcenter.name}: the schedule outlasts the run',
         );
         // And the run's own months are still among them, so nothing the old
         // rule drew has gone missing.
         expect(
           mine.map((m) => m.month),
           contains(DateTime(result.start.year, result.start.month)),
-          reason: '${station.name}: the run is inside its own capacity',
+          reason: '${workcenter.name}: the run is inside its own capacity',
         );
       }
     });
@@ -615,10 +615,10 @@ void main() {
 
     // The snapshot the chart places a row from. §7.10 joins to nothing, so
     // without the position there is no way to draw the lane between the two
-    // stations it connects.
+    // workcenters it connects.
     //
     // **One row per target now, and the target is the id.** A queue belongs to
-    // the station it stands in front of, so both steps have one — and a lane is
+    // the workcenter it stands in front of, so both steps have one — and a lane is
     // identified by what it feeds rather than by a node of its own.
     expect(stored.result.lanes.map((l) => l.nodeId), ['wc-1', 'wc-2']);
     final lane = stored.result.lanes.firstWhere((l) => l.nodeId == 'wc-2');
@@ -651,14 +651,14 @@ void main() {
     expect(visits, isNotEmpty);
     expect(visits.every((s) => !s.processStart.isBefore(s.queueStart)), isTrue);
 
-    // A capped lane with a slow station behind it blocks, and that time is
+    // A capped lane with a slow workcenter behind it blocks, and that time is
     // stored beside the step rather than inside its occupancy.
     expect(
       stored.result.blockedByWorkcenter['wc-1'],
       greaterThan(Duration.zero),
     );
 
-    // **Per step as well as per station**, and the two have to agree. Both of
+    // **Per step as well as per workcenter**, and the two have to agree. Both of
     // these columns were being read back and written by nobody until this test
     // asked — §1.5's failure, from the other direction.
     final blockedSteps = stored.result.steps.where(
@@ -842,7 +842,7 @@ void main() {
       // What a database written by a later build looks like to this one. Two
       // things have to hold, and the second is the one §7.3 changed: the run
       // still **opens**, because a list of runs that cannot be read at all is a
-      // worse answer than one run that reads oddly — and the station is not
+      // worse answer than one run that reads oddly — and the workcenter is not
       // claimed to have dispatched FIFO, because it did not, and a run's whole
       // job is to say what it observed.
       await (db.update(db.simulationRunWorkcenters)
@@ -856,11 +856,11 @@ void main() {
 
       final stored = await runs.loadRun(runId);
       expect(stored, isNotNull);
-      expect(stored!.queues.stations.map((s) => s.name), ['MILL02']);
+      expect(stored!.queues.workcenters.map((s) => s.name), ['MILL02']);
     },
   );
 
-  test('a run made before v19 reports its one rule at every station', () async {
+  test('a run made before v19 reports its one rule at every workcenter', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
@@ -870,7 +870,7 @@ void main() {
       workcenters: plant,
     );
 
-    // The 35 runs on the real database: no queue type per station, and one rule
+    // The 35 runs on the real database: no queue type per workcenter, and one rule
     // on the header. It really did dispatch the whole plant by that rule, and
     // reading it here is the only thing `simulation_runs.dispatch` is still for
     // (§7.3).
@@ -886,13 +886,13 @@ void main() {
     final stored = await runs.loadRun(runId);
     expect(stored!.queues.uniform, DispatchRule.earliestDueDate);
     expect(stored.queues.isMixed, isFalse);
-    expect(stored.queues.stations.map((s) => (s.name, s.rule)), [
+    expect(stored.queues.workcenters.map((s) => (s.name, s.rule)), [
       ('CLAD04', DispatchRule.earliestDueDate),
       ('MILL02', DispatchRule.earliestDueDate),
     ]);
   });
 
-  test('a run whose stations differ is mixed, and says which', () async {
+  test('a run whose workcenters differ is mixed, and says which', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
@@ -914,7 +914,7 @@ void main() {
     // the same list, so the header and the line under it cannot disagree.
     expect(stored!.queues.uniform, isNull);
     expect(stored.queues.isMixed, isTrue);
-    expect(stored.queues.stations.map((s) => (s.name, s.rule)), [
+    expect(stored.queues.workcenters.map((s) => (s.name, s.rule)), [
       ('CLAD04', DispatchRule.fifo),
       ('MILL02', DispatchRule.lifo),
     ]);
@@ -932,8 +932,8 @@ void main() {
 
     // The column stays on the schema so the pre-v19 runs keep what they were
     // made with, and stops being written (§7.3). Empty rather than `fifo`,
-    // which would be a claim: every station of this run speaks for itself, and
-    // a station missing its type has nothing to fall back on.
+    // which would be a claim: every workcenter of this run speaks for itself, and
+    // a workcenter missing its type has nothing to fall back on.
     final header = await (db.select(
       db.simulationRuns,
     )..where((r) => r.id.equals(runId))).getSingle();
@@ -1051,7 +1051,7 @@ void main() {
       workcenters: plant,
     );
 
-    // The raw pair comes back through the join, deduped past the station
+    // The raw pair comes back through the join, deduped past the workcenter
     // cartesian, ready for `taktLabelForValues` to fold to `4 days`.
     final listed = await runs.watchRuns(projectId).first;
     expect(listed.single.takts, [

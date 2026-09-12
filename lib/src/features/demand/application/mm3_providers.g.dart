@@ -11,7 +11,7 @@ part of 'mm3_providers.dart';
 /// The scope MM3 is measured over, chosen by the user.
 ///
 /// Kept separate from the series so switching scope does not reassemble the
-/// steps — and so "not chosen yet" can resolve to the busiest station rather
+/// steps — and so "not chosen yet" can resolve to the busiest workcenter rather
 /// than to a stored id that may no longer be in the flow.
 
 @ProviderFor(Mm3ScopeSelection)
@@ -20,14 +20,14 @@ final mm3ScopeSelectionProvider = Mm3ScopeSelectionFamily._();
 /// The scope MM3 is measured over, chosen by the user.
 ///
 /// Kept separate from the series so switching scope does not reassemble the
-/// steps — and so "not chosen yet" can resolve to the busiest station rather
+/// steps — and so "not chosen yet" can resolve to the busiest workcenter rather
 /// than to a stored id that may no longer be in the flow.
 final class Mm3ScopeSelectionProvider
     extends $NotifierProvider<Mm3ScopeSelection, String?> {
   /// The scope MM3 is measured over, chosen by the user.
   ///
   /// Kept separate from the series so switching scope does not reassemble the
-  /// steps — and so "not chosen yet" can resolve to the busiest station rather
+  /// steps — and so "not chosen yet" can resolve to the busiest workcenter rather
   /// than to a stored id that may no longer be in the flow.
   Mm3ScopeSelectionProvider._({
     required Mm3ScopeSelectionFamily super.from,
@@ -78,7 +78,7 @@ String _$mm3ScopeSelectionHash() => r'28a0ab1efb842df0562314aeb73c6d5fc18baa26';
 /// The scope MM3 is measured over, chosen by the user.
 ///
 /// Kept separate from the series so switching scope does not reassemble the
-/// steps — and so "not chosen yet" can resolve to the busiest station rather
+/// steps — and so "not chosen yet" can resolve to the busiest workcenter rather
 /// than to a stored id that may no longer be in the flow.
 
 final class Mm3ScopeSelectionFamily extends $Family
@@ -102,7 +102,7 @@ final class Mm3ScopeSelectionFamily extends $Family
   /// The scope MM3 is measured over, chosen by the user.
   ///
   /// Kept separate from the series so switching scope does not reassemble the
-  /// steps — and so "not chosen yet" can resolve to the busiest station rather
+  /// steps — and so "not chosen yet" can resolve to the busiest workcenter rather
   /// than to a stored id that may no longer be in the flow.
 
   Mm3ScopeSelectionProvider call(String studyId) =>
@@ -115,7 +115,7 @@ final class Mm3ScopeSelectionFamily extends $Family
 /// The scope MM3 is measured over, chosen by the user.
 ///
 /// Kept separate from the series so switching scope does not reassemble the
-/// steps — and so "not chosen yet" can resolve to the busiest station rather
+/// steps — and so "not chosen yet" can resolve to the busiest workcenter rather
 /// than to a stored id that may no longer be in the flow.
 
 abstract class _$Mm3ScopeSelection extends $Notifier<String?> {

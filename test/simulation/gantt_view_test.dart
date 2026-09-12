@@ -4,7 +4,7 @@ import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/simulation/application/gantt_layout.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_model.dart'
-    show StationPool;
+    show SimWorkcenterPool;
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/simulation/presentation/gantt_view.dart';
@@ -113,11 +113,11 @@ void main() {
     );
   }
 
-  /// Two orders through a two-station routing, CLAD04 then CEU27, plus a
+  /// Two orders through a two-workcenter routing, CLAD04 then CEU27, plus a
   /// twenty-second step that is under the floor at whole-run scale and over it
   /// near the ceiling.
   ///
-  /// **The queue is all at the second station**, so the Queue table ranks CEU27
+  /// **The queue is all at the second workcenter**, so the Queue table ranks CEU27
   /// first and the chart has to put CLAD04 there anyway — which is what makes
   /// the row order a real assertion rather than one alphabetical order would
   /// satisfy by accident. The tests below still reach for a row by name, so
@@ -223,7 +223,7 @@ void main() {
   /// computed by dividing the band index out of the rect's top, which held only
   /// while every band was `rowHeight` tall — it would aim at the wrong row on
   /// any chart with a buffer in it now, and it has to work for a lane's slot as
-  /// well as for a station's bar.
+  /// well as for a workcenter's bar.
   Offset onBar(WidgetTester tester, GanttHit hit) {
     final origin = tester.getTopLeft(find.byKey(ganttCanvasKey));
     return origin + Offset(hit.rect.left + 2, hit.rect.center.dy);
@@ -247,12 +247,12 @@ void main() {
     );
   }
 
-  testWidgets('one row per station, named as the run named them', (
+  testWidgets('one row per workcenter, named as the run named them', (
     tester,
   ) async {
     await pump(tester, twoDayRun());
 
-    // The names the stations had when the run was made (§7.10).
+    // The names the workcenters had when the run was made (§7.10).
     expect(find.text('CLAD04'), findsOne);
     expect(find.text('CEU27'), findsOne);
 
@@ -360,7 +360,7 @@ void main() {
     expect(find.text('PN2 · Célula 12A'), findsOne);
   });
 
-  testWidgets('hovering a bar names the order, the part and the station', (
+  testWidgets('hovering a bar names the order, the part and the workcenter', (
     tester,
   ) async {
     final run = twoDayRun();
@@ -437,11 +437,11 @@ void main() {
 
     expect(find.text('Order 1  ·  PN1'), findsOne);
     // What it stood there for — the lane's own question, and the same label the
-    // station below uses for the same duration.
+    // workcenter below uses for the same duration.
     expect(find.text('Waited before starting'), findsOne);
     // The lane's real depth, which is not necessarily the depth it is drawn at.
     expect(find.text('Lane holds 2 orders'), findsOne);
-    // A station's card would say this; a lane's must not.
+    // A workcenter's card would say this; a lane's must not.
     expect(find.text('Committed'), findsNothing);
   });
 
@@ -561,8 +561,8 @@ void main() {
     // thing that grows back: 352 characters above the bars, on every visit,
     // was the worst instance of the 2026-08-31 complaint. What it says is
     // still said — `simulation_tab_test` holds the tab label to it.
-    expect(find.textContaining('A gap is a station not running'), findsNothing);
-    expect(find.textContaining('One row per station'), findsNothing);
+    expect(find.textContaining('A gap is a workcenter not running'), findsNothing);
+    expect(find.textContaining('One row per workcenter'), findsNothing);
   });
 
   /// Following one order down the plant (§7.5).
@@ -846,7 +846,7 @@ void main() {
   /// characters, it filled a 168 px column by itself, and the trailing ellipsis
   /// dropped the machine name — the one word that told the five rows apart.
   group('the label column (§8.6)', () {
-    /// A run whose stations sit in a pool named [pool].
+    /// A run whose workcenters sit in a pool named [pool].
     StoredRun pooledRun(String pool) {
       final run = twoDayRun();
       return StoredRun(
@@ -863,8 +863,8 @@ void main() {
           workcenterNames: const {'W1': 'CLAD04', 'W2': 'CEU27'},
           theoreticalByOrder: const {},
           pools: {
-            'W1': StationPool(id: 'pool-1', name: pool),
-            'W2': StationPool(id: 'pool-1', name: pool),
+            'W1': SimWorkcenterPool(id: 'pool-1', name: pool),
+            'W2': SimWorkcenterPool(id: 'pool-1', name: pool),
           },
         ),
       );
@@ -894,7 +894,7 @@ void main() {
         'name it qualifies', (tester) async {
       await pump(tester, pooledRun('CLAD Pool - Célula 11B/C'));
 
-      // The defect, stated as its absence: the station name is a `Text` of its
+      // The defect, stated as its absence: the workcenter name is a `Text` of its
       // own, laid out at the size it needs before the prefix gets any of the
       // column. An ellipsised `CLAD04` is a different string and would not be
       // found at all.
@@ -907,7 +907,7 @@ void main() {
       expect(columnWidth(tester), lessThanOrEqualTo(260.0));
     });
 
-    testWidgets('a pool name past any width cuts the pool, never the station', (
+    testWidgets('a pool name past any width cuts the pool, never the workcenter', (
       tester,
     ) async {
       await pump(tester, pooledRun('A' * 200));
@@ -926,19 +926,19 @@ void main() {
       expect(columnWidth(tester), 168.0);
     });
 
-    testWidgets('a lane is italic and dimmed, a station is upright', (
+    testWidgets('a lane is italic and dimmed, a workcenter is upright', (
       tester,
     ) async {
       await pump(tester, laned());
 
-      final station = styleOf(tester, 'CEU27');
+      final workcenter = styleOf(tester, 'CEU27');
       final lane = styleOf(tester, 'FIFO CEU27');
 
-      expect(station.fontStyle, FontStyle.normal);
+      expect(workcenter.fontStyle, FontStyle.normal);
       expect(lane.fontStyle, FontStyle.italic);
-      expect(lane.color, isNot(station.color));
+      expect(lane.color, isNot(workcenter.color));
       // Same size — a lane is a different kind of row, not a smaller one.
-      expect(lane.fontSize, station.fontSize);
+      expect(lane.fontSize, workcenter.fontSize);
     });
 
     testWidgets('the pool prefix is dimmer and a size smaller than the name, '
@@ -950,7 +950,7 @@ void main() {
 
       expect(prefix.fontSize, lessThan(name.fontSize!));
       expect(prefix.color, isNot(name.color));
-      // Upright over a station, so the row still reads as one label.
+      // Upright over a workcenter, so the row still reads as one label.
       expect(prefix.fontStyle, name.fontStyle);
     });
   });

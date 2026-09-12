@@ -249,7 +249,7 @@ void main() {
     });
 
     test('queueing pulls efficiency below 100 %, over the settled orders', () {
-      // Six orders released an hour apart onto a station that takes four hours
+      // Six orders released an hour apart onto a workcenter that takes four hours
       // each, so the queue builds and never drains.
       final setup = scenario(
         nodes: [step(0, 'W')],
@@ -283,7 +283,7 @@ void main() {
         workcenters: setup.workcenters,
       );
 
-      // The station runs back to back from the start, finishing at 4, 8, 12,
+      // The workcenter runs back to back from the start, finishing at 4, 8, 12,
       // 16, 20 and 24 h. The first delivery is therefore at 4 h, so the four
       // orders released at 0, 1, 2 and 3 h are warm-up and the two released at
       // 4 and 5 h are settled.
@@ -400,7 +400,7 @@ void main() {
   });
 
   group('the bottleneck rankings (§8.1)', () {
-    test('the headline names the station orders wait at longest', () {
+    test('the headline names the workcenter orders wait at longest', () {
       // W is slow and orders pile up behind it; X is quick and never queues.
       final setup = scenario(
         nodes: [step(0, 'W'), step(1, 'X')],
@@ -450,7 +450,7 @@ void main() {
       expect(metrics.shareOfFlow(metrics.bottleneck!), greaterThan(0.9));
     });
 
-    test('visits and changeovers are counted per station', () {
+    test('visits and changeovers are counted per workcenter', () {
       final setup = scenario(
         nodes: [step(0, 'W', changeover: const Duration(minutes: 30))],
         parts: {
@@ -491,7 +491,7 @@ void main() {
       final w = metrics.workcenters.single;
       expect(w.visits, 4);
       // Alternating parts: every order pays a setup, including the first —
-      // cold start is a change, because an empty station is set up for nothing
+      // cold start is a change, because an empty workcenter is set up for nothing
       // (§7.6).
       expect(w.changeovers, 4);
       expect(w.utilization, isNotNull);
@@ -629,9 +629,9 @@ void main() {
     });
   });
 
-  group('a crew is the throughput at a labour-paced station (v30)', () {
-    /// The same one-hour order at one station, run at [crew] and with the
-    /// station paced one way or the other.
+  group('a crew is the throughput at a labour-paced workcenter (v30)', () {
+    /// The same one-hour order at one workcenter, run at [crew] and with the
+    /// workcenter paced one way or the other.
     Duration ran({required int crew, required bool labourPaced}) {
       final setup = scenario(
         nodes: [step(0, 'W')],
@@ -673,7 +673,7 @@ void main() {
       expect(ran(crew: 3, labourPaced: true), const Duration(hours: 2));
     });
 
-    test('a machine-paced station is unmoved by its crew', () {
+    test('a machine-paced workcenter is unmoved by its crew', () {
       // The CNC case, still true and still the default: the operators open the
       // shift and nothing else. This is what the field reported as a bug, and
       // it is correct here.
@@ -685,7 +685,7 @@ void main() {
       // **What the field asked for, and the correction to how it was first
       // built.** A crew does not shrink the work; it enlarges the room. The
       // step still stores the labour content - six hours of one person's work
-      // is six hours of it whoever does it - while the station's capacity is
+      // is six hours of it whoever does it - while the workcenter's capacity is
       // counted in operator-hours.
       ({Duration labour, Duration capacity, Duration held}) run({
         required int crew,
@@ -727,7 +727,7 @@ void main() {
           // **The monthly rows, not the whole-run figure.** That one is
           // utilization's denominator and is bounded by the run, which a crew
           // makes *shorter* - so it cannot show the room growing. Occupation's
-          // capacity spans the station's schedule (phase 9) and is what §10.3
+          // capacity spans the workcenter's schedule (phase 9) and is what §10.3
           // draws against.
           capacity: result.openByWorkcenterMonth['W']!.values.fold(
             Duration.zero,
@@ -745,13 +745,13 @@ void main() {
       expect(crewed.labour, const Duration(hours: 6));
       // The room is three times the room.
       expect(crewed.capacity, alone.capacity * 3);
-      // And the station is genuinely held for less of it, which is what makes
+      // And the workcenter is genuinely held for less of it, which is what makes
       // the dates move.
       expect(crewed.held, const Duration(hours: 2));
       expect(alone.held, const Duration(hours: 6));
     });
 
-    test('a machine-paced station counts capacity in station hours', () {
+    test('a machine-paced workcenter counts capacity in workcenter hours', () {
       // The crew must not enlarge a CNC's room either.
       Duration capacityAt(int crew) {
         final setup = scenario(

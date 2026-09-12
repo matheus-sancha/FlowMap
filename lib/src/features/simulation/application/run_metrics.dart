@@ -7,11 +7,11 @@
 /// The rankings here are the **simulated** half of §8.1. The Summary's
 /// occupation is the static half, available before any run; the two are meant
 /// to be read together, because where they disagree is itself diagnostic — a
-/// long queue at a station that is not busy is a sequencing problem, not a
+/// long queue at a workcenter that is not busy is a sequencing problem, not a
 /// capacity one.
 library;
 
-import 'sim_assembly.dart' show stationPools;
+import 'sim_assembly.dart' show simWorkcenterPools;
 import 'sim_model.dart';
 import 'sim_result.dart';
 import 'theoretical_lead_time.dart';
@@ -53,7 +53,7 @@ class PartMetrics {
   final Duration? averageFloat;
 }
 
-/// How one station behaved, as opposed to how loaded it was predicted to be.
+/// How one workcenter behaved, as opposed to how loaded it was predicted to be.
 class WorkcenterRunMetrics {
   const WorkcenterRunMetrics({
     required this.workcenterId,
@@ -74,21 +74,21 @@ class WorkcenterRunMetrics {
   final String workcenterId;
   final String name;
 
-  /// The pool this station was dispatched through, as the run recorded it
-  /// (§3.1, §7.10). Null means **ungrouped**, never "every pool": the station
+  /// The pool this workcenter was dispatched through, as the run recorded it
+  /// (§3.1, §7.10). Null means **ungrouped**, never "every pool": the workcenter
   /// was named directly by every step that used it, was reached through more
   /// than one pool, or the run predates v18.
   ///
-  /// [poolName] outlives [poolId] on purpose — a station reached two ways
+  /// [poolName] outlives [poolId] on purpose — a workcenter reached two ways
   /// carries the names it served with no id to group under, so a reader can see
   /// why it is standing on its own.
   final String? poolId;
   final String? poolName;
 
   /// The workcenter's type as the run copied it in (§10.2), or null on a run
-  /// made before v25 and on a station whose type was never set.
+  /// made before v25 and on a workcenter whose type was never set.
   ///
-  /// **Read back rather than re-derived**, for the reason the pool is: a station
+  /// **Read back rather than re-derived**, for the reason the pool is: a workcenter
   /// retyped since would otherwise re-column every run in the picker (§7.10).
   final String? typeId;
   final String? typeName;
@@ -96,14 +96,14 @@ class WorkcenterRunMetrics {
   /// Open time spent running (§8.3's utilization numerator).
   final Duration busy;
 
-  /// Open time the station had across the run.
+  /// Open time the workcenter had across the run.
   final Duration open;
 
   /// Time it stood holding a finished order because the lane ahead was full
   /// (§5.5).
   ///
   /// **Not part of [busy]**, so [utilization] keeps meaning "running". Read
-  /// beside it rather than folded into it: a station at 40 % utilization and
+  /// beside it rather than folded into it: a workcenter at 40 % utilization and
   /// 50 % blocked is a different plant from one at 40 % and idle, and only the
   /// first is fixed by making room downstream.
   final Duration blocked;
@@ -114,7 +114,7 @@ class WorkcenterRunMetrics {
   final int visits;
   final int changeovers;
 
-  /// Queue plus processing: everything an order spent at this station, which
+  /// Queue plus processing: everything an order spent at this workcenter, which
   /// is what its share of the flow's lead time is measured from.
   final Duration contributedTime;
 
@@ -184,7 +184,7 @@ class RunMetrics {
 
   final List<PartMetrics> parts;
 
-  /// Every station the run touched, ranked busiest-queue first.
+  /// Every workcenter the run touched, ranked busiest-queue first.
   final List<WorkcenterRunMetrics> workcenters;
 
   int get late => delivered - onTime;
@@ -217,18 +217,18 @@ class RunMetrics {
     return theoretical.inSeconds / actual.inSeconds;
   }
 
-  /// The station the headline names: the one orders wait at longest.
-  /// **The busiest station that actually ran something.**
+  /// The workcenter the headline names: the one orders wait at longest.
+  /// **The busiest workcenter that actually ran something.**
   ///
-  /// `workcenters` lists every station the run modelled, idle ones included, so
+  /// `workcenters` lists every workcenter the run modelled, idle ones included, so
   /// that an open machine nobody loaded keeps its name and its type. A machine
   /// with no visits is not a bottleneck under any reading — and in a run where
   /// nothing queued at all it would otherwise take the top of a ranking sorted
   /// by queue time, and be named as one.
   WorkcenterRunMetrics? get bottleneck =>
-      workcenters.where((station) => station.visits > 0).firstOrNull;
+      workcenters.where((workcenter) => workcenter.visits > 0).firstOrNull;
 
-  /// The same stations ranked by share of the flow's total time instead — the
+  /// The same workcenters ranked by share of the flow's total time instead — the
   /// second ranking §8.1 asks for, kept separate because the disagreement
   /// between the two is the diagnostic.
   List<WorkcenterRunMetrics> get byContribution {
@@ -237,13 +237,13 @@ class RunMetrics {
     return ranked;
   }
 
-  /// A station's share of everything orders spent inside the flow.
-  double shareOfFlow(WorkcenterRunMetrics station) {
+  /// A workcenter's share of everything orders spent inside the flow.
+  double shareOfFlow(WorkcenterRunMetrics workcenter) {
     var total = 0;
     for (final entry in workcenters) {
       total += entry.contributedTime.inSeconds;
     }
-    return total == 0 ? 0 : station.contributedTime.inSeconds / total;
+    return total == 0 ? 0 : workcenter.contributedTime.inSeconds / total;
   }
 }
 
@@ -268,8 +268,8 @@ RunMetrics computeRunMetrics({
   includeUnvisited: true,
   // Resolved from the studies rather than looked up: this is the same map the
   // repository copies into the run, so a fresh run and the same run read back
-  // group their stations identically (§7.10).
-  pools: stationPools(studies),
+  // group their workcenters identically (§7.10).
+  pools: simWorkcenterPools(studies),
   theoreticalByOrder: theoreticalLeadTimes(
     result: result,
     studies: studies,
@@ -326,7 +326,7 @@ Map<String, Duration> theoreticalLeadTimes({
 /// Everything §8 asks, from a result and the three things that name it.
 ///
 /// The entry point a **stored** run comes back through (§7.10): part numbers,
-/// station names and each order's theoretical figure are copied into storage
+/// workcenter names and each order's theoretical figure are copied into storage
 /// beside the run precisely so this can be answered without the plant, which
 /// may have been edited since. A fresh run reaches the same code through
 /// [computeRunMetrics], so what a run reports cannot drift from what it
@@ -339,9 +339,9 @@ RunMetrics summariseRun({
   required Map<String, String> partNumbers,
   required Map<String, String> workcenterNames,
   required Map<String, Duration> theoreticalByOrder,
-  Map<String, StationPool> pools = const {},
+  Map<String, SimWorkcenterPool> pools = const {},
   Map<String, ({String id, String name})> types = const {},
-  /// Whether a station the run modelled but no order reached gets a row.
+  /// Whether a workcenter the run modelled but no order reached gets a row.
   ///
   /// **True for the whole run, false for a slice**, and the difference is what
   /// each is for. The run's own list is the plant it ran against, and since
@@ -349,9 +349,9 @@ RunMetrics summariseRun({
   /// loaded — they are on the Occupation grid and need their name and their
   /// type from here, or they draw as a uuid and vanish under a type filter.
   ///
-  /// A *slice* is the stations its own orders touched. `filterRun` keeps the
+  /// A *slice* is the workcenters its own orders touched. `filterRun` keeps the
   /// open-time maps whole on purpose — utilisation is the run's, not the
-  /// slice's — so seeding from them there would put every station in the plant
+  /// slice's — so seeding from them there would put every workcenter in the plant
   /// into every filtered ranking, which is the splice that file removed.
   bool includeUnvisited = false,
 }) {
@@ -432,20 +432,20 @@ RunMetrics summariseRun({
     }
   }
 
-  // **Every station the run modelled, not only the ones an order reached** —
+  // **Every workcenter the run modelled, not only the ones an order reached** —
   // see [includeUnvisited]. Seeded from the open time, so an idle machine keeps
   // its name and its type; its tally stays at zero visits, which is the true
   // thing to say about it and what the utilization column already means: 0 % of
   // an open machine.
-  final stations = <String, _StationTally>{
+  final workcenters = <String, _WorkcenterTally>{
     if (includeUnvisited)
       for (final id in result.openByWorkcenter.keys)
-        id: _StationTally(workcenterNames[id] ?? id),
+        id: _WorkcenterTally(workcenterNames[id] ?? id),
   };
   for (final row in result.steps) {
-    final tally = stations.putIfAbsent(
+    final tally = workcenters.putIfAbsent(
       row.workcenterId,
-      () => _StationTally(workcenterNames[row.workcenterId] ?? row.workcenterId),
+      () => _WorkcenterTally(workcenterNames[row.workcenterId] ?? row.workcenterId),
     );
     tally.visits++;
     tally.queue += row.wait;
@@ -455,7 +455,7 @@ RunMetrics summariseRun({
 
   final ranked =
       [
-        for (final entry in stations.entries)
+        for (final entry in workcenters.entries)
           WorkcenterRunMetrics(
             workcenterId: entry.key,
             name: entry.value.name,
@@ -534,8 +534,8 @@ class _PartTally {
   );
 }
 
-class _StationTally {
-  _StationTally(this.name);
+class _WorkcenterTally {
+  _WorkcenterTally(this.name);
 
   final String name;
   int visits = 0;

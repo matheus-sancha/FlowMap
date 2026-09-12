@@ -211,7 +211,7 @@ void main() {
     );
 
     test("a 3-day takt is three of that workcenter's working days", () {
-      // The same takt resolves differently at differently-staffed stations,
+      // The same takt resolves differently at differently-staffed workcenters,
       // which is the whole point of the equivalency method (DESIGN.md §6.1).
       final threeDays = taktOf(3, TaktUnit.days);
       expect(threeDays.equivalentAt(workingDay), const Duration(hours: 68));

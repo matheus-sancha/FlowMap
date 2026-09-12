@@ -66,7 +66,7 @@ class FloatMatrixTable extends StatelessWidget {
         // first column. The Occupation grid is its other caller. They share
         // this and not the row semantics — here row *r* means "the order ranked
         // *r* that month", each column independently sorted and ragged, and
-        // there the rows are stations that persist across the row. So the
+        // there the rows are workcenters that persist across the row. So the
         // widget takes a cell and the row's meaning stays here.
         PeriodMatrix(
           months: matrix.months,
@@ -75,7 +75,7 @@ class FloatMatrixTable extends StatelessWidget {
           // rank. 40 was chosen when every row header here was a number; the
           // aggregate row put a word in the same column, and `PROM` in Spanish
           // is the widest of the three. Still less than half the Occupation
-          // grid's gutter, which carries a station over a pool.
+          // grid's gutter, which carries a workcenter over a pool.
           headerWidth: 72,
           rows: [
             for (final (rank, _) in matrix.rows.indexed)

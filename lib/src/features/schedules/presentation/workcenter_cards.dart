@@ -27,15 +27,15 @@ import 'schedule_issues_banner.dart';
 /// workcenters and this study ten, and a schedule the study cannot reach is
 /// noise here — it belongs to whichever study does reach it.
 ///
-/// **A card per station, restored.** §6.3 replaced these with one grid carrying
+/// **A card per workcenter, restored.** §6.3 replaced these with one grid carrying
 /// a Workcenter column, to end seven nested scroll regions and to let a year of
 /// periods paste in one block. Both arguments still stand; both lost. The build
 /// was driven, the cards read better, and §2.0's rule is that driving beats
-/// reasoning — so the grid, and the cross-station paste it was built for, are
+/// reasoning — so the grid, and the cross-workcenter paste it was built for, are
 /// gone. Nobody asked for that paste; it was inferred from the shape of the
 /// change rather than from anything the field said.
-class StationCards extends ConsumerWidget {
-  const StationCards({super.key, required this.project, required this.study});
+class WorkcenterCards extends ConsumerWidget {
+  const WorkcenterCards({super.key, required this.project, required this.study});
 
   final Project project;
   final Study study;
@@ -142,7 +142,7 @@ class _WorkcenterCard extends ConsumerWidget {
           ScheduleIssuesBanner(issues: findSchedulePeriodIssues(schedule)),
           // **As tall as the schedule, and no taller** (§8.2). The ceiling
           // stands and its reason stands with it: this card sits in a page
-          // carrying one per workcenter, and a station's schedule is as long as
+          // carrying one per workcenter, and a workcenter's schedule is as long as
           // the plant decides (§12.6), so past the ceiling the grid scrolls
           // inside it exactly as it always did.
           //
@@ -171,7 +171,7 @@ class _WorkcenterCard extends ConsumerWidget {
   }
 }
 
-/// The tallest a station's schedule card grows before its grid scrolls
+/// The tallest a workcenter's schedule card grows before its grid scrolls
 /// (§8.2, §12.6).
 const _scheduleGridMaxHeight = 320.0;
 
@@ -256,7 +256,7 @@ class _ScheduleGrid extends ConsumerWidget {
           width: 150,
           helper: shiftLabels.join(' / '),
           // **Where the wrong conclusion was actually drawn** (§12.7b). The
-          // field crewed a station up twice and watched nothing move, and the
+          // field crewed a workcenter up twice and watched nothing move, and the
           // switch that decides whether it should is two screens away on the
           // workcenter *type* — so the definition belongs here, beside the
           // number being typed, and not only beside the switch.

@@ -12,7 +12,7 @@ import '../../../data/database/enums.dart';
 /// that target — that sharing is the whole correction §7.3 made — so it is not
 /// a study's to own, and `StudiesRepository` exists precisely for the rows that
 /// have no life outside one study. It is not the project row's either, and
-/// hanging it off `ProjectsRepository` would put a per-station table in the
+/// hanging it off `ProjectsRepository` would put a per-workcenter table in the
 /// class that knows what a project *is*.
 ///
 /// Lives in the flow feature because the map is where a queue is drawn and, as

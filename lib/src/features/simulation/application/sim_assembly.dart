@@ -59,14 +59,14 @@ class SimRunInput {
     required this.studies,
     required this.workcenters,
     required this.readiness,
-    this.scheduledStations = const {},
+    this.scheduledWorkcenters = const {},
     this.scheduleHorizon,
   });
 
   const SimRunInput.empty()
     : studies = const [],
       workcenters = const {},
-      scheduledStations = const {},
+      scheduledWorkcenters = const {},
       readiness = const [],
       scheduleHorizon = null;
 
@@ -76,15 +76,15 @@ class SimRunInput {
 
   final Map<String, SimWorkcenter> workcenters;
 
-  /// **Every station the plant has scheduled**, which is a superset of
+  /// **Every workcenter the plant has scheduled**, which is a superset of
   /// [workcenters] and is what monthly capacity is written for (phase 9).
   ///
   /// Kept separate rather than folded in, and the reason is [scheduleHorizon]:
-  /// a station with a schedule and no work still has a last defined date, and
+  /// a workcenter with a schedule and no work still has a last defined date, and
   /// admitting it to the resource model would pull the horizon back to it. A
-  /// run is answerable for the stations it uses and can *draw* the ones that
+  /// run is answerable for the workcenters it uses and can *draw* the ones that
   /// are merely open.
-  final Map<String, SimWorkcenter> scheduledStations;
+  final Map<String, SimWorkcenter> scheduledWorkcenters;
 
   /// Every flagged study, ready or not, in the order the sidebar shows them.
   final List<StudyReadiness> readiness;
@@ -133,7 +133,7 @@ class SimResourceContext {
   /// balance group on.
   ///
   /// Defaulted to empty because a run with no types is a run where no two
-  /// adjacent stations are alike, which is what every flow was before this rule
+  /// adjacent workcenters are alike, which is what every flow was before this rule
   /// existed — so the balance simply finds no groups.
   final Map<String, String> workcenterTypeNames;
 
@@ -159,7 +159,7 @@ class SimResourceContext {
   /// `open × availability` for each workcenter, read at the run's start.
   ///
   /// **Work content, never a cadence.** A takt in days means productive days of
-  /// a station (§6.1), so the balance cap and the flow equivalent resolve
+  /// a workcenter (§6.1), so the balance cap and the flow equivalent resolve
   /// against this. How often a release slot comes round does not — see
   /// [openPerWorkingDay], and §7.2 for why the two must not be swapped.
   ///
@@ -175,7 +175,7 @@ class SimResourceContext {
   /// time, so an interval resolved against the productive day is spent short by
   /// exactly the availability: on célula 11D a 4-day takt came round every 3.33
   /// working days instead of 4, releasing an order 15 h 13 min sooner than any
-  /// station filled to that takt could take one. Sixty orders stacked that into
+  /// workcenter filled to that takt could take one. Sixty orders stacked that into
   /// a 55-day queue at CLAD06.
   ///
   /// Carried beside the productive day rather than derived from it, because
@@ -183,7 +183,7 @@ class SimResourceContext {
   /// to be confused in the first place.
   final Map<String, Duration> openPerWorkingDay;
 
-  /// Fraction of work redone at each station (§4.4), by workcenter id.
+  /// Fraction of work redone at each workcenter (§4.4), by workcenter id.
   ///
   /// **Carried for the balance cap and nothing else** (§9.8). The engine
   /// charges rework off the workcenter's own schedule; this is the same figure,
@@ -239,7 +239,7 @@ SimStudy? assembleSimStudy({
             ),
             candidates: candidates,
             // **The node, since §9** — a process time belongs to the step
-            // rather than to the station, so two steps on one workcenter cost
+            // rather than to the workcenter, so two steps on one workcenter cost
             // what each of them was given.
             demandKey: node.id,
             // **The queue of what this step targets**, shared with every other
@@ -328,14 +328,14 @@ SimStudy? assembleSimStudy({
     }
   }
 
-  // Which station's clock the takt's days are measured in, and therefore how
-  // often a slot comes round (§7.2). It must be one station's clock, and it
+  // Which workcenter's clock the takt's days are measured in, and therefore how
+  // often a slot comes round (§7.2). It must be one workcenter's clock, and it
   // must not depend on a period, because a run spans years while §8.2's
   // occupation is monthly.
   //
   // **The study may name it**; the busiest step by work content is only the
   // default. The pacemaker gained a second job when lanes got capacity — §7.2
-  // gates a release on whether its queue has room — and a station chosen
+  // gates a release on whether its queue has room — and a workcenter chosen
   // silently by summing batch sizes would be a gate that moves to another
   // machine because someone edited the demand, and tells nobody (§18.8).
   //
@@ -400,7 +400,7 @@ SimStudy? assembleSimStudy({
     //
     // Work content is the other question and still reads the productive day:
     // §6.1's equivalent, §9.8's balance cap, a setup given in days. What a
-    // station can do in a takt is derated by availability; when the next slot
+    // workcenter can do in a takt is derated by availability; when the next slot
     // opens is not.
     releaseInterval: takt.equivalentAt(
       resources.openPerWorkingDay[paceSetter] ?? Duration.zero,
@@ -411,7 +411,7 @@ SimStudy? assembleSimStudy({
     //
     // Against *one* working day — the pace setter's at [asOf] — rather than
     // re-reading its staffing period by period. That axis is unchanged by this
-    // round: the day has always been resolved once, and a station whose
+    // round: the day has always been resolved once, and a workcenter whose
     // staffing changes mid-run already reports one figure here.
     taktPeriods: [
       for (final period in taktSchedule.periods)
@@ -479,7 +479,7 @@ Map<String, Map<SimTakt, Map<String, Duration>>> _balanceSteps(
   final shares = <String, Map<SimTakt, Map<String, Duration>>>{};
   for (final takt in takts) {
     // **What fits in one takt once rework is charged** (§9.8) — one takt of the
-    // station's capacity, divided by its own rework.
+    // workcenter's capacity, divided by its own rework.
     //
     // Not the flow equivalent, which is the same figure *before* that division
     // and stays that way: it is MM3's yardstick and the ladder's divisor, and
@@ -593,50 +593,50 @@ FlowNode? _paceSetter({
 String? _firstCandidate(FlowNode node, SimResourceContext resources) =>
     _candidatesFor(node, resources).firstOrNull;
 
-/// Which pool each station was dispatched through in this run (DESIGN.md §3.1,
+/// Which pool each workcenter was dispatched through in this run (DESIGN.md §3.1,
 /// §7.10), for [SimulationRunWorkcenters] to copy in.
 ///
-/// **A station can be reached through more than one pool.**
+/// **A workcenter can be reached through more than one pool.**
 /// `WorkcenterPoolMembers` is keyed `{poolId, workcenterId}`, so with two
 /// studies in one run line A can step on CLAD07 through `CAL` while line B
 /// reaches it through `All Lathes`. There is no single right answer for that
-/// station, and picking one arbitrarily would group three machines under a
+/// workcenter, and picking one arbitrarily would group three machines under a
 /// heading that describes only some of their work.
 ///
 /// So: **exactly one pool is a grouping; none or several is a label.**
-/// [StationPool.id] is what the views group by and is null in both the other
-/// cases; [StationPool.name] carries the pools it served so a reader can still
-/// see why it is loose. A station named directly by every step that used it is
+/// [SimWorkcenterPool.id] is what the views group by and is null in both the other
+/// cases; [SimWorkcenterPool.name] carries the pools it served so a reader can still
+/// see why it is loose. A workcenter named directly by every step that used it is
 /// absent from the map entirely.
 ///
 /// Pure, and over the model the run was built from rather than over the plant —
 /// the plant can be re-grouped tomorrow and this run must keep saying what it
 /// observed.
-Map<String, StationPool> stationPools(List<SimStudy> studies) {
-  // Ordered, so a station reached through two pools names them the same way
+Map<String, SimWorkcenterPool> simWorkcenterPools(List<SimStudy> studies) {
+  // Ordered, so a workcenter reached through two pools names them the same way
   // twice running and two runs of one project cannot disagree about a label.
-  final byStation = <String, Map<String, String>>{};
+  final byWorkcenter = <String, Map<String, String>>{};
 
   for (final study in studies) {
     for (final node in study.nodes) {
       final id = node.poolId;
       if (id == null) continue;
       for (final workcenterId in node.candidates) {
-        byStation.putIfAbsent(workcenterId, () => <String, String>{})[id] =
+        byWorkcenter.putIfAbsent(workcenterId, () => <String, String>{})[id] =
             node.poolName ?? id;
       }
     }
   }
 
   return {
-    for (final entry in byStation.entries)
+    for (final entry in byWorkcenter.entries)
       if (entry.value.length == 1)
-        entry.key: StationPool(
+        entry.key: SimWorkcenterPool(
           id: entry.value.keys.first,
           name: entry.value.values.first,
         )
       else
-        entry.key: StationPool(
+        entry.key: SimWorkcenterPool(
           id: null,
           // Sorted rather than in encounter order: the studies arrive in
           // whatever order the project lists them, and a label that depends on
@@ -650,9 +650,9 @@ Map<String, StationPool> stationPools(List<SimStudy> studies) {
 /// How long the stock in [queue] represents (§5.5).
 ///
 /// A fixed wait is what was typed. A quantity is `pieces × takt` — days of stock
-/// at the rate the parts drain — resolved at the station the queue feeds, which
+/// at the rate the parts drain — resolved at the workcenter the queue feeds, which
 /// is how the map reads it. Zero where nothing is standing there, and zero when
-/// no schedule gives the station a productive day to measure a takt against.
+/// no schedule gives the workcenter a productive day to measure a takt against.
 Duration _stockAt(
   SimQueue? queue, {
   required TaktPeriodSpec takt,

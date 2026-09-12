@@ -88,7 +88,7 @@ abstract final class FlowMetrics {
   static const queueSlot = nodeWidth;
 
   /// The one link that carries no queue: into the customer, which is not a
-  /// station. Narrow, because there is nothing to put there — the flow's
+  /// workcenter. Narrow, because there is nothing to put there — the flow's
   /// outbound stock is §7.3's own open item and is not a queue when it lands.
   static const gap = 64.0;
 
@@ -175,7 +175,7 @@ class FlowConnection {
   final FlowConnectionKind kind;
 
   /// The queue this link runs into (§7.3), or null on the link into the
-  /// customer — which is not a station and stands in front of no floor space.
+  /// customer — which is not a workcenter and stands in front of no floor space.
   ///
   /// Carried here rather than looked up again by the canvas, because this is
   /// where [kind] was decided from it: the symbol and the row it is drawn for
@@ -293,7 +293,7 @@ FlowLayout layoutFlow(FlowView view) {
   final connections = <FlowConnection>[];
   final spine = FlowMetrics.marginTop + FlowMetrics.nodeHeight / 2;
   final hasWipCap = view.study.wipCap != null;
-  // A target already given a connection, so a station two steps of one flow
+  // A target already given a connection, so a workcenter two steps of one flow
   // both visit draws — and charges the ladder for — one queue rather than two.
   final drawn = <String>{};
   var previousRight = Offset(supplier.right, spine);
@@ -310,7 +310,7 @@ FlowLayout layoutFlow(FlowView view) {
     );
     previousRight = Offset(placed.rect.right, spine);
   }
-  // Into the customer, which is not a station and so has no queue of its own.
+  // Into the customer, which is not a workcenter and so has no queue of its own.
   connections.add(
     FlowConnection(
       from: previousRight,
@@ -334,7 +334,7 @@ FlowLayout layoutFlow(FlowView view) {
   // is spent there — rather than no answer.
   //
   // A link whose queue is null contributes zero: an unbound step has no floor
-  // space in front of it, and the *second* link into a station a flow visits
+  // space in front of it, and the *second* link into a workcenter a flow visits
   // twice has already been counted at the first (`FlowConnection.queue` is null
   // there). That is what keeps the rungs summing to the footer's lead time,
   // which is §17.4's rule and the reason the totals are read off the rungs.

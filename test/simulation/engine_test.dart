@@ -168,7 +168,7 @@ void main() {
 
   group('a step worth zero is not a step the order visits (§8.1)', () {
     // Found by driving 0.1.0-2026-08-27a on 2026-08-29. Zero is what a routing
-    // records where a part does not go through a station — `processSeconds`'
+    // records where a part does not go through a workcenter — `processSeconds`'
     // own doc says so — and the engine used to queue the order there anyway.
     // Nothing in 892 tests said otherwise, which is why this group exists.
 
@@ -177,7 +177,7 @@ void main() {
     final lastEarly = DateTime(2026, 8, 1, 11);
     final firstLate = DateTime(2026, 8, 1, 12);
 
-    test('no step row is stored for a station the part does not visit', () {
+    test('no step row is stored for a workcenter the part does not visit', () {
       final result = runSimulation(
         studies: [
           study(
@@ -262,12 +262,12 @@ void main() {
       // **This asserted the opposite until 2026-08-29**, and the change was the
       // field's: a blank stopped the order dead so that a forgotten figure
       // could not pass unnoticed. §9 then gave a flow a second visit to one
-      // station and left fifteen parts to be told, one cell at a time, that
+      // workcenter and left fifteen parts to be told, one cell at a time, that
       // they cost `00:00:00` there — *"if it is empty consider 0"*.
       //
       // So a blank and a zero are one thing now, and the order delivers rather
       // than vanishing. **What that costs is the point of keeping this test
-      // rather than deleting it**: a cell nobody typed and a station a part
+      // rather than deleting it**: a cell nobody typed and a workcenter a part
       // genuinely skips are indistinguishable, so the run below is shorter than
       // its author may have meant and nothing says so.
       final result = runSimulation(
@@ -298,10 +298,10 @@ void main() {
 
     test('which steps an order has follows the takt it opened under', () {
       // Zero-ness is not a property of the step. §7.4's rebalance is free to
-      // empty a station out of a routing at one takt and fill it at another,
+      // empty a workcenter out of a routing at one takt and fill it at another,
       // and §7.9 measured exactly that on the real plant: CEU32 at 0.0 h under
       // a five-day takt and busy under four. So two orders of one part, on one
-      // flow, legitimately visit different stations.
+      // flow, legitimately visit different workcenters.
       final result = runSimulation(
         studies: [
           study(
@@ -369,7 +369,7 @@ void main() {
 
   group('the takt belongs to the order (§7.9)', () {
     // A line that opens an order every 4 hours until noon on 1 August and every
-    // 10 after it, over a station whose work is worth one figure at the first
+    // 10 after it, over a workcenter whose work is worth one figure at the first
     // takt and another at the second. Nothing here is a balance group — the
     // split arrives already resolved from the assembler — so what these pin is
     // the engine's half: which takt each order is costed at, and when slots
@@ -424,7 +424,7 @@ void main() {
       // Released at 00:00, 04:00 and 08:00 under the 4-hour takt, then the
       // cadence widens and the fourth opens at noon under the 10-hour one. The
       // first three are worth six hours each and the last three — the same
-      // part, the same station, different work, which is exactly what the field
+      // part, the same workcenter, different work, which is exactly what the field
       // could not get out of a run.
       final byOrder = {
         for (final row in result.steps) row.orderId: row.processSeconds,
@@ -438,7 +438,7 @@ void main() {
     test('an order keeps the takt it opened under all the way down', () {
       // §18.3 as it was always meant: work already in flight is never
       // re-cadenced. The third order opens at 08:00 under the 4-hour takt and
-      // queues behind the two before it, so it does not reach the station until
+      // queues behind the two before it, so it does not reach the workcenter until
       // the 10-hour takt is in force — and it is still worth six hours there,
       // not the three the clock around it now says.
       final result = runSimulation(
@@ -530,7 +530,7 @@ void main() {
     });
   });
 
-  group('a single station', () {
+  group('a single workcenter', () {
     test('runs the sequence in order, one order at a time', () {
       final result = runSimulation(
         studies: [
@@ -559,7 +559,7 @@ void main() {
     });
 
     test('releases on takt slots and no faster', () {
-      // Work takes an hour; slots are ten hours apart. The station idles.
+      // Work takes an hour; slots are ten hours apart. The workcenter idles.
       final result = runSimulation(
         studies: [
           study(
@@ -600,7 +600,7 @@ void main() {
         start: aug1,
       );
 
-      // 1 h × 4 × 1.25 ÷ 0.5 = 10 h, and the station is open round the clock.
+      // 1 h × 4 × 1.25 ÷ 0.5 = 10 h, and the workcenter is open round the clock.
       expect(result.steps.single.occupied, const Duration(hours: 10));
     });
 
@@ -631,9 +631,9 @@ void main() {
   });
 
   group('a lane holds only so many (§5.5)', () {
-    /// Two stations with a lane between them. The first is quick and the
+    /// Two workcenters with a lane between them. The first is quick and the
     /// second is slow, so orders pile into the lane and the capacity bites.
-    SimRunResult twoStations({int? capacity}) => runSimulation(
+    SimRunResult twoWorkcenters({int? capacity}) => runSimulation(
       studies: [
         study(
           nodes: [
@@ -655,15 +655,15 @@ void main() {
     );
 
     test('an uncapped lane holds as many as arrive', () {
-      final result = twoStations();
+      final result = twoWorkcenters();
       expect(result.completed, isTrue);
-      // Nothing is ever held back, so the quick station never waits to unload.
+      // Nothing is ever held back, so the quick workcenter never waits to unload.
       expect(result.blockedByWorkcenter['FAST'], Duration.zero);
       expect(result.steps.every((s) => s.blocked == Duration.zero), isTrue);
     });
 
-    test('a full lane blocks the station behind it', () {
-      final result = twoStations(capacity: 1);
+    test('a full lane blocks the workcenter behind it', () {
+      final result = twoWorkcenters(capacity: 1);
       expect(result.completed, isTrue);
 
       // FAST can only put an order down when the lane has room, so it spends
@@ -689,7 +689,7 @@ void main() {
     });
 
     test('blocked time is not busy time', () {
-      final result = twoStations(capacity: 1);
+      final result = twoWorkcenters(capacity: 1);
 
       // The jam must not read as output (§8.3). FAST does five one-hour jobs
       // however long it stands holding them, so its busy total is the work and
@@ -735,9 +735,9 @@ void main() {
 
     test('a linear line with full lanes still drains', () {
       // §5.5 rejected capacity-limited buffers partly over deadlock. On §5.1's
-      // spine it cannot happen: the last station has an unlimited sink ahead of
+      // spine it cannot happen: the last workcenter has an unlimited sink ahead of
       // it, so the head of the chain always moves and the jam unwinds
-      // backwards. Three stations, every lane holding one.
+      // backwards. Three workcenters, every lane holding one.
       final result = runSimulation(
         studies: [
           study(
@@ -771,7 +771,7 @@ void main() {
   });
 
   group('the pacemaker gates the release (§7.2)', () {
-    /// A quick first station and a slow third, with a lane in front of the
+    /// A quick first workcenter and a slow third, with a lane in front of the
     /// slow one. Gating on the pacemaker holds the release at the front of the
     /// line rather than letting orders pile up in front of the constraint.
     SimRunResult line({String? pacemaker, int? laneCapacity}) => runSimulation(
@@ -836,9 +836,9 @@ void main() {
   });
 
   group('one cold start per study (§7.8)', () {
-    /// Two lines on their own stations, wanted a fortnight apart. `early` is
+    /// Two lines on their own workcenters, wanted a fortnight apart. `early` is
     /// due on the 10th and `late` on the 24th, each needing four hours of work
-    /// on a station open round the clock — so their cold starts are two weeks
+    /// on a workcenter open round the clock — so their cold starts are two weeks
     /// apart and nothing else differs.
     List<SimStudy> lines() => [
       study(
@@ -895,7 +895,7 @@ void main() {
       // **The two are a fortnight apart**, which is the whole point. Collapsed
       // to the earliest — as this was — `late` released on the 9th and sat
       // finished for two weeks, reporting float it did not have and holding a
-      // shared station through time it would never have been there.
+      // shared workcenter through time it would never have been there.
       expect(
         releaseOf(result, 'late').difference(releaseOf(result, 'early')),
         const Duration(days: 14),
@@ -955,7 +955,7 @@ void main() {
 
     test('no buffer leaves §7.8 exactly as it was', () {
       // The derived start is the need date less the theoretical walk: four
-      // hours of work against a need date of the 20th, on a station open round
+      // hours of work against a need date of the 20th, on a workcenter open round
       // the clock.
       expect(
         withBuffer(Duration.zero).start,
@@ -1026,10 +1026,10 @@ void main() {
 
       // One unit alternating p1/p2/p1/p2 changes over on all four: three part
       // changes, plus the cold start, which pays in full because an empty
-      // station is set up for nothing (§7.6). Two units settle one part each,
+      // workcenter is set up for nothing (§7.6). Two units settle one part each,
       // so each pays only its own cold start and never changes over again —
       // which is only true because `lastPartId` lives on the unit rather than
-      // on the station.
+      // on the workcenter.
       expect(one.steps.where((s) => s.changeoverIncurred), hasLength(4));
       expect(two.steps.where((s) => s.changeoverIncurred), hasLength(2));
     });
@@ -1043,7 +1043,7 @@ void main() {
 
       // The denominator is unit-hours, because the numerator is summed across
       // units. Counting one clock against two servers' work is how a busy
-      // station comes to report 200 %.
+      // workcenter comes to report 200 %.
       final elapsed = two.end.difference(two.start);
       expect(two.openByWorkcenter['W'], elapsed * 2);
       expect(
@@ -1094,7 +1094,7 @@ void main() {
 
     test('the first order of a run pays a setup in full', () {
       // Cold start. This reverses what the engine did before v17, and the
-      // reason is physical rather than tidy: a station that has run nothing is
+      // reason is physical rather than tidy: a workcenter that has run nothing is
       // set up for nothing, so there is no sense in which the first order
       // arrives to a machine already rigged for it.
       //
@@ -1185,7 +1185,7 @@ void main() {
           .toList();
 
       // **The first order pays a setup and no teardown.** There is nothing on
-      // the station to strip: a teardown is a debt left by a previous order and
+      // the workcenter to strip: a teardown is a debt left by a previous order and
       // at cold start there is no previous order.
       //
       // Every order after it pays the teardown the one before left plus its own
@@ -1217,7 +1217,7 @@ void main() {
       );
 
       // A setup typed in literal time is exactly that long however bad the
-      // station's uptime. Before v17 this was `changeover ÷ availability`, so
+      // workcenter's uptime. Before v17 this was `changeover ÷ availability`, so
       // the same hour occupied 2 h at 50 % — the loss counted twice once `days`
       // started meaning a productive day, which has availability already taken
       // out of it.
@@ -1230,9 +1230,9 @@ void main() {
     });
 
     test('a setup in days is that server’s productive day', () {
-      // Two stations of very different capacity running the same step, so the
+      // Two workcenters of very different capacity running the same step, so the
       // resolution cannot be done once at assembly: `1 day` is ten hours at the
-      // weekday station and twenty-four at the round-the-clock one. This is why
+      // weekday workcenter and twenty-four at the round-the-clock one. This is why
       // the step carries a value and a unit rather than a duration (§7.6).
       final result = runSimulation(
         studies: [
@@ -1260,17 +1260,17 @@ void main() {
           'DAY': workcenter('DAY', pattern: weekdayTen),
           'ALL': workcenter('ALL'),
         },
-        // A Monday morning with both stations open. `aug1` is a Saturday, and
-        // starting there sent both orders to the round-the-clock station —
+        // A Monday morning with both workcenters open. `aug1` is a Saturday, and
+        // starting there sent both orders to the round-the-clock workcenter —
         // which is correct pool behaviour and useless for this assertion.
         start: DateTime(2026, 8, 3, 8),
       );
 
-      final byStation = {
+      final byWorkcenter = {
         for (final s in result.steps) s.workcenterId: s.changeoverSeconds,
       };
-      expect(byStation['DAY'], const Duration(hours: 10).inSeconds);
-      expect(byStation['ALL'], const Duration(hours: 24).inSeconds);
+      expect(byWorkcenter['DAY'], const Duration(hours: 10).inSeconds);
+      expect(byWorkcenter['ALL'], const Duration(hours: 24).inSeconds);
     });
   });
 
@@ -1365,7 +1365,7 @@ void main() {
   group('dispatch (§7.4)', () {
     /// Two orders queued behind a long first one, so the rule decides which of
     /// the two runs second.
-    /// **The rule is on the station's queue, not on the run** (§7.4). It was a
+    /// **The rule is on the workcenter's queue, not on the run** (§7.4). It was a
     /// run-level setting with a per-lane override until v19; the queue type
     /// replaced it outright, so one place decides and the map draws it.
     SimRunResult contend(DispatchRule rule) => runSimulation(
@@ -1410,12 +1410,12 @@ void main() {
       expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
     });
 
-    test('the queue the station pulls from is what decides', () {
+    test('the queue the workcenter pulls from is what decides', () {
       // **This replaced three tests about a lane override beating a run-level
       // default, and about a step with no lane falling back to it.** There is no
       // run-level default now and there is no step without a queue — the queue
       // type replaced both. What is left to assert is that each rule genuinely
-      // reaches the station, in both directions: a queue held to arrival order
+      // reaches the workcenter, in both directions: a queue held to arrival order
       // and one held to shortest-first must disagree about the same three
       // orders.
       expect(secondPart(contend(DispatchRule.fifo)), 'o1');
@@ -1489,7 +1489,7 @@ void main() {
       //
       // The numbers are chosen so one line alone is comfortable: an 8 h job
       // released every 10 h never leaves two orders waiting, so a queue capped
-      // at two is never full. Put a second line through the same station and it
+      // at two is never full. Put a second line through the same workcenter and it
       // is — which can only happen if the capacity is shared.
       final shared = {'W': workcenter('W')};
       final capped = [
@@ -1573,7 +1573,7 @@ void main() {
     test('the need date breaks a tie on arrival, reproducibly (§7.4)', () {
       // **The slot study priority used to hold** (#6, v28). Priority sat *below*
       // arrival, so it never expedited anything — what it actually decided was
-      // this: two orders that reach one station at the same instant. On the live
+      // this: two orders that reach one workcenter at the same instant. On the live
       // database that happened 78 times in 189,623 step rows, and **27 of them
       // fell through to comparing two UUIDs**, so "why did this order go first?"
       // had no answer a third of the time.
@@ -1646,7 +1646,7 @@ void main() {
       expect(result.steps.single.processEnd, DateTime(2026, 8, 6, 11));
     });
 
-    test('a station shut for the whole run delivers nothing, and says so', () {
+    test('a workcenter shut for the whole run delivers nothing, and says so', () {
       final shut = WorkcenterScheduleSpec([
         WorkcenterSchedulePeriodSpec(
           startDate: DateTime(2020),
@@ -1688,7 +1688,7 @@ void main() {
 
   group('the horizon guard (§7.8)', () {
     test('demand beyond capacity aborts rather than looping', () {
-      // A slot every hour against a station that takes fifty hours an order:
+      // A slot every hour against a workcenter that takes fifty hours an order:
       // the queue can only grow.
       final result = runSimulation(
         studies: [
@@ -1788,9 +1788,9 @@ void main() {
     // It used to hold the order for its stored figure. That figure is an
     // observation of a current state, and how long an order really waits is
     // what the run is for — so imposing it charged the order twice, once for
-    // the fixed wait and again for the queue at the station behind it. On the
+    // the fixed wait and again for the queue at the workcenter behind it. On the
     // real célula 11B run it was 14 of the 39.8 days, held whether or not the
-    // next station was free.
+    // next workcenter was free.
     final result = runSimulation(
       studies: [
         study(
@@ -1818,13 +1818,13 @@ void main() {
     expect(result.busyByWorkcenter['X'], const Duration(hours: 1));
   });
 
-  test('an order behind another still waits, at the station', () {
+  test('an order behind another still waits, at the workcenter', () {
     // The other half of the same rule: taking the fixed wait out does not make
     // a flow instant, it moves the waiting to where the engine measures it.
     //
     // Two orders half an hour apart, an hour at W and three at X. The second
     // clears W at 02:00 and X is busy until 04:00, so it waits two hours —
-    // against X, which is the station that made it wait, rather than against
+    // against X, which is the workcenter that made it wait, rather than against
     // the lane it passed through on the way.
     final result = runSimulation(
       studies: [

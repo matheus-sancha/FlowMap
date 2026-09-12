@@ -2658,18 +2658,18 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   final String name;
   final bool isBuiltIn;
 
-  /// Whether the crew is this kind of station's throughput (DESIGN.md §7.5,
+  /// Whether the crew is this kind of workcenter's throughput (DESIGN.md §7.5,
   /// v30).
   ///
-  /// **Machine-paced by default, which is what every station was.** A CNC's
+  /// **Machine-paced by default, which is what every workcenter was.** A CNC's
   /// operators only open its shift — two of them do not double its output — but
-  /// a spray booth, a bench, an inspection table and a weld station are
+  /// a spray booth, a bench, an inspection table and a weld workcenter are
   /// *labour-paced*: the crew is the constraint, and adding to it is how the
-  /// work goes faster. §7.5 asserted the first for every station in the plant
+  /// work goes faster. §7.5 asserted the first for every workcenter in the plant
   /// until the field crewed Coating from 1/1/1 to 3/2/2 and watched nothing
   /// move.
   ///
-  /// **On the type rather than on the station**, because the pacing is a
+  /// **On the type rather than on the workcenter**, because the pacing is a
   /// property of what kind of machine it is. A run copies the type in (§7.10),
   /// so a stored run can still say how it was paced.
   final bool isLabourPaced;
@@ -3213,7 +3213,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   /// How many orders it can run at once (DESIGN.md §3.1, §8.3).
   ///
   /// One is a single machine, which is what every workcenter was before this
-  /// column. Above one the engine gives the station that many servers, and it
+  /// column. Above one the engine gives the workcenter that many servers, and it
   /// genuinely runs that many orders side by side, each with its own process
   /// time — which is what distinguishes this from a batch process, where one
   /// window holds several orders and the time does not double. The observed
@@ -3222,8 +3222,8 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   ///
   /// **It means the same thing everywhere.** §8.4's occupation, §8.3's
   /// utilization denominator and §6.1's flow equivalent all divide by a
-  /// station's available time, so all three take this — otherwise a two-unit
-  /// station reads 200 % loaded on the Summary while the run reports it
+  /// workcenter's available time, so all three take this — otherwise a two-unit
+  /// workcenter reads 200 % loaded on the Summary while the run reports it
   /// comfortable.
   ///
   /// _Rejected: a pool of two invented members._ It needs no code at all, and
@@ -5212,7 +5212,7 @@ class Project extends DataClass implements Insertable<Project> {
   ///
   /// Above [occupationAmberPct] is amber, above [occupationRedPct] is red;
   /// at or below the amber threshold is good. Defaults 85 and 100 — 100 because
-  /// a station asked for more than it has open is over by definition, and 85
+  /// a workcenter asked for more than it has open is over by definition, and 85
   /// because a month that close has no room for the changeover the next order
   /// brings.
   ///
@@ -6492,8 +6492,8 @@ class TaktPeriod extends DataClass implements Insertable<TaktPeriod> {
   ///
   /// **Stored with its unit rather than as canonical seconds**, because "3
   /// days" cannot be reduced to a duration without knowing whose working day is
-  /// meant, and the answer differs per workcenter: a 1-shift station and a
-  /// 3-shift station have very different days. The flow equivalent resolves it
+  /// meant, and the answer differs per workcenter: a 1-shift workcenter and a
+  /// 3-shift workcenter have very different days. The flow equivalent resolves it
   /// per workcenter at calculation time (DESIGN.md §6.1) — one takt of *that*
   /// workcenter's capacity. Hours, minutes and seconds are literal and resolve
   /// the same everywhere.
@@ -8627,7 +8627,7 @@ class Study extends DataClass implements Insertable<Study> {
   /// Derived by work content across the demand when null, which is what
   /// `_paceSetter` has always done. It is selectable now because the pacemaker
   /// gained a second job: §7.2 gates a release on whether the lane in front of
-  /// it has room, so a station chosen silently by summing batch sizes would be
+  /// it has room, so a workcenter chosen silently by summing batch sizes would be
   /// a gate that moves when the demand is edited and tells nobody.
   ///
   /// A target id — workcenter or pool — the convention `part_process_times`
@@ -9830,12 +9830,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// place a pre-v17 setup can be recovered by hand.
   final int changeoverSeconds;
 
-  /// A changeover, in two halves: [setupValue] rigs the station for the order
+  /// A changeover, in two halves: [setupValue] rigs the workcenter for the order
   /// and [teardownValue] strips it afterwards (DESIGN.md §7.6).
   ///
   /// **Stored as a value plus a [TaktUnit], never as canonical seconds**, for
   /// the same reason takt and [equivalentValue] are: `days` here means
-  /// productive days of *this* station, and cannot be reduced to a duration
+  /// productive days of *this* workcenter, and cannot be reduced to a duration
   /// without saying whose day is meant (§6.1). One kind of day per dialog is
   /// §17.4's rule, and the field two below this one already uses that one.
   ///
@@ -9844,7 +9844,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   final TaktUnit? setupUnit;
 
   /// The teardown, charged **with the next order's setup rather than at the end
-  /// of this one** — the station remembers what it owes, because whether a
+  /// of this one** — the workcenter remembers what it owes, because whether a
   /// strip-down is needed depends on what comes next and the engine has not
   /// picked it yet (DESIGN.md §7.6).
   ///
@@ -9855,7 +9855,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   final TaktUnit? teardownUnit;
 
   /// How much of `setup + teardown` is still charged when the previous order at
-  /// this station was the **same part**, as a percentage.
+  /// this workcenter was the **same part**, as a percentage.
   ///
   /// Null is 0 %, which is exactly what this app did before v17: like-with-like
   /// was free. 100 % makes batching buy nothing. It governs the pair rather than
@@ -9866,8 +9866,8 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// Pins this step out of §6.2.1's takt rebalancing (DESIGN.md §7.7.4).
   ///
   /// **Per step, not per workcenter**, for §7.6's reason — it is this line's
-  /// use of the station, and a duplicated study must be re-tunable without
-  /// disturbing the original. Célula 11B, 11C and 11D share four stations
+  /// use of the workcenter, and a duplicated study must be re-tunable without
+  /// disturbing the original. Célula 11B, 11C and 11D share four workcenters
   /// between them, so a flag on the machine would change three studies from a
   /// screen showing one.
   ///
@@ -9875,7 +9875,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// enable one, so every step already in the tree keeps today's behaviour with
   /// no backfill — the same call §7.6 made for the same-part percentage.
   ///
-  /// A pinned station is **transparent** to its group rather than a wall: it is
+  /// A pinned workcenter is **transparent** to its group rather than a wall: it is
   /// the same operation, so the members either side of it still balance with
   /// each other (§6.2.1).
   final bool? balanceDisabled;
@@ -9883,13 +9883,13 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).
   ///
-  /// A property of the **yardstick**, not of the station: an inspection that
+  /// A property of the **yardstick**, not of the workcenter: an inspection that
   /// genuinely takes a fraction of a takt would otherwise drag every real
   /// part's equivalence at that step toward zero and skew the balance measure.
   /// Null follows the line's takt, which is the usual case.
   ///
   /// Stored as a value plus a [TaktUnit] — not a canonical duration — for the
-  /// same reason takt is: `days` here means productive days of *this* station.
+  /// same reason takt is: `days` here means productive days of *this* workcenter.
   final double? equivalentValue;
   final TaktUnit? equivalentUnit;
   final InventoryMode? inventoryMode;
@@ -9914,16 +9914,16 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// The queue discipline of the lane, or null to follow the run's rule
   /// (DESIGN.md §5.5, §7.4).
   ///
-  /// **The rule lives here rather than on the station**, which reverses §7.4 as
+  /// **The rule lives here rather than on the workcenter**, which reverses §7.4 as
   /// it was first built. On a physical FIFO lane you cannot take from the back,
   /// so a discipline is not a property of the channel — it is how the next
-  /// station *chooses* from what is standing in front of it, and that is a
-  /// thing the map draws. Stored on the station it was invisible; stored here
+  /// workcenter *chooses* from what is standing in front of it, and that is a
+  /// thing the map draws. Stored on the workcenter it was invisible; stored here
   /// it sits on the node the reader is already looking at.
   ///
   /// §5.1's spine is what makes this a total order: a step has at most one lane
   /// in front of it, so there is exactly one comparator per queue. That is the
-  /// ambiguity a station-level rule could not avoid — one machine can be a
+  /// ambiguity a workcenter-level rule could not avoid — one machine can be a
   /// candidate for its own step and for a pool's.
   final DispatchRule? laneRule;
 
@@ -11831,10 +11831,10 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
 
   /// The **flow node** whose step this time belongs to (§9).
   ///
-  /// **Keyed by the step since v24, not by the station it points at.** It was
+  /// **Keyed by the step since v24, not by the workcenter it points at.** It was
   /// the target, and two steps aiming at one workcenter were then two columns
   /// over one stored value — editing either edited both, and the engine charged
-  /// the same work on each pass. That was written down as right: *"the station
+  /// the same work on each pass. That was written down as right: *"the workcenter
   /// takes the same time per piece on both passes."* Driving §8.6 overturned
   /// it. A routing goes back to a machine because the second pass is a
   /// *different operation* — rough then finish, tack then final weld — and the
@@ -13813,8 +13813,8 @@ class SimulationRunStudy extends DataClass
   /// to `studies`, which is the only other place this could be read.
   ///
   /// **A cell or line filter is a study filter one level up.** Workcenters
-  /// belong to a plant rather than to a cell, so stations are never filtered
-  /// this way — the studies narrow, and their stations follow.
+  /// belong to a plant rather than to a cell, so workcenters are never filtered
+  /// this way — the studies narrow, and their workcenters follow.
   ///
   /// Null on every run made before v17.
   final String? productionCellId;
@@ -15787,7 +15787,7 @@ class SimulationRunStep extends DataClass
   /// made before that column existed can still answer this and nothing else.
   final bool changeoverIncurred;
 
-  /// What the changeover actually cost this step, in seconds of the station's
+  /// What the changeover actually cost this step, in seconds of the workcenter's
   /// open time (§7.6).
   ///
   /// A bool could say *whether* a changeover was paid and that was enough while
@@ -15800,7 +15800,7 @@ class SimulationRunStep extends DataClass
   /// on these tables since v12 — not "no changeover", which is zero.
   final int? changeoverSeconds;
 
-  /// What the **work** cost at this step, in seconds of the station's open
+  /// What the **work** cost at this step, in seconds of the workcenter's open
   /// clock — `per-piece × batch × (1 + rework) ÷ availability`, changeover
   /// excluded (§7.4, §7.6).
   ///
@@ -15809,8 +15809,8 @@ class SimulationRunStep extends DataClass
   /// their difference is an elapsed span that swallows nights, weekends and
   /// shutdowns — a 76-hour operation reads as 148 hours across a normal week.
   /// That is the right figure for drawing a bar and the wrong one for checking
-  /// what a station was asked to do, and until this column there was no second
-  /// figure to check it against: §7.4's balance moves work *between* stations,
+  /// what a workcenter was asked to do, and until this column there was no second
+  /// figure to check it against: §7.4's balance moves work *between* workcenters,
   /// and a reader could not see the split it produced anywhere in the run.
   ///
   /// Recomputing it on read is not open to us — it needs the batch, the
@@ -15834,12 +15834,12 @@ class SimulationRunStep extends DataClass
   /// which is the only reason the column exists.
   ///
   /// Null on every run made before v25, which is *made before a run said this*
-  /// rather than "no rework" — that is zero, and a station with none records it
+  /// rather than "no rework" — that is zero, and a workcenter with none records it
   /// honestly as `processSeconds == processSecondsBeforeRework`.
   final int? processSecondsBeforeRework;
 
   /// The lane the order waited in before this step, or null when the step had
-  /// none and it queued at the station itself (§5.5).
+  /// none and it queued at the workcenter itself (§5.5).
   ///
   /// With it, [queueStart] and [processStart] become the two ends of a stay in
   /// a named lane — which is what makes `simulation_run_lane_visits` derivable
@@ -15847,14 +15847,14 @@ class SimulationRunStep extends DataClass
   /// before lanes governed anything.
   final String? laneNodeId;
 
-  /// How long the station stood holding this order after finishing it, because
+  /// How long the workcenter stood holding this order after finishing it, because
   /// the lane ahead was full (§5.5).
   ///
-  /// Blocking is after service — a station cannot know in advance whether there
+  /// Blocking is after service — a workcenter cannot know in advance whether there
   /// will be room, so it finishes and then waits — which means [processEnd] is
-  /// when the work stopped and `processEnd + this` is when the station was free
+  /// when the work stopped and `processEnd + this` is when the workcenter was free
   /// again. Kept apart from the work for the reason it is kept out of
-  /// `busySeconds` on the station: a jammed machine is occupied and not
+  /// `busySeconds` on the workcenter: a jammed machine is occupied and not
   /// producing, and folding the two would make utilization report the jam as
   /// output.
   ///
@@ -16993,23 +16993,23 @@ class SimulationRunWorkcenter extends DataClass
   final String runId;
   final String workcenterId;
 
-  /// `CLAD04` — copied in, so a bottleneck still reads as a station after the
+  /// `CLAD04` — copied in, so a bottleneck still reads as a workcenter after the
   /// workcenter is renamed or removed from the plant.
   final String name;
 
-  /// Open time the station spent running (§8.3's utilization numerator).
+  /// Open time the workcenter spent running (§8.3's utilization numerator).
   final int busySeconds;
 
   /// Open time it had available across the run — the denominator.
   ///
-  /// Already multiplied by [units]: a station with two of them has twice the
+  /// Already multiplied by [units]: a workcenter with two of them has twice the
   /// time to be busy in, and utilization is meaningless if the numerator counts
   /// two servers and the denominator one.
   final int openSeconds;
 
   /// Open time it spent holding a finished order with nowhere to put it (§5.5).
   ///
-  /// **Not part of [busySeconds].** A blocked station is occupied and producing
+  /// **Not part of [busySeconds].** A blocked workcenter is occupied and producing
   /// nothing, so counting it as busy would report a jam as output — and on a
   /// line whose constraint already sits at 86 % utilization that is not a
   /// rounding error. Reported as its own column, which is what §5.5 meant by
@@ -17018,21 +17018,21 @@ class SimulationRunWorkcenter extends DataClass
 
   /// How many orders it could run at once when the run was made (§3.1).
   ///
-  /// Copied in like [name], for the same reason: a station re-rated from one
+  /// Copied in like [name], for the same reason: a workcenter re-rated from one
   /// unit to two afterwards must not silently rewrite what a finished run's
   /// utilization meant.
   final int units;
 
-  /// The pool this station was dispatched through in this run (§3.1), copied in
+  /// The pool this workcenter was dispatched through in this run (§3.1), copied in
   /// like [name] and for the same reason: moving CLAD07 to another pool
-  /// afterwards must not regroup a finished run's stations.
+  /// afterwards must not regroup a finished run's workcenters.
   ///
   /// **Null means ungrouped, never "every pool".** A workcenter may belong to
   /// several pools — `WorkcenterPoolMembers`' key is `{poolId, workcenterId}` —
   /// so with two studies in one run, line A can reach CLAD07 through `CAL`
   /// while line B reaches it through `All Lathes`. Resolved at write time by
-  /// `stationPools`: **exactly one pool is stored, none or several store null**
-  /// and the station reads ungrouped. Treating a blank as a wildcard is the
+  /// `simWorkcenterPools`: **exactly one pool is stored, none or several store null**
+  /// and the workcenter reads ungrouped. Treating a blank as a wildcard is the
   /// mistake §12.1 already wrote a rule against for the pre-v17 cell.
   ///
   /// Null on every run made before v18, which therefore group nothing.
@@ -17042,12 +17042,12 @@ class SimulationRunWorkcenter extends DataClass
   /// [name].
   ///
   /// **Set even when [poolId] is null and several pools were involved**, as
-  /// `CAL Pool · All Lathes`: the station is not grouped, and a reader still
+  /// `CAL Pool · All Lathes`: the workcenter is not grouped, and a reader still
   /// deserves to see why it is standing on its own. Null only when no step
   /// reached it through a pool at all.
   final String? poolName;
 
-  /// The queue this station dispatched by when the run was made (§7.4, §12.6).
+  /// The queue this workcenter dispatched by when the run was made (§7.4, §12.6).
   ///
   /// Copied in for §7.10's reason and no other: the queue lives on the project
   /// and can be retuned tomorrow, and a run that read it back would silently
@@ -17070,14 +17070,14 @@ class SimulationRunWorkcenter extends DataClass
   /// **`Workcenters.typeId` is in the plant and a run has never carried it**, so
   /// §10.3's type filter and the columns of its pivot could not be read off a
   /// stored run at all — and joining back to find out is exactly what §7.10
-  /// forbids, because a station retyped since would silently re-column every
+  /// forbids, because a workcenter retyped since would silently re-column every
   /// run in the picker.
   ///
   /// The **name** travels beside the id for the reason [poolName] does: a type
-  /// deleted since still named this station when it ran, and a pivot headed by
+  /// deleted since still named this workcenter when it ran, and a pivot headed by
   /// a uuid is not a pivot anyone can read.
   ///
-  /// Both null on a run made before v25, and on a station whose type was never
+  /// Both null on a run made before v25, and on a workcenter whose type was never
   /// set — which is a real state the plant allows and §7.4 already treats as
   /// *"nothing says it is like its neighbours"*.
   final String? typeId;
@@ -17713,7 +17713,7 @@ class SimulationRunLane extends DataClass
   /// labelled, which is what an unnamed buffer on the map looks like.
   final String? name;
 
-  /// Its place on the spine, so a lane row can be drawn between the stations it
+  /// Its place on the spine, so a lane row can be drawn between the workcenters it
   /// sits between.
   final int position;
 
@@ -18194,15 +18194,15 @@ class SimulationRunLaneVisit extends DataClass
   /// The **workcenter or pool** whose queue this is (§7.3, §8.6).
   ///
   /// **Renamed from `node_id` at v23, which is what it never was.** §7.3 moved
-  /// the queue off the flow and onto the station — `engine.dart` writes
+  /// the queue off the flow and onto the workcenter — `engine.dart` writes
   /// `waiting.lane.targetId` here — and the column name stayed behind. A name
   /// that says node while holding a workcenter is what made §8.6 invisible:
   /// the key built on it read as "one order queues once per step" and meant
-  /// "one order queues once per station".
+  /// "one order queues once per workcenter".
   ///
   /// **On a pre-v19 run this holds a flow node after all**, and the old name
   /// was right for it. A lane *was* a node until §7.3 moved the queue onto the
-  /// station, so runs made before that recorded the inventory node's id here.
+  /// workcenter, so runs made before that recorded the inventory node's id here.
   /// Observed on the live database at the v23 migration: **31 480 rows across
   /// 37 runs, all made 2026-08-15 and 16**, against zero in every run since.
   /// Nothing was rewritten — §7.10 forbids joining a finished run back to a
@@ -18215,8 +18215,8 @@ class SimulationRunLaneVisit extends DataClass
   ///
   /// **This is what makes a visit unique, and [targetId] is not.** A part may
   /// go back to a machine for a second operation — ordinary routing, which the
-  /// engine has always modelled — and both stays are then in one station's
-  /// queue. Keyed by the station, the second stay collided with the first and
+  /// engine has always modelled — and both stays are then in one workcenter's
+  /// queue. Keyed by the workcenter, the second stay collided with the first and
   /// the run was computed and then thrown away with a UNIQUE constraint the
   /// screen reported only as "could not be completed".
   ///
@@ -18228,14 +18228,14 @@ class SimulationRunLaneVisit extends DataClass
   /// **On rows migrated from v22 it may hold a [targetId] instead.** A stay
   /// that produced no step — an order the guard caught still queueing — has no
   /// step to name, and the old key already guaranteed at most one such row per
-  /// order per station, so nothing collides and nothing is lost. It means a
+  /// order per workcenter, so nothing collides and nothing is lost. It means a
   /// pre-v23 run cannot say which step a stay belonged to, which is true.
   final String stepNodeId;
 
   /// When the order took a place in the lane.
   final DateTime enteredAt;
 
-  /// When the station ahead pulled it out. Null means it was still in the lane
+  /// When the workcenter ahead pulled it out. Null means it was still in the lane
   /// when the run ended, which is the honest reading of an order the guard
   /// caught mid-flight.
   final DateTime? leftAt;
@@ -18657,8 +18657,8 @@ class SimulationRunWorkcenterMonth extends DataClass
   /// `queueStart` into, so a bar and its line cannot land in different columns.
   final DateTime month;
 
-  /// Open seconds in that month, **already multiplied by the station's units**,
-  /// exactly as `openSeconds` is on the whole-run row. A two-unit station has
+  /// Open seconds in that month, **already multiplied by the workcenter's units**,
+  /// exactly as `openSeconds` is on the whole-run row. A two-unit workcenter has
   /// twice the capacity and one clock, and the two figures must agree about
   /// which of those they are stating.
   final int openSeconds;

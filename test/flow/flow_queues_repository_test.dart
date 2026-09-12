@@ -75,7 +75,7 @@ void main() {
       rule: DispatchRule.earliestDueDate,
     );
 
-    // One floor space in front of one station, however many studies reach it
+    // One floor space in front of one workcenter, however many studies reach it
     // and however often it is retuned (§7.3).
     expect(await db.select(db.projectQueues).get(), hasLength(1));
     expect((await read('wc-1'))!.rule, DispatchRule.earliestDueDate);
@@ -117,7 +117,7 @@ void main() {
     );
   });
 
-  test('two projects tune one station independently', () async {
+  test('two projects tune one workcenter independently', () async {
     // Capping a lane is an *experiment* (§0's confounder run), and the seam §3
     // draws puts period-scoped numbers in the project — so it must not reach
     // every project that shares the plant.

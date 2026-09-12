@@ -101,7 +101,7 @@ void main() {
     );
   });
 
-  group('a crew divides the work at a labour-paced station (v30)', () {
+  group('a crew divides the work at a labour-paced workcenter (v30)', () {
     test('three operators do one operators work in a third of the time', () {
       // A process time is one operator's labour content, so this is the whole
       // of the model: three people on one part is the same part, sooner.
@@ -121,7 +121,7 @@ void main() {
       expect(crewed, const Duration(hours: 4));
     });
 
-    test('one operator is what every station did before the flag existed', () {
+    test('one operator is what every workcenter did before the flag existed', () {
       // The default has to be exactly the old arithmetic, or v30 would repace
       // the whole plant on the day it shipped.
       for (final hours in const [1, 7, 12]) {

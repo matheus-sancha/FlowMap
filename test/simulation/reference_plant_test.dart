@@ -16,14 +16,14 @@
 /// - **Mon–Fri only** (`workingWeekdays` is a bitmask, `1 << (weekday - 1)`,
 ///   so Mon–Fri is 31).
 /// - **June 2026 begins on a Monday** and holds **22 working days**, hence
-///   `22 × 8 = 176 h` of open time per single-unit station. May has 21 days
+///   `22 × 8 = 176 h` of open time per single-unit workcenter. May has 21 days
 ///   (168 h) and July 23 (184 h), which is what makes the ragged edges of a
 ///   monthly grid worth asserting.
 /// - Process times in whole hours, two parts, thirty orders each.
 ///
 /// **What is asserted here is scheduling-independent.** How the engine
 /// sequences the work is its business; the *total* it must do is not. Busy time
-/// per station, open time per station-month, and the count of orders in and out
+/// per workcenter, open time per workcenter-month, and the count of orders in and out
 /// are all fixed by the inputs, so they can be stated before the run and
 /// checked after it.
 ///
@@ -230,7 +230,7 @@ void main() {
     expect(input.studies.single.id, studyId);
     expect(input.workcenters.keys, unorderedEquals([sawId, paintId]));
 
-    // Both stations are single-unit and machine-paced, which is what makes the
+    // Both workcenters are single-unit and machine-paced, which is what makes the
     // open time below a plain multiplication.
     for (final workcenter in input.workcenters.values) {
       expect(workcenter.units, 1);
@@ -334,7 +334,7 @@ void main() {
     // §8.3: utilization is busy over the open time of the span the run actually
     // occupied — 241 h here, for a run of 2026-05-29 to 2026-07-10 — so it is
     // not the monthly occupation above and must not be read as one. Both
-    // stations share that span, so their ratio is the ratio of their work and
+    // workcenters share that span, so their ratio is the ratio of their work and
     // survives any change to the run's length.
     final saw = result.utilization[sawId]!;
     final paint = result.utilization[paintId]!;
