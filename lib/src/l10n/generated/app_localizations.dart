@@ -3804,7 +3804,7 @@ abstract class AppLocalizations {
   /// No description provided for @resourcesNoWorkcentersHelp.
   ///
   /// In en, this message translates to:
-  /// **'A new project starts empty. Add the workcenters this plant runs on — or open an existing project and save a copy of it.'**
+  /// **'A new project starts empty. Start with a production cell, then its lines and workcenters — or open an existing project and save a copy of it.'**
   String get resourcesNoWorkcentersHelp;
 
   /// No description provided for @documentsSaveAs.

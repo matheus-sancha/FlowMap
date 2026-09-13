@@ -2146,7 +2146,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resourcesNoWorkcentersHelp =>
-      'A new project starts empty. Add the workcenters this plant runs on — or open an existing project and save a copy of it.';
+      'A new project starts empty. Start with a production cell, then its lines and workcenters — or open an existing project and save a copy of it.';
 
   @override
   String get documentsSaveAs => 'Save a copy…';

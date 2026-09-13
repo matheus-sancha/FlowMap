@@ -1012,7 +1012,7 @@
   "resourcesNeedDocument": "Abre un proyecto para ver su planta",
   "resourcesNeedDocumentHelp": "Los centros de trabajo, células, líneas y patrones de turno pertenecen a un proyecto y viajan dentro de su archivo.",
   "resourcesNoWorkcenters": "Añade tu primer centro de trabajo",
-  "resourcesNoWorkcentersHelp": "Un proyecto nuevo empieza vacío. Añade los centros de trabajo de esta planta — o abre un proyecto existente y guarda una copia.",
+  "resourcesNoWorkcentersHelp": "Un proyecto nuevo empieza vacío. Empieza por una célula de producción y luego sus líneas y centros de trabajo — o abre un proyecto existente y guarda una copia.",
   "documentsSaveAs": "Guardar una copia…",
   "templatesEmpty": "Aún no hay plantillas",
   "templatesEmptyHelp": "Guarda un estudio como plantilla y aparecerá aquí. Una plantilla es el flujo de un estudio, que puedes aplicar a cualquier proyecto: sus centros de trabajo se emparejan por nombre y lo que falte se crea.",

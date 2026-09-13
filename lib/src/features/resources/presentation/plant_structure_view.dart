@@ -591,6 +591,34 @@ class _NothingYet extends ConsumerWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(height: 20),
+            // **Both ways in, on the page that tells you to use them.** This
+            // state replaced the whole tree, and the tree is where the add
+            // buttons were — so it told the reader to add a workcenter and
+            // left nothing to press (field report, 2026-09-13).
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () =>
+                      _createCell(context, ref, plantId, const []),
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.productionCellNew),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _addWorkcenter(
+                    context,
+                    ref,
+                    plantId: plantId,
+                    allLines: const [],
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.workcenterNew),
+                ),
+              ],
+            ),
           ],
         ),
       ),

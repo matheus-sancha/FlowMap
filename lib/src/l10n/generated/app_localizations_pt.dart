@@ -2169,7 +2169,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get resourcesNoWorkcentersHelp =>
-      'Um projeto novo começa vazio. Adicione os centros de trabalho desta fábrica — ou abra um projeto existente e guarde uma cópia.';
+      'Um projeto novo começa vazio. Comece por uma célula de produção e depois as suas linhas e centros de trabalho — ou abra um projeto existente e guarde uma cópia.';
 
   @override
   String get documentsSaveAs => 'Guardar uma cópia…';

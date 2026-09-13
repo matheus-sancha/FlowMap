@@ -1012,7 +1012,7 @@
   "resourcesNeedDocument": "Abra um projeto para ver a sua fábrica",
   "resourcesNeedDocumentHelp": "Os centros de trabalho, células, linhas e padrões de turno pertencem a um projeto e viajam dentro do seu ficheiro.",
   "resourcesNoWorkcenters": "Adicione o seu primeiro centro de trabalho",
-  "resourcesNoWorkcentersHelp": "Um projeto novo começa vazio. Adicione os centros de trabalho desta fábrica — ou abra um projeto existente e guarde uma cópia.",
+  "resourcesNoWorkcentersHelp": "Um projeto novo começa vazio. Comece por uma célula de produção e depois as suas linhas e centros de trabalho — ou abra um projeto existente e guarde uma cópia.",
   "documentsSaveAs": "Guardar uma cópia…",
   "templatesEmpty": "Ainda não há modelos",
   "templatesEmptyHelp": "Guarde um estudo como modelo e ele aparecerá aqui. Um modelo é o fluxo de um estudo, que pode aplicar a qualquer projeto: os seus centros de trabalho são associados pelo nome e o que faltar é criado.",
