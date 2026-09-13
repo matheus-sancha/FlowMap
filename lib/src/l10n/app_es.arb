@@ -963,5 +963,23 @@
     }
   },
   "demandPasteHint": "Escriba un valor, o pegue un bloque de Excel con Ctrl+V.",
-  "occupationBandsTitle": "Bandas de ocupación"
+  "occupationBandsTitle": "Bandas de ocupación",
+  "documentsTitle": "Proyectos",
+  "documentsNone": "Ningún proyecto abierto.",
+  "documentsIntro": "Abre un archivo de proyecto o crea uno. Cada proyecto es un único archivo que puedes guardar donde quieras — tu PC, una unidad compartida, OneDrive — y enviar a un compañero.",
+  "documentsOpen": "Abrir…",
+  "documentsNew": "Nuevo proyecto…",
+  "documentsRecent": "Recientes",
+  "documentsMissing": "No encontrado ahora mismo",
+  "documentsMissingHelp": "El archivo puede estar en una unidad no conectada. No se ha olvidado.",
+  "documentsForget": "Quitar de esta lista",
+  "documentsClose": "Cerrar proyecto",
+  "documentsSaved": "Guardado {time}",
+  "documentsSaving": "Guardando…",
+  "documentsSaveFailed": "No se pudo guardar",
+  "documentsSaveFailedHelp": "Tu trabajo está a salvo en FlowMap. No se pudo escribir el archivo — comprueba que la unidad esté conectada.",
+  "documentsTaken": "{who} tiene este proyecto abierto",
+  "documentsTakenHelp": "Solo una persona puede editar un proyecto a la vez. Inténtalo de nuevo en unos minutos o pídele que lo cierre.",
+  "documentsConverted": "Tu trabajo existente ahora es un archivo de proyecto.",
+  "documentsOpenFailed": "No se pudo abrir este archivo"
 }

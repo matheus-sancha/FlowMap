@@ -3512,6 +3512,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Occupation bands'**
   String get occupationBandsTitle;
+
+  /// No description provided for @documentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get documentsTitle;
+
+  /// No description provided for @documentsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No project open.'**
+  String get documentsNone;
+
+  /// No description provided for @documentsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a project file, or create one. Each project is a single file you can keep anywhere — your PC, a shared drive, OneDrive — and hand to a colleague.'**
+  String get documentsIntro;
+
+  /// No description provided for @documentsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open…'**
+  String get documentsOpen;
+
+  /// No description provided for @documentsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New project…'**
+  String get documentsNew;
+
+  /// No description provided for @documentsRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get documentsRecent;
+
+  /// No description provided for @documentsMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found right now'**
+  String get documentsMissing;
+
+  /// No description provided for @documentsMissingHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The file may be on a drive that is not connected. It has not been forgotten.'**
+  String get documentsMissingHelp;
+
+  /// No description provided for @documentsForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this list'**
+  String get documentsForget;
+
+  /// No description provided for @documentsClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close project'**
+  String get documentsClose;
+
+  /// No description provided for @documentsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {time}'**
+  String documentsSaved(String time);
+
+  /// No description provided for @documentsSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get documentsSaving;
+
+  /// No description provided for @documentsSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save'**
+  String get documentsSaveFailed;
+
+  /// No description provided for @documentsSaveFailedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your work is safe in FlowMap. The file could not be written — check the drive is connected.'**
+  String get documentsSaveFailedHelp;
+
+  /// No description provided for @documentsTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} has this project open'**
+  String documentsTaken(String who);
+
+  /// No description provided for @documentsTakenHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Only one person can edit a project at a time. Try again in a few minutes, or ask them to close it.'**
+  String get documentsTakenHelp;
+
+  /// No description provided for @documentsConverted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your existing work is now a project file.'**
+  String get documentsConverted;
+
+  /// No description provided for @documentsOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be opened'**
+  String get documentsOpenFailed;
 }
 
 class _AppLocalizationsDelegate

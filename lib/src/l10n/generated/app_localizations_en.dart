@@ -1979,4 +1979,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get occupationBandsTitle => 'Occupation bands';
+
+  @override
+  String get documentsTitle => 'Projects';
+
+  @override
+  String get documentsNone => 'No project open.';
+
+  @override
+  String get documentsIntro =>
+      'Open a project file, or create one. Each project is a single file you can keep anywhere — your PC, a shared drive, OneDrive — and hand to a colleague.';
+
+  @override
+  String get documentsOpen => 'Open…';
+
+  @override
+  String get documentsNew => 'New project…';
+
+  @override
+  String get documentsRecent => 'Recent';
+
+  @override
+  String get documentsMissing => 'Not found right now';
+
+  @override
+  String get documentsMissingHelp =>
+      'The file may be on a drive that is not connected. It has not been forgotten.';
+
+  @override
+  String get documentsForget => 'Remove from this list';
+
+  @override
+  String get documentsClose => 'Close project';
+
+  @override
+  String documentsSaved(String time) {
+    return 'Saved $time';
+  }
+
+  @override
+  String get documentsSaving => 'Saving…';
+
+  @override
+  String get documentsSaveFailed => 'Could not save';
+
+  @override
+  String get documentsSaveFailedHelp =>
+      'Your work is safe in FlowMap. The file could not be written — check the drive is connected.';
+
+  @override
+  String documentsTaken(String who) {
+    return '$who has this project open';
+  }
+
+  @override
+  String get documentsTakenHelp =>
+      'Only one person can edit a project at a time. Try again in a few minutes, or ask them to close it.';
+
+  @override
+  String get documentsConverted => 'Your existing work is now a project file.';
+
+  @override
+  String get documentsOpenFailed => 'This file could not be opened';
 }

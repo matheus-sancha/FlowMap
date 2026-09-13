@@ -6,7 +6,7 @@ import '../common/placeholder_screen.dart';
 import '../features/diagnostics/application/diagnostics.dart';
 import '../features/projects/presentation/project_workspace_screen.dart';
 import '../features/projects/presentation/workspace_tabs.dart';
-import '../features/projects/presentation/projects_screen.dart';
+import '../features/documents/presentation/documents_screen.dart';
 import '../features/resources/presentation/resources_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -29,7 +29,9 @@ GoRouter router(Ref ref) {
             routes: [
               GoRoute(
                 path: '/projects',
-                builder: (context, state) => const ProjectsScreen(),
+                // A project is a file now (#37), so there is nothing to
+                // enumerate here — only somewhere to open one from.
+                builder: (context, state) => const DocumentsScreen(),
                 routes: [
                   GoRoute(
                     path: ':projectId',

@@ -1998,4 +1998,67 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get occupationBandsTitle => 'Bandas de ocupación';
+
+  @override
+  String get documentsTitle => 'Proyectos';
+
+  @override
+  String get documentsNone => 'Ningún proyecto abierto.';
+
+  @override
+  String get documentsIntro =>
+      'Abre un archivo de proyecto o crea uno. Cada proyecto es un único archivo que puedes guardar donde quieras — tu PC, una unidad compartida, OneDrive — y enviar a un compañero.';
+
+  @override
+  String get documentsOpen => 'Abrir…';
+
+  @override
+  String get documentsNew => 'Nuevo proyecto…';
+
+  @override
+  String get documentsRecent => 'Recientes';
+
+  @override
+  String get documentsMissing => 'No encontrado ahora mismo';
+
+  @override
+  String get documentsMissingHelp =>
+      'El archivo puede estar en una unidad no conectada. No se ha olvidado.';
+
+  @override
+  String get documentsForget => 'Quitar de esta lista';
+
+  @override
+  String get documentsClose => 'Cerrar proyecto';
+
+  @override
+  String documentsSaved(String time) {
+    return 'Guardado $time';
+  }
+
+  @override
+  String get documentsSaving => 'Guardando…';
+
+  @override
+  String get documentsSaveFailed => 'No se pudo guardar';
+
+  @override
+  String get documentsSaveFailedHelp =>
+      'Tu trabajo está a salvo en FlowMap. No se pudo escribir el archivo — comprueba que la unidad esté conectada.';
+
+  @override
+  String documentsTaken(String who) {
+    return '$who tiene este proyecto abierto';
+  }
+
+  @override
+  String get documentsTakenHelp =>
+      'Solo una persona puede editar un proyecto a la vez. Inténtalo de nuevo en unos minutos o pídele que lo cierre.';
+
+  @override
+  String get documentsConverted =>
+      'Tu trabajo existente ahora es un archivo de proyecto.';
+
+  @override
+  String get documentsOpenFailed => 'No se pudo abrir este archivo';
 }

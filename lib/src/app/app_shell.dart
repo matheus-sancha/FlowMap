@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/documents/presentation/save_indicator.dart';
 import '../l10n/generated/app_localizations.dart';
 
 /// The persistent left rail around the top-level destinations (DESIGN.md §12.1).
@@ -53,6 +54,18 @@ class AppShell extends StatelessWidget {
                   label: Text(d.label),
                 ),
             ],
+            // Under the rail, where it is always visible and never in the way:
+            // the save state belongs to the window rather than to any one
+            // screen, because every screen can change the document (#37).
+            trailing: const Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: SaveIndicator(),
+                ),
+              ),
+            ),
           ),
           const VerticalDivider(width: 1),
           Expanded(child: navigationShell),
