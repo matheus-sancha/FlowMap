@@ -393,13 +393,13 @@ class DemandRepository {
 
     await _db.batch((b) {
       for (final part in parts) {
+        // Whole rows throughout, as `duplicateStudy` copies its study and
+        // steps: a hand-written column list is what lost `batch_number` here.
         b.insert(
           _db.demandParts,
-          DemandPartsCompanion.insert(
+          part.copyWith(
             id: idMap[part.id]!,
             studyId: toStudyId,
-            partNumber: part.partNumber,
-            description: Value(part.description),
             createdAt: now,
             updatedAt: now,
           ),
@@ -420,12 +420,11 @@ class DemandRepository {
         if (!nodeIds.containsKey(cell.nodeId)) continue;
         b.insert(
           _db.partProcessTimes,
-          PartProcessTimesCompanion.insert(
+          cell.copyWith(
             partId: idMap[cell.partId]!,
-            // A time whose node was not copied is dropped rather than guessed
-            // at — it cannot belong to a step the copy does not have.
+            // A time whose node was not copied is dropped above rather than
+            // guessed at: it cannot belong to a step the copy does not have.
             nodeId: nodeIds[cell.nodeId]!,
-            seconds: cell.seconds,
           ),
         );
       }
@@ -437,20 +436,11 @@ class DemandRepository {
         b.insert(
           _db.demandOrders,
           // Every column the planner typed, not merely the ones the engine
-          // reads: a duplicated study is the same demand under a new name, and
-          // a copy that quietly drops the labels is a copy nobody can match
-          // against their paperwork. `batch_number` was being lost here from
-          // the day it arrived, which only showed when the project joined it.
-          DemandOrdersCompanion.insert(
+          // reads: a duplicated study is the same demand under a new name.
+          order.copyWith(
             id: newId(),
             studyId: toStudyId,
             partId: idMap[order.partId]!,
-            sequence: order.sequence,
-            batchSize: Value(order.batchSize),
-            batchNumber: Value(order.batchNumber),
-            customerProject: Value(order.customerProject),
-            needDate: order.needDate,
-            materialDate: Value(order.materialDate),
             createdAt: now,
             updatedAt: now,
           ),

@@ -194,25 +194,22 @@ class StudiesRepository {
 
         final copyId = newId();
         final now = DateTime.now();
+        // **The row itself, not a list of its columns.** This was a hand-written
+        // companion, and it dropped `start_buffer_days` and
+        // `pace_setter_target_id` for as long as they had existed — found
+        // driving Compare, where a copy nobody had touched read a 0-day buffer
+        // against its original's 30 (2026-09-13). §2.6b had already caught
+        // this method dropping a column twice. A copy of the stored row cannot
+        // forget a column, including the next one.
         await _db
             .into(_db.studies)
             .insert(
-              StudiesCompanion.insert(
+              source.copyWith(
                 id: copyId,
-                projectId: source.projectId,
-                productionCellId: source.productionCellId,
-                productionLineId: source.productionLineId,
                 name: newName,
-                includeInSimulation: const Value(false),
-                wipCap: Value(source.wipCap),
-                supplierName: Value(source.supplierName),
-                customerName: Value(source.customerName),
-                // §2.6b found this method silently dropping a column that had
-                // been added without it, and the same test shape asks after
-                // each of these.
-                inboundStock: Value(source.inboundStock),
-                outboundStock: Value(source.outboundStock),
-                notes: Value(source.notes),
+                // Never flagged: two flagged studies on one line is the state
+                // the edit-time rule forbids.
+                includeInSimulation: false,
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -227,33 +224,14 @@ class StudiesRepository {
 
         await _db.batch((b) {
           for (final node in nodes) {
+            // Whole rows, for the study's reason: this list had lost
+            // `lane_rule` and `lane_capacity`, so a copy's FIFO lane came back
+            // as the run's default with no limit.
             b.insert(
               _db.flowNodes,
-              FlowNodesCompanion.insert(
+              node.copyWith(
                 id: nodeIds[node.id]!,
                 studyId: copyId,
-                position: node.position,
-                kind: node.kind,
-                workcenterId: Value(node.workcenterId),
-                poolId: Value(node.poolId),
-                changeoverSeconds: Value(node.changeoverSeconds),
-                // §2.6b found this method silently dropping `batch_number` and
-                // it had been doing so since the column arrived. Every field a
-                // node carries is copied, and the test asks after each.
-                setupValue: Value(node.setupValue),
-                setupUnit: Value(node.setupUnit),
-                teardownValue: Value(node.teardownValue),
-                teardownUnit: Value(node.teardownUnit),
-                samePartPercent: Value(node.samePartPercent),
-                balanceDisabled: Value(node.balanceDisabled),
-                equivalentValue: Value(node.equivalentValue),
-                equivalentUnit: Value(node.equivalentUnit),
-                inventoryMode: Value(node.inventoryMode),
-                inventoryQuantity: Value(node.inventoryQuantity),
-                inventorySeconds: Value(node.inventorySeconds),
-                inventoryUnit: Value(node.inventoryUnit),
-                inventoryUsesWorkingTime: Value(node.inventoryUsesWorkingTime),
-                notes: Value(node.notes),
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -268,13 +246,9 @@ class StudiesRepository {
           for (final annotation in annotations) {
             b.insert(
               _db.flowAnnotations,
-              FlowAnnotationsCompanion.insert(
+              annotation.copyWith(
                 id: newId(),
                 studyId: copyId,
-                symbol: annotation.symbol,
-                x: annotation.x,
-                y: annotation.y,
-                caption: Value(annotation.caption),
                 createdAt: now,
                 updatedAt: now,
               ),

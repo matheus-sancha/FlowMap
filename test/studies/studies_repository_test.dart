@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
@@ -190,10 +191,7 @@ void main() {
       );
       final node = (await studies.loadNodes(studyId)).single;
 
-      await studies.updateStep(
-        node.id,
-        workcenterId: workcenterA,
-      );
+      await studies.updateStep(node.id, workcenterId: workcenterA);
 
       final after = (await studies.loadNodes(studyId)).single;
       expect(after.equivalentValue, isNull);
@@ -245,8 +243,7 @@ void main() {
       );
     }
 
-    test('a WIP cap round-trips, and null is unlimited rather than none',
-        () async {
+    test('a WIP cap round-trips, and null is unlimited rather than none', () async {
       // Stored since M3, read by the engine since M4, and reachable from
       // nothing until the Study Settings tab (§17.5). So this is the first test
       // of any kind that a user can set it.
@@ -389,6 +386,60 @@ void main() {
       expect(annotations.single.caption, 'Reduce setup');
     });
 
+    test('the copy carries every column of the study and its steps', () async {
+      // **Columns enumerated, not listed.** A hand-written list of fields is
+      // what failed three times: `batch_number`, then `start_buffer_days`,
+      // `pace_setter_target_id`, `lane_rule` and `lane_capacity`, the last four
+      // found driving Compare (2026-09-13) where an untouched copy read a
+      // 0-day buffer against its original's 30. So this compares whole rows,
+      // minus only what a copy must change.
+      final source = await newStudy();
+      await studies.insertStep(
+        studyId: source,
+        atPosition: 0,
+        workcenterId: workcenterA,
+      );
+      await (db.update(db.studies)..where((t) => t.id.equals(source))).write(
+        StudiesCompanion(
+          startBufferDays: const Value(30),
+          paceSetterTargetId: Value(workcenterA),
+          wipCap: const Value(12),
+        ),
+      );
+      await (db.update(
+        db.flowNodes,
+      )..where((t) => t.studyId.equals(source))).write(
+        const FlowNodesCompanion(
+          laneRule: Value(DispatchRule.earliestDueDate),
+          laneCapacity: Value(4),
+        ),
+      );
+
+      final copyId = await studies.duplicateStudy(source, newName: 'Copy');
+
+      Map<String, dynamic> without(
+        Map<String, dynamic> row,
+        Set<String> keys,
+      ) => Map.of(row)..removeWhere((k, _) => keys.contains(k));
+      const studyChanges = {
+        'id',
+        'name',
+        'includeInSimulation',
+        'createdAt',
+        'updatedAt',
+      };
+      expect(
+        without((await studies.loadStudy(copyId))!.toJson(), studyChanges),
+        without((await studies.loadStudy(source))!.toJson(), studyChanges),
+      );
+
+      const nodeChanges = {'id', 'studyId', 'createdAt', 'updatedAt'};
+      expect(
+        without((await studies.loadNodes(copyId)).single.toJson(), nodeChanges),
+        without((await studies.loadNodes(source)).single.toJson(), nodeChanges),
+      );
+    });
+
     test('the copy is never flagged for simulation', () async {
       final source = await newStudy();
       await studies.setIncludedInSimulation(source, true);
@@ -427,18 +478,8 @@ void main() {
     test('one end is written and the other is left alone', () async {
       final id = await newStudy();
 
-      await studies.setFlowEnd(
-        id,
-        inbound: true,
-        name: 'Steel Co',
-        stock: 40,
-      );
-      await studies.setFlowEnd(
-        id,
-        inbound: false,
-        name: 'Assembly',
-        stock: 12,
-      );
+      await studies.setFlowEnd(id, inbound: true, name: 'Steel Co', stock: 40);
+      await studies.setFlowEnd(id, inbound: false, name: 'Assembly', stock: 12);
 
       final study = (await studies.loadStudy(id))!;
       expect(study.supplierName, 'Steel Co');
