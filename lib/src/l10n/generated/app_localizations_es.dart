@@ -2161,6 +2161,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get documentsOpenFailed => 'No se pudo abrir este archivo';
 
   @override
+  String documentsOpening(String name) {
+    return 'Abriendo $name…';
+  }
+
+  @override
   String get documentsCurrentUnsaved =>
       'No se pudo guardar el proyecto abierto, así que sigue abierto y no se abrió nada más. Comprueba que su carpeta esté accesible e inténtalo de nuevo.';
 

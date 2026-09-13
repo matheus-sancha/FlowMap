@@ -3789,6 +3789,12 @@ abstract class AppLocalizations {
   /// **'This file could not be opened'**
   String get documentsOpenFailed;
 
+  /// No description provided for @documentsOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening {name}…'**
+  String documentsOpening(String name);
+
   /// No description provided for @documentsCurrentUnsaved.
   ///
   /// In en, this message translates to:

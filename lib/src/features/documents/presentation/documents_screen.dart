@@ -16,6 +16,7 @@ import '../data/documents_directory.dart';
 import '../data/flowmap_document.dart';
 import '../data/new_document.dart';
 import '../data/recent_documents.dart';
+import 'opening_screen.dart';
 
 /// What the app shows when no project is open.
 ///
@@ -180,15 +181,19 @@ class DocumentsScreen extends ConsumerWidget {
       // A new document starts with the seeded reference data and nothing else.
       // A reference *plant* is something you open and Save As — a copy the user
       // chose, rather than content the app pressed on them.
-      final outcome = await ref
-          .read(openDocumentProvider.notifier)
-          .create(
-            path,
-            projectName: NewDocument.projectNameFor(path),
-            plantName: plantName,
-            user: _user(),
-            machine: Platform.localHostname,
-          );
+      final outcome = await whileOpening(
+        context,
+        NewDocument.projectNameFor(path),
+        () => ref
+            .read(openDocumentProvider.notifier)
+            .create(
+              path,
+              projectName: NewDocument.projectNameFor(path),
+              plantName: plantName,
+              user: _user(),
+              machine: Platform.localHostname,
+            ),
+      );
       if (outcome.unsaved) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsCurrentUnsaved)),
@@ -223,9 +228,13 @@ Future<void> openDocumentAt(
 
   try {
     final holder = DocumentLock.holderOf(path);
-    final outcome = await ref
-        .read(openDocumentProvider.notifier)
-        .open(path, user: _user(), machine: Platform.localHostname);
+    final outcome = await whileOpening(
+      context,
+      NewDocument.projectNameFor(path),
+      () => ref
+          .read(openDocumentProvider.notifier)
+          .open(path, user: _user(), machine: Platform.localHostname),
+    );
 
     if (outcome.unsaved) {
       messenger.showSnackBar(

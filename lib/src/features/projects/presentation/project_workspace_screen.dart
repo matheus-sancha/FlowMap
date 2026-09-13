@@ -188,11 +188,6 @@ class _ProjectWorkspaceScreenState
               ],
             ),
             actions: [
-              // The document itself — save a copy, or close it. Left of the
-              // run controls because it is about the file rather than about
-              // what is in it, and #7's rule is that reading order is priority
-              // order on a bar this short.
-              const DocumentMenu(),
               // The project's own settings, on the project's own chrome. A
               // gear rather than a labelled button: it is the one action here
               // that is not about running anything, and §12.1 puts what spans
@@ -211,6 +206,11 @@ class _ProjectWorkspaceScreenState
                 onFinished: (outcome) => setState(() => _outcome = outcome),
               ),
               const SizedBox(width: 4),
+              // The document itself — save a copy, or close it. **Between
+              // Simulate and the gear** (2026-09-13): left of Simulate it
+              // stood first in the bar's reading order, ahead of the one
+              // control pressed every session, for acts done once.
+              const DocumentMenu(),
               IconButton(
                 tooltip: l10n.projectSettings,
                 icon: const Icon(Icons.settings_outlined),

@@ -1010,6 +1010,7 @@
   "documentsTakenHelp": "Solo una persona puede editar un proyecto a la vez. Inténtalo de nuevo en unos minutos o pídele que lo cierre.",
   "documentsConverted": "Tu trabajo existente ahora es un archivo de proyecto.",
   "documentsOpenFailed": "No se pudo abrir este archivo",
+  "documentsOpening": "Abriendo {name}…",
   "documentsCurrentUnsaved": "No se pudo guardar el proyecto abierto, así que sigue abierto y no se abrió nada más. Comprueba que su carpeta esté accesible e inténtalo de nuevo.",
   "resourcesNeedDocument": "Abre un proyecto para ver su planta",
   "resourcesNeedDocumentHelp": "Los centros de trabajo, células, líneas y patrones de turno pertenecen a un proyecto y viajan dentro de su archivo.",

@@ -8,7 +8,9 @@ import 'package:go_router/go_router.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/documents_providers.dart';
 import '../data/documents_directory.dart';
+import '../data/save_as.dart';
 import 'documents_screen.dart' show reportConflictCopy;
+import 'opening_screen.dart';
 
 /// The two things you can do to the document itself: save a copy, or close it.
 ///
@@ -68,16 +70,20 @@ class DocumentMenu extends ConsumerWidget {
       // The copy is a separate project with its own id, so its runs are its own
       // — which is what makes "open a reference and save a copy" give you your
       // plant rather than a second window onto somebody else's.
-      final outcome = await ref
-          .read(openDocumentProvider.notifier)
-          .saveAs(
-            path,
-            user:
-                Platform.environment['USERNAME'] ??
-                Platform.environment['USER'] ??
-                'someone',
-            machine: Platform.localHostname,
-          );
+      final outcome = await whileOpening(
+        context,
+        SaveAs.projectNameFor(path),
+        () => ref
+            .read(openDocumentProvider.notifier)
+            .saveAs(
+              path,
+              user:
+                  Platform.environment['USERNAME'] ??
+                  Platform.environment['USER'] ??
+                  'someone',
+              machine: Platform.localHostname,
+            ),
+      );
       if (outcome.unsaved) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsCurrentUnsaved)),

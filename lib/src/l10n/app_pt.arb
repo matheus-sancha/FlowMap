@@ -1010,6 +1010,7 @@
   "documentsTakenHelp": "Apenas uma pessoa pode editar um projeto de cada vez. Tente novamente daqui a alguns minutos ou peça-lhe que o feche.",
   "documentsConverted": "O seu trabalho existente é agora um ficheiro de projeto.",
   "documentsOpenFailed": "Não foi possível abrir este ficheiro",
+  "documentsOpening": "A abrir {name}…",
   "documentsCurrentUnsaved": "Não foi possível guardar o projeto aberto, por isso continua aberto e nada mais foi aberto. Verifique se a pasta está acessível e tente novamente.",
   "resourcesNeedDocument": "Abra um projeto para ver a sua fábrica",
   "resourcesNeedDocumentHelp": "Os centros de trabalho, células, linhas e padrões de turno pertencem a um projeto e viajam dentro do seu ficheiro.",
