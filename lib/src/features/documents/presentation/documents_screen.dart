@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../l10n/generated/app_localizations.dart';
@@ -122,7 +123,9 @@ class DocumentsScreen extends ConsumerWidget {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsTakenHelp)),
         );
+        return;
       }
+      if (context.mounted) _goToOpenProject(context, ref);
     } catch (_) {
       messenger.showSnackBar(
         SnackBar(content: Text(l10n.documentsOpenFailed)),
@@ -170,6 +173,16 @@ Future<void> openDocumentAt(
       SnackBar(content: Text(l10n.documentsOpenFailed)),
     );
   }
+}
+
+/// Navigates to the project the open document holds.
+///
+/// A document *is* one project, so there is exactly one place to go and no
+/// choice to offer.
+void _goToOpenProject(BuildContext context, WidgetRef ref) {
+  final session = ref.read(openDocumentProvider);
+  if (session == null || !context.mounted) return;
+  context.go('/projects/${session.projectId}');
 }
 
 /// Who the lock will say is holding the document. Names the account rather than
