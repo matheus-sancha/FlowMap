@@ -109,29 +109,86 @@ void main() {
   });
 
   test('two studies differ in what they were given, not in their names', () {
-    // They are different studies with different names. Matched by name, as the
-    // run comparison did, each would read as missing from the other.
+    // Different studies with different names. Matched by name, as the run
+    // comparison did, each would read as missing from the other.
     final differences = RunComparison.between(
       side(
         delivered: 1,
         onTime: 1,
-        study: snapshot(id: 'a', name: 'Célula 11B', releaseSeconds: 86400),
+        study: snapshot(id: 'a', name: 'Célula 11B', startBuffer: 30),
       ),
       side(
         delivered: 1,
         onTime: 1,
-        study: snapshot(
-          id: 'b',
-          name: 'Célula 11B (copy)',
-          releaseSeconds: 43200,
-        ),
+        study: snapshot(id: 'b', name: 'Célula 11B (copy)', startBuffer: 0),
       ),
     ).differences;
     expect(differences, hasLength(1));
-    expect(differences.single.field, InputField.releaseSeconds);
-    expect(differences.single.before, '86400');
-    expect(differences.single.after, '43200');
+    expect(differences.single.field, InputField.startBuffer);
+    expect(differences.single.before, '30');
+    expect(differences.single.after, '0');
   });
+
+  test('the release interval is not a difference of its own', () {
+    // Derived from the takt and the pace setter's calendar, so it only ever
+    // repeated the takt row less readably (drive, 2026-09-13).
+    expect(
+      RunComparison.between(
+        side(delivered: 1, onTime: 1, study: snapshot(releaseSeconds: 86400)),
+        side(delivered: 1, onTime: 1, study: snapshot(releaseSeconds: 43200)),
+      ).differences,
+      isEmpty,
+    );
+  });
+
+  test(
+    'occupation lists the total first, then every type either side used',
+    () {
+      final a = ComparedSide(
+        study: SimulationRunStudy(
+          runId: 'r',
+          studyId: 'a',
+          name: 'a',
+          releaseSeconds: 1,
+          startBufferDays: 0,
+        ),
+        metrics: RunMetrics(
+          orders: 0,
+          delivered: 0,
+          onTime: 0,
+          emptySlots: 0,
+          averageFloat: null,
+          averageLeadTime: null,
+          theoreticalLeadTime: null,
+          parts: [],
+          workcenters: [],
+        ),
+        queues: const RunQueues([]),
+        appVersion: null,
+        runAt: DateTime(2026),
+        occupationTotal: 0.8,
+        occupationByType: {'Milling': 0.9, 'Cladding': 1.2},
+      );
+      final b = ComparedSide(
+        study: a.study,
+        metrics: a.metrics,
+        queues: a.queues,
+        appVersion: null,
+        runAt: DateTime(2026),
+        occupationTotal: 0.7,
+        occupationByType: const {'Cladding': 1.0, 'Coating': 0.5},
+      );
+
+      final rows = RunComparison.between(a, b).occupation;
+      expect(rows.map((r) => r.type), [null, 'Cladding', 'Coating', 'Milling']);
+      expect(rows.first.delta, closeTo(-0.1, 1e-9));
+      expect(
+        rows[2].before,
+        isNull,
+        reason: 'only the second side used Coating',
+      );
+    },
+  );
 
   test('a takt is its value and its unit', () {
     final differences = RunComparison.between(

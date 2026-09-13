@@ -1390,10 +1390,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get workspaceModeCompare => 'Comparar';
 
   @override
-  String get compareBefore => 'Antes';
+  String get compareStudiesDifference => 'Diferencias entre estudios';
 
   @override
-  String get compareAfter => 'Después';
+  String get compareOccupation => 'Ocupación';
 
   @override
   String get compareLine => 'Celda y línea';
@@ -1418,9 +1418,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get compareUnstamped => 'no registrada';
 
   @override
-  String get compareInputs => 'Qué fue distinto';
-
-  @override
   String get compareNoInputs =>
       'Ninguna entrada registrada en las dos corridas difiere. Los cambios en un flujo, su demanda o su capacidad no se guardan como entradas de la corrida; si los dos estudios difieren en alguno, esa es la diferencia.';
 
@@ -1432,9 +1429,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get compareInput => 'Entrada';
-
-  @override
-  String get compareReleaseInterval => 'Intervalo de liberación';
 
   @override
   String get compareDispatch => 'Despacho';

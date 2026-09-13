@@ -39,7 +39,7 @@ void main() {
     updatedAt: now,
   );
 
-  StoredRun stored(String id, DateTime at, String studyId, int release) =>
+  StoredRun stored(String id, DateTime at, String studyId, int buffer) =>
       StoredRun(
         id: id,
         projectId: 'doc',
@@ -50,8 +50,8 @@ void main() {
             runId: id,
             studyId: studyId,
             name: studyId,
-            releaseSeconds: release,
-            startBufferDays: 0,
+            releaseSeconds: 86400,
+            startBufferDays: buffer,
             productionCellName: 'Célula 11',
             productionLineName: 'Fluxo 11B',
           ),
@@ -135,7 +135,7 @@ void main() {
     await pump(
       tester,
       studies: [study('11B', 'b'), study('11C', 'c'), study('11D', 'd')],
-      runs: [stored('r1', now, '11B', 86400)],
+      runs: [stored('r1', now, '11B', 30)],
     );
     expect(
       find.text('Compare needs two studies of one cell and line'),
@@ -150,8 +150,8 @@ void main() {
       tester,
       studies: [study('11B', 'b'), study('11B copy', 'b')],
       runs: [
-        stored('r2', now, '11B copy', 43200),
-        stored('r1', now.subtract(const Duration(hours: 2)), '11B', 86400),
+        stored('r2', now, '11B copy', 0),
+        stored('r1', now.subtract(const Duration(hours: 2)), '11B', 30),
       ],
     );
 
@@ -160,7 +160,12 @@ void main() {
     expect(find.textContaining('15:30'), findsOneWidget);
     expect(find.textContaining('FIFO'), findsNothing);
     expect(find.text('Célula 11 · Fluxo 11B'), findsOneWidget);
-    // And what the two were given differently is named.
-    expect(find.text('Release interval'), findsOneWidget);
+    // The tables are headed by the studies, not Before and After.
+    expect(find.text('Studies Difference'), findsOneWidget);
+    expect(find.text('Start buffer (calendar days)'), findsOneWidget);
+    expect(find.text('11B'), findsWidgets);
+    expect(find.text('Before'), findsNothing);
+    expect(find.text('Occupation'), findsOneWidget);
+    expect(find.text('TOTAL'), findsOneWidget);
   });
 }

@@ -146,7 +146,7 @@ class _CompareViewState extends ConsumerState<CompareView> {
           children: [
             Expanded(
               child: _Labelled(
-                label: l10n.compareBefore,
+                label: l10n.study,
                 child: studyPicker(
                   before,
                   (id) => setState(() => _before = id),
@@ -159,7 +159,7 @@ class _CompareViewState extends ConsumerState<CompareView> {
             ),
             Expanded(
               child: _Labelled(
-                label: l10n.compareAfter,
+                label: l10n.study,
                 child: studyPicker(after, (id) => setState(() => _after = id)),
               ),
             ),
@@ -171,10 +171,25 @@ class _CompareViewState extends ConsumerState<CompareView> {
         else
           switch ((a, b)) {
             (AsyncData(value: final x?), AsyncData(value: final y?)) =>
-              _Comparison(
-                before: ComparedSide.of(x, before),
-                after: ComparedSide.of(y, after),
-              ),
+              () {
+                // One window for both sides' occupation, so neither is diluted
+                // by months only the other worked.
+                final window = comparisonWindow(x, before, y, after);
+                return _Comparison(
+                  before: ComparedSide.of(
+                    x,
+                    before,
+                    window: window,
+                    untypedLabel: l10n.occupationUntyped,
+                  ),
+                  after: ComparedSide.of(
+                    y,
+                    after,
+                    window: window,
+                    untypedLabel: l10n.occupationUntyped,
+                  ),
+                );
+              }(),
             (AsyncError(:final error), _) ||
             (_, AsyncError(:final error)) => Text('$error'),
             _ => const Padding(
@@ -200,6 +215,11 @@ class _Comparison extends StatelessWidget {
     final status = FlowStatus.of(context);
     final comparison = RunComparison.between(before, after);
     final verdict = comparison.verdict;
+    // **The columns are the studies**, by name (drive, 2026-09-13): *Before*
+    // and *After* implied an order in time the two versions of a line do not
+    // have.
+    final nameBefore = before.study.name;
+    final nameAfter = after.study.name;
 
     Color? tone(bool? better) => switch (better) {
       true => status.good.ink,
@@ -266,7 +286,7 @@ class _Comparison extends StatelessWidget {
         const SizedBox(height: 24),
         // **What was different, before the figures** — the half the feature
         // exists for: *better, and here is what the two were given*.
-        Text(l10n.compareInputs, style: theme.textTheme.titleSmall),
+        Text(l10n.compareStudiesDifference, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         if (comparison.differences.isEmpty)
           Text(l10n.compareNoInputs, style: theme.textTheme.bodyMedium)
@@ -276,8 +296,8 @@ class _Comparison extends StatelessWidget {
             columns: [
               ResultColumn(label: l10n.compareInput, width: 160),
               ResultColumn(label: l10n.workcenter, width: 160),
-              ResultColumn(label: l10n.compareBefore, width: 160),
-              ResultColumn(label: l10n.compareAfter, width: 160),
+              ResultColumn(label: nameBefore, width: 180),
+              ResultColumn(label: nameAfter, width: 180),
             ],
             rowCount: comparison.differences.length,
             cellAt: (row, column) {
@@ -297,8 +317,8 @@ class _Comparison extends StatelessWidget {
           maxHeight: null,
           columns: [
             ResultColumn(label: l10n.compareInput, width: 200),
-            ResultColumn(label: l10n.compareBefore, width: 140),
-            ResultColumn(label: l10n.compareAfter, width: 140),
+            ResultColumn(label: nameBefore, width: 180),
+            ResultColumn(label: nameAfter, width: 180),
             ResultColumn(label: l10n.compareChange, width: 140),
           ],
           rowCount: comparison.deltas.length,
@@ -316,6 +336,51 @@ class _Comparison extends StatelessWidget {
                   color: tone(d.isBetter),
                   fontWeight: d.isBetter == null ? null : FontWeight.w600,
                 ),
+              ),
+            };
+          },
+        ),
+        const SizedBox(height: 24),
+        Text(l10n.compareOccupation, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        resultTable(
+          maxHeight: null,
+          columns: [
+            ResultColumn(label: l10n.occupationWorkcenterType, width: 200),
+            ResultColumn(label: nameBefore, width: 180),
+            ResultColumn(label: nameAfter, width: 180),
+            ResultColumn(label: l10n.compareChange, width: 140),
+          ],
+          rowCount: comparison.occupation.length,
+          cellAt: (row, column) {
+            final o = comparison.occupation[row];
+            final total = o.type == null;
+            final weight = total ? FontWeight.w700 : null;
+            // Over 100 % is the one reading that is a finding on its own, so it
+            // is coloured wherever it appears; the change stays neutral, since
+            // a busier plant is not better or worse without knowing why.
+            Text ratio(double? value) => Text(
+              value == null ? '—' : '${(value * 100).toStringAsFixed(0)}%',
+              style: TextStyle(
+                fontWeight: weight,
+                color: (value ?? 0) > 1 ? status.critical.ink : null,
+              ),
+            );
+            return switch (column) {
+              0 => Text(
+                o.type ?? l10n.occupationTotal,
+                style: TextStyle(fontWeight: weight),
+              ),
+              1 => ratio(o.before),
+              2 => ratio(o.after),
+              _ => Text(
+                o.delta == null
+                    ? '—'
+                    : l10n.comparePoints(
+                        '${o.delta! > 0 ? '+' : ''}'
+                        '${(o.delta! * 100).toStringAsFixed(0)}',
+                      ),
+                style: TextStyle(fontWeight: weight),
               ),
             };
           },
@@ -361,7 +426,6 @@ String _change(AppLocalizations l10n, ComparedMetric metric, double delta) {
 }
 
 String _fieldLabel(AppLocalizations l10n, InputField field) => switch (field) {
-  InputField.releaseSeconds => l10n.compareReleaseInterval,
   InputField.takt => l10n.takt,
   InputField.wipCap => l10n.studyWipCap,
   InputField.startBuffer => l10n.studyStartBuffer,
@@ -375,10 +439,6 @@ String _input(AppLocalizations l10n, InputField field, String? raw) {
     return field == InputField.wipCap ? l10n.studyWipCapUnlimited : '—';
   }
   return switch (field) {
-    InputField.releaseSeconds => formatAdaptiveDuration(
-      l10n,
-      Duration(seconds: int.tryParse(raw) ?? 0),
-    ),
     InputField.takt => () {
       final parts = raw.split(' ');
       final value = double.tryParse(parts.first);

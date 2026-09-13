@@ -2526,17 +2526,17 @@ abstract class AppLocalizations {
   /// **'Compare'**
   String get workspaceModeCompare;
 
-  /// No description provided for @compareBefore.
+  /// No description provided for @compareStudiesDifference.
   ///
   /// In en, this message translates to:
-  /// **'Before'**
-  String get compareBefore;
+  /// **'Studies Difference'**
+  String get compareStudiesDifference;
 
-  /// No description provided for @compareAfter.
+  /// No description provided for @compareOccupation.
   ///
   /// In en, this message translates to:
-  /// **'After'**
-  String get compareAfter;
+  /// **'Occupation'**
+  String get compareOccupation;
 
   /// No description provided for @compareLine.
   ///
@@ -2574,12 +2574,6 @@ abstract class AppLocalizations {
   /// **'not recorded'**
   String get compareUnstamped;
 
-  /// No description provided for @compareInputs.
-  ///
-  /// In en, this message translates to:
-  /// **'What was different'**
-  String get compareInputs;
-
   /// No description provided for @compareNoInputs.
   ///
   /// In en, this message translates to:
@@ -2603,12 +2597,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Input'**
   String get compareInput;
-
-  /// No description provided for @compareReleaseInterval.
-  ///
-  /// In en, this message translates to:
-  /// **'Release interval'**
-  String get compareReleaseInterval;
 
   /// No description provided for @compareDispatch.
   ///

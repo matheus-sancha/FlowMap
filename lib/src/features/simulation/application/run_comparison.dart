@@ -1,5 +1,6 @@
 import '../../../data/database/database.dart';
 import '../data/simulation_runs_repository.dart';
+import 'occupation_grid.dart';
 import 'run_filter.dart';
 import 'run_metrics.dart';
 
@@ -26,6 +27,7 @@ class RunComparison {
     required this.deltas,
     required this.differences,
     required this.warnings,
+    this.occupation = const [],
   });
 
   final List<MetricDelta> deltas;
@@ -36,6 +38,10 @@ class RunComparison {
   /// Reasons to read the comparison carefully rather than refusals.
   final List<ComparisonWarning> warnings;
 
+  /// Occupation per workcenter type, the total first — one row per type
+  /// either side used, so a type only one study touches still shows.
+  final List<OccupationDelta> occupation;
+
   /// On-time delivery, which the run's headline and §13's report lead with.
   MetricDelta? get verdict => deltas
       .where((d) => d.metric == ComparedMetric.onTimeDelivery)
@@ -45,6 +51,7 @@ class RunComparison {
       RunComparison(
         deltas: _deltas(before.metrics, after.metrics),
         differences: _differences(before, after),
+        occupation: _occupation(before, after),
         warnings: [
           // **Provenance.** #19 changed what a run means with no migration, so
           // the build is the only thing that separates two runs at one schema
@@ -117,7 +124,9 @@ class RunComparison {
 
     final x = a.study;
     final y = b.study;
-    diff(InputField.releaseSeconds, x.releaseSeconds, y.releaseSeconds);
+    // **No release interval** (drive, 2026-09-13). It is derived from the takt
+    // and the pace setter's calendar rather than chosen, so it showed as a
+    // second, less readable row for a difference already on the takt row.
     // Value *and* unit: `4 days` and `4 hours` are the same number.
     diff(
       InputField.takt,
@@ -148,6 +157,76 @@ class RunComparison {
     }
     return out;
   }
+
+  static List<OccupationDelta> _occupation(ComparedSide a, ComparedSide b) {
+    final names = <String>{
+      ...a.occupationByType.keys,
+      ...b.occupationByType.keys,
+    }.toList()..sort();
+    return [
+      OccupationDelta(
+        type: null,
+        before: a.occupationTotal,
+        after: b.occupationTotal,
+      ),
+      for (final name in names)
+        OccupationDelta(
+          type: name,
+          before: a.occupationByType[name],
+          after: b.occupationByType[name],
+        ),
+    ];
+  }
+}
+
+/// One row of the occupation table: a workcenter type, or the total when
+/// [type] is null. Ratios, 1.0 is full.
+class OccupationDelta {
+  const OccupationDelta({
+    required this.type,
+    required this.before,
+    required this.after,
+  });
+
+  final String? type;
+  final double? before;
+  final double? after;
+
+  double? get delta =>
+      before == null || after == null ? null : after! - before!;
+}
+
+/// The months both sides of a comparison are measured over: from the earlier
+/// first release to the later last delivery of the two studies.
+///
+/// **One window for both**, so neither ratio is diluted by months the other
+/// did not work: the live schedules run three years around fifteen months of
+/// work (#31), and an occupation averaged over the idle ones is not the one a
+/// planner reads. Null when neither study delivered anything, which measures
+/// the whole span.
+({DateTime from, DateTime to})? comparisonWindow(
+  StoredRun a,
+  String studyA,
+  StoredRun b,
+  String studyB,
+) {
+  DateTime? first;
+  DateTime? last;
+  for (final (run, studyId) in [(a, studyA), (b, studyB)]) {
+    for (final order in run.result.orders) {
+      if (order.studyId != studyId) continue;
+      final released = order.released;
+      final delivered = order.delivered;
+      if (released == null || delivered == null) continue;
+      if (first == null || released.isBefore(first)) first = released;
+      if (last == null || delivered.isAfter(last)) last = delivered;
+    }
+  }
+  if (first == null || last == null) return null;
+  return (
+    from: DateTime(first.year, first.month),
+    to: DateTime(last.year, last.month + 1, 0, 23, 59, 59),
+  );
 }
 
 /// One study, as one run left it: its slice's figures and its input snapshot.
@@ -158,29 +237,65 @@ class ComparedSide {
     required this.queues,
     required this.appVersion,
     required this.runAt,
+    this.occupationTotal,
+    this.occupationByType = const {},
   });
 
   /// The study's side of [run], through the same filter the results screen
   /// uses, so the figures here and the study's own results cannot disagree.
-  factory ComparedSide.of(StoredRun run, String studyId) => ComparedSide(
-    study: run.studies.firstWhere((s) => s.studyId == studyId),
-    metrics: filterRun(run, RunFilter.study(studyId)).metrics,
-    queues: run.queues,
-    appVersion: run.appVersion,
-    runAt: run.createdAt,
-  );
+  ///
+  /// **Occupation is the Occupation grid's, grouped by type**, over [window]:
+  /// the workcenters this study used, carrying *everyone's* demand in that run
+  /// over their capacity — a filter chooses what you look at and never shrinks
+  /// what a machine was asked for (§10.3). So it answers *how loaded was the
+  /// plant this study ran in*, which is the question a second version of a line
+  /// changes.
+  factory ComparedSide.of(
+    StoredRun run,
+    String studyId, {
+    ({DateTime from, DateTime to})? window,
+    String untypedLabel = 'Untyped',
+  }) {
+    final grid = occupationGrid(
+      run: run,
+      filter: RunFilter(
+        studyIds: {studyId},
+        from: window?.from,
+        to: window?.to,
+      ),
+      grouping: OccupationGrouping.type,
+      untypedLabel: untypedLabel,
+    );
+    return ComparedSide(
+      study: run.studies.firstWhere((s) => s.studyId == studyId),
+      metrics: filterRun(run, RunFilter.study(studyId)).metrics,
+      queues: run.queues,
+      appVersion: run.appVersion,
+      runAt: run.createdAt,
+      occupationTotal: grid?.total.total.ratio,
+      occupationByType: {
+        for (final row in grid?.rows ?? const <OccupationRow>[])
+          row.name: row.total.ratio,
+      },
+    );
+  }
 
   final SimulationRunStudy study;
   final RunMetrics metrics;
   final RunQueues queues;
   final String? appVersion;
   final DateTime runAt;
+
+  /// Demand over capacity across the window, or null on a run with no monthly
+  /// capacity (before v25).
+  final double? occupationTotal;
+  final Map<String, double?> occupationByType;
 }
 
 enum ComparedMetric { onTimeDelivery, leadTime, float, lateOrders, emptySlots }
 
 /// What a difference is in. [dispatch] names its workcenter.
-enum InputField { releaseSeconds, takt, wipCap, startBuffer, dispatch }
+enum InputField { takt, wipCap, startBuffer, dispatch }
 
 enum ComparisonWarning { differentBuilds }
 

@@ -2582,8 +2582,19 @@ flag the copy, simulate). Each side is **the study's slice of its run** through 
 the whole run: at most one study per line is flagged, so the two are always in different runs, and
 each run also carries every other line's orders. Top to bottom: cell and line, the two studies, **the
 verdict** (on-time delivery over all orders, as the headline counts it), a warning if the builds
-differ, **what was different** (release interval, takt with its unit, WIP cap, start buffer, each
-workcenter's dispatch rule), and **the figures**, coloured by *better* rather than *larger*.
+differ, **Studies Difference** (takt with its unit, WIP cap, start buffer, each workcenter's dispatch
+rule — not the release interval, which is derived from the takt and only repeated it), **the
+figures**, coloured by *better* rather than *larger*, and **occupation, total and per workcenter
+type**. Every table is headed by the two study names, not *Before* and *After*, which implied an
+order in time that two versions of a line do not have.
+
+**Occupation is the Occupation grid's rule, over one window for both.** Each side is the grid grouped
+by type and narrowed to the workcenters its study used, so a machine still carries *everyone's*
+demand in that run over its capacity (§10.3): it answers *how loaded was the plant this version ran
+in*. Both sides are measured from the earlier first release to the later last delivery of the two
+studies, so neither is diluted by months only the other worked. On the live plant, 11B against its
+copy reads 58.4 % → 58.5 % in total: one line's change is small against three lines' load, which is
+the true answer rather than a quiet table.
 
 **A run is named by its studies and when it was made**, `Célula 11B · 13/09/2026 15:30`, in the runs
 menu and in Compare alike. It was the date, the dispatch rule and the takt, so every live run read
