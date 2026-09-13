@@ -55,13 +55,6 @@ class DocumentsScreen extends ConsumerWidget {
                     : l10n.documentsIsOpen(session.projectName),
                 style: theme.textTheme.headlineSmall,
               ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.documentsIntro,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
               const SizedBox(height: 24),
               Wrap(
                 spacing: 12,

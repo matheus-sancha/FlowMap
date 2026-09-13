@@ -1,4 +1,6 @@
 import '../../documents/application/templates_providers.dart';
+import '../../documents/data/documents_directory.dart';
+import '../../../data/database/database_providers.dart';
 import '../../documents/presentation/document_menu.dart';
 import '../../documents/presentation/templates_screen.dart';
 import 'package:flutter/material.dart';
@@ -639,15 +641,26 @@ class _StudyTile extends ConsumerWidget {
               final includeDemand = await askIncludeDemand(context);
               if (includeDemand == null || !context.mounted) return;
               final messenger = ScaffoldMessenger.of(context);
-              await ref.read(
-                saveStudyAsTemplateProvider(
+              final container = ProviderScope.containerOf(
+                context,
+                listen: false,
+              );
+              try {
+                await saveStudyAsTemplate(
+                  ref.read(appDatabaseProvider),
+                  await templatesDirectory(),
                   studyId: study.id,
                   includeDemand: includeDemand,
-                ).future,
-              );
-              messenger.showSnackBar(
-                SnackBar(content: Text(l10n.templatesSaved)),
-              );
+                );
+                refreshTemplateShelf(container);
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.templatesSaved)),
+                );
+              } catch (_) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.templatesSaveFailed)),
+                );
+              }
             case 'delete':
               if (!context.mounted) return;
               final confirmed = await confirmAction(

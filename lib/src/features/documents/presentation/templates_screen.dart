@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../data/database/database_providers.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/documents_providers.dart';
 import '../application/templates_providers.dart';
@@ -117,8 +118,11 @@ class TemplatesScreen extends ConsumerWidget {
     final session = ref.read(openDocumentProvider);
 
     try {
-      final result = await ref.read(
-        applyTemplateProvider(file: template.file).future,
+      if (session == null) return;
+      final result = await applyTemplate(
+        ref.read(appDatabaseProvider),
+        projectId: session.projectId,
+        file: template.file,
       );
 
       // The report is the screen §10.2 described: what matched and what was
@@ -132,9 +136,7 @@ class TemplatesScreen extends ConsumerWidget {
           ),
         ),
       );
-      if (session != null) {
-        router.go('/projects/${session.projectId}/studies/${result.studyId}');
-      }
+      router.go('/projects/${session.projectId}/studies/${result.studyId}');
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text('$error')));
     }

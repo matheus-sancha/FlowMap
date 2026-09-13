@@ -202,7 +202,7 @@ final class OpenDocumentProvider
   }
 }
 
-String _$openDocumentHash() => r'c1ae5c5872125a536f597fe32709bd9e06787d0d';
+String _$openDocumentHash() => r'd6281fb08908512f6782e5265d849c5283d32cda';
 
 /// The document that is open, or null when the app is showing the start screen.
 ///

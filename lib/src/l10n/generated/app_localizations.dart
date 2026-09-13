@@ -3651,12 +3651,6 @@ abstract class AppLocalizations {
   /// **'No project open.'**
   String get documentsNone;
 
-  /// No description provided for @documentsIntro.
-  ///
-  /// In en, this message translates to:
-  /// **'Open a project file, or create one. Each project is a single file you can keep anywhere — your PC, a shared drive, OneDrive — and hand to a colleague.'**
-  String get documentsIntro;
-
   /// No description provided for @documentsOpen.
   ///
   /// In en, this message translates to:
@@ -3860,6 +3854,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved as a template'**
   String get templatesSaved;
+
+  /// No description provided for @templatesSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The template could not be saved'**
+  String get templatesSaveFailed;
 
   /// No description provided for @templatesApply.
   ///

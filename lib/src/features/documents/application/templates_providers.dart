@@ -1,15 +1,13 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show GeneratedDatabase, Variable;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../data/database/database_providers.dart';
 import '../data/document_store.dart';
 import '../data/documents_directory.dart';
 import '../data/flow_template.dart';
 import '../data/flowmap_document.dart';
 import '../data/template_binding.dart';
-import 'documents_providers.dart';
 
 part 'templates_providers.g.dart';
 
@@ -28,8 +26,11 @@ class TemplateOnDisk {
 /// in step. That is the same reason the recent-documents list is a convenience
 /// and never a record.
 @riverpod
-Future<List<TemplateOnDisk>> templates(Ref ref) async {
-  final dir = await templatesDirectory();
+Future<List<TemplateOnDisk>> templates(Ref ref) async =>
+    readTemplateShelf(await templatesDirectory());
+
+/// Every readable template in [dir], by study name.
+Future<List<TemplateOnDisk>> readTemplateShelf(Directory dir) async {
   if (!dir.existsSync()) return const [];
 
   final found = <TemplateOnDisk>[];
@@ -58,20 +59,26 @@ Future<List<TemplateOnDisk>> templates(Ref ref) async {
   return found;
 }
 
-/// Saves one study from the open document as a template.
-@riverpod
+/// Saves one study from the open document as a template in [dir].
+///
+/// **A function, not a provider** (field report, 2026-09-13). It was an
+/// auto-disposing `FutureProvider` read once for its side effect, so by the
+/// time the file was written nothing was listening and the provider had been
+/// disposed: refreshing the shelf through its `ref` threw, the Templates screen
+/// kept the list it already had, and the saved template never appeared. The
+/// caller refreshes the shelf instead — see [refreshTemplateShelf].
 Future<File> saveStudyAsTemplate(
-  Ref ref, {
+  GeneratedDatabase db,
+  Directory dir, {
   required String studyId,
   required bool includeDemand,
 }) async {
   final template = await FlowTemplate.fromDatabase(
-    ref.read(appDatabaseProvider),
+    db,
     studyId: studyId,
     includeDemand: includeDemand,
   );
 
-  final dir = await templatesDirectory();
   await dir.create(recursive: true);
 
   // Named for the study, and never over something already there — the same
@@ -90,30 +97,33 @@ Future<File> saveStudyAsTemplate(
 
   final file = File('${dir.path}${Platform.pathSeparator}$name');
   await DocumentStore.writeAtomically(file, template.write());
-  ref.invalidate(templatesProvider);
   return file;
 }
 
-/// Applies a template to the project that is open.
+/// Tells the Templates screen to read its folder again.
 ///
-/// Throws when nothing is open: a template has nowhere to land without a plant
-/// to bind against, which is why the screen disables Apply rather than letting
-/// it fail here.
-@riverpod
-Future<BindingResult> applyTemplate(Ref ref, {required File file}) async {
-  final session = ref.read(openDocumentProvider);
-  if (session == null) {
-    throw StateError('no document is open, so a template has nothing to bind to');
-  }
+/// Through the container rather than a widget's `ref`, which is gone if the
+/// widget that started a save has left the screen by the time it finishes.
+void refreshTemplateShelf(ProviderContainer container) =>
+    container.invalidate(templatesProvider);
 
-  final db = ref.read(appDatabaseProvider);
+/// Applies the template in [file] to the project [projectId] in [db].
+///
+/// **A function, not a provider**, for the reason [saveStudyAsTemplate] gives —
+/// and one more: a provider keyed by the file hands back its cached result, so
+/// applying the same template twice could quietly apply it once.
+Future<BindingResult> applyTemplate(
+  GeneratedDatabase db, {
+  required String projectId,
+  required File file,
+}) async {
   // **The project's plant, not the document's first one.** A document may
   // hold several plants (phase 8), and a template lands on the one the
   // project simulates.
   final plant = await db
       .customSelect(
         'SELECT plant_id AS id FROM projects WHERE id = ?',
-        variables: [Variable<String>(session.projectId)],
+        variables: [Variable<String>(projectId)],
       )
       .getSingleOrNull();
   if (plant == null) {
@@ -130,7 +140,7 @@ Future<BindingResult> applyTemplate(Ref ref, {required File file}) async {
 
   return TemplateBinding(db).apply(
     template,
-    projectId: session.projectId,
+    projectId: projectId,
     plantId: plant.data['id']! as String,
   );
 }

@@ -2077,10 +2077,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get documentsNone => 'Ningún proyecto abierto.';
 
   @override
-  String get documentsIntro =>
-      'Abre un archivo de proyecto o crea uno. Cada proyecto es un único archivo que puedes guardar donde quieras — tu PC, una unidad compartida, OneDrive — y enviar a un compañero.';
-
-  @override
   String get documentsOpen => 'Abrir…';
 
   @override
@@ -2201,6 +2197,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get templatesSaved => 'Guardado como plantilla';
+
+  @override
+  String get templatesSaveFailed => 'No se pudo guardar la plantilla';
 
   @override
   String get templatesApply => 'Aplicar a este proyecto';
