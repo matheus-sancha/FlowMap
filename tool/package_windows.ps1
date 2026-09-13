@@ -33,7 +33,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$Label,
 
-  # The git tag this drop is recorded under. Defaults to v<label up to the first dash>.
+  # The git tag this drop is recorded under. Defaults to v<label up to the first dash>.0.
   [string]$Tag,
 
   [switch]$SkipBuild,
@@ -50,7 +50,13 @@ if (-not (Test-Path 'pubspec.yaml')) {
 if ($Label -notmatch '^[0-9A-Za-z][0-9A-Za-z.\-]*$') {
   throw "Label '$Label' must be letters, digits, dots and dashes, e.g. 2.1-2026-09-13."
 }
-if (-not $Tag) { $Tag = 'v' + ($Label -split '-')[0] }
+if (-not $Tag) { $Tag = 'v' + ($Label -split '-')[0] + '.0' }
+
+# A tag named like a branch makes every ref that names it ambiguous: work for
+# v2.1 happens on a branch called v2.1, so the drop is tagged v2.1.0.
+if (git branch --list $Tag) {
+  throw "Tag $Tag would share its name with a branch. Pass -Tag with a different name."
+}
 
 # 1. Refusals, each with its remedy.
 if (-not $AllowExistingTag) {
