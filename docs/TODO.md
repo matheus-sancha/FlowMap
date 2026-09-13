@@ -134,6 +134,12 @@ conversion of real data, which happens once and cannot be watched twice; and **s
 document on a shared drive opened by someone else, including the crash that must leave a lock
 healing itself rather than blocking the file.
 
+**Decided during phase 2 and owed after the drive: the app reopens the last document on launch**
+when it still exists and nobody holds the lock, falling back to the start screen otherwise. Not
+built, deliberately — it changes what four of the drive's restart checks show, and the mechanism is
+worth seeing before a convenience is laid over it. *The cost was stated and accepted*: launching the
+app then takes a lock on a shared document without anyone asking for it.
+
 ### Phase 3 — Templates and Save As
 
 Templates from [#25](https://github.com/matheus-sancha/FlowMap/issues/25) — a folder of `.flowmap`
