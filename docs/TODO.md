@@ -46,7 +46,7 @@ Unchanged from v2.0, and worth restating because the audience changed:
 |---|---|---|---|---|
 | 1 | Safety and the stamp | **v31** | [#28](https://github.com/matheus-sancha/FlowMap/issues/28), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) | **built** |
 | 2 | The document | **v32** | [#37](https://github.com/matheus-sancha/FlowMap/issues/37), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) | **built**, drive abandoned |
-| 3 | Templates and Save As | — | **built** | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
+| 3 | Templates and Save As | — | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) | **built** |
 | 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) | |
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) | |
 | 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) | |
