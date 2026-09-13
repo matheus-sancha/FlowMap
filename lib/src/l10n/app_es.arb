@@ -1008,7 +1008,6 @@
   "documentsConverted": "Tu trabajo existente ahora es un archivo de proyecto.",
   "documentsOpenFailed": "No se pudo abrir este archivo",
   "documentsCurrentUnsaved": "No se pudo guardar el proyecto abierto, así que sigue abierto y no se abrió nada más. Comprueba que su carpeta esté accesible e inténtalo de nuevo.",
-  "documentsDefaultPlant": "Planta",
   "resourcesNeedDocument": "Abre un proyecto para ver su planta",
   "resourcesNeedDocumentHelp": "Los centros de trabajo, células, líneas y patrones de turno pertenecen a un proyecto y viajan dentro de su archivo.",
   "resourcesNoWorkcenters": "Añade tu primer centro de trabajo",

@@ -18,8 +18,8 @@ import 'document_store.dart';
 /// **One plant is invented, because the schema requires it.** `projects` has a
 /// non-null `plant_id` and a non-null `shift_pattern_id`, so a document that
 /// held a project with neither could not exist. The pattern comes from the
-/// seed; the plant is the one row with nowhere else to come from, and it is
-/// named for the project so the first thing the user sees is a word they chose.
+/// seed; the plant is the one row with nowhere else to come from, and its name
+/// is asked of the user, so the first thing they see is a word they chose.
 class NewDocument {
   const NewDocument(this._db);
 

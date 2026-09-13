@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../common/dialogs.dart';
 import '../../../app/drop_files.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/documents_providers.dart';
@@ -162,6 +163,17 @@ class DocumentsScreen extends ConsumerWidget {
 
     var path = location.path;
     if (!path.toLowerCase().endsWith('.flowmap')) path = '$path.flowmap';
+
+    // **The plant is named by the person, never by the app** (field report,
+    // 2026-09-13): it was `Plant` in every new document, a word nobody chose.
+    // Asked after the file because the project's name comes from the file, and
+    // cancelling here writes nothing.
+    final plantName = await promptForName(
+      context,
+      title: l10n.plantNew,
+      label: l10n.fieldName,
+    );
+    if (plantName == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
 
     try {
@@ -173,7 +185,7 @@ class DocumentsScreen extends ConsumerWidget {
           .create(
             path,
             projectName: NewDocument.projectNameFor(path),
-            plantName: l10n.documentsDefaultPlant,
+            plantName: plantName,
             user: _user(),
             machine: Platform.localHostname,
           );

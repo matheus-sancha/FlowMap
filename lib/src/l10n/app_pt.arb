@@ -1008,7 +1008,6 @@
   "documentsConverted": "O seu trabalho existente é agora um ficheiro de projeto.",
   "documentsOpenFailed": "Não foi possível abrir este ficheiro",
   "documentsCurrentUnsaved": "Não foi possível guardar o projeto aberto, por isso continua aberto e nada mais foi aberto. Verifique se a pasta está acessível e tente novamente.",
-  "documentsDefaultPlant": "Fábrica",
   "resourcesNeedDocument": "Abra um projeto para ver a sua fábrica",
   "resourcesNeedDocumentHelp": "Os centros de trabalho, células, linhas e padrões de turno pertencem a um projeto e viajam dentro do seu ficheiro.",
   "resourcesNoWorkcenters": "Adicione o seu primeiro centro de trabalho",

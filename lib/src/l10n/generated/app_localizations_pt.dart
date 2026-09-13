@@ -2154,9 +2154,6 @@ class AppLocalizationsPt extends AppLocalizations {
       'Não foi possível guardar o projeto aberto, por isso continua aberto e nada mais foi aberto. Verifique se a pasta está acessível e tente novamente.';
 
   @override
-  String get documentsDefaultPlant => 'Fábrica';
-
-  @override
   String get resourcesNeedDocument => 'Abra um projeto para ver a sua fábrica';
 
   @override

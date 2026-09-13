@@ -2153,9 +2153,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se pudo guardar el proyecto abierto, así que sigue abierto y no se abrió nada más. Comprueba que su carpeta esté accesible e inténtalo de nuevo.';
 
   @override
-  String get documentsDefaultPlant => 'Planta';
-
-  @override
   String get resourcesNeedDocument => 'Abre un proyecto para ver su planta';
 
   @override

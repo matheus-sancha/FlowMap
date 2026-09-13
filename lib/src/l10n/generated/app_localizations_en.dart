@@ -2132,9 +2132,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The project that is open could not be saved, so it was kept open and nothing else was opened. Check that its folder is reachable, then try again.';
 
   @override
-  String get documentsDefaultPlant => 'Plant';
-
-  @override
   String get resourcesNeedDocument => 'Open a project to see its plant';
 
   @override

@@ -3777,12 +3777,6 @@ abstract class AppLocalizations {
   /// **'The project that is open could not be saved, so it was kept open and nothing else was opened. Check that its folder is reachable, then try again.'**
   String get documentsCurrentUnsaved;
 
-  /// No description provided for @documentsDefaultPlant.
-  ///
-  /// In en, this message translates to:
-  /// **'Plant'**
-  String get documentsDefaultPlant;
-
   /// No description provided for @resourcesNeedDocument.
   ///
   /// In en, this message translates to:
