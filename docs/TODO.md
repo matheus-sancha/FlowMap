@@ -128,9 +128,11 @@ machine cannot see, or may have been deleted by someone else.
 **Read #37 before starting.** It rejects the two options that look cheapest — a live SQLite the app
 opens directly, and an explicit Save — and the reasons are not obvious from the code.
 
-**Evidence owed: a drive sheet**, and it must include the two things only a person can see: a
-document opened from a **network or synced folder**, and a second machine opening a document the
-first still holds.
+**Evidence owed: a drive sheet** — written as `docs/DRIVE-2026-09-13.md`, **27 checks, unwalked**.
+Its two load-bearing sections are the ones only a person can reach: **section 1**, the one-way
+conversion of real data, which happens once and cannot be watched twice; and **section 5**, a
+document on a shared drive opened by someone else, including the crash that must leave a lock
+healing itself rather than blocking the file.
 
 ### Phase 3 — Templates and Save As
 
