@@ -2135,4 +2135,40 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get navAbout => 'Acerca de';
+
+  @override
+  String get aboutBuild => 'Versão';
+
+  @override
+  String get aboutCopy => 'Copiar';
+
+  @override
+  String get aboutUnstamped =>
+      'Esta versão foi empacotada sem etiqueta, pelo que as suas exportações não podem ser associadas a uma publicação.';
+
+  @override
+  String get aboutYourWork => 'Os seus projetos';
+
+  @override
+  String get aboutYourWorkHelp =>
+      'Onde os projetos e modelos novos são guardados por omissão. Pode guardá-los onde quiser.';
+
+  @override
+  String get aboutAppData => 'Ficheiros do próprio FlowMap';
+
+  @override
+  String get aboutAppDataHelp =>
+      'Definições, o registo de diagnóstico e os resultados de simulação. Os seus projetos não estão aqui.';
+
+  @override
+  String get aboutDiagnostics => 'Diagnóstico';
+
+  @override
+  String get aboutOpenFolder => 'Abrir pasta';
+
+  @override
+  String get aboutOpenLog => 'Abrir registo';
 }

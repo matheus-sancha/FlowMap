@@ -7,12 +7,18 @@ import 'package:window_manager/window_manager.dart';
 
 import 'src/app/app.dart';
 import 'src/app/window_geometry.dart';
+import 'package:flutter/foundation.dart';
+
+import 'src/app/build_info.dart';
 import 'src/app/window_geometry_observer.dart';
 import 'src/features/diagnostics/application/diagnostics.dart';
 
 /// Wiring only, and the order is load-bearing.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before anything else: a release build that cannot say which build it is
+  // must not reach a machine nobody can inspect (#32).
+  assertBuildIsStamped(isReleaseMode: kReleaseMode);
   // Loads intl's date symbols for every locale up front. PDF and Excel exports
   // format dates outside the widget tree (DESIGN.md §13), so we cannot rely on
   // the symbols flutter_localizations lazily loads for the active one.

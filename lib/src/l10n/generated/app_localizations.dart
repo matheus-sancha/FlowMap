@@ -3734,6 +3734,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 step} other{{count} steps}}'**
   String templatesStepCount(int count);
+
+  /// No description provided for @navAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get navAbout;
+
+  /// No description provided for @aboutBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Build'**
+  String get aboutBuild;
+
+  /// No description provided for @aboutCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get aboutCopy;
+
+  /// No description provided for @aboutUnstamped.
+  ///
+  /// In en, this message translates to:
+  /// **'This build was packaged without a version label, so exports from it cannot be traced back to a release.'**
+  String get aboutUnstamped;
+
+  /// No description provided for @aboutYourWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Your projects'**
+  String get aboutYourWork;
+
+  /// No description provided for @aboutYourWorkHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Where new projects and templates are saved by default. You can keep them anywhere.'**
+  String get aboutYourWorkHelp;
+
+  /// No description provided for @aboutAppData.
+  ///
+  /// In en, this message translates to:
+  /// **'FlowMap’s own files'**
+  String get aboutAppData;
+
+  /// No description provided for @aboutAppDataHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings, the diagnostics log, and simulation results. Your projects are not here.'**
+  String get aboutAppDataHelp;
+
+  /// No description provided for @aboutDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get aboutDiagnostics;
+
+  /// No description provided for @aboutOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get aboutOpenFolder;
+
+  /// No description provided for @aboutOpenLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Open log'**
+  String get aboutOpenLog;
 }
 
 class _AppLocalizationsDelegate

@@ -1000,5 +1000,16 @@
   "templatesDelete": "Eliminar plantilla",
   "templatesWithDemand": "con demanda",
   "templatesNoDemand": "solo flujo",
-  "templatesStepCount": "{count, plural, =1{1 paso} other{{count} pasos}}"
+  "templatesStepCount": "{count, plural, =1{1 paso} other{{count} pasos}}",
+  "navAbout": "Acerca de",
+  "aboutBuild": "Versión",
+  "aboutCopy": "Copiar",
+  "aboutUnstamped": "Esta versión se empaquetó sin etiqueta, por lo que sus exportaciones no pueden rastrearse hasta una publicación.",
+  "aboutYourWork": "Tus proyectos",
+  "aboutYourWorkHelp": "Donde se guardan por defecto los proyectos y plantillas nuevos. Puedes guardarlos donde quieras.",
+  "aboutAppData": "Archivos propios de FlowMap",
+  "aboutAppDataHelp": "Ajustes, el registro de diagnóstico y los resultados de simulación. Tus proyectos no están aquí.",
+  "aboutDiagnostics": "Diagnóstico",
+  "aboutOpenFolder": "Abrir carpeta",
+  "aboutOpenLog": "Abrir registro"
 }

@@ -42,6 +42,8 @@ class AppShell extends ConsumerWidget {
         disabledTooltip: l10n.resourcesNeedDocument,
       ),
       _Destination(Icons.settings_outlined, Icons.settings, l10n.navSettings),
+      // §12 reserved this slot and it was never filled (#32).
+      _Destination(Icons.info_outline, Icons.info, l10n.navAbout),
     ];
 
     return Scaffold(

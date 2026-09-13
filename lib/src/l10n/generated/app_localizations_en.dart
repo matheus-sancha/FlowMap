@@ -2113,4 +2113,40 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get navAbout => 'About';
+
+  @override
+  String get aboutBuild => 'Build';
+
+  @override
+  String get aboutCopy => 'Copy';
+
+  @override
+  String get aboutUnstamped =>
+      'This build was packaged without a version label, so exports from it cannot be traced back to a release.';
+
+  @override
+  String get aboutYourWork => 'Your projects';
+
+  @override
+  String get aboutYourWorkHelp =>
+      'Where new projects and templates are saved by default. You can keep them anywhere.';
+
+  @override
+  String get aboutAppData => 'FlowMap’s own files';
+
+  @override
+  String get aboutAppDataHelp =>
+      'Settings, the diagnostics log, and simulation results. Your projects are not here.';
+
+  @override
+  String get aboutDiagnostics => 'Diagnostics';
+
+  @override
+  String get aboutOpenFolder => 'Open folder';
+
+  @override
+  String get aboutOpenLog => 'Open log';
 }

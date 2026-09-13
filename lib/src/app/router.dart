@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../features/diagnostics/application/diagnostics.dart';
 import '../features/projects/presentation/project_workspace_screen.dart';
 import '../features/projects/presentation/workspace_tabs.dart';
+import '../features/about/presentation/about_screen.dart';
 import '../features/documents/presentation/documents_screen.dart';
 import '../features/documents/presentation/templates_screen.dart';
 import '../features/resources/presentation/resources_screen.dart';
@@ -184,6 +185,14 @@ GoRouter router(Ref ref) {
               GoRoute(
                 path: '/settings',
                 builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/about',
+                builder: (context, state) => const AboutScreen(),
               ),
             ],
           ),

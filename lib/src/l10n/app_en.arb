@@ -1190,5 +1190,16 @@
         "type": "int"
       }
     }
-  }
+  },
+  "navAbout": "About",
+  "aboutBuild": "Build",
+  "aboutCopy": "Copy",
+  "aboutUnstamped": "This build was packaged without a version label, so exports from it cannot be traced back to a release.",
+  "aboutYourWork": "Your projects",
+  "aboutYourWorkHelp": "Where new projects and templates are saved by default. You can keep them anywhere.",
+  "aboutAppData": "FlowMap’s own files",
+  "aboutAppDataHelp": "Settings, the diagnostics log, and simulation results. Your projects are not here.",
+  "aboutDiagnostics": "Diagnostics",
+  "aboutOpenFolder": "Open folder",
+  "aboutOpenLog": "Open log"
 }

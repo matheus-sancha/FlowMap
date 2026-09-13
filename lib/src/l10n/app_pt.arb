@@ -1000,5 +1000,16 @@
   "templatesDelete": "Eliminar modelo",
   "templatesWithDemand": "com procura",
   "templatesNoDemand": "apenas fluxo",
-  "templatesStepCount": "{count, plural, =1{1 passo} other{{count} passos}}"
+  "templatesStepCount": "{count, plural, =1{1 passo} other{{count} passos}}",
+  "navAbout": "Acerca de",
+  "aboutBuild": "Versão",
+  "aboutCopy": "Copiar",
+  "aboutUnstamped": "Esta versão foi empacotada sem etiqueta, pelo que as suas exportações não podem ser associadas a uma publicação.",
+  "aboutYourWork": "Os seus projetos",
+  "aboutYourWorkHelp": "Onde os projetos e modelos novos são guardados por omissão. Pode guardá-los onde quiser.",
+  "aboutAppData": "Ficheiros do próprio FlowMap",
+  "aboutAppDataHelp": "Definições, o registo de diagnóstico e os resultados de simulação. Os seus projetos não estão aqui.",
+  "aboutDiagnostics": "Diagnóstico",
+  "aboutOpenFolder": "Abrir pasta",
+  "aboutOpenLog": "Abrir registo"
 }
