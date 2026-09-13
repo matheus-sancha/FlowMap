@@ -91,7 +91,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// The one place the number lives, so [_openOnDevice] can ask what a
   /// migration would be *to* before there is an instance to ask.
-  static const int _schemaVersion = 31;
+  static const int _schemaVersion = 32;
 
   @override
   int get schemaVersion => _schemaVersion;
@@ -1244,6 +1244,42 @@ class AppDatabase extends _$AppDatabase {
         // **No stored run is touched**, which is also what makes this the first
         // migration since v2.0 opened that puts nothing at risk.
         await _ensureColumn(m, simulationRuns, simulationRuns.appVersion);
+      }
+
+      if (from < 32) {
+        // **A run belongs to a document, not to a project row** (#37).
+        //
+        // `project_id` referenced `projects` with `onDelete: cascade`, which
+        // was right while the database owned the projects. Under the document
+        // model the working tables are emptied and refilled on every open, so
+        // that cascade would delete every stored run the first time someone
+        // opened a second document — the exact opposite of what the decision
+        // says runs are for.
+        //
+        // The value does not change: a document's identity *is* its project
+        // id, and it travels inside the file. Only the name and the foreign
+        // key do. **A rebuild, reluctantly**, against this file's own rule that
+        // a column is kept rather than dropped for tidiness (§16.11) — this is
+        // not tidiness, it is a cascade the app would otherwise have to evade
+        // on every load.
+        //
+        // **The transformer is not optional** (§16.13, §16.15): `TableMigration`
+        // copies column by column from the *current* Dart definition, so
+        // `document_id` has to be named here or the copy reaches for a column
+        // the old table does not have. `app_version` needs no line — v31 added
+        // it above, so it exists by the time this runs.
+        if (await _hasColumn('simulation_runs', 'project_id')) {
+          await m.alterTable(
+            TableMigration(
+              simulationRuns,
+              columnTransformer: {
+                simulationRuns.documentId: const CustomExpression<String>(
+                  'project_id',
+                ),
+              },
+            ),
+          );
+        }
       }
 
       // Reference-data seeding runs outside every version guard, on every

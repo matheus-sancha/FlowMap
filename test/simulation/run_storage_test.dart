@@ -940,7 +940,16 @@ void main() {
     expect(header.dispatch, isEmpty);
   });
 
-  test('deleting the project takes its runs with it', () async {
+  test('a run outlives the project row it was made from (v32, #37)', () async {
+    // **This test used to assert the opposite**, and it was right to: while the
+    // database owned the projects, deleting one should take its runs.
+    //
+    // A project is a document now. The working tables are emptied and refilled
+    // every time one is opened, so a cascade from `projects` would have deleted
+    // every stored run on the first switch — the precise opposite of runs
+    // staying on the machine that made them. A run belongs to a document id,
+    // which has no row to hang off and may name a file this machine cannot
+    // currently see.
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
@@ -952,11 +961,19 @@ void main() {
 
     await (db.delete(db.projects)..where((p) => p.id.equals(projectId))).go();
 
-    expect(await runs.loadRun(runId), isNull);
-    // And the children went with the header rather than being orphaned.
+    final survivor = await runs.loadRun(runId);
+    expect(survivor, isNotNull, reason: 'the run went with the project row');
+    // And every child is still hanging off the header, which still cascades
+    // from `simulation_runs` — that relationship was never the problem.
+    expect(await db.select(db.simulationRunSteps).get(), isNotEmpty);
+    expect(await db.select(db.simulationRunOrders).get(), isNotEmpty);
+    expect(await db.select(db.simulationRunWorkcenters).get(), isNotEmpty);
+
+    // Deleting the run itself still takes them, so the cascade that remains is
+    // the one that was always right.
+    await (db.delete(db.simulationRuns)..where((r) => r.id.equals(runId))).go();
     expect(await db.select(db.simulationRunSteps).get(), isEmpty);
     expect(await db.select(db.simulationRunOrders).get(), isEmpty);
-    expect(await db.select(db.simulationRunWorkcenters).get(), isEmpty);
   });
 
   test('watchRuns lists a project newest first', () async {

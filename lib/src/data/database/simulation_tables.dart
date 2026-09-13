@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 
-import 'project_tables.dart';
 
 // What a run stores (DESIGN.md §7.10): a header, the frozen input snapshot,
 // one row per order-step, the per-order outcomes, the slots that went out
@@ -11,8 +10,13 @@ import 'project_tables.dart';
 // point of a stored run: it has to stay readable after the resources beneath it
 // change or go away (§3). A cascade from `studies` would delete the evidence
 // exactly when someone re-scoped a study to find out why last month's run said
-// what it said. The one cascade that is right is from the project, which owns
-// the run outright.
+// what it said.
+//
+// **Since v32 there is no cascade into this file at all.** The one that used to
+// be right — from the project, which owned the run outright — stopped being
+// right when a project became a document (#37): the working tables are emptied
+// and refilled on every open, so that cascade would have taken every stored run
+// with it. A run now belongs to a document id and outlives every row it names.
 //
 // Durations are integer SECONDS and dates are `DateTime`, the two conventions
 // the rest of the schema uses.
@@ -20,8 +24,34 @@ import 'project_tables.dart';
 /// One completed run (DESIGN.md §7.10).
 class SimulationRuns extends Table {
   TextColumn get id => text()();
-  TextColumn get projectId =>
-      text().references(Projects, #id, onDelete: KeyAction.cascade)();
+
+  /// The document this run was made from (#37), which is that document's
+  /// project id — a value that travels inside the file and is stable wherever
+  /// it is opened.
+  ///
+  /// **Unreferenced, and that is the whole change at v32.** It was
+  /// `projectId references Projects onDelete: cascade`, which was right while
+  /// the database owned the projects: deleting one should take its runs.
+  /// Under the document model the working database is **emptied and refilled
+  /// every time a document is opened**, so the same cascade would delete every
+  /// stored run on the first switch — the precise opposite of #37's *"runs
+  /// stay on the machine that made them"*.
+  ///
+  /// So there is no foreign key here at all, and there cannot be one: the
+  /// document a run belongs to may not be open, may live on a drive this
+  /// machine cannot currently see, or may have been deleted by someone else.
+  /// A run outliving its project row is the ordinary case now rather than a
+  /// broken one.
+  ///
+  /// **A rebuild rather than a kept column**, which is against this file's own
+  /// standing preference — `changeoverSeconds` is kept precisely because
+  /// dropping a column means a `TableMigration` and this file has been bitten
+  /// three times (§16.11, §16.13, §16.15). It earns the exception because the
+  /// alternative is a declared cascade that every load would have to
+  /// deliberately evade, and a schema that states a relationship the app works
+  /// around is worse than a rebuild of 165 rows. The seven child tables cascade
+  /// from `simulation_runs` and not from `projects`, so none of them is touched.
+  TextColumn get documentId => text()();
 
   /// §7.4's rule, by name.
   ///

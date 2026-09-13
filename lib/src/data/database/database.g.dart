@@ -12738,19 +12738,16 @@ class $SimulationRunsTable extends SimulationRuns
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _projectIdMeta = const VerificationMeta(
-    'projectId',
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
   );
   @override
-  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
-    'project_id',
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES projects (id) ON DELETE CASCADE',
-    ),
   );
   static const VerificationMeta _dispatchMeta = const VerificationMeta(
     'dispatch',
@@ -12840,7 +12837,7 @@ class $SimulationRunsTable extends SimulationRuns
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    projectId,
+    documentId,
     dispatch,
     runStart,
     runEnd,
@@ -12867,13 +12864,13 @@ class $SimulationRunsTable extends SimulationRuns
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('project_id')) {
+    if (data.containsKey('document_id')) {
       context.handle(
-        _projectIdMeta,
-        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_projectIdMeta);
+      context.missing(_documentIdMeta);
     }
     if (data.containsKey('dispatch')) {
       context.handle(
@@ -12952,9 +12949,9 @@ class $SimulationRunsTable extends SimulationRuns
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      projectId: attachedDatabase.typeMapping.read(
+      documentId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}project_id'],
+        data['${effectivePrefix}document_id'],
       )!,
       dispatch: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -12999,7 +12996,34 @@ class $SimulationRunsTable extends SimulationRuns
 
 class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   final String id;
-  final String projectId;
+
+  /// The document this run was made from (#37), which is that document's
+  /// project id — a value that travels inside the file and is stable wherever
+  /// it is opened.
+  ///
+  /// **Unreferenced, and that is the whole change at v32.** It was
+  /// `projectId references Projects onDelete: cascade`, which was right while
+  /// the database owned the projects: deleting one should take its runs.
+  /// Under the document model the working database is **emptied and refilled
+  /// every time a document is opened**, so the same cascade would delete every
+  /// stored run on the first switch — the precise opposite of #37's *"runs
+  /// stay on the machine that made them"*.
+  ///
+  /// So there is no foreign key here at all, and there cannot be one: the
+  /// document a run belongs to may not be open, may live on a drive this
+  /// machine cannot currently see, or may have been deleted by someone else.
+  /// A run outliving its project row is the ordinary case now rather than a
+  /// broken one.
+  ///
+  /// **A rebuild rather than a kept column**, which is against this file's own
+  /// standing preference — `changeoverSeconds` is kept precisely because
+  /// dropping a column means a `TableMigration` and this file has been bitten
+  /// three times (§16.11, §16.13, §16.15). It earns the exception because the
+  /// alternative is a declared cascade that every load would have to
+  /// deliberately evade, and a schema that states a relationship the app works
+  /// around is worse than a rebuild of 165 rows. The seven child tables cascade
+  /// from `simulation_runs` and not from `projects`, so none of them is touched.
+  final String documentId;
 
   /// §7.4's rule, by name.
   ///
@@ -13064,7 +13088,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   final DateTime createdAt;
   const SimulationRun({
     required this.id,
-    required this.projectId,
+    required this.documentId,
     required this.dispatch,
     required this.runStart,
     required this.runEnd,
@@ -13078,7 +13102,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['project_id'] = Variable<String>(projectId);
+    map['document_id'] = Variable<String>(documentId);
     map['dispatch'] = Variable<String>(dispatch);
     map['run_start'] = Variable<DateTime>(runStart);
     map['run_end'] = Variable<DateTime>(runEnd);
@@ -13099,7 +13123,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   SimulationRunsCompanion toCompanion(bool nullToAbsent) {
     return SimulationRunsCompanion(
       id: Value(id),
-      projectId: Value(projectId),
+      documentId: Value(documentId),
       dispatch: Value(dispatch),
       runStart: Value(runStart),
       runEnd: Value(runEnd),
@@ -13124,7 +13148,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SimulationRun(
       id: serializer.fromJson<String>(json['id']),
-      projectId: serializer.fromJson<String>(json['projectId']),
+      documentId: serializer.fromJson<String>(json['documentId']),
       dispatch: serializer.fromJson<String>(json['dispatch']),
       runStart: serializer.fromJson<DateTime>(json['runStart']),
       runEnd: serializer.fromJson<DateTime>(json['runEnd']),
@@ -13140,7 +13164,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'projectId': serializer.toJson<String>(projectId),
+      'documentId': serializer.toJson<String>(documentId),
       'dispatch': serializer.toJson<String>(dispatch),
       'runStart': serializer.toJson<DateTime>(runStart),
       'runEnd': serializer.toJson<DateTime>(runEnd),
@@ -13154,7 +13178,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
 
   SimulationRun copyWith({
     String? id,
-    String? projectId,
+    String? documentId,
     String? dispatch,
     DateTime? runStart,
     DateTime? runEnd,
@@ -13165,7 +13189,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     DateTime? createdAt,
   }) => SimulationRun(
     id: id ?? this.id,
-    projectId: projectId ?? this.projectId,
+    documentId: documentId ?? this.documentId,
     dispatch: dispatch ?? this.dispatch,
     runStart: runStart ?? this.runStart,
     runEnd: runEnd ?? this.runEnd,
@@ -13180,7 +13204,9 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   SimulationRun copyWithCompanion(SimulationRunsCompanion data) {
     return SimulationRun(
       id: data.id.present ? data.id.value : this.id,
-      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
       dispatch: data.dispatch.present ? data.dispatch.value : this.dispatch,
       runStart: data.runStart.present ? data.runStart.value : this.runStart,
       runEnd: data.runEnd.present ? data.runEnd.value : this.runEnd,
@@ -13202,7 +13228,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   String toString() {
     return (StringBuffer('SimulationRun(')
           ..write('id: $id, ')
-          ..write('projectId: $projectId, ')
+          ..write('documentId: $documentId, ')
           ..write('dispatch: $dispatch, ')
           ..write('runStart: $runStart, ')
           ..write('runEnd: $runEnd, ')
@@ -13218,7 +13244,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   @override
   int get hashCode => Object.hash(
     id,
-    projectId,
+    documentId,
     dispatch,
     runStart,
     runEnd,
@@ -13233,7 +13259,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       identical(this, other) ||
       (other is SimulationRun &&
           other.id == this.id &&
-          other.projectId == this.projectId &&
+          other.documentId == this.documentId &&
           other.dispatch == this.dispatch &&
           other.runStart == this.runStart &&
           other.runEnd == this.runEnd &&
@@ -13246,7 +13272,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
 
 class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   final Value<String> id;
-  final Value<String> projectId;
+  final Value<String> documentId;
   final Value<String> dispatch;
   final Value<DateTime> runStart;
   final Value<DateTime> runEnd;
@@ -13258,7 +13284,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   final Value<int> rowid;
   const SimulationRunsCompanion({
     this.id = const Value.absent(),
-    this.projectId = const Value.absent(),
+    this.documentId = const Value.absent(),
     this.dispatch = const Value.absent(),
     this.runStart = const Value.absent(),
     this.runEnd = const Value.absent(),
@@ -13271,7 +13297,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   });
   SimulationRunsCompanion.insert({
     required String id,
-    required String projectId,
+    required String documentId,
     required String dispatch,
     required DateTime runStart,
     required DateTime runEnd,
@@ -13282,7 +13308,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       projectId = Value(projectId),
+       documentId = Value(documentId),
        dispatch = Value(dispatch),
        runStart = Value(runStart),
        runEnd = Value(runEnd),
@@ -13290,7 +13316,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
        createdAt = Value(createdAt);
   static Insertable<SimulationRun> custom({
     Expression<String>? id,
-    Expression<String>? projectId,
+    Expression<String>? documentId,
     Expression<String>? dispatch,
     Expression<DateTime>? runStart,
     Expression<DateTime>? runEnd,
@@ -13303,7 +13329,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (projectId != null) 'project_id': projectId,
+      if (documentId != null) 'document_id': documentId,
       if (dispatch != null) 'dispatch': dispatch,
       if (runStart != null) 'run_start': runStart,
       if (runEnd != null) 'run_end': runEnd,
@@ -13318,7 +13344,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
 
   SimulationRunsCompanion copyWith({
     Value<String>? id,
-    Value<String>? projectId,
+    Value<String>? documentId,
     Value<String>? dispatch,
     Value<DateTime>? runStart,
     Value<DateTime>? runEnd,
@@ -13331,7 +13357,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   }) {
     return SimulationRunsCompanion(
       id: id ?? this.id,
-      projectId: projectId ?? this.projectId,
+      documentId: documentId ?? this.documentId,
       dispatch: dispatch ?? this.dispatch,
       runStart: runStart ?? this.runStart,
       runEnd: runEnd ?? this.runEnd,
@@ -13350,8 +13376,8 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (projectId.present) {
-      map['project_id'] = Variable<String>(projectId.value);
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
     }
     if (dispatch.present) {
       map['dispatch'] = Variable<String>(dispatch.value);
@@ -13387,7 +13413,7 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   String toString() {
     return (StringBuffer('SimulationRunsCompanion(')
           ..write('id: $id, ')
-          ..write('projectId: $projectId, ')
+          ..write('documentId: $documentId, ')
           ..write('dispatch: $dispatch, ')
           ..write('runStart: $runStart, ')
           ..write('runEnd: $runEnd, ')
@@ -19222,13 +19248,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
-        'projects',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('simulation_runs', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
         'simulation_runs',
         limitUpdateKind: UpdateKind.delete,
       ),
@@ -24894,24 +24913,6 @@ final class $$ProjectsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
-
-  static MultiTypedResultKey<$SimulationRunsTable, List<SimulationRun>>
-  _simulationRunsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.simulationRuns,
-    aliasName: 'projects__id__simulation_runs__project_id',
-  );
-
-  $$SimulationRunsTableProcessedTableManager get simulationRunsRefs {
-    final manager = $$SimulationRunsTableTableManager(
-      $_db,
-      $_db.simulationRuns,
-    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_simulationRunsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
 }
 
 class $$ProjectsTableFilterComposer
@@ -25137,31 +25138,6 @@ class $$ProjectsTableFilterComposer
           }) => $$StudiesTableFilterComposer(
             $db: $db,
             $table: $db.studies,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> simulationRunsRefs(
-    Expression<bool> Function($$SimulationRunsTableFilterComposer f) f,
-  ) {
-    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.projectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableFilterComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -25500,31 +25476,6 @@ class $$ProjectsTableAnnotationComposer
     );
     return f(composer);
   }
-
-  Expression<T> simulationRunsRefs<T extends Object>(
-    Expression<T> Function($$SimulationRunsTableAnnotationComposer a) f,
-  ) {
-    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.projectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$ProjectsTableTableManager
@@ -25548,7 +25499,6 @@ class $$ProjectsTableTableManager
             bool workcenterSchedulePeriodsRefs,
             bool projectQueuesRefs,
             bool studiesRefs,
-            bool simulationRunsRefs,
           })
         > {
   $$ProjectsTableTableManager(_$AppDatabase db, $ProjectsTable table)
@@ -25639,7 +25589,6 @@ class $$ProjectsTableTableManager
                 workcenterSchedulePeriodsRefs = false,
                 projectQueuesRefs = false,
                 studiesRefs = false,
-                simulationRunsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -25650,7 +25599,6 @@ class $$ProjectsTableTableManager
                       db.workcenterSchedulePeriods,
                     if (projectQueuesRefs) db.projectQueues,
                     if (studiesRefs) db.studies,
-                    if (simulationRunsRefs) db.simulationRuns,
                   ],
                   addJoins:
                       <
@@ -25804,27 +25752,6 @@ class $$ProjectsTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (simulationRunsRefs)
-                        await $_getPrefetchedData<
-                          Project,
-                          $ProjectsTable,
-                          SimulationRun
-                        >(
-                          currentTable: table,
-                          referencedTable: $$ProjectsTableReferences
-                              ._simulationRunsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$ProjectsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).simulationRunsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.projectId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
                     ];
                   },
                 );
@@ -25853,7 +25780,6 @@ typedef $$ProjectsTableProcessedTableManager =
         bool workcenterSchedulePeriodsRefs,
         bool projectQueuesRefs,
         bool studiesRefs,
-        bool simulationRunsRefs,
       })
     >;
 typedef $$CalendarExceptionsTableCreateCompanionBuilder =
@@ -31664,7 +31590,7 @@ typedef $$DemandOrdersTableProcessedTableManager =
 typedef $$SimulationRunsTableCreateCompanionBuilder =
     SimulationRunsCompanion Function({
       required String id,
-      required String projectId,
+      required String documentId,
       required String dispatch,
       required DateTime runStart,
       required DateTime runEnd,
@@ -31678,7 +31604,7 @@ typedef $$SimulationRunsTableCreateCompanionBuilder =
 typedef $$SimulationRunsTableUpdateCompanionBuilder =
     SimulationRunsCompanion Function({
       Value<String> id,
-      Value<String> projectId,
+      Value<String> documentId,
       Value<String> dispatch,
       Value<DateTime> runStart,
       Value<DateTime> runEnd,
@@ -31697,23 +31623,6 @@ final class $$SimulationRunsTableReferences
     super.$_table,
     super.$_typedResult,
   );
-
-  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
-      db.projects.createAlias('simulation_runs__project_id__projects__id');
-
-  $$ProjectsTableProcessedTableManager get projectId {
-    final $_column = $_itemColumn<String>('project_id')!;
-
-    final manager = $$ProjectsTableTableManager(
-      $_db,
-      $_db.projects,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
 
   static MultiTypedResultKey<
     $SimulationRunStudiesTable,
@@ -31922,6 +31831,11 @@ class $$SimulationRunsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get dispatch => $composableBuilder(
     column: $table.dispatch,
     builder: (column) => ColumnFilters(column),
@@ -31961,29 +31875,6 @@ class $$SimulationRunsTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$ProjectsTableFilterComposer get projectId {
-    final $$ProjectsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableFilterComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 
   Expression<bool> simulationRunStudiesRefs(
     Expression<bool> Function($$SimulationRunStudiesTableFilterComposer f) f,
@@ -32208,6 +32099,11 @@ class $$SimulationRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get dispatch => $composableBuilder(
     column: $table.dispatch,
     builder: (column) => ColumnOrderings(column),
@@ -32247,29 +32143,6 @@ class $$SimulationRunsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$ProjectsTableOrderingComposer get projectId {
-    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableOrderingComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$SimulationRunsTableAnnotationComposer
@@ -32283,6 +32156,11 @@ class $$SimulationRunsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get dispatch =>
       $composableBuilder(column: $table.dispatch, builder: (column) => column);
@@ -32313,29 +32191,6 @@ class $$SimulationRunsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  $$ProjectsTableAnnotationComposer get projectId {
-    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 
   Expression<T> simulationRunStudiesRefs<T extends Object>(
     Expression<T> Function($$SimulationRunStudiesTableAnnotationComposer a) f,
@@ -32566,7 +32421,6 @@ class $$SimulationRunsTableTableManager
           (SimulationRun, $$SimulationRunsTableReferences),
           SimulationRun,
           PrefetchHooks Function({
-            bool projectId,
             bool simulationRunStudiesRefs,
             bool simulationRunOrdersRefs,
             bool simulationRunStepsRefs,
@@ -32593,7 +32447,7 @@ class $$SimulationRunsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> projectId = const Value.absent(),
+                Value<String> documentId = const Value.absent(),
                 Value<String> dispatch = const Value.absent(),
                 Value<DateTime> runStart = const Value.absent(),
                 Value<DateTime> runEnd = const Value.absent(),
@@ -32605,7 +32459,7 @@ class $$SimulationRunsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunsCompanion(
                 id: id,
-                projectId: projectId,
+                documentId: documentId,
                 dispatch: dispatch,
                 runStart: runStart,
                 runEnd: runEnd,
@@ -32619,7 +32473,7 @@ class $$SimulationRunsTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String projectId,
+                required String documentId,
                 required String dispatch,
                 required DateTime runStart,
                 required DateTime runEnd,
@@ -32631,7 +32485,7 @@ class $$SimulationRunsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunsCompanion.insert(
                 id: id,
-                projectId: projectId,
+                documentId: documentId,
                 dispatch: dispatch,
                 runStart: runStart,
                 runEnd: runEnd,
@@ -32652,7 +32506,6 @@ class $$SimulationRunsTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
-                projectId = false,
                 simulationRunStudiesRefs = false,
                 simulationRunOrdersRefs = false,
                 simulationRunStepsRefs = false,
@@ -32676,40 +32529,7 @@ class $$SimulationRunsTableTableManager
                     if (simulationRunWorkcenterMonthsRefs)
                       db.simulationRunWorkcenterMonths,
                   ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (projectId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.projectId,
-                                    referencedTable:
-                                        $$SimulationRunsTableReferences
-                                            ._projectIdTable(db),
-                                    referencedColumn:
-                                        $$SimulationRunsTableReferences
-                                            ._projectIdTable(db)
-                                            .id,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
+                  addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (simulationRunStudiesRefs)
@@ -32901,7 +32721,6 @@ typedef $$SimulationRunsTableProcessedTableManager =
       (SimulationRun, $$SimulationRunsTableReferences),
       SimulationRun,
       PrefetchHooks Function({
-        bool projectId,
         bool simulationRunStudiesRefs,
         bool simulationRunOrdersRefs,
         bool simulationRunStepsRefs,

@@ -57,7 +57,7 @@ class SimulationRunsRepository {
               studies.runId.equalsExp(_db.simulationRuns.id),
             ),
           ])
-          ..where(_db.simulationRuns.projectId.equals(projectId))
+          ..where(_db.simulationRuns.documentId.equals(projectId))
           ..orderBy([
             OrderingTerm(
               expression: _db.simulationRuns.createdAt,
@@ -136,9 +136,9 @@ class SimulationRunsRepository {
           'MIN(released) AS first_release '
           'FROM simulation_run_orders '
           'WHERE takt_value IS NOT NULL AND run_id IN '
-          '(SELECT id FROM simulation_runs WHERE project_id = ?) '
+          '(SELECT id FROM simulation_runs WHERE document_id = ?) '
           'GROUP BY run_id, study_id, takt_value, takt_unit',
-          variables: [Variable<String>(listings.first.run.projectId)],
+          variables: [Variable<String>(listings.first.run.documentId)],
           readsFrom: {_db.simulationRunOrders, _db.simulationRuns},
         )
         .get();
@@ -235,7 +235,7 @@ class SimulationRunsRepository {
           .insert(
             SimulationRunsCompanion.insert(
               id: runId,
-              projectId: projectId,
+              documentId: projectId,
               // **Written empty, because a run no longer has one rule** (§7.3).
               // The column is `NOT NULL` and stays on the schema so the runs
               // made before v19 keep the rule they really were made with; empty
@@ -658,7 +658,7 @@ class SimulationRunsRepository {
 
     return StoredRun(
       id: header.id,
-      projectId: header.projectId,
+      projectId: header.documentId,
       createdAt: header.createdAt,
       queues: queues,
       studies: studies,

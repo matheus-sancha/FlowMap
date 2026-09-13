@@ -2278,7 +2278,7 @@ void main() {
       final fresh = AppDatabase(NativeDatabase(file));
       await fresh.customStatement('PRAGMA foreign_keys = OFF');
       await fresh.customStatement(
-        "INSERT INTO simulation_runs (id, project_id, dispatch, run_start, "
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
         "run_end, guard, created_at) VALUES "
         "('run-1', 'proj-1', 'fifo', 0, 1, 2, 3)",
       );
@@ -2529,7 +2529,7 @@ void main() {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       await fresh.customStatement('PRAGMA foreign_keys = OFF');
       await fresh.customStatement(
-        "INSERT INTO simulation_runs (id, project_id, dispatch, run_start, "
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
         "run_end, guard, created_at) VALUES "
         "('run-1', 'proj-1', '', $now, $now, $now, $now)",
       );
@@ -2908,7 +2908,7 @@ void main() {
         "VALUES ('proj-1', 'P', 'plant-1', 'sp-1', 0, 30, 85, 100, $now, $now)",
       );
       await fresh.customStatement(
-        "INSERT INTO simulation_runs (id, project_id, dispatch, run_start, "
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
         "run_end, guard, created_at) "
         "VALUES ('run-1', 'proj-1', '', $now, $now, $now, $now)",
       );
@@ -2927,8 +2927,61 @@ void main() {
       expect(runs.single.appVersion, isNull);
       // The row the migration landed on is otherwise as it was.
       expect(runs.single.id, 'run-1');
-      expect(runs.single.projectId, 'proj-1');
+      expect(runs.single.documentId, 'proj-1');
       expect(runs.single.dispatch, '');
+    });
+  });
+
+  group('v31 to v32: a run belongs to a document, not a project row (#37)', () {
+    test('the id carries across and the cascade is gone', () async {
+      // **The cascade had to go or the document model would eat the runs.**
+      // `project_id` referenced `projects` with `onDelete: cascade`, which was
+      // right while the database owned the projects; under #37 the working
+      // tables are emptied and refilled on every open, so the first document
+      // switch would have deleted every stored run.
+      //
+      // The value does not change — a document's identity *is* its project id,
+      // and it travels inside the file — so this asserts the rename carried it
+      // rather than defaulting it.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "float_red_days, float_green_days, occupation_amber_pct, "
+        "occupation_red_pct, created_at, updated_at) "
+        "VALUES ('proj-1', 'P', 'plant-1', 'sp-1', 0, 30, 85, 100, $now, $now)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
+        "run_end, guard, created_at, app_version) "
+        "VALUES ('run-1', 'proj-1', '', $now, $now, $now, $now, '0.1.0-test')",
+      );
+      await fresh.close();
+
+      // Put the table back into its v31 shape: the column named and referenced
+      // as it was.
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE simulation_runs RENAME COLUMN document_id TO project_id')
+        ..execute('PRAGMA user_version = 31')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final runs = await db.select(db.simulationRuns).get();
+      expect(runs, hasLength(1));
+      expect(runs.single.documentId, 'proj-1');
+      // Everything else the rebuild copied, including v31's own column — a
+      // TableMigration reaches for every column the *current* definition has,
+      // which is how this file has been bitten three times.
+      expect(runs.single.id, 'run-1');
+      expect(runs.single.appVersion, '0.1.0-test');
+
+      // And the run now outlives its project, which is the point.
+      await db.customStatement("DELETE FROM projects WHERE id = 'proj-1'");
+      expect(await db.select(db.simulationRuns).get(), hasLength(1));
     });
   });
 }
