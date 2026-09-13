@@ -1396,14 +1396,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get compareAfter => 'Después';
 
   @override
-  String get compareNeedsTwo => 'Comparar necesita dos corridas';
+  String get compareLine => 'Celda y línea';
+
+  @override
+  String get compareSameStudy => 'Elige dos estudios distintos.';
+
+  @override
+  String get compareNeedsTwo =>
+      'Comparar necesita dos estudios de la misma celda y línea';
 
   @override
   String get compareNeedsTwoHelp =>
-      'Simula, cambia una cosa — un takt, un límite de WIP, una regla de despacho — y vuelve a simular. Para sopesar dos versiones de un estudio, duplícalo y marca la copia.';
-
-  @override
-  String get compareSameRun => 'Elige dos corridas distintas.';
+      'Duplica un estudio, cambia la copia, incluye la copia en la simulación en lugar del original y simula. Cada estudio se compara en su corrida más reciente.';
 
   @override
   String compareDifferentBuilds(String before, String after) {
@@ -1414,15 +1418,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get compareUnstamped => 'no registrada';
 
   @override
-  String get compareDifferentScope =>
-      'Estas corridas cubren celdas o líneas distintas, así que una diferencia puede significar que son cosas distintas y no que algo cambió.';
-
-  @override
   String get compareInputs => 'Qué fue distinto';
 
   @override
   String get compareNoInputs =>
-      'Ninguna entrada registrada en las dos corridas difiere. Los cambios en un flujo, su demanda o su capacidad no se guardan como entradas de la corrida; si cambiaste alguno, esa es la diferencia.';
+      'Ninguna entrada registrada en las dos corridas difiere. Los cambios en un flujo, su demanda o su capacidad no se guardan como entradas de la corrida; si los dos estudios difieren en alguno, esa es la diferencia.';
 
   @override
   String get compareResults => 'Resultados';
@@ -1434,16 +1434,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get compareInput => 'Entrada';
 
   @override
-  String get compareSubject => 'Estudio o centro de trabajo';
-
-  @override
   String get compareReleaseInterval => 'Intervalo de liberación';
-
-  @override
-  String get compareInRun => 'En la corrida';
-
-  @override
-  String get compareIncluded => 'Incluido';
 
   @override
   String get compareDispatch => 'Despacho';

@@ -189,13 +189,14 @@ The third mode from [#26](https://github.com/matheus-sancha/FlowMap/issues/26):
 **This amends [#7](https://github.com/matheus-sancha/FlowMap/issues/7)**, which settled on two modes
 after four driven rounds of a prototype. The reopening was deliberate; #7 is annotated.
 
-**The unit is two runs, inverted 2026-09-13 by the run history.** #26 settled on two *studies* of
-one cell and line; across all **165 runs ever made that matched zero pairs**, while one study's own
-runs differ in up to **9 release cadences**. Cell and line became a warning rather than a gate, and
-the scenario case survives as a case of it.
+**Two studies of one cell and line, each at its latest run** — #26 as written. It was inverted to
+*two runs* on the morning of 2026-09-13 (165 runs had matched zero pairs) and **restored the same
+afternoon by the developer after driving it**. The price is known: the live plant has no line with
+two studies, so Compare opens on its empty state until a study is duplicated, the copy flagged and
+simulated. A run is now named `studies · date time` everywhere it is picked.
 
-**Every stored run is unstamped**, so the both-unstamped branch of the comparability rule is what
-makes the 165 usable at all — and it now applies to every comparison rather than rarely.
+**Every stored run is unstamped**, so the both-unstamped branch of the provenance rule is what makes
+the 165 usable at all.
 
 **And #37 narrowed its reach:** runs stay on the machine that made them, so comparison **never
 crosses the shared drive** — it compares what was run here, on documents opened here.

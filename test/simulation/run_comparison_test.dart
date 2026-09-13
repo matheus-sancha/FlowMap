@@ -2,62 +2,51 @@ import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/simulation/application/run_comparison.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
-import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The comparison is arithmetic over two stored runs, so it can be asserted
-/// without a screen — which matters, because the screen it feeds cannot.
+/// The comparison is arithmetic over two studies' sides of their latest runs,
+/// so it can be asserted without a screen — which matters, because the screen
+/// it feeds cannot.
 void main() {
-  SimulationRunStudy study({
-    required String name,
+  final now = DateTime(2026, 9, 13);
+
+  SimulationRunStudy snapshot({
+    String id = 's',
+    String name = 'Célula 11B',
     int releaseSeconds = 86400,
     double? takt = 1,
+    String? taktUnit = 'days',
     int? wipCap,
     int startBuffer = 0,
-    String? cell = 'Célula 11',
-    String? line = 'Fluxo 11B',
   }) => SimulationRunStudy(
     runId: 'r',
-    studyId: name,
+    studyId: id,
     name: name,
     releaseSeconds: releaseSeconds,
     taktValue: takt,
+    taktUnit: taktUnit,
     startBufferDays: startBuffer,
     wipCap: wipCap,
-    productionCellName: cell,
-    productionLineName: line,
+    productionCellName: 'Célula 11',
+    productionLineName: 'Fluxo 11B',
   );
 
-  StoredRun run({
+  ComparedSide side({
     required int delivered,
     required int onTime,
     int? orders,
-    RunQueues queues = const RunQueues([]),
     int emptySlots = 0,
     Duration? float,
     Duration? leadTime,
     String? appVersion,
-    List<SimulationRunStudy>? studies,
-  }) => StoredRun(
-    id: 'run',
-    projectId: 'doc',
-    createdAt: DateTime(2026, 9, 13),
-    appVersion: appVersion,
+    SimulationRunStudy? study,
+    RunQueues queues = const RunQueues([]),
+  }) => ComparedSide(
+    study: study ?? snapshot(),
     queues: queues,
-    studies: studies ?? [study(name: 'Célula 11B')],
-    // The comparison reads only `metrics` and `studies`; the result is here
-    // because a StoredRun cannot exist without one.
-    result: SimRunResult(
-      start: DateTime(2026),
-      end: DateTime(2026),
-      guard: DateTime(2026),
-      steps: const [],
-      orders: const [],
-      emptySlots: const [],
-      busyByWorkcenter: const {},
-      openByWorkcenter: const {},
-    ),
+    appVersion: appVersion,
+    runAt: now,
     metrics: RunMetrics(
       orders: orders ?? delivered,
       delivered: delivered,
@@ -69,206 +58,212 @@ void main() {
       parts: const [],
       workcenters: const [],
     ),
-    plan: const [],
   );
 
-  test('the verdict is on-time delivery', () async {
-    final before = run(delivered: 100, onTime: 88);
-    final after = run(delivered: 100, onTime: 92);
-
-    final comparison = RunComparison.of(before, after);
-
+  test('the verdict is on-time delivery', () {
+    final comparison = RunComparison.between(
+      side(delivered: 100, onTime: 88),
+      side(delivered: 100, onTime: 92),
+    );
     expect(comparison.verdict!.before, 88);
     expect(comparison.verdict!.after, 92);
     expect(comparison.verdict!.delta, closeTo(4, 0.001));
     expect(comparison.verdict!.isBetter, isTrue);
   });
 
-  test('better is not the same as larger', () async {
-    // Lead time falling is an improvement; OTD falling is not. A table that
-    // painted every increase green would call a longer lead time a win.
-    final a = run(
-      delivered: 10,
-      onTime: 10,
-      leadTime: const Duration(days: 14),
-    );
-    final b = run(
-      delivered: 10,
-      onTime: 10,
-      leadTime: const Duration(days: 12),
-    );
+  test("the verdict is the headline's on-time delivery, over every order", () {
+    // §8 counts an order that never came out as not on time.
+    final verdict = RunComparison.between(
+      side(orders: 10, delivered: 5, onTime: 5),
+      side(orders: 10, delivered: 10, onTime: 10),
+    ).verdict!;
+    expect(verdict.before, 50);
+    expect(verdict.after, 100);
+  });
 
-    final lead = RunComparison.of(a, b).deltas
-        .firstWhere((d) => d.metric == ComparedMetric.leadTime);
+  test('better is not the same as larger', () {
+    // Lead time falling is an improvement; OTD falling is not.
+    final lead = RunComparison.between(
+      side(delivered: 10, onTime: 10, leadTime: const Duration(days: 14)),
+      side(delivered: 10, onTime: 10, leadTime: const Duration(days: 12)),
+    ).deltas.firstWhere((d) => d.metric == ComparedMetric.leadTime);
     expect(lead.delta, lessThan(0));
     expect(lead.isBetter, isTrue);
   });
 
-  test('float counts positive as early', () async {
-    // §10.4: float is slack against the need date, so -3 days moving to -1 is
-    // an improvement even though both are late.
-    final a = run(delivered: 5, onTime: 1, float: const Duration(days: -3));
-    final b = run(delivered: 5, onTime: 1, float: const Duration(days: -1));
-
-    final float = RunComparison.of(a, b).deltas
-        .firstWhere((d) => d.metric == ComparedMetric.float);
+  test('float counts positive as early', () {
+    final float = RunComparison.between(
+      side(delivered: 5, onTime: 1, float: const Duration(days: -3)),
+      side(delivered: 5, onTime: 1, float: const Duration(days: -1)),
+    ).deltas.firstWhere((d) => d.metric == ComparedMetric.float);
     expect(float.isBetter, isTrue);
   });
 
-  test('a run that delivered nothing is not an improvement', () async {
-    // The failure mode a naive delta has: 0 of 0 on time reads as 100 %.
-    final a = run(delivered: 100, onTime: 90);
-    final b = run(delivered: 0, onTime: 0);
-
-    final comparison = RunComparison.of(a, b);
-    expect(comparison.verdict!.after, isNull);
-    expect(comparison.verdict!.delta, isNull);
-    expect(comparison.verdict!.isBetter, isNull);
+  test('a side with no orders is not an improvement', () {
+    final verdict = RunComparison.between(
+      side(delivered: 100, onTime: 90),
+      side(delivered: 0, onTime: 0),
+    ).verdict!;
+    expect(verdict.after, isNull);
+    expect(verdict.isBetter, isNull);
   });
 
-  test('the inputs that differed are named, and only those', () async {
-    final a = run(
-      delivered: 1,
-      onTime: 1,
-      studies: [study(name: 'Célula 11B', releaseSeconds: 86400, wipCap: 40)],
-    );
-    final b = run(
-      delivered: 1,
-      onTime: 1,
-      studies: [study(name: 'Célula 11B', releaseSeconds: 43200, wipCap: 40)],
-    );
-
-    final differences = RunComparison.of(a, b).differences;
+  test('two studies differ in what they were given, not in their names', () {
+    // They are different studies with different names. Matched by name, as the
+    // run comparison did, each would read as missing from the other.
+    final differences = RunComparison.between(
+      side(
+        delivered: 1,
+        onTime: 1,
+        study: snapshot(id: 'a', name: 'Célula 11B', releaseSeconds: 86400),
+      ),
+      side(
+        delivered: 1,
+        onTime: 1,
+        study: snapshot(
+          id: 'b',
+          name: 'Célula 11B (copy)',
+          releaseSeconds: 43200,
+        ),
+      ),
+    ).differences;
     expect(differences, hasLength(1));
     expect(differences.single.field, InputField.releaseSeconds);
-    expect(differences.single.study, 'Célula 11B');
     expect(differences.single.before, '86400');
     expect(differences.single.after, '43200');
   });
 
-  test("the verdict is the headline's on-time delivery, over every order", () {
-    // §8 counts an order that never came out as not on time. Over delivered
-    // orders alone this read 100 % beside a card saying 50 %.
-    final a = run(orders: 10, delivered: 5, onTime: 5);
-    final b = run(orders: 10, delivered: 10, onTime: 10);
-    final verdict = RunComparison.of(a, b).verdict!;
-    expect(verdict.before, 50);
-    expect(verdict.after, 100);
-    expect(verdict.isBetter, isTrue);
-  });
-
   test('a takt is its value and its unit', () {
-    SimulationRunStudy withUnit(String unit) => SimulationRunStudy(
-      runId: 'r',
-      studyId: 'Célula 11B',
-      name: 'Célula 11B',
-      releaseSeconds: 86400,
-      taktValue: 4,
-      taktUnit: unit,
-      startBufferDays: 0,
-    );
-    final a = run(delivered: 1, onTime: 1, studies: [withUnit('days')]);
-    final b = run(delivered: 1, onTime: 1, studies: [withUnit('hours')]);
-    final differences = RunComparison.of(a, b).differences;
+    final differences = RunComparison.between(
+      side(delivered: 1, onTime: 1, study: snapshot(takt: 4, taktUnit: 'days')),
+      side(
+        delivered: 1,
+        onTime: 1,
+        study: snapshot(takt: 4, taktUnit: 'hours'),
+      ),
+    ).differences;
     expect(differences.single.field, InputField.takt);
   });
 
   test('a workcenter dispatching differently is a difference', () {
-    // The rule belongs to the workcenter (§7.3), and it is what the runs menu
-    // labels a run by — the likeliest one thing someone changed.
-    final a = run(
-      delivered: 1,
-      onTime: 1,
-      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
-    );
-    final b = run(
-      delivered: 1,
-      onTime: 1,
-      queues: const RunQueues([
-        (name: 'CLAD04', rule: DispatchRule.earliestDueDate),
-      ]),
-    );
-    final difference = RunComparison.of(a, b).differences.single;
+    final difference = RunComparison.between(
+      side(
+        delivered: 1,
+        onTime: 1,
+        queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
+      ),
+      side(
+        delivered: 1,
+        onTime: 1,
+        queues: const RunQueues([
+          (name: 'CLAD04', rule: DispatchRule.earliestDueDate),
+        ]),
+      ),
+    ).differences.single;
     expect(difference.field, InputField.dispatch);
-    expect(difference.study, 'CLAD04');
-    expect(difference.before, 'fifo');
-    expect(difference.after, 'earliestDueDate');
-  });
-
-  test('identical runs differ in nothing', () async {
-    final a = run(delivered: 10, onTime: 9);
-    expect(RunComparison.of(a, a).differences, isEmpty);
-    expect(RunComparison.of(a, a).warnings, isEmpty);
-  });
-
-  test('a study present in one run only is itself a difference', () async {
-    final a = run(
-      delivered: 1,
-      onTime: 1,
-      studies: [study(name: 'Célula 11B'), study(name: 'Célula 11D')],
-    );
-    final b = run(delivered: 1, onTime: 1, studies: [study(name: 'Célula 11B')]);
-
-    final differences = RunComparison.of(a, b).differences;
-    expect(differences, hasLength(1));
-    expect(differences.single.study, 'Célula 11D');
-    expect(differences.single.field, InputField.presence);
+    expect(difference.workcenter, 'CLAD04');
   });
 
   group('warnings', () {
     test('two equally unknown runs compare without one', () {
-      // What makes the 165 already stored usable with each other (#24).
-      final a = run(delivered: 10, onTime: 9);
-      final b = run(delivered: 10, onTime: 8);
-      expect(RunComparison.of(a, b).warnings, isEmpty);
+      expect(
+        RunComparison.between(
+          side(delivered: 10, onTime: 9),
+          side(delivered: 10, onTime: 8),
+        ).warnings,
+        isEmpty,
+      );
     });
 
     test('a stamped run against an unstamped one warns', () {
-      final a = run(delivered: 10, onTime: 9, appVersion: '0.1.0-a');
-      final b = run(delivered: 10, onTime: 8);
       expect(
-        RunComparison.of(a, b).warnings,
+        RunComparison.between(
+          side(delivered: 10, onTime: 9, appVersion: '2.1-2026-09-13'),
+          side(delivered: 10, onTime: 8),
+        ).warnings,
         contains(ComparisonWarning.differentBuilds),
       );
     });
+  });
 
-    test('two different builds warn', () {
-      // #19 changed what a run *means* with no migration, so the build is the
-      // only thing that separates two runs at the same schema version.
-      final a = run(delivered: 10, onTime: 9, appVersion: '0.1.0-a');
-      final b = run(delivered: 10, onTime: 8, appVersion: '0.1.0-b');
-      expect(
-        RunComparison.of(a, b).warnings,
-        contains(ComparisonWarning.differentBuilds),
+  group('which lines Compare can offer', () {
+    Study study(String id, {String line = 'line-b', String cell = 'cell-11'}) =>
+        Study(
+          id: id,
+          projectId: 'doc',
+          productionCellId: cell,
+          productionLineId: line,
+          name: id,
+          includeInSimulation: false,
+          startBufferDays: 0,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+    RunListing run(String id, DateTime at, List<String> studyIds) => (
+      run: SimulationRun(
+        id: id,
+        documentId: 'doc',
+        dispatch: 'fifo',
+        runStart: at,
+        runEnd: at,
+        guard: at,
+        createdAt: at,
+      ),
+      queues: const RunQueues([]),
+      studies: [
+        for (final s in studyIds)
+          (id: s, name: s, cellName: 'Célula 11', lineName: 'Fluxo 11B'),
+      ],
+    );
+
+    test('the live plant, three studies on three lines, offers nothing', () {
+      // What #26 found: no two studies share a line, so the screen is empty
+      // and has to say how to make a pair.
+      final lines = comparableLines(
+        [
+          study('11B', line: 'b'),
+          study('11C', line: 'c'),
+          study('11D', line: 'd'),
+        ],
+        [
+          run('r1', now, ['11B', '11C', '11D']),
+        ],
       );
+      expect(lines, isEmpty);
     });
 
-    test('different lines warn rather than refuse', () {
-      // #26 made this a gate; the run history demoted it — across 165 runs the
-      // gate matched zero pairs. It is a caution, and the reader's call.
-      final a = run(
-        delivered: 10,
-        onTime: 9,
-        studies: [study(name: 'A', line: 'Fluxo 11B')],
-      );
-      final b = run(
-        delivered: 10,
-        onTime: 9,
-        studies: [study(name: 'B', line: 'Fluxo 11D')],
-      );
+    test(
+      'a copy on the same line, simulated, makes a pair at each latest run',
+      () {
+        // Runs newest first, as watchRuns lists them. At most one study per line
+        // is flagged in a run, so the pair is always two runs.
+        final lines = comparableLines(
+          [study('11B'), study('11B copy')],
+          [
+            run('r3', now, ['11B copy']),
+            run('r2', now.subtract(const Duration(hours: 1)), ['11B']),
+            run('r1', now.subtract(const Duration(days: 1)), ['11B']),
+          ],
+        );
+        expect(lines, hasLength(1));
+        expect(lines.single.label, 'Célula 11 · Fluxo 11B');
+        expect(lines.single.studies.map((s) => (s.studyId, s.runId)), [
+          ('11B copy', 'r3'),
+          ('11B', 'r2'),
+        ]);
+      },
+    );
 
-      final comparison = RunComparison.of(a, b);
-      expect(comparison.warnings, contains(ComparisonWarning.differentScope));
-      // Warned, not refused: the deltas are still there to read.
-      expect(comparison.deltas, isNotEmpty);
-    });
-
-    test('the same scope does not warn', () {
-      final a = run(delivered: 10, onTime: 9);
-      final b = run(delivered: 10, onTime: 8);
+    test('a study never simulated is not offered', () {
       expect(
-        RunComparison.of(a, b).warnings,
-        isNot(contains(ComparisonWarning.differentScope)),
+        comparableLines(
+          [study('11B'), study('11B copy')],
+          [
+            run('r1', now, ['11B']),
+          ],
+        ),
+        isEmpty,
       );
     });
   });

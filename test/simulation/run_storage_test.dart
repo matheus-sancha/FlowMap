@@ -1039,41 +1039,25 @@ void main() {
     expect(byId[mixed]!.isMixed, isTrue);
   });
 
-  test('the history carries the takt each run ran at (§7.7.2)', () async {
+  test('the history carries the studies each run covered', () async {
+    // A run is named by its studies and when it was made (drive, 2026-09-13),
+    // and Compare finds each study's latest run through this.
     final projectId = await seedProject();
     final (:studies, :plant) = model();
-    // The takt is on the study rows, so a study has to actually carry one for
-    // the listing to name it — which is what tells two runs of one study apart
-    // in the menu (§7.7). This run's orders carry none, because the study was
-    // built with no `taktPeriods`, so the listing falls back to the study row —
-    // which is exactly what a run stored before v22 does (§7.9).
-    final base = studies.single;
-    final withTakt = SimStudy(
-      id: base.id,
-      name: base.name,
-      nodes: base.nodes,
-      parts: base.parts,
-      orders: base.orders,
-      releaseInterval: base.releaseInterval,
-      releaseCalendarId: base.releaseCalendarId,
-      wipCap: base.wipCap,
-      taktValue: 4,
-      taktUnit: TaktUnit.days,
-    );
-    final result = runSimulation(studies: [withTakt], workcenters: plant);
+    final result = runSimulation(studies: studies, workcenters: plant);
     await runs.saveRun(
       projectId: projectId,
       result: result,
-      studies: [withTakt],
+      studies: studies,
       workcenters: plant,
     );
 
-    // The raw pair comes back through the join, deduped past the workcenter
-    // cartesian, ready for `taktLabelForValues` to fold to `4 days`.
+    // Deduped past the workcenter cartesian: one entry per study.
     final listed = await runs.watchRuns(projectId).first;
-    expect(listed.single.takts, [
-      [(4.0, 'days')],
-    ]);
+    expect(
+      listed.single.studies.map((s) => (s.id, s.name)),
+      [for (final s in studies) (s.id, s.name)],
+    );
   });
 
   test('an order remembers the takt it opened under (§7.9, v22)', () async {
@@ -1136,12 +1120,6 @@ void main() {
     };
     expect(takts, {(6.0, TaktUnit.hours), (12.0, TaktUnit.hours)});
 
-    // And the menu folds them to the change the run crossed, in the order it
-    // crossed it — not to a set, which could not tell `6 → 12` from `12 → 6`.
-    final listed = await runs.watchRuns(projectId).first;
-    expect(listed.single.takts, [
-      [(6.0, 'hours'), (12.0, 'hours')],
-    ]);
   });
 
   test('a study says where its cadence ran out (§7.9.2, v22)', () async {

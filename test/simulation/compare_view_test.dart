@@ -1,19 +1,19 @@
 import 'package:flowmap/src/data/database/database.dart';
-import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/application/simulation_providers.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/simulation/presentation/compare_view.dart';
+import 'package:flowmap/src/features/studies/application/studies_providers.dart';
 import 'package:flowmap/src/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Compare, the third mode (#26). The arithmetic is `run_comparison_test`'s;
-/// this holds down what the screen does with it.
+/// Compare, the third mode (#26): two studies of one cell and line. The
+/// arithmetic is `run_comparison_test`'s; this holds down what the screen offers.
 void main() {
-  final now = DateTime(2026, 9, 13);
+  final now = DateTime(2026, 9, 13, 15, 30);
   final project = Project(
     id: 'doc',
     name: 'H2 2026',
@@ -27,41 +27,55 @@ void main() {
     updatedAt: now,
   );
 
-  StoredRun stored(String id, {required int onTime, DispatchRule? rule}) =>
+  Study study(String id, String line) => Study(
+    id: id,
+    projectId: 'doc',
+    productionCellId: 'cell-11',
+    productionLineId: line,
+    name: id,
+    includeInSimulation: false,
+    startBufferDays: 0,
+    createdAt: now,
+    updatedAt: now,
+  );
+
+  StoredRun stored(String id, DateTime at, String studyId, int release) =>
       StoredRun(
         id: id,
         projectId: 'doc',
-        createdAt: now,
-        queues: RunQueues([if (rule != null) (name: 'CLAD04', rule: rule)]),
-        studies: const [
+        createdAt: at,
+        queues: const RunQueues([]),
+        studies: [
           SimulationRunStudy(
-            runId: 'r',
-            studyId: 's',
-            name: 'Célula 11B',
-            releaseSeconds: 86400,
+            runId: id,
+            studyId: studyId,
+            name: studyId,
+            releaseSeconds: release,
             startBufferDays: 0,
+            productionCellName: 'Célula 11',
+            productionLineName: 'Fluxo 11B',
           ),
         ],
         result: SimRunResult(
-          start: now,
-          end: now,
-          guard: now,
+          start: at,
+          end: at,
+          guard: at,
           steps: const [],
           orders: const [],
           emptySlots: const [],
           busyByWorkcenter: const {},
           openByWorkcenter: const {},
         ),
-        metrics: RunMetrics(
-          orders: 10,
-          delivered: 10,
-          onTime: onTime,
+        metrics: const RunMetrics(
+          orders: 0,
+          delivered: 0,
+          onTime: 0,
           emptySlots: 0,
           averageFloat: null,
           averageLeadTime: null,
           theoreticalLeadTime: null,
-          parts: const [],
-          workcenters: const [],
+          parts: [],
+          workcenters: [],
         ),
         plan: const [],
       );
@@ -71,19 +85,32 @@ void main() {
       id: run.id,
       documentId: 'doc',
       dispatch: 'fifo',
-      runStart: now,
-      runEnd: now,
-      guard: now,
+      runStart: run.createdAt,
+      runEnd: run.createdAt,
+      guard: run.createdAt,
       createdAt: run.createdAt,
     ),
     queues: run.queues,
-    takts: const [],
+    studies: [
+      for (final s in run.studies)
+        (
+          id: s.studyId,
+          name: s.name,
+          cellName: s.productionCellName,
+          lineName: s.productionLineName,
+        ),
+    ],
   );
 
-  Future<void> pump(WidgetTester tester, List<StoredRun> runs) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    required List<Study> studies,
+    required List<StoredRun> runs,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          studiesProvider('doc').overrideWith((ref) => Stream.value(studies)),
           projectRunsProvider('doc').overrideWith(
             (ref) => Stream.value([for (final r in runs) listing(r)]),
           ),
@@ -93,6 +120,7 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+          // No scope needed: without one, dates fall back to the locale's format.
           home: Scaffold(body: CompareView(project: project)),
         ),
       ),
@@ -100,25 +128,39 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('one run says how to get a second', (tester) async {
-    await pump(tester, [stored('a', onTime: 5)]);
-    expect(find.text('Compare needs two runs'), findsOneWidget);
-  });
-
-  testWidgets('the newest run is After, the one before it Before', (
+  testWidgets('three studies on three lines say how to make a pair', (
     tester,
   ) async {
-    // Listed newest first, as `watchRuns` returns them.
-    await pump(tester, [
-      stored('newest', onTime: 9, rule: DispatchRule.earliestDueDate),
-      stored('older', onTime: 6, rule: DispatchRule.fifo),
-    ]);
+    // The live plant's shape.
+    await pump(
+      tester,
+      studies: [study('11B', 'b'), study('11C', 'c'), study('11D', 'd')],
+      runs: [stored('r1', now, '11B', 86400)],
+    );
+    expect(
+      find.text('Compare needs two studies of one cell and line'),
+      findsOneWidget,
+    );
+  });
 
-    // The verdict reads before → after, in that order, and says by how much.
-    expect(find.text('On-time delivery: 60% → 90%'), findsOneWidget);
-    expect(find.text('+30 pts'), findsWidgets);
-    // And the one thing that differed is named, in the app's own words.
-    expect(find.text('CLAD04'), findsOneWidget);
-    expect(find.text('Dispatch'), findsOneWidget);
+  testWidgets('two studies of one line, each named with its latest run', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      studies: [study('11B', 'b'), study('11B copy', 'b')],
+      runs: [
+        stored('r2', now, '11B copy', 43200),
+        stored('r1', now.subtract(const Duration(hours: 2)), '11B', 86400),
+      ],
+    );
+
+    // Name, date and time — no dispatch rule, no takt.
+    expect(find.textContaining('11B copy · '), findsOneWidget);
+    expect(find.textContaining('15:30'), findsOneWidget);
+    expect(find.textContaining('FIFO'), findsNothing);
+    expect(find.text('Célula 11 · Fluxo 11B'), findsOneWidget);
+    // And what the two were given differently is named.
+    expect(find.text('Release interval'), findsOneWidget);
   });
 }

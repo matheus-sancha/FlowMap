@@ -49,9 +49,9 @@ class SimulationRunsRepository {
               workcenters,
               workcenters.runId.equalsExp(_db.simulationRuns.id),
             ),
-            // The takt is on the study rows (§7.7.2), joined here so the menu can
-            // tell two runs of one study apart by what they ran at — which is
-            // what makes §7.7's "run it twice and compare" legible in the list.
+            // The studies a run covered, by the names they ran under: a run is
+            // named by them and its date (drive, 2026-09-13), and Compare finds
+            // each study's latest run here.
             leftOuterJoin(
               studies,
               studies.runId.equalsExp(_db.simulationRuns.id),
@@ -72,7 +72,7 @@ class SimulationRunsRepository {
       // above is the ordering that comes out.
       final headers = <String, SimulationRun>{};
       final byRun = <String, List<({String name, DispatchRule rule})>>{};
-      final takts = <String, List<List<(double, String?)>>>{};
+      final covered = <String, List<RunListingStudy>>{};
       // The two joins multiply: one row per (workcenter × study), so a workcenter or a
       // study is seen once per row of the other and has to be counted once.
       final seenWorkcenters = <String, Set<String>>{};
@@ -90,12 +90,12 @@ class SimulationRunsRepository {
         final study = row.readTableOrNull(studies);
         if (study != null &&
             (seenStudies[header.id] ??= {}).add(study.studyId)) {
-          if (study.taktValue case final value?) {
-            // One takt, the whole way — which is what a study row can say, and
-            // what was true of every run before §7.9. `_withOrderTakts` below
-            // replaces it wherever the orders know better.
-            (takts[header.id] ??= []).add([(value, study.taktUnit)]);
-          }
+          (covered[header.id] ??= []).add((
+            id: study.studyId,
+            name: study.name,
+            cellName: study.productionCellName,
+            lineName: study.productionLineName,
+          ));
         }
       }
       return [
@@ -103,73 +103,10 @@ class SimulationRunsRepository {
           (
             run: entry.value,
             queues: RunQueues(byRun[entry.key] ?? const []),
-            takts: takts[entry.key] ?? const [],
+            studies: covered[entry.key] ?? const [],
           ),
       ];
-    }).asyncMap(_withOrderTakts);
-  }
-
-  /// Replaces each listing's per-study takt with the sequence its **orders**
-  /// actually opened under (§7.9).
-  ///
-  /// **A second query rather than a third join.** The takt lives on the orders
-  /// now, and a run has hundreds of those against a handful of workcenters — a
-  /// third join would multiply the cartesian by the demand and make the menu's
-  /// query grow with the plant. Run in step with the listing instead: a run's
-  /// header row and its orders are written and deleted together, so the main
-  /// query fires whenever these change.
-  ///
-  /// **The menu and the run header then read the same rows**, which is the
-  /// whole reason `taktLabelForValues` exists — a label with its own copy of
-  /// the fact can only agree by being written correctly, where a query agrees
-  /// by construction (§7.9.3).
-  ///
-  /// A run stored before v22 has no takt on any order and keeps the single
-  /// figure its study rows carry, which is what it did in fact run at
-  /// throughout.
-  Future<List<RunListing>> _withOrderTakts(List<RunListing> listings) async {
-    if (listings.isEmpty) return listings;
-
-    final rows = await _db
-        .customSelect(
-          'SELECT run_id, study_id, takt_value, takt_unit, '
-          'MIN(released) AS first_release '
-          'FROM simulation_run_orders '
-          'WHERE takt_value IS NOT NULL AND run_id IN '
-          '(SELECT id FROM simulation_runs WHERE document_id = ?) '
-          'GROUP BY run_id, study_id, takt_value, takt_unit',
-          variables: [Variable<String>(listings.first.run.documentId)],
-          readsFrom: {_db.simulationRunOrders, _db.simulationRuns},
-        )
-        .get();
-
-    // Grouped per run and handed to the shared rule, so the ordering and the
-    // consecutive-distinct fold are written once (§7.9.3).
-    final byRun =
-        <
-          String,
-          List<({String studyId, DateTime? at, double? value, String? unit})>
-        >{};
-    for (final row in rows) {
-      (byRun[row.read<String>('run_id')] ??= []).add((
-        studyId: row.read<String>('study_id'),
-        at: row.read<DateTime?>('first_release'),
-        value: row.read<double>('takt_value'),
-        unit: row.read<String?>('takt_unit'),
-      ));
-    }
-
-    return [
-      for (final listing in listings)
-        if (byRun[listing.run.id] case final entries?)
-          (
-            run: listing.run,
-            queues: listing.queues,
-            takts: taktSequences(entries),
-          )
-        else
-          listing,
-    ];
+    });
   }
 
   Future<void> deleteRun(String runId) =>
@@ -824,7 +761,15 @@ List<List<(double, String?)>> taktSequences(
 typedef RunListing = ({
   SimulationRun run,
   RunQueues queues,
-  List<List<(double, String?)>> takts,
+  List<RunListingStudy> studies,
+});
+
+/// A study as a run recorded it: the name it ran under, and where it stood.
+typedef RunListingStudy = ({
+  String id,
+  String name,
+  String? cellName,
+  String? lineName,
 });
 
 /// What each workcenter of a run dispatched by, as the run recorded it (§7.3).

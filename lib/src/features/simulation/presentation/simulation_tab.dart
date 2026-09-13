@@ -37,7 +37,6 @@ class RunsMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final dateStyle = DateStyleScope.of(context);
     final runs =
         ref.watch(projectRunsProvider(projectId)).value ?? const <RunListing>[];
     if (runs.isEmpty) return const SizedBox.shrink();
@@ -48,8 +47,7 @@ class RunsMenu extends ConsumerWidget {
     // "run it twice and compare" (§7.7) legible without opening each. A full
     // breakdown does not fit a menu row; the per-workcenter list is on the run
     // header the row opens.
-    String label(RunListing listing) =>
-        runListingLabel(l10n, dateStyle.format, listing);
+    String label(RunListing listing) => runListingLabel(context, listing);
 
     return PopupMenuButton<({String runId, bool delete})>(
       tooltip: l10n.simEarlierRuns,

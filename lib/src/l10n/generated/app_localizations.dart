@@ -2538,23 +2538,29 @@ abstract class AppLocalizations {
   /// **'After'**
   String get compareAfter;
 
+  /// No description provided for @compareLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Cell and line'**
+  String get compareLine;
+
+  /// No description provided for @compareSameStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick two different studies.'**
+  String get compareSameStudy;
+
   /// No description provided for @compareNeedsTwo.
   ///
   /// In en, this message translates to:
-  /// **'Compare needs two runs'**
+  /// **'Compare needs two studies of one cell and line'**
   String get compareNeedsTwo;
 
   /// No description provided for @compareNeedsTwoHelp.
   ///
   /// In en, this message translates to:
-  /// **'Simulate, change one thing — a takt, a WIP cap, a dispatch rule — and simulate again. To weigh two versions of a study, duplicate it and flag the copy.'**
+  /// **'Duplicate a study, change the copy, include the copy in the simulation instead of the original, and simulate. Each study is compared at its latest run.'**
   String get compareNeedsTwoHelp;
-
-  /// No description provided for @compareSameRun.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick two different runs.'**
-  String get compareSameRun;
 
   /// No description provided for @compareDifferentBuilds.
   ///
@@ -2568,12 +2574,6 @@ abstract class AppLocalizations {
   /// **'not recorded'**
   String get compareUnstamped;
 
-  /// No description provided for @compareDifferentScope.
-  ///
-  /// In en, this message translates to:
-  /// **'These runs cover different cells or lines, so a difference may mean they are different things rather than that something changed.'**
-  String get compareDifferentScope;
-
   /// No description provided for @compareInputs.
   ///
   /// In en, this message translates to:
@@ -2583,7 +2583,7 @@ abstract class AppLocalizations {
   /// No description provided for @compareNoInputs.
   ///
   /// In en, this message translates to:
-  /// **'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if you changed one of those, that is the difference.'**
+  /// **'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if the two studies differ in one of those, that is the difference.'**
   String get compareNoInputs;
 
   /// No description provided for @compareResults.
@@ -2604,29 +2604,11 @@ abstract class AppLocalizations {
   /// **'Input'**
   String get compareInput;
 
-  /// No description provided for @compareSubject.
-  ///
-  /// In en, this message translates to:
-  /// **'Study or workcenter'**
-  String get compareSubject;
-
   /// No description provided for @compareReleaseInterval.
   ///
   /// In en, this message translates to:
   /// **'Release interval'**
   String get compareReleaseInterval;
-
-  /// No description provided for @compareInRun.
-  ///
-  /// In en, this message translates to:
-  /// **'In the run'**
-  String get compareInRun;
-
-  /// No description provided for @compareIncluded.
-  ///
-  /// In en, this message translates to:
-  /// **'Included'**
-  String get compareIncluded;
 
   /// No description provided for @compareDispatch.
   ///

@@ -1380,14 +1380,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compareAfter => 'After';
 
   @override
-  String get compareNeedsTwo => 'Compare needs two runs';
+  String get compareLine => 'Cell and line';
+
+  @override
+  String get compareSameStudy => 'Pick two different studies.';
+
+  @override
+  String get compareNeedsTwo =>
+      'Compare needs two studies of one cell and line';
 
   @override
   String get compareNeedsTwoHelp =>
-      'Simulate, change one thing — a takt, a WIP cap, a dispatch rule — and simulate again. To weigh two versions of a study, duplicate it and flag the copy.';
-
-  @override
-  String get compareSameRun => 'Pick two different runs.';
+      'Duplicate a study, change the copy, include the copy in the simulation instead of the original, and simulate. Each study is compared at its latest run.';
 
   @override
   String compareDifferentBuilds(String before, String after) {
@@ -1398,15 +1402,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compareUnstamped => 'not recorded';
 
   @override
-  String get compareDifferentScope =>
-      'These runs cover different cells or lines, so a difference may mean they are different things rather than that something changed.';
-
-  @override
   String get compareInputs => 'What was different';
 
   @override
   String get compareNoInputs =>
-      'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if you changed one of those, that is the difference.';
+      'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if the two studies differ in one of those, that is the difference.';
 
   @override
   String get compareResults => 'Results';
@@ -1418,16 +1418,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compareInput => 'Input';
 
   @override
-  String get compareSubject => 'Study or workcenter';
-
-  @override
   String get compareReleaseInterval => 'Release interval';
-
-  @override
-  String get compareInRun => 'In the run';
-
-  @override
-  String get compareIncluded => 'Included';
 
   @override
   String get compareDispatch => 'Dispatch';

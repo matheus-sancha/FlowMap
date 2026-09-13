@@ -717,9 +717,10 @@
   "workspaceModeCompare": "Compare",
   "compareBefore": "Before",
   "compareAfter": "After",
-  "compareNeedsTwo": "Compare needs two runs",
-  "compareNeedsTwoHelp": "Simulate, change one thing — a takt, a WIP cap, a dispatch rule — and simulate again. To weigh two versions of a study, duplicate it and flag the copy.",
-  "compareSameRun": "Pick two different runs.",
+  "compareLine": "Cell and line",
+  "compareSameStudy": "Pick two different studies.",
+  "compareNeedsTwo": "Compare needs two studies of one cell and line",
+  "compareNeedsTwoHelp": "Duplicate a study, change the copy, include the copy in the simulation instead of the original, and simulate. Each study is compared at its latest run.",
   "compareDifferentBuilds": "These runs were made by different builds of FlowMap ({before} and {after}). A change in the app can move the numbers as much as a change in the plant.",
   "@compareDifferentBuilds": {
     "placeholders": {
@@ -732,16 +733,12 @@
     }
   },
   "compareUnstamped": "not recorded",
-  "compareDifferentScope": "These runs cover different cells or lines, so a difference may mean they are different things rather than that something changed.",
   "compareInputs": "What was different",
-  "compareNoInputs": "No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if you changed one of those, that is the difference.",
+  "compareNoInputs": "No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if the two studies differ in one of those, that is the difference.",
   "compareResults": "Results",
   "compareChange": "Change",
   "compareInput": "Input",
-  "compareSubject": "Study or workcenter",
   "compareReleaseInterval": "Release interval",
-  "compareInRun": "In the run",
-  "compareIncluded": "Included",
   "compareDispatch": "Dispatch",
   "comparePoints": "{delta} pts",
   "@comparePoints": {

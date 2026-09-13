@@ -2570,17 +2570,25 @@ is what you edit, the Gantt is what you read. *Rejected: "Define vs Read", movin
 run's views.*
 
 **Three modes since v2.1: `Study | Simulation | Compare`** (#26). The two above were settled after
-four driven rounds, and the third reopens that deliberately: comparing two runs is neither editing a
-study nor reading one run, and a tab inside either would claim it was. Compare is one location
-(`/projects/:id/compare`) with no tabs. It opens on **the newest run against the one before it**,
-either side re-pickable from the same labels the runs menu uses, then shows, top to bottom: **the
-verdict** (on-time delivery before → after, over all orders as the headline counts it), **warnings,
-never refusals** (a different build; different cells or lines), **what was different** (release
-interval, takt with its unit, WIP cap, start buffer, a study in one run only, and each workcenter's
-dispatch rule), and **the figures**, coloured by *better* rather than *larger*. The unit is **two
-runs, not two studies**: #26's same-cell-and-line pairing matched zero of 165 stored runs, and was
-inverted to a warning on 2026-09-13. Runs stay on the machine that made them (#37), so a comparison
-never crosses the shared drive.
+four driven rounds, and the third reopens that deliberately: comparing is neither editing a study nor
+reading one run. Compare is one location (`/projects/:id/compare`) with no tabs.
+
+**It compares two studies of one cell and line, each at its latest run**, which is #26's own rule.
+For a morning on 2026-09-13 it compared two *runs* instead, because across 165 stored runs #26's
+pairing matched nothing; driving it, the developer restored studies — the question a planner brings
+is *which version of this line is better*. **The cost is accepted, not argued away**: no line in the
+live plant has two studies, so Compare opens empty and says how to make a pair (duplicate a study,
+flag the copy, simulate). Each side is **the study's slice of its run** through `filterRun`, never
+the whole run: at most one study per line is flagged, so the two are always in different runs, and
+each run also carries every other line's orders. Top to bottom: cell and line, the two studies, **the
+verdict** (on-time delivery over all orders, as the headline counts it), a warning if the builds
+differ, **what was different** (release interval, takt with its unit, WIP cap, start buffer, each
+workcenter's dispatch rule), and **the figures**, coloured by *better* rather than *larger*.
+
+**A run is named by its studies and when it was made**, `Célula 11B · 13/09/2026 15:30`, in the runs
+menu and in Compare alike. It was the date, the dispatch rule and the takt, so every live run read
+`FIFO — by arrival`: a caption naming nothing anyone had chosen, missing the one fact that tells runs
+apart at a glance.
 
 **The results are five tabs**: Simulation Overview, Production Plan, Production Gantt, Occupation,
 Delivery Float. The destination is *Simulation results* and its first tab is *Simulation Overview*,

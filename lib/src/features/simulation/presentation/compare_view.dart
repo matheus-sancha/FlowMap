@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../app/tokens.dart';
 import '../../../common/date_style_scope.dart';
@@ -8,6 +9,7 @@ import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../studies/application/studies_providers.dart';
 import '../application/run_comparison.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
@@ -17,34 +19,34 @@ final storedRunProvider = FutureProvider.autoDispose.family<StoredRun?, String>(
   (ref, runId) => ref.watch(simulationRunsRepositoryProvider).loadRun(runId),
 );
 
-/// How a run is named wherever one is picked: the date, what it dispatched by,
-/// and the takt it ran at (§7.3, §7.7.2). The runs menu and Compare's two
-/// pickers read the same words, so a run is recognisable from either.
-String runListingLabel(
-  AppLocalizations l10n,
-  String Function(DateTime? date) formatDate,
-  RunListing listing,
-) {
-  final date = formatDate(listing.run.createdAt);
-  final queues = runQueueLabel(l10n, listing.queues);
-  final head = queues == null ? date : l10n.simRunLabel(date, queues);
-  final takt = taktLabelForValues(l10n, listing.takts);
-  return takt == null ? head : '$head  ·  $takt';
+/// A moment as a run is named by: the date in the reader's chosen format, then
+/// the 24-hour time. Two runs made the same day are told apart by the time.
+String runMoment(BuildContext context, DateTime at) =>
+    '${DateStyleScope.of(context).format(at)} '
+    '${DateFormat.Hm(Localizations.localeOf(context).toString()).format(at)}';
+
+/// How a run is named wherever one is picked: **the studies it covered and when
+/// it was made** (drive, 2026-09-13).
+///
+/// It was the date, the dispatch rule and the takt — so every run of the live
+/// plant read `FIFO — by arrival`, a caption naming nothing a person chose,
+/// while the fact that tells runs apart at a glance, which studies were in it,
+/// was missing.
+String runListingLabel(BuildContext context, RunListing listing) {
+  final names = listing.studies.map((s) => s.name).join(', ');
+  final when = runMoment(context, listing.run.createdAt);
+  return names.isEmpty ? when : '$names · $when';
 }
 
-/// The third mode: two runs, a verdict, what differed, and the figures (#26).
+/// The third mode: two studies of one cell and line, each at its latest run
+/// (#26).
 ///
-/// **Two runs, not two studies** — inverted 2026-09-13 by the run history,
-/// which matched zero pairs under #26's same-cell-and-line rule while one
-/// study's own runs differed in up to nine release cadences. Cell and line are
-/// a warning here, not a gate.
+/// **Two studies again, not two runs**, by the developer's call after driving
+/// the runs version: the question is *which version of this line is better*.
+/// The cost is that nothing appears until a line has two simulated studies —
+/// none in the live plant does — so the empty state says how to make one.
 ///
-/// **It amends #7**, which settled on two modes after four driven rounds. The
-/// reopening is deliberate: comparison is neither editing a study nor reading
-/// one run, and a tab inside either would claim it was.
-///
-/// **Newest against the one before, on arrival** — the pair someone who just
-/// pressed Simulate twice is asking about. Either side can be changed.
+/// **It amends #7**, which settled on two modes after four driven rounds.
 class CompareView extends ConsumerStatefulWidget {
   const CompareView({super.key, required this.project});
 
@@ -55,6 +57,7 @@ class CompareView extends ConsumerStatefulWidget {
 }
 
 class _CompareViewState extends ConsumerState<CompareView> {
+  String? _line;
   String? _before;
   String? _after;
 
@@ -62,57 +65,92 @@ class _CompareViewState extends ConsumerState<CompareView> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final dateStyle = DateStyleScope.of(context);
     final runs = ref.watch(projectRunsProvider(widget.project.id)).value;
+    final studies = ref.watch(studiesProvider(widget.project.id)).value;
 
-    if (runs == null) {
+    if (runs == null || studies == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (runs.length < 2) {
+    final lines = comparableLines(studies, runs);
+    if (lines.isEmpty) {
       return _Empty(
         title: l10n.compareNeedsTwo,
         detail: l10n.compareNeedsTwoHelp,
       );
     }
 
-    // A pick that no longer exists — a run deleted from the menu — falls back
-    // to the default rather than to an error.
-    bool exists(String? id) => runs.any((r) => r.run.id == id);
-    final after = exists(_after) ? _after! : runs[0].run.id;
-    final before = exists(_before) ? _before! : runs[1].run.id;
+    // A pick that no longer exists — a study deleted, a run removed — falls
+    // back to the default rather than to an error.
+    String keyOf(ComparableLine l) => '${l.cellId}|${l.lineId}';
+    final line = lines.firstWhere(
+      (l) => keyOf(l) == _line,
+      orElse: () => lines.first,
+    );
+    bool has(String? id) => line.studies.any((s) => s.studyId == id);
+    // The two most recently simulated, newest on the right.
+    final after = has(_after) ? _after! : line.studies[0].studyId;
+    final before = has(_before)
+        ? _before!
+        : line.studies.firstWhere((s) => s.studyId != after).studyId;
+    LatestStudyRun pick(String id) =>
+        line.studies.firstWhere((s) => s.studyId == id);
 
-    DropdownButton<String> picker(String value, ValueChanged<String> onPick) =>
-        DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          items: [
-            for (final listing in runs)
-              DropdownMenuItem(
-                value: listing.run.id,
-                child: Text(
-                  runListingLabel(l10n, dateStyle.format, listing),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-          ],
-          onChanged: (id) {
-            if (id != null) onPick(id);
-          },
-        );
+    DropdownButton<String> studyPicker(
+      String value,
+      ValueChanged<String> onPick,
+    ) => DropdownButton<String>(
+      value: value,
+      isExpanded: true,
+      items: [
+        for (final study in line.studies)
+          DropdownMenuItem(
+            value: study.studyId,
+            child: Text(
+              '${study.name} · ${runMoment(context, study.runAt)}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: (id) {
+        if (id != null) onPick(id);
+      },
+    );
 
-    final a = ref.watch(storedRunProvider(before));
-    final b = ref.watch(storedRunProvider(after));
+    final a = ref.watch(storedRunProvider(pick(before).runId));
+    final b = ref.watch(storedRunProvider(pick(after).runId));
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _Labelled(
+            label: l10n.compareLine,
+            child: DropdownButton<String>(
+              value: keyOf(line),
+              items: [
+                for (final l in lines)
+                  DropdownMenuItem(value: keyOf(l), child: Text(l.label)),
+              ],
+              onChanged: (key) => setState(() {
+                _line = key;
+                _before = null;
+                _after = null;
+              }),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: _Labelled(
                 label: l10n.compareBefore,
-                child: picker(before, (id) => setState(() => _before = id)),
+                child: studyPicker(
+                  before,
+                  (id) => setState(() => _before = id),
+                ),
               ),
             ),
             const Padding(
@@ -122,18 +160,21 @@ class _CompareViewState extends ConsumerState<CompareView> {
             Expanded(
               child: _Labelled(
                 label: l10n.compareAfter,
-                child: picker(after, (id) => setState(() => _after = id)),
+                child: studyPicker(after, (id) => setState(() => _after = id)),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
         if (before == after)
-          Text(l10n.compareSameRun, style: theme.textTheme.bodyMedium)
+          Text(l10n.compareSameStudy, style: theme.textTheme.bodyMedium)
         else
           switch ((a, b)) {
             (AsyncData(value: final x?), AsyncData(value: final y?)) =>
-              _Comparison(before: x, after: y),
+              _Comparison(
+                before: ComparedSide.of(x, before),
+                after: ComparedSide.of(y, after),
+              ),
             (AsyncError(:final error), _) ||
             (_, AsyncError(:final error)) => Text('$error'),
             _ => const Padding(
@@ -149,15 +190,15 @@ class _CompareViewState extends ConsumerState<CompareView> {
 class _Comparison extends StatelessWidget {
   const _Comparison({required this.before, required this.after});
 
-  final StoredRun before;
-  final StoredRun after;
+  final ComparedSide before;
+  final ComparedSide after;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final status = FlowStatus.of(context);
-    final comparison = RunComparison.of(before, after);
+    final comparison = RunComparison.between(before, after);
     final verdict = comparison.verdict;
 
     Color? tone(bool? better) => switch (better) {
@@ -213,8 +254,6 @@ class _Comparison extends StatelessWidget {
                           before.appVersion ?? l10n.compareUnstamped,
                           after.appVersion ?? l10n.compareUnstamped,
                         ),
-                      ComparisonWarning.differentScope =>
-                        l10n.compareDifferentScope,
                     },
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.tertiary,
@@ -226,7 +265,7 @@ class _Comparison extends StatelessWidget {
           ),
         const SizedBox(height: 24),
         // **What was different, before the figures** — the half the feature
-        // exists for: *better, and here is the one thing that changed*.
+        // exists for: *better, and here is what the two were given*.
         Text(l10n.compareInputs, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         if (comparison.differences.isEmpty)
@@ -235,8 +274,8 @@ class _Comparison extends StatelessWidget {
           resultTable(
             maxHeight: null,
             columns: [
-              ResultColumn(label: l10n.compareSubject, width: 200),
               ResultColumn(label: l10n.compareInput, width: 160),
+              ResultColumn(label: l10n.workcenter, width: 160),
               ResultColumn(label: l10n.compareBefore, width: 160),
               ResultColumn(label: l10n.compareAfter, width: 160),
             ],
@@ -244,8 +283,8 @@ class _Comparison extends StatelessWidget {
             cellAt: (row, column) {
               final d = comparison.differences[row];
               return Text(switch (column) {
-                0 => d.study,
-                1 => _fieldLabel(l10n, d.field),
+                0 => _fieldLabel(l10n, d.field),
+                1 => d.workcenter ?? '—',
                 2 => _input(l10n, d.field, d.before),
                 _ => _input(l10n, d.field, d.after),
               });
@@ -326,7 +365,6 @@ String _fieldLabel(AppLocalizations l10n, InputField field) => switch (field) {
   InputField.takt => l10n.takt,
   InputField.wipCap => l10n.studyWipCap,
   InputField.startBuffer => l10n.studyStartBuffer,
-  InputField.presence => l10n.compareInRun,
   InputField.dispatch => l10n.compareDispatch,
 };
 
@@ -353,7 +391,6 @@ String _input(AppLocalizations l10n, InputField field, String? raw) {
       final rule = DispatchRule.values.where((r) => r.name == raw).firstOrNull;
       return rule == null ? raw : dispatchRuleLabel(l10n, rule);
     }(),
-    InputField.presence => l10n.compareIncluded,
     _ => raw,
   };
 }
