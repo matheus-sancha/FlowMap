@@ -156,31 +156,25 @@ String _$convertedDocumentsHash() =>
 
 /// The document that is open, or null when the app is showing the start screen.
 ///
-/// **Resources and Settings stay reachable with nothing open.** With no
-/// document, Resources shows the *library* — the plant `New project` seeds from
-/// — which is what #37 left the local database holding. With a document open it
-/// shows that document's plant, because a load replaces the working tables
-/// whole.
+/// **One document owns the working tables at a time.** Opening or creating
+/// another detaches this one first — it writes its last and stops following —
+/// and only then are the tables replaced; see [DocumentSession.detach].
 
 @ProviderFor(OpenDocument)
 final openDocumentProvider = OpenDocumentProvider._();
 
 /// The document that is open, or null when the app is showing the start screen.
 ///
-/// **Resources and Settings stay reachable with nothing open.** With no
-/// document, Resources shows the *library* — the plant `New project` seeds from
-/// — which is what #37 left the local database holding. With a document open it
-/// shows that document's plant, because a load replaces the working tables
-/// whole.
+/// **One document owns the working tables at a time.** Opening or creating
+/// another detaches this one first — it writes its last and stops following —
+/// and only then are the tables replaced; see [DocumentSession.detach].
 final class OpenDocumentProvider
     extends $NotifierProvider<OpenDocument, DocumentSession?> {
   /// The document that is open, or null when the app is showing the start screen.
   ///
-  /// **Resources and Settings stay reachable with nothing open.** With no
-  /// document, Resources shows the *library* — the plant `New project` seeds from
-  /// — which is what #37 left the local database holding. With a document open it
-  /// shows that document's plant, because a load replaces the working tables
-  /// whole.
+  /// **One document owns the working tables at a time.** Opening or creating
+  /// another detaches this one first — it writes its last and stops following —
+  /// and only then are the tables replaced; see [DocumentSession.detach].
   OpenDocumentProvider._()
     : super(
         from: null,
@@ -208,15 +202,13 @@ final class OpenDocumentProvider
   }
 }
 
-String _$openDocumentHash() => r'3d87d39ecc8e1c1a2c1625cbcabc758b57c3b64a';
+String _$openDocumentHash() => r'c1ae5c5872125a536f597fe32709bd9e06787d0d';
 
 /// The document that is open, or null when the app is showing the start screen.
 ///
-/// **Resources and Settings stay reachable with nothing open.** With no
-/// document, Resources shows the *library* — the plant `New project` seeds from
-/// — which is what #37 left the local database holding. With a document open it
-/// shows that document's plant, because a load replaces the working tables
-/// whole.
+/// **One document owns the working tables at a time.** Opening or creating
+/// another detaches this one first — it writes its last and stops following —
+/// and only then are the tables replaced; see [DocumentSession.detach].
 
 abstract class _$OpenDocument extends $Notifier<DocumentSession?> {
   DocumentSession? build();

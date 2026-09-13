@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../documents/application/documents_providers.dart';
+import '../../projects/application/projects_providers.dart';
 
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
@@ -41,6 +42,10 @@ class ResourcesScreen extends ConsumerWidget {
     }
 
     final plants = ref.watch(plantsProvider);
+    final projectPlantId = ref
+        .watch(projectProvider(ref.watch(openDocumentProvider)!.projectId))
+        .value
+        ?.plantId;
 
     return plants.when(
       loading: () =>
@@ -52,10 +57,10 @@ class ResourcesScreen extends ConsumerWidget {
       data: (plants) {
         if (plants.isEmpty) return const _NoPlantYet();
 
-        // Null selection resolves to the first plant here rather than by
+        // Null selection resolves to the project's plant here rather than by
         // writing a default on load: a read should not have a side effect, and
         // the list can change under a stored id at any time.
-        final selectedId = ref.watch(selectedPlantProvider);
+        final selectedId = ref.watch(selectedPlantProvider) ?? projectPlantId;
         final plant = plants.firstWhere(
           (p) => p.id == selectedId,
           orElse: () => plants.first,

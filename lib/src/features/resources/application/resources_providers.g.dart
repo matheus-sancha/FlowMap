@@ -132,25 +132,40 @@ abstract class _$ShowArchived extends $Notifier<bool> {
 
 /// The plant the Resources screen is showing.
 ///
-/// A project specifies one plant (DESIGN.md §3), but Resources spans them all,
-/// so the screen needs its own selection. Null means "the first one", resolved
-/// where it is read so the initial load needs no write.
+/// A project specifies one plant (DESIGN.md §3), but a document may hold
+/// several, so the screen needs its own selection. Null means **the open
+/// project's plant**, resolved where it is read so the initial load needs no
+/// write.
+///
+/// **Forgotten when another document opens.** A plant id picked in one document
+/// names nothing in the next, and falling back to the first plant is how
+/// Resources came to show a plant the project does not use.
 
 @ProviderFor(SelectedPlant)
 final selectedPlantProvider = SelectedPlantProvider._();
 
 /// The plant the Resources screen is showing.
 ///
-/// A project specifies one plant (DESIGN.md §3), but Resources spans them all,
-/// so the screen needs its own selection. Null means "the first one", resolved
-/// where it is read so the initial load needs no write.
+/// A project specifies one plant (DESIGN.md §3), but a document may hold
+/// several, so the screen needs its own selection. Null means **the open
+/// project's plant**, resolved where it is read so the initial load needs no
+/// write.
+///
+/// **Forgotten when another document opens.** A plant id picked in one document
+/// names nothing in the next, and falling back to the first plant is how
+/// Resources came to show a plant the project does not use.
 final class SelectedPlantProvider
     extends $NotifierProvider<SelectedPlant, String?> {
   /// The plant the Resources screen is showing.
   ///
-  /// A project specifies one plant (DESIGN.md §3), but Resources spans them all,
-  /// so the screen needs its own selection. Null means "the first one", resolved
-  /// where it is read so the initial load needs no write.
+  /// A project specifies one plant (DESIGN.md §3), but a document may hold
+  /// several, so the screen needs its own selection. Null means **the open
+  /// project's plant**, resolved where it is read so the initial load needs no
+  /// write.
+  ///
+  /// **Forgotten when another document opens.** A plant id picked in one document
+  /// names nothing in the next, and falling back to the first plant is how
+  /// Resources came to show a plant the project does not use.
   SelectedPlantProvider._()
     : super(
         from: null,
@@ -178,13 +193,18 @@ final class SelectedPlantProvider
   }
 }
 
-String _$selectedPlantHash() => r'7554077022087c82e63f75f58661e845d62dc27a';
+String _$selectedPlantHash() => r'b7fb17a99394a76565424805c3fa4a9c810456ea';
 
 /// The plant the Resources screen is showing.
 ///
-/// A project specifies one plant (DESIGN.md §3), but Resources spans them all,
-/// so the screen needs its own selection. Null means "the first one", resolved
-/// where it is read so the initial load needs no write.
+/// A project specifies one plant (DESIGN.md §3), but a document may hold
+/// several, so the screen needs its own selection. Null means **the open
+/// project's plant**, resolved where it is read so the initial load needs no
+/// write.
+///
+/// **Forgotten when another document opens.** A plant id picked in one document
+/// names nothing in the next, and falling back to the first plant is how
+/// Resources came to show a plant the project does not use.
 
 abstract class _$SelectedPlant extends $Notifier<String?> {
   String? build();
