@@ -35,8 +35,8 @@ Unchanged from v2.0, and worth restating because the audience changed:
   `flutter gen-l10n`, in the same commit as the code. `l10n_test.dart` asserts
   `lib/src/l10n/untranslated.json` is empty, so a phase cannot ship English-only without failing the
   build.
-- **Migrations are one per phase and never combined.** v2.1 has exactly **one** migration, so this
-  costs nothing — but it is why the stamp sits alone in phase 1.
+- **Migrations are one per phase and never combined.** v2.1 has **two** — v31 in phase 1, v32 in
+  phase 2 — and they are one apiece, which is why the stamp sits alone in phase 1.
 - **One word: `workcenter`.** *Station* is retired (`DESIGN.md` §3.0). A study is written
   `name (cell · line)` wherever it stands beside a cell or a line.
 
@@ -45,7 +45,7 @@ Unchanged from v2.0, and worth restating because the audience changed:
 | # | Phase | Schema | Tickets |
 |---|---|---|---|
 | 1 | Safety and the stamp | **v31** | [#28](https://github.com/matheus-sancha/FlowMap/issues/28), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
-| 2 | The document | — | [#37](https://github.com/matheus-sancha/FlowMap/issues/37), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
+| 2 | The document | **v32** | [#37](https://github.com/matheus-sancha/FlowMap/issues/37), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
 | 3 | Templates and Save As | — | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
 | 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) |
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) |
@@ -61,6 +61,10 @@ it protects; `.flowmap` before templates and before the drop that carries the ex
 before compare has anything to compare; and `flowmap_mark.dart` before the PDF header can carry the
 mark.
 
+
+**Two migrations, not one.** v31 stamps a run with its build (phase 1); **v32 unreferences it from
+its project** (phase 2), because a document switch empties the working tables and the cascade from
+`projects` would have taken every stored run with it. They are one per phase, as the rule requires.
 
 **Nothing in v2.1 reaches the engine.** The last engine change was v2.0's phase 10. This is the
 first plan since v2.0 opened for which **no stored run is at risk**, and the 165 stored runs are
@@ -114,6 +118,12 @@ understand locks or decide to break one.
 
 Also here: **the existing project migrates** to a document on first launch, which affects exactly one
 machine, because every employee installs fresh.
+
+**The migration is v32, and it was found by building rather than by reading.** Opening a document
+empties and refills the working tables, and `simulation_runs.project_id` referenced `projects` with
+`onDelete: cascade` — so the first document switch would have deleted every stored run. It becomes
+`document_id` with no foreign key at all: a run's document may not be open, may live on a drive this
+machine cannot see, or may have been deleted by someone else.
 
 **Read #37 before starting.** It rejects the two options that look cheapest — a live SQLite the app
 opens directly, and an explicit Save — and the reasons are not obvious from the code.
