@@ -2041,4 +2041,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get documentsOpenFailed => 'This file could not be opened';
+
+  @override
+  String get documentsDefaultPlant => 'Plant';
 }

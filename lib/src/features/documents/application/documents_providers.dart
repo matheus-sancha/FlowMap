@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../data/database/database_providers.dart';
 import '../data/document_migration.dart';
 import '../data/documents_directory.dart';
+import '../data/new_document.dart';
 import '../data/recent_documents.dart';
 import 'document_session.dart';
 
@@ -89,6 +90,27 @@ class OpenDocument extends _$OpenDocument {
         .remember(path, name: session.projectName);
     ref.invalidate(recentDocumentsProvider);
     return const OpenOutcome.opened();
+  }
+
+  /// Writes a new document at [path] and opens it.
+  ///
+  /// **Creating and opening are the same act after the first line.** A new
+  /// document is written to disk and then loaded through the ordinary path, so
+  /// there is one loader, one lock, one autosave — and one thing that can be
+  /// wrong with any of it.
+  Future<OpenOutcome> create(
+    String path, {
+    required String projectName,
+    required String plantName,
+    required String user,
+    required String machine,
+  }) async {
+    await NewDocument(ref.read(appDatabaseProvider)).create(
+      path,
+      projectName: projectName,
+      plantName: plantName,
+    );
+    return open(path, user: user, machine: machine);
   }
 
   /// Flushes and releases, leaving the app on the start screen.

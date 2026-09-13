@@ -10,6 +10,7 @@ import '../application/documents_providers.dart';
 import '../data/document_lock.dart';
 import '../data/documents_directory.dart';
 import '../data/flowmap_document.dart';
+import '../data/new_document.dart';
 import '../data/recent_documents.dart';
 
 /// What the app shows when no project is open.
@@ -99,10 +100,34 @@ class DocumentsScreen extends ConsumerWidget {
       suggestedName: '${l10n.documentsNew.replaceAll('…', '')}.flowmap',
     );
     if (location == null || !context.mounted) return;
-    // Creating is deliberately not implemented here yet: a new document needs a
-    // plant to start from, which is the library #37 left in the local database.
-    // Tracked as the remainder of phase 2.
-    await openDocumentAt(context, ref, location.path);
+
+    var path = location.path;
+    if (!path.toLowerCase().endsWith('.flowmap')) path = '$path.flowmap';
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      // A new document starts with the seeded reference data and nothing else.
+      // A reference *plant* is something you open and Save As — a copy the user
+      // chose, rather than content the app pressed on them.
+      final outcome = await ref
+          .read(openDocumentProvider.notifier)
+          .create(
+            path,
+            projectName: NewDocument.projectNameFor(path),
+            plantName: l10n.documentsDefaultPlant,
+            user: _user(),
+            machine: Platform.localHostname,
+          );
+      if (outcome.taken) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.documentsTakenHelp)),
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.documentsOpenFailed)),
+      );
+    }
   }
 }
 
@@ -122,8 +147,7 @@ Future<void> openDocumentAt(
     final holder = DocumentLock.holderOf(path);
     final outcome = await ref
         .read(openDocumentProvider.notifier)
-        .open(path, user: Platform.environment['USERNAME'] ?? 'someone',
-            machine: Platform.localHostname);
+        .open(path, user: _user(), machine: Platform.localHostname);
 
     if (outcome.taken) {
       messenger.showSnackBar(
@@ -147,6 +171,13 @@ Future<void> openDocumentAt(
     );
   }
 }
+
+/// Who the lock will say is holding the document. Names the account rather than
+/// a display name, because that is what a colleague will recognise on a share.
+String _user() =>
+    Platform.environment['USERNAME'] ??
+    Platform.environment['USER'] ??
+    'someone';
 
 class _Recent extends ConsumerWidget {
   const _Recent({required this.documents});

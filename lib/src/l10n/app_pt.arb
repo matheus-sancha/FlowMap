@@ -981,5 +981,6 @@
   "documentsTaken": "{who} tem este projeto aberto",
   "documentsTakenHelp": "Apenas uma pessoa pode editar um projeto de cada vez. Tente novamente daqui a alguns minutos ou peça-lhe que o feche.",
   "documentsConverted": "O seu trabalho existente é agora um ficheiro de projeto.",
-  "documentsOpenFailed": "Não foi possível abrir este ficheiro"
+  "documentsOpenFailed": "Não foi possível abrir este ficheiro",
+  "documentsDefaultPlant": "Fábrica"
 }

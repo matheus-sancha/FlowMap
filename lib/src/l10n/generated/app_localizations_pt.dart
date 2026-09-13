@@ -2062,4 +2062,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get documentsOpenFailed => 'Não foi possível abrir este ficheiro';
+
+  @override
+  String get documentsDefaultPlant => 'Fábrica';
 }

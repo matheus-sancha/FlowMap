@@ -1147,5 +1147,6 @@
   },
   "documentsTakenHelp": "Only one person can edit a project at a time. Try again in a few minutes, or ask them to close it.",
   "documentsConverted": "Your existing work is now a project file.",
-  "documentsOpenFailed": "This file could not be opened"
+  "documentsOpenFailed": "This file could not be opened",
+  "documentsDefaultPlant": "Plant"
 }

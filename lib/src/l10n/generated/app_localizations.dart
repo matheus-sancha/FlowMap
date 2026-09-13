@@ -3620,6 +3620,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This file could not be opened'**
   String get documentsOpenFailed;
+
+  /// No description provided for @documentsDefaultPlant.
+  ///
+  /// In en, this message translates to:
+  /// **'Plant'**
+  String get documentsDefaultPlant;
 }
 
 class _AppLocalizationsDelegate
