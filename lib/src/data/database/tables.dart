@@ -2,8 +2,9 @@ import 'package:drift/drift.dart';
 
 import 'enums.dart';
 
-// All ids are string uuids: stable across the `.flowmap` export/import bundle,
-// which is how a project or template reaches another machine (DESIGN.md §2).
+// All ids are string uuids: stable inside the `.flowmap` document a project
+// *is*, which is how it reaches another machine (DESIGN.md §2). A document's
+// own identity is its project id, which is also what a stored run is keyed by.
 //
 // Durations are stored as integer SECONDS and times of day as integer MINUTES
 // from midnight — never as DateTime. A shift boundary at 15:13 is a clock

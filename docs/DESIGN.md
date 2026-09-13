@@ -26,14 +26,68 @@ all arithmetic lives in `application/` as pure functions.
 
 ## 2. Storage and portability
 
-**One local Drift DB** in the app directory holds Resources, Projects, Studies, Templates and
-Simulation runs. Sharing is explicit export/import of a project or template to a `.flowmap` file
-(zipped JSON), with a conflict-resolution step for resources that already exist by name.
+**A project is a document.** One `.flowmap` file holds one project and the plant it runs on: a zip
+carrying `manifest.json`, `plant.json` and `project.json`. It is opened from anywhere — a PC, a
+network share, OneDrive — worked on, and saved; sharing it is handing over the file.
 
-_Rejected: file-per-project documents._ Resources and templates are shared across projects, so a
-document model duplicates the resource tree and produces projects referencing resources the
-receiving machine lacks — plus dirty-state handling and a file format to migrate separately from
-the schema.
+**The working database is a scratch copy, not the record.** Opening a document empties every plant
+and project table and loads the document whole, so what is in the database *is* what is in the file.
+That is what keeps collisions impossible: `workcenter_types.name` and `shift_patterns.name` are
+unique and `seedReferenceData` installs built-ins on every machine, so a merge would collide by name
+on every open. `%APPDATA%` keeps only what belongs to the machine rather than to the work — app
+settings, the templates folder (§10.2), the diagnostics log (§15), and stored runs.
+
+**There is no Save.** Every edit commits to the database as it always has, and the file follows a
+couple of seconds later; the indicator under the nav rail reads `saved 14:22` or `saving…`. §12 has
+never had a Save and this does not introduce one: unsaved work would be new vocabulary on every
+screen, for people who cannot be walked through recovery. Every write is whole, to a temporary
+sibling, then renamed atomically — a zipped document is only safe in a synced folder because it is
+never observed half-written.
+
+**Sharing is sequential.** A `.lock` beside the document names who holds it and when they last said
+so, refreshed about every minute while it is open and **stale after five**. A second person is told
+who has it and offered a read-only copy; once the stamp stops being refreshed the next person simply
+opens it. Nobody has to understand locks or decide to break one, so a crash or a dropped VPN heals
+itself in minutes. Concurrent editing is out of scope (§16.x, #37) — that is a server and a merge
+rule, not a storage choice.
+
+**A document carries its plant and never its runs.** Resources are ~135 rows against ~630 of project
+data, so the plant travels and a document opened anywhere produces the same numbers — which is the
+whole of what makes sharing mean anything. Runs are ~489,000 rows against those 630, a factor of
+**635**, so they stay on the machine that made them, keyed to the document by id (v32). A colleague
+**re-runs** rather than receives, which §4.4's determinism makes exact.
+
+**Rows travel column by column.** Tables are read with `SELECT *` and written back by the columns
+that come out, so a column added to the schema is carried without anyone remembering to add it, and
+a document carrying a column this build does not know is refused by name rather than silently
+truncated. §2.6b caught `duplicateStudy` dropping a column twice, and a hand-written list is what
+failed both times.
+
+**The format versions independently of the schema.** `manifest.json` is read first and alone, so a
+file from a build this one does not understand is refused with a sentence instead of a crash, and a
+v28 document still opens on a v31 build.
+
+_Rejected: a live SQLite file as the document._ The cheapest option by far — the same Drift schema,
+almost no mapping code, no load and no save — and the only one that cannot be made safe. The file
+would *be* a schema version, so opening an older one runs migrations on someone else's data; and a
+sync client that catches a live `.sqlite` and its `-wal` mid-write can corrupt it, which is exactly
+where these files are meant to live (`app_directory.dart`).
+
+_Rejected: an explicit Save._ Full control over when work reaches a shared drive, at the cost of
+introducing unsaved work to an app that has never had any.
+
+_Rejected: keeping Resources local and shared._ It would have preserved more of the export/import
+design, but two people on one shared document would bind to different plants, and the document could
+not say whose was right — so one file could give two answers, which is the thing sharing was for.
+The cost accepted instead is §2's original objection: two documents on one machine hold two copies of
+the plant, and they drift.
+
+> **This replaced the original §2, which chose one local database with explicit export/import and
+> rejected file-per-project documents by name (#37).** Two of its three reasons had dissolved by the
+> time it was revisited: a document carries its Resources (#24) and anything missing is matched or
+> created (#23), so it is self-contained and does not leave a project referencing resources the
+> receiving machine lacks. The third — a file format migrating separately from the schema — turned
+> out to be the point rather than the objection.
 
 ---
 
@@ -4444,7 +4498,10 @@ it.
    — the run header says what it ran at and the map says which period it is showing (§7.7.2, §7.7.3)
    — and a takt change no longer has to be studied by running it twice, because one run crosses it.
    (§7.2, §7.7, §7.9, M4)
-4. **Single user, single machine.** No concurrent access, no file locking, no sync. (§2, M1)
+4. **One writer at a time.** No concurrent editing and no sync. *Amended by #37*: a project is
+   a document that may live on a shared drive, so there **is** file locking — a `.lock` beside
+   it, refreshed while open and stale after five minutes. Sharing is sequential, not
+   simultaneous. (§2, M1)
 5. **Empty slots are a reported metric**, not an error — count and dates listed in the simulation
    report. (§7.2, M4)
 6. **Rework adds time only.** It does not create additional physical orders, scrap, or material
