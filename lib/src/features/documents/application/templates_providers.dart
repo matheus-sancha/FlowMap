@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database_providers.dart';
@@ -106,8 +107,14 @@ Future<BindingResult> applyTemplate(Ref ref, {required File file}) async {
   }
 
   final db = ref.read(appDatabaseProvider);
+  // **The project's plant, not the document's first one.** A document may
+  // hold several plants (phase 8), and a template lands on the one the
+  // project simulates.
   final plant = await db
-      .customSelect('SELECT id FROM plants ORDER BY rowid LIMIT 1')
+      .customSelect(
+        'SELECT plant_id AS id FROM projects WHERE id = ?',
+        variables: [Variable<String>(session.projectId)],
+      )
       .getSingleOrNull();
   if (plant == null) {
     throw StateError('the open document has no plant to bind against');

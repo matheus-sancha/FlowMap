@@ -232,4 +232,77 @@ void main() {
     expect(await other.select(other.projectQueues).get(), isEmpty);
     expect(template.study.keys, isNot(contains('project_queues')));
   });
+
+  // --- a document with more than one plant (phase 8) ----------------------
+
+  /// A second plant in the destination document, carrying the template's own
+  /// names — the case matching across the whole database got wrong.
+  Future<void> neighbour(AppDatabase other) async {
+    Future<void> x(String sql) => other.customStatement(sql);
+    await x("INSERT INTO plants (id,name,created_at,updated_at) "
+        "VALUES ('p3','Planta C',0,0)");
+    await x("INSERT INTO production_cells (id,plant_id,name,created_at,"
+        "updated_at) VALUES ('c3','p3','Célula 11',0,0)");
+    await x("INSERT INTO production_lines (id,cell_id,name,created_at,"
+        "updated_at) VALUES ('l3','c3','Fluxo 11B',0,0)");
+    await x("INSERT INTO workcenters (id,plant_id,name,parallel_capacity,"
+        "created_at,updated_at) VALUES ('w3','p3','CLAD07',1,0,0)");
+  }
+
+  test('a name on another plant of the document is not a match', () async {
+    final template = await sourceTemplate();
+    final other = await destination();
+    await neighbour(other);
+
+    final result = await TemplateBinding(other)
+        .apply(template, projectId: 'prj2', plantId: 'p2');
+
+    expect(result.created, containsAll(['CLAD07', 'Célula 11', 'Fluxo 11B']));
+    final node = (await other.select(other.flowNodes).get()).single;
+    final workcenter = await (other.select(other.workcenters)
+          ..where((w) => w.id.equals(node.workcenterId!)))
+        .getSingle();
+    expect(workcenter.plantId, 'p2');
+    final study = (await other.select(other.studies).get()).single;
+    expect(study.productionCellId, isNot('c3'));
+    expect(study.productionLineId, isNot('l3'));
+  });
+
+  test('a line is matched under its own cell, not by its name alone', () async {
+    final template = await sourceTemplate();
+    final other = await destination();
+    // The same line name, under a different cell of the right plant.
+    await other.customStatement("INSERT INTO production_cells (id,plant_id,"
+        "name,created_at,updated_at) VALUES ('c2','p2','Célula 12',0,0)");
+    await other.customStatement("INSERT INTO production_lines (id,cell_id,name,"
+        "created_at,updated_at) VALUES ('l2','c2','Fluxo 11B',0,0)");
+
+    await TemplateBinding(other)
+        .apply(template, projectId: 'prj2', plantId: 'p2');
+
+    final study = (await other.select(other.studies).get()).single;
+    expect(study.productionLineId, isNot('l2'));
+    final line = await (other.select(other.productionLines)
+          ..where((l) => l.id.equals(study.productionLineId)))
+        .getSingle();
+    expect(line.cellId, study.productionCellId);
+  });
+
+  test('applying is seen by the autosave', () async {
+    // Raw inserts raise no table update unless they declare one, and the
+    // document session only notices what raises one.
+    final template = await sourceTemplate();
+    final other = await destination();
+    final seen = <String>{};
+    final sub = other
+        .tableUpdates()
+        .listen((u) => seen.addAll(u.map((t) => t.table)));
+    addTearDown(sub.cancel);
+
+    await TemplateBinding(other)
+        .apply(template, projectId: 'prj2', plantId: 'p2');
+    await pumpEventQueue();
+
+    expect(seen, containsAll(['studies', 'flow_nodes', 'workcenters']));
+  });
 }

@@ -62,6 +62,18 @@ class TemplateBinding {
     ];
     String esc(String v) => v.replaceAll("'", "''");
 
+    // **Every write says which table it touched.** A raw insert raises no table
+    // update unless it declares one, and the document session saves only what
+    // raises one — an applied template otherwise reached the file at the next
+    // unrelated edit, or never if the app crashed first.
+    Set<TableInfo> touches(String table) => {
+      _db.allTables.firstWhere((t) => t.actualTableName == table),
+    };
+
+    // **Names are matched on this plant only** (phase 8). A document may hold
+    // several plants, and a `CLAD07` on another one is not this plant's.
+    final onPlant = "plant_id = '${esc(plantId)}'";
+
     // --- types, first, because a created workcenter needs one -------------
     Future<String?> typeIdFor(String? typeName) async {
       if (typeName == null) return null;
@@ -78,6 +90,7 @@ class TemplateBinding {
           Variable<String>(typeName),
           Variable<int>(now),
         ],
+        updates: touches('workcenter_types'),
       );
       created.add(typeName);
       return id;
@@ -87,7 +100,7 @@ class TemplateBinding {
     final workcenterIds = <String, String>{};
     Future<String> workcenterIdFor(TargetRef ref) async {
       final existing = await q(
-        "SELECT id FROM workcenters WHERE name = '${esc(ref.name)}'",
+        "SELECT id FROM workcenters WHERE name = '${esc(ref.name)}' AND $onPlant",
       );
       if (existing.isNotEmpty) {
         matched.add(ref.name);
@@ -105,6 +118,7 @@ class TemplateBinding {
           Variable<int>(now),
           Variable<int>(now),
         ],
+        updates: touches('workcenters'),
       );
       created.add(ref.name);
       return id;
@@ -119,7 +133,8 @@ class TemplateBinding {
     for (final entry in template.targets.pools.entries) {
       final ref = entry.value;
       final existing = await q(
-        "SELECT id FROM workcenter_pools WHERE name = '${esc(ref.name)}'",
+        "SELECT id FROM workcenter_pools WHERE name = '${esc(ref.name)}' "
+        "AND $onPlant",
       );
       if (existing.isNotEmpty) {
         poolIds[entry.key] = existing.single['id'] as String;
@@ -138,6 +153,7 @@ class TemplateBinding {
           Variable<int>(now),
           Variable<int>(now),
         ],
+        updates: touches('workcenter_pools'),
       );
       // **Never over a subset.** A pool of three landing as a pool of one
       // changes dispatch without saying so (#23), so any member not already
@@ -152,6 +168,7 @@ class TemplateBinding {
             Variable<String>(id2),
             Variable<int>(now),
           ],
+          updates: touches('workcenter_pool_members'),
         );
       }
       poolIds[entry.key] = id;
@@ -162,7 +179,8 @@ class TemplateBinding {
     Future<String?> cellIdFor(String? name) async {
       if (name == null) return null;
       final existing = await q(
-        "SELECT id FROM production_cells WHERE name = '${esc(name)}'",
+        "SELECT id FROM production_cells WHERE name = '${esc(name)}' "
+        "AND $onPlant",
       );
       if (existing.isNotEmpty) return existing.single['id'] as String;
       final id = _uuid.v4();
@@ -176,6 +194,7 @@ class TemplateBinding {
           Variable<int>(now),
           Variable<int>(now),
         ],
+        updates: touches('production_cells'),
       );
       created.add(name);
       return id;
@@ -183,13 +202,17 @@ class TemplateBinding {
 
     final cellId = await cellIdFor(template.targets.cellName);
     String? lineId;
-    if (template.targets.lineName case final lineName?) {
+    // A line is matched **under its cell**: two cells may each have a
+    // `Fluxo 11B`, and only one of them is where the study sat.
+    if ((template.targets.lineName, cellId)
+        case (final lineName?, final cellId?)) {
       final existing = await q(
-        "SELECT id FROM production_lines WHERE name = '${esc(lineName)}'",
+        "SELECT id FROM production_lines WHERE name = '${esc(lineName)}' "
+        "AND cell_id = '${esc(cellId)}'",
       );
       if (existing.isNotEmpty) {
         lineId = existing.single['id'] as String;
-      } else if (cellId != null) {
+      } else {
         lineId = _uuid.v4();
         await _db.customInsert(
           'INSERT INTO production_lines (id, cell_id, name, created_at, '
@@ -201,6 +224,7 @@ class TemplateBinding {
             Variable<int>(now),
             Variable<int>(now),
           ],
+          updates: touches('production_lines'),
         );
         created.add(lineName);
       }
@@ -275,7 +299,7 @@ class TemplateBinding {
           'INSERT INTO "$table" (${columns.map((c) => '"$c"').join(', ')}) '
           'VALUES (${List.filled(columns.length, '?').join(', ')})',
           variables: [for (final c in columns) Variable(mapped[c])],
-          updates: {},
+          updates: touches(table),
         );
       }
     }
