@@ -987,5 +987,18 @@
   "resourcesNeedDocumentHelp": "Os centros de trabalho, células, linhas e padrões de turno pertencem a um projeto e viajam dentro do seu ficheiro.",
   "resourcesNoWorkcenters": "Adicione o seu primeiro centro de trabalho",
   "resourcesNoWorkcentersHelp": "Um projeto novo começa vazio. Adicione os centros de trabalho desta fábrica — ou abra um projeto existente e guarde uma cópia.",
-  "documentsSaveAs": "Guardar uma cópia…"
+  "documentsSaveAs": "Guardar uma cópia…",
+  "templatesEmpty": "Ainda não há modelos",
+  "templatesEmptyHelp": "Guarde um estudo como modelo e ele aparecerá aqui. Um modelo é o fluxo de um estudo, que pode aplicar a qualquer projeto: os seus centros de trabalho são associados pelo nome e o que faltar é criado.",
+  "templatesSaveStudy": "Guardar como modelo…",
+  "templatesIncludeDemand": "Incluir peças e sequência da procura",
+  "templatesSaved": "Guardado como modelo",
+  "templatesApply": "Aplicar a este projeto",
+  "templatesNeedDocument": "Abra um projeto para aplicar um modelo",
+  "templatesApplied": "Aplicado como {study}",
+  "templatesAppliedDetail": "{matched} associados, {created} criados",
+  "templatesDelete": "Eliminar modelo",
+  "templatesWithDemand": "com procura",
+  "templatesNoDemand": "apenas fluxo",
+  "templatesStepCount": "{count, plural, =1{1 passo} other{{count} passos}}"
 }

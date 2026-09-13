@@ -2083,4 +2083,56 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get documentsSaveAs => 'Guardar uma cópia…';
+
+  @override
+  String get templatesEmpty => 'Ainda não há modelos';
+
+  @override
+  String get templatesEmptyHelp =>
+      'Guarde um estudo como modelo e ele aparecerá aqui. Um modelo é o fluxo de um estudo, que pode aplicar a qualquer projeto: os seus centros de trabalho são associados pelo nome e o que faltar é criado.';
+
+  @override
+  String get templatesSaveStudy => 'Guardar como modelo…';
+
+  @override
+  String get templatesIncludeDemand => 'Incluir peças e sequência da procura';
+
+  @override
+  String get templatesSaved => 'Guardado como modelo';
+
+  @override
+  String get templatesApply => 'Aplicar a este projeto';
+
+  @override
+  String get templatesNeedDocument => 'Abra um projeto para aplicar um modelo';
+
+  @override
+  String templatesApplied(String study) {
+    return 'Aplicado como $study';
+  }
+
+  @override
+  String templatesAppliedDetail(int matched, int created) {
+    return '$matched associados, $created criados';
+  }
+
+  @override
+  String get templatesDelete => 'Eliminar modelo';
+
+  @override
+  String get templatesWithDemand => 'com procura';
+
+  @override
+  String get templatesNoDemand => 'apenas fluxo';
+
+  @override
+  String templatesStepCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count passos',
+      one: '1 passo',
+    );
+    return '$_temp0';
+  }
 }

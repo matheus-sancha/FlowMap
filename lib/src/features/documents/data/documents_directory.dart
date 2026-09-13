@@ -20,3 +20,14 @@ Future<Directory> documentsDirectory() async {
   final base = await getApplicationDocumentsDirectory();
   return Directory(p.join(base.path, 'FlowMap'));
 }
+
+/// Where templates go by default.
+///
+/// **Beside the documents, not hidden in `%APPDATA%`.** §10.2 put them in the
+/// app directory back when a template was a document and the app directory was
+/// where documents lived. Neither is true now: a template is a `.flowtemplate`,
+/// documents live in `Documents\FlowMap`, and a template is a file you hand to
+/// someone — hiding it would make the one thing meant for sharing the one thing
+/// nobody can find.
+Future<Directory> templatesDirectory() async =>
+    Directory(p.join((await documentsDirectory()).path, 'Templates'));

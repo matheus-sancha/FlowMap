@@ -2081,4 +2081,57 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get documentsSaveAs => 'Guardar una copia…';
+
+  @override
+  String get templatesEmpty => 'Aún no hay plantillas';
+
+  @override
+  String get templatesEmptyHelp =>
+      'Guarda un estudio como plantilla y aparecerá aquí. Una plantilla es el flujo de un estudio, que puedes aplicar a cualquier proyecto: sus centros de trabajo se emparejan por nombre y lo que falte se crea.';
+
+  @override
+  String get templatesSaveStudy => 'Guardar como plantilla…';
+
+  @override
+  String get templatesIncludeDemand => 'Incluir piezas y secuencia de demanda';
+
+  @override
+  String get templatesSaved => 'Guardado como plantilla';
+
+  @override
+  String get templatesApply => 'Aplicar a este proyecto';
+
+  @override
+  String get templatesNeedDocument =>
+      'Abre un proyecto para aplicar una plantilla';
+
+  @override
+  String templatesApplied(String study) {
+    return 'Aplicado como $study';
+  }
+
+  @override
+  String templatesAppliedDetail(int matched, int created) {
+    return '$matched emparejados, $created creados';
+  }
+
+  @override
+  String get templatesDelete => 'Eliminar plantilla';
+
+  @override
+  String get templatesWithDemand => 'con demanda';
+
+  @override
+  String get templatesNoDemand => 'solo flujo';
+
+  @override
+  String templatesStepCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pasos',
+      one: '1 paso',
+    );
+    return '$_temp0';
+  }
 }

@@ -1153,5 +1153,42 @@
   "resourcesNeedDocumentHelp": "Workcenters, cells, lines and shift patterns belong to a project, and travel inside its file.",
   "resourcesNoWorkcenters": "Add your first workcenter",
   "resourcesNoWorkcentersHelp": "A new project starts empty. Add the workcenters this plant runs on — or open an existing project and save a copy of it.",
-  "documentsSaveAs": "Save a copy…"
+  "documentsSaveAs": "Save a copy…",
+  "templatesEmpty": "No templates yet",
+  "templatesEmptyHelp": "Save a study as a template and it appears here. A template is one study’s flow, which you can apply to any project — its workcenters are matched by name, and anything missing is created.",
+  "templatesSaveStudy": "Save as template…",
+  "templatesIncludeDemand": "Include demand parts and sequence",
+  "templatesSaved": "Saved as a template",
+  "templatesApply": "Apply to this project",
+  "templatesNeedDocument": "Open a project to apply a template",
+  "templatesApplied": "Applied as {study}",
+  "@templatesApplied": {
+    "placeholders": {
+      "study": {
+        "type": "String"
+      }
+    }
+  },
+  "templatesAppliedDetail": "{matched} matched, {created} created",
+  "@templatesAppliedDetail": {
+    "placeholders": {
+      "matched": {
+        "type": "int"
+      },
+      "created": {
+        "type": "int"
+      }
+    }
+  },
+  "templatesDelete": "Delete template",
+  "templatesWithDemand": "with demand",
+  "templatesNoDemand": "flow only",
+  "templatesStepCount": "{count, plural, =1{1 step} other{{count} steps}}",
+  "@templatesStepCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

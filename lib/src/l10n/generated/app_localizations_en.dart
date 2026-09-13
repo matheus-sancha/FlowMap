@@ -2061,4 +2061,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get documentsSaveAs => 'Save a copy…';
+
+  @override
+  String get templatesEmpty => 'No templates yet';
+
+  @override
+  String get templatesEmptyHelp =>
+      'Save a study as a template and it appears here. A template is one study’s flow, which you can apply to any project — its workcenters are matched by name, and anything missing is created.';
+
+  @override
+  String get templatesSaveStudy => 'Save as template…';
+
+  @override
+  String get templatesIncludeDemand => 'Include demand parts and sequence';
+
+  @override
+  String get templatesSaved => 'Saved as a template';
+
+  @override
+  String get templatesApply => 'Apply to this project';
+
+  @override
+  String get templatesNeedDocument => 'Open a project to apply a template';
+
+  @override
+  String templatesApplied(String study) {
+    return 'Applied as $study';
+  }
+
+  @override
+  String templatesAppliedDetail(int matched, int created) {
+    return '$matched matched, $created created';
+  }
+
+  @override
+  String get templatesDelete => 'Delete template';
+
+  @override
+  String get templatesWithDemand => 'with demand';
+
+  @override
+  String get templatesNoDemand => 'flow only';
+
+  @override
+  String templatesStepCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count steps',
+      one: '1 step',
+    );
+    return '$_temp0';
+  }
 }

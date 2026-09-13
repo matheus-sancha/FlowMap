@@ -1,4 +1,6 @@
+import '../../documents/application/templates_providers.dart';
 import '../../documents/presentation/document_menu.dart';
+import '../../documents/presentation/templates_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -618,6 +620,23 @@ class _StudyTile extends ConsumerWidget {
               if (context.mounted) {
                 context.go('/projects/${study.projectId}/studies/$copyId');
               }
+            case 'template':
+              if (!context.mounted) return;
+              // §10.2's opt-in, and the only question saving a template asks.
+              // Demand is a plant's orders rather than its shape, so a template
+              // is flow-only unless someone says otherwise.
+              final includeDemand = await askIncludeDemand(context);
+              if (includeDemand == null || !context.mounted) return;
+              final messenger = ScaffoldMessenger.of(context);
+              await ref.read(
+                saveStudyAsTemplateProvider(
+                  studyId: study.id,
+                  includeDemand: includeDemand,
+                ).future,
+              );
+              messenger.showSnackBar(
+                SnackBar(content: Text(l10n.templatesSaved)),
+              );
             case 'delete':
               if (!context.mounted) return;
               final confirmed = await confirmAction(
@@ -639,6 +658,12 @@ class _StudyTile extends ConsumerWidget {
         // reader as it ran.
         itemBuilder: (context) => [
           PopupMenuItem(value: 'duplicate', child: Text(l10n.actionDuplicate)),
+          // Saving a template acts on the study as an object, like the other
+          // two — it makes a file out of it rather than setting a value on it.
+          PopupMenuItem(
+            value: 'template',
+            child: Text(l10n.templatesSaveStudy),
+          ),
           PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
         ],
       ),

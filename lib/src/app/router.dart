@@ -1,15 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../common/placeholder_screen.dart';
 import '../features/diagnostics/application/diagnostics.dart';
 import '../features/projects/presentation/project_workspace_screen.dart';
 import '../features/projects/presentation/workspace_tabs.dart';
 import '../features/documents/presentation/documents_screen.dart';
+import '../features/documents/presentation/templates_screen.dart';
 import '../features/resources/presentation/resources_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
-import '../l10n/generated/app_localizations.dart';
 import 'app_shell.dart';
 
 part 'router.g.dart';
@@ -168,10 +166,8 @@ GoRouter router(Ref ref) {
             routes: [
               GoRoute(
                 path: '/templates',
-                builder: (context, state) => PlaceholderScreen(
-                  title: AppLocalizations.of(context).navTemplates,
-                  icon: Icons.dashboard_outlined,
-                ),
+                // The last placeholder in the app, filled (#25).
+                builder: (context, state) => const TemplatesScreen(),
               ),
             ],
           ),

@@ -3656,6 +3656,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save a copy…'**
   String get documentsSaveAs;
+
+  /// No description provided for @templatesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No templates yet'**
+  String get templatesEmpty;
+
+  /// No description provided for @templatesEmptyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a study as a template and it appears here. A template is one study’s flow, which you can apply to any project — its workcenters are matched by name, and anything missing is created.'**
+  String get templatesEmptyHelp;
+
+  /// No description provided for @templatesSaveStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as template…'**
+  String get templatesSaveStudy;
+
+  /// No description provided for @templatesIncludeDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'Include demand parts and sequence'**
+  String get templatesIncludeDemand;
+
+  /// No description provided for @templatesSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as a template'**
+  String get templatesSaved;
+
+  /// No description provided for @templatesApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to this project'**
+  String get templatesApply;
+
+  /// No description provided for @templatesNeedDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a project to apply a template'**
+  String get templatesNeedDocument;
+
+  /// No description provided for @templatesApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied as {study}'**
+  String templatesApplied(String study);
+
+  /// No description provided for @templatesAppliedDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{matched} matched, {created} created'**
+  String templatesAppliedDetail(int matched, int created);
+
+  /// No description provided for @templatesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete template'**
+  String get templatesDelete;
+
+  /// No description provided for @templatesWithDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'with demand'**
+  String get templatesWithDemand;
+
+  /// No description provided for @templatesNoDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'flow only'**
+  String get templatesNoDemand;
+
+  /// No description provided for @templatesStepCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 step} other{{count} steps}}'**
+  String templatesStepCount(int count);
 }
 
 class _AppLocalizationsDelegate
