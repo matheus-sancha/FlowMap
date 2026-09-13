@@ -3249,6 +3249,14 @@ so this is a slider of twelve to fifteen stops rather than one of four hundred a
   single meaning — *this run predates v25* — instead of acquiring a second one.
 - **A one-month run shows no slicer at all.** `RangeSlider` asserts on `min == max`, and the only
   range such a run can express is the one it already has.
+- **It opens on first release → last delivery, not on the whole span** (#31, v2.1). Schedules grew to
+  three years while work stayed at fifteen months, so the live run's 36 stops held **21 months of open
+  capacity and no work** and the slider opened 58 % empty. The stops are unchanged; only the opening
+  selection narrows, once per run, and Clear goes to the whole span. The Clear button and the
+  whole-run caveat therefore show on arrival, which is true: the view *is* narrowed. An aborted run
+  with no order both released and delivered opens on the whole span. _Rejected: stops following the
+  demand_ (unreachable capacity months, the defect the union exists for) and _need dates for the
+  opening range_ (work starts three months before the first need date).
 
 _Rejected: day resolution over the span._ ~450 stops in a filter bar is roughly a pixel a day, so
 nobody lands on a chosen date by dragging and the label would have to become the real control.

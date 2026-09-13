@@ -198,6 +198,53 @@ List<DateTime> runMonths(StoredRun run) {
   return months;
 }
 
+/// The period the slicer **opens** on: first release → last delivery (#31).
+///
+/// **The stops stay [runMonths]; only the opening selection narrows.** On the
+/// live run the stops span 36 months, and 21 of them hold open capacity and no
+/// work at all — the slider opened 58 % empty because the schedules run three
+/// years while the work occupies fifteen months. Release → delivery is when the
+/// plant is actually busy with this demand.
+///
+/// _Rejected: making the stops follow the demand._ `runMonths` already rejects
+/// that in its own words — capacity-only months would become unreachable on the
+/// Occupation grid.
+/// _Rejected: need dates for the opening range._ Work begins three months before
+/// the first need date, so a need-driven range lies about when the plant starts.
+///
+/// Null — the whole span, which is *no filter* — when no order has both a
+/// release and a delivery (an aborted run), or when the work already covers
+/// every stop.
+DateTimeRange? openingPeriod(List<DateTime> months, List<SimOrderOutcome> orders) {
+  if (months.length < 2) return null;
+  DateTime? first;
+  DateTime? lastDelivery;
+  for (final order in orders) {
+    final released = order.released;
+    final delivered = order.delivered;
+    if (released == null || delivered == null) continue;
+    if (first == null || released.isBefore(first)) first = released;
+    if (lastDelivery == null || delivered.isAfter(lastDelivery)) {
+      lastDelivery = delivered;
+    }
+  }
+  if (first == null || lastDelivery == null) return null;
+
+  final last = months.length - 1;
+  final firstKey = DateTime(first.year, first.month);
+  final lastKey = DateTime(lastDelivery.year, lastDelivery.month);
+  // The first stop at or after the release, and the last at or before the
+  // delivery — a date between stops resolves inwards, never past the work.
+  final lo = months.indexWhere((m) => !m.isBefore(firstKey));
+  final hi = months.lastIndexWhere((m) => !m.isAfter(lastKey));
+  if (lo < 0 || hi < 0 || lo > hi) return null;
+  if (lo == 0 && hi == last) return null;
+  return DateTimeRange(
+    start: months[lo],
+    end: DateTime(months[hi].year, months[hi].month + 1, 0, 23, 59, 59),
+  );
+}
+
 /// A stored run as one slice of it reads.
 class FilteredRun {
   FilteredRun({

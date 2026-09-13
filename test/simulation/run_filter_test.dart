@@ -960,6 +960,62 @@ void main() {
     });
   });
 
+  group('the period the slicer opens on (#31)', () {
+    // Stops from October 2025 to September 2028 — the live run's shape: three
+    // years of schedules around fifteen months of work.
+    final months = [
+      for (var i = 0; i < 36; i++) DateTime(2025, 10 + i),
+    ];
+
+    SimOrderOutcome worked(DateTime released, DateTime? delivered) =>
+        SimOrderOutcome(
+          studyId: 'a',
+          orderId: '$released',
+          sequence: 0,
+          partId: 'p1',
+          needDate: DateTime(2026, 6),
+          released: released,
+          delivered: delivered,
+        );
+
+    test('first release to last delivery, whole months', () {
+      final period = openingPeriod(months, [
+        worked(DateTime(2025, 10, 14), DateTime(2026, 2, 3)),
+        worked(DateTime(2026, 3, 2), DateTime(2026, 12, 20)),
+      ])!;
+
+      expect(period.start, DateTime(2025, 10));
+      expect(period.end.year, 2026);
+      expect(period.end.month, 12);
+      expect(period.end.isAfter(DateTime(2026, 12, 31, 23)), isTrue);
+    });
+
+    test('an order that never delivered does not stretch the range', () {
+      // Its release still counts only if it has both bounds, so a jammed tail
+      // cannot open the slicer on months with nothing finished in them.
+      final period = openingPeriod(months, [
+        worked(DateTime(2026, 1, 5), DateTime(2026, 4, 1)),
+        worked(DateTime(2025, 11, 1), null),
+      ])!;
+
+      expect(period.start, DateTime(2026, 1));
+      expect(period.end.month, 4);
+    });
+
+    test('an aborted run with no finished order opens on the whole span', () {
+      expect(openingPeriod(months, [worked(DateTime(2026), null)]), isNull);
+      expect(openingPeriod(months, const []), isNull);
+    });
+
+    test('work covering every stop is the whole span, which is no filter', () {
+      final short = [DateTime(2026), DateTime(2026, 2), DateTime(2026, 3)];
+      expect(
+        openingPeriod(short, [worked(DateTime(2026, 1, 9), DateTime(2026, 3, 9))]),
+        isNull,
+      );
+    });
+  });
+
   group('a study says which cell and line it belongs to (#29)', () {
     // The live plant names study `Célula 11B` after cell `Célula 11` while
     // scoping it to line `Fluxo 11B`. It takes the word from one and the

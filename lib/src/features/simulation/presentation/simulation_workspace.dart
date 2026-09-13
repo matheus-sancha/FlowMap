@@ -77,6 +77,10 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
 
   DateTimeRange? _period;
 
+  /// The run [_period] was opened for (#31). A newer run opens on its own
+  /// release → delivery range; Clear on the same run stays cleared.
+  String? _periodRunId;
+
   /// **Copied, every one of them.** The pickers above mutate these sets in
   /// place, so handing the instances over would give a value object a live view
   /// of state that changes under it — which is what made a slice taken before an
@@ -102,6 +106,15 @@ class _SimulationWorkspaceState extends ConsumerState<SimulationWorkspace> {
     final l10n = AppLocalizations.of(context);
     final runner = ref.watch(simulationRunnerProvider(widget.project.id));
     final input = ref.watch(simRunInputProvider(widget.project.id)).value;
+
+    // **Opened once per run, then the reader's** (#31). The Clear button and the
+    // whole-run caveat show on arrival as a result, and that is true: the view
+    // *is* narrowed, to the months the plant is busy with this demand.
+    final current = runner.value;
+    if (current != null && current.id != _periodRunId) {
+      _periodRunId = current.id;
+      _period = openingPeriod(runMonths(current), current.result.orders);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
