@@ -189,11 +189,13 @@ The third mode from [#26](https://github.com/matheus-sancha/FlowMap/issues/26):
 **This amends [#7](https://github.com/matheus-sancha/FlowMap/issues/7)**, which settled on two modes
 after four driven rounds of a prototype. The reopening was deliberate; #7 is annotated.
 
-**Two things this phase must handle on day one.** Every stored run is **unstamped**, so the
-both-unstamped branch of the comparability rule is what makes the 165 usable at all. And a scenario
-pair **can never share a run** — `setIncludedInSimulation` allows at most one flagged study per
-production line — so comparison always spans two runs, and the empty state must teach *duplicate,
-then flag and run each separately*.
+**The unit is two runs, inverted 2026-09-13 by the run history.** #26 settled on two *studies* of
+one cell and line; across all **165 runs ever made that matched zero pairs**, while one study's own
+runs differ in up to **9 release cadences**. Cell and line became a warning rather than a gate, and
+the scenario case survives as a case of it.
+
+**Every stored run is unstamped**, so the both-unstamped branch of the comparability rule is what
+makes the 165 usable at all — and it now applies to every comparison rather than rarely.
 
 **And #37 narrowed its reach:** runs stay on the machine that made them, so comparison **never
 crosses the shared drive** — it compares what was run here, on documents opened here.
