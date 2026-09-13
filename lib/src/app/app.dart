@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common/date_style_scope.dart';
 import '../features/settings/application/settings_providers.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'close_guard.dart';
 import 'router.dart';
 import 'startup_gate.dart';
 import 'theme.dart';
@@ -41,8 +42,14 @@ class FlowMapApp extends ConsumerWidget {
       //
       // The startup gate sits inside it for the same reason: its sentences are
       // localized, and it is the first thing that can go wrong (#33).
-      builder: (context, child) => StartupGate(
-        child: DateStyleProvider(child: child ?? const SizedBox.shrink()),
+      //
+      // The close guard wraps the gate rather than sitting inside it: the window
+      // refuses to close until the guard lets it, so a guard that failed to
+      // mount behind a failed start would leave a window nobody can close.
+      builder: (context, child) => CloseGuard(
+        child: StartupGate(
+          child: DateStyleProvider(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }
