@@ -42,15 +42,15 @@ Unchanged from v2.0, and worth restating because the audience changed:
 
 ### The phases
 
-| # | Phase | Schema | Tickets |
-|---|---|---|---|
-| 1 | Safety and the stamp | **v31** | [#28](https://github.com/matheus-sancha/FlowMap/issues/28), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
-| 2 | The document | **v32** | [#37](https://github.com/matheus-sancha/FlowMap/issues/37), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) |
-| 3 | Templates and Save As | — | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
-| 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) |
-| 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) |
-| 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) |
-| 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) |
+| # | Phase | Schema | Tickets | |
+|---|---|---|---|---|
+| 1 | Safety and the stamp | **v31** | [#28](https://github.com/matheus-sancha/FlowMap/issues/28), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) | **built** |
+| 2 | The document | **v32** | [#37](https://github.com/matheus-sancha/FlowMap/issues/37), [#24](https://github.com/matheus-sancha/FlowMap/issues/24) | **built**, drive abandoned |
+| 3 | Templates and Save As | — | **built** | [#25](https://github.com/matheus-sancha/FlowMap/issues/25), [#23](https://github.com/matheus-sancha/FlowMap/issues/23), [#30](https://github.com/matheus-sancha/FlowMap/issues/30) |
+| 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) | |
+| 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) | |
+| 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) | |
+| 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) | |
 
 **Grouped by what one sitting can build and drive.** A phase too big to drive in one sitting is a
 phase that will not be driven, which is v2.0's own lesson: five phases were built between
@@ -167,7 +167,17 @@ than list them**, because §2.6b caught `duplicateStudy` silently dropping a col
 `batch_number` *"since the column arrived"* — and loading and writing a document is the same
 field-by-field hazard in a new place.
 
-This phase fills `router.dart:168`, **the last placeholder in the app**.
+**Built 2026-09-13.** Templates live in `Documents\FlowMap\Templates`, beside the documents rather
+than hidden in `%APPDATA%` — §10.2 put them in the app directory when a template *was* a document,
+and a template is a file you hand to someone. The shelf lists a folder rather than a table, reading
+only manifests. **Save As landed early, in phase 2**, because a new project starts empty and copying
+a reference is how it gets a plant. `router.dart:168` is filled and `PlaceholderScreen` is deleted —
+**the last placeholder in the app is gone.**
+
+*Two things the tests found rather than the design*: `studies` is unique on (project, name), so
+applying a template twice failed outright and the app now picks a free name; and an applied study is
+never flagged for a run, because two flagged studies on one line is the state
+`setIncludedInSimulation` forbids.
 
 **Evidence owed: a drive sheet.**
 
