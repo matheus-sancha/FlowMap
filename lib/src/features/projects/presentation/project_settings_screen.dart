@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/dialogs.dart';
 import '../../../common/help_icon.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -26,8 +27,9 @@ import '../application/projects_providers.dart';
 /// set at all.
 ///
 /// **It mirrors Study Settings one level up**, deliberately: the same cards,
-/// the same commit-on-blur bargain, the same read-only treatment for the one
-/// field that must not change. There is no Save button and no draft to lose —
+/// the same commit-on-blur bargain. The plant is the one field that does not
+/// commit on change: choosing another is a move, and asks first (phase 8).
+/// There is no Save button and no draft to lose —
 /// a destination that saves as you leave a field cannot hold a half-typed
 /// state that disagrees with what is stored (§12.6).
 ///
@@ -75,17 +77,12 @@ class ProjectSettingsScreen extends ConsumerWidget {
               children: [
                 _NameField(project: project, takenNames: others),
                 const SizedBox(height: 16),
-                // **Read-only, and the reason is stronger than the study
-                // line's.** Every study, schedule, flow node and process time
-                // in the project points at this plant's workcenters, so
-                // changing it would not repoint them — it would orphan them.
-                // The create dialog already says so in its own help text; this
-                // says the same thing where somebody would try it.
-                _ReadOnly(
-                  label: l10n.plant,
-                  value: _plantName(plants),
-                  help: l10n.projectPlantHelp,
-                ),
+                // **Changeable since phase 8, by moving rather than by
+                // editing.** Every study, schedule, flow node and exception
+                // points at this plant's rows, so writing `plant_id` alone
+                // would orphan them; choosing another plant runs a move that
+                // re-points all of them, and says what it will do first.
+                _PlantField(project: project, plants: plants),
                 const SizedBox(height: 16),
                 if (patterns == null)
                   const Center(child: CircularProgressIndicator())
@@ -174,29 +171,123 @@ class ProjectSettingsScreen extends ConsumerWidget {
       ],
     );
   }
-
-  String _plantName(List<Plant>? plants) =>
-      plants?.where((p) => p.id == project.plantId).firstOrNull?.name ?? '—';
 }
 
-/// A label and a value that cannot be edited here, drawn like the fields around
-/// it so the panel reads as one thing.
-class _ReadOnly extends StatelessWidget {
-  const _ReadOnly({required this.label, required this.value, this.help});
+/// The project's plant, and the way to move the project to another one.
+///
+/// **A choice opens a confirmation, never a write.** The dropdown only proposes;
+/// the move runs after the reader has seen what will be found, what will be
+/// copied and what goes with it. Cancelling puts the dropdown back.
+class _PlantField extends ConsumerStatefulWidget {
+  const _PlantField({required this.project, required this.plants});
 
-  final String label;
-  final String value;
-  final String? help;
+  final Project project;
+  final List<Plant>? plants;
 
   @override
-  Widget build(BuildContext context) => InputDecorator(
-    decoration: InputDecoration(
-      labelText: label,
-      suffixIcon: helpIcon(context, help),
-      enabled: false,
-    ),
-    child: Text(value),
-  );
+  ConsumerState<_PlantField> createState() => _PlantFieldState();
+}
+
+class _PlantFieldState extends ConsumerState<_PlantField> {
+  /// Not a plant id: the entry that asks for a new plant's name.
+  static const _newPlant = '#new-plant';
+
+  /// Bumped to rebuild the dropdown on its stored value after a cancel.
+  int _revision = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final project = widget.project;
+    final plants = widget.plants;
+    if (plants == null) return const Center(child: CircularProgressIndicator());
+
+    return DropdownButtonFormField<String>(
+      key: ValueKey('${project.plantId}#$_revision'),
+      initialValue: plants.any((p) => p.id == project.plantId)
+          ? project.plantId
+          : null,
+      decoration: InputDecoration(
+        labelText: l10n.plant,
+        suffixIcon: helpIcon(context, l10n.projectPlantHelp),
+      ),
+      items: [
+        for (final plant in plants)
+          DropdownMenuItem(value: plant.id, child: Text(plant.name)),
+        DropdownMenuItem(value: _newPlant, child: Text('${l10n.plantNew}…')),
+      ],
+      onChanged: (id) async {
+        if (id == null || id == project.plantId) return;
+        final moved = await _move(plants, id);
+        if (!moved && mounted) setState(() => _revision++);
+      },
+    );
+  }
+
+  Future<bool> _move(List<Plant> plants, String choice) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final project = widget.project;
+    final mover = ref.read(plantMoveProvider);
+    String nameOf(String id) =>
+        plants.where((p) => p.id == id).firstOrNull?.name ?? '—';
+
+    String? toPlantId;
+    String? newPlantName;
+    if (choice == _newPlant) {
+      final taken = {for (final p in plants) p.name.toLowerCase()};
+      newPlantName = await promptForName(
+        context,
+        title: l10n.plantNew,
+        label: l10n.fieldName,
+        validate: (value) => taken.contains(value.toLowerCase())
+            ? l10n.validationNameTaken
+            : null,
+      );
+      if (newPlantName == null) return false;
+    } else {
+      toPlantId = choice;
+    }
+    final to = newPlantName ?? nameOf(toPlantId!);
+    final from = nameOf(project.plantId);
+
+    final preview = await mover.preview(
+      projectId: project.id,
+      toPlantId: toPlantId,
+      newPlantName: newPlantName,
+    );
+    if (!mounted) return false;
+
+    final confirmed = await confirmAction(
+      context,
+      title: l10n.plantMoveTitle(project.name, to),
+      message: [
+        if (preview.matched.isNotEmpty)
+          l10n.plantMoveMatched(to, preview.matched.join(', ')),
+        if (preview.created.isEmpty)
+          l10n.plantMoveNothingCreated(to)
+        else
+          l10n.plantMoveCreated(to, from, preview.created.join(', ')),
+        l10n.plantMoveStudies('${preview.studies}', from),
+      ].join('\n\n'),
+      confirmLabel: l10n.plantMoveConfirm,
+    );
+    if (!confirmed) return false;
+
+    try {
+      await mover.apply(
+        projectId: project.id,
+        toPlantId: toPlantId,
+        newPlantName: newPlantName,
+      );
+      messenger.showSnackBar(SnackBar(content: Text(l10n.plantMoveDone(to))));
+      return true;
+    } catch (_) {
+      // One transaction, so a failure leaves the project where it was.
+      messenger.showSnackBar(SnackBar(content: Text(l10n.plantMoveFailed)));
+      return false;
+    }
+  }
 }
 
 class _NameField extends ConsumerStatefulWidget {

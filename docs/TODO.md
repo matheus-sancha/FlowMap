@@ -51,7 +51,7 @@ Unchanged from v2.0, and worth restating because the audience changed:
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) | **built** |
 | 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) | **built** |
 | 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) | **built**, cold install owed |
-| 8 | A plant you can see, name and move | — | field report, 2026-09-13 | in progress |
+| 8 | A plant you can see, name and move | — | field report, 2026-09-13 | **built**, drive owed |
 
 **Grouped by what one sitting can build and drive.** A phase too big to drive in one sitting is a
 phase that will not be driven, which is v2.0's own lesson: five phases were built between
@@ -307,19 +307,26 @@ project**, and the project's plant is no longer read-only.
   cells, lines, workcenters and pools **matched by name** on the target plant, missing ones
   **created** in #23's order, and every project column naming a plant row re-pointed —
   `projects.plant_id`; `studies.production_cell_id`, `production_line_id`, `pace_setter_target_id`;
-  `flow_nodes.workcenter_id` / `pool_id`; `part_process_times` and `project_queues` targets;
-  `workcenter_schedule_periods.workcenter_id`; `takt_periods.production_line_id`.
+  `flow_nodes.workcenter_id` / `pool_id`; `project_queues.target_id`;
+  `workcenter_schedule_periods.workcenter_id`; `takt_periods.production_line_id`;
+  `calendar_exceptions.scope_id`. (`part_process_times` is keyed by flow node since v24 and follows
+  its node untouched — the interview's list named it wrongly, and missed the exceptions.)
 - **The old plant is left untouched.** Moving back is lossless because the names match.
 
-**Risks carried into the build:**
+**Built 2026-09-13**, in five commits after the interview. `PlantMove` previews and applies in one
+transaction; what it makes is a **copy of the row it replaces** (capacity, type, crew, every column),
+not a template's stub, and a made workcenter is filed under the lines that came with it.
 
-- `TemplateBinding` matches every name across **all** plants (`template_binding.dart` 69–188). With
-  two plants in a document a template can bind to the wrong one. The move needs plant-scoped
-  matching, so the matching is shared and fixes templates too.
-- A line is matched by **(cell name, line name)**: two cells may each have a `Line A`.
-- The move must reach the file: raw SQL passes `updates:`, or the autosave never sees it.
-- Stored runs keep the old workcenter ids but copy names in, so Compare should read across a move —
-  to be checked on a run from each side.
+**The risks, as they landed:**
+
+- `TemplateBinding` matched every name across all plants, matched a line by name alone, bound to the
+  document's *first* plant, and declared no table updates — so an applied template never reached the
+  autosave. All four fixed, with tests, rather than shared: the move copies rows and a template
+  builds from names, so the only common part was a `WHERE plant_id`.
+- Lines are matched under their cell, in both.
+- Every write in the move names its table; a test asserts the autosave sees it.
+- **Still unchecked:** stored runs keep old workcenter ids and copy names in, so Compare should read
+  across a move. Owed to the drive, on a run from each side.
 
 **Evidence owed: a drive.** Open a new project then Q1 and see Q1's tree; build a plant from empty;
 name a new project's plant; move Q1 to a second plant and back and simulate on both sides.

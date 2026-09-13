@@ -145,7 +145,7 @@
   "projectsEmpty": "Nenhum projeto ainda.",
   "projectMissing": "Esse projeto não existe mais.",
   "projectNeedsPlant": "Crie uma planta em Recursos antes de iniciar um projeto.",
-  "projectPlantHelp": "Não pode ser alterada depois: todo estudo, programação e etapa de fluxo do projeto aponta para os centros de trabalho desta planta.",
+  "projectPlantHelp": "A planta em que os estudos deste projeto rodam. Escolher outra move o projeto inteiro: centros de trabalho, grupos, células e linhas são encontrados pelo nome, e o que faltar é copiado. A planta que ele deixa não é alterada.",
   "projectDeleteBody": "Os estudos, programações e fluxos vão junto. Isso não pode ser desfeito.",
   "study": "Estudo",
   "studyNew": "Novo Estudo",
@@ -1047,5 +1047,13 @@
   "startupFailedBackup": "Uma cópia dos seus dados de antes desta atualização está na mesma pasta: {file}.",
   "startupCopyDetails": "Copiar detalhes",
   "startupRetry": "Tentar novamente",
-  "aboutOpenLog": "Abrir registo"
+  "aboutOpenLog": "Abrir registo",
+  "plantMoveTitle": "Mover {project} para {plant}?",
+  "plantMoveMatched": "Encontrado em {plant} pelo nome: {names}",
+  "plantMoveCreated": "Não existe em {plant}, então é copiado de {from}: {names}",
+  "plantMoveNothingCreated": "{plant} já tem todos os nomes que este projeto usa, então nada é copiado.",
+  "plantMoveStudies": "Estudos que vão junto: {count}, com seus horários, takt, filas e exceções de calendário. {from} fica como está.",
+  "plantMoveConfirm": "Mover projeto",
+  "plantMoveDone": "Movido para {plant}.",
+  "plantMoveFailed": "Não foi possível mover o projeto, e nada foi alterado."
 }

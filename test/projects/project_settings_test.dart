@@ -1,5 +1,6 @@
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
+import 'package:flowmap/src/features/projects/data/plant_move.dart';
 import 'package:flowmap/src/features/projects/data/projects_repository.dart';
 import 'package:flowmap/src/features/projects/application/projects_providers.dart';
 import 'package:flowmap/src/features/projects/presentation/project_settings_screen.dart';
@@ -68,12 +69,16 @@ void main() {
   final writes =
       <({String name, String patternId, String? notes, int? red, int? green})>[];
 
+  /// The plant moves the screen asked for, recorded rather than run.
+  final moves = <String?>[];
+
   Future<void> pump(
     WidgetTester tester, {
     Project? existing,
     List<Project> others = const [],
   }) async {
     writes.clear();
+    moves.clear();
     final subject = existing ?? project();
     await tester.pumpWidget(
       ProviderScope(
@@ -95,6 +100,7 @@ void main() {
           projectsRepositoryProvider.overrideWith(
             (ref) => _SpyProjectsRepository(writes),
           ),
+          plantMoveProvider.overrideWith((ref) => _SpyPlantMove(moves)),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -137,15 +143,42 @@ void main() {
     );
   });
 
-  testWidgets('the plant is shown and cannot be changed', (tester) async {
-    // Stronger than the study line's read-only rule, which is about a figure
-    // being repointed: every study, schedule, flow node and process time in
-    // the project points at this plant's workcenters, so changing it would
-    // orphan them rather than move them.
-    await pump(tester);
+  Future<AppLocalizations> choosePlant(WidgetTester tester, String name) async {
+    await tester.tap(find.text('Taubaté'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(name).last);
+    await tester.pumpAndSettle();
+    return AppLocalizations.delegate.load(const Locale('en'));
+  }
 
-    expect(find.text('Taubaté'), findsOne);
-    expect(find.text('Elsewhere'), findsNothing);
+  testWidgets('choosing another plant asks first, and says what it will do', (
+    tester,
+  ) async {
+    // Every study, schedule, flow node and exception points at this plant's
+    // rows, so the choice is a move — and a move is shown before it is run.
+    await pump(tester);
+    final l10n = await choosePlant(tester, 'Elsewhere');
+
+    expect(find.text(l10n.plantMoveTitle('Fábrica 11', 'Elsewhere')), findsOne);
+    expect(find.textContaining('CLAD07'), findsOne);
+    expect(find.textContaining('FORN02'), findsOne);
+    expect(moves, isEmpty, reason: 'nothing runs before the confirmation');
+
+    await tester.tap(find.text(l10n.actionCancel));
+    await tester.pumpAndSettle();
+
+    expect(moves, isEmpty);
+    expect(find.text('Taubaté'), findsOne, reason: 'a cancel puts it back');
+  });
+
+  testWidgets('confirming moves the project', (tester) async {
+    await pump(tester);
+    final l10n = await choosePlant(tester, 'Elsewhere');
+
+    await tester.tap(find.text(l10n.plantMoveConfirm));
+    await tester.pumpAndSettle();
+
+    expect(moves, ['plant-2']);
   });
 
   testWidgets('the shift pattern can be set, which it never could before', (
@@ -316,4 +349,33 @@ class _SpyProjectsRepository implements ProjectsRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnsupportedError('${invocation.memberName} is not used here');
+}
+
+class _SpyPlantMove implements PlantMove {
+  _SpyPlantMove(this.moves);
+
+  final List<String?> moves;
+
+  static const _report = PlantMoveReport(
+    matched: ['CLAD07'],
+    created: ['FORN02'],
+    studies: 3,
+  );
+
+  @override
+  Future<PlantMoveReport> preview({
+    required String projectId,
+    String? toPlantId,
+    String? newPlantName,
+  }) async => _report;
+
+  @override
+  Future<PlantMoveReport> apply({
+    required String projectId,
+    String? toPlantId,
+    String? newPlantName,
+  }) async {
+    moves.add(toPlantId ?? newPlantName);
+    return _report;
+  }
 }

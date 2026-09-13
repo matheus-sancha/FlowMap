@@ -424,7 +424,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get projectPlantHelp =>
-      'Cannot be changed later: every study, schedule and flow step in the project points at this plant\'s workcenters.';
+      'The plant this project\'s studies run on. Choosing another moves the whole project there: workcenters, pools, cells and lines are found by name, and anything missing is copied across. The plant it leaves is not changed.';
 
   @override
   String get projectDeleteBody =>
@@ -2273,4 +2273,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutOpenLog => 'Open log';
+
+  @override
+  String plantMoveTitle(String project, String plant) {
+    return 'Move $project to $plant?';
+  }
+
+  @override
+  String plantMoveMatched(String plant, String names) {
+    return 'Found on $plant by name: $names';
+  }
+
+  @override
+  String plantMoveCreated(String plant, String from, String names) {
+    return 'Not on $plant, so copied there from $from: $names';
+  }
+
+  @override
+  String plantMoveNothingCreated(String plant) {
+    return '$plant already has every name this project uses, so nothing is copied.';
+  }
+
+  @override
+  String plantMoveStudies(String count, String from) {
+    return 'Studies that move with it: $count, with their hours, takt, queues and calendar exceptions. $from is left as it is.';
+  }
+
+  @override
+  String get plantMoveConfirm => 'Move project';
+
+  @override
+  String plantMoveDone(String plant) {
+    return 'Moved to $plant.';
+  }
+
+  @override
+  String get plantMoveFailed =>
+      'The project could not be moved, and nothing was changed.';
 }

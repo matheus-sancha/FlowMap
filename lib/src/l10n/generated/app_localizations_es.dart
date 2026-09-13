@@ -429,7 +429,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get projectPlantHelp =>
-      'No se puede cambiar después: cada estudio, programación y paso de flujo del proyecto apunta a los centros de trabajo de esta planta.';
+      'La planta en la que corren los estudios de este proyecto. Elegir otra traslada todo el proyecto: los centros de trabajo, grupos, células y líneas se buscan por nombre, y lo que falte se copia. La planta que deja no cambia.';
 
   @override
   String get projectDeleteBody =>
@@ -2295,4 +2295,41 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aboutOpenLog => 'Abrir registro';
+
+  @override
+  String plantMoveTitle(String project, String plant) {
+    return '¿Trasladar $project a $plant?';
+  }
+
+  @override
+  String plantMoveMatched(String plant, String names) {
+    return 'Encontrado en $plant por nombre: $names';
+  }
+
+  @override
+  String plantMoveCreated(String plant, String from, String names) {
+    return 'No está en $plant, así que se copia desde $from: $names';
+  }
+
+  @override
+  String plantMoveNothingCreated(String plant) {
+    return '$plant ya tiene todos los nombres que usa este proyecto, así que no se copia nada.';
+  }
+
+  @override
+  String plantMoveStudies(String count, String from) {
+    return 'Estudios que se trasladan: $count, con sus horarios, takt, colas y excepciones de calendario. $from queda como está.';
+  }
+
+  @override
+  String get plantMoveConfirm => 'Trasladar proyecto';
+
+  @override
+  String plantMoveDone(String plant) {
+    return 'Trasladado a $plant.';
+  }
+
+  @override
+  String get plantMoveFailed =>
+      'No se pudo trasladar el proyecto y no se cambió nada.';
 }

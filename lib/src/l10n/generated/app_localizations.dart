@@ -889,7 +889,7 @@ abstract class AppLocalizations {
   /// No description provided for @projectPlantHelp.
   ///
   /// In en, this message translates to:
-  /// **'Cannot be changed later: every study, schedule and flow step in the project points at this plant\'s workcenters.'**
+  /// **'The plant this project\'s studies run on. Choosing another moves the whole project there: workcenters, pools, cells and lines are found by name, and anything missing is copied across. The plant it leaves is not changed.'**
   String get projectPlantHelp;
 
   /// No description provided for @projectDeleteBody.
@@ -4016,6 +4016,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open log'**
   String get aboutOpenLog;
+
+  /// No description provided for @plantMoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {project} to {plant}?'**
+  String plantMoveTitle(String project, String plant);
+
+  /// No description provided for @plantMoveMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Found on {plant} by name: {names}'**
+  String plantMoveMatched(String plant, String names);
+
+  /// No description provided for @plantMoveCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Not on {plant}, so copied there from {from}: {names}'**
+  String plantMoveCreated(String plant, String from, String names);
+
+  /// No description provided for @plantMoveNothingCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'{plant} already has every name this project uses, so nothing is copied.'**
+  String plantMoveNothingCreated(String plant);
+
+  /// No description provided for @plantMoveStudies.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies that move with it: {count}, with their hours, takt, queues and calendar exceptions. {from} is left as it is.'**
+  String plantMoveStudies(String count, String from);
+
+  /// No description provided for @plantMoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Move project'**
+  String get plantMoveConfirm;
+
+  /// No description provided for @plantMoveDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved to {plant}.'**
+  String plantMoveDone(String plant);
+
+  /// No description provided for @plantMoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The project could not be moved, and nothing was changed.'**
+  String get plantMoveFailed;
 }
 
 class _AppLocalizationsDelegate

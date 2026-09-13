@@ -169,7 +169,7 @@
   "projectsEmpty": "No projects yet.",
   "projectMissing": "That project no longer exists.",
   "projectNeedsPlant": "Create a plant in Resources before starting a project.",
-  "projectPlantHelp": "Cannot be changed later: every study, schedule and flow step in the project points at this plant's workcenters.",
+  "projectPlantHelp": "The plant this project's studies run on. Choosing another moves the whole project there: workcenters, pools, cells and lines are found by name, and anything missing is copied across. The plant it leaves is not changed.",
   "projectDeleteBody": "Its studies, schedules and flows go with it. This cannot be undone.",
   "study": "Study",
   "studyNew": "New Study",
@@ -1268,5 +1268,70 @@
   },
   "startupCopyDetails": "Copy details",
   "startupRetry": "Try again",
-  "aboutOpenLog": "Open log"
+  "aboutOpenLog": "Open log",
+  "plantMoveTitle": "Move {project} to {plant}?",
+  "@plantMoveTitle": {
+    "placeholders": {
+      "project": {
+        "type": "String"
+      },
+      "plant": {
+        "type": "String"
+      }
+    }
+  },
+  "plantMoveMatched": "Found on {plant} by name: {names}",
+  "@plantMoveMatched": {
+    "placeholders": {
+      "plant": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "plantMoveCreated": "Not on {plant}, so copied there from {from}: {names}",
+  "@plantMoveCreated": {
+    "placeholders": {
+      "plant": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "plantMoveNothingCreated": "{plant} already has every name this project uses, so nothing is copied.",
+  "@plantMoveNothingCreated": {
+    "placeholders": {
+      "plant": {
+        "type": "String"
+      }
+    }
+  },
+  "plantMoveStudies": "Studies that move with it: {count}, with their hours, takt, queues and calendar exceptions. {from} is left as it is.",
+  "@plantMoveStudies": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      }
+    }
+  },
+  "plantMoveConfirm": "Move project",
+  "plantMoveDone": "Moved to {plant}.",
+  "@plantMoveDone": {
+    "placeholders": {
+      "plant": {
+        "type": "String"
+      }
+    }
+  },
+  "plantMoveFailed": "The project could not be moved, and nothing was changed."
 }

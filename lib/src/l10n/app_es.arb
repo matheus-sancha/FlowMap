@@ -145,7 +145,7 @@
   "projectsEmpty": "Aún no hay proyectos.",
   "projectMissing": "Ese proyecto ya no existe.",
   "projectNeedsPlant": "Crea una planta en Recursos antes de iniciar un proyecto.",
-  "projectPlantHelp": "No se puede cambiar después: cada estudio, programación y paso de flujo del proyecto apunta a los centros de trabajo de esta planta.",
+  "projectPlantHelp": "La planta en la que corren los estudios de este proyecto. Elegir otra traslada todo el proyecto: los centros de trabajo, grupos, células y líneas se buscan por nombre, y lo que falte se copia. La planta que deja no cambia.",
   "projectDeleteBody": "Sus estudios, programaciones y flujos se van con él. Esto no se puede deshacer.",
   "study": "Estudio",
   "studyNew": "Nuevo Estudio",
@@ -1047,5 +1047,13 @@
   "startupFailedBackup": "Una copia de tus datos de antes de esta actualización está en la misma carpeta: {file}.",
   "startupCopyDetails": "Copiar detalles",
   "startupRetry": "Reintentar",
-  "aboutOpenLog": "Abrir registro"
+  "aboutOpenLog": "Abrir registro",
+  "plantMoveTitle": "¿Trasladar {project} a {plant}?",
+  "plantMoveMatched": "Encontrado en {plant} por nombre: {names}",
+  "plantMoveCreated": "No está en {plant}, así que se copia desde {from}: {names}",
+  "plantMoveNothingCreated": "{plant} ya tiene todos los nombres que usa este proyecto, así que no se copia nada.",
+  "plantMoveStudies": "Estudios que se trasladan: {count}, con sus horarios, takt, colas y excepciones de calendario. {from} queda como está.",
+  "plantMoveConfirm": "Trasladar proyecto",
+  "plantMoveDone": "Trasladado a {plant}.",
+  "plantMoveFailed": "No se pudo trasladar el proyecto y no se cambió nada."
 }

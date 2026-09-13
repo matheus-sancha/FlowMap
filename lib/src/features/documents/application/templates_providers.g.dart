@@ -233,7 +233,7 @@ final class ApplyTemplateProvider
   }
 }
 
-String _$applyTemplateHash() => r'91b65f7dd14ba79ce2e87268ffc72afee7ec4d59';
+String _$applyTemplateHash() => r'596b32eba94fd773554b550c2fb602cef29c6d8e';
 
 /// Applies a template to the project that is open.
 ///

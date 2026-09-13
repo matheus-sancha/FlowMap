@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/database/database_providers.dart';
+import '../data/plant_move.dart';
 import '../data/projects_repository.dart';
 
 part 'projects_providers.g.dart';
@@ -10,6 +11,9 @@ part 'projects_providers.g.dart';
 @riverpod
 ProjectsRepository projectsRepository(Ref ref) =>
     ProjectsRepository(ref.watch(appDatabaseProvider));
+
+@riverpod
+PlantMove plantMove(Ref ref) => PlantMove(ref.watch(appDatabaseProvider));
 
 // Hand-written, not generated: riverpod_generator cannot emit a provider whose
 // return type is a Drift class from the same build pass.
