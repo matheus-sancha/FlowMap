@@ -714,6 +714,12 @@
   "simLeadTimeEfficiency": "Lead-time efficiency",
   "simLeadTimeEfficiencyHelp": "Theoretical ÷ actual. Above 100% the flow queued less than the standard expects; below 100% it queued more. Warm-up orders — those released before their line's first delivery, when the flow was still empty — are left out.",
   "simEmptySlots": "Empty release slots",
+  "simReport": "Simulation report",
+  "simReportExport": "PDF report",
+  "simReportInputs": "Inputs",
+  "simReportLateOrders": "Late orders",
+  "simReportNoneLate": "Every order in this view was on time.",
+  "simReportNotDelivered": "Not delivered",
   "simEmptySlotsHelp": "Slots that came round with nothing to put in them: the head of the sequence had no material yet, or the flow was already at its WIP cap. The sequence is the thing under study, so an empty slot is counted rather than quietly repaired.",
   "simByQueue": "Ranked by queue time",
   "simByShare": "Ranked by share of the flow",
@@ -1201,5 +1207,19 @@
   "aboutAppDataHelp": "Settings, the diagnostics log, and simulation results. Your projects are not here.",
   "aboutDiagnostics": "Diagnostics",
   "aboutOpenFolder": "Open folder",
+  "startupOpening": "Opening your data…",
+  "startupOpeningHelp": "The first launch after an update can take a minute.",
+  "startupFailed": "FlowMap could not open its data",
+  "startupFailedHelp": "Nothing has been deleted. Open the folder below and send the file log.txt to whoever gave you FlowMap.",
+  "startupFailedBackup": "A copy of your data from before this update is in the same folder: {file}.",
+  "@startupFailedBackup": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "startupCopyDetails": "Copy details",
+  "startupRetry": "Try again",
   "aboutOpenLog": "Open log"
 }

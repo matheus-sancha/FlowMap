@@ -1387,6 +1387,25 @@ class AppLocalizationsEs extends AppLocalizations {
   String get simEmptySlots => 'Ranuras de lanzamiento vacías';
 
   @override
+  String get simReport => 'Informe de simulación';
+
+  @override
+  String get simReportExport => 'Informe PDF';
+
+  @override
+  String get simReportInputs => 'Entradas';
+
+  @override
+  String get simReportLateOrders => 'Órdenes atrasadas';
+
+  @override
+  String get simReportNoneLate =>
+      'Todas las órdenes de esta vista llegaron a tiempo.';
+
+  @override
+  String get simReportNotDelivered => 'No entregada';
+
+  @override
   String get simEmptySlotsHelp =>
       'Ranuras que llegaron sin nada que poner en ellas: la cabeza de la secuencia aún no tenía material, o el flujo ya estaba en su límite de WIP. La secuencia es lo que se estudia, así que una ranura vacía se cuenta en lugar de repararse en silencio.';
 
@@ -2167,6 +2186,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aboutOpenFolder => 'Abrir carpeta';
+
+  @override
+  String get startupOpening => 'Abriendo tus datos…';
+
+  @override
+  String get startupOpeningHelp =>
+      'El primer inicio después de una actualización puede tardar un minuto.';
+
+  @override
+  String get startupFailed => 'FlowMap no pudo abrir sus datos';
+
+  @override
+  String get startupFailedHelp =>
+      'No se ha borrado nada. Abre la carpeta de abajo y envía el archivo log.txt a quien te dio FlowMap.';
+
+  @override
+  String startupFailedBackup(String file) {
+    return 'Una copia de tus datos de antes de esta actualización está en la misma carpeta: $file.';
+  }
+
+  @override
+  String get startupCopyDetails => 'Copiar detalles';
+
+  @override
+  String get startupRetry => 'Reintentar';
 
   @override
   String get aboutOpenLog => 'Abrir registro';

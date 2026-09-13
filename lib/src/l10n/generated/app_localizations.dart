@@ -2520,6 +2520,42 @@ abstract class AppLocalizations {
   /// **'Empty release slots'**
   String get simEmptySlots;
 
+  /// No description provided for @simReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation report'**
+  String get simReport;
+
+  /// No description provided for @simReportExport.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF report'**
+  String get simReportExport;
+
+  /// No description provided for @simReportInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Inputs'**
+  String get simReportInputs;
+
+  /// No description provided for @simReportLateOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Late orders'**
+  String get simReportLateOrders;
+
+  /// No description provided for @simReportNoneLate.
+  ///
+  /// In en, this message translates to:
+  /// **'Every order in this view was on time.'**
+  String get simReportNoneLate;
+
+  /// No description provided for @simReportNotDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Not delivered'**
+  String get simReportNotDelivered;
+
   /// No description provided for @simEmptySlotsHelp.
   ///
   /// In en, this message translates to:
@@ -3794,6 +3830,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open folder'**
   String get aboutOpenFolder;
+
+  /// No description provided for @startupOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening your data…'**
+  String get startupOpening;
+
+  /// No description provided for @startupOpeningHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The first launch after an update can take a minute.'**
+  String get startupOpeningHelp;
+
+  /// No description provided for @startupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'FlowMap could not open its data'**
+  String get startupFailed;
+
+  /// No description provided for @startupFailedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been deleted. Open the folder below and send the file log.txt to whoever gave you FlowMap.'**
+  String get startupFailedHelp;
+
+  /// No description provided for @startupFailedBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'A copy of your data from before this update is in the same folder: {file}.'**
+  String startupFailedBackup(String file);
+
+  /// No description provided for @startupCopyDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy details'**
+  String get startupCopyDetails;
+
+  /// No description provided for @startupRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get startupRetry;
 
   /// No description provided for @aboutOpenLog.
   ///

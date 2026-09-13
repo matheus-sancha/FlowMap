@@ -5,6 +5,7 @@ import '../common/date_style_scope.dart';
 import '../features/settings/application/settings_providers.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'router.dart';
+import 'startup_gate.dart';
 import 'theme.dart';
 
 class FlowMapApp extends ConsumerWidget {
@@ -37,8 +38,12 @@ class FlowMapApp extends ConsumerWidget {
       // the locale is only decided once `MaterialApp` has resolved it against
       // `supportedLocales`. Above this, `Localizations.localeOf` is the
       // platform's answer rather than the app's.
-      builder: (context, child) =>
-          DateStyleProvider(child: child ?? const SizedBox.shrink()),
+      //
+      // The startup gate sits inside it for the same reason: its sentences are
+      // localized, and it is the first thing that can go wrong (#33).
+      builder: (context, child) => StartupGate(
+        child: DateStyleProvider(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

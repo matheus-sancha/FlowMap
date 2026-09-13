@@ -21,6 +21,7 @@ import 'float_matrix_table.dart';
 import 'gantt_view.dart';
 import 'occupation_view.dart';
 import 'plan_excel.dart';
+import 'run_report_pdf.dart';
 
 /// The project's stored runs: open an earlier one, or delete one (§7.10).
 ///
@@ -157,7 +158,24 @@ class RunResults extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _RunHeader(run: run),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _RunHeader(run: run)),
+                  // **The report of this view, beside what it reports** (§13,
+                  // #27): the slice, like the plan's Excel button, because a
+                  // reader who filtered to one line is printing that line.
+                  TextButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: Text(AppLocalizations.of(context).simReportExport),
+                    onPressed: () => exportRunReport(
+                      context,
+                      slice: slice,
+                      projectName: projectName,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               if (run.result.abort != null) ...[
                 _AbortBanner(result: run.result),

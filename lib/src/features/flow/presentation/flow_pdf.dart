@@ -8,12 +8,15 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../../app/build_info.dart';
+import '../../../common/pdf_document.dart';
+import '../../../common/vector_pen.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/staffing_codec.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../diagnostics/application/diagnostics.dart';
 import '../application/flow_view.dart';
 import 'period_label.dart';
+import 'vsm_symbols.dart';
 
 /// How the document renders a duration.
 ///
@@ -124,7 +127,10 @@ Future<void> exportFlowPdf(
     notes: l10n.flowNodeNotes,
     leadTime: l10n.footerLeadTime,
     pce: l10n.footerPce,
-    generated: l10n.exportGenerated(kBuildLabel, timestamp.format(DateTime.now())),
+    generated: l10n.exportGenerated(
+      kBuildLabel,
+      timestamp.format(DateTime.now()),
+    ),
     // Named, and named *which* part when it is one: a printed map read a
     // month later has no dropdown to check (DESIGN.md §17.4).
     dataSource: view.selectedPartNumber == null
@@ -142,6 +148,7 @@ Future<void> exportFlowPdf(
   // The same rendering the screen uses, working day and all, so an exported map
   // and the app never state the same duration two different ways.
   final bytes = await buildFlowPdf(
+    theme: await loadPdfTheme(),
     view: view,
     strings: strings,
     formatDuration: (duration, {workingDay}) =>
@@ -176,12 +183,13 @@ Future<void> exportFlowPdf(
 /// Builds the document. Separated from the file dialog so it can be rendered in
 /// a test without a widget tree or a file system.
 Future<Uint8List> buildFlowPdf({
+  required pw.ThemeData theme,
   required FlowView view,
   required FlowPdfStrings strings,
   required FlowDurationFormat formatDuration,
   required FlowQueueCaption queueCaption,
 }) async {
-  final document = pw.Document(title: strings.title);
+  final document = pw.Document(title: strings.title, theme: theme);
 
   document.addPage(
     pw.Page(
@@ -191,21 +199,9 @@ Future<Uint8List> buildFlowPdf({
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                strings.title,
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Text(
-                '${strings.period} · ${strings.dataSource}',
-                style: const pw.TextStyle(fontSize: 10),
-              ),
-            ],
+          pdfHeader(
+            title: strings.title,
+            subtitle: '${strings.period} · ${strings.dataSource}',
           ),
           pw.SizedBox(height: 16),
           // Wraps rather than scrolls: a PDF has no scrollbar, so a flow wider
@@ -253,10 +249,7 @@ Future<Uint8List> buildFlowPdf({
           pw.Divider(),
           _footer(view, strings, formatDuration),
           pw.SizedBox(height: 6),
-          pw.Text(
-            strings.generated,
-            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
-          ),
+          pdfStamp(strings.generated),
         ],
       ),
     ),
@@ -278,21 +271,17 @@ pw.Widget _endpoint(
   width: 90,
   child: pw.Column(
     children: [
-      pw.Container(
-        height: 40,
-        decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.8)),
-      ),
+      // The canvas's factory, sawtooth roof and all — no longer a plain box.
+      _symbol(90, 40, (pen, size) {
+        VsmSymbols.traceFactory(pen, Offset.zero & size);
+        pen.stroke(_ink, 0.8);
+      }),
       pw.SizedBox(height: 4),
       pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
       if (stock != null) ...[
         pw.SizedBox(height: 4),
-        // The triangle is a label on paper for the reason every other symbol is
-        // (see `_arrow`): the printed map states what the canvas draws.
-        pw.Text('▽', style: const pw.TextStyle(fontSize: 10)),
-        pw.Text(
-          '${stock.quantity}',
-          style: const pw.TextStyle(fontSize: 8),
-        ),
+        _triangle(),
+        pw.Text('${stock.quantity}', style: const pw.TextStyle(fontSize: 8)),
         if (formatDuration != null)
           pw.Text(
             formatDuration(stock.wait, workingDay: stock.rungWorkingDay),
@@ -306,58 +295,98 @@ pw.Widget _endpoint(
 /// A link, the queue it runs into, and what kind of link that makes it
 /// (DESIGN.md §5.2, §7.3).
 ///
-/// **The printed map labels rather than redraws.** The canvas tells push from
-/// pull by hatching a shaft that this document does not draw at all — every
-/// symbol here is a bordered box or a glyph, which is why the arrow is a `>`.
-/// Rather than leave the distinction off the page entirely, every link that is
-/// not the ordinary push says what it is underneath: the four disciplines write
-/// their own word, which is the same word the canvas puts inside the channel, so
-/// the two drawings of one map read alike. A push says nothing, because that is
-/// the default and a caption on every arrow is noise.
+/// **Drawn, as on the canvas** (#27). This used to be the character `>` with
+/// the kind written underneath, because the document could only lay out boxes
+/// and glyphs; the hatched push, the bare pull and the four labelled channels
+/// are now `VsmSymbols.traceConnection` replayed into the page, so the printed
+/// map and the screen draw one notation. The word inside a channel is the
+/// document's own type, centred where the canvas centres it.
 ///
 /// The stock standing in the queue prints as the triangle and its figure, in the
-/// same column — which is where it is on the canvas, and it used to be a node of
-/// its own taking a whole slot.
+/// same column — which is where it is on the canvas.
 pw.Widget _arrow(
   FlowConnectionKind kind, {
   FlowQueueView? queue,
   required FlowDurationFormat formatDuration,
   required FlowQueueCaption queueCaption,
-}) => pw.Container(
-  width: queue?.hasStock ?? false ? 64 : 28,
-  height: 40,
-  alignment: pw.Alignment.center,
-  child: pw.Column(
-    mainAxisAlignment: pw.MainAxisAlignment.center,
-    children: [
-      pw.Text('>', style: const pw.TextStyle(fontSize: 12)),
-      if (kind.channelLabel ?? (kind == FlowConnectionKind.pull ? 'PULL' : null)
-          case final label?)
-        pw.Text(
-          label,
-          style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
+}) {
+  // A channel needs the canvas's 64-point gap to hold its word between the two
+  // marks; a bare arrow reads at 28.
+  final wide = (queue?.hasStock ?? false) || kind.channelLabel != null;
+  final width = wide ? 64.0 : 28.0;
+  return pw.SizedBox(
+    width: width,
+    child: pw.Column(
+      children: [
+        pw.SizedBox(
+          width: width,
+          height: 40,
+          child: pw.Stack(
+            alignment: pw.Alignment.center,
+            children: [
+              _symbol(width, 40, (pen, size) {
+                VsmSymbols.traceConnection(
+                  pen,
+                  Offset(0, size.height / 2),
+                  Offset(size.width, size.height / 2),
+                  kind: kind,
+                  color: _ink,
+                  label: (_, _) {},
+                );
+              }),
+              if (kind.channelLabel case final word?)
+                pw.Text(word, style: const pw.TextStyle(fontSize: 5.5)),
+            ],
+          ),
         ),
-      if (queue?.hasStock ?? false) ...[
-        pw.Text('▲', style: const pw.TextStyle(fontSize: 14)),
-        pw.Text(
-          queue!.quantity != null
-              ? '${queue.quantity}'
-              : formatDuration(queue.wait, workingDay: queue.rungWorkingDay),
-          style: const pw.TextStyle(fontSize: 7),
-        ),
+        if (queue?.hasStock ?? false) ...[
+          _triangle(),
+          pw.Text(
+            queue!.quantity != null
+                ? '${queue.quantity}'
+                : formatDuration(queue.wait, workingDay: queue.rungWorkingDay),
+            style: const pw.TextStyle(fontSize: 7),
+          ),
+        ],
+        // **Derived, and drawn on every queue** (#5, v27). It used to print only
+        // where someone had typed a name, so 7 of the live map's 15 queues showed
+        // nothing at all. The type is always known — an unset rule is `Queue` —
+        // so the caption is always there to print.
+        if (queue != null)
+          pw.Text(
+            queueCaption(queue),
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
+          ),
       ],
-      // **Derived, and drawn on every queue** (#5, v27). It used to print only
-      // where someone had typed a name, so 7 of the live map's 15 queues showed
-      // nothing at all. The type is always known — an unset rule is `Queue` —
-      // so the caption is always there to print.
-      if (queue != null)
-        pw.Text(
-          queueCaption(queue),
-          style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
-        ),
-    ],
+    ),
+  );
+}
+
+/// The ink every symbol is drawn in. Black, because §13's map goes on a
+/// shop-floor wall, often through a greyscale printer.
+const _ink = Color(0xFF000000);
+
+/// A shape from `vsm_symbols.dart`, replayed as vectors into a box this size.
+pw.Widget _symbol(
+  double width,
+  double height,
+  void Function(VectorPen pen, Size size) draw,
+) => pw.SizedBox(
+  width: width,
+  height: height,
+  child: pw.CustomPaint(
+    size: PdfPoint(width, height),
+    painter: (canvas, size) =>
+        draw(PdfPen(canvas, size.y), Size(size.x, size.y)),
   ),
 );
+
+/// The inventory triangle, point up and stroked — the canvas's own geometry.
+pw.Widget _triangle() => _symbol(12, 10, (pen, size) {
+  VsmSymbols.traceInventoryTriangle(pen, Offset.zero & size);
+  pen.stroke(_ink, 0.8);
+});
 
 pw.Widget _stepBox(
   FlowStepView step,
@@ -439,10 +468,7 @@ pw.Widget _notesList(FlowView view, FlowPdfStrings strings) {
   final noted = [
     for (final node in view.nodes)
       if (node.node.notes?.trim().isNotEmpty ?? false)
-        (
-          title: node.title,
-          text: node.node.notes!.trim(),
-        ),
+        (title: node.title, text: node.node.notes!.trim()),
   ];
   if (noted.isEmpty) return pw.SizedBox.shrink();
 
@@ -512,33 +538,33 @@ pw.Widget _ladder(FlowView view, FlowDurationFormat formatDuration) {
   }
 
   return pw.Row(
-      children: [
-        for (final rung in rungs)
-          pw.Container(
-            width: rung.waiting ? 64 : 168,
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            decoration: pw.BoxDecoration(
-              border: pw.Border(
-                // Waiting rides high, processing low — the sawtooth shape a
-                // value-stream map is read by.
-                top: rung.waiting
-                    ? const pw.BorderSide(width: 0.8)
-                    : pw.BorderSide.none,
-                bottom: rung.waiting
-                    ? pw.BorderSide.none
-                    : const pw.BorderSide(width: 0.8),
-              ),
-            ),
-            child: pw.Text(
-              // Against the node's own working day, as on the canvas: one takt
-              // has to read `3.0 d` on paper too.
-              formatDuration(rung.time, workingDay: rung.day),
-              // Centred over its rung, as on the canvas.
-              textAlign: pw.TextAlign.center,
-              style: const pw.TextStyle(fontSize: 8),
+    children: [
+      for (final rung in rungs)
+        pw.Container(
+          width: rung.waiting ? 64 : 168,
+          padding: const pw.EdgeInsets.symmetric(vertical: 4),
+          decoration: pw.BoxDecoration(
+            border: pw.Border(
+              // Waiting rides high, processing low — the sawtooth shape a
+              // value-stream map is read by.
+              top: rung.waiting
+                  ? const pw.BorderSide(width: 0.8)
+                  : pw.BorderSide.none,
+              bottom: rung.waiting
+                  ? pw.BorderSide.none
+                  : const pw.BorderSide(width: 0.8),
             ),
           ),
-      ],
+          child: pw.Text(
+            // Against the node's own working day, as on the canvas: one takt
+            // has to read `3.0 d` on paper too.
+            formatDuration(rung.time, workingDay: rung.day),
+            // Centred over its rung, as on the canvas.
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 8),
+          ),
+        ),
+    ],
   );
 }
 
@@ -552,10 +578,7 @@ pw.Widget _footer(
     _metric(strings.takt, strings.taktValue),
     _metric(
       strings.processTime,
-      formatDuration(
-        view.processTime,
-        workingDay: view.processTimeWorkingDay,
-      ),
+      formatDuration(view.processTime, workingDay: view.processTimeWorkingDay),
     ),
     _metric(
       strings.leadTime,

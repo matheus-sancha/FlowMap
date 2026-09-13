@@ -1371,6 +1371,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simEmptySlots => 'Empty release slots';
 
   @override
+  String get simReport => 'Simulation report';
+
+  @override
+  String get simReportExport => 'PDF report';
+
+  @override
+  String get simReportInputs => 'Inputs';
+
+  @override
+  String get simReportLateOrders => 'Late orders';
+
+  @override
+  String get simReportNoneLate => 'Every order in this view was on time.';
+
+  @override
+  String get simReportNotDelivered => 'Not delivered';
+
+  @override
   String get simEmptySlotsHelp =>
       'Slots that came round with nothing to put in them: the head of the sequence had no material yet, or the flow was already at its WIP cap. The sequence is the thing under study, so an empty slot is counted rather than quietly repaired.';
 
@@ -2146,6 +2164,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutOpenFolder => 'Open folder';
+
+  @override
+  String get startupOpening => 'Opening your data…';
+
+  @override
+  String get startupOpeningHelp =>
+      'The first launch after an update can take a minute.';
+
+  @override
+  String get startupFailed => 'FlowMap could not open its data';
+
+  @override
+  String get startupFailedHelp =>
+      'Nothing has been deleted. Open the folder below and send the file log.txt to whoever gave you FlowMap.';
+
+  @override
+  String startupFailedBackup(String file) {
+    return 'A copy of your data from before this update is in the same folder: $file.';
+  }
+
+  @override
+  String get startupCopyDetails => 'Copy details';
+
+  @override
+  String get startupRetry => 'Try again';
 
   @override
   String get aboutOpenLog => 'Open log';

@@ -609,23 +609,6 @@ class _SegmentColours {
   final Color over;
 }
 
-/// The scale both halves of the chart read.
-///
-/// **Built once per build and handed to both**, so the axis in the frozen
-/// gutter and the plot in the scrolling body cannot disagree about where
-/// 8,000 h is.
-ChartScale _scaleFor(OccupationGraph graph, String locale) {
-  // **The tallest bar or the line, whichever is higher.** A scale fitted to the
-  // bars alone would push the capacity line off the top on a quiet month and
-  // make an under-loaded plant look overloaded.
-  var peak = 0;
-  for (final month in graph.months) {
-    if (month.total.inSeconds > peak) peak = month.total.inSeconds;
-    if (month.capacity.inSeconds > peak) peak = month.capacity.inSeconds;
-  }
-  return ChartScale(peakSeconds: peak, ticks: hoursTicks(peak, locale));
-}
-
 /// The hours axis, in the matrix's frozen gutter (#16).
 ///
 /// **It sits over the row labels rather than beside the bars**, which is what
@@ -644,7 +627,7 @@ class _ChartAxis extends StatelessWidget {
 
     return CustomPaint(
       painter: _AxisPainter(
-        scale: _scaleFor(graph, Localizations.localeOf(context).toString()),
+        scale: chartScaleFor(graph, Localizations.localeOf(context).toString()),
         caption: l10n.occupationUnitHours,
         label: theme.textTheme.bodySmall?.color ?? theme.colorScheme.onSurface,
         grid: theme.colorScheme.outlineVariant,
@@ -672,7 +655,7 @@ class _ChartPlot extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context).toString();
-    final scale = _scaleFor(graph, locale);
+    final scale = chartScaleFor(graph, locale);
     final hours = NumberFormat.decimalPattern(locale)
       ..maximumFractionDigits = 0;
 

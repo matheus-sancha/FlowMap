@@ -1388,6 +1388,25 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simEmptySlots => 'Janelas de liberação vazias';
 
   @override
+  String get simReport => 'Relatório de simulação';
+
+  @override
+  String get simReportExport => 'Relatório PDF';
+
+  @override
+  String get simReportInputs => 'Entradas';
+
+  @override
+  String get simReportLateOrders => 'Ordens atrasadas';
+
+  @override
+  String get simReportNoneLate =>
+      'Todas as ordens desta visão foram entregues no prazo.';
+
+  @override
+  String get simReportNotDelivered => 'Não entregue';
+
+  @override
   String get simEmptySlotsHelp =>
       'Janelas que chegaram sem nada para colocar nelas: a cabeça da sequência ainda não tinha material, ou o fluxo já estava no limite de WIP. A sequência é o que está sob estudo, então uma janela vazia é contada em vez de consertada em silêncio.';
 
@@ -2168,6 +2187,31 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get aboutOpenFolder => 'Abrir pasta';
+
+  @override
+  String get startupOpening => 'Abrindo seus dados…';
+
+  @override
+  String get startupOpeningHelp =>
+      'A primeira abertura depois de uma atualização pode levar um minuto.';
+
+  @override
+  String get startupFailed => 'O FlowMap não conseguiu abrir os dados';
+
+  @override
+  String get startupFailedHelp =>
+      'Nada foi apagado. Abra a pasta abaixo e envie o arquivo log.txt para quem lhe deu o FlowMap.';
+
+  @override
+  String startupFailedBackup(String file) {
+    return 'Uma cópia dos seus dados de antes desta atualização está na mesma pasta: $file.';
+  }
+
+  @override
+  String get startupCopyDetails => 'Copiar detalhes';
+
+  @override
+  String get startupRetry => 'Tentar novamente';
 
   @override
   String get aboutOpenLog => 'Abrir registo';

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../common/vector_pen.dart';
+
 /// FlowMap's mark, drawn rather than imported.
 ///
 /// **Traced from `docs/brand/flowmap-mark-reference.png`**, which stays in the
@@ -33,7 +35,12 @@ import 'package:flutter/material.dart';
 /// The arrow and the bottom bar **touch** (0.4 %) while the top bar has a 3.4 %
 /// gap. That asymmetry is in the reference and is kept rather than tidied.
 class FlowmapMark extends StatelessWidget {
-  const FlowmapMark({super.key, this.size = 32, this.barColor, this.arrowColor});
+  const FlowmapMark({
+    super.key,
+    this.size = 32,
+    this.barColor,
+    this.arrowColor,
+  });
 
   /// The height in logical pixels. Width follows [aspect].
   final double size;
@@ -88,18 +95,37 @@ class FlowmapMarkPainter extends CustomPainter {
   final bool compact;
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(Canvas canvas, Size size) => trace(
+    CanvasPen(canvas),
+    size,
+    barColor: barColor,
+    arrowColor: arrowColor,
+    compact: compact,
+  );
+
+  /// The mark through any pen — the canvas above, the PDF header, the `.ico`.
+  static void trace(
+    VectorPen pen,
+    Size size, {
+    required Color barColor,
+    required Color arrowColor,
+    bool compact = false,
+  }) {
     final w = size.width;
     final h = size.height;
 
     void bar(double top, double height, double left, double right) {
-      final rect = Rect.fromLTRB(w * left, h * top, w * right, h * (top + height));
-      canvas.drawRRect(
-        // Fully rounded ends: the radius is half the bar's height, which is
-        // what keeps them reading as bars rather than as boxes at any size.
-        RRect.fromRectAndRadius(rect, Radius.circular(rect.height / 2)),
-        Paint()..color = barColor,
+      final rect = Rect.fromLTRB(
+        w * left,
+        h * top,
+        w * right,
+        h * (top + height),
       );
+      // Fully rounded ends: the radius is half the bar's height, which is
+      // what keeps them reading as bars rather than as boxes at any size.
+      pen
+        ..rrect(rect, rect.height / 2)
+        ..fill(barColor);
     }
 
     bar(0.000, compact ? 0.310 : 0.279, 0.072, 0.860);
@@ -128,29 +154,29 @@ class FlowmapMarkPainter extends CustomPainter {
 
     // The curve is dropped in the compact form: below 24 px it is a pixel of
     // wobble that only blurs the shaft.
-    final arrow = Path()..moveTo(tail, h * (compact ? shaftTop : 0.454));
+    pen.moveTo(Offset(tail, h * (compact ? shaftTop : 0.454)));
     if (compact) {
-      arrow.lineTo(w * headStart, h * shaftTop);
+      pen.lineTo(Offset(w * headStart, h * shaftTop));
     } else {
-      arrow
-        ..quadraticBezierTo(w * 0.09, h * shaftTop, w * 0.22, h * shaftTop)
-        ..lineTo(w * headStart, h * shaftTop);
+      pen
+        ..quadTo(Offset(w * 0.09, h * shaftTop), Offset(w * 0.22, h * shaftTop))
+        ..lineTo(Offset(w * headStart, h * shaftTop));
     }
-    arrow
-      ..lineTo(w * headStart, h * headTop)
-      ..lineTo(tip, midY)
-      ..lineTo(w * headStart, h * headBottom)
-      ..lineTo(w * headStart, h * shaftBottom);
+    pen
+      ..lineTo(Offset(w * headStart, h * headTop))
+      ..lineTo(Offset(tip, midY))
+      ..lineTo(Offset(w * headStart, h * headBottom))
+      ..lineTo(Offset(w * headStart, h * shaftBottom));
     if (compact) {
-      arrow.lineTo(tail, h * shaftBottom);
+      pen.lineTo(Offset(tail, h * shaftBottom));
     } else {
-      arrow
-        ..lineTo(w * 0.22, h * shaftBottom)
-        ..quadraticBezierTo(w * 0.09, h * shaftBottom, tail, h * 0.733);
+      pen
+        ..lineTo(Offset(w * 0.22, h * shaftBottom))
+        ..quadTo(Offset(w * 0.09, h * shaftBottom), Offset(tail, h * 0.733));
     }
-    arrow.close();
-
-    canvas.drawPath(arrow, Paint()..color = arrowColor);
+    pen
+      ..close()
+      ..fill(arrowColor);
   }
 
   @override

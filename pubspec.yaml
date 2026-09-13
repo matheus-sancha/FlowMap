@@ -75,6 +75,19 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # The app's first assets, and they are fonts, not images (#27). A PDF that
+  # does not embed its font falls back to Helvetica under WinAnsiEncoding, which
+  # silently dropped the em dash and could not draw ▽/▲ at all. Roboto is
+  # Apache-2.0 and is the face the screen already uses. DejaVu Sans (Bitstream
+  # Vera licence) is the fallback for the two characters Roboto lacks and the
+  # PDFs print: ⇄, the balanced mark, and →, a run's span.
+  assets:
+    - assets/fonts/Roboto-Regular.ttf
+    - assets/fonts/Roboto-Bold.ttf
+    - assets/fonts/LICENSE-Roboto.txt
+    - assets/fonts/DejaVuSans.ttf
+    - assets/fonts/LICENSE-DejaVu.txt
+
   # Generate localized strings (ARB -> AppLocalizations) via `flutter gen-l10n`.
   # Config lives in l10n.yaml at the repo root.
   generate: true

@@ -12,6 +12,8 @@ import 'dart:math' as math;
 
 import 'package:intl/intl.dart' show NumberFormat;
 
+import '../application/occupation_graph.dart';
+
 /// One labelled tick on the hours axis.
 class HoursTick {
   const HoursTick({required this.seconds, required this.label});
@@ -107,4 +109,21 @@ List<HoursTick> hoursTicks(int peakSeconds, String locale) {
     for (var h = 0.0; h <= hours + step * 1e-9; h += step)
       HoursTick(seconds: (h * 3600).round(), label: format.format(h)),
   ];
+}
+
+/// The scale both halves of the chart read — and the printed report (#27).
+///
+/// **Built once and handed to every surface that draws the chart**, so the
+/// axis in the frozen gutter, the plot in the scrolling body and the report's
+/// page cannot disagree about where 8,000 h is.
+ChartScale chartScaleFor(OccupationGraph graph, String locale) {
+  // **The tallest bar or the line, whichever is higher.** A scale fitted to the
+  // bars alone would push the capacity line off the top on a quiet month and
+  // make an under-loaded plant look overloaded.
+  var peak = 0;
+  for (final month in graph.months) {
+    if (month.total.inSeconds > peak) peak = month.total.inSeconds;
+    if (month.capacity.inSeconds > peak) peak = month.capacity.inSeconds;
+  }
+  return ChartScale(peakSeconds: peak, ticks: hoursTicks(peak, locale));
 }

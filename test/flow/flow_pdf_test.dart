@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dart';
@@ -7,6 +10,9 @@ import 'package:flowmap/src/features/flow/presentation/flow_pdf.dart';
 import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/schedules/application/workcenter_schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+import '../common/pdf_support.dart';
 
 /// The export is a re-render, not a screenshot, so it can be built and checked
 /// without a widget tree or a file dialog (DESIGN.md §13).
@@ -15,8 +21,9 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// It records what it was asked to render, which is how the tests check that
 /// the document measures a duration against the same working day the canvas
-/// does — the numbers themselves live inside a PDF's compressed content stream
-/// and cannot be read back out (DESIGN.md §17.4).
+/// does. (The content stream *can* be read back out — `_contentStreams` below
+/// inflates it — but with an embedded font the text is glyph ids, so a
+/// duration is checked where it is asked for rather than where it is set.)
 class _Format {
   final calls = <({Duration duration, Duration? workingDay})>[];
 
@@ -28,6 +35,7 @@ class _Format {
 
 void main() {
   final now = DateTime(2026, 8, 1);
+  final theme = testPdfTheme();
 
   const strings = FlowPdfStrings(
     title: 'Current state',
@@ -153,6 +161,7 @@ void main() {
   test('produces a real PDF document', () async {
     final bytes = await buildFlowPdf(
       view: viewWith([step(0), step(1)], queues: stocked),
+      theme: theme,
       strings: strings,
       formatDuration: _Format().call,
       queueCaption: _caption,
@@ -170,12 +179,14 @@ void main() {
     // PDF that drops it is a PDF of half the work (§5.4).
     final withNotes = await buildFlowPdf(
       view: viewWith([step(0, notes: 'Operator waits for the crane')]),
+      theme: theme,
       strings: strings,
       formatDuration: _Format().call,
       queueCaption: _caption,
     );
     final without = await buildFlowPdf(
       view: viewWith([step(0)]),
+      theme: theme,
       strings: strings,
       formatDuration: _Format().call,
       queueCaption: _caption,
@@ -190,6 +201,7 @@ void main() {
   test('an empty flow still renders rather than throwing', () async {
     final bytes = await buildFlowPdf(
       view: viewWith(const []),
+      theme: theme,
       strings: strings,
       formatDuration: _Format().call,
       queueCaption: _caption,
@@ -215,11 +227,91 @@ void main() {
 
     final bytes = await buildFlowPdf(
       view: view,
+      theme: theme,
       strings: strings,
       formatDuration: _Format().call,
       queueCaption: _caption,
     );
     expect(bytes, isNotEmpty);
+  });
+
+  group('what the render itself reported (#27)', () {
+    test('the font is embedded, not a Helvetica it names', () async {
+      final bytes = await buildFlowPdf(
+        theme: theme,
+        view: viewWith([step(0)]),
+        strings: strings,
+        formatDuration: _Format().call,
+        queueCaption: _caption,
+      );
+      final raw = latin1.decode(bytes);
+      // Helvetica under WinAnsiEncoding dropped the em dash without a word.
+      expect(raw, contains('/FontFile2'));
+      expect(raw, isNot(contains('/Helvetica')));
+    });
+
+    test('every character the app can print is in the embedded type', () {
+      // **The check that would have caught the em dash.** With an embedded font
+      // the content stream holds glyph ids, so rather than decode them this asks
+      // the question upstream of the page: can the fonts draw every rune of
+      // every string in all three languages? A rune neither font has is a rune
+      // the `pdf` package skips with a console warning nobody in the field sees.
+      final context = pw.Context(document: pw.Document().document);
+      final fonts = [
+        theme.defaultTextStyle.font!,
+        ...theme.defaultTextStyle.fontFallback,
+      ].map((f) => f.getFont(context)).toList();
+      final missing = <String>{};
+      for (final locale in const ['en', 'es', 'pt']) {
+        final arb =
+            jsonDecode(File('lib/src/l10n/app_$locale.arb').readAsStringSync())
+                as Map<String, dynamic>;
+        arb.forEach((key, value) {
+          if (key.startsWith('@') || value is! String) return;
+          for (final rune in value.runes) {
+            if (!fonts.any((f) => f.isRuneSupported(rune))) {
+              missing.add('$locale.$key U+${rune.toRadixString(16)}');
+            }
+          }
+        });
+      }
+      expect(missing, isEmpty);
+    });
+
+    test('the symbols are drawn, not typed', () async {
+      // The old document held 0 curves: its arrow was `>` and its triangles were
+      // glyphs. The mark in the header is two curves, a stocked queue adds a
+      // closed triangle, and a push arrow is hatched in strokes.
+      Future<List<String>> render(Map<String, ProjectQueue> queues) async =>
+          contentStreams(
+            await buildFlowPdf(
+              theme: theme,
+              view: viewWith([step(0), step(1)], queues: queues),
+              strings: strings,
+              formatDuration: _Format().call,
+              queueCaption: _caption,
+            ),
+          );
+
+      final bare = await render(const {});
+      final withStock = await render(stocked);
+
+      expect(
+        operatorCount(bare, 'c'),
+        greaterThanOrEqualTo(2),
+        reason: "the mark's tail is two curves",
+      );
+      expect(
+        operatorCount(bare, 'S'),
+        greaterThan(10),
+        reason: 'factories, arrow outlines and hatching are strokes',
+      );
+      expect(
+        operatorCount(withStock, 'h'),
+        greaterThan(operatorCount(bare, 'h')),
+        reason: 'a counted queue draws a closed triangle',
+      );
+    });
   });
 
   group('the exported map reads the same days as the screen', () {
@@ -228,6 +320,7 @@ void main() {
       final format = _Format();
       await buildFlowPdf(
         view: view,
+        theme: theme,
         strings: strings,
         formatDuration: format.call,
         queueCaption: _caption,
@@ -252,6 +345,7 @@ void main() {
       final format = _Format();
       await buildFlowPdf(
         view: view,
+        theme: theme,
         strings: strings,
         formatDuration: format.call,
         queueCaption: _caption,
@@ -272,6 +366,7 @@ void main() {
       final format = _Format();
       await buildFlowPdf(
         view: view,
+        theme: theme,
         strings: strings,
         formatDuration: format.call,
         queueCaption: _caption,
@@ -303,6 +398,7 @@ void main() {
       final bare = _Format();
       await buildFlowPdf(
         view: viewWith([step(0)]),
+        theme: theme,
         strings: strings,
         formatDuration: bare.call,
         queueCaption: _caption,
@@ -311,6 +407,7 @@ void main() {
       final counted = _Format();
       await buildFlowPdf(
         view: viewWith([step(0)], inbound: 2, outbound: 1),
+        theme: theme,
         strings: strings,
         formatDuration: counted.call,
         queueCaption: _caption,
@@ -324,6 +421,7 @@ void main() {
       final format = _Format();
       await buildFlowPdf(
         view: view,
+        theme: theme,
         strings: strings,
         formatDuration: format.call,
         queueCaption: _caption,
@@ -340,7 +438,6 @@ void main() {
     });
   });
 }
-
 
 /// The caption the app derives, spelled out here so the page under test says
 /// what the screen says (#5, v27). A test has no `AppLocalizations`, so the

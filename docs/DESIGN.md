@@ -3388,6 +3388,44 @@ illegibility, and it is the hardest of the three to print well.
 
 ---
 
+### 13.2 The two PDFs, and what they share — as built (v2.1, #27, #33)
+
+**One header, one embedded font, one geometry.** Both PDFs open with `pdfHeader` — the mark, the
+title, what it is of — and close with the build stamp. The mark and every VSM symbol are traced
+through a `VectorPen`, which the canvas and the PDF each implement, so the printed map and the
+screen share their shapes rather than approximating each other.
+
+- **The VSM PDF drew no symbols before this**, and generating it and inflating its content stream
+  showed why: 0 image XObjects, 0 curves, the material-flow arrow was the character `>`, and the
+  inventory triangles `▽`/`▲` did not draw at all, because the document declared **Helvetica under
+  `WinAnsiEncoding`, not embedded** — which also dropped the em dash, silently. Accented Latin
+  survived, which is why the trilingual text never showed it.
+- **Roboto is embedded, with DejaVu Sans as the fallback** for the two characters Roboto lacks and
+  the app prints: `⇄`, the balanced mark, and `→`. They were found by checking every rune of all
+  three ARB files against the fonts, and that check is a test, so a new string with a character
+  neither font has fails the build instead of vanishing from a page.
+- **The simulation report is §13's list plus the occupation chart**: the headline and metrics card,
+  the inputs (span, studies with WIP cap and start buffer, mixed dispatch rules), the ranking by
+  queue time, the chart on `chartScaleFor`'s scale, and every late order worst-first — an order that
+  never delivered ahead of any late one, because §8 counts it as late and a list that dropped it
+  would be shorter than the headline. It reports **the slice**, as the plan's Excel button does.
+  Demand is one colour on paper, because a greyscale printer cannot keep four segments apart; a
+  month over its capacity is drawn in the error colour.
+
+_Rejected: rasterising the canvas._ It reverses §13's vector choice. _Rejected: a font alone._ It
+fixes the dropped characters and leaves the symbols typed. _Rejected: the float matrix in the
+report._ Its rows are ranks, ragged per month and not comparable across them.
+
+### 13.3 The first data load — as built (v2.1, #33)
+
+**No splash, because there is no gap.** `main()` never opens the database and the window stays hidden
+until its first frame. The wait that exists is the first query — opening the file, copying it aside,
+migrating — and it is the one moment that can fail. `StartupGate` asks that query once, before any
+screen does: nothing for 700 ms, then the mark and *Opening your data…*, and on failure a screen with
+**three actions and no stack trace** — open the data folder (the log and the pre-update copy are
+both there, and the copy is named), copy the details, try again. _Rejected: a Restore button_, for
+#28's reason, which is stronger on this screen.
+
 ## 14. Scale target
 
 Design target: one plant, ~50 workcenters, ≤10 studies of ~10 steps, ~500 parts, ~2000 orders over
