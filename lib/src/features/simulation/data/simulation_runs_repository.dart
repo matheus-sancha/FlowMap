@@ -660,6 +660,7 @@ class SimulationRunsRepository {
       id: header.id,
       projectId: header.documentId,
       createdAt: header.createdAt,
+      appVersion: header.appVersion,
       queues: queues,
       studies: studies,
       result: result,
@@ -881,6 +882,9 @@ class StoredRun {
     required this.id,
     required this.projectId,
     required this.createdAt,
+    // Optional because null is a real state — a run made before v31 — rather
+    // than a missing argument.
+    this.appVersion,
     required this.queues,
     required this.studies,
     required this.result,
@@ -891,6 +895,16 @@ class StoredRun {
   final String id;
   final String projectId;
   final DateTime createdAt;
+
+  /// The build that made this run, or null for one made before builds were
+  /// stamped (v31, #24).
+  ///
+  /// **Comparison's whole comparability test.** Two runs whose origin is
+  /// equally known compare freely; a mismatched pair warns. Schema cannot stand
+  /// in for it — #19 changed what a run *means* with no migration at all — and
+  /// every run stored before v31 is null, which is what keeps the 165 already
+  /// in this file usable with each other.
+  final String? appVersion;
 
   /// What each workcenter dispatched by, as the run recorded it (§7.3).
   final RunQueues queues;
