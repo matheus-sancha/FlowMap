@@ -1,3 +1,4 @@
+import '../../documents/presentation/document_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -180,6 +181,11 @@ class _ProjectWorkspaceScreenState
               ],
             ),
             actions: [
+              // The document itself — save a copy, or close it. Left of the
+              // run controls because it is about the file rather than about
+              // what is in it, and #7's rule is that reading order is priority
+              // order on a bar this short.
+              const DocumentMenu(),
               // The project's own settings, on the project's own chrome. A
               // gear rather than a labelled button: it is the one action here
               // that is not about running anything, and §12.1 puts what spans

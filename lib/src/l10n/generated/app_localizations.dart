@@ -3650,6 +3650,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A new project starts empty. Add the workcenters this plant runs on — or open an existing project and save a copy of it.'**
   String get resourcesNoWorkcentersHelp;
+
+  /// No description provided for @documentsSaveAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a copy…'**
+  String get documentsSaveAs;
 }
 
 class _AppLocalizationsDelegate

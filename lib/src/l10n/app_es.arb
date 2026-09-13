@@ -986,5 +986,6 @@
   "resourcesNeedDocument": "Abre un proyecto para ver su planta",
   "resourcesNeedDocumentHelp": "Los centros de trabajo, células, líneas y patrones de turno pertenecen a un proyecto y viajan dentro de su archivo.",
   "resourcesNoWorkcenters": "Añade tu primer centro de trabajo",
-  "resourcesNoWorkcentersHelp": "Un proyecto nuevo empieza vacío. Añade los centros de trabajo de esta planta — o abre un proyecto existente y guarda una copia."
+  "resourcesNoWorkcentersHelp": "Un proyecto nuevo empieza vacío. Añade los centros de trabajo de esta planta — o abre un proyecto existente y guarda una copia.",
+  "documentsSaveAs": "Guardar una copia…"
 }

@@ -2080,4 +2080,7 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get resourcesNoWorkcentersHelp =>
       'Um projeto novo começa vazio. Adicione os centros de trabalho desta fábrica — ou abra um projeto existente e guarde uma cópia.';
+
+  @override
+  String get documentsSaveAs => 'Guardar uma cópia…';
 }

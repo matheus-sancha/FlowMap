@@ -1,11 +1,14 @@
 import 'dart:io';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../data/database/database_providers.dart';
 import '../data/document_migration.dart';
 import '../data/documents_directory.dart';
+import '../data/document_store.dart';
 import '../data/new_document.dart';
+import '../data/save_as.dart';
 import '../data/recent_documents.dart';
 import 'document_session.dart';
 
@@ -110,6 +113,41 @@ class OpenDocument extends _$OpenDocument {
       projectName: projectName,
       plantName: plantName,
     );
+    return open(path, user: user, machine: machine);
+  }
+
+  /// Writes the open document to [path] as a **separate project**, and opens it.
+  ///
+  /// This is how a new project gets a plant, since a new document starts empty:
+  /// open a reference, save a copy, and the copy is yours. The copy takes a
+  /// fresh project id, so its runs are its own rather than the original's —
+  /// stored runs are keyed by document id (v32), and a byte-for-byte copy would
+  /// leave two files pooling one history.
+  Future<OpenOutcome> saveAs(
+    String path, {
+    required String user,
+    required String machine,
+  }) async {
+    final session = state;
+    if (session == null) return const OpenOutcome.opened();
+
+    // Flush first, so the copy is of what is on screen rather than of whatever
+    // the debounce had last written.
+    await session.save();
+
+    final db = ref.read(appDatabaseProvider);
+    final current = await DocumentStore(db).capture(
+      projectId: session.projectId,
+      projectName: session.projectName,
+    );
+    final copy = SaveAs.rename(
+      current,
+      newProjectId: const Uuid().v4(),
+      newProjectName: SaveAs.projectNameFor(path),
+      appVersion: current.manifest.appVersion,
+    );
+    await DocumentStore.writeAtomically(File(path), copy.write());
+
     return open(path, user: user, machine: machine);
   }
 

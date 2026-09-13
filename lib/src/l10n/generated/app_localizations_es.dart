@@ -2078,4 +2078,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get resourcesNoWorkcentersHelp =>
       'Un proyecto nuevo empieza vacío. Añade los centros de trabajo de esta planta — o abre un proyecto existente y guarda una copia.';
+
+  @override
+  String get documentsSaveAs => 'Guardar una copia…';
 }
