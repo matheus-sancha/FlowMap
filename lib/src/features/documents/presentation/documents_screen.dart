@@ -177,6 +177,12 @@ class DocumentsScreen extends ConsumerWidget {
             user: _user(),
             machine: Platform.localHostname,
           );
+      if (outcome.unsaved) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.documentsCurrentUnsaved)),
+        );
+        return;
+      }
       if (outcome.taken) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsTakenHelp)),
@@ -208,6 +214,12 @@ Future<void> openDocumentAt(
         .read(openDocumentProvider.notifier)
         .open(path, user: _user(), machine: Platform.localHostname);
 
+    if (outcome.unsaved) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.documentsCurrentUnsaved)),
+      );
+      return;
+    }
     if (outcome.taken) {
       // **Held by this account on this computer** is not a colleague: it is
       // another FlowMap window, or this one before it crashed. A message naming

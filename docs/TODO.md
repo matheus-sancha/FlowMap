@@ -51,6 +51,7 @@ Unchanged from v2.0, and worth restating because the audience changed:
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) | **built** |
 | 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) | **built** |
 | 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) | **built**, cold install owed |
+| 8 | A plant you can see, name and move | — | field report, 2026-09-13 | in progress |
 
 **Grouped by what one sitting can build and drive.** A phase too big to drive in one sitting is a
 phase that will not be driven, which is v2.0's own lesson: five phases were built between
@@ -264,6 +265,64 @@ reopens the 30 KB result in a fresh database and simulates it (250 orders, 200 o
 offers it by name while there are no recent documents, and opens it as the reader's own copy in
 `Documents\FlowMap`; About links the manual. **Still owed: the cold install**, on a machine that is
 not the developer's.
+
+### Phase 8 — A plant you can see, name and move
+
+Three reports from using v2.1.0 on 2026-09-13, settled in one interview the same day. **Two of them
+were one defect**, and the evidence was the live database plus `log.txt`: Q1 was open with 1 plant,
+3 cells, 7 lines and 42 workcenters, while Resources showed an empty plant with no way to add to it.
+
+**0. Switching documents erased the one being left — fixed first.** Found while building item 1.
+`OpenDocument.open` loaded B and *then* closed A, and closing always writes: A's session captured B's
+tables, found no row for A's project, and wrote B's plant and an empty project over A's file. By
+19:30 on 2026-09-13 all three documents in `OneDrive\Documents\FlowMap` were ~1.8 KB with no project
+in them. Now a session **detaches** — writes its last and stops following, keeping its lock — before
+anything replaces the tables (open *and* create); a refusal or a failed load resumes it, reloaded from
+the file it just wrote; and an open document whose write fails is **not replaced** at all
+(`documentsCurrentUnsaved`). `switch_document_test.dart` reproduced the empty file before the fix.
+**The v2.1.0 zip in `dist/` carries the defect.**
+
+**1. A document opened is a document shown.** `DocumentStore.load` swaps the working tables in raw
+SQL with no `updates:` so a load does not look like an edit — which also meant no Drift stream ever
+re-read. Resources lives in a kept-alive shell branch, so after opening a new project and then Q1 it
+still held the new project's empty `Plant`. Fix: `DocumentSession.open` calls `notifyUpdates` for
+every working table **after the load and before `_follow()` subscribes**, so every stream in the app
+re-reads and the autosave still sees nothing. A test pins the ordering. Resources opens on **the
+project's plant**, not the first one.
+
+**2. An empty plant has its buttons.** `2eda783`'s empty state replaced the whole tree, including
+*New production cell* and *New workcenter*, while telling the reader to add workcenters. The empty
+state keeps its sentence and gains both buttons; the first row brings the tree back.
+
+**3. A new project asks for its plant's name.** It was hard-coded to `Plant`
+(`documentsDefaultPlant`), against `NewDocument`'s own comment. After the Save dialog, one required
+prompt, nothing pre-filled; cancelling it writes no file.
+
+**4. A project can move to another plant.** Decided: a document may hold **several plants, one per
+project**, and the project's plant is no longer read-only.
+
+- Project settings' Plant is a dropdown of the document's plants plus *New plant…* (named, then
+  moved to).
+- A confirmation says what matched, what will be created and what moves, then one transaction:
+  cells, lines, workcenters and pools **matched by name** on the target plant, missing ones
+  **created** in #23's order, and every project column naming a plant row re-pointed —
+  `projects.plant_id`; `studies.production_cell_id`, `production_line_id`, `pace_setter_target_id`;
+  `flow_nodes.workcenter_id` / `pool_id`; `part_process_times` and `project_queues` targets;
+  `workcenter_schedule_periods.workcenter_id`; `takt_periods.production_line_id`.
+- **The old plant is left untouched.** Moving back is lossless because the names match.
+
+**Risks carried into the build:**
+
+- `TemplateBinding` matches every name across **all** plants (`template_binding.dart` 69–188). With
+  two plants in a document a template can bind to the wrong one. The move needs plant-scoped
+  matching, so the matching is shared and fixes templates too.
+- A line is matched by **(cell name, line name)**: two cells may each have a `Line A`.
+- The move must reach the file: raw SQL passes `updates:`, or the autosave never sees it.
+- Stored runs keep the old workcenter ids but copy names in, so Compare should read across a move —
+  to be checked on a run from each side.
+
+**Evidence owed: a drive.** Open a new project then Q1 and see Q1's tree; build a plant from empty;
+name a new project's plant; move Q1 to a second plant and back and simulate on both sides.
 
 ### Standing constraints
 

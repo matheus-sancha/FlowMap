@@ -69,6 +69,10 @@ class DocumentSession {
   Future<void>? _writing;
   bool _closed = false;
 
+  /// True once this session has stopped following the database, and so must
+  /// not write again until it [resume]s — see [detach].
+  bool _detached = false;
+
   final _states = StreamController<SaveState>.broadcast();
 
   /// The save indicator's source: `saved 14:22` / `saving…`.
@@ -110,7 +114,15 @@ class DocumentSession {
     if (lock == null) return null;
 
     final store = DocumentStore(db);
-    await store.load(document);
+    try {
+      await store.load(document);
+    } catch (_) {
+      // A document that could not be opened is not left locked against
+      // everyone else until the heartbeat goes stale.
+      await lock.release();
+      rethrow;
+    }
+    announceLoad(db);
 
     final session = DocumentSession._(
       file: file,
@@ -126,6 +138,24 @@ class DocumentSession {
     return session;
   }
 
+  /// Tells every stream reading a working table that its rows were replaced.
+  ///
+  /// **A load raises no table update of its own** (see `DocumentStore.load`),
+  /// so without this every list already on screen went on showing the previous
+  /// document — which is what Resources did on 2026-09-13.
+  ///
+  /// **Called before a session follows, never after.** Drift delivers these
+  /// synchronously to the listeners present at that moment, so the session about
+  /// to follow does not hear its own load as an edit; and a session that was
+  /// following has already [detach]ed, so it cannot hear it either.
+  static void announceLoad(GeneratedDatabase db) {
+    db.notifyUpdates({
+      for (final info in db.allTables)
+        if (DocumentStore.workingTables.contains(info.actualTableName))
+          TableUpdate.onTable(info),
+    });
+  }
+
   /// Watches every table the document owns, and nothing else.
   void _follow() {
     final watched = [
@@ -138,7 +168,7 @@ class DocumentSession {
   }
 
   void _markDirty() {
-    if (_closed) return;
+    if (_closed || _detached) return;
     _emit(SaveState.saving);
     _pending?.cancel();
     // Restarted on every change, so a burst of edits is one write at the end
@@ -159,10 +189,13 @@ class DocumentSession {
   Future<void> _flush() async {
     // One writer at a time inside the process, too: two overlapping captures
     // would race to rename over the same file.
+    // A detached session's tables may already hold another document, and a
+    // capture now would write that document into this one's file.
+    if (_detached) return;
     final inFlight = _writing;
     if (inFlight != null) {
       await inFlight;
-      if (_pending != null || _closed) return;
+      if (_pending != null || _closed || _detached) return;
     }
     final work = _write();
     _writing = work;
@@ -198,18 +231,60 @@ class DocumentSession {
     if (!_states.isClosed) _states.add(next);
   }
 
+  /// Writes one last time and stops following the database, **keeping the
+  /// lock**.
+  ///
+  /// **Called before anything replaces the working tables** — opening another
+  /// document, or creating one. Closing afterwards is too late, because a close
+  /// writes and by then the tables hold the other document: A's session
+  /// captured B, found no row for A's project, and wrote B's plant and an empty
+  /// project over A's file. That is what emptied `VSM 2026 Q1.flowmap` on
+  /// 2026-09-13.
+  ///
+  /// Returns whether the file now holds everything. When it does not, the
+  /// caller must not replace the tables — the only copy of the last edit is in
+  /// them — and [resume]s instead.
+  Future<bool> detach() async {
+    if (_closed) return false;
+    if (_detached) return _state == SaveState.saved;
+    _detached = true;
+    _pending?.cancel();
+    _pending = null;
+    await _watch?.cancel();
+    _watch = null;
+    await _writing;
+    await _write();
+    return _state == SaveState.saved;
+  }
+
+  /// Follows the database again after a [detach] that led nowhere.
+  ///
+  /// With [reload] the tables are refilled from this session's own file first,
+  /// for when a replacement had already begun emptying them. That is exact,
+  /// because a replacement only starts once [detach] said the file held
+  /// everything.
+  Future<void> resume({required bool reload}) async {
+    if (_closed || !_detached) return;
+    if (reload) {
+      await _store.load(FlowmapDocument.read(await file.readAsBytes()));
+      announceLoad(_db);
+    }
+    _detached = false;
+    _follow();
+    // A write that failed before is still owed to the file.
+    if (_state == SaveState.failed) _markDirty();
+  }
+
   /// Flushes anything outstanding, releases the lock, and stops following.
   ///
   /// **The flush comes first.** Releasing a lock on a document whose last edit
-  /// has not landed invites the next person to open a file that is behind.
+  /// has not landed invites the next person to open a file that is behind. A
+  /// session that has already [detach]ed wrote its last then, and does not
+  /// write again: the tables may hold another document by now.
   Future<void> close() async {
     if (_closed) return;
+    await detach();
     _closed = true;
-    _pending?.cancel();
-    _pending = null;
-    await _writing;
-    await _write();
-    await _watch?.cancel();
     await lock.release();
     await _states.close();
   }

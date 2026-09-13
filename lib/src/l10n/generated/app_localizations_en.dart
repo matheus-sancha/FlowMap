@@ -2128,6 +2128,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get documentsOpenFailed => 'This file could not be opened';
 
   @override
+  String get documentsCurrentUnsaved =>
+      'The project that is open could not be saved, so it was kept open and nothing else was opened. Check that its folder is reachable, then try again.';
+
+  @override
   String get documentsDefaultPlant => 'Plant';
 
   @override

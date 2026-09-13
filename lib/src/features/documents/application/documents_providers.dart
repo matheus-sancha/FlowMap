@@ -52,11 +52,9 @@ Future<List<File>> convertedDocuments(Ref ref) async {
 
 /// The document that is open, or null when the app is showing the start screen.
 ///
-/// **Resources and Settings stay reachable with nothing open.** With no
-/// document, Resources shows the *library* — the plant `New project` seeds from
-/// — which is what #37 left the local database holding. With a document open it
-/// shows that document's plant, because a load replaces the working tables
-/// whole.
+/// **One document owns the working tables at a time.** Opening or creating
+/// another detaches this one first — it writes its last and stops following —
+/// and only then are the tables replaced; see [DocumentSession.detach].
 @Riverpod(keepAlive: true)
 class OpenDocument extends _$OpenDocument {
   /// The session this notifier holds, kept beside [state] because Riverpod
@@ -88,16 +86,38 @@ class OpenDocument extends _$OpenDocument {
     if (previous != null && isSameDocument(previous.file.path, path)) {
       return const OpenOutcome.opened();
     }
-    final session = await DocumentSession.open(
-      path,
-      db: ref.read(appDatabaseProvider),
-      user: user,
-      machine: machine,
-    );
-    if (session == null) return const OpenOutcome.taken();
+    // **The open document gets out of the way before anything touches the
+    // tables under it** — see [DocumentSession.detach] for what closing it
+    // afterwards did to `VSM 2026 Q1.flowmap`.
+    if (previous != null && !await previous.detach()) {
+      await previous.resume(reload: false);
+      return const OpenOutcome.unsaved();
+    }
 
-    // Only after the new one is open: closing first would leave the app with
-    // nothing if the open failed.
+    final DocumentSession? session;
+    try {
+      session = await DocumentSession.open(
+        path,
+        db: ref.read(appDatabaseProvider),
+        user: user,
+        machine: machine,
+      );
+    } catch (_) {
+      // The load may have emptied the tables before it failed. The previous
+      // document's file holds everything (detach said so), so it comes back
+      // whole from there.
+      await previous?.resume(reload: true);
+      rethrow;
+    }
+    if (session == null) {
+      // Refused before this load touched anything — but [create] empties the
+      // tables before it gets here, so they are refilled either way.
+      await previous?.resume(reload: true);
+      return const OpenOutcome.taken();
+    }
+
+    // Released only now: closing — rather than detaching — first would leave
+    // the app with nothing if the open had failed.
     await previous?.close();
     state = _held = session;
 
@@ -121,9 +141,21 @@ class OpenDocument extends _$OpenDocument {
     required String user,
     required String machine,
   }) async {
-    await NewDocument(
-      ref.read(appDatabaseProvider),
-    ).create(path, projectName: projectName, plantName: plantName);
+    // `NewDocument` empties the working tables itself, so the open document
+    // has to be out of the way before that rather than before the load.
+    final previous = state;
+    if (previous != null && !await previous.detach()) {
+      await previous.resume(reload: false);
+      return const OpenOutcome.unsaved();
+    }
+    try {
+      await NewDocument(
+        ref.read(appDatabaseProvider),
+      ).create(path, projectName: projectName, plantName: plantName);
+    } catch (_) {
+      await previous?.resume(reload: true);
+      rethrow;
+    }
     return open(path, user: user, machine: machine);
   }
 
@@ -171,11 +203,16 @@ class OpenDocument extends _$OpenDocument {
 
 /// What opening a document did.
 class OpenOutcome {
-  const OpenOutcome.opened() : taken = false;
-  const OpenOutcome.taken() : taken = true;
+  const OpenOutcome.opened() : taken = false, unsaved = false;
+  const OpenOutcome.taken() : taken = true, unsaved = false;
+  const OpenOutcome.unsaved() : taken = false, unsaved = true;
 
   /// True when another person holds the lock and nothing was opened.
   final bool taken;
+
+  /// True when the document already open could not be written, so it was kept
+  /// open rather than replaced: its latest work exists only in the database.
+  final bool unsaved;
 }
 
 /// Whether two paths name one document. Canonicalised, because Windows paths

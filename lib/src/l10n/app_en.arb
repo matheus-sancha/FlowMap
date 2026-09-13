@@ -1197,6 +1197,7 @@
   "documentsTakenHelp": "Only one person can edit a project at a time. Try again in a few minutes, or ask them to close it.",
   "documentsConverted": "Your existing work is now a project file.",
   "documentsOpenFailed": "This file could not be opened",
+  "documentsCurrentUnsaved": "The project that is open could not be saved, so it was kept open and nothing else was opened. Check that its folder is reachable, then try again.",
   "documentsDefaultPlant": "Plant",
   "resourcesNeedDocument": "Open a project to see its plant",
   "resourcesNeedDocumentHelp": "Workcenters, cells, lines and shift patterns belong to a project, and travel inside its file.",

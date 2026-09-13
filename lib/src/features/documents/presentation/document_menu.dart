@@ -77,6 +77,12 @@ class DocumentMenu extends ConsumerWidget {
                 'someone',
             machine: Platform.localHostname,
           );
+      if (outcome.unsaved) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.documentsCurrentUnsaved)),
+        );
+        return;
+      }
       if (outcome.taken) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsTakenHelp)),
