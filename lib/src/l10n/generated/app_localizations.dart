@@ -3951,6 +3951,30 @@ abstract class AppLocalizations {
   /// **'Open folder'**
   String get aboutOpenFolder;
 
+  /// No description provided for @documentsExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the example'**
+  String get documentsExample;
+
+  /// No description provided for @documentsExampleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A real plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.'**
+  String get documentsExampleHelp;
+
+  /// No description provided for @documentsExampleFile.
+  ///
+  /// In en, this message translates to:
+  /// **'FlowMap example.flowmap'**
+  String get documentsExampleFile;
+
+  /// No description provided for @aboutUserGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'User guide'**
+  String get aboutUserGuide;
+
   /// No description provided for @startupOpening.
   ///
   /// In en, this message translates to:

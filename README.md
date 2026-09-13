@@ -16,7 +16,7 @@ section (`DESIGN.md §7.6`).
 | M2 | Projects, studies, VSM flow canvas, takt & workcenter schedules, PDF map | ✅ |
 | M3 | Demand grids, Excel import, flow equivalent, MM3, Summary | ✅ |
 | M4 | Simulation engine, run storage, metrics, bottlenecks | ✅ |
-| M5 | Reports, run comparison, templates, drop | |
+| M5 | Reports, run comparison, templates, drop | ✅ v2.1 |
 
 ## Working on it
 
@@ -29,11 +29,15 @@ flutter test
 flutter run -d windows
 ```
 
-Packaging a drop:
+Packaging a drop (from a clean tree, after `flutter analyze` and `flutter test`):
 
-```bash
-flutter build windows --release --dart-define=BUILD_LABEL=0.1.0-m1
+```powershell
+powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1 -Label 2.1-2026-09-13
 ```
+
+It builds with the label, adds the Visual C++ runtime and `tool/drop/` (readme, manual, example),
+zips to `dist/`, and prints the `git tag` command. `tool/drop/example.flowmap` is rebuilt from the
+live plant by `flutter test test/tools/make_example.dart`.
 
 The build label is what the diagnostics log and the About screen report; it is supplied at compile
 time rather than read from `pubspec.yaml`, so a field report can be placed against a specific zip.

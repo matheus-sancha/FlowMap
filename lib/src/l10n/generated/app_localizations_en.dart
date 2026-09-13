@@ -2233,6 +2233,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutOpenFolder => 'Open folder';
 
   @override
+  String get documentsExample => 'Open the example';
+
+  @override
+  String get documentsExampleHelp =>
+      'A real plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.';
+
+  @override
+  String get documentsExampleFile => 'FlowMap example.flowmap';
+
+  @override
+  String get aboutUserGuide => 'User guide';
+
+  @override
   String get startupOpening => 'Opening your data…';
 
   @override

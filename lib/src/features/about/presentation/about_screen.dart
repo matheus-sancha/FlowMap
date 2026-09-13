@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/drop_files.dart';
 import '../../../app/build_info.dart';
 import '../../../app/flowmap_mark.dart';
 import '../../../data/app_directory.dart';
@@ -67,6 +68,20 @@ class AboutScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+
+              // **A manual that ships and is never linked does no work** (#28).
+              // Beside the build, because both answer *what is this I have*.
+              if (shippedFile(manualFileName) case final manual?) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () => revealFolder(manual.path),
+                    icon: const Icon(Icons.menu_book_outlined, size: 18),
+                    label: Text(l10n.aboutUserGuide),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 24),
               _Section(title: l10n.aboutYourWork),

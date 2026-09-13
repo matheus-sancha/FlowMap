@@ -2256,6 +2256,19 @@ class AppLocalizationsPt extends AppLocalizations {
   String get aboutOpenFolder => 'Abrir pasta';
 
   @override
+  String get documentsExample => 'Abrir o exemplo';
+
+  @override
+  String get documentsExampleHelp =>
+      'Uma fábrica real, pronta para simular. Abre como a sua própria cópia, então nada do que mudar mexe no original.';
+
+  @override
+  String get documentsExampleFile => 'Exemplo do FlowMap.flowmap';
+
+  @override
+  String get aboutUserGuide => 'Guia do usuário';
+
+  @override
   String get startupOpening => 'Abrindo seus dados…';
 
   @override

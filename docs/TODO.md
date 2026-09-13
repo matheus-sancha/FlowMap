@@ -50,7 +50,7 @@ Unchanged from v2.0, and worth restating because the audience changed:
 | 4 | Compare | — | [#26](https://github.com/matheus-sancha/FlowMap/issues/26) | **built** |
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) | **built** |
 | 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) | **built** |
-| 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) | |
+| 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) | **built**, cold install owed |
 
 **Grouped by what one sitting can build and drive.** A phase too big to drive in one sitting is a
 phase that will not be driven, which is v2.0's own lesson: five phases were built between
@@ -253,6 +253,16 @@ numbers the developer did.
 **Evidence owed: a document, and a cold install.** The manual is the first artefact in this repo
 that is neither a query nor a drive sheet. The cold install is one machine that is not the
 developer's, unpacking the zip with no dev tooling and no existing data folder.
+
+**Built 2026-09-13.** `tool/package_windows.ps1` takes `-Label`, refuses a dirty tree or an existing
+tag, builds with the label, adds the Visual C++ runtime, `READ ME FIRST.txt`, `manual.html` and
+`example.flowmap` from `tool/drop/`, zips to `dist/`, and prints the tag command rather than running
+it. **The example rehearsed the upgrade on the way**: `test/tools/make_example.dart` copies the live
+database, migrates the copy v30 → v32 with no dangling rows, runs the one-time document conversion,
+reopens the 30 KB result in a fresh database and simulates it (250 orders, 200 on time). The app
+offers it by name while there are no recent documents, and opens it as the reader's own copy in
+`Documents\FlowMap`; About links the manual. **Still owed: the cold install**, on a machine that is
+not the developer's.
 
 ### Standing constraints
 

@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Drops: the zips handed out, kept locally as the record of what went where.
+/dist/

@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
 
+import '../../../app/drop_files.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/documents_providers.dart';
 import '../data/document_lock.dart';
@@ -65,6 +67,23 @@ class DocumentsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              // **The example, offered by name while there is nothing else**
+              // (#28). It opens as the reader's own copy in their documents
+              // folder: the zip's file stays the original, a program folder may
+              // not be writable, and the next drop would overwrite it anyway.
+              if (shippedFile(exampleFileName) != null &&
+                  (recents.value?.isEmpty ?? false)) ...[
+                const SizedBox(height: 24),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.factory_outlined),
+                    title: Text(l10n.documentsExample),
+                    subtitle: Text(l10n.documentsExampleHelp),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _openExample(context, ref),
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               recents.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -89,6 +108,21 @@ class DocumentsScreen extends ConsumerWidget {
     );
     if (file == null || !context.mounted) return;
     await openDocumentAt(context, ref, file.path);
+  }
+
+  Future<void> _openExample(BuildContext context, WidgetRef ref) async {
+    final example = shippedFile(exampleFileName);
+    if (example == null) return;
+    final l10n = AppLocalizations.of(context);
+    final directory = await documentsDirectory();
+    await directory.create(recursive: true);
+    // A copy that already exists is reopened rather than replaced: it is the
+    // reader's work now.
+    final copy = File(p.join(directory.path, l10n.documentsExampleFile));
+    if (!copy.existsSync()) await example.copy(copy.path);
+    if (!context.mounted) return;
+    await openDocumentAt(context, ref, copy.path);
+    if (context.mounted) _goToOpenProject(context, ref);
   }
 
   Future<void> _create(BuildContext context, WidgetRef ref) async {
