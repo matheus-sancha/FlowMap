@@ -79,6 +79,16 @@ class DocumentStore {
       );
     }
 
+    // **No `updates:`, deliberately.** Drift notifies table listeners only for
+    // the tables a custom statement declares, and a load must not look like an
+    // edit: a document just read from disk already matches its file, so telling
+    // the session it changed would write the whole thing straight back out.
+    //
+    // This is also why nothing else in the app may write a working table with
+    // raw SQL. A repository that did would be invisible to the autosave —
+    // edited in the database, never reaching the file. Every repository goes
+    // through Drift's typed API today, and that is load-bearing rather than
+    // stylistic.
     final columns = row.keys.toList();
     final placeholders = List.filled(columns.length, '?').join(', ');
     final quoted = columns.map((c) => '"$c"').join(', ');
