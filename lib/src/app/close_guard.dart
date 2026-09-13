@@ -73,6 +73,12 @@ class _CloseGuardState extends ConsumerState<CloseGuard> with WindowListener {
     } catch (error, stack) {
       Diag.error('app.close', error, stack);
     }
+    Diag.event('app.closed');
+    // The log appends through a chained future; destroying first would end the
+    // process with the last lines of the session still unwritten.
+    try {
+      await Diag.log?.flush().timeout(const Duration(seconds: 2));
+    } catch (_) {}
     await windowManager.destroy();
   }
 
