@@ -1371,6 +1371,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simEmptySlots => 'Empty release slots';
 
   @override
+  String get workspaceModeCompare => 'Compare';
+
+  @override
+  String get compareBefore => 'Before';
+
+  @override
+  String get compareAfter => 'After';
+
+  @override
+  String get compareNeedsTwo => 'Compare needs two runs';
+
+  @override
+  String get compareNeedsTwoHelp =>
+      'Simulate, change one thing — a takt, a WIP cap, a dispatch rule — and simulate again. To weigh two versions of a study, duplicate it and flag the copy.';
+
+  @override
+  String get compareSameRun => 'Pick two different runs.';
+
+  @override
+  String compareDifferentBuilds(String before, String after) {
+    return 'These runs were made by different builds of FlowMap ($before and $after). A change in the app can move the numbers as much as a change in the plant.';
+  }
+
+  @override
+  String get compareUnstamped => 'not recorded';
+
+  @override
+  String get compareDifferentScope =>
+      'These runs cover different cells or lines, so a difference may mean they are different things rather than that something changed.';
+
+  @override
+  String get compareInputs => 'What was different';
+
+  @override
+  String get compareNoInputs =>
+      'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if you changed one of those, that is the difference.';
+
+  @override
+  String get compareResults => 'Results';
+
+  @override
+  String get compareChange => 'Change';
+
+  @override
+  String get compareInput => 'Input';
+
+  @override
+  String get compareSubject => 'Study or workcenter';
+
+  @override
+  String get compareReleaseInterval => 'Release interval';
+
+  @override
+  String get compareInRun => 'In the run';
+
+  @override
+  String get compareIncluded => 'Included';
+
+  @override
+  String get compareDispatch => 'Dispatch';
+
+  @override
+  String comparePoints(String delta) {
+    return '$delta pts';
+  }
+
+  @override
   String get simReport => 'Simulation report';
 
   @override

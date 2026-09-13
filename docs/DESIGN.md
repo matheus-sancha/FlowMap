@@ -2569,6 +2569,19 @@ the fault a flat nine-tab strip had when it was driven and rejected. Flow stays 
 is what you edit, the Gantt is what you read. *Rejected: "Define vs Read", moving Flow beside the
 run's views.*
 
+**Three modes since v2.1: `Study | Simulation | Compare`** (#26). The two above were settled after
+four driven rounds, and the third reopens that deliberately: comparing two runs is neither editing a
+study nor reading one run, and a tab inside either would claim it was. Compare is one location
+(`/projects/:id/compare`) with no tabs. It opens on **the newest run against the one before it**,
+either side re-pickable from the same labels the runs menu uses, then shows, top to bottom: **the
+verdict** (on-time delivery before → after, over all orders as the headline counts it), **warnings,
+never refusals** (a different build; different cells or lines), **what was different** (release
+interval, takt with its unit, WIP cap, start buffer, a study in one run only, and each workcenter's
+dispatch rule), and **the figures**, coloured by *better* rather than *larger*. The unit is **two
+runs, not two studies**: #26's same-cell-and-line pairing matched zero of 165 stored runs, and was
+inverted to a warning on 2026-09-13. Runs stay on the machine that made them (#37), so a comparison
+never crosses the shared drive.
+
 **The results are five tabs**: Simulation Overview, Production Plan, Production Gantt, Occupation,
 Delivery Float. The destination is *Simulation results* and its first tab is *Simulation Overview*,
 deliberately not the same words, so the way in and the first thing inside never read as one thing.

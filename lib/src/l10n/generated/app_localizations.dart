@@ -2520,6 +2520,126 @@ abstract class AppLocalizations {
   /// **'Empty release slots'**
   String get simEmptySlots;
 
+  /// No description provided for @workspaceModeCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare'**
+  String get workspaceModeCompare;
+
+  /// No description provided for @compareBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Before'**
+  String get compareBefore;
+
+  /// No description provided for @compareAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get compareAfter;
+
+  /// No description provided for @compareNeedsTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare needs two runs'**
+  String get compareNeedsTwo;
+
+  /// No description provided for @compareNeedsTwoHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulate, change one thing — a takt, a WIP cap, a dispatch rule — and simulate again. To weigh two versions of a study, duplicate it and flag the copy.'**
+  String get compareNeedsTwoHelp;
+
+  /// No description provided for @compareSameRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick two different runs.'**
+  String get compareSameRun;
+
+  /// No description provided for @compareDifferentBuilds.
+  ///
+  /// In en, this message translates to:
+  /// **'These runs were made by different builds of FlowMap ({before} and {after}). A change in the app can move the numbers as much as a change in the plant.'**
+  String compareDifferentBuilds(String before, String after);
+
+  /// No description provided for @compareUnstamped.
+  ///
+  /// In en, this message translates to:
+  /// **'not recorded'**
+  String get compareUnstamped;
+
+  /// No description provided for @compareDifferentScope.
+  ///
+  /// In en, this message translates to:
+  /// **'These runs cover different cells or lines, so a difference may mean they are different things rather than that something changed.'**
+  String get compareDifferentScope;
+
+  /// No description provided for @compareInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'What was different'**
+  String get compareInputs;
+
+  /// No description provided for @compareNoInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if you changed one of those, that is the difference.'**
+  String get compareNoInputs;
+
+  /// No description provided for @compareResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get compareResults;
+
+  /// No description provided for @compareChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get compareChange;
+
+  /// No description provided for @compareInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get compareInput;
+
+  /// No description provided for @compareSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'Study or workcenter'**
+  String get compareSubject;
+
+  /// No description provided for @compareReleaseInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Release interval'**
+  String get compareReleaseInterval;
+
+  /// No description provided for @compareInRun.
+  ///
+  /// In en, this message translates to:
+  /// **'In the run'**
+  String get compareInRun;
+
+  /// No description provided for @compareIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Included'**
+  String get compareIncluded;
+
+  /// No description provided for @compareDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get compareDispatch;
+
+  /// No description provided for @comparePoints.
+  ///
+  /// In en, this message translates to:
+  /// **'{delta} pts'**
+  String comparePoints(String delta);
+
   /// No description provided for @simReport.
   ///
   /// In en, this message translates to:

@@ -122,6 +122,16 @@ GoRouter router(Ref ref) {
                       // views; it is five tabs over five URLs, so a chart can
                       // be linked to and the window reopens on the one that was
                       // being read.
+                      // **The third mode** (#26, amending #7): two runs side
+                      // by side. One location with no tabs, so a comparison is
+                      // linkable and the window reopens on it.
+                      GoRoute(
+                        path: 'compare',
+                        builder: (context, state) => ProjectWorkspaceScreen(
+                          projectId: state.pathParameters['projectId']!,
+                          showCompare: true,
+                        ),
+                      ),
                       GoRoute(
                         path: 'simulation',
                         // The bare destination resolves to its first tab, the

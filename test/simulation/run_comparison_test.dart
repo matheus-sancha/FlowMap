@@ -1,4 +1,5 @@
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/simulation/application/run_comparison.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
@@ -31,6 +32,8 @@ void main() {
   StoredRun run({
     required int delivered,
     required int onTime,
+    int? orders,
+    RunQueues queues = const RunQueues([]),
     int emptySlots = 0,
     Duration? float,
     Duration? leadTime,
@@ -41,7 +44,7 @@ void main() {
     projectId: 'doc',
     createdAt: DateTime(2026, 9, 13),
     appVersion: appVersion,
-    queues: const RunQueues([]),
+    queues: queues,
     studies: studies ?? [study(name: 'Célula 11B')],
     // The comparison reads only `metrics` and `studies`; the result is here
     // because a StoredRun cannot exist without one.
@@ -56,7 +59,7 @@ void main() {
       openByWorkcenter: const {},
     ),
     metrics: RunMetrics(
-      orders: delivered,
+      orders: orders ?? delivered,
       delivered: delivered,
       onTime: onTime,
       emptySlots: emptySlots,
@@ -141,6 +144,55 @@ void main() {
     expect(differences.single.study, 'Célula 11B');
     expect(differences.single.before, '86400');
     expect(differences.single.after, '43200');
+  });
+
+  test("the verdict is the headline's on-time delivery, over every order", () {
+    // §8 counts an order that never came out as not on time. Over delivered
+    // orders alone this read 100 % beside a card saying 50 %.
+    final a = run(orders: 10, delivered: 5, onTime: 5);
+    final b = run(orders: 10, delivered: 10, onTime: 10);
+    final verdict = RunComparison.of(a, b).verdict!;
+    expect(verdict.before, 50);
+    expect(verdict.after, 100);
+    expect(verdict.isBetter, isTrue);
+  });
+
+  test('a takt is its value and its unit', () {
+    SimulationRunStudy withUnit(String unit) => SimulationRunStudy(
+      runId: 'r',
+      studyId: 'Célula 11B',
+      name: 'Célula 11B',
+      releaseSeconds: 86400,
+      taktValue: 4,
+      taktUnit: unit,
+      startBufferDays: 0,
+    );
+    final a = run(delivered: 1, onTime: 1, studies: [withUnit('days')]);
+    final b = run(delivered: 1, onTime: 1, studies: [withUnit('hours')]);
+    final differences = RunComparison.of(a, b).differences;
+    expect(differences.single.field, InputField.takt);
+  });
+
+  test('a workcenter dispatching differently is a difference', () {
+    // The rule belongs to the workcenter (§7.3), and it is what the runs menu
+    // labels a run by — the likeliest one thing someone changed.
+    final a = run(
+      delivered: 1,
+      onTime: 1,
+      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
+    );
+    final b = run(
+      delivered: 1,
+      onTime: 1,
+      queues: const RunQueues([
+        (name: 'CLAD04', rule: DispatchRule.earliestDueDate),
+      ]),
+    );
+    final difference = RunComparison.of(a, b).differences.single;
+    expect(difference.field, InputField.dispatch);
+    expect(difference.study, 'CLAD04');
+    expect(difference.before, 'fifo');
+    expect(difference.after, 'earliestDueDate');
   });
 
   test('identical runs differ in nothing', () async {

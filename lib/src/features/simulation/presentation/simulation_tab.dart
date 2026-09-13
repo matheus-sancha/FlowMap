@@ -17,6 +17,7 @@ import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
 import '../../../data/database/database.dart';
+import 'compare_view.dart';
 import 'float_matrix_table.dart';
 import 'gantt_view.dart';
 import 'occupation_view.dart';
@@ -47,13 +48,8 @@ class RunsMenu extends ConsumerWidget {
     // "run it twice and compare" (§7.7) legible without opening each. A full
     // breakdown does not fit a menu row; the per-workcenter list is on the run
     // header the row opens.
-    String label(RunListing listing) {
-      final date = dateStyle.format(listing.run.createdAt);
-      final queues = runQueueLabel(l10n, listing.queues);
-      final head = queues == null ? date : l10n.simRunLabel(date, queues);
-      final takt = taktLabelForValues(l10n, listing.takts);
-      return takt == null ? head : '$head  ·  $takt';
-    }
+    String label(RunListing listing) =>
+        runListingLabel(l10n, dateStyle.format, listing);
 
     return PopupMenuButton<({String runId, bool delete})>(
       tooltip: l10n.simEarlierRuns,

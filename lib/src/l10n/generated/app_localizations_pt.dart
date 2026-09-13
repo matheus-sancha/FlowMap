@@ -1388,6 +1388,73 @@ class AppLocalizationsPt extends AppLocalizations {
   String get simEmptySlots => 'Janelas de liberação vazias';
 
   @override
+  String get workspaceModeCompare => 'Comparar';
+
+  @override
+  String get compareBefore => 'Antes';
+
+  @override
+  String get compareAfter => 'Depois';
+
+  @override
+  String get compareNeedsTwo => 'Comparar precisa de duas corridas';
+
+  @override
+  String get compareNeedsTwoHelp =>
+      'Simule, mude uma coisa — um takt, um limite de WIP, uma regra de despacho — e simule de novo. Para pesar duas versões de um estudo, duplique-o e marque a cópia.';
+
+  @override
+  String get compareSameRun => 'Escolha duas corridas diferentes.';
+
+  @override
+  String compareDifferentBuilds(String before, String after) {
+    return 'Estas corridas foram feitas por versões diferentes do FlowMap ($before e $after). Uma mudança no aplicativo pode mexer nos números tanto quanto uma mudança na fábrica.';
+  }
+
+  @override
+  String get compareUnstamped => 'não registrada';
+
+  @override
+  String get compareDifferentScope =>
+      'Estas corridas cobrem células ou linhas diferentes, então uma diferença pode significar que são coisas diferentes, e não que algo mudou.';
+
+  @override
+  String get compareInputs => 'O que foi diferente';
+
+  @override
+  String get compareNoInputs =>
+      'Nenhuma entrada registrada nas duas corridas difere. Alterações num fluxo, na sua demanda ou na sua capacidade não são guardadas como entradas da corrida — se você mudou alguma delas, essa é a diferença.';
+
+  @override
+  String get compareResults => 'Resultados';
+
+  @override
+  String get compareChange => 'Variação';
+
+  @override
+  String get compareInput => 'Entrada';
+
+  @override
+  String get compareSubject => 'Estudo ou centro de trabalho';
+
+  @override
+  String get compareReleaseInterval => 'Intervalo de liberação';
+
+  @override
+  String get compareInRun => 'Na corrida';
+
+  @override
+  String get compareIncluded => 'Incluído';
+
+  @override
+  String get compareDispatch => 'Despacho';
+
+  @override
+  String comparePoints(String delta) {
+    return '$delta p.p.';
+  }
+
+  @override
   String get simReport => 'Relatório de simulação';
 
   @override

@@ -18,6 +18,7 @@ import '../../schedules/presentation/capacity_tab.dart';
 import 'project_settings_screen.dart';
 import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
+import '../../simulation/presentation/compare_view.dart';
 import '../../simulation/presentation/simulation_tab.dart';
 import '../../studies/application/studies_providers.dart';
 import '../../simulation/presentation/simulation_workspace.dart';
@@ -43,6 +44,7 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
     this.studyId,
     this.studyTab = StudyTab.flow,
     this.showSimulation = false,
+    this.showCompare = false,
     this.simulationTab = SimulationTab.overview,
     this.showSettings = false,
     this.simulationStudyId,
@@ -60,6 +62,9 @@ class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   /// Whether the body is the project's run rather than a study's tabs (§12.1).
   /// A destination in the sidebar, so it is part of the location.
   final bool showSimulation;
+
+  /// Whether the body is Compare, the third mode (#26).
+  final bool showCompare;
 
   /// Whether the body is the project's calendar exceptions (§4.3, §12.1).
   ///
@@ -145,7 +150,7 @@ class _ProjectWorkspaceScreenState
         // had no business being there. Project Settings keeps it: that
         // destination has no mode switch, so the pane is its only way back to a
         // study.
-        final showsPane = !widget.showSimulation;
+        final showsPane = !widget.showSimulation && !widget.showCompare;
         final collapsed = ref.watch(studiesPaneCollapsedProvider);
 
         return Scaffold(
@@ -209,8 +214,7 @@ class _ProjectWorkspaceScreenState
               IconButton(
                 tooltip: l10n.projectSettings,
                 icon: const Icon(Icons.settings_outlined),
-                onPressed: () =>
-                    context.go('/projects/${project.id}/settings'),
+                onPressed: () => context.go('/projects/${project.id}/settings'),
               ),
               const SizedBox(width: 8),
             ],
@@ -252,56 +256,63 @@ class _ProjectWorkspaceScreenState
               Expanded(
                 child: Row(
                   children: [
-              // Animated rather than snapped: a pane that vanishes leaves the
-              // reader hunting for what moved.
-              AnimatedSize(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                child: SizedBox(
-                  width: showsPane && !collapsed ? 280 : 0,
-                  child: showsPane && !collapsed
-                      ? _StudiesSidebar(
-                          project: project,
-                          studies: studyList,
-                          selectedId: selected?.id,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: widget.showSettings
-                    ? ProjectSettingsScreen(project: project)
-                    // **Two modes of one project, not two places** (#7). The
-                    // switch sits above whichever strip is showing, so the
-                    // study strip and the results strip can never both claim
-                    // to be "the tabs".
-                    : Column(
-                        children: [
-                          _ModeSwitch(
-                            project: project,
-                            study: selected,
-                            simulation: widget.showSimulation,
-                          ),
-                          Expanded(
-                            child: widget.showSimulation
-                                ? SimulationWorkspace(
-                                    project: project,
-                                    tab: widget.simulationTab,
-                                    // From `?study=`, so a study's own slice is
-                                    // one click and one link away (§12.1).
-                                    initialStudyId: widget.simulationStudyId,
-                                  )
-                                : selected == null
-                                ? _NoStudyYet(project: project)
-                                : _StudyTabs(
-                                    project: project,
-                                    study: selected,
-                                    tab: widget.studyTab,
-                                  ),
-                          ),
-                        ],
+                    // Animated rather than snapped: a pane that vanishes leaves the
+                    // reader hunting for what moved.
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOut,
+                      child: SizedBox(
+                        width: showsPane && !collapsed ? 280 : 0,
+                        child: showsPane && !collapsed
+                            ? _StudiesSidebar(
+                                project: project,
+                                studies: studyList,
+                                selectedId: selected?.id,
+                              )
+                            : const SizedBox.shrink(),
                       ),
+                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(
+                      child: widget.showSettings
+                          ? ProjectSettingsScreen(project: project)
+                          // **Two modes of one project, not two places** (#7). The
+                          // switch sits above whichever strip is showing, so the
+                          // study strip and the results strip can never both claim
+                          // to be "the tabs".
+                          : Column(
+                              children: [
+                                _ModeSwitch(
+                                  project: project,
+                                  study: selected,
+                                  mode: widget.showCompare
+                                      ? _Mode.compare
+                                      : widget.showSimulation
+                                      ? _Mode.simulation
+                                      : _Mode.study,
+                                ),
+                                Expanded(
+                                  child: widget.showCompare
+                                      ? CompareView(project: project)
+                                      : widget.showSimulation
+                                      ? SimulationWorkspace(
+                                          project: project,
+                                          tab: widget.simulationTab,
+                                          // From `?study=`, so a study's own slice is
+                                          // one click and one link away (§12.1).
+                                          initialStudyId:
+                                              widget.simulationStudyId,
+                                        )
+                                      : selected == null
+                                      ? _NoStudyYet(project: project)
+                                      : _StudyTabs(
+                                          project: project,
+                                          study: selected,
+                                          tab: widget.studyTab,
+                                        ),
+                                ),
+                              ],
+                            ),
                     ),
                   ],
                 ),
@@ -677,8 +688,8 @@ class _StudyTile extends ConsumerWidget {
 /// one place; a study reaches its own slice through `?study=` on that place's
 /// route, which is the same `RunFilter` the deleted tab applied and therefore
 /// cannot report a different number for the same study.
-/// **Two modes of one project** (#7): the study you are editing, and the run
-/// you are reading.
+/// **Three modes of one project** (#7, #26): the study you are editing, the run
+/// you are reading, and two runs side by side.
 ///
 /// The run is a *mode* of the workspace rather than a place inside it. That is
 /// what makes it impossible for the study strip and the results strip to both
@@ -686,11 +697,13 @@ class _StudyTile extends ConsumerWidget {
 /// driven and rejected as shape C, which rebuilt the Simulation tab §12.1
 /// deleted and lost the boundary between what a reader is typing and what the
 /// engine said.
+enum _Mode { study, simulation, compare }
+
 class _ModeSwitch extends StatelessWidget {
   const _ModeSwitch({
     required this.project,
     required this.study,
-    required this.simulation,
+    required this.mode,
   });
 
   final Project project;
@@ -699,7 +712,7 @@ class _ModeSwitch extends StatelessWidget {
   /// first one. Null when the project has none yet.
   final Study? study;
 
-  final bool simulation;
+  final _Mode mode;
 
   @override
   Widget build(BuildContext context) {
@@ -709,30 +722,40 @@ class _ModeSwitch extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: SegmentedButton<bool>(
+        child: SegmentedButton<_Mode>(
           segments: [
             ButtonSegment(
-              value: false,
+              value: _Mode.study,
               label: Text(l10n.workspaceModeStudy),
               icon: const Icon(Icons.account_tree_outlined),
             ),
             ButtonSegment(
-              value: true,
+              value: _Mode.simulation,
               // `simWorkspace` — stored in all three ARB files and unused in
               // `lib/` since the pre-map renames. #7 spoke for it, and this is
               // the segment it names.
               label: Text(l10n.simWorkspace),
               icon: const Icon(Icons.insights_outlined),
             ),
+            // **A third mode, deliberately** (#26). #7 settled on two after
+            // four driven rounds; comparing two runs is neither editing a study
+            // nor reading one run, and a tab inside either would claim it was.
+            ButtonSegment(
+              value: _Mode.compare,
+              label: Text(l10n.workspaceModeCompare),
+              icon: const Icon(Icons.compare_arrows),
+            ),
           ],
-          selected: {simulation},
+          selected: {mode},
           showSelectedIcon: false,
           onSelectionChanged: (selection) {
             // **Each mode goes to its own first tab.** Neither remembers which
             // tab it was on: the location is the memory, and coming back to a
             // mode by way of the switch is a fresh arrival at it.
             final target = study;
-            if (selection.first) {
+            if (selection.first == _Mode.compare) {
+              context.go('/projects/${project.id}/compare');
+            } else if (selection.first == _Mode.simulation) {
               context.go(
                 '/projects/${project.id}/simulation'
                 '/${SimulationTab.overview.slug}'

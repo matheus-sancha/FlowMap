@@ -714,6 +714,43 @@
   "simLeadTimeEfficiency": "Lead-time efficiency",
   "simLeadTimeEfficiencyHelp": "Theoretical ÷ actual. Above 100% the flow queued less than the standard expects; below 100% it queued more. Warm-up orders — those released before their line's first delivery, when the flow was still empty — are left out.",
   "simEmptySlots": "Empty release slots",
+  "workspaceModeCompare": "Compare",
+  "compareBefore": "Before",
+  "compareAfter": "After",
+  "compareNeedsTwo": "Compare needs two runs",
+  "compareNeedsTwoHelp": "Simulate, change one thing — a takt, a WIP cap, a dispatch rule — and simulate again. To weigh two versions of a study, duplicate it and flag the copy.",
+  "compareSameRun": "Pick two different runs.",
+  "compareDifferentBuilds": "These runs were made by different builds of FlowMap ({before} and {after}). A change in the app can move the numbers as much as a change in the plant.",
+  "@compareDifferentBuilds": {
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "compareUnstamped": "not recorded",
+  "compareDifferentScope": "These runs cover different cells or lines, so a difference may mean they are different things rather than that something changed.",
+  "compareInputs": "What was different",
+  "compareNoInputs": "No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if you changed one of those, that is the difference.",
+  "compareResults": "Results",
+  "compareChange": "Change",
+  "compareInput": "Input",
+  "compareSubject": "Study or workcenter",
+  "compareReleaseInterval": "Release interval",
+  "compareInRun": "In the run",
+  "compareIncluded": "Included",
+  "compareDispatch": "Dispatch",
+  "comparePoints": "{delta} pts",
+  "@comparePoints": {
+    "placeholders": {
+      "delta": {
+        "type": "String"
+      }
+    }
+  },
   "simReport": "Simulation report",
   "simReportExport": "PDF report",
   "simReportInputs": "Inputs",

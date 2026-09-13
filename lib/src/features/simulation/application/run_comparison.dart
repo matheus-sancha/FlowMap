@@ -44,8 +44,11 @@ class RunComparison {
   );
 
   static List<MetricDelta> _deltas(RunMetrics a, RunMetrics b) {
-    double? otd(RunMetrics m) =>
-        m.delivered == 0 ? null : m.onTime / m.delivered * 100;
+    // **The headline's own figure**, on-time over *all* orders (§8): an order
+    // that never came out is not on time. This was on-time over delivered,
+    // which made the comparison disagree with the card above it. Null only when
+    // the run had no orders, so a run of nothing is not an improvement.
+    double? otd(RunMetrics m) => m.orders == 0 ? null : m.onTimeDelivery * 100;
     double? days(Duration? d) => d?.inMinutes == null
         ? null
         : d!.inMinutes / (60 * 24);
@@ -128,9 +131,34 @@ class RunComparison {
       }
 
       diff(InputField.releaseSeconds, before.releaseSeconds, after.releaseSeconds);
-      diff(InputField.takt, before.taktValue, after.taktValue);
+      // Value *and* unit: `4 days` and `4 hours` are the same number.
+      diff(
+        InputField.takt,
+        before.taktValue == null ? null : '${before.taktValue} ${before.taktUnit}',
+        after.taktValue == null ? null : '${after.taktValue} ${after.taktUnit}',
+      );
       diff(InputField.wipCap, before.wipCap, after.wipCap);
       diff(InputField.startBuffer, before.startBufferDays, after.startBufferDays);
+    }
+
+    // **Dispatch, per workcenter** (§7.3). The rule belongs to the workcenter
+    // rather than the study, and it is what the runs menu labels a run with —
+    // so it is the input most likely to be the one thing someone changed.
+    final rulesBefore = {for (final w in a.queues.workcenters) w.name: w.rule};
+    final rulesAfter = {for (final w in b.queues.workcenters) w.name: w.rule};
+    for (final name in {...rulesBefore.keys, ...rulesAfter.keys}) {
+      final x = rulesBefore[name];
+      final y = rulesAfter[name];
+      if (x != y) {
+        out.add(
+          InputDifference(
+            study: name,
+            field: InputField.dispatch,
+            before: x?.name,
+            after: y?.name,
+          ),
+        );
+      }
     }
     return out;
   }
@@ -163,7 +191,9 @@ class RunComparison {
 
 enum ComparedMetric { onTimeDelivery, leadTime, float, lateOrders, emptySlots }
 
-enum InputField { releaseSeconds, takt, wipCap, startBuffer, presence }
+/// What a difference is in. [dispatch] is keyed by workcenter rather than by
+/// study, so its `study` is the workcenter's name.
+enum InputField { releaseSeconds, takt, wipCap, startBuffer, presence, dispatch }
 
 enum ComparisonWarning { differentBuilds, differentScope }
 
