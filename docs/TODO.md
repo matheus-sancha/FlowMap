@@ -128,11 +128,16 @@ machine cannot see, or may have been deleted by someone else.
 **Read #37 before starting.** It rejects the two options that look cheapest — a live SQLite the app
 opens directly, and an explicit Save — and the reasons are not obvious from the code.
 
-**Evidence owed: a drive sheet** — written as `docs/DRIVE-2026-09-13.md`, **27 checks, unwalked**.
-Its two load-bearing sections are the ones only a person can reach: **section 1**, the one-way
-conversion of real data, which happens once and cannot be watched twice; and **section 5**, a
-document on a shared drive opened by someone else, including the crash that must leave a lock
-healing itself rather than blocking the file.
+**Evidence: abandoned, 2026-09-13.** A sheet of 27 checks was written and then scrapped by
+decision, with three of its questions answered first — Resources is document-scoped (11), an empty
+plant names both ways out (13), and Save As exists (15). The other 24 were never walked, including
+the one-way conversion of real data, which runs once and cannot be watched twice, and the crash that
+must leave a lock healing itself rather than blocking a shared file.
+
+**So phase 2 ships unverified.** Nothing in the suite renders a pixel, and 68 of its tests do not:
+the start screen, the save indicator, both pickers, the document menu, the lock a colleague hits and
+the conversion have never been seen. This is the third drive this map's lineage has abandoned; the
+previous two came back as field findings. Recorded rather than argued.
 
 **Decided during phase 2 and owed after the drive: the app reopens the last document on launch**
 when it still exists and nobody holds the lock, falling back to the start screen otherwise. Not
