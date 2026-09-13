@@ -2134,6 +2134,18 @@ class AppLocalizationsPt extends AppLocalizations {
       'O seu trabalho está seguro no FlowMap. O ficheiro não pôde ser escrito — verifique se a unidade está ligada.';
 
   @override
+  String get documentsSaveConflict => 'Ficheiro alterado fora';
+
+  @override
+  String get documentsSaveConflictHelp =>
+      'O ficheiro deste projeto foi substituído enquanto estava aberto, por isso o FlowMap não o sobrescreve. O seu trabalho está seguro: ao fechar o projeto, ele é guardado como uma cópia à parte junto ao ficheiro.';
+
+  @override
+  String documentsConflictKept(String name) {
+    return 'O ficheiro foi substituído enquanto o projeto estava aberto, por isso o seu trabalho foi guardado à parte como $name.';
+  }
+
+  @override
   String documentsTaken(String who) {
     return '$who tem este projeto aberto';
   }

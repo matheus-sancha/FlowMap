@@ -195,6 +195,7 @@ class DocumentsScreen extends ConsumerWidget {
         );
         return;
       }
+      _reportConflictCopy(messenger, l10n, outcome.conflictCopy);
       if (outcome.taken) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsTakenHelp)),
@@ -232,6 +233,7 @@ Future<void> openDocumentAt(
       );
       return;
     }
+    _reportConflictCopy(messenger, l10n, outcome.conflictCopy);
     if (outcome.taken) {
       // **Held by this account on this computer** is not a colleague: it is
       // another FlowMap window, or this one before it crashed. A message naming
@@ -266,6 +268,29 @@ Future<void> openDocumentAt(
     messenger.showSnackBar(SnackBar(content: Text(l10n.documentsOpenFailed)));
   }
 }
+
+/// Says where work went when its file had been replaced on disk, if it did.
+///
+/// A copy nobody is told about is a copy nobody finds.
+void reportConflictCopy(
+  ScaffoldMessengerState messenger,
+  AppLocalizations l10n,
+  File? copy,
+) {
+  if (copy == null) return;
+  messenger.showSnackBar(
+    SnackBar(
+      duration: const Duration(seconds: 10),
+      content: Text(l10n.documentsConflictKept(p.basename(copy.path))),
+    ),
+  );
+}
+
+void _reportConflictCopy(
+  ScaffoldMessengerState messenger,
+  AppLocalizations l10n,
+  File? copy,
+) => reportConflictCopy(messenger, l10n, copy);
 
 /// Navigates to the project the open document holds.
 ///

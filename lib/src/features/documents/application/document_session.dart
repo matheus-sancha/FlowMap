@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:path/path.dart' as p;
 
 import '../data/document_lock.dart';
 import '../data/document_store.dart';
@@ -18,6 +19,12 @@ enum SaveState {
   /// The last write failed. The work is still in the database; the file is
   /// behind.
   failed,
+
+  /// The file on disk is no longer the one this session read or wrote —
+  /// renamed over, restored, or synced in from elsewhere — so it is not saved
+  /// over. The work is still in the database, and leaving the document keeps
+  /// it as a separate copy beside the file.
+  conflict,
 }
 
 /// The open document: its file, its lock, and the write-through that keeps the
@@ -73,6 +80,25 @@ class DocumentSession {
   /// not write again until it [resume]s — see [detach].
   bool _detached = false;
 
+  /// Whether the last [detach] left the work in a file.
+  bool _detachedOk = false;
+
+  /// The exact bytes this session last read from or wrote to [file].
+  ///
+  /// **A file is only ever saved over when it is still this.** The second loss
+  /// on 2026-09-13 was a session holding a path whose file had been replaced
+  /// under it — the restored Q1, renamed into the damaged one's place — and one
+  /// more write would have put the damaged tables over it again.
+  Uint8List? _onDisk;
+
+  /// What [resume] reloads: the file as opened, or what [detach] last wrote,
+  /// wherever it wrote it.
+  Uint8List? _detachedAs;
+
+  /// Where this session's work went when its file had been replaced, if it did.
+  File? get conflictCopy => _conflictCopy;
+  File? _conflictCopy;
+
   final _states = StreamController<SaveState>.broadcast();
 
   /// The save indicator's source: `saved 14:22` / `saving…`.
@@ -98,7 +124,8 @@ class DocumentSession {
     Duration debounce = defaultDebounce,
   }) async {
     final file = File(path);
-    final document = FlowmapDocument.read(await file.readAsBytes());
+    final bytes = await file.readAsBytes();
+    final document = FlowmapDocument.read(bytes);
     if (document.manifest.isFromNewerFormat) {
       throw DocumentFormatException(
         'This document was written by a newer version of FlowMap. '
@@ -134,6 +161,7 @@ class DocumentSession {
       debounce: debounce,
     );
     session._savedAt = DateTime.now();
+    session._onDisk = session._detachedAs = bytes;
     session._follow();
     return session;
   }
@@ -168,7 +196,9 @@ class DocumentSession {
   }
 
   void _markDirty() {
-    if (_closed || _detached) return;
+    // In conflict nothing is written until the document is left, so there is
+    // nothing to schedule.
+    if (_closed || _detached || _state == SaveState.conflict) return;
     _emit(SaveState.saving);
     _pending?.cancel();
     // Restarted on every change, so a burst of edits is one write at the end
@@ -206,23 +236,93 @@ class DocumentSession {
     }
   }
 
-  Future<void> _write() async {
+  /// Whether the file at [file]'s path is still the one this session knows.
+  ///
+  /// A file that is simply gone is: writing it again replaces nothing.
+  Future<bool> fileIsStillOurs() async {
+    if (!await file.exists()) return true;
+    final known = _onDisk;
+    if (known == null) return false;
+    final now = await file.readAsBytes();
+    if (now.length != known.length) return false;
+    for (var i = 0; i < now.length; i++) {
+      if (now[i] != known[i]) return false;
+    }
+    return true;
+  }
+
+  /// Captures the database and writes it to [file].
+  ///
+  /// When [leaving], a file replaced on disk gets the work beside it as a
+  /// conflict copy instead, because this is the last chance to keep it.
+  /// Returns whether the work is now in a file somewhere.
+  Future<bool> _write({bool leaving = false}) async {
     try {
       _emit(SaveState.saving);
       final document = await _store.capture(
         projectId: projectId,
         projectName: projectName,
       );
-      await DocumentStore.writeAtomically(file, document.write());
+      // **A document without its project is never the work** — it is what a
+      // capture of somebody else's tables looks like, which is exactly what
+      // the first loss wrote. Whatever led here, it is written nowhere.
+      //
+      // And when leaving, tables that do not hold this project hold none of
+      // its work either, so there is nothing to keep and nothing to stop the
+      // next document opening — which is the state the damaged Q1 left behind.
+      if (document.project['projects']?.isEmpty ?? true) {
+        _emit(SaveState.failed);
+        return leaving;
+      }
+      final bytes = document.write();
+
+      if (!await fileIsStillOurs()) {
+        if (!leaving) {
+          _emit(SaveState.conflict);
+          return false;
+        }
+        final copy = File(conflictPathFor(file.path, DateTime.now()));
+        await DocumentStore.writeAtomically(copy, bytes);
+        _conflictCopy = copy;
+        _detachedAs = bytes;
+        _emit(SaveState.conflict);
+        return true;
+      }
+
+      await DocumentStore.writeAtomically(file, bytes);
+      _onDisk = bytes;
+      _detachedAs = bytes;
       _savedAt = DateTime.now();
       _emit(SaveState.saved);
+      return true;
     } catch (_) {
       // **Never thrown at the app.** A share that has gone away, a file gone
       // read-only, a disk that is full: the work is still in the database and
       // the next change tries again. What must not happen is an edit failing
       // because saving did.
       _emit(SaveState.failed);
+      return false;
     }
+  }
+
+  /// A sibling of [path] that says it holds work its file could not take —
+  /// `VSM 2026 Q1 (conflict 2026-09-13 2031).flowmap` — and is never a name
+  /// already taken.
+  static String conflictPathFor(String path, DateTime at) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final dir = p.dirname(path);
+    final stem = p.basename(path).replaceFirst(
+      RegExp(r'\.flowmap$', caseSensitive: false),
+      '',
+    );
+    final stamp =
+        '${at.year}-${two(at.month)}-${two(at.day)} '
+        '${two(at.hour)}${two(at.minute)}';
+    var candidate = p.join(dir, '$stem (conflict $stamp).flowmap');
+    for (var n = 2; File(candidate).existsSync(); n++) {
+      candidate = p.join(dir, '$stem (conflict $stamp, $n).flowmap');
+    }
+    return candidate;
   }
 
   void _emit(SaveState next) {
@@ -241,20 +341,21 @@ class DocumentSession {
   /// project over A's file. That is what emptied `VSM 2026 Q1.flowmap` on
   /// 2026-09-13.
   ///
-  /// Returns whether the file now holds everything. When it does not, the
-  /// caller must not replace the tables — the only copy of the last edit is in
-  /// them — and [resume]s instead.
+  /// Returns whether the work is now in a file — this session's own, or a
+  /// conflict copy beside it when its own was replaced on disk. When it is in
+  /// neither, the caller must not replace the tables — the only copy of the
+  /// last edit is in them — and [resume]s instead.
   Future<bool> detach() async {
     if (_closed) return false;
-    if (_detached) return _state == SaveState.saved;
+    if (_detached) return _detachedOk;
     _detached = true;
     _pending?.cancel();
     _pending = null;
     await _watch?.cancel();
     _watch = null;
     await _writing;
-    await _write();
-    return _state == SaveState.saved;
+    _detachedOk = await _write(leaving: true);
+    return _detachedOk;
   }
 
   /// Follows the database again after a [detach] that led nowhere.
@@ -266,7 +367,9 @@ class DocumentSession {
   Future<void> resume({required bool reload}) async {
     if (_closed || !_detached) return;
     if (reload) {
-      await _store.load(FlowmapDocument.read(await file.readAsBytes()));
+      // What [detach] wrote, wherever it went: the file, or the conflict copy
+      // when the file was no longer this session's.
+      await _store.load(FlowmapDocument.read(_detachedAs!));
       announceLoad(_db);
     }
     _detached = false;

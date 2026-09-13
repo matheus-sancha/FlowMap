@@ -3747,6 +3747,24 @@ abstract class AppLocalizations {
   /// **'Your work is safe in FlowMap. The file could not be written — check the drive is connected.'**
   String get documentsSaveFailedHelp;
 
+  /// No description provided for @documentsSaveConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'File changed elsewhere'**
+  String get documentsSaveConflict;
+
+  /// No description provided for @documentsSaveConflictHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This project\'s file was replaced while it was open, so FlowMap is not saving over it. Your work is safe: closing the project keeps it as a separate copy beside the file.'**
+  String get documentsSaveConflictHelp;
+
+  /// No description provided for @documentsConflictKept.
+  ///
+  /// In en, this message translates to:
+  /// **'The file had been replaced while the project was open, so your work was kept separately as {name}.'**
+  String documentsConflictKept(String name);
+
   /// No description provided for @documentsTaken.
   ///
   /// In en, this message translates to:

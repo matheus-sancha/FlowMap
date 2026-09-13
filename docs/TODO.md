@@ -282,6 +282,14 @@ the file it just wrote; and an open document whose write fails is **not replaced
 (`documentsCurrentUnsaved`). `switch_document_test.dart` reproduced the empty file before the fix.
 **The v2.1.0 zip in `dist/` carries the defect.**
 
+**And a second loss the same evening, stopped before it wrote.** The damaged Q1 was open when the
+restored copy was renamed into its place; the recent entry then counted as *already open*, showed the
+damaged tables as "project no longer exists", and the next save or close would have put them over the
+restored file. Now a session only ever saves over **the exact bytes it last read or wrote**: a file
+replaced on disk is left alone (`SaveState.conflict`), leaving the document keeps the work beside it as
+`name (conflict yyyy-MM-dd HHmm).flowmap`, reopening a replaced file loads what is on disk, and a
+capture with no project row in it is never written anywhere.
+
 **1. A document opened is a document shown.** `DocumentStore.load` swaps the working tables in raw
 SQL with no `updates:` so a load does not look like an edit — which also meant no Drift stream ever
 re-read. Resources lives in a kept-alive shell branch, so after opening a new project and then Q1 it

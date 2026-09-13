@@ -1186,6 +1186,16 @@
   "documentsSaving": "Saving…",
   "documentsSaveFailed": "Could not save",
   "documentsSaveFailedHelp": "Your work is safe in FlowMap. The file could not be written — check the drive is connected.",
+  "documentsSaveConflict": "File changed elsewhere",
+  "documentsSaveConflictHelp": "This project's file was replaced while it was open, so FlowMap is not saving over it. Your work is safe: closing the project keeps it as a separate copy beside the file.",
+  "documentsConflictKept": "The file had been replaced while the project was open, so your work was kept separately as {name}.",
+  "@documentsConflictKept": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "documentsTaken": "{who} has this project open",
   "@documentsTaken": {
     "placeholders": {

@@ -84,7 +84,23 @@ class OpenDocument extends _$OpenDocument {
     // as holding their own project against themselves, which is what a second
     // click on a recent entry did (drive, 2026-09-13).
     if (previous != null && isSameDocument(previous.file.path, path)) {
-      return const OpenOutcome.opened();
+      if (await previous.fileIsStillOurs()) return const OpenOutcome.opened();
+      // **Unless the file was replaced under it** — renamed over, restored,
+      // synced in. Then "already open" shows tables that are not the file, and
+      // the next save would put them over it: the second loss of 2026-09-13.
+      // The work is kept beside the file, the lock on this path is let go, and
+      // what is on disk now is opened like any other document.
+      if (!await previous.detach()) {
+        await previous.resume(reload: false);
+        return const OpenOutcome.unsaved();
+      }
+      final kept = previous.conflictCopy;
+      state = _held = null;
+      await previous.close();
+      final outcome = await open(path, user: user, machine: machine);
+      return outcome.taken || outcome.unsaved
+          ? outcome
+          : OpenOutcome.opened(conflictCopy: kept);
     }
     // **The open document gets out of the way before anything touches the
     // tables under it** — see [DocumentSession.detach] for what closing it
@@ -125,7 +141,7 @@ class OpenDocument extends _$OpenDocument {
         .read(recentDocumentsStoreProvider)
         .remember(path, name: session.projectName);
     ref.invalidate(recentDocumentsProvider);
-    return const OpenOutcome.opened();
+    return OpenOutcome.opened(conflictCopy: previous?.conflictCopy);
   }
 
   /// Writes a new document at [path] and opens it.
@@ -194,18 +210,30 @@ class OpenDocument extends _$OpenDocument {
   }
 
   /// Flushes and releases, leaving the app on the start screen.
-  Future<void> close() async {
+  ///
+  /// Returns where the work went when the file had been replaced on disk.
+  Future<File?> close() async {
     final session = state;
     state = _held = null;
     await session?.close();
+    return session?.conflictCopy;
   }
 }
 
 /// What opening a document did.
 class OpenOutcome {
-  const OpenOutcome.opened() : taken = false, unsaved = false;
-  const OpenOutcome.taken() : taken = true, unsaved = false;
-  const OpenOutcome.unsaved() : taken = false, unsaved = true;
+  const OpenOutcome.opened({this.conflictCopy})
+    : taken = false,
+      unsaved = false;
+  const OpenOutcome.taken() : taken = true, unsaved = false, conflictCopy = null;
+  const OpenOutcome.unsaved()
+    : taken = false,
+      unsaved = true,
+      conflictCopy = null;
+
+  /// Where the previous document's work was kept, when its own file had been
+  /// replaced on disk and could not take it.
+  final File? conflictCopy;
 
   /// True when another person holds the lock and nothing was opened.
   final bool taken;

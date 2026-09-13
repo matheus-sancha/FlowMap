@@ -267,4 +267,90 @@ void main() {
     // And it did not take the lock on a document it could not open.
     expect(DocumentLock.holderOf(path), isNull);
   });
+
+  // --- the file changed under the session (2026-09-13, second loss) --------
+
+  /// Puts a different document at [path], as a rename, a restore or a sync
+  /// client does while the app has the old one open.
+  Future<void> replaceOnDisk(String projectName) async {
+    final doc = FlowmapDocument.read(File(path).readAsBytesSync());
+    final other = FlowmapDocument(
+      manifest: DocumentManifest(
+        format: doc.manifest.format,
+        appVersion: doc.manifest.appVersion,
+        schemaVersion: doc.manifest.schemaVersion,
+        projectId: 'proj-other',
+        projectName: projectName,
+        written: DateTime.now(),
+        counts: const {},
+      ),
+      plant: doc.plant,
+      project: {
+        ...doc.project,
+        'projects': [
+          for (final row in doc.project['projects']!)
+            {...row, 'id': 'proj-other', 'name': projectName},
+        ],
+      },
+    );
+    await DocumentStore.writeAtomically(File(path), other.write());
+  }
+
+  String nameOnDisk() => FlowmapDocument.read(
+    File(path).readAsBytesSync(),
+  ).project['projects']!.single['name']! as String;
+
+  List<File> conflictCopies() => [
+    for (final entity in Directory(p.dirname(path)).listSync())
+      if (entity is File && p.basename(entity.path).contains('(conflict'))
+        entity,
+  ];
+
+  test('a file replaced on disk is never saved over', () async {
+    final session = await open();
+    addTearDown(session.close);
+    await Future<void>.delayed(settle);
+
+    await replaceOnDisk('Restored from elsewhere');
+    await rename('Edited in the app');
+    await Future<void>.delayed(settle);
+
+    expect(nameOnDisk(), 'Restored from elsewhere');
+    expect(session.state, SaveState.conflict);
+  });
+
+  test('closing over a replaced file keeps both, side by side', () async {
+    final session = await open();
+    await Future<void>.delayed(settle);
+
+    await replaceOnDisk('Restored from elsewhere');
+    await rename('Edited in the app');
+    await session.close();
+
+    expect(nameOnDisk(), 'Restored from elsewhere');
+    final copies = conflictCopies();
+    expect(copies, hasLength(1));
+    expect(session.conflictCopy?.path, copies.single.path);
+    expect(
+      FlowmapDocument.read(copies.single.readAsBytesSync())
+          .project['projects']!
+          .single['name'],
+      'Edited in the app',
+    );
+  });
+
+  test('a document with no project in it is never written', () async {
+    // What the first loss wrote: a capture of tables that no longer held this
+    // session's project. Whatever the cause, such a file is never the work.
+    final session = await open();
+    addTearDown(session.close);
+    await Future<void>.delayed(settle);
+
+    await (db.delete(db.projects)..where((r) => r.id.equals('proj-1'))).go();
+    await Future<void>.delayed(settle);
+    await session.save();
+
+    expect(nameOnDisk(), 'VSM 2026 Q1');
+    expect(session.state, SaveState.failed);
+  });
 }

@@ -2113,6 +2113,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your work is safe in FlowMap. The file could not be written — check the drive is connected.';
 
   @override
+  String get documentsSaveConflict => 'File changed elsewhere';
+
+  @override
+  String get documentsSaveConflictHelp =>
+      'This project\'s file was replaced while it was open, so FlowMap is not saving over it. Your work is safe: closing the project keeps it as a separate copy beside the file.';
+
+  @override
+  String documentsConflictKept(String name) {
+    return 'The file had been replaced while the project was open, so your work was kept separately as $name.';
+  }
+
+  @override
   String documentsTaken(String who) {
     return '$who has this project open';
   }

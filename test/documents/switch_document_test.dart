@@ -226,4 +226,54 @@ void main() {
     // And the announcement did not read as an edit to the session now open.
     expect(container.read(openDocumentProvider)!.state, SaveState.saved);
   });
+
+  test('reopening a file that was replaced on disk loads what is there now',
+      () async {
+    // The second loss, the same evening: the damaged Q1 was open, the files
+    // were renamed so the restored copy took its name, and a click on the
+    // recent entry counted as "already open" — showing the damaged tables and
+    // poised to save them over the restored file.
+    await notifier().open(pathA, user: user, machine: machine);
+    await renameProject('Damaged, still open');
+
+    await DocumentStore.writeAtomically(
+      File(pathA),
+      File(pathB).readAsBytesSync(),
+    );
+    final outcome = await notifier().open(pathA, user: user, machine: machine);
+
+    expect(outcome.taken, isFalse);
+    expect(outcome.unsaved, isFalse);
+    expect(await projectNames(), ['VSM 2026 Q2'], reason: 'what is on disk');
+    expect(onDisk(pathA).project['projects']!.single['name'], 'VSM 2026 Q2');
+    expect(outcome.conflictCopy, isNotNull);
+    expect(
+      onDisk(outcome.conflictCopy!.path).project['projects']!.single['name'],
+      'Damaged, still open',
+    );
+    expect(DocumentLock.holderOf(pathA), isNotNull);
+  });
+
+  test('the damaged document, replaced by the restored one, opens the restored one',
+      () async {
+    // Exactly the second loss: what was open held no project at all, the
+    // restored file took its name, and the recent entry was clicked again.
+    await notifier().open(pathA, user: user, machine: machine);
+    final id = container.read(openDocumentProvider)!.projectId;
+    await (db.delete(db.projects)..where((r) => r.id.equals(id))).go();
+    final restored = File(pathB).readAsBytesSync();
+    await DocumentStore.writeAtomically(File(pathA), restored);
+
+    final outcome = await notifier().open(pathA, user: user, machine: machine);
+
+    expect(outcome.unsaved, isFalse, reason: 'nothing there to keep');
+    expect(outcome.conflictCopy, isNull, reason: 'and nothing written for it');
+    expect(await projectNames(), ['VSM 2026 Q2']);
+    expect(File(pathA).readAsBytesSync(), restored);
+
+    // Leaving it again does not touch the restored file either, beyond saving
+    // what is really open.
+    await notifier().close();
+    expect(onDisk(pathA).project['projects']!.single['name'], 'VSM 2026 Q2');
+  });
 }

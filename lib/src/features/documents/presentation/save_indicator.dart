@@ -57,6 +57,21 @@ class SaveIndicator extends ConsumerWidget {
           // **Never silent, and never alarming past what is true.** The work is
           // in the database; it is the file that is behind, and the next change
           // tries again.
+          // **Not a failure to retry.** The file is somebody else's now, so
+          // nothing is written to it; the work waits in the database and goes
+          // beside the file, as its own copy, when the project is left.
+          SaveState.conflict => Tooltip(
+            message: l10n.documentsSaveConflictHelp,
+            child: _Line(
+              icon: Icon(
+                Icons.difference_outlined,
+                size: 16,
+                color: theme.colorScheme.error,
+              ),
+              text: l10n.documentsSaveConflict,
+              color: theme.colorScheme.error,
+            ),
+          ),
           SaveState.failed => Tooltip(
             message: l10n.documentsSaveFailedHelp,
             child: _Line(

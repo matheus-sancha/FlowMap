@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/documents_providers.dart';
 import '../data/documents_directory.dart';
+import 'documents_screen.dart' show reportConflictCopy;
 
 /// The two things you can do to the document itself: save a copy, or close it.
 ///
@@ -83,6 +84,7 @@ class DocumentMenu extends ConsumerWidget {
         );
         return;
       }
+      reportConflictCopy(messenger, l10n, outcome.conflictCopy);
       if (outcome.taken) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.documentsTakenHelp)),
@@ -98,9 +100,12 @@ class DocumentMenu extends ConsumerWidget {
 
   Future<void> _close(BuildContext context, WidgetRef ref) async {
     final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
     // Closing flushes and releases the lock before it returns, so the next
     // person opens a file that is current rather than one edit behind.
-    await ref.read(openDocumentProvider.notifier).close();
+    final kept = await ref.read(openDocumentProvider.notifier).close();
+    reportConflictCopy(messenger, l10n, kept);
     router.go('/projects');
   }
 }
