@@ -2064,4 +2064,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get documentsDefaultPlant => 'Planta';
+
+  @override
+  String get resourcesNeedDocument => 'Abre un proyecto para ver su planta';
+
+  @override
+  String get resourcesNeedDocumentHelp =>
+      'Los centros de trabajo, células, líneas y patrones de turno pertenecen a un proyecto y viajan dentro de su archivo.';
+
+  @override
+  String get resourcesNoWorkcenters => 'Añade tu primer centro de trabajo';
+
+  @override
+  String get resourcesNoWorkcentersHelp =>
+      'Un proyecto nuevo empieza vacío. Añade los centros de trabajo de esta planta — o abre un proyecto existente y guarda una copia.';
 }

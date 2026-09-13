@@ -1148,5 +1148,9 @@
   "documentsTakenHelp": "Only one person can edit a project at a time. Try again in a few minutes, or ask them to close it.",
   "documentsConverted": "Your existing work is now a project file.",
   "documentsOpenFailed": "This file could not be opened",
-  "documentsDefaultPlant": "Plant"
+  "documentsDefaultPlant": "Plant",
+  "resourcesNeedDocument": "Open a project to see its plant",
+  "resourcesNeedDocumentHelp": "Workcenters, cells, lines and shift patterns belong to a project, and travel inside its file.",
+  "resourcesNoWorkcenters": "Add your first workcenter",
+  "resourcesNoWorkcentersHelp": "A new project starts empty. Add the workcenters this plant runs on — or open an existing project and save a copy of it."
 }

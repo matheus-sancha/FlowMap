@@ -2065,4 +2065,19 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get documentsDefaultPlant => 'Fábrica';
+
+  @override
+  String get resourcesNeedDocument => 'Abra um projeto para ver a sua fábrica';
+
+  @override
+  String get resourcesNeedDocumentHelp =>
+      'Os centros de trabalho, células, linhas e padrões de turno pertencem a um projeto e viajam dentro do seu ficheiro.';
+
+  @override
+  String get resourcesNoWorkcenters =>
+      'Adicione o seu primeiro centro de trabalho';
+
+  @override
+  String get resourcesNoWorkcentersHelp =>
+      'Um projeto novo começa vazio. Adicione os centros de trabalho desta fábrica — ou abra um projeto existente e guarde uma cópia.';
 }

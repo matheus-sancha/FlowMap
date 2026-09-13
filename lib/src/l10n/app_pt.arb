@@ -982,5 +982,9 @@
   "documentsTakenHelp": "Apenas uma pessoa pode editar um projeto de cada vez. Tente novamente daqui a alguns minutos ou peça-lhe que o feche.",
   "documentsConverted": "O seu trabalho existente é agora um ficheiro de projeto.",
   "documentsOpenFailed": "Não foi possível abrir este ficheiro",
-  "documentsDefaultPlant": "Fábrica"
+  "documentsDefaultPlant": "Fábrica",
+  "resourcesNeedDocument": "Abra um projeto para ver a sua fábrica",
+  "resourcesNeedDocumentHelp": "Os centros de trabalho, células, linhas e padrões de turno pertencem a um projeto e viajam dentro do seu ficheiro.",
+  "resourcesNoWorkcenters": "Adicione o seu primeiro centro de trabalho",
+  "resourcesNoWorkcentersHelp": "Um projeto novo começa vazio. Adicione os centros de trabalho desta fábrica — ou abra um projeto existente e guarde uma cópia."
 }

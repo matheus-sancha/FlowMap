@@ -58,6 +58,14 @@ class PlantStructureView extends ConsumerWidget {
       }
     }
 
+    // **A new project starts empty, and says what to do about it.** The
+    // 2026-09-13 drive asked for this by name: without it the first thing a new
+    // document shows is a blank page with an unexplained `+`, which reads as a
+    // dead end rather than as a beginning.
+    if (workcenterList.isEmpty && cellList.isEmpty) {
+      return _NothingYet(plantId: plantId);
+    }
+
     return ListView(
       padding: const EdgeInsets.only(bottom: 80),
       children: [
@@ -542,4 +550,50 @@ Future<void> _addWorkcenter(
         parallelCapacity: draft.parallelCapacity,
         lineIds: draft.lineIds,
       );
+}
+
+
+/// What a plant with nothing in it says.
+class _NothingYet extends ConsumerWidget {
+  const _NothingYet({required this.plantId});
+
+  final String plantId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.precision_manufacturing_outlined,
+              size: 40,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.resourcesNoWorkcenters,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            // Names the other way in as well as this one. Building a plant by
+            // hand is the long road; opening an existing project and saving a
+            // copy is the short one.
+            Text(
+              l10n.resourcesNoWorkcentersHelp,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

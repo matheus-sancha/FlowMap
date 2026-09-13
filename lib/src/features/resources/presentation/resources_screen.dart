@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../documents/application/documents_providers.dart';
+
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -22,6 +24,22 @@ class ResourcesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+
+    // **The plant is the document** (#37), so with nothing open there is
+    // nothing here to look at. Before this guard the screen showed whatever the
+    // last document left behind — a plant belonging to no project, which is
+    // what the 2026-09-13 drive could not make sense of.
+    if (ref.watch(openDocumentProvider) == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.resourcesTitle)),
+        body: _Prompt(
+          icon: Icons.folder_open,
+          title: l10n.resourcesNeedDocument,
+          body: l10n.resourcesNeedDocumentHelp,
+        ),
+      );
+    }
+
     final plants = ref.watch(plantsProvider);
 
     return plants.when(
@@ -221,6 +239,46 @@ class _PlantMenu extends ConsumerWidget {
         ),
         PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
       ],
+    );
+  }
+}
+
+
+/// A screen that is empty for a reason, saying which.
+///
+/// §12.7b: a definition earns its place when a wrong *conclusion* depends on
+/// it. An empty Resources with no explanation invites exactly one conclusion —
+/// that something is broken.
+class _Prompt extends StatelessWidget {
+  const _Prompt({required this.icon, required this.title, required this.body});
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 40, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            Text(title, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

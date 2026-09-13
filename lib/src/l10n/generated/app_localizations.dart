@@ -3626,6 +3626,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Plant'**
   String get documentsDefaultPlant;
+
+  /// No description provided for @resourcesNeedDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a project to see its plant'**
+  String get resourcesNeedDocument;
+
+  /// No description provided for @resourcesNeedDocumentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenters, cells, lines and shift patterns belong to a project, and travel inside its file.'**
+  String get resourcesNeedDocumentHelp;
+
+  /// No description provided for @resourcesNoWorkcenters.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first workcenter'**
+  String get resourcesNoWorkcenters;
+
+  /// No description provided for @resourcesNoWorkcentersHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A new project starts empty. Add the workcenters this plant runs on — or open an existing project and save a copy of it.'**
+  String get resourcesNoWorkcentersHelp;
 }
 
 class _AppLocalizationsDelegate
