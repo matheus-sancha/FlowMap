@@ -3705,6 +3705,30 @@ abstract class AppLocalizations {
   /// **'Recent'**
   String get documentsRecent;
 
+  /// No description provided for @documentsIsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is open'**
+  String documentsIsOpen(String name);
+
+  /// No description provided for @documentsGoToProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to project'**
+  String get documentsGoToProject;
+
+  /// No description provided for @documentsOpenNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open now'**
+  String get documentsOpenNow;
+
+  /// No description provided for @documentsTakenHere.
+  ///
+  /// In en, this message translates to:
+  /// **'This project is already open in FlowMap on this computer. If FlowMap closed unexpectedly, the project frees itself within five minutes.'**
+  String get documentsTakenHere;
+
   /// No description provided for @documentsMissing.
   ///
   /// In en, this message translates to:

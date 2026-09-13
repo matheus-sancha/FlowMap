@@ -1,3 +1,4 @@
+import 'package:path/path.dart' as p;
 import 'dart:io';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -58,9 +59,14 @@ Future<List<File>> convertedDocuments(Ref ref) async {
 /// whole.
 @Riverpod(keepAlive: true)
 class OpenDocument extends _$OpenDocument {
+  /// The session this notifier holds, kept beside [state] because Riverpod
+  /// forbids reading `state` inside `onDispose` — which is where the lock has
+  /// to be released when the app goes away.
+  DocumentSession? _held;
+
   @override
   DocumentSession? build() {
-    ref.onDispose(() => state?.close());
+    ref.onDispose(() => _held?.close());
     return null;
   }
 
@@ -75,6 +81,13 @@ class OpenDocument extends _$OpenDocument {
     required String machine,
   }) async {
     final previous = state;
+    // **The document already open here is not someone else's.** Asking the
+    // lock again would find this session's own heartbeat and report the user
+    // as holding their own project against themselves, which is what a second
+    // click on a recent entry did (drive, 2026-09-13).
+    if (previous != null && isSameDocument(previous.file.path, path)) {
+      return const OpenOutcome.opened();
+    }
     final session = await DocumentSession.open(
       path,
       db: ref.read(appDatabaseProvider),
@@ -86,7 +99,7 @@ class OpenDocument extends _$OpenDocument {
     // Only after the new one is open: closing first would leave the app with
     // nothing if the open failed.
     await previous?.close();
-    state = session;
+    state = _held = session;
 
     await ref
         .read(recentDocumentsStoreProvider)
@@ -108,11 +121,9 @@ class OpenDocument extends _$OpenDocument {
     required String user,
     required String machine,
   }) async {
-    await NewDocument(ref.read(appDatabaseProvider)).create(
-      path,
-      projectName: projectName,
-      plantName: plantName,
-    );
+    await NewDocument(
+      ref.read(appDatabaseProvider),
+    ).create(path, projectName: projectName, plantName: plantName);
     return open(path, user: user, machine: machine);
   }
 
@@ -136,10 +147,9 @@ class OpenDocument extends _$OpenDocument {
     await session.save();
 
     final db = ref.read(appDatabaseProvider);
-    final current = await DocumentStore(db).capture(
-      projectId: session.projectId,
-      projectName: session.projectName,
-    );
+    final current = await DocumentStore(
+      db,
+    ).capture(projectId: session.projectId, projectName: session.projectName);
     final copy = SaveAs.rename(
       current,
       newProjectId: const Uuid().v4(),
@@ -154,7 +164,7 @@ class OpenDocument extends _$OpenDocument {
   /// Flushes and releases, leaving the app on the start screen.
   Future<void> close() async {
     final session = state;
-    state = null;
+    state = _held = null;
     await session?.close();
   }
 }
@@ -167,3 +177,8 @@ class OpenOutcome {
   /// True when another person holds the lock and nothing was opened.
   final bool taken;
 }
+
+/// Whether two paths name one document. Canonicalised, because Windows paths
+/// differ in case and separators and still name the same file.
+bool isSameDocument(String a, String b) =>
+    p.canonicalize(a) == p.canonicalize(b);

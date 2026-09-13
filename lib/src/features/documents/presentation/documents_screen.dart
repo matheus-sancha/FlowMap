@@ -31,6 +31,10 @@ class DocumentsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final recents = ref.watch(recentDocumentsProvider);
+    // **What is open, said on the screen you return to.** It read *No project
+    // open* while one was, so a document opened from here looked like nothing
+    // had happened, and a second click met the document's own lock.
+    final session = ref.watch(openDocumentProvider);
 
     // Kicks off the one-time conversion on the single machine that needs it.
     ref.watch(convertedDocumentsProvider);
@@ -43,7 +47,12 @@ class DocumentsScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(32),
             children: [
-              Text(l10n.documentsNone, style: theme.textTheme.headlineSmall),
+              Text(
+                session == null
+                    ? l10n.documentsNone
+                    : l10n.documentsIsOpen(session.projectName),
+                style: theme.textTheme.headlineSmall,
+              ),
               const SizedBox(height: 8),
               Text(
                 l10n.documentsIntro,
@@ -52,14 +61,30 @@ class DocumentsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
                 children: [
-                  FilledButton.icon(
-                    onPressed: () => _open(context, ref),
-                    icon: const Icon(Icons.folder_open),
-                    label: Text(l10n.documentsOpen),
-                  ),
-                  const SizedBox(width: 12),
+                  // The primary action is whichever one gets the reader back to
+                  // work: into the open project if there is one, else Open.
+                  if (session != null)
+                    FilledButton.icon(
+                      onPressed: () => _goToOpenProject(context, ref),
+                      icon: const Icon(Icons.arrow_forward),
+                      label: Text(l10n.documentsGoToProject),
+                    ),
+                  if (session == null)
+                    FilledButton.icon(
+                      onPressed: () => _open(context, ref),
+                      icon: const Icon(Icons.folder_open),
+                      label: Text(l10n.documentsOpen),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: () => _open(context, ref),
+                      icon: const Icon(Icons.folder_open),
+                      label: Text(l10n.documentsOpen),
+                    ),
                   OutlinedButton.icon(
                     onPressed: () => _create(context, ref),
                     icon: const Icon(Icons.add),
@@ -122,7 +147,6 @@ class DocumentsScreen extends ConsumerWidget {
     if (!copy.existsSync()) await example.copy(copy.path);
     if (!context.mounted) return;
     await openDocumentAt(context, ref, copy.path);
-    if (context.mounted) _goToOpenProject(context, ref);
   }
 
   Future<void> _create(BuildContext context, WidgetRef ref) async {
@@ -161,9 +185,7 @@ class DocumentsScreen extends ConsumerWidget {
       }
       if (context.mounted) _goToOpenProject(context, ref);
     } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.documentsOpenFailed)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(l10n.documentsOpenFailed)));
     }
   }
 }
@@ -187,15 +209,29 @@ Future<void> openDocumentAt(
         .open(path, user: _user(), machine: Platform.localHostname);
 
     if (outcome.taken) {
+      // **Held by this account on this computer** is not a colleague: it is
+      // another FlowMap window, or this one before it crashed. A message naming
+      // the reader as the one in their own way reads as a bug.
+      final here =
+          holder != null &&
+          holder.user == _user() &&
+          holder.machine == Platform.localHostname;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            '${l10n.documentsTaken(holder?.describe() ?? '')}\n'
-            '${l10n.documentsTakenHelp}',
+            here
+                ? l10n.documentsTakenHere
+                : '${l10n.documentsTaken(holder?.describe() ?? '')}\n'
+                      '${l10n.documentsTakenHelp}',
           ),
         ),
       );
+      return;
     }
+    // **Opening a document goes to it**, which 201290c said of both paths and
+    // gave to New project only. Open and every recent entry come through here,
+    // and they loaded the project while leaving the reader on this screen.
+    if (context.mounted) _goToOpenProject(context, ref);
   } on DocumentFormatException catch (error) {
     // The message is the point: these are the first errors in this app read by
     // someone who cannot ask the author what they mean.
@@ -203,9 +239,7 @@ Future<void> openDocumentAt(
       SnackBar(content: Text('${l10n.documentsOpenFailed}\n${error.message}')),
     );
   } catch (_) {
-    messenger.showSnackBar(
-      SnackBar(content: Text(l10n.documentsOpenFailed)),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(l10n.documentsOpenFailed)));
   }
 }
 
@@ -236,6 +270,7 @@ class _Recent extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final dates = DateFormat.yMMMd(Localizations.localeOf(context).toString());
+    final session = ref.watch(openDocumentProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,6 +284,9 @@ class _Recent extends ConsumerWidget {
               // missing whenever the drive is, which is a fact about this
               // minute and not about the work.
               final here = document.exists;
+              final isOpen =
+                  session != null &&
+                  isSameDocument(session.file.path, document.path);
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
@@ -256,21 +294,26 @@ class _Recent extends ConsumerWidget {
                   color: here ? null : theme.colorScheme.onSurfaceVariant,
                 ),
                 title: Text(document.name),
+                selected: isOpen,
                 subtitle: Text(
                   here
                       ? '${document.folder} · ${dates.format(document.openedAt)}'
                       : '${l10n.documentsMissing} · ${document.folder}',
                 ),
-                trailing: IconButton(
-                  tooltip: l10n.documentsForget,
-                  icon: const Icon(Icons.close),
-                  onPressed: () async {
-                    await ref
-                        .read(recentDocumentsStoreProvider)
-                        .forget(document.path);
-                    ref.invalidate(recentDocumentsProvider);
-                  },
-                ),
+                // Instead of Forget: nobody means to forget the document they
+                // are working on, and the row has to say which one that is.
+                trailing: isOpen
+                    ? Chip(label: Text(l10n.documentsOpenNow))
+                    : IconButton(
+                        tooltip: l10n.documentsForget,
+                        icon: const Icon(Icons.close),
+                        onPressed: () async {
+                          await ref
+                              .read(recentDocumentsStoreProvider)
+                              .forget(document.path);
+                          ref.invalidate(recentDocumentsProvider);
+                        },
+                      ),
                 onTap: here
                     ? () => openDocumentAt(context, ref, document.path)
                     : () => ScaffoldMessenger.of(context).showSnackBar(

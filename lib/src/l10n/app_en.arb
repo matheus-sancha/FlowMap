@@ -1165,6 +1165,17 @@
   "documentsOpen": "Open…",
   "documentsNew": "New project…",
   "documentsRecent": "Recent",
+  "documentsIsOpen": "{name} is open",
+  "@documentsIsOpen": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "documentsGoToProject": "Go to project",
+  "documentsOpenNow": "Open now",
+  "documentsTakenHere": "This project is already open in FlowMap on this computer. If FlowMap closed unexpectedly, the project frees itself within five minutes.",
   "documentsMissing": "Not found right now",
   "documentsMissingHelp": "The file may be on a drive that is not connected. It has not been forgotten.",
   "documentsForget": "Remove from this list",

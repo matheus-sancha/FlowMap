@@ -2085,6 +2085,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get documentsRecent => 'Recent';
 
   @override
+  String documentsIsOpen(String name) {
+    return '$name is open';
+  }
+
+  @override
+  String get documentsGoToProject => 'Go to project';
+
+  @override
+  String get documentsOpenNow => 'Open now';
+
+  @override
+  String get documentsTakenHere =>
+      'This project is already open in FlowMap on this computer. If FlowMap closed unexpectedly, the project frees itself within five minutes.';
+
+  @override
   String get documentsMissing => 'Not found right now';
 
   @override
