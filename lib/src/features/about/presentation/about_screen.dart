@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/build_info.dart';
+import '../../../app/flowmap_mark.dart';
 import '../../../data/app_directory.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../diagnostics/data/diagnostics_log.dart';
@@ -38,7 +39,15 @@ class AboutScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(32),
             children: [
-              Text('FlowMap', style: theme.textTheme.headlineSmall),
+              Row(
+                children: [
+                  // The mark on the one screen whose job is saying what this
+                  // app is. Drawn, so it follows the theme (#33).
+                  const FlowmapMark(size: 36),
+                  const SizedBox(width: 12),
+                  Text('FlowMap', style: theme.textTheme.headlineSmall),
+                ],
+              ),
               const SizedBox(height: 24),
 
               _Section(title: l10n.aboutBuild),
