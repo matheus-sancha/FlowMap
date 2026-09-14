@@ -90,6 +90,25 @@ The link users get is
 `https://github.com/matheus-sancha/FlowMap/releases/download/<tag>/FlowMap-<label>.zip`.
 **The repository and its releases are public.**
 
+### Building it without a Windows machine
+
+`flutter build windows` is CMake and MSVC, so a zip can only be produced on Windows.
+`.github/workflows/windows-drop.yml` is that machine for anyone who has not got one: it builds on
+`windows-latest` and attaches `FlowMap-<label>.zip` as a workflow artifact.
+
+- **Every push** produces a throwaway build labelled `<version>-<date>-<sha>`. `analyze` and `test`
+  run and are reported, but do not gate the zip — the point of that run is to put a build in your
+  hands. Download it from the run's **Artifacts**, and note that GitHub wraps an artifact in a zip
+  of its own, so unblock the **inner** zip.
+- **Run workflow → type a label** produces a real drop, and then every refusal in the packaging
+  script applies and a red `analyze` or `test` stops it.
+- **It does not tag and does not publish a release**, for the same reason the packaging script does
+  not: a build machine should not create refs or put a zip in front of users.
+- **The runner bills Windows minutes at a multiple of Linux ones.** If every-push is too much,
+  narrow `on.push.branches` and lean on *Run workflow* instead.
+- **Signing in CI** is two commented lines in the Package step, and Azure Trusted Signing is the
+  route that works there because there is no token to plug in ([docs/SIGNING.md](docs/SIGNING.md)).
+
 The build label is what the diagnostics log and the About screen report; it is supplied at compile
 time rather than read from `pubspec.yaml`, so a field report can be placed against a specific zip.
 `tool/drop/example.flowmap` is rebuilt from the live plant by
