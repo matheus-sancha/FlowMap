@@ -50,6 +50,18 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # Git for Windows defaults to core.autocrlf=true, so checkout writes CRLF
+      # while every generator writes LF. The regenerated file then differs from
+      # its own checkout in line endings alone - `git status` calls it modified,
+      # `git diff` normalises it away and shows nothing - and the drop refuses on
+      # a tree that is not really dirty. Sixteen of the twenty files reported on
+      # 2026-09-14 were exactly this and contributed no content change at all.
+      #
+      # Set before checkout, so the working tree is written as the index holds
+      # it. CI-only: nothing about the repository or anyone's clone changes.
+      - name: Line endings as committed
+        run: git config --global core.autocrlf false
+
       - name: Check out, with tags
         uses: actions/checkout@v4
         with:
@@ -63,11 +75,14 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.4
           cache: true
 
-      # `channel: stable` drifts, and a drifting SDK breaks a build with no commit
-      # behind it. Pin `flutter-version:` above to whatever you build with locally
-      # once you know it; until then, the version is at least recorded in the log.
+      # **Pinned, and it had to be.** `channel: stable` alone resolved a newer
+      # intl, matcher, meta, test and vector_math than pubspec.lock held, which
+      # rewrote the lock on every `pub get` and refused the drop on a dirty tree
+      # (2026-09-14). A lockfile is only a lock if the SDK above it stops moving.
+      # Change this deliberately, and commit the lock the change produces.
       - name: What built this
         run: flutter --version
 
@@ -82,6 +97,32 @@ jobs:
 
       - name: Localizations
         run: flutter gen-l10n
+
+      # The packaging script refuses a dirty tree on a drop - correctly, since a
+      # tag has to describe what is in the zip - but it can only say *that* the
+      # tree is dirty, not which file. Which file is the entire diagnosis, and
+      # working it out cost a whole drop run on 2026-09-14. So the tree is
+      # reported here, before anything can refuse on it.
+      #
+      # Never fails the build: it is a diagnostic, and the refusal that matters
+      # is the script's own.
+      - name: What codegen changed, if anything
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $dirty = git status --porcelain
+          if (-not $dirty) {
+            Write-Host 'Clean: every generated file matches what is committed.'
+            exit 0
+          }
+          Write-Host 'Regenerated output differs from what is committed:'
+          $dirty | ForEach-Object { Write-Host "  $_" }
+          Write-Host ''
+          git --no-pager diff --stat
+          Write-Host ''
+          Write-Host '--- diff, first 400 lines ---'
+          $diff = git --no-pager diff
+          if ($diff) { $diff | Select-Object -First 400 | ForEach-Object { Write-Host $_ } }
 
       - name: Work out the label
         id: label
