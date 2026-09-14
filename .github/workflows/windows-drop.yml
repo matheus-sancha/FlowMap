@@ -83,6 +83,32 @@ jobs:
       - name: Localizations
         run: flutter gen-l10n
 
+      # The packaging script refuses a dirty tree on a drop - correctly, since a
+      # tag has to describe what is in the zip - but it can only say *that* the
+      # tree is dirty, not which file. Which file is the entire diagnosis, and
+      # working it out cost a whole drop run on 2026-09-14. So the tree is
+      # reported here, before anything can refuse on it.
+      #
+      # Never fails the build: it is a diagnostic, and the refusal that matters
+      # is the script's own.
+      - name: What codegen changed, if anything
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $dirty = git status --porcelain
+          if (-not $dirty) {
+            Write-Host 'Clean: every generated file matches what is committed.'
+            exit 0
+          }
+          Write-Host 'Regenerated output differs from what is committed:'
+          $dirty | ForEach-Object { Write-Host "  $_" }
+          Write-Host ''
+          git --no-pager diff --stat
+          Write-Host ''
+          Write-Host '--- diff, first 400 lines ---'
+          $diff = git --no-pager diff
+          if ($diff) { $diff | Select-Object -First 400 | ForEach-Object { Write-Host $_ } }
+
       - name: Work out the label
         id: label
         shell: pwsh
