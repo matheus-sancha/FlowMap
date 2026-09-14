@@ -19,8 +19,12 @@ Two facts decide whether the prompt appears:
   marked as coming from the internet, and that mark is what arms SmartScreen on launch. Clear the
   mark from the zip *before* unzipping — right-click, Properties, Unblock — and the extracted exe
   carries none, and SmartScreen does not run. This is why `READ ME FIRST.txt` now opens with it.
-- **Reputation is per certificate, not per file.** An unsigned build starts from nothing on every
-  machine and every new drop. A signed one accumulates, across drops, under one identity.
+- **Reputation attaches to the bytes, and to the certificate when there is one.** An unsigned build
+  can earn reputation of its own as copies are downloaded and run without incident, which is how an
+  unsigned app that has been out a while quietly stops prompting — Chronus being the worked example
+  next door. It attaches to *that build's bytes*, though, so **every new drop starts from zero**,
+  and the app stops prompting only until it is rebuilt. A signature is what lets reputation
+  accumulate across drops under one identity instead of restarting at each one.
 
 **So there are two blocks, not one, and they need different answers.** Unblocking the zip handles
 the download mark and costs nothing. Only a signature handles the publisher question, and only a
@@ -65,7 +69,19 @@ be carried around.
 | Identity proved | by Microsoft | by the CA | by the CA, more strictly |
 | SmartScreen at first drop | still warns until reputation builds | still warns until reputation builds | usually clears fastest |
 
-**Recommended: Azure Trusted Signing.** It is an order of magnitude cheaper, there is no token to
+**Deferred, 2026-09-14, and shipping unsigned in the meantime is a real option, not a lapse.**
+SmartScreen is a warning with a *Run anyway*, not a prevention: unsigned costs a prompt and the
+explaining that goes with it, and costs nothing else. With the zip unblocked before unzipping, most
+people never see the prompt. Three things would end the deferral, and none of them has happened yet:
+
+- **a machine where *Run anyway* is missing or greyed out.** Under WDAC, AppLocker or Smart App
+  Control there is no button to click, and no instruction in `READ ME FIRST.txt` can help. That is
+  an IT conversation before it is a purchase (§4).
+- **the prompt costing more in explaining than the certificate costs.** At roughly $10/month that
+  threshold is low.
+- **the audience widening** past people who can be talked through it.
+
+**Recommended, when it is time: Azure Trusted Signing.** It is an order of magnitude cheaper, there is no token to
 lose or to be holding when a drop has to go out, and the signing certificates are short-lived and
 reissued per signature — which is why every signature must be timestamped, and why the packaging
 script refuses to sign without a timestamp URL. Eligibility is the catch worth checking before

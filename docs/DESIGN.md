@@ -44,6 +44,29 @@ screen, for people who cannot be walked through recovery. Every write is whole, 
 sibling, then renamed atomically — a zipped document is only safe in a synced folder because it is
 never observed half-written.
 
+**Closing waits, and the wait is the point.** The close button does not end the process: `CloseGuard`
+refuses it, flushes the document, releases the lock, and only then destroys the window — bounded at
+eight seconds, because a close button that never closes is worse than the lock it was protecting.
+Before this (drive, 2026-09-13) nothing between the button and the exit ran `DocumentSession.close`,
+so every close lost whatever was still inside the two-second debounce *and* left the lock standing
+for five minutes, telling the same person on their next launch that somebody else had the file.
+
+**A second of that wait is redundant, and is being kept anyway — decided 2026-09-14.** Reported from
+the field as *"the app is taking a little bit of time to close"*, and the reading is that `detach`
+writes **unconditionally**: it captures the database, serialises the zip, reads the whole file back
+off disk to compare it byte for byte, and renames a new one into place, even when nothing has
+changed since the last save. On a synced or network folder the read-back and the write are most of
+the delay. `_onDisk` and `_state` already carry enough to know the session is clean, so the write
+could be skipped outright.
+
+**It is not skipped, because the byte comparison is also what notices the file was replaced** — the
+check that turns a lost overwrite into a `(conflict …)` copy beside it, and the half of this section
+that exists because two documents were emptied on 2026-09-13. Skipping the write skips that
+detection, which is defensible when there is no unsaved work to lose and is still a change to the
+rule above rather than an optimisation. Weighed against a wait measured in a second or two, the
+wait wins for now. **Revisit only with the `app.close` → `app.closed` interval measured on a real
+synced folder**, and keep the replacement check whatever else changes.
+
 **Sharing is sequential.** A `.lock` beside the document names who holds it and when they last said
 so, refreshed about every minute while it is open and **stale after five**. A second person is told
 who has it and offered a read-only copy; once the stamp stops being refreshed the next person simply
@@ -3326,6 +3349,48 @@ you navigate *from* — and §12.8 re-affirmed that a view setting stays out of 
 **Failure is always *not collapsed*.** A missing, corrupt or hand-edited file opens the workspace
 with its study list showing. Hiding a pane because some json could not be parsed would be the app
 losing a control for a reason nobody on screen can see.
+
+#### The window opens where the caption can be reached — as built (field report, 2026-09-14)
+
+Field report: *"when I open the app the minimize, expand and close buttons, it's not appearing — I
+had to open a new application and divide the screen and put FlowMap to the side to be able to see."*
+
+**The cause is arithmetic, not the window plugin.** `defaultSize` is `1600 × 1000` **logical**
+pixels and was handed to `WindowOptions` and centred without ever being compared to the screen.
+Windows' own *recommended* display scaling on an ordinary 1080p laptop leaves a work area of
+`1536 × 824` at 125 % or `1280 × 680` at 150 %, so the default was **taller than the screen** — and
+centring something taller than the screen puts its top edge above the screen:
+
+```
+top = (680 − 1000) ÷ 2 = −160
+```
+
+The caption bar, and with it the minimise, maximise and close buttons, sat 160 px above the desktop.
+Snapping the window to one side is what the reporter found, and it works because snapping resizes
+to the work area and drags the caption back down.
+
+**So the displays are read before the size is chosen, not after.** `fitSize` shrinks the default to
+the work area and `defaultBoundsIn` centres by arithmetic, with the offsets floored at zero rather
+than by `windowManager.center()` — the call that cannot know the window does not fit. **The canvas
+minimum still wins over the screen**: below `1100 × 700` the VSM canvas and the demand grids cannot
+lay out (§12.2), so on a work area shorter than that the window hangs off the **bottom**, where the
+caption is still reachable. Overflowing downwards is a cost; overflowing upwards is a trap.
+
+**A restored frame gets one correction and no others.** Windows will not let a caption bar be
+dragged above the top of a work area, so a stored frame sitting there was never parked — it was
+computed, by the defect above, and then persisted by the ordinary blur write. `withCaptionOnScreen`
+pushes such a frame down and **touches nothing else**: hanging off the left, the right or the
+bottom, and straddling two displays, are all positions a reader reaches on purpose and can undo by
+hand, and §12.9's existing `isOnSomeDisplay` deliberately allows them.
+
+_Rejected: clamping a restored frame fully inside one work area._ It would undo deliberate parking
+and break a window straddling two displays, to fix a case the user can already reach by dragging.
+_Rejected: lowering `minimumSize` to fit a 680 px work area._ That is a claim about what the canvas
+needs, not about what the screen has, and it belongs to §12.2 rather than to a window-placement fix.
+
+**Nothing here renders a pixel to test.** Where a window lands is arithmetic over two rectangles, so
+`window_geometry_test.dart` asserts it with no display and no plugin — which is the point, since the
+machine the suite runs on is not the machine that had the bug.
 
 #### The study a mode switch comes back to
 

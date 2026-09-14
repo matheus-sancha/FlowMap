@@ -1,0 +1,189 @@
+# Builds the Windows drop and hands it back as a downloadable artifact.
+#
+# Why this exists: `flutter build windows` is CMake plus MSVC and runs on Windows
+# only - there is no cross-compile - so a zip cannot be produced anywhere but a
+# Windows machine. This is that machine, for anyone who has not got one.
+#
+# Two kinds of run, and they are not held to the same standard:
+#
+#   * every push          a throwaway build, labelled <version>-<date>-<sha>. It
+#                         still runs analyze and test and still reports them, but
+#                         they do not gate the zip: the point of this run is to
+#                         put a build in your hands.
+#   * Run workflow        a real drop, when you type a label. Then every refusal
+#     with a label        in tool\package_windows.ps1 applies - clean tree, unused
+#                         tag, pubspec version agreeing with the label - and a red
+#                         analyze or test stops it, because README says a drop
+#                         goes out after both are green.
+#
+# It does not tag and it does not publish a release. That is the packaging
+# script's own rule, kept here for the same reason: a build machine does not
+# create refs in the repo or put things in front of users.
+name: Windows drop
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 'Drop label, e.g. 2.1.3-2026-09-20. Leave empty for a throwaway build.'
+        required: false
+        default: ''
+      tag:
+        description: 'Tag the drop is recorded under, e.g. v2.1.3. Only meaningful with a label.'
+        required: false
+        default: ''
+
+# A second push to the same branch makes the first zip irrelevant, and a Windows
+# runner bills at a multiple of a Linux one.
+concurrency:
+  group: windows-drop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out, with tags
+        uses: actions/checkout@v4
+        with:
+          # The packaging script reads the tag list and the short SHA.
+          fetch-depth: 0
+
+      # Pinned to a major tag rather than a commit SHA. Worth hardening to a SHA
+      # before this workflow ever holds a signing certificate: an action that can
+      # rewrite the build is an action that can rewrite what gets signed.
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # `channel: stable` drifts, and a drifting SDK breaks a build with no commit
+      # behind it. Pin `flutter-version:` above to whatever you build with locally
+      # once you know it; until then, the version is at least recorded in the log.
+      - name: What built this
+        run: flutter --version
+
+      - name: Dependencies
+        run: flutter pub get
+
+      # Both outputs are committed. Regenerating proves codegen still runs and
+      # picks up anything committed stale; it is not asserted clean, because a
+      # difference here must not be what stops you getting a zip.
+      - name: Codegen
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Localizations
+        run: flutter gen-l10n
+
+      - name: Work out the label
+        id: label
+        shell: pwsh
+        env:
+          INPUT_LABEL: ${{ inputs.label }}
+        run: |
+          $version = ''
+          foreach ($line in Get-Content 'pubspec.yaml') {
+            if ($line -match '^version:\s*([0-9]+\.[0-9]+\.[0-9]+)') { $version = $Matches[1]; break }
+          }
+          if (-not $version) { throw 'No version: x.y.z in pubspec.yaml.' }
+
+          $label = $env:INPUT_LABEL
+          if ([string]::IsNullOrWhiteSpace($label)) {
+            # A throwaway build says which commit it came off, so a report against
+            # it can be placed exactly, the way a drop label does.
+            $sha = '${{ github.sha }}'.Substring(0, 7)
+            $label = '{0}-{1}-{2}' -f $version, (Get-Date -Format 'yyyy-MM-dd'), $sha
+            $isDrop = 'false'
+          }
+          else {
+            $label = $label.Trim()
+            $isDrop = 'true'
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8 -Value "label=$label"
+          Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8 -Value "is_drop=$isDrop"
+          Write-Host "Label $label (drop: $isDrop)"
+
+      - name: flutter analyze
+        id: analyze
+        continue-on-error: ${{ steps.label.outputs.is_drop != 'true' }}
+        run: flutter analyze
+
+      - name: flutter test
+        id: test
+        continue-on-error: ${{ steps.label.outputs.is_drop != 'true' }}
+        run: flutter test
+
+      # Windows PowerShell 5.1, which is what README's own command uses, so CI
+      # exercises the interpreter the script is written for rather than a nearby
+      # one.
+      - name: Package
+        shell: powershell
+        env:
+          DROP_LABEL: ${{ steps.label.outputs.label }}
+          IS_DROP: ${{ steps.label.outputs.is_drop }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          # A hashtable, not an array: splatting an array into a PowerShell
+          # script binds positionally, so '-AllowDirty' would land in -Tag and
+          # neither switch would be set. Checked by running it.
+          $extra = @{}
+          if ($env:IS_DROP -ne 'true') {
+            # A throwaway build is not a drop: codegen above may have touched a
+            # committed file, and it is not claiming a tag.
+            $extra['AllowDirty'] = $true
+            $extra['AllowExistingTag'] = $true
+          }
+          if ($env:INPUT_TAG) { $extra['Tag'] = $env:INPUT_TAG }
+
+          # Signing, once there is a certificate (docs/SIGNING.md). Azure Trusted
+          # Signing is the route that works in CI without a token in the building:
+          # add the Azure credentials as repository secrets, install the dlib, and
+          # append the two arguments here. Until then this builds unsigned, and
+          # the script says so in its own output.
+          #
+          #   $extra['AzureSignDlib'] = 'C:\ats\bin\x64\Azure.CodeSigning.Dlib.dll'
+          #   $extra['AzureSignMetadata'] = 'C:\ats\metadata.json'
+
+          & .\tool\package_windows.ps1 -Label $env:DROP_LABEL @extra
+
+      - name: Say what came out
+        shell: pwsh
+        env:
+          DROP_LABEL: ${{ steps.label.outputs.label }}
+          IS_DROP: ${{ steps.label.outputs.is_drop }}
+        run: |
+          $zip = Get-ChildItem 'dist\*.zip' | Select-Object -First 1
+          $hash = (Get-FileHash -Algorithm SHA256 $zip.FullName).Hash
+          $kind = if ($env:IS_DROP -eq 'true') { 'Drop' } else { 'Throwaway build' }
+
+          $summary = $env:GITHUB_STEP_SUMMARY
+          Add-Content $summary "## $kind $env:DROP_LABEL"
+          Add-Content $summary ''
+          Add-Content $summary "**$($zip.Name)** - $('{0:N1}' -f ($zip.Length / 1MB)) MB"
+          Add-Content $summary ''
+          Add-Content $summary "SHA-256 of the zip, which is what the release notes and an IT allow-list want:"
+          Add-Content $summary ''
+          Add-Content $summary '```'
+          Add-Content $summary $hash
+          Add-Content $summary '```'
+          Add-Content $summary ''
+          Add-Content $summary '### Downloading it'
+          Add-Content $summary ''
+          Add-Content $summary 'GitHub wraps every artifact in a zip of its own, so what downloads is a zip holding `FlowMap-<label>.zip`. Extract that, then **right-click the inner zip, Properties, tick Unblock** before unzipping it - that is what stops Windows asking about the publisher. This build is unsigned until a certificate is wired in (`docs/SIGNING.md`), so the prompt is still possible without it.'
+
+      - name: Upload the zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowMap-${{ steps.label.outputs.label }}
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -390,14 +390,28 @@ and the suite renders only the empty-plant and opening-screen widgets. What the 
 
 Continue from the feedback rather than from this list.
 
-### Owed: which code-signing certificate — a purchase, not a commit
+### Deferred: which code-signing certificate — a purchase, not a commit
 
 Field report, 2026-09-14: **Windows blocks the publisher when the exe is opened.** The free half is
 done and shipped in the next drop — the zip is unblocked before unzipping, which is what actually
 arms SmartScreen, and `tool/package_windows.ps1` now signs the staged folder the moment a certificate
 exists. `docs/HISTORY.md` §10 is what was done; **`docs/SIGNING.md` is the decision and the numbers**.
 
-**One question is open, and only the buyer can answer it:**
+**Deferred 2026-09-14: the drop ships unsigned, deliberately.** SmartScreen is a warning with a
+*Run anyway*, not a prevention, and with the zip unblocked first most people never meet it. The
+prompt is the whole cost. **What ends the deferral** is a machine where *Run anyway* is missing or
+greyed out — WDAC, AppLocker or Smart App Control — because then no instruction helps and it is an
+IT conversation before it is a purchase. Watch for that on the cold install.
+
+**And the unblock step is confirmed, 2026-09-14.** A real download from GitHub, unblocked before
+unzipping, opened with **no prompt at all** — which is the half of the fix that costs nothing, doing
+exactly what §1 of `docs/SIGNING.md` says it does. **Be precise about what that is evidence of**: it
+was the developer's own machine, with an existing `%APPDATA%` data folder and the dev tooling on it.
+It proves the instruction works. It is **not** the cold install, which phase 7 still owes and which
+is a machine that is not the developer's, with no tooling and no data folder — and which is also
+the only way the WDAC case above will ever be found.
+
+**When it is time, one question, and only the buyer can answer it:**
 
 1. **Ask IT first.** Twenty machines inside one plant can be covered by a WDAC or AppLocker
    *publisher* rule against a certificate the company's own PKI issues for nothing, which is stronger
