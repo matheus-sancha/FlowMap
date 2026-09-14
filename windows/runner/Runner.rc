@@ -60,6 +60,14 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 // Version
 //
 
+// CompanyName must read the same as the subject name on the code-signing
+// certificate the drop is signed with (docs/SIGNING.md). Windows shows the
+// certificate's name in the SmartScreen and UAC prompts, and Properties >
+// Details shows these strings; the two disagreeing is what makes a signed
+// build still look borrowed. FileVersion comes from `version:` in
+// pubspec.yaml, which is why that is kept at the drop's version rather than
+// at Flutter's 0.1.0 default.
+
 #if defined(FLUTTER_VERSION_MAJOR) && defined(FLUTTER_VERSION_MINOR) && defined(FLUTTER_VERSION_PATCH) && defined(FLUTTER_VERSION_BUILD)
 #define VERSION_AS_NUMBER FLUTTER_VERSION_MAJOR,FLUTTER_VERSION_MINOR,FLUTTER_VERSION_PATCH,FLUTTER_VERSION_BUILD
 #else
@@ -89,13 +97,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.sancha" "\0"
-            VALUE "FileDescription", "flowmap" "\0"
+            VALUE "CompanyName", "Matheus Sancha" "\0"
+            VALUE "FileDescription", "FlowMap - Value Stream Mapping builder and simulator" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "flowmap" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.sancha. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Matheus Sancha. All rights reserved." "\0"
             VALUE "OriginalFilename", "flowmap.exe" "\0"
-            VALUE "ProductName", "flowmap" "\0"
+            VALUE "ProductName", "FlowMap" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

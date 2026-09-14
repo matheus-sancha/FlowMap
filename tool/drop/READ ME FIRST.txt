@@ -7,18 +7,32 @@ English · Español (abajo) · Português (abaixo)
 ENGLISH
 -------
 
-1. Unzip this folder somewhere of your own, for example Documents. Do not run
+1. Unblock the zip before you unzip it. Right-click FlowMap-<version>.zip,
+   choose Properties, tick "Unblock" at the bottom of the General tab, then OK.
+   Windows marks everything it downloads, and the mark passes to every file
+   unzipped out of it. Clearing it here is what spares you the warning in
+   step 3.
+
+2. Unzip this folder somewhere of your own, for example Documents. Do not run
    FlowMap from inside the zip.
 
-2. Double-click flowmap.exe. The first time, Windows may say "Windows protected
-   your PC". FlowMap is not signed, which is why. Click "More info", then
-   "Run anyway". Windows remembers, and does not ask again for this copy.
+3. Double-click flowmap.exe. If Windows still says "Windows protected your PC",
+   it is because FlowMap does not yet carry a publisher signature, not because
+   there is anything wrong with the file. Click "More info", then "Run anyway".
+   Windows remembers, and does not ask again for this copy.
 
-3. On the first screen, click "Open the example". It is a real plant, ready to
+4. On the first screen, click "Open the example". It is a real plant, ready to
    simulate. It opens as your own copy, so you cannot damage the original.
 
-4. The user guide is manual.html in this folder, and in FlowMap under
+5. The user guide is manual.html in this folder, and in FlowMap under
    About > User guide.
+
+If your company blocks it anyway
+  Some PCs are set up to run approved programs only, and there "Run anyway"
+  does nothing at all. That is your IT department's policy, not a fault in the
+  download. Send them the release page and the SHA-256 published beside the
+  zip: it names exactly these bytes, and it is what an allow-list entry is
+  made of.
 
 Where your work is
   A project is a .flowmap file. You choose where it goes: your PC, a shared
@@ -44,18 +58,32 @@ If something goes wrong
 ESPAÑOL
 -------
 
-1. Descomprime esta carpeta en un lugar tuyo, por ejemplo Documentos. No
+1. Desbloquea el zip antes de descomprimirlo. Haz clic derecho en
+   FlowMap-<versión>.zip, elige Propiedades, marca "Desbloquear" al final de la
+   pestaña General y pulsa Aceptar. Windows marca todo lo que descarga, y la
+   marca pasa a cada archivo que salga del zip. Quitarla aquí es lo que te
+   ahorra el aviso del paso 3.
+
+2. Descomprime esta carpeta en un lugar tuyo, por ejemplo Documentos. No
    ejecutes FlowMap desde dentro del zip.
 
-2. Haz doble clic en flowmap.exe. La primera vez, Windows puede decir "Windows
-   protegió su PC". Es porque FlowMap no está firmado. Haz clic en "Más
-   información" y luego en "Ejecutar de todas formas". Windows lo recuerda.
+3. Haz doble clic en flowmap.exe. Si Windows aún dice "Windows protegió su PC",
+   es porque FlowMap todavía no lleva la firma de un editor, no porque el
+   archivo tenga nada malo. Haz clic en "Más información" y luego en "Ejecutar
+   de todas formas". Windows lo recuerda.
 
-3. En la primera pantalla, haz clic en "Abrir el ejemplo". Es una planta real,
+4. En la primera pantalla, haz clic en "Abrir el ejemplo". Es una planta real,
    lista para simular. Se abre como tu propia copia.
 
-4. La guía de uso es manual.html, en esta carpeta, y en FlowMap en
+5. La guía de uso es manual.html, en esta carpeta, y en FlowMap en
    Acerca de > Guía de uso.
+
+Si tu empresa lo bloquea igual
+  Hay PC configurados para ejecutar solo programas aprobados, y ahí "Ejecutar
+  de todas formas" no hace nada. Es la política de tu departamento de IT, no un
+  fallo de la descarga. Envíales la página de la versión y el SHA-256 publicado
+  junto al zip: identifica exactamente estos bytes, y es con lo que se hace una
+  excepción.
 
 Dónde está tu trabajo
   Un proyecto es un archivo .flowmap. Tú eliges dónde va: tu PC, una unidad
@@ -80,18 +108,32 @@ Si algo sale mal
 PORTUGUÊS
 ---------
 
-1. Descompacte esta pasta num lugar seu, por exemplo Documentos. Não execute o
+1. Desbloqueie o zip antes de descompactar. Clique com o botão direito em
+   FlowMap-<versão>.zip, escolha Propriedades, marque "Desbloquear" no fim da
+   aba Geral e clique em OK. O Windows marca tudo o que baixa, e a marca passa
+   para cada arquivo que sai do zip. Tirá-la aqui é o que lhe poupa o aviso do
+   passo 3.
+
+2. Descompacte esta pasta num lugar seu, por exemplo Documentos. Não execute o
    FlowMap de dentro do zip.
 
-2. Clique duas vezes em flowmap.exe. Na primeira vez, o Windows pode dizer "O
-   Windows protegeu o computador". É porque o FlowMap não é assinado. Clique em
-   "Mais informações" e depois em "Executar assim mesmo". O Windows lembra.
+3. Clique duas vezes em flowmap.exe. Se o Windows ainda disser "O Windows
+   protegeu o computador", é porque o FlowMap ainda não tem a assinatura de um
+   editor, não porque haja algo errado com o arquivo. Clique em "Mais
+   informações" e depois em "Executar assim mesmo". O Windows lembra.
 
-3. Na primeira tela, clique em "Abrir o exemplo". É uma fábrica real, pronta
+4. Na primeira tela, clique em "Abrir o exemplo". É uma fábrica real, pronta
    para simular. Abre como a sua própria cópia.
 
-4. O guia do usuário é manual.html, nesta pasta, e no FlowMap em
+5. O guia do usuário é manual.html, nesta pasta, e no FlowMap em
    Acerca de > Guia do usuário.
+
+Se a sua empresa bloquear mesmo assim
+  Há computadores configurados para rodar só programas aprovados, e aí
+  "Executar assim mesmo" não faz nada. É a política do seu departamento de TI,
+  não um defeito do download. Envie a eles a página da versão e o SHA-256
+  publicado ao lado do zip: ele identifica exatamente estes bytes, e é com ele
+  que se faz uma exceção.
 
 Onde fica o seu trabalho
   Um projeto é um arquivo .flowmap. Você escolhe onde fica: o seu PC, uma

@@ -2408,3 +2408,60 @@ the VSM canvas, the demand grid and the summary on every study open.
 **Nothing here needed a pixel**, which is what the ticket claimed of itself and the reason it was
 worth taking without a drive: a merged file and a three-argument selection are both properties.
 The pane's *animation* is the only part that is feel, and it is not what was reported.
+
+---
+
+## 10. The publisher block, 2026-09-14
+
+**Reported from the field: opening the exe, Windows blocks the publisher.** *"Windows protected your
+PC"*, publisher unknown, on a drop whose `READ ME FIRST.txt` already told people to click through it.
+Being told to click past a security warning is not the same as the warning not appearing, and the
+report is the evidence: the instruction was read as a reason to stop.
+
+**It is two blocks wearing one dialog, and only one of them needed buying anything.**
+
+- **The mark of the web arms it.** A browser stamps `Zone.Identifier` on the download, and
+  **Explorer's unzip copies that stamp onto every extracted file** — so `flowmap.exe` launches
+  claiming to have come off the internet, which is the condition SmartScreen checks. Unblocking the
+  **zip** before unzipping (right-click, Properties, Unblock) clears it from everything inside, and
+  then SmartScreen does not run at all. That is free, it is the user's own two clicks, and it now
+  leads `READ ME FIRST.txt` in all three languages and the README's Download section.
+- **No signature answers the publisher question**, and nothing in the repo can fix that without a
+  certificate. So the packaging script was taught to sign, and `docs/SIGNING.md` records what to buy:
+  Azure Trusted Signing at about $10/month recommended over an OV or EV certificate at $200–700/year,
+  and **ask the company's IT first**, because twenty machines inside one plant can be covered by a
+  WDAC or AppLocker publisher rule against an internal certificate for nothing.
+
+**`tool/package_windows.ps1` signs the staged folder, between assembling it and zipping it**, so a
+failed signature leaves no zip rather than an unsigned one handed out by mistake. Three sources, one
+at a time: Azure Trusted Signing (`/dlib` + `/dmdf`), a thumbprint from a token or the user's store,
+or a `.pfx` whose password comes from the environment or a prompt and never from the command line.
+Every signature is timestamped, because Azure's signing certificates live about three days and the
+signature has to outlive them; it verifies with `signtool verify /pa`, the policy Windows itself
+applies, so a certificate that signs but does not chain fails on the build machine and not on twenty
+plant PCs. `flowmap.exe` and every **unsigned** DLL beside it are signed — the Microsoft-signed
+Visual C++ runtime is left alone, since re-signing would replace Microsoft's signature with ours —
+because a publisher allow-list rule is written against the folder, and one unsigned DLL in it is one
+exception IT writes by hand. With no certificate it still packages, and prints what that costs.
+
+**Two defects found in the signing code by testing it rather than reading it**, both of which would
+have shipped an unsigned drop that reported itself signed: `& $signTool @args @targets` splatted
+PowerShell's **automatic** `$args` — empty in a script with declared parameters — so `signtool` was
+handed the file list and no `sign` verb at all; and `` `version `` inside a double-quoted refusal
+message was the escape for a vertical tab. The first was caught by extracting the signing block and
+running it against a fake `signtool` that recorded its arguments, which is the only way to see an
+argument list that is silently empty.
+
+**And the exe stopped misdescribing itself.** `Runner.rc` still carried Flutter's template strings —
+company `com.sancha`, product `flowmap`, description `flowmap` — and `pubspec.yaml` still said
+`0.1.0`, so the shipped 2.1.2 build reported itself to Explorer, to Windows and to any allow-list
+tool as a 0.1.0 nobody had released. Now `Matheus Sancha` / `FlowMap` / `2.1.2`, and the packaging
+script **refuses a label that disagrees with `pubspec.yaml`**. None of this removes the prompt, and
+saying so is the point: it is what makes the file defensible when someone in IT opens its
+properties, and `CompanyName` has to match the certificate's subject name exactly or a signed build
+reads as one identity claiming to be another.
+
+**Owed: the decision, and then the evidence.** Which certificate is a purchase, not a commit. The
+first signed drop may still prompt — reputation accrues to the certificate, not to the build — so
+the unblock instruction and the published SHA-256 stay until a drop reaches a machine that is not
+the developer's without a prompt. That is the same cold install phase 7 has owed since 2026-09-13.

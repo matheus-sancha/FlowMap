@@ -390,6 +390,29 @@ and the suite renders only the empty-plant and opening-screen widgets. What the 
 
 Continue from the feedback rather than from this list.
 
+### Owed: which code-signing certificate — a purchase, not a commit
+
+Field report, 2026-09-14: **Windows blocks the publisher when the exe is opened.** The free half is
+done and shipped in the next drop — the zip is unblocked before unzipping, which is what actually
+arms SmartScreen, and `tool/package_windows.ps1` now signs the staged folder the moment a certificate
+exists. `docs/HISTORY.md` §10 is what was done; **`docs/SIGNING.md` is the decision and the numbers**.
+
+**One question is open, and only the buyer can answer it:**
+
+1. **Ask IT first.** Twenty machines inside one plant can be covered by a WDAC or AppLocker
+   *publisher* rule against a certificate the company's own PKI issues for nothing, which is stronger
+   on those machines than anything purchasable and needs no renewal. It covers domain machines only,
+   so it is not the answer if the audience will ever include a laptop from outside.
+2. **Otherwise Azure Trusted Signing**, about $10/month, no hardware token in the release process.
+   Check eligibility before counting on it.
+3. **EV, $400–700/year**, only if the first drop must land clean on twenty machines at once.
+
+**Then the evidence, and it is phase 7's cold install.** The first signed drop may still prompt,
+because reputation accrues to the certificate rather than to the build. So `READ ME FIRST.txt` keeps
+the unblock instruction and the release notes keep the SHA-256 **until a drop reaches a machine that
+is not the developer's without a prompt**. Record that machine when it happens; dropping the guidance
+before then is guessing.
+
 ### Standing constraints
 
 - **Nothing in the suite renders a pixel.** 1,146 tests say nothing about a screen, a PDF page, or a

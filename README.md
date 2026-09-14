@@ -18,6 +18,13 @@ No installer and no admin rights. `READ ME FIRST.txt` and `manual.html` are insi
 Unzipping a new version over the old one is safe: projects, templates and settings never live in the
 program folder.
 
+**Unblock the zip before you unzip it** — right-click it, Properties, tick *Unblock*. Windows marks
+everything it downloads and Explorer copies that mark onto every extracted file, and that mark is
+what raises *"Windows protected your PC"*. The drop carries no publisher signature yet, so if the
+prompt does appear, *More info → Run anyway* is the way past it. **[docs/SIGNING.md](docs/SIGNING.md)
+is why, what it costs to stop it for good, and how the packaging script signs a drop once there is a
+certificate.**
+
 ## Status
 
 | Milestone | Contents | |
@@ -56,9 +63,22 @@ From a clean tree, after `flutter analyze` and `flutter test`:
 powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1 -Label 2.1.2-2026-09-13 -Tag v2.1.2
 ```
 
-It refuses a dirty tree or an existing tag, builds release with the label, adds the Visual C++
-runtime and `tool/drop/` (readme, manual, example), zips to `dist/`, and prints the SHA-256 and the
-`git tag` command. It does not tag or publish. Then:
+It refuses a dirty tree, an existing tag, or a `version:` in `pubspec.yaml` that disagrees with the
+label — that version is what Windows reads off `flowmap.exe`. Then it builds release with the label,
+adds the Visual C++ runtime and `tool/drop/` (readme, manual, example), **signs the staged folder if
+a certificate was given**, zips to `dist/`, and prints the SHA-256 and the `git tag` command. It does
+not tag or publish.
+
+Add one of these to sign the drop, which is what stops Windows calling the publisher unknown
+([docs/SIGNING.md](docs/SIGNING.md)); without one it still packages, and says what that costs:
+
+```powershell
+  -AzureSignDlib C:\ats\bin\x64\Azure.CodeSigning.Dlib.dll -AzureSignMetadata C:\ats\metadata.json
+  -CertificateThumbprint A1B2C3D4E5F6...        # a token, or the current user's store
+  -CertificatePath C:\certs\flowmap.pfx         # password from $env:FLOWMAP_CERT_PASSWORD
+```
+
+Then:
 
 ```bash
 git tag -a v2.1.2 -m "FlowMap 2.1.2-2026-09-13" <commit>
