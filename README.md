@@ -37,7 +37,8 @@ certificate.**
 
 | Drop | Date | |
 |---|---|---|
-| **2.1.2** | 2026-09-13 | Saved templates appear on the shelf; simpler Projects page |
+| **2.1.3** | 2026-09-14 | The window opens where its title bar can be reached; unblock the zip before unzipping and Windows stops asking about the publisher |
+| 2.1.2 | 2026-09-13 | Saved templates appear on the shelf; simpler Projects page |
 | 2.1.1 | 2026-09-13 | Fixes two ways a project file could be emptied; plant name on New project; move a project to another plant; opening screen |
 | ~~2.1.0~~ | 2026-09-13 | **Withdrawn** — switching or creating projects could empty the file being left |
 
@@ -60,7 +61,7 @@ the same commit; `l10n_test.dart` fails the build if `lib/src/l10n/untranslated.
 From a clean tree, after `flutter analyze` and `flutter test`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1 -Label 2.1.2-2026-09-13 -Tag v2.1.2
+powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1 -Label 2.1.3-2026-09-14 -Tag v2.1.3
 ```
 
 It refuses a dirty tree, an existing tag, or a `version:` in `pubspec.yaml` that disagrees with the
@@ -81,9 +82,9 @@ Add one of these to sign the drop, which is what stops Windows calling the publi
 Then:
 
 ```bash
-git tag -a v2.1.2 -m "FlowMap 2.1.2-2026-09-13" <commit>
-git push origin v2.1.2
-gh release create v2.1.2 dist/FlowMap-2.1.2-2026-09-13.zip --title "FlowMap 2.1.2" --notes-file notes.md --verify-tag
+git tag -a v2.1.3 -m "FlowMap 2.1.3-2026-09-14" <commit>
+git push origin v2.1.3
+gh release create v2.1.3 dist/FlowMap-2.1.3-2026-09-14.zip --title "FlowMap 2.1.3" --notes-file notes.md --verify-tag
 ```
 
 The link users get is
