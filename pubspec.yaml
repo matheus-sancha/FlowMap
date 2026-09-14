@@ -3,9 +3,14 @@ description: "FlowMap — Value Stream Mapping builder and production flow simul
 # Private app: never published to pub.dev.
 publish_to: 'none'
 
-# Bumped by the packaging script at drop time; the build label the app shows
-# comes from --dart-define, not from here.
-version: 0.1.0+1
+# The drop's version. It is not what the app reports - the build label comes
+# from --dart-define (lib/src/app/build_info.dart) - but it is what Flutter
+# compiles into flowmap.exe's FileVersion, which is the version Windows,
+# Explorer and an IT allow-list read off the file. Left at Flutter's 0.1.0
+# default it said the shipped 2.1.2 exe was a 0.1.0 nobody had released.
+# Bump it in the commit that is packaged; package_windows.ps1 checks that it
+# agrees with -Label and refuses if it does not.
+version: 2.1.2+1
 
 environment:
   sdk: ^3.12.2
