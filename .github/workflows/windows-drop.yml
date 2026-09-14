@@ -50,6 +50,18 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # Git for Windows defaults to core.autocrlf=true, so checkout writes CRLF
+      # while every generator writes LF. The regenerated file then differs from
+      # its own checkout in line endings alone - `git status` calls it modified,
+      # `git diff` normalises it away and shows nothing - and the drop refuses on
+      # a tree that is not really dirty. Sixteen of the twenty files reported on
+      # 2026-09-14 were exactly this and contributed no content change at all.
+      #
+      # Set before checkout, so the working tree is written as the index holds
+      # it. CI-only: nothing about the repository or anyone's clone changes.
+      - name: Line endings as committed
+        run: git config --global core.autocrlf false
+
       - name: Check out, with tags
         uses: actions/checkout@v4
         with:
@@ -63,11 +75,14 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.4
           cache: true
 
-      # `channel: stable` drifts, and a drifting SDK breaks a build with no commit
-      # behind it. Pin `flutter-version:` above to whatever you build with locally
-      # once you know it; until then, the version is at least recorded in the log.
+      # **Pinned, and it had to be.** `channel: stable` alone resolved a newer
+      # intl, matcher, meta, test and vector_math than pubspec.lock held, which
+      # rewrote the lock on every `pub get` and refused the drop on a dirty tree
+      # (2026-09-14). A lockfile is only a lock if the SDK above it stops moving.
+      # Change this deliberately, and commit the lock the change produces.
       - name: What built this
         run: flutter --version
 
