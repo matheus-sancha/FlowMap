@@ -44,6 +44,29 @@ screen, for people who cannot be walked through recovery. Every write is whole, 
 sibling, then renamed atomically — a zipped document is only safe in a synced folder because it is
 never observed half-written.
 
+**Closing waits, and the wait is the point.** The close button does not end the process: `CloseGuard`
+refuses it, flushes the document, releases the lock, and only then destroys the window — bounded at
+eight seconds, because a close button that never closes is worse than the lock it was protecting.
+Before this (drive, 2026-09-13) nothing between the button and the exit ran `DocumentSession.close`,
+so every close lost whatever was still inside the two-second debounce *and* left the lock standing
+for five minutes, telling the same person on their next launch that somebody else had the file.
+
+**A second of that wait is redundant, and is being kept anyway — decided 2026-09-14.** Reported from
+the field as *"the app is taking a little bit of time to close"*, and the reading is that `detach`
+writes **unconditionally**: it captures the database, serialises the zip, reads the whole file back
+off disk to compare it byte for byte, and renames a new one into place, even when nothing has
+changed since the last save. On a synced or network folder the read-back and the write are most of
+the delay. `_onDisk` and `_state` already carry enough to know the session is clean, so the write
+could be skipped outright.
+
+**It is not skipped, because the byte comparison is also what notices the file was replaced** — the
+check that turns a lost overwrite into a `(conflict …)` copy beside it, and the half of this section
+that exists because two documents were emptied on 2026-09-13. Skipping the write skips that
+detection, which is defensible when there is no unsaved work to lose and is still a change to the
+rule above rather than an optimisation. Weighed against a wait measured in a second or two, the
+wait wins for now. **Revisit only with the `app.close` → `app.closed` interval measured on a real
+synced folder**, and keep the replacement check whatever else changes.
+
 **Sharing is sequential.** A `.lock` beside the document names who holds it and when they last said
 so, refreshed about every minute while it is open and **stale after five**. A second person is told
 who has it and offered a read-only copy; once the stamp stops being refreshed the next person simply
