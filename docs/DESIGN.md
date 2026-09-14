@@ -3327,6 +3327,48 @@ you navigate *from* — and §12.8 re-affirmed that a view setting stays out of 
 with its study list showing. Hiding a pane because some json could not be parsed would be the app
 losing a control for a reason nobody on screen can see.
 
+#### The window opens where the caption can be reached — as built (field report, 2026-09-14)
+
+Field report: *"when I open the app the minimize, expand and close buttons, it's not appearing — I
+had to open a new application and divide the screen and put FlowMap to the side to be able to see."*
+
+**The cause is arithmetic, not the window plugin.** `defaultSize` is `1600 × 1000` **logical**
+pixels and was handed to `WindowOptions` and centred without ever being compared to the screen.
+Windows' own *recommended* display scaling on an ordinary 1080p laptop leaves a work area of
+`1536 × 824` at 125 % or `1280 × 680` at 150 %, so the default was **taller than the screen** — and
+centring something taller than the screen puts its top edge above the screen:
+
+```
+top = (680 − 1000) ÷ 2 = −160
+```
+
+The caption bar, and with it the minimise, maximise and close buttons, sat 160 px above the desktop.
+Snapping the window to one side is what the reporter found, and it works because snapping resizes
+to the work area and drags the caption back down.
+
+**So the displays are read before the size is chosen, not after.** `fitSize` shrinks the default to
+the work area and `defaultBoundsIn` centres by arithmetic, with the offsets floored at zero rather
+than by `windowManager.center()` — the call that cannot know the window does not fit. **The canvas
+minimum still wins over the screen**: below `1100 × 700` the VSM canvas and the demand grids cannot
+lay out (§12.2), so on a work area shorter than that the window hangs off the **bottom**, where the
+caption is still reachable. Overflowing downwards is a cost; overflowing upwards is a trap.
+
+**A restored frame gets one correction and no others.** Windows will not let a caption bar be
+dragged above the top of a work area, so a stored frame sitting there was never parked — it was
+computed, by the defect above, and then persisted by the ordinary blur write. `withCaptionOnScreen`
+pushes such a frame down and **touches nothing else**: hanging off the left, the right or the
+bottom, and straddling two displays, are all positions a reader reaches on purpose and can undo by
+hand, and §12.9's existing `isOnSomeDisplay` deliberately allows them.
+
+_Rejected: clamping a restored frame fully inside one work area._ It would undo deliberate parking
+and break a window straddling two displays, to fix a case the user can already reach by dragging.
+_Rejected: lowering `minimumSize` to fit a 680 px work area._ That is a claim about what the canvas
+needs, not about what the screen has, and it belongs to §12.2 rather than to a window-placement fix.
+
+**Nothing here renders a pixel to test.** Where a window lands is arithmetic over two rectangles, so
+`window_geometry_test.dart` asserts it with no display and no plugin — which is the point, since the
+machine the suite runs on is not the machine that had the bug.
+
 #### The study a mode switch comes back to
 
 **A second defect, unreported, found under the first.** Two ids reach this screen and only one is a

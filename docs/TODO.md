@@ -403,6 +403,14 @@ prompt is the whole cost. **What ends the deferral** is a machine where *Run any
 greyed out — WDAC, AppLocker or Smart App Control — because then no instruction helps and it is an
 IT conversation before it is a purchase. Watch for that on the cold install.
 
+**And the unblock step is confirmed, 2026-09-14.** A real download from GitHub, unblocked before
+unzipping, opened with **no prompt at all** — which is the half of the fix that costs nothing, doing
+exactly what §1 of `docs/SIGNING.md` says it does. **Be precise about what that is evidence of**: it
+was the developer's own machine, with an existing `%APPDATA%` data folder and the dev tooling on it.
+It proves the instruction works. It is **not** the cold install, which phase 7 still owes and which
+is a machine that is not the developer's, with no tooling and no data folder — and which is also
+the only way the WDAC case above will ever be found.
+
 **When it is time, one question, and only the buyer can answer it:**
 
 1. **Ask IT first.** Twenty machines inside one plant can be covered by a WDAC or AppLocker
