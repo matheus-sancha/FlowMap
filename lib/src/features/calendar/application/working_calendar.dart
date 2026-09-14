@@ -152,6 +152,58 @@ class WorkingCalendar {
   /// engine's whole cost.
   final Map<int, List<OpenInterval>> _intervalCache = {};
 
+  /// Who is on each shift of [day], honouring its exception — or empty when the
+  /// plant is shut.
+  ///
+  /// Extracted so [operatorsAt] and the interval walk cannot disagree about
+  /// staffing: one asks *is this hour open*, the other *how many people are in
+  /// it*, and two readings of the same day would be a fault of the shape §7.6
+  /// has already paid for twice.
+  List<int> _crewOn(DateTime day) {
+    final exception = exceptions[day];
+    if (exception?.kind == CalendarExceptionKind.nonWorking) return const [];
+    if (exception?.kind == CalendarExceptionKind.extraWorking) {
+      // Extra hours may bring their own staffing; null means "as an ordinary
+      // working day", which is the common case of simply opening a Saturday.
+      return exception!.operatorsPerShift ?? staffing.operatorsOn(day);
+    }
+    if (pattern.worksOnWeekday(day.weekday)) return staffing.operatorsOn(day);
+    return const [];
+  }
+
+  /// How many operators are on the shift covering [t] (DESIGN.md §7.5, v30).
+  ///
+  /// **At a labour-paced workcenter this is the throughput**, so it divides the
+  /// work in `effectiveProcessTime`. Read at the instant work *starts* and held
+  /// for the whole job, which is how availability already behaves — a job
+  /// beginning at 22:00 under a two-operator night shift is costed at two even
+  /// if it runs into a three-operator morning. Letting the rate change
+  /// mid-process is a different engine, and §4.4 declines it for the same
+  /// reason.
+  ///
+  /// **Never zero.** An instant inside no staffed shift returns 1, which costs
+  /// the work exactly as the model did before this existed — the conservative
+  /// answer, and unreachable from the simulation, which only ever starts work
+  /// at an open instant.
+  int operatorsAt(DateTime t) {
+    // The previous day too: a shift that started at 23:40 yesterday is what
+    // staffs 02:00 today.
+    for (final day in [_previousDay(dateOnly(t)), dateOnly(t)]) {
+      final crew = _crewOn(day);
+      for (final shift in pattern.shifts) {
+        final count = shift.position < crew.length ? crew[shift.position] : 0;
+        if (count <= 0) continue;
+        final start = _at(day, shift.startMinute);
+        final grossEnd = shift.crossesMidnight
+            ? _at(_nextDay(day), shift.endMinute)
+            : _at(day, shift.endMinute);
+        final end = grossEnd.subtract(Duration(seconds: shift.breakSeconds));
+        if (!t.isBefore(start) && t.isBefore(end)) return count;
+      }
+    }
+    return 1;
+  }
+
   List<OpenInterval> _computeIntervalsStartingOn(DateTime day) {
     final exception = exceptions[day];
 
@@ -159,17 +211,8 @@ class WorkingCalendar {
       return const [];
     }
 
-    final List<int> operators;
-    if (exception?.kind == CalendarExceptionKind.extraWorking) {
-      // Extra hours may bring their own staffing; null means "as an ordinary
-      // working day", which is the common case of simply opening a Saturday.
-      exception!;
-      operators = exception.operatorsPerShift ?? staffing.operatorsOn(day);
-    } else if (pattern.worksOnWeekday(day.weekday)) {
-      operators = staffing.operatorsOn(day);
-    } else {
-      return const [];
-    }
+    final operators = _crewOn(day);
+    if (operators.isEmpty) return const [];
 
     final intervals = <OpenInterval>[];
     for (final shift in _staffedShifts(operators)) {
@@ -204,6 +247,66 @@ class WorkingCalendar {
       if (interval.contains(t)) return true;
     }
     return false;
+  }
+
+  /// Open time between [from] and [to], **each hour weighted by the crew
+  /// standing in it** — operator-hours rather than workcenter-hours (§7.5, v30).
+  ///
+  /// **What a labour-paced workcenter's capacity is measured in.** Where the
+  /// machine-paced reading asks how long the workcenter was open, this asks how
+  /// much *work* could have been done in that time: a shift open eight hours
+  /// with three people offers twenty-four, and doubling the crew doubles the
+  /// answer. It is the same quantity `units` already produces for a workcenter
+  /// with two machines, counted in people instead.
+  ///
+  /// **Sliced at every shift boundary rather than merged**, because the crew is
+  /// a property of the shift and a merged window spanning two of them has two
+  /// answers. The slices come from the pattern's own start and end minutes, so
+  /// the subdivision is exact rather than sampled — and the total open time it
+  /// weights is [openTimeBetween]'s to the second, because it walks the same
+  /// intervals.
+  Duration operatorTimeBetween(DateTime from, DateTime to) {
+    if (!to.isAfter(from)) return Duration.zero;
+    var total = Duration.zero;
+    var day = _previousDay(dateOnly(from));
+    final last = dateOnly(to);
+    while (!day.isAfter(last)) {
+      for (final interval in _unclaimedIntervalsOn(day)) {
+        final start = interval.start.isBefore(from) ? from : interval.start;
+        final end = interval.end.isAfter(to) ? to : interval.end;
+        if (!end.isAfter(start)) continue;
+        for (final slice in _sliceAtShiftBoundaries(start, end)) {
+          total += slice.duration * operatorsAt(slice.start);
+        }
+      }
+      day = _nextDay(day);
+    }
+    return total;
+  }
+
+  /// [start, end) cut wherever a shift begins or ends inside it, so each piece
+  /// has one crew.
+  Iterable<OpenInterval> _sliceAtShiftBoundaries(DateTime start, DateTime end) {
+    final cuts = <DateTime>{start, end};
+    for (var day = _previousDay(dateOnly(start));
+        !day.isAfter(dateOnly(end));
+        day = _nextDay(day)) {
+      for (final shift in pattern.shifts) {
+        cuts.add(_at(day, shift.startMinute));
+        final grossEnd = shift.crossesMidnight
+            ? _at(_nextDay(day), shift.endMinute)
+            : _at(day, shift.endMinute);
+        cuts.add(grossEnd.subtract(Duration(seconds: shift.breakSeconds)));
+      }
+    }
+    final inside =
+        cuts.where((t) => !t.isBefore(start) && !t.isAfter(end)).toList()
+          ..sort();
+    return [
+      for (var i = 0; i < inside.length - 1; i++)
+        if (inside[i + 1].isAfter(inside[i]))
+          OpenInterval(inside[i], inside[i + 1]),
+    ];
   }
 
   /// The open window containing [from], or the next one after it.

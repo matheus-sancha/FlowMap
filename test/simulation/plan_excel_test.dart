@@ -5,6 +5,7 @@ import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/simulation/presentation/plan_excel.dart';
+import 'package:flowmap/src/common/date_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The plan as a workbook (DESIGN.md §8.5, §13).
@@ -21,9 +22,11 @@ void main() {
   const strings = PlanExcelStrings(
     runSheet: 'Run',
     unnamedStudy: 'Study',
+    emptySlotReason: _reasonOf,
+    takt: _taktOf,
     generated: 'FlowMap 0.1.0-test · generated 8/8/2026 10:12',
-    runLabel: '8/8/2026 · FIFO',
-    dispatchOverrides: ['CLAD04: Earliest due date'],
+    runLabel: '8/8/2026 · mixed',
+    queueTypes: ['CLAD04: Earliest need date', 'MILL02: FIFO'],
     headers: [
       'Order',
       'Part number',
@@ -35,8 +38,10 @@ void main() {
       'Material date',
       'Order start',
       'Order end',
+      'Takt',
       'Theoretical LT (d)',
       'Actual LT (d)',
+      'Efficiency (%)',
       'Float (d)',
     ],
   );
@@ -46,7 +51,7 @@ void main() {
     studyId: id,
     name: name,
     releaseSeconds: 3600,
-    priority: 0,
+    startBufferDays: 0,
   );
 
   ProductionPlanRow planRow({
@@ -101,8 +106,7 @@ void main() {
       id: 'run-1',
       projectId: 'project-1',
       createdAt: aug1,
-      dispatch: DispatchRule.fifo,
-      dispatchOverrides: const [],
+      queues: const RunQueues([(name: 'CLAD04', rule: DispatchRule.fifo)]),
       studies: studies,
       result: result,
       plan: plan,
@@ -115,9 +119,21 @@ void main() {
     );
   }
 
+  // Pinned rather than left to the locale, so the number-format assertions
+  // below are about the export rather than about whatever machine runs them.
+  const dateStyle = DateStyle(
+    locale: 'en_US',
+    setting: DateFormatSetting.dayMonthYear,
+  );
+
   xl.Excel decoded(StoredRun run, {String projectName = 'H2 2026'}) =>
       xl.Excel.decodeBytes(
-        buildPlanWorkbook(run: run, projectName: projectName, strings: strings),
+        buildPlanWorkbook(
+          run: run,
+          projectName: projectName,
+          strings: strings,
+          dateStyle: dateStyle,
+        ),
       );
 
   List<xl.CellValue?> row(xl.Excel book, String sheet, int index) =>
@@ -200,10 +216,15 @@ void main() {
 
       expect(row(book, 'Run', 0).first.toString(), contains('0.1.0-test'));
       expect(row(book, 'Run', 1).first.toString(), 'H2 2026');
-      expect(row(book, 'Run', 2).first.toString(), '8/8/2026 · FIFO');
-      // Which stations dispatched by something else (§7.4): without it the
-      // file would report a rule that did not happen everywhere.
-      expect(row(book, 'Run', 3).first.toString(), 'CLAD04: Earliest due date');
+      expect(row(book, 'Run', 2).first.toString(), '8/8/2026 · mixed');
+      // What each workcenter dispatched by, and only when they differed (§7.3):
+      // without it the file says the run was not one thing without saying what
+      // it was.
+      expect(
+        row(book, 'Run', 3).first.toString(),
+        'CLAD04: Earliest need date',
+      );
+      expect(row(book, 'Run', 4).first.toString(), 'MILL02: FIFO');
     });
 
     test('maps each study to the sheet it went to', () {
@@ -218,7 +239,7 @@ void main() {
         ),
       );
 
-      final mapping = row(book, 'Run', 4).map((c) => c.toString()).toList();
+      final mapping = row(book, 'Run', 5).map((c) => c.toString()).toList();
       expect(mapping.first, 'Line 3 / Cell 11B: current state, as measured');
       expect(mapping[1], book.tables.keys.last);
     });
@@ -247,12 +268,16 @@ void main() {
       ),
     );
 
-    test('the header is §8.5\'s thirteen columns', () {
+    test('the header is §8.5\'s fifteen columns', () {
       final headers = row(single(), 'Line', 0);
 
-      expect(headers, hasLength(13));
+      expect(headers, hasLength(15));
       expect(headers.first.toString(), 'Order');
       expect(headers.last.toString(), 'Float (d)');
+      // The ratio carries `%` where its neighbours carry a unit of time (§8.7).
+      // The takt introduces the three figures it explains (§7.9).
+      expect(headers[10].toString(), 'Takt');
+      expect(headers[13].toString(), 'Efficiency (%)');
     });
 
     test('the order number is a number', () {
@@ -297,15 +322,28 @@ void main() {
       // — silently a day short, in a column meant to be averaged.
       final cells = row(single(), 'Line', 1);
 
-      expect(cells[10], const xl.DoubleCellValue(0.25)); // 6 h theoretical
-      expect(cells[11], const xl.DoubleCellValue(1.25)); // 30 h actual
-      expect(cells[12], isA<xl.DoubleCellValue>());
+      expect(cells[11], const xl.DoubleCellValue(0.25)); // 6 h theoretical
+      expect(cells[12], const xl.DoubleCellValue(1.25)); // 30 h actual
+      expect(cells[14], isA<xl.DoubleCellValue>());
+    });
+
+    test('efficiency is theoretical ÷ actual, as a number (§8.7)', () {
+      // 6 h against 30 h — the order took five times the standard, so it
+      // queued a great deal more than the standard allows for. **A number, not
+      // a string**: the `%` is in the heading so the cell stays arithmetic.
+      final cell = row(single(), 'Line', 1)[13]!;
+
+      // Read the value rather than the type: the package narrows a whole
+      // number to an int cell on the way back out, and what this column has to
+      // be is arithmetic rather than text.
+      expect(cell, isNot(isA<xl.TextCellValue>()));
+      expect(num.parse(cell.toString()), closeTo(20, 0.05));
     });
 
     test('float keeps its sign, because negative is late (§8)', () {
       // Need date 20 Aug 00:00, order end 4 Aug 12:30 — fifteen days and
       // eleven and a half hours in hand.
-      final float = row(single(), 'Line', 1)[12]! as xl.DoubleCellValue;
+      final float = row(single(), 'Line', 1)[14]! as xl.DoubleCellValue;
 
       expect(float.value, closeTo(15.479166, 0.000001));
     });
@@ -330,7 +368,7 @@ void main() {
       expect(cells[3], isNull);
       expect(cells[4], isNull);
       expect(cells[5], isNull);
-      expect(cells[10], isNull);
+      expect(cells[11], isNull);
       // And the columns the run *did* record are untouched by it.
       expect(cells[0], const xl.IntCellValue(1));
       expect(cells[1]!.toString(), 'PN1');
@@ -359,4 +397,56 @@ void main() {
       expect(row(book, 'Line', 3)[0], const xl.IntCellValue(3));
     });
   });
+
+  group('the date columns carry a number format (§12.4)', () {
+    xl.CellStyle? styleAt(xl.Excel book, int column) => book.sheets['Line']!
+        .cell(xl.CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 1))
+        .cellStyle;
+
+    test("a date says which way round it means, in the user's format", () {
+      // Typed cells were never the problem — §13.1 already proved they are
+      // dates. What was missing is the format, without which Excel renders
+      // them by the *viewer's* default and a date column reads `45 872`.
+      final book = decoded(
+        runOf(
+          studies: [study('study-1', 'Line')],
+          plan: [planRow(sequence: 0)],
+        ),
+      );
+
+      expect(styleAt(book, 6)?.numberFormat.formatCode, 'dd/mm/yyyy');
+      expect(styleAt(book, 7)?.numberFormat.formatCode, 'dd/mm/yyyy');
+    });
+
+    test('the two Order columns keep their clock reading', () {
+      // The file says more than the screen does, deliberately — and the time
+      // is 24-hour whatever the date format, which is §12.4's split.
+      final book = decoded(
+        runOf(
+          studies: [study('study-1', 'Line')],
+          plan: [planRow(sequence: 0)],
+        ),
+      );
+
+      expect(styleAt(book, 8)?.numberFormat.formatCode, 'dd/mm/yyyy hh:mm');
+      expect(styleAt(book, 9)?.numberFormat.formatCode, 'dd/mm/yyyy hh:mm');
+    });
+
+    test('it is the format the screen would have written', () {
+      // The claim worth asserting: the file and the app cannot disagree,
+      // because both come from one `DateStyle`.
+      expect(dateStyle.excelPattern, 'dd/mm/yyyy');
+      expect(dateStyle.format(DateTime(2026, 8, 3)), '03/08/2026');
+    });
+  });
 }
+
+
+/// The three gates §7.2 checks, as the workbook names them.
+String _taktOf(double value, TaktUnit unit) => '$value ${unit.name}';
+
+String _reasonOf(EmptySlotReason reason) => switch (reason) {
+  EmptySlotReason.awaitingMaterial => 'Awaiting material',
+  EmptySlotReason.wipCap => 'WIP cap reached',
+  EmptySlotReason.laneFull => 'Lane full',
+};

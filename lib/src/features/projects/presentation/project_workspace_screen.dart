@@ -1,65 +1,113 @@
+import '../../documents/application/templates_providers.dart';
+import '../../documents/data/documents_directory.dart';
+import '../../../data/database/database_providers.dart';
+import '../../documents/presentation/document_menu.dart';
+import '../../documents/presentation/templates_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/presentation/demand_tab.dart';
 import '../../flow/presentation/flow_tab.dart';
+import '../../flow/presentation/period_control.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../resources/data/resources_repository.dart';
-import '../../schedules/presentation/takt_tab.dart';
-import '../../schedules/presentation/workcenters_tab.dart';
+import '../../schedules/presentation/capacity_tab.dart';
+import 'project_settings_screen.dart';
 import '../../simulation/application/sim_assembly.dart';
 import '../../simulation/application/simulation_providers.dart';
+import '../../simulation/presentation/compare_view.dart';
 import '../../simulation/presentation/simulation_tab.dart';
 import '../../studies/application/studies_providers.dart';
+import '../../simulation/presentation/simulation_workspace.dart';
+import '../../studies/presentation/study_settings_tab.dart';
+import 'workspace_tabs.dart';
 import '../../summary/presentation/summary_tab.dart';
 import '../application/projects_providers.dart';
+import '../../../app/studies_pane.dart';
 
-/// The project workspace: a studies sidebar, the five tabs of whichever study
-/// is open, and the project's Simulation tab (DESIGN.md §12.1).
+/// The project workspace: a studies sidebar and the tabs of whichever study is
+/// open — or, at `/simulation`, the one place the project's run is read
+/// (DESIGN.md §12.1).
 ///
-/// Simulation sits in the same strip but is a project-level tab rather than a
-/// study one, because a run spans studies (§7.7).
+/// **Simulation is not a tab.** A run spans studies (§7.7), so it was never one
+/// study's; it was a project-level tab wedged into a study's strip, and a
+/// workspace destination beside it, and a Run button on each. Opening the
+/// destination showed two Simulate buttons a few hundred pixels apart. There is
+/// one trigger now, on this app bar, and one place the result is read.
 class ProjectWorkspaceScreen extends ConsumerStatefulWidget {
   const ProjectWorkspaceScreen({
     super.key,
     required this.projectId,
     this.studyId,
+    this.studyTab = StudyTab.flow,
+    this.showSimulation = false,
+    this.showCompare = false,
+    this.simulationTab = SimulationTab.overview,
+    this.showSettings = false,
+    this.simulationStudyId,
   });
 
   final String projectId;
   final String? studyId;
+
+  /// Which study tab the location names (#7). Every one of the five is a URL.
+  final StudyTab studyTab;
+
+  /// Which of the results' five tabs the location names (#7).
+  final SimulationTab simulationTab;
+
+  /// Whether the body is the project's run rather than a study's tabs (§12.1).
+  /// A destination in the sidebar, so it is part of the location.
+  final bool showSimulation;
+
+  /// Whether the body is Compare, the third mode (#26).
+  final bool showCompare;
+
+  /// Whether the body is the project's calendar exceptions (§4.3, §12.1).
+  ///
+  /// A destination rather than a tab, for the same reason the run is one: an
+  /// exception is stored per project and applies to every study in it, so it
+  /// was never one study's to edit.
+  final bool showSettings;
+
+  /// The study to pre-select in the run's filter, from `?study=`.
+  ///
+  /// This is how a study reaches its own numbers now that its Simulation tab is
+  /// gone (§12.1). Null means the whole run, which is what the sidebar's own
+  /// entry links to.
+  final String? simulationStudyId;
 
   @override
   ConsumerState<ProjectWorkspaceScreen> createState() =>
       _ProjectWorkspaceScreenState();
 }
 
-class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
-    with SingleTickerProviderStateMixin {
+/// **No `TabController` here any more** (#7). Both strips read the location, so
+/// the tab a reader is on is a fact about the URL rather than about this
+/// object — which is what makes it linkable, restorable on reopen, and
+/// reachable by back and forward.
+class _ProjectWorkspaceScreenState
+    extends ConsumerState<ProjectWorkspaceScreen> {
   /// Collapsed to a rail, so the canvas gets the width on a laptop screen.
   ///
   /// Held here rather than in a provider: it is a property of this window, not
   /// of the project, and it should not follow the user to another machine.
-  bool _sidebarCollapsed = false;
 
-  /// The Simulation tab, after the five study ones.
-  static const _simulation = 5;
-
-  /// Owned here rather than by [_StudyTabs], because Simulate now lives in the
-  /// app bar (§12.1) and the snackbar it raises has to be able to bring the
-  /// reader to the results. A controller one level below the button that needs
-  /// it cannot be reached without passing a callback down and an index back up.
-  late final TabController _tabs = TabController(length: 6, vsync: this);
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
+  /// What the last run said, until the reader dismisses it (§12.1).
+  ///
+  /// **A banner rather than a snackbar.** A snackbar anchors to the bottom of
+  /// the window, and since the Gantt took the full body height (§8.6) one that
+  /// never goes away parks permanently over the last workcenter's row and the
+  /// scrollbar gutter §2.11 added to reach it. A banner pushes content down
+  /// instead of covering it — and a run's outcome is a statement about the
+  /// project that should stay until it is read, which is not what a snackbar
+  /// is for.
+  ({String message, bool failed})? _outcome;
 
   @override
   Widget build(BuildContext context) {
@@ -85,9 +133,27 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
         }
 
         final studyList = studies.value ?? const <Study>[];
-        final selected =
-            studyList.where((s) => s.id == studyId).firstOrNull ??
-            studyList.firstOrNull;
+        // **Simulation mode carries its study in `?study=`, not in the path**
+        // (#18). Reading only `widget.studyId` here meant `selected` fell back
+        // to the *first* study the moment the reader crossed into Simulation —
+        // so the mode switch's way back landed them on a study they had not
+        // been on. Arriving from study B and switching straight back returned
+        // them to study A, silently, and nothing said so.
+        final selected = selectedStudy(
+          studyList,
+          pathStudyId: studyId,
+          queryStudyId: widget.simulationStudyId,
+        );
+
+        // **The pane is Study-mode chrome** (#18). In Simulation mode it was a
+        // study picker that navigated *out* of Simulation mode, duplicating a
+        // job the results filter bar already does — so the collapse the reader
+        // chose was not being discarded so much as being asked of a pane that
+        // had no business being there. Project Settings keeps it: that
+        // destination has no mode switch, so the pane is its only way back to a
+        // study.
+        final showsPane = !widget.showSimulation && !widget.showCompare;
+        final collapsed = ref.watch(studiesPaneCollapsedProvider);
 
         return Scaffold(
           appBar: AppBar(
@@ -105,60 +171,153 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
                 Flexible(
                   child: Text(project.name, overflow: TextOverflow.ellipsis),
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: _sidebarCollapsed
-                      ? l10n.studiesExpand
-                      : l10n.studiesCollapse,
-                  icon: Icon(
-                    _sidebarCollapsed
-                        ? Icons.menu_open
-                        : Icons.chevron_left,
+                // Gone with the pane in Simulation mode: a control for
+                // something not on screen is worse than no control.
+                if (showsPane) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: collapsed
+                        ? l10n.studiesExpand
+                        : l10n.studiesCollapse,
+                    icon: Icon(
+                      collapsed ? Icons.menu_open : Icons.chevron_left,
+                    ),
+                    onPressed: ref
+                        .read(studiesPaneCollapsedProvider.notifier)
+                        .toggle,
                   ),
-                  onPressed: () => setState(
-                    () => _sidebarCollapsed = !_sidebarCollapsed,
-                  ),
-                ),
+                ],
               ],
             ),
             actions: [
+              // The project's own settings, on the project's own chrome. A
+              // gear rather than a labelled button: it is the one action here
+              // that is not about running anything, and §12.1 puts what spans
+              // studies on this bar rather than inside one of six tabs.
+              //
+              // **Simulate first, then the gear** (#7). The order was the other
+              // way round, which put the one control nobody presses in a
+              // session between the reader and the one they press every time.
+              // Reading order is priority order on a bar this short.
+              //
               // A run spans studies and belongs to the project (§7.7), so its
               // trigger belongs on the project's chrome rather than inside one
               // of six tabs.
               _SimulateButton(
                 project: project,
-                onViewResults: () => _tabs.index = _simulation,
+                onFinished: (outcome) => setState(() => _outcome = outcome),
+              ),
+              const SizedBox(width: 4),
+              // The document itself — save a copy, or close it. **Between
+              // Simulate and the gear** (2026-09-13): left of Simulate it
+              // stood first in the bar's reading order, ahead of the one
+              // control pressed every session, for acts done once.
+              const DocumentMenu(),
+              IconButton(
+                tooltip: l10n.projectSettings,
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => context.go('/projects/${project.id}/settings'),
               ),
               const SizedBox(width: 8),
             ],
           ),
-          body: Row(
+          body: Column(
             children: [
-              // Animated rather than snapped: a pane that vanishes leaves the
-              // reader hunting for what moved.
-              AnimatedSize(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                child: SizedBox(
-                  width: _sidebarCollapsed ? 0 : 280,
-                  child: _sidebarCollapsed
-                      ? const SizedBox.shrink()
-                      : _StudiesSidebar(
-                          project: project,
-                          studies: studyList,
-                          selectedId: selected?.id,
-                        ),
-                ),
+              // **The readiness strip** (#7): a red band under the app bar
+              // whenever any study cannot run, listing each one and its first
+              // problem. Full width and above everything, because it is about
+              // the project rather than about whatever is being read.
+              //
+              // *Rejected: putting it in Simulation mode, above the run.* It
+              // reads well — readiness describes a run that has not happened —
+              // but it puts the reason a button is disabled one click from the
+              // button, which is the exact fault §12.1 recorded when the panel
+              // sat on a tab the reader was not looking at.
+              ReadinessStrip(
+                input: ref.watch(simRunInputProvider(project.id)).value,
               ),
-              const VerticalDivider(width: 1),
+              // Above the tabs and across the full width, so it pushes the
+              // workspace down rather than covering any part of it.
+              if (_outcome case final outcome?)
+                RunBanner(
+                  outcome: outcome,
+                  // A route rather than a tab index (§12.1). There is one place
+                  // a run is read now, and it is not one of these tabs — so
+                  // the action goes there, filtered to the study being read if
+                  // there is one, which is the same slice the deleted tab used
+                  // to show.
+                  onViewResults: () {
+                    setState(() => _outcome = null);
+                    context.go(
+                      '/projects/${project.id}/simulation'
+                      '${selected == null ? '' : '?study=${selected.id}'}',
+                    );
+                  },
+                  onDismiss: () => setState(() => _outcome = null),
+                ),
               Expanded(
-                child: selected == null
-                    ? _NoStudyYet(project: project)
-                    : _StudyTabs(
-                        project: project,
-                        study: selected,
-                        tabs: _tabs,
+                child: Row(
+                  children: [
+                    // Animated rather than snapped: a pane that vanishes leaves the
+                    // reader hunting for what moved.
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOut,
+                      child: SizedBox(
+                        width: showsPane && !collapsed ? 280 : 0,
+                        child: showsPane && !collapsed
+                            ? _StudiesSidebar(
+                                project: project,
+                                studies: studyList,
+                                selectedId: selected?.id,
+                              )
+                            : const SizedBox.shrink(),
                       ),
+                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(
+                      child: widget.showSettings
+                          ? ProjectSettingsScreen(project: project)
+                          // **Two modes of one project, not two places** (#7). The
+                          // switch sits above whichever strip is showing, so the
+                          // study strip and the results strip can never both claim
+                          // to be "the tabs".
+                          : Column(
+                              children: [
+                                _ModeSwitch(
+                                  project: project,
+                                  study: selected,
+                                  mode: widget.showCompare
+                                      ? _Mode.compare
+                                      : widget.showSimulation
+                                      ? _Mode.simulation
+                                      : _Mode.study,
+                                ),
+                                Expanded(
+                                  child: widget.showCompare
+                                      ? CompareView(project: project)
+                                      : widget.showSimulation
+                                      ? SimulationWorkspace(
+                                          project: project,
+                                          tab: widget.simulationTab,
+                                          // From `?study=`, so a study's own slice is
+                                          // one click and one link away (§12.1).
+                                          initialStudyId:
+                                              widget.simulationStudyId,
+                                        )
+                                      : selected == null
+                                      ? _NoStudyYet(project: project)
+                                      : _StudyTabs(
+                                          project: project,
+                                          study: selected,
+                                          tab: widget.studyTab,
+                                        ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -168,18 +327,80 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
   }
 }
 
+/// What the last run said, until it is dismissed (DESIGN.md §12.1).
+///
+/// Carries the headline figure, one way to the rest of it, and a close button.
+/// The action dismisses as well as navigating: having arrived at the results,
+/// a bar still offering to take you there is asking a question already
+/// answered.
+///
+/// Visible for testing: the workspace itself needs a project, a study list and
+/// a database to mount, and none of that is what the two rules here are about.
+@visibleForTesting
+class RunBanner extends StatelessWidget {
+  const RunBanner({
+    super.key,
+    required this.outcome,
+    required this.onViewResults,
+    required this.onDismiss,
+  });
+
+  final ({String message, bool failed}) outcome;
+  final VoidCallback onViewResults;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return MaterialBanner(
+      backgroundColor: outcome.failed
+          ? theme.colorScheme.errorContainer
+          : theme.colorScheme.surfaceContainerHighest,
+      leading: Icon(
+        outcome.failed ? Icons.error_outline : Icons.check_circle_outline,
+        color: outcome.failed
+            ? theme.colorScheme.onErrorContainer
+            : theme.colorScheme.primary,
+      ),
+      content: Text(
+        outcome.message,
+        style: TextStyle(
+          color: outcome.failed
+              ? theme.colorScheme.onErrorContainer
+              : theme.colorScheme.onSurface,
+        ),
+      ),
+      actions: [
+        // Nowhere to go when there is no run to look at.
+        if (!outcome.failed)
+          TextButton(
+            onPressed: onViewResults,
+            child: Text(l10n.simViewResults),
+          ),
+        TextButton(onPressed: onDismiss, child: Text(l10n.actionClose)),
+      ],
+    );
+  }
+}
+
 /// Simulate, on the project's own chrome (DESIGN.md §12.1).
 ///
 /// **Pressing it never moves the reader.** A run takes a second or two on a
 /// background isolate (§7.1), and being thrown out of a half-typed sequence
 /// cell to watch it is worse than not seeing the result immediately. The
-/// spinner stays on the button and a snackbar reports the headline with one
-/// way to the rest.
+/// spinner stays on the button and a banner reports the headline with one way
+/// to the rest.
 class _SimulateButton extends ConsumerWidget {
-  const _SimulateButton({required this.project, required this.onViewResults});
+  const _SimulateButton({required this.project, required this.onFinished});
 
   final Project project;
-  final VoidCallback onViewResults;
+
+  /// What to say once the run is over. Raised here and rendered by the
+  /// workspace, because the banner belongs above the tabs rather than beside
+  /// the button that started it.
+  final ValueChanged<({String message, bool failed})> onFinished;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -188,14 +409,17 @@ class _SimulateButton extends ConsumerWidget {
     final busy = ref.watch(simulationRunnerProvider(project.id)).isLoading;
     final ready = input?.canRun ?? false;
 
+    // **The tooltip is the only thing left beside the button** (#7). The tune
+    // icon that sat here — `_RunSettingsButton`, a badge over a panel holding
+    // §11's readiness list — is gone: the readiness strip under the app bar is
+    // that list, always open while it has something to say, rather than two
+    // clicks from the disabled button it explains. The tooltip still names the
+    // first thing in the way, because a tooltip is a sentence and the strip is
+    // the list.
     return Tooltip(
-      // The readiness panel lives on a tab the reader may not be looking at,
-      // so the reason travels with the button (§11).
       message: busy || ready ? '' : _blockedBecause(l10n, input),
       child: FilledButton.icon(
-        onPressed: busy || !ready
-            ? null
-            : () => _run(context, ref, l10n),
+        onPressed: busy || !ready ? null : () => _run(context, ref, l10n),
         icon: busy
             ? const SizedBox(
                 width: 16,
@@ -213,25 +437,18 @@ class _SimulateButton extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations l10n,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
     await ref.read(simulationRunnerProvider(project.id).notifier).run();
 
     final run = ref.read(simulationRunnerProvider(project.id));
     final metrics = run.value?.metrics;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          run.hasError || metrics == null
-              ? l10n.simulationRunFailed
-              : '${l10n.simOnTimeDelivery}: '
-                    '${(metrics.onTimeDelivery * 100).round()}%',
-        ),
-        action: SnackBarAction(
-          label: l10n.simViewResults,
-          onPressed: onViewResults,
-        ),
-      ),
-    );
+    final failed = run.hasError || metrics == null;
+    onFinished((
+      message: failed
+          ? l10n.simulationRunFailed
+          : '${l10n.simOnTimeDelivery}: '
+                '${(metrics.onTimeDelivery * 100).round()}%',
+      failed: failed,
+    ));
   }
 
   /// The first thing standing in the way, named with the study it belongs to.
@@ -247,6 +464,33 @@ class _SimulateButton extends ConsumerWidget {
     }
     return '';
   }
+}
+
+/// Which study the workspace is about, whichever mode is showing (#18).
+///
+/// **Two ids reach this screen and only one of them is a path parameter.**
+/// Study mode carries the study in the path; Simulation mode carries it in
+/// `?study=` (§12.1) and leaves the path one null. Reading only the path meant
+/// `selected` silently became *the first study in the list* the moment the
+/// reader crossed into Simulation — so the mode switch, which navigates back to
+/// `selected`, returned them to a study they had never been on. Arriving from
+/// study B and switching straight back landed on study A, and nothing said so.
+///
+/// Falls back to the first study, which is what a project opened at its bare
+/// location shows and what an unknown id has to resolve to — the same
+/// forgiving rule §12.1 applies to a stale tab slug.
+///
+/// Visible for testing: the round trip this fixes is a property of three
+/// arguments, and asserting it does not need a widget tree (#18).
+@visibleForTesting
+Study? selectedStudy(
+  List<Study> studies, {
+  required String? pathStudyId,
+  required String? queryStudyId,
+}) {
+  final wanted = pathStudyId ?? queryStudyId;
+  return studies.where((s) => s.id == wanted).firstOrNull ??
+      studies.firstOrNull;
 }
 
 class _StudiesSidebar extends ConsumerWidget {
@@ -290,7 +534,7 @@ class _StudiesSidebar extends ConsumerWidget {
         ),
         const Divider(height: 1),
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -302,6 +546,15 @@ class _StudiesSidebar extends ConsumerWidget {
             ),
           ),
         ),
+        // **The Simulation destination is gone from here** (v2.0). It sat under
+        // New study as the unfiltered way into the run, and put a second way to
+        // the results a few hundred pixels from the strip's own one. The run is
+        // reached from where it is read: Simulation results on the tab strip,
+        // and the banner a finished run raises.
+        // **The exceptions button is gone from here** (§10.1). It sat at the
+        // bottom of this sidebar because there was nowhere better — there is
+        // now, and the calendar is a section of Project Settings rather than a
+        // destination competing with the run for the same strip of chrome.
       ],
     );
   }
@@ -337,46 +590,27 @@ class _StudyTile extends ConsumerWidget {
         // The flag is the study's most consequential property — only one per
         // line may carry it — so it earns the leading slot rather than a
         // checkbox buried in a menu.
+        //
+        // **Shown here, set on Study Settings.** That was always the argument
+        // for the leading slot: it is about seeing at a glance which studies a
+        // run will cover, across the whole list, which is a different question
+        // from setting one of them (§12.1).
         color: study.includeInSimulation
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.outline,
       ),
       title: Text(study.name),
       subtitle: Text(line?.qualifiedName ?? '—'),
+      // **The bare study location**, which the router redirects to Flow (#7).
+      // So picking a study in the sidebar lands on its map rather than on
+      // whichever tab the previous study was showing — the behaviour
+      // `_StudyTabs.didUpdateWidget` used to have to arrange by hand, now a
+      // property of where the link points.
       onTap: () =>
           context.go('/projects/${study.projectId}/studies/${study.id}'),
       trailing: PopupMenuButton<String>(
         onSelected: (action) async {
           switch (action) {
-            case 'include':
-              await repository.setIncludedInSimulation(
-                study.id,
-                !study.includeInSimulation,
-              );
-            case 'rename':
-              final name = await promptForName(
-                context,
-                title: l10n.actionRename,
-                label: l10n.fieldName,
-                initialValue: study.name,
-                // Study names are unique per project. Without this the write
-                // hits the constraint and throws inside an async callback,
-                // where the user sees the dialog close and nothing happen.
-                validate: (value) => taken.contains(value.toLowerCase())
-                    ? l10n.validationNameTaken
-                    : null,
-              );
-              if (name != null) {
-                await repository.updateStudy(
-                  study.id,
-                  name: name,
-                  supplierName: study.supplierName,
-                  customerName: study.customerName,
-                  wipCap: study.wipCap,
-                  priority: study.priority,
-                  notes: study.notes,
-                );
-              }
             case 'duplicate':
               final name = await promptForName(
                 context,
@@ -399,6 +633,34 @@ class _StudyTile extends ConsumerWidget {
               if (context.mounted) {
                 context.go('/projects/${study.projectId}/studies/$copyId');
               }
+            case 'template':
+              if (!context.mounted) return;
+              // §10.2's opt-in, and the only question saving a template asks.
+              // Demand is a plant's orders rather than its shape, so a template
+              // is flow-only unless someone says otherwise.
+              final includeDemand = await askIncludeDemand(context);
+              if (includeDemand == null || !context.mounted) return;
+              final messenger = ScaffoldMessenger.of(context);
+              final container = ProviderScope.containerOf(
+                context,
+                listen: false,
+              );
+              try {
+                await saveStudyAsTemplate(
+                  ref.read(appDatabaseProvider),
+                  await templatesDirectory(),
+                  studyId: study.id,
+                  includeDemand: includeDemand,
+                );
+                refreshTemplateShelf(container);
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.templatesSaved)),
+                );
+              } catch (_) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.templatesSaveFailed)),
+                );
+              }
             case 'delete':
               if (!context.mounted) return;
               final confirmed = await confirmAction(
@@ -411,17 +673,21 @@ class _StudyTile extends ConsumerWidget {
               if (confirmed) await repository.deleteStudy(study.id);
           }
         },
+        // **Only what acts on the study as an object.** Include and Rename
+        // are fields, and Study Settings owns the study's fields (§12.1) —
+        // round four removed the `Run settings` dialog on the rule that two
+        // ways to set one thing is how the two come to disagree, and then left
+        // two of them here. Duplicate and Delete stay: neither sets a value,
+        // and neither belongs on a page that would vanish underneath the
+        // reader as it ran.
         itemBuilder: (context) => [
-          PopupMenuItem(
-            value: 'include',
-            child: Text(
-              study.includeInSimulation
-                  ? l10n.studyExcludeFromSimulation
-                  : l10n.studyIncludeInSimulation,
-            ),
-          ),
-          PopupMenuItem(value: 'rename', child: Text(l10n.actionRename)),
           PopupMenuItem(value: 'duplicate', child: Text(l10n.actionDuplicate)),
+          // Saving a template acts on the study as an object, like the other
+          // two — it makes a file out of it rather than setting a value on it.
+          PopupMenuItem(
+            value: 'template',
+            child: Text(l10n.templatesSaveStudy),
+          ),
           PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
         ],
       ),
@@ -429,75 +695,295 @@ class _StudyTile extends ConsumerWidget {
   }
 }
 
-/// The five study tabs, plus the project-level Simulation tab (DESIGN.md
-/// §12.1) — a run spans studies, so it cannot belong to one of them (§7.7).
+/// The study's tabs (DESIGN.md §12.1).
+///
+/// **Simulation is not among them.** A run spans studies (§7.7) and is read in
+/// one place; a study reaches its own slice through `?study=` on that place's
+/// route, which is the same `RunFilter` the deleted tab applied and therefore
+/// cannot report a different number for the same study.
+/// **Three modes of one project** (#7, #26): the study you are editing, the run
+/// you are reading, and two runs side by side.
+///
+/// The run is a *mode* of the workspace rather than a place inside it. That is
+/// what makes it impossible for the study strip and the results strip to both
+/// claim to be "the tabs" — the fault a flat nine-tab strip had when it was
+/// driven and rejected as shape C, which rebuilt the Simulation tab §12.1
+/// deleted and lost the boundary between what a reader is typing and what the
+/// engine said.
+enum _Mode { study, simulation, compare }
+
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({
+    required this.project,
+    required this.study,
+    required this.mode,
+  });
+
+  final Project project;
+
+  /// The selected study, so Study mode returns to *that* study rather than the
+  /// first one. Null when the project has none yet.
+  final Study? study;
+
+  final _Mode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SegmentedButton<_Mode>(
+          segments: [
+            ButtonSegment(
+              value: _Mode.study,
+              label: Text(l10n.workspaceModeStudy),
+              icon: const Icon(Icons.account_tree_outlined),
+            ),
+            ButtonSegment(
+              value: _Mode.simulation,
+              // `simWorkspace` — stored in all three ARB files and unused in
+              // `lib/` since the pre-map renames. #7 spoke for it, and this is
+              // the segment it names.
+              label: Text(l10n.simWorkspace),
+              icon: const Icon(Icons.insights_outlined),
+            ),
+            // **A third mode, deliberately** (#26). #7 settled on two after
+            // four driven rounds; comparing two runs is neither editing a study
+            // nor reading one run, and a tab inside either would claim it was.
+            ButtonSegment(
+              value: _Mode.compare,
+              label: Text(l10n.workspaceModeCompare),
+              icon: const Icon(Icons.compare_arrows),
+            ),
+          ],
+          selected: {mode},
+          showSelectedIcon: false,
+          onSelectionChanged: (selection) {
+            // **Each mode goes to its own first tab.** Neither remembers which
+            // tab it was on: the location is the memory, and coming back to a
+            // mode by way of the switch is a fresh arrival at it.
+            final target = study;
+            if (selection.first == _Mode.compare) {
+              context.go('/projects/${project.id}/compare');
+            } else if (selection.first == _Mode.simulation) {
+              context.go(
+                '/projects/${project.id}/simulation'
+                '/${SimulationTab.overview.slug}'
+                '${target == null ? '' : '?study=${target.id}'}',
+              );
+            } else if (target != null) {
+              context.go(
+                '/projects/${project.id}/studies/${target.id}'
+                '/${StudyTab.flow.slug}',
+              );
+            } else {
+              context.go('/projects/${project.id}');
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// §11's readiness as a strip under the app bar, whenever any study cannot run
+/// (#7).
+///
+/// **It replaces `_RunSettingsButton`**, the tune icon with a badge whose panel
+/// held this same list plus a count of the studies in the run. That control was
+/// two clicks from a disabled button and named nothing until it was opened; the
+/// strip is always the list, and always visible while it has something to say.
+/// The button's tooltip still names the first thing in the way — a tooltip is a
+/// sentence, this is the list.
+///
+/// **Visible for testing**, for [RunBanner]'s reason: mounting the workspace
+/// needs a project, a study list and a database, and none of that is what the
+/// rule here is about. The rule is that a study which cannot run says so *by
+/// name*.
+@visibleForTesting
+class ReadinessStrip extends StatelessWidget {
+  const ReadinessStrip({super.key, required this.input});
+
+  /// The run as it would be assembled now, or null while it is still loading.
+  final SimRunInput? input;
+
+  @override
+  Widget build(BuildContext context) {
+    final input = this.input;
+    // **Silent while everything is ready, and silent while nothing is
+    // flagged.** A project with no study in the run is not a project with a
+    // fault in it, and a strip that appears for both cannot be read as meaning
+    // either.
+    if (input == null || input.isEmpty || input.canRun) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final blocked = input.readiness.where((s) => !s.isReady).toList();
+
+    return Material(
+      color: theme.colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.warning_amber,
+              size: 18,
+              color: theme.colorScheme.onErrorContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.simulationStudiesNotReady(blocked.length),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  // **The first problem per study, not all of them.** A strip
+                  // is a summary; the study's own tab is where a reader fixes
+                  // the thing, and a band that grows to twelve lines stops
+                  // being chrome and starts being the screen.
+                  for (final study in blocked)
+                    Text(
+                      '${study.name}: '
+                      '${simProblemLabel(l10n, study.problems.first)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The study's five tabs, each of them a location (#7).
+///
+/// **Route-driven.** It held a `TabController` and a listener that rebuilt the
+/// strip when the index moved; the index is now
+/// [ProjectWorkspaceScreen.studyTab], read from the URL, so tapping a tab
+/// navigates and the rebuild *is* the navigation.
 class _StudyTabs extends StatefulWidget {
   const _StudyTabs({
     required this.project,
     required this.study,
-    required this.tabs,
+    required this.tab,
   });
 
   final Project project;
   final Study study;
-
-  /// Owned by the workspace, not here — the app bar's Simulate button raises a
-  /// snackbar that has to be able to bring the reader to the results.
-  final TabController tabs;
+  final StudyTab tab;
 
   @override
   State<_StudyTabs> createState() => _StudyTabsState();
 }
 
-class _StudyTabsState extends State<_StudyTabs> {
-  /// The Simulation tab, which the five before it are study tabs.
-  static const _simulation = 5;
+class _StudyTabsState extends State<_StudyTabs>
+    with SingleTickerProviderStateMixin {
+  /// **Kept only to paint the indicator.** `TabBar` needs a controller; what it
+  /// must not do is decide which tab is showing, which is the location's job.
+  /// So this is driven *from* the route on every build and never the other way
+  /// — `onTap` navigates, and the navigation is what moves it.
+  late final TabController _tabs = TabController(
+    length: StudyTab.values.length,
+    initialIndex: widget.tab.index,
+    vsync: this,
+  );
 
   @override
-  void didUpdateWidget(_StudyTabs old) {
-    super.didUpdateWidget(old);
-    if (old.study.id == widget.study.id) return;
-    // Switching studies resets to Flow rather than landing on whichever tab
-    // the previous study was showing — unless the reader is on Simulation,
-    // which is not about the study they just switched away from and would be
-    // an odd thing to be thrown out of.
-    if (widget.tabs.index != _simulation) widget.tabs.index = 0;
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final study = widget.study;
+    if (_tabs.index != widget.tab.index) _tabs.index = widget.tab.index;
 
     return Column(
       children: [
-        TabBar(
-          controller: widget.tabs,
-          tabs: [
-            Tab(text: l10n.studyTabFlow),
-            Tab(text: l10n.studyTabTakt),
-            Tab(text: l10n.workcenters),
-            Tab(text: l10n.studyTabDemand),
-            Tab(text: l10n.studyTabSummary),
-            Tab(text: l10n.projectTabSimulation),
+        Row(
+          children: [
+            Expanded(child: _tabBar(l10n)),
+            // **One period control for the workspace**, not one per tab
+            // (§12.1) — and **hidden rather than greyed** on the three tabs it
+            // does not govern (#7). §12.1 dimmed it so the strip would not
+            // jump; the strip no longer carries the results link, so there is
+            // nothing left to jump, and a permanently dead control is worse
+            // than an absent one.
+            if (widget.tab.hasPeriod)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: PeriodControl(studyId: study.id, enabled: true),
+              ),
           ],
         ),
+        // **All five mounted, like the results strip** (#18). This was a
+        // `switch`, so only the current tab existed and its view state died
+        // when the reader looked at another one: the VSM map's zoom and pan
+        // (`_fitted`) re-fitted itself, and Demand's `Parts | Sequence | MM3`
+        // went back to Parts. The results tabs have never lost their grouping,
+        // unit or sort because they are an `IndexedStack` — one strip
+        // remembering and the other forgetting, with nothing on screen saying
+        // why, is the quiet inconsistency this map keeps finding.
+        //
+        // **The cost is real and accepted**: the VSM canvas, the demand grid
+        // and the summary now build on every study open rather than on first
+        // sight. That is the same bargain `simulation_tab.dart` already made.
         Expanded(
-          child: TabBarView(
-            controller: widget.tabs,
+          child: IndexedStack(
+            index: widget.tab.index,
+            sizing: StackFit.expand,
             children: [
               FlowTab(study: study),
-              TaktTab(project: widget.project, study: study),
-              WorkcentersTab(project: widget.project, study: study),
+              StudySettingsTab(project: widget.project, study: study),
+              CapacityTab(project: widget.project, study: study),
               DemandTab(study: study),
               SummaryTab(study: study),
-              SimulationTab(project: widget.project),
             ],
           ),
         ),
       ],
     );
   }
+
+  /// Scrollable, so the strip can lose width to the period control without the
+  /// last tab falling off the end.
+  ///
+  /// **The `View results` link has gone from here.** It was the one-click path
+  /// from a study to its own slice; the mode switch above is that path now, and
+  /// it carries the same `?study=`.
+  Widget _tabBar(AppLocalizations l10n) => TabBar(
+    controller: _tabs,
+    isScrollable: true,
+    tabAlignment: TabAlignment.start,
+    onTap: (index) => context.go(
+      '/projects/${widget.project.id}/studies/${widget.study.id}'
+      '/${StudyTab.values[index].slug}',
+    ),
+    tabs: [
+      Tab(text: l10n.studyTabFlow),
+      Tab(text: l10n.studyTabSettings),
+      Tab(text: l10n.studyTabCapacity),
+      Tab(text: l10n.studyTabDemand),
+      Tab(text: l10n.studyTabSummary),
+    ],
+  );
 }
 
 class _NoStudyYet extends ConsumerWidget {
@@ -631,8 +1117,7 @@ class _StudyDialogState extends State<_StudyDialog> {
               initialValue: _line.line.id,
               decoration: InputDecoration(
                 labelText: l10n.productionLine,
-                helperText: l10n.studyLineHelp,
-                helperMaxLines: 3,
+                suffixIcon: helpIcon(context, l10n.studyLineHelp),
               ),
               items: [
                 for (final line in widget.lines)

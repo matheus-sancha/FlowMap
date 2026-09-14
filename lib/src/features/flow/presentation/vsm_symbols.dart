@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../common/vector_pen.dart';
 import '../application/flow_layout.dart';
 import '../application/flow_view.dart';
 
@@ -11,68 +12,83 @@ import '../application/flow_view.dart';
 /// recoloured for a dark theme or re-rendered into a vector PDF. These are a
 /// few dozen lines of geometry each and scale to any size.
 ///
-/// **The PDF does not share them**, though a comment here long claimed it did.
-/// `flow_pdf.dart` builds its map out of the `pdf` package's own widgets —
-/// bordered boxes and glyphs — so that text stays selectable and the document
-/// stays vector without this file's paths being replayed into it. Where a
-/// distinction lives in a shape here, that file has to carry it another way,
-/// and §5.2's arrow kinds are the first case: the canvas hatches a shaft, the
-/// printed map writes the word.
+/// **The PDF shares them now** (#27). For a long while it did not, though a
+/// comment here claimed it did: `flow_pdf.dart` built its map out of bordered
+/// boxes and glyphs, so its arrow was the character `>` and its inventory
+/// triangles did not draw at all under the document's unembedded Helvetica.
+/// Every shape here is traced through a `VectorPen`, and the canvas and the
+/// PDF each supply one — so the two drawings of one map share their geometry.
 abstract final class VsmSymbols {
   /// The factory: a rectangle under a three-tooth sawtooth roof. Supplier and
   /// customer are the same symbol; position on the map says which.
   static Path factory(Rect rect) {
+    final pen = CanvasPen();
+    traceFactory(pen, rect);
+    return pen.path;
+  }
+
+  static void traceFactory(VectorPen pen, Rect rect) {
     final roofHeight = rect.height * 0.42;
-    final body = Rect.fromLTRB(
-      rect.left,
-      rect.top + roofHeight,
-      rect.right,
-      rect.bottom,
+    pen.rect(
+      Rect.fromLTRB(rect.left, rect.top + roofHeight, rect.right, rect.bottom),
     );
-    final path = Path()..addRect(body);
 
     const teeth = 3;
     final toothWidth = rect.width / teeth;
     for (var i = 0; i < teeth; i++) {
       final left = rect.left + i * toothWidth;
-      path
-        ..moveTo(left, rect.top + roofHeight)
-        ..lineTo(left, rect.top + roofHeight * 0.35)
-        ..lineTo(left + toothWidth, rect.top)
-        ..lineTo(left + toothWidth, rect.top + roofHeight);
+      pen
+        ..moveTo(Offset(left, rect.top + roofHeight))
+        ..lineTo(Offset(left, rect.top + roofHeight * 0.35))
+        ..lineTo(Offset(left + toothWidth, rect.top))
+        ..lineTo(Offset(left + toothWidth, rect.top + roofHeight));
     }
-    return path;
   }
 
   /// The inventory triangle, point up, with room beneath for its count.
   static Path inventoryTriangle(Rect rect) {
+    final pen = CanvasPen();
+    traceInventoryTriangle(pen, rect);
+    return pen.path;
+  }
+
+  static void traceInventoryTriangle(VectorPen pen, Rect rect) {
     final side = rect.width.clamp(0.0, rect.height);
     final centre = rect.center;
     final half = side / 2;
-    return Path()
-      ..moveTo(centre.dx, centre.dy - half)
-      ..lineTo(centre.dx + half, centre.dy + half)
-      ..lineTo(centre.dx - half, centre.dy + half)
+    pen
+      ..moveTo(Offset(centre.dx, centre.dy - half))
+      ..lineTo(Offset(centre.dx + half, centre.dy + half))
+      ..lineTo(Offset(centre.dx - half, centre.dy + half))
       ..close();
   }
 
-  /// A material-flow arrow, drawn as the [kind] it is (DESIGN.md §5.2).
+  /// A material-flow arrow, drawn as the [kind] it is (DESIGN.md §5.2, §7.3).
   ///
-  /// **Push and pull share one shaft; a FIFO lane is its own figure.** This
-  /// file long said all three shared a shaft and were told apart by what went
-  /// inside it, which was a principle invented to describe an implementation
-  /// rather than the notation. A reader of a real value stream map recognises a
-  /// FIFO lane as a channel, not as a decorated arrow, so it is drawn as one:
+  /// **Push and pull share one shaft; a queue with a discipline is its own
+  /// figure.** This file long said all three shared a shaft and were told apart
+  /// by what went inside it, which was a principle invented to describe an
+  /// implementation rather than the notation. A reader of a real value stream
+  /// map recognises a FIFO lane as a channel, not as a decorated arrow, so it is
+  /// drawn as one:
   ///
   /// * **push** — a broad barbed arrow spanning the gap, hatched. The stripes
-  ///   *are* the mark of a push; without a supermarket in the model (§5.5) this
-  ///   is what an uncapped flow honestly is.
+  ///   *are* the mark of a push; a queue nobody has given a discipline is a
+  ///   pile, and this is what one honestly is.
   /// * **pull** — the same shaft, bare. A CONWIP cap (§7.3) makes a release
   ///   wait for a completion, so nothing is being pushed anywhere.
-  /// * **fifoLane** — two rails with `FIFO` between them, a tick inside the
-  ///   entry and a solid triangle at the exit. Material enters one end in the
-  ///   order it arrived and leaves the other in that same order, which is what
+  /// * **the four channels** — two rails with the rule's word between them, a
+  ///   tick inside the entry and a solid triangle at the exit. Material enters
+  ///   one end and leaves the other in an order the word names, which is what
   ///   the channel draws and what an arrow cannot.
+  ///
+  /// **One channel shape for all four rules, labelled.** The FIFO symbol
+  /// already *is* a channel with `FIFO` written in it, so `LIFO`, `EDD` and
+  /// `SPT` in the same channel extend the convention rather than inventing three
+  /// glyphs — and nothing can be misread as a standard symbol meaning something
+  /// else. _Rejected: a colour per rule._ Cheap and legible on screen, and §13's
+  /// PDF on a shop-floor wall is often greyscale, where colour carrying meaning
+  /// alone does not survive.
   ///
   /// Horizontal only, which the spine always is (§5.1). Taking the general case
   /// would mean rotating the hatching for no drawing this app makes.
@@ -84,13 +100,37 @@ abstract final class VsmSymbols {
     required Color color,
     double thickness = 11,
     double headLength = 13,
+  }) => traceConnection(
+    CanvasPen(canvas),
+    from,
+    to,
+    kind: kind,
+    color: color,
+    thickness: thickness,
+    headLength: headLength,
+    label: (text, centre) =>
+        _label(canvas, text, centre, color, centreVertically: true),
+  );
+
+  /// [drawConnection] through any pen. A channel's word is handed to [label]
+  /// with the point it centres on, because text is the one thing each surface
+  /// has to set in its own type.
+  static void traceConnection(
+    VectorPen pen,
+    Offset from,
+    Offset to, {
+    required FlowConnectionKind kind,
+    required Color color,
+    required void Function(String text, Offset centre) label,
+    double thickness = 11,
+    double headLength = 13,
   }) {
     final span = to.dx - from.dx;
     if (span <= 1) return;
 
     // Not a variant of the shaft below, so it leaves before the shaft is built.
-    if (kind == FlowConnectionKind.fifoLane) {
-      _fifoLane(canvas, from, to, color: color);
+    if (kind.channelLabel case final word?) {
+      _queueChannel(pen, from, to, word: word, color: color, label: label);
       return;
     }
 
@@ -101,90 +141,75 @@ abstract final class VsmSymbols {
     final half = thickness / 2;
     final barb = thickness * 0.42;
 
-    final outline = Path()
-      ..moveTo(from.dx, from.dy - half)
-      ..lineTo(shaftRight, from.dy - half)
-      ..lineTo(shaftRight, from.dy - half - barb)
-      ..lineTo(to.dx, from.dy)
-      ..lineTo(shaftRight, from.dy + half + barb)
-      ..lineTo(shaftRight, from.dy + half)
-      ..lineTo(from.dx, from.dy + half)
-      ..close();
-
-    canvas.drawPath(
-      outline,
-      Paint()
-        ..color = color
-        ..strokeWidth = 1.1
-        ..style = PaintingStyle.stroke,
-    );
+    pen
+      ..moveTo(Offset(from.dx, from.dy - half))
+      ..lineTo(Offset(shaftRight, from.dy - half))
+      ..lineTo(Offset(shaftRight, from.dy - half - barb))
+      ..lineTo(Offset(to.dx, from.dy))
+      ..lineTo(Offset(shaftRight, from.dy + half + barb))
+      ..lineTo(Offset(shaftRight, from.dy + half))
+      ..lineTo(Offset(from.dx, from.dy + half))
+      ..close()
+      ..stroke(color, 1.1);
 
     if (shaftRight <= from.dx) return;
 
-    switch (kind) {
-      case FlowConnectionKind.push:
-        // The stripes, clipped to the shaft so none escapes into the head.
-        canvas.save();
-        canvas.clipRect(
-          Rect.fromLTRB(from.dx, from.dy - half, shaftRight, from.dy + half),
+    if (kind == FlowConnectionKind.push) {
+      // The stripes, clipped to the shaft so none escapes into the head. A pull
+      // is the same shaft bare — nothing inside it is the whole point — and a
+      // channel never reaches here.
+      pen.clipRect(
+        Rect.fromLTRB(from.dx, from.dy - half, shaftRight, from.dy + half),
+      );
+      final stripe = color.withValues(alpha: 0.45);
+      for (var x = from.dx; x < shaftRight + thickness; x += 7) {
+        pen.line(
+          Offset(x, from.dy + half),
+          Offset(x - thickness, from.dy - half),
+          stripe,
+          1,
         );
-        final stripe = Paint()
-          ..color = color.withValues(alpha: 0.45)
-          ..strokeWidth = 1;
-        for (var x = from.dx; x < shaftRight + thickness; x += 7) {
-          canvas.drawLine(
-            Offset(x, from.dy + half),
-            Offset(x - thickness, from.dy - half),
-            stripe,
-          );
-        }
-        canvas.restore();
-
-      case FlowConnectionKind.pull:
-        // Nothing inside it. A bare shaft is the whole point.
-        break;
-
-      case FlowConnectionKind.fifoLane:
-        // Handled above — it is not this shape at all.
-        break;
+      }
+      pen.restore();
     }
   }
 
-  /// The FIFO lane: two rails, `FIFO` between them, a tick in and a point out.
+  /// A queue channel: two rails, the rule's word between them, a tick in and a
+  /// point out.
   ///
-  /// The channel is what carries the meaning. Everything a queue in arrival
-  /// order needs to say is in the picture — a fixed width, so it holds a
-  /// sequence rather than a pile; an entry and an exit that are different marks,
-  /// so it has a direction; and the word, because a lane that is not labelled
-  /// is just a line.
+  /// The channel is what carries the meaning. Everything a disciplined queue
+  /// needs to say is in the picture — a fixed width, so it holds a sequence
+  /// rather than a pile; an entry and an exit that are different marks, so it
+  /// has a direction; and the word, because a lane that is not labelled is just
+  /// a line, and four rules share this one shape.
   ///
   /// Sized to fit the 64 px gap `FlowMetrics` leaves between nodes: the tick and
-  /// the point take about 9 px each and `FIFO` at 8 pt takes about 22, so the
-  /// three sit inside the narrowest gap the layout ever produces. A lane too
-  /// short to hold them drops the label rather than overrunning its own rails.
-  static void _fifoLane(
-    Canvas canvas,
+  /// the point take about 9 px each and a four-letter word at 8 pt takes about
+  /// 22, so the three sit inside the narrowest gap the layout ever produces. A
+  /// lane too short to hold them drops the label rather than overrunning its own
+  /// rails.
+  static void _queueChannel(
+    VectorPen pen,
     Offset from,
     Offset to, {
+    required String word,
     required Color color,
+    required void Function(String text, Offset centre) label,
     double height = 18,
   }) {
     final half = height / 2;
-    final stroke = Paint()
-      ..color = color
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    canvas
-      ..drawLine(
+    pen
+      ..line(
         Offset(from.dx, from.dy - half),
         Offset(to.dx, from.dy - half),
-        stroke,
+        color,
+        1.2,
       )
-      ..drawLine(
+      ..line(
         Offset(from.dx, from.dy + half),
         Offset(to.dx, from.dy + half),
-        stroke,
+        color,
+        1.2,
       );
 
     const mark = 9.0;
@@ -192,47 +217,36 @@ abstract final class VsmSymbols {
 
     // Entry: a short bar, thicker than the rails so it reads as a mark on the
     // lane rather than as a rail that stopped early.
-    canvas.drawLine(
+    pen.line(
       Offset(from.dx + 2, from.dy),
       Offset(from.dx + math.min(mark, span / 2), from.dy),
-      Paint()
-        ..color = color
-        ..strokeWidth = 2.4,
+      color,
+      2.4,
     );
 
     // Exit: a filled triangle. Solid rather than stroked, because it is the one
     // part of the figure that says which way the queue runs.
     final apex = to.dx - 2;
     final base = apex - math.min(mark - 2, span / 3);
-    canvas.drawPath(
-      Path()
-        ..moveTo(apex, from.dy)
-        ..lineTo(base, from.dy - 4)
-        ..lineTo(base, from.dy + 4)
-        ..close(),
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.fill,
-    );
+    pen
+      ..moveTo(Offset(apex, from.dy))
+      ..lineTo(Offset(base, from.dy - 4))
+      ..lineTo(Offset(base, from.dy + 4))
+      ..close()
+      ..fill(color);
 
     // Between the two marks, not between the rail ends, so the word stays
     // clear of both. Dropped entirely when the lane is too short to hold it.
     final inner = base - (from.dx + mark);
     if (inner >= 24) {
-      _label(
-        canvas,
-        'FIFO',
-        Offset((from.dx + mark + base) / 2, from.dy),
-        color,
-        centreVertically: true,
-      );
+      label(word, Offset((from.dx + mark + base) / 2, from.dy));
     }
   }
 
   /// The pool badge: a stroked square carrying `#N` (DESIGN.md §3.1).
   ///
   /// A pool is several machines behind one box, and a reader comparing two
-  /// boxes has to know which one is four stations. This was a Material chip —
+  /// boxes has to know which one is four workcenters. This was a Material chip —
   /// a filled, rounded, `secondaryContainer` pill sitting inside a map drawn in
   /// thin strokes, which read as a piece of app furniture rather than part of
   /// the drawing. Same stroke and colour as the factory and the triangle now,
@@ -250,7 +264,14 @@ abstract final class VsmSymbols {
         ..strokeWidth = 1.2
         ..style = PaintingStyle.stroke,
     );
-    _label(canvas, '#$count', rect.center, color, size: 9, centreVertically: true);
+    _label(
+      canvas,
+      '#$count',
+      rect.center,
+      color,
+      size: 9,
+      centreVertically: true,
+    );
   }
 
   /// Small centred text above the shaft. A lane that is not labelled is just a
@@ -273,10 +294,7 @@ abstract final class VsmSymbols {
     painter.paint(
       canvas,
       centre -
-          Offset(
-            painter.width / 2,
-            centreVertically ? painter.height / 2 : 0,
-          ),
+          Offset(painter.width / 2, centreVertically ? painter.height / 2 : 0),
     );
   }
 }

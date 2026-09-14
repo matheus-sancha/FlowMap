@@ -1,5 +1,6 @@
 import 'package:flowmap/src/features/simulation/application/gantt_layout.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
+import 'package:flowmap/src/features/simulation/application/sim_model.dart' show SimWorkcenterPool;
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +11,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// layout takes the chart, so everything the view will draw can be asserted as
 /// arithmetic. The one thing this cannot check is what the drawing looks like —
 /// §2.5's rule stands, and §3 drives it by hand.
+/// [barAt] narrowed to a workcenter's bar.
+///
+/// It answers with a lane's waiting order too now, and every test below this
+/// point is about a run with no lanes in it — so the cast states that, and
+/// fails loudly rather than quietly if a fixture ever grows one.
+GanttPlacedBar? workcenterAt(GanttLayout layout, Offset position) =>
+    barAt(layout, position) as GanttPlacedBar?;
+
 void main() {
   // January, so no test lands on a daylight-saving change wherever it is run.
   // 2026-01-01 is a Thursday, which is what makes the Monday alignment below a
@@ -25,6 +34,7 @@ void main() {
     required DateTime processEnd,
     bool changeover = false,
     String studyId = 'study-1',
+    String? laneNodeId,
   }) => SimOrderStep(
     studyId: studyId,
     orderId: orderId,
@@ -34,6 +44,7 @@ void main() {
     processStart: processStart,
     processEnd: processEnd,
     changeoverIncurred: changeover,
+    laneNodeId: laneNodeId,
   );
 
   SimOrderOutcome orderOf({
@@ -80,8 +91,8 @@ void main() {
     );
   }
 
-  /// Three orders across two stations, each order visiting exactly one — so
-  /// both stations are first in a routing and the tie falls through to the
+  /// Three orders across two workcenters, each order visiting exactly one — so
+  /// both workcenters are first in a routing and the tie falls through to the
   /// Queue table's ranking, where W1's three hours put it above W2.
   GanttChart threeOrders() => chartOf(
     orders: [
@@ -116,21 +127,21 @@ void main() {
     ],
   );
 
-  /// Two orders through three stations in routing order W1 → W2 → W3.
+  /// Two orders through three workcenters in routing order W1 → W2 → W3.
   ///
-  /// Each station makes an order wait longer than the one before it, so the
+  /// Each workcenter makes an order wait longer than the one before it, so the
   /// Queue table ranks them W3, W2, W1 — exactly backwards to the flow, which
   /// is what makes the row order worth asserting.
-  SimRunResult threeStationResult() => SimRunResult(
+  SimRunResult threeWorkcenterResult() => SimRunResult(
     start: jan1,
     end: at(48),
     guard: at(240),
     steps: [
       for (final order in ['o1', 'o2'])
-        for (final (index, station) in ['W1', 'W2', 'W3'].indexed)
+        for (final (index, workcenter) in ['W1', 'W2', 'W3'].indexed)
           stepOf(
             orderId: order,
-            workcenterId: station,
+            workcenterId: workcenter,
             queueStart: at(index * 6),
             processStart: at(index * 6 + index),
             processEnd: at(index * 6 + index + 1),
@@ -146,12 +157,12 @@ void main() {
   );
 
   group('the join', () {
-    test('rows are the stations that ran, in flow order', () {
+    test('rows are the workcenters that ran, in flow order', () {
       final chart = threeOrders();
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W2']);
-      expect(chart.rows.first.bars, hasLength(2));
-      expect(chart.rows.last.bars, hasLength(1));
+      expect(chart.workcenters.map((r) => r.workcenterId), ['W1', 'W2']);
+      expect(chart.workcenters.first.bars, hasLength(2));
+      expect(chart.workcenters.last.bars, hasLength(1));
     });
 
     test('flow order beats the Queue table\'s ranking', () {
@@ -160,7 +171,7 @@ void main() {
       // it diagonally down the chart needs the routing down the page. The
       // ranking still decides ties, and the Queue table is still where the
       // bottleneck is ranked.
-      final result = threeStationResult();
+      final result = threeWorkcenterResult();
       final metrics = summariseRun(
         result: result,
         partNumbers: const {'p1': 'PN1'},
@@ -176,7 +187,7 @@ void main() {
         'W1',
       ]);
       expect(
-        buildGanttChart(result: result, metrics: metrics).rows.map(
+        buildGanttChart(result: result, metrics: metrics).workcenters.map(
           (r) => r.workcenterId,
         ),
         ['W1', 'W2', 'W3'],
@@ -184,8 +195,8 @@ void main() {
     });
 
     test('the routing comes from arrival, not from being served', () {
-      // Sorted by queue start rather than process start: a station that made an
-      // order wait three days is still the station it reached third, and
+      // Sorted by queue start rather than process start: a workcenter that made an
+      // order wait three days is still the workcenter it reached third, and
       // sorting on when it got served would float the fast ones up the list.
       final chart = chartOf(
         orders: [orderOf(orderId: 'o1', sequence: 0, partId: 'p1')],
@@ -194,7 +205,7 @@ void main() {
             orderId: 'o1',
             workcenterId: 'W1',
             queueStart: jan1,
-            // Sat in the queue while the second station ran something else.
+            // Sat in the queue while the second workcenter ran something else.
             processStart: at(10),
             processEnd: at(11),
           ),
@@ -208,18 +219,28 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W2']);
+      expect(chart.workcenters.map((r) => r.workcenterId), ['W1', 'W2']);
     });
 
-    test('a station shared by two studies takes its earliest position', () {
-      // §7.7 builds one model of the plant, so one line's third station and
-      // another's first are one row. It has to sit somewhere, and the earliest
-      // is what keeps both routings readable downwards.
+    test('a workcenter shared by two studies sits below everything that feeds it', () {
+      // §7.7 builds one model of the plant, so one line's third workcenter and
+      // another's first are one row, and it has to sit somewhere.
       //
-      // Study 1 runs W1 → W2 → W3; study 2 runs W3 → W4. W3 is third in one
-      // routing and first in the other, so it rises to the top group rather
-      // than sitting below W2 — nothing queues, so within a group the ranking
-      // falls through to name order.
+      // **This expected `W1 W3 W2 W4` until 2026-08-29 and that was wrong.**
+      // The rule was "the earliest position any routing gives it", and the
+      // comment here claimed that kept both routings readable downwards. It
+      // does not: study 1 runs W1 → W2 → W3, and putting W3 above W2 makes
+      // *that* routing unreadable downwards to buy nothing for study 2.
+      //
+      // The field reported the same shape on the real plant — CEU30 drawn above
+      // TCN20 when 11D runs TCN20 first — and replaying the stored run showed
+      // the index rule breaking two of the three studies' flows where a depth
+      // rule breaks none. So the expectation moved, on evidence rather than to
+      // agree with the code: §7.6 is the record of what a suite that agrees
+      // with a wrong premise is worth.
+      //
+      // Study 1 runs W1 → W2 → W3; study 2 runs W3 → W4. Every edge is
+      // respected by one order and only one: W1, W2, W3, W4.
       final chart = chartOf(
         workcenterNames: const {'W1': 'W1', 'W2': 'W2', 'W3': 'W3', 'W4': 'W4'},
         orders: [
@@ -227,18 +248,18 @@ void main() {
           orderOf(orderId: 'o2', sequence: 0, partId: 'p2', studyId: 'study-2'),
         ],
         steps: [
-          for (final (index, station) in ['W1', 'W2', 'W3'].indexed)
+          for (final (index, workcenter) in ['W1', 'W2', 'W3'].indexed)
             stepOf(
               orderId: 'o1',
-              workcenterId: station,
+              workcenterId: workcenter,
               queueStart: at(index),
               processStart: at(index),
               processEnd: at(index + 1),
             ),
-          for (final (index, station) in ['W3', 'W4'].indexed)
+          for (final (index, workcenter) in ['W3', 'W4'].indexed)
             stepOf(
               orderId: 'o2',
-              workcenterId: station,
+              workcenterId: workcenter,
               queueStart: at(10 + index),
               processStart: at(10 + index),
               processEnd: at(11 + index),
@@ -247,10 +268,146 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1', 'W3', 'W2', 'W4']);
+      expect(chart.workcenters.map((r) => r.workcenterId), ['W1', 'W2', 'W3', 'W4']);
     });
 
-    test('stations at one position keep the Queue table\'s order', () {
+    test('a workcenter deep in one flow does not tie with a shallow one', () {
+      // The defect itself, in the shape the drive found it. Study 1 is four
+      // steps; study 2 is two, and its second workcenter is study 1's fourth.
+      // Under the old index rule W4 reached index 1 in study 2 and tied with
+      // W2, and the tie fell to the Queue table's busiest-first order — a
+      // statement about load standing in for a statement about sequence.
+      final chart = chartOf(
+        workcenterNames: const {
+          'W1': 'W1',
+          'W2': 'W2',
+          'W3': 'W3',
+          'W4': 'W4',
+          'W9': 'W9',
+        },
+        orders: [
+          orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+          orderOf(orderId: 'o2', sequence: 0, partId: 'p2', studyId: 'study-2'),
+        ],
+        steps: [
+          for (final (index, workcenter) in ['W1', 'W2', 'W3', 'W4'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: workcenter,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+          for (final (index, workcenter) in ['W9', 'W4'].indexed)
+            stepOf(
+              orderId: 'o2',
+              workcenterId: workcenter,
+              queueStart: at(20 + index),
+              processStart: at(20 + index),
+              processEnd: at(21 + index),
+              studyId: 'study-2',
+            ),
+        ],
+      );
+
+      final drawn = chart.workcenters.map((r) => r.workcenterId).toList();
+      expect(
+        drawn.indexOf('W4'),
+        greaterThan(drawn.indexOf('W3')),
+        reason: 'W4 follows W3 in study 1 and must be drawn below it',
+      );
+      expect(
+        drawn.indexOf('W4'),
+        greaterThan(drawn.indexOf('W9')),
+        reason: 'W4 follows W9 in study 2 as well',
+      );
+    });
+
+    test('a revisit does not drag everything downstream of it away', () {
+      // **The defect the 2026-08-29 drive found in §8.9's own fix.** A revisit
+      // makes the precedence graph cyclic — W2 comes before W3 and W3 before
+      // W2 — and relaxing a longest path over a cycle does not settle: it
+      // climbs until the pass cap and takes everything the cycle reaches with
+      // it. On the real plant that read `END:36 TCN20:36 BAN11:37`, and five
+      // routings came out wrong where none had before.
+      //
+      // What this pins is that the workcenters *after* the loop still read in
+      // order. W4 and W5 are downstream of the whole thing and must stay that
+      // way however the two inside it are settled.
+      final chart = chartOf(
+        workcenterNames: const {
+          'W1': 'W1',
+          'W2': 'W2',
+          'W3': 'W3',
+          'W4': 'W4',
+          'W5': 'W5',
+        },
+        orders: [orderOf(orderId: 'o1', sequence: 0, partId: 'p1')],
+        steps: [
+          for (final (index, workcenter)
+              in ['W1', 'W2', 'W3', 'W2', 'W4', 'W5'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: workcenter,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+        ],
+      );
+
+      final drawn = chart.workcenters.map((r) => r.workcenterId).toList();
+      expect(drawn.length, 5, reason: 'a revisited workcenter is still one row');
+      expect(
+        drawn.indexOf('W1'),
+        lessThan(drawn.indexOf('W4')),
+        reason: 'the acyclic part still reads downwards',
+      );
+      expect(
+        drawn.indexOf('W4'),
+        lessThan(drawn.indexOf('W5')),
+        reason: 'and everything past the loop keeps its order',
+      );
+      for (final workcenter in ['W2', 'W3']) {
+        expect(
+          drawn.indexOf(workcenter),
+          lessThan(drawn.indexOf('W4')),
+          reason: '$workcenter is inside the loop and above what follows it',
+        );
+      }
+    });
+
+    test('a workcenter revisited by one routing does not stall the ordering', () {
+      // §8.6 made a revisit storable, which makes the precedence graph cyclic:
+      // W2 comes before W3 and W3 comes before W2. Nothing can satisfy both, so
+      // what is asserted is only that every workcenter is placed and the acyclic
+      // part still reads down the page.
+      final chart = chartOf(
+        workcenterNames: const {'W1': 'W1', 'W2': 'W2', 'W3': 'W3'},
+        orders: [orderOf(orderId: 'o1', sequence: 0, partId: 'p1')],
+        steps: [
+          for (final (index, workcenter) in ['W1', 'W2', 'W3', 'W2'].indexed)
+            stepOf(
+              orderId: 'o1',
+              workcenterId: workcenter,
+              queueStart: at(index),
+              processStart: at(index),
+              processEnd: at(index + 1),
+            ),
+        ],
+      );
+
+      final drawn = chart.workcenters.map((r) => r.workcenterId).toList();
+      expect(drawn.toSet(), {'W1', 'W2', 'W3'});
+      expect(drawn.length, 3, reason: 'a revisited workcenter is still one row');
+      expect(
+        drawn.indexOf('W1'),
+        lessThan(drawn.indexOf('W2')),
+        reason: 'the acyclic part of the flow still reads downwards',
+      );
+    });
+
+    test('workcenters at one position keep the Queue table\'s order', () {
       // What a pool looks like from here: §3.1 makes its members
       // interchangeable, so all three sit at one place in the routing and only
       // the ranking has anything left to say about them.
@@ -279,10 +436,10 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W2', 'W1']);
+      expect(chart.workcenters.map((r) => r.workcenterId), ['W2', 'W1']);
     });
 
-    test('a station that never ran has no row', () {
+    test('a workcenter that never ran has no row', () {
       // W2 is named — it is in the model and in the workcenter table — but no
       // order reached it, so there is nothing to draw on its row and no row.
       final chart = chartOf(
@@ -298,7 +455,7 @@ void main() {
         ],
       );
 
-      expect(chart.rows.map((r) => r.workcenterId), ['W1']);
+      expect(chart.workcenters.map((r) => r.workcenterId), ['W1']);
     });
 
     test('bars run in start order however the steps arrived', () {
@@ -325,11 +482,11 @@ void main() {
         ],
       );
 
-      expect(chart.rows.single.bars.map((b) => b.orderNumber), [1, 2]);
+      expect(chart.workcenters.single.bars.map((b) => b.orderNumber), [1, 2]);
     });
 
     test('a bar carries the order number, the wait and the changeover', () {
-      final bars = threeOrders().rows.first.bars;
+      final bars = threeOrders().workcenters.first.bars;
 
       // 1-based, as the plan's Order column is.
       expect(bars[0].orderNumber, 1);
@@ -349,8 +506,8 @@ void main() {
       expect(chart.parts.map((p) => p.colourIndex), [0, 1]);
       // Which is what makes the swatch beside a part in that table and the bars
       // for its orders here one lookup rather than two that agree by luck.
-      expect(chart.rows.first.bars[0].part.colourIndex, 0);
-      expect(chart.rows.first.bars[1].part.colourIndex, 1);
+      expect(chart.workcenters.first.bars[0].part.colourIndex, 0);
+      expect(chart.workcenters.first.bars[1].part.colourIndex, 1);
     });
 
     test('two studies\' PN2 are two parts, and are coloured apart', () {
@@ -383,7 +540,7 @@ void main() {
       );
 
       expect(chart.parts.map((p) => p.studyId), ['study-1', 'study-2']);
-      expect(chart.rows.single.bars.map((b) => b.part.colourIndex), [0, 1]);
+      expect(chart.workcenters.single.bars.map((b) => b.part.colourIndex), [0, 1]);
     });
 
     test('a step whose order the run cannot name is dropped', () {
@@ -410,11 +567,11 @@ void main() {
         ],
       );
 
-      expect(chart.rows.single.bars.map((b) => b.orderId), ['o1']);
+      expect(chart.workcenters.single.bars.map((b) => b.orderId), ['o1']);
     });
 
     test('the axis covers the run, not merely the work', () {
-      // W2 stops at 05:00 and the run ends at 24:00. A station idle for the
+      // W2 stops at 05:00 and the run ends at 24:00. A workcenter idle for the
       // rest of it should read as idle rather than as the run having ended when
       // the last bar did.
       final chart = threeOrders();
@@ -713,12 +870,12 @@ void main() {
 
       // Otherwise the last row would answer for a pointer that is on the
       // scrollbar, which is the conflict the gutter exists to end.
-      expect(barAt(layout, Offset(60, inGutter)), isNull);
+      expect(workcenterAt(layout, Offset(60, inGutter)), isNull);
     });
 
     test('a bar too thin to see is floored, and counted', () {
       // A one-minute step at whole-run scale. Drawn true it is a fraction of a
-      // pixel and simply is not there, which would read as a station idle
+      // pixel and simply is not there, which would read as a workcenter idle
       // during a minute it was running.
       final chart = chartOf(
         orders: [
@@ -831,13 +988,13 @@ void main() {
         GanttMetrics.rowHeight / 2;
 
     test('names the bar under the cursor', () {
-      final hit = barAt(layout, Offset(60, rowMiddle(0)));
+      final hit = workcenterAt(layout, Offset(60, rowMiddle(0)));
 
       expect(hit?.bar.orderNumber, 1);
     });
 
     test('picks the right row', () {
-      expect(barAt(layout, Offset(60, rowMiddle(1)))?.bar.orderNumber, 3);
+      expect(workcenterAt(layout, Offset(60, rowMiddle(1)))?.bar.orderNumber, 3);
     });
 
     test('the whole row band is the target, not the bar\'s own height', () {
@@ -847,26 +1004,26 @@ void main() {
       final top = GanttMetrics.axisHeight + 0.5;
       final bottom = GanttMetrics.axisHeight + GanttMetrics.rowHeight - 0.5;
 
-      expect(barAt(layout, Offset(60, top))?.bar.orderNumber, 1);
-      expect(barAt(layout, Offset(60, bottom))?.bar.orderNumber, 1);
+      expect(workcenterAt(layout, Offset(60, top))?.bar.orderNumber, 1);
+      expect(workcenterAt(layout, Offset(60, bottom))?.bar.orderNumber, 1);
     });
 
     test('a gap between bars is not a bar', () {
       // W2's only bar ends at 05:00, which is 180 px.
-      expect(barAt(layout, Offset(200, rowMiddle(1))), isNull);
+      expect(workcenterAt(layout, Offset(200, rowMiddle(1))), isNull);
     });
 
     test('the axis strip is not a row', () {
-      expect(barAt(layout, const Offset(60, 4)), isNull);
+      expect(workcenterAt(layout, const Offset(60, 4)), isNull);
     });
 
     test('below the last row is nothing', () {
-      expect(barAt(layout, Offset(60, layout.size.height + 10)), isNull);
+      expect(workcenterAt(layout, Offset(60, layout.size.height + 10)), isNull);
     });
 
     test('past the end of the run is nothing', () {
       expect(
-        barAt(layout, Offset(layout.size.width + 50, rowMiddle(0))),
+        workcenterAt(layout, Offset(layout.size.width + 50, rowMiddle(0))),
         isNull,
       );
     });
@@ -890,7 +1047,590 @@ void main() {
       final left = thin.rows.single.bars.single.rect.left;
 
       expect(thin.rows.single.bars.single.floored, isTrue);
-      expect(barAt(thin, Offset(left + 1.5, rowMiddle(0)))?.bar.orderId, 'o1');
+      expect(workcenterAt(thin, Offset(left + 1.5, rowMiddle(0)))?.bar.orderId, 'o1');
+    });
+  });
+
+  group('a workcenter with more than one unit', () {
+    /// One workcenter running two orders whose spans overlap, which is what §3.2
+    /// made possible and what §8.6 had assumed could not happen.
+    GanttChart twoAtOnce() => chartOf(
+      orders: [
+        orderOf(orderId: 'o1', sequence: 0, partId: 'p1'),
+        orderOf(orderId: 'o2', sequence: 1, partId: 'p2'),
+      ],
+      steps: [
+        stepOf(
+          orderId: 'o1',
+          workcenterId: 'W1',
+          queueStart: jan1,
+          processStart: jan1,
+          processEnd: at(10),
+        ),
+        stepOf(
+          orderId: 'o2',
+          workcenterId: 'W1',
+          queueStart: at(2),
+          processStart: at(2),
+          processEnd: at(8),
+        ),
+      ],
+      workcenterNames: const {'W1': 'TTAT'},
+    );
+
+    test('overlapping bars take their own sub-row', () {
+      final row = twoAtOnce().workcenters.single;
+
+      expect(row.bars.map((b) => b.slot), [0, 1]);
+      expect(row.depth, 2);
+      // Two units, so the band is twice a workcenter's row.
+      expect(row.height, 2 * GanttMetrics.rowHeight);
+    });
+
+    test('a workcenter that never ran two at once is unchanged', () {
+      // The premise §8.6 was written under, and the case that must keep
+      // drawing exactly as it did: every bar on slot 0, one row deep.
+      final row = threeOrders().workcenters.first;
+
+      expect(row.bars.every((b) => b.slot == 0), isTrue);
+      expect(row.depth, 1);
+      expect(row.height, GanttMetrics.rowHeight);
+    });
+
+    test('the bars do not overlap once they are placed', () {
+      final layout = layoutGantt(chart: twoAtOnce(), pixelsPerSecond: 0.01);
+      final bars = layout.rows.single.bars;
+
+      // The defect, stated as geometry: two bars covering the same instant
+      // must not cover the same pixel. Both are true of the rects, so this
+      // fails on the drawing rather than on the arithmetic behind it.
+      expect(bars.first.rect.overlaps(bars.last.rect), isFalse);
+      expect(bars.first.rect.top, isNot(bars.last.rect.top));
+    });
+
+    test('barAt tells the two units apart', () {
+      final chart = twoAtOnce();
+      final layout = layoutGantt(chart: chart, pixelsPerSecond: 0.01);
+      final row = layout.rows.single;
+
+      double slotMiddle(int slot) =>
+          row.top + slot * GanttMetrics.rowHeight + GanttMetrics.rowHeight / 2;
+
+      // Hour 4 has both orders running; only the sub-row separates them.
+      final x = at(4).difference(chart.start).inSeconds * 0.01;
+      expect(workcenterAt(layout, Offset(x, slotMiddle(0)))?.bar.orderId, 'o1');
+      expect(workcenterAt(layout, Offset(x, slotMiddle(1)))?.bar.orderId, 'o2');
+    });
+  });
+
+  group('lane bands', () {
+    /// Orders queueing in one lane in front of W2, which W1 feeds.
+    ///
+    /// [stays] is one `(order, entered, left)` per visit in hours, so a test
+    /// says what it is about — two orders waiting at once, or one after the
+    /// other — without building a plausible-looking run around it.
+    GanttChart laneChart({
+      required List<({String order, int from, int to})> stays,
+      int? capacity,
+      String? laneName = 'FIFO W2',
+      List<SimOpenLaneVisit> open = const [],
+      bool laneOnResult = true,
+      bool includeLanes = true,
+    }) {
+      final steps = [
+        for (final stay in stays)
+          stepOf(
+            orderId: stay.order,
+            workcenterId: 'W2',
+            queueStart: at(stay.from),
+            processStart: at(stay.to),
+            processEnd: at(stay.to + 1),
+            laneNodeId: 'lane-1',
+          ),
+      ];
+      final orders = [
+        for (final (index, stay) in stays.indexed)
+          orderOf(orderId: stay.order, sequence: index, partId: 'p1'),
+        for (final visit in open)
+          orderOf(orderId: visit.orderId, sequence: 90, partId: 'p1'),
+      ];
+
+      final result = SimRunResult(
+        start: jan1,
+        end: at(48),
+        guard: at(240),
+        steps: steps,
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+        openLaneVisits: open,
+        lanes: laneOnResult
+            ? [
+                SimLane(
+                  studyId: 'study-1',
+                  nodeId: 'lane-1',
+                  position: 1,
+                  name: laneName,
+                  capacity: capacity,
+                ),
+              ]
+            : const [],
+      );
+
+      return buildGanttChart(
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: const {'W2': 'W2'},
+          theoreticalByOrder: const {},
+        ),
+        includeLanes: includeLanes,
+      );
+    }
+
+    test('a stay takes the order s study, not the lane s (§7.3)', () {
+      // A queue belongs to the workcenter it stands in front of since v19, and
+      // `simulation_run_lanes` stamps the row with whichever study was written
+      // last — so a lane shared by two studies carries one study's id for
+      // everybody's orders. The hover card names the study on a multi-study run,
+      // and took it from the lane: every order the *other* study put in that
+      // queue was labelled with the wrong line.
+      //
+      // Built directly rather than through `laneChart`, which gives every order
+      // one study.
+      const laneStudy = 'study-1';
+      const otherStudy = 'study-2';
+
+      final steps = [
+        stepOf(
+          orderId: 'o1',
+          workcenterId: 'W2',
+          queueStart: jan1,
+          processStart: at(2),
+          processEnd: at(3),
+          laneNodeId: 'lane-1',
+          studyId: otherStudy,
+        ),
+      ];
+      final orders = [
+        orderOf(
+          orderId: 'o1',
+          sequence: 0,
+          partId: 'p1',
+          studyId: otherStudy,
+        ),
+      ];
+      final result = SimRunResult(
+        start: jan1,
+        end: at(48),
+        guard: at(240),
+        steps: steps,
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+        lanes: const [
+          SimLane(
+            studyId: laneStudy,
+            nodeId: 'lane-1',
+            position: 1,
+            name: 'FIFO CLAD',
+          ),
+        ],
+      );
+
+      final chart = buildGanttChart(
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: const {'W2': 'CLAD07'},
+          theoreticalByOrder: const {},
+        ),
+      );
+
+      expect(chart.lanes.single.visits.single.studyId, otherStudy);
+    });
+
+    test('the lane bands can be left out, and only they go', () {
+      // Field feedback: a reader following an order down the page wants the
+      // workcenters, and the queue bands between them are what is in the way. It is
+      // a view control, so it removes rows and changes nothing else — the
+      // workcenters keep their bars, their order and their names.
+      final withLanes = laneChart(stays: [(order: 'o1', from: 0, to: 2)]);
+      final without = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        includeLanes: false,
+      );
+
+      expect(withLanes.rows.map((b) => b.name), ['FIFO W2', 'W2']);
+      expect(without.rows.map((b) => b.name), ['W2']);
+      expect(without.lanes, isEmpty);
+      expect(
+        without.workcenters.single.bars.length,
+        withLanes.workcenters.single.bars.length,
+      );
+      // The axis still covers the run rather than shrinking to what is drawn:
+      // the span is a fact about the run, not about the rows on screen.
+      expect(without.start, withLanes.start);
+      expect(without.end, withLanes.end);
+    });
+
+    test('a lane is drawn immediately above the workcenter it feeds', () {
+      final chart = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+      );
+
+      expect(chart.rows.map((b) => b.name), ['FIFO W2', 'W2']);
+      expect(chart.rows.first, isA<GanttLaneRow>());
+      expect(chart.rows.last, isA<GanttRow>());
+    });
+
+    test('overlapping stays take different slots, sequential ones re-use one', () {
+      final together = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      ).lanes.single;
+      expect(together.visits.map((v) => v.slot), [0, 1]);
+
+      final apart = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 2),
+          (order: 'o2', from: 3, to: 5),
+        ],
+      ).lanes.single;
+      // The second arrives after the first has gone, so the lane never held
+      // two at once and the stack does not grow.
+      expect(apart.visits.map((v) => v.slot), [0, 0]);
+    });
+
+    test('a capped lane is as deep as its capacity, however empty it stayed', () {
+      final lane = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        capacity: 3,
+      ).lanes.single;
+
+      // The empty slots are the headroom. Drawing it one deep because only one
+      // order ever stood there would make every capped lane look full.
+      expect(lane.depth, 3);
+      expect(lane.capacity, 3);
+      expect(lane.truncated, isFalse);
+    });
+
+    test('an uncapped lane takes its depth from how full it got', () {
+      final lane = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      ).lanes.single;
+
+      expect(lane.capacity, isNull);
+      expect(lane.depth, 2);
+    });
+
+    test('a lane nothing ever waited in is still one band deep', () {
+      // Every order passed straight through: entered and left at the same
+      // instant. The lane existed, and drawing no band would say the flow had
+      // no buffer at that point.
+      final lane = laneChart(
+        stays: [(order: 'o1', from: 2, to: 2)],
+      ).lanes.single;
+
+      expect(lane.depth, 1);
+    });
+
+    test('depth stops at the cap, and says that it did', () {
+      final lane = laneChart(
+        stays: [
+          for (var i = 0; i < GanttMetrics.maxLaneDepth + 2; i++)
+            (order: 'o$i', from: i, to: 20),
+        ],
+      ).lanes.single;
+
+      expect(lane.depth, GanttMetrics.maxLaneDepth);
+      expect(lane.truncated, isTrue);
+    });
+
+    test('an order still standing there when the run ended is drawn', () {
+      final lane = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        open: [
+          SimOpenLaneVisit(
+            studyId: 'study-1',
+            orderId: 'o9',
+            laneNodeId: 'lane-1',
+            stepNodeId: 'step-1',
+            enteredAt: at(30),
+          ),
+        ],
+      ).lanes.single;
+
+      final caught = lane.visits.firstWhere((v) => v.orderId == 'o9');
+      expect(caught.open, isTrue);
+      // It leaves no step, so without this the lane would read emptiest at
+      // exactly the moment a jam is the finding.
+      expect(caught.left, at(48));
+    });
+
+    test('a lane the run never names is not drawn', () {
+      final chart = laneChart(
+        stays: [(order: 'o1', from: 0, to: 2)],
+        laneOnResult: false,
+      );
+
+      expect(chart.lanes, isEmpty);
+      expect(chart.rows.map((b) => b.name), ['W2']);
+    });
+
+    test('bands stack by their own heights, not by a fixed row', () {
+      final chart = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      );
+      final layout = layoutGantt(chart: chart, pixelsPerSecond: 0.01);
+
+      final lane = layout.rows.first;
+      final workcenter = layout.rows.last;
+
+      expect(lane.top, GanttMetrics.axisHeight);
+      // Two slots deep, so the workcenter below starts that much further down —
+      // the arithmetic the old `i × rowHeight` could not have produced.
+      expect(workcenter.top, GanttMetrics.axisHeight + lane.band.height);
+      expect(
+        lane.band.height,
+        2 * GanttMetrics.laneSlotHeight + 2 * GanttMetrics.lanePadding,
+      );
+    });
+
+    test('barAt picks a waiting order by its slot', () {
+      final chart = laneChart(
+        stays: [
+          (order: 'o1', from: 0, to: 6),
+          (order: 'o2', from: 1, to: 6),
+        ],
+      );
+      final layout = layoutGantt(chart: chart, pixelsPerSecond: 0.01);
+      final lane = layout.rows.first;
+
+      double slotMiddle(int slot) =>
+          lane.top +
+          GanttMetrics.lanePadding +
+          slot * GanttMetrics.laneSlotHeight +
+          GanttMetrics.laneBarHeight / 2;
+
+      // Both are on the chart at hour 4; only the slot tells them apart, which
+      // is the whole reason the stack exists.
+      final x = at(4).difference(chart.start).inSeconds * 0.01;
+      expect(
+        (barAt(layout, Offset(x, slotMiddle(0))) as GanttPlacedVisit?)
+            ?.visit
+            .orderId,
+        'o1',
+      );
+      expect(
+        (barAt(layout, Offset(x, slotMiddle(1))) as GanttPlacedVisit?)
+            ?.visit
+            .orderId,
+        'o2',
+      );
+    });
+  });
+
+  group('pools (§3.1) — the CAL pool bug, 2026-08-15', () {
+    /// A run over a pool, optionally with a lane per study in front of it.
+    ///
+    /// `pools` maps each workcenter to the pool the run recorded for it, which is
+    /// what `simWorkcenterPools` resolves at write time and what the metrics carry
+    /// back out — so a test can state the case without assembling a plant.
+    GanttChart poolChart({
+      required Map<String, SimWorkcenterPool> pools,
+      Map<String, String> workcenterNames = const {
+        'CLAD07': 'CLAD07',
+        'CLAD08': 'CLAD08',
+      },
+      List<({String order, String workcenter, String? lane, int at})> visits =
+          const [],
+      List<({String node, String name})> lanes = const [],
+    }) {
+      final steps = [
+        for (final visit in visits)
+          stepOf(
+            orderId: visit.order,
+            workcenterId: visit.workcenter,
+            queueStart: at(visit.at),
+            processStart: at(visit.at + 1),
+            processEnd: at(visit.at + 2),
+            laneNodeId: visit.lane,
+          ),
+      ];
+      final orders = [
+        for (final (index, visit) in visits.indexed)
+          orderOf(orderId: visit.order, sequence: index, partId: 'p1'),
+      ];
+
+      final result = SimRunResult(
+        start: jan1,
+        end: at(48),
+        guard: at(240),
+        steps: steps,
+        orders: orders,
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+        lanes: [
+          for (final lane in lanes)
+            SimLane(
+              studyId: 'study-1',
+              nodeId: lane.node,
+              position: 1,
+              name: lane.name,
+            ),
+        ],
+      );
+
+      return buildGanttChart(
+        result: result,
+        metrics: summariseRun(
+          result: result,
+          partNumbers: const {'p1': 'PN1'},
+          workcenterNames: workcenterNames,
+          theoreticalByOrder: const {},
+          pools: pools,
+        ),
+      );
+    }
+
+    const cal = SimWorkcenterPool(id: 'pool-1', name: 'CAL Pool');
+
+    test('a pool\'s machines each name their pool', () {
+      // The complaint itself: three cladding machines reading as three loose
+      // workcenters, with nothing on screen carrying the name that was typed on
+      // the map. §3.1 keeps them as separate rows on purpose — that is what
+      // says which machine ran an order — so what was missing was only the
+      // word above them.
+      final chart = poolChart(
+        pools: const {'CLAD07': cal, 'CLAD08': cal},
+        visits: [
+          (order: 'o1', workcenter: 'CLAD07', lane: null, at: 0),
+          (order: 'o2', workcenter: 'CLAD08', lane: null, at: 0),
+        ],
+      );
+
+      // **No heading band.** A pool had a row of its own above its machines and
+      // it read as a lane — an empty strip between the axis and the first thing
+      // with bars. The pool travels on the rows instead, so what belongs
+      // together says so without a band that belongs to nothing.
+      expect(chart.rows.map((b) => b.name), ['CLAD07', 'CLAD08']);
+      expect(
+        chart.workcenters.map((r) => r.poolName),
+        ['CAL Pool', 'CAL Pool'],
+      );
+      expect(chart.workcenters.map((r) => r.workcenterId), ['CLAD07', 'CLAD08']);
+    });
+
+    test('two studies\' lanes over one pool both draw', () {
+      // **The defect.** `_laneRows` was a map keyed by workcenter, so the
+      // second lane feeding a workcenter overwrote the first and one FIFO band
+      // left the chart with nothing saying it had. Two studies stepping on one
+      // pool is exactly how that arises (§7.7).
+      final chart = poolChart(
+        pools: const {'CLAD07': cal, 'CLAD08': cal},
+        lanes: [
+          (node: 'lane-a', name: 'FIFO A'),
+          (node: 'lane-b', name: 'FIFO B'),
+        ],
+        visits: [
+          (order: 'o1', workcenter: 'CLAD07', lane: 'lane-a', at: 0),
+          (order: 'o2', workcenter: 'CLAD08', lane: 'lane-b', at: 0),
+        ],
+      );
+
+      expect(chart.lanes, hasLength(2));
+      // Both above the pool's machines rather than one above each — a lane
+      // feeds the pool, not the member that happened to pull the first order —
+      // and each says which pool it feeds.
+      expect(chart.rows.map((b) => b.name), [
+        'FIFO A',
+        'FIFO B',
+        'CLAD07',
+        'CLAD08',
+      ]);
+      expect(chart.lanes.map((l) => l.poolName), ['CAL Pool', 'CAL Pool']);
+    });
+
+    test('a pool\'s lane is not pinned to whichever member ran first', () {
+      // The second half of the same bug: `feeds` took the first *step* out of
+      // the lane, so the band landed on whichever machine happened to pull an
+      // order first — which is the member that looked detached from its
+      // siblings. Here CLAD08 runs first and the band still belongs to the
+      // pool — and the members keep the Queue table's order underneath the
+      // heading, which for two workcenters that queued equally is by name.
+      final chart = poolChart(
+        pools: const {'CLAD07': cal, 'CLAD08': cal},
+        lanes: [(node: 'lane-a', name: 'FIFO CAL')],
+        visits: [
+          (order: 'o1', workcenter: 'CLAD08', lane: 'lane-a', at: 0),
+          (order: 'o2', workcenter: 'CLAD07', lane: 'lane-a', at: 4),
+        ],
+      );
+
+      expect(chart.rows.map((b) => b.name), [
+        'FIFO CAL',
+        'CLAD07',
+        'CLAD08',
+      ]);
+    });
+
+    test('a workcenter in two pools stands on its own, naming both', () {
+      // `simWorkcenterPools` resolves this to a null id and a joined name, and the
+      // chart honours it: no heading, because there is no one pool this
+      // machine's work belonged to — and the name is still on the row's own
+      // record so a reader can see why it is loose.
+      final chart = poolChart(
+        pools: const {
+          'CLAD07': SimWorkcenterPool(id: null, name: 'All Lathes · CAL Pool'),
+          'CLAD08': cal,
+        },
+        visits: [
+          (order: 'o1', workcenter: 'CLAD07', lane: null, at: 0),
+          (order: 'o2', workcenter: 'CLAD08', lane: null, at: 0),
+        ],
+      );
+
+      // Only the grouped machine names a pool; the loose one names both and
+      // belongs to neither.
+      expect(chart.workcenters.map((r) => r.poolId).whereType<String>(), [
+        'pool-1',
+      ]);
+      final loose = chart.workcenters.firstWhere(
+        (r) => r.workcenterId == 'CLAD07',
+      );
+      expect(loose.poolId, isNull);
+      expect(loose.poolName, 'All Lathes · CAL Pool');
+    });
+
+    test('a run with no pools draws exactly as it did before', () {
+      // The regression guard. Every chart in this file predates v18 and none
+      // of them may move: with no pool recorded, there is no heading and the
+      // rows are the workcenters and their lanes, in the order they always were.
+      final chart = poolChart(
+        pools: const {},
+        lanes: [(node: 'lane-a', name: 'FIFO W')],
+        visits: [
+          (order: 'o1', workcenter: 'CLAD07', lane: 'lane-a', at: 0),
+          (order: 'o2', workcenter: 'CLAD08', lane: null, at: 0),
+        ],
+      );
+
+      expect(chart.workcenters.every((r) => r.poolName == null), isTrue);
+      expect(chart.rows.map((b) => b.name), ['FIFO W', 'CLAD07', 'CLAD08']);
     });
   });
 }

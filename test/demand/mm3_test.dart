@@ -31,6 +31,7 @@ void main() {
   /// straight off the part's time.
   const oneStep = [
     Mm3Step(
+      nodeId: 'node-1',
       targetId: 'wc-1',
       equivalentProcessTime: Duration(hours: 100),
       rework: 0,
@@ -59,7 +60,7 @@ void main() {
         columns: oneColumn,
         times: {
           for (var i = 0; i < 5; i++)
-            'p$i': {'wc-1': Duration(hours: hours[i])},
+            'p$i': {'node-1': Duration(hours: hours[i])},
         },
       ),
       steps: oneStep,
@@ -85,7 +86,7 @@ void main() {
         parts: [part('p1', 'PN1')],
         columns: oneColumn,
         times: {
-          'p1': {'wc-1': const Duration(hours: 100)},
+          'p1': {'node-1': const Duration(hours: 100)},
         },
       ),
       steps: oneStep,
@@ -105,7 +106,7 @@ void main() {
         parts: [part('p1', 'PN1')],
         columns: oneColumn,
         times: {
-          'p1': {'wc-1': const Duration(hours: 100)},
+          'p1': {'node-1': const Duration(hours: 100)},
         },
       ),
       steps: oneStep,
@@ -127,11 +128,12 @@ void main() {
         parts: [part('p1', 'PN1')],
         columns: oneColumn,
         times: {
-          'p1': {'wc-1': const Duration(hours: 100)},
+          'p1': {'node-1': const Duration(hours: 100)},
         },
       ),
       steps: const [
         Mm3Step(
+          nodeId: 'node-1',
           targetId: 'wc-1',
           equivalentProcessTime: Duration(hours: 100),
           rework: 0.037,
@@ -151,21 +153,23 @@ void main() {
       ],
       times: {
         'p1': {
-          'wc-1': const Duration(hours: 120),
-          'wc-2': const Duration(hours: 40),
+          'node-1': const Duration(hours: 120),
+          'node-2': const Duration(hours: 40),
         },
         // PN2 never visits TTAT.
-        'p2': {'wc-1': const Duration(hours: 80)},
+        'p2': {'node-1': const Duration(hours: 80)},
       },
     );
 
     const steps = [
       Mm3Step(
+        nodeId: 'node-1',
         targetId: 'wc-1',
         equivalentProcessTime: Duration(hours: 100),
         rework: 0,
       ),
       Mm3Step(
+        nodeId: 'node-2',
         targetId: 'wc-2',
         equivalentProcessTime: Duration(hours: 50),
         rework: 0,
@@ -252,7 +256,7 @@ void main() {
         columns: oneColumn,
         times: {
           for (var i = 0; i < 5; i++)
-            'p$i': {'wc-1': Duration(hours: [120, 113, 100, 90, 101][i])},
+            'p$i': {'node-1': Duration(hours: [120, 113, 100, 90, 101][i])},
         },
       ),
       steps: oneStep,
@@ -272,8 +276,8 @@ void main() {
         ],
         times: {
           'p1': {
-            'wc-1': const Duration(hours: 10),
-            'wc-2': const Duration(hours: 40),
+            'node-1': const Duration(hours: 10),
+            'node-2': const Duration(hours: 40),
           },
         },
       );
@@ -283,8 +287,8 @@ void main() {
           orders: [order('o0', 0, 'p1')],
           table: table,
           steps: const [
-            Mm3Step(targetId: 'wc-1', equivalentProcessTime: null, rework: 0),
-            Mm3Step(targetId: 'wc-2', equivalentProcessTime: null, rework: 0),
+            Mm3Step(nodeId: 'node-1', targetId: 'wc-1', equivalentProcessTime: null, rework: 0),
+            Mm3Step(nodeId: 'node-2', targetId: 'wc-2', equivalentProcessTime: null, rework: 0),
           ],
         ),
         'wc-2',

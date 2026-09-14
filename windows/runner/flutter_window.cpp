@@ -29,6 +29,17 @@ bool FlutterWindow::OnCreate() {
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
+    // The Dart side restores the saved frame while the window is still hidden
+    // (window_geometry.dart). A hidden window's resize does not reach Flutter's
+    // surface, so the first frame was drawn at the old size and stretched into
+    // the new one: the app opened squashed until someone resized it (drive,
+    // 2026-09-13). Resizing the view once it is visible makes the surface match.
+    HWND view = flutter_controller_->view()->GetNativeWindow();
+    RECT client = GetClientArea();
+    const int width = client.right - client.left;
+    const int height = client.bottom - client.top;
+    MoveWindow(view, 0, 0, width, height > 1 ? height - 1 : height, FALSE);
+    MoveWindow(view, 0, 0, width, height, TRUE);
   });
 
   // Flutter can complete the first frame before the "show window" callback is

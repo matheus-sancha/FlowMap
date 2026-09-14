@@ -2,16 +2,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database.dart';
+import '../../../data/database/database_providers.dart';
 import '../../calendar/application/shift_pattern_spec.dart' show dateOnly;
 import '../../demand/application/demand_providers.dart';
 import '../../projects/application/projects_providers.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../schedules/application/schedules_providers.dart';
-import '../../simulation/application/simulation_providers.dart';
 import '../../studies/application/studies_providers.dart';
+import '../data/flow_queues_repository.dart';
 import 'flow_view.dart';
 
 part 'flow_providers.g.dart';
+
+/// The queue in front of each dispatch target, for one project (§7.3).
+final flowQueuesRepositoryProvider = Provider(
+  (ref) => FlowQueuesRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// Every queue the project has, by target — a workcenter id or a pool id.
+///
+/// Watched whole rather than per step: two studies through CLAD07 read the same
+/// row, and a per-target family would open one subscription per box on the map.
+final projectQueuesProvider =
+    StreamProvider.family<Map<String, ProjectQueue>, String>(
+      (ref, projectId) =>
+          ref.watch(flowQueuesRepositoryProvider).watchQueues(projectId),
+    );
 
 /// The span the map is showing, and how wide it is.
 class ViewedPeriodState {
@@ -64,6 +80,45 @@ class FlowDataSourceSelection extends _$FlowDataSourceSelection {
   void select(FlowDataSource source) => state = source;
 }
 
+/// A batch size typed on the Flow toolbar, or null to follow the demand table.
+///
+/// **Null is a real state rather than a missing one.** It means "whatever this
+/// part's orders actually use", so switching parts follows the new part instead
+/// of carrying the last one's lot across — and typing a number is the lot-sizing
+/// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+/// the period and the data source: it is a question being asked of the map, not
+/// a property of the study.
+@riverpod
+class FlowBatchOverride extends _$FlowBatchOverride {
+  @override
+  int? build(String studyId) => null;
+
+  void set(int? batch) => state = batch;
+}
+
+/// The batch the selected part's orders actually use.
+///
+/// **The most common one**, not the first and not the mean: a part ordered in
+/// tens with one sample of one should read ten. Ties break to the larger, which
+/// is the more conservative statement of what a workcenter is occupied for.
+int modalBatchSize(Iterable<int> batches) {
+  final counts = <int, int>{};
+  for (final batch in batches) {
+    if (batch >= 1) counts[batch] = (counts[batch] ?? 0) + 1;
+  }
+  if (counts.isEmpty) return 1;
+  var best = 1;
+  var bestCount = 0;
+  for (final entry in counts.entries) {
+    if (entry.value > bestCount ||
+        (entry.value == bestCount && entry.key > best)) {
+      best = entry.key;
+      bestCount = entry.value;
+    }
+  }
+  return best;
+}
+
 /// What the map reads out of the demand table for a study at one period.
 ///
 /// Empty under [FlowDataSource.flowEquivalent] — assembling a mix nothing will
@@ -101,11 +156,26 @@ final flowDemandProvider = Provider.family<FlowDemandInput, String>((
     }
   }
 
+  // One order's worth, because that is what a run charges and what §7.9 walks.
+  // The flow equivalent stays one piece: its dummy part *is* one piece (§6.1),
+  // and multiplying a takt by a lot size would state a cadence no line runs at.
+  final orders = ref.watch(demandOrdersProvider(studyId)).value ??
+      const <DemandOrder>[];
+  final batch = source == FlowDataSource.singlePart
+      ? (ref.watch(flowBatchOverrideProvider(studyId)) ??
+            modalBatchSize([
+              for (final order in orders)
+                if (order.partId == selected?.id) order.batchSize,
+            ]))
+      : (ref.watch(flowBatchOverrideProvider(studyId)) ??
+            modalBatchSize([for (final order in orders) order.batchSize]));
+
   return FlowDemandInput(
     processTimes: table.times,
     piecesDueInPeriod: pieces,
     selectedPartId: selected?.id,
     selectedPartNumber: selected?.partNumber,
+    batchSize: batch,
   );
 });
 
@@ -154,6 +224,9 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
   );
   if (!taktPeriods.hasValue) return null;
 
+  final queues = ref.watch(projectQueuesProvider(project.id)).value;
+  if (queues == null) return null;
+
   final schedules = ref.watch(schedulesRepositoryProvider);
   final period = ref.watch(viewedPeriodProvider(studyId));
   final dataSource = ref.watch(flowDataSourceSelectionProvider(studyId));
@@ -192,6 +265,7 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
     contexts: contexts,
     pools: {for (final p in pools) p.id: p},
     poolMembers: membership,
+    queues: queues,
     taktSchedule: await schedules.loadTaktSchedule(
       project.id,
       study.productionLineId,
@@ -200,11 +274,6 @@ final flowViewProvider = FutureProvider.family<FlowView?, String>((
     granularity: period.granularity,
     dataSource: dataSource,
     demand: demand,
-    // What the arrows into each station are drawn from (§5.2). Watched, so
-    // changing a station's queue rule in the step editor redraws the link into
-    // it without the map being reopened.
-    dispatchByTarget:
-        ref.watch(workcenterDispatchProvider(study.projectId)).value ?? const {},
   );
 });
 

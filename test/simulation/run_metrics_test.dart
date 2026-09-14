@@ -26,12 +26,16 @@ void main() {
     ],
   );
 
-  SimWorkcenter workcenter(String id) {
+  SimWorkcenter workcenter(
+    String id, {
+    List<int> operatorsPerShift = const [1],
+    bool labourPaced = false,
+  }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
         startDate: DateTime(2020),
         endDate: DateTime(2030),
-        operatorsPerShift: const [1],
+        operatorsPerShift: operatorsPerShift,
       ),
     ]);
     return SimWorkcenter(
@@ -39,22 +43,31 @@ void main() {
       name: id,
       calendar: WorkingCalendar.scheduled(pattern: always, staffing: schedule),
       schedule: schedule,
+      labourPaced: labourPaced,
     );
   }
 
-  SimStep step(int position, String target, {Duration? changeover}) => SimStep(
+  SimStep step(
+    int position,
+    String target, {
+    Duration? changeover,
+    Duration stock = Duration.zero,
+  }) => SimStep(
     id: 'node-$position',
     position: position,
     title: target,
     candidates: [target],
     demandKey: target,
-    changeover: changeover ?? Duration.zero,
+    queue: SimQueue(targetId: target),
+    queueStock: stock,
+    setupValue: changeover?.inSeconds.toDouble(),
+    setupUnit: TaktUnit.seconds,
   );
 
   final aug1 = DateTime(2026, 8, 1);
 
   ({List<SimStudy> studies, Map<String, SimWorkcenter> workcenters}) scenario({
-    required List<SimNode> nodes,
+    required List<SimStep> nodes,
     required Map<String, SimPart> parts,
     required List<SimOrder> orders,
     required Map<String, SimWorkcenter> workcenters,
@@ -219,15 +232,25 @@ void main() {
       );
 
       // One order alone in an empty plant waits for nothing, so the run and
-      // the queue-free walk agree exactly.
+      // the standard agree exactly. Both averages count it, because they are
+      // facts about an order someone was promised.
       expect(metrics.averageLeadTime, const Duration(hours: 3));
       expect(metrics.theoreticalLeadTime, const Duration(hours: 3));
-      expect(metrics.leadTimeEfficiency, closeTo(1.0, 0.0001));
+
+      // **But the efficiency is a dash**, and that is the warm-up rule working
+      // rather than a gap (§8.7). This order was released before its study had
+      // delivered anything — it crossed a flow nothing had queued in — so there
+      // is no settled order to compute a comparable ratio from. A number here
+      // would be a figure that moves with the length of the run, which is what
+      // the rule exists to stop.
+      expect(metrics.leadTimeEfficiency, isNull);
+      expect(metrics.warmUpOrders, 1);
+      expect(metrics.settledOrders, 0);
     });
 
-    test('queueing is exactly the excess over 1.0', () {
-      // Three orders released an hour apart onto a station that takes four
-      // hours each: the second and third wait.
+    test('queueing pulls efficiency below 100 %, over the settled orders', () {
+      // Six orders released an hour apart onto a workcenter that takes four hours
+      // each, so the queue builds and never drains.
       final setup = scenario(
         nodes: [step(0, 'W')],
         parts: {
@@ -238,7 +261,7 @@ void main() {
           ),
         },
         orders: [
-          for (var i = 0; i < 3; i++)
+          for (var i = 0; i < 6; i++)
             SimOrder(
               id: 'o$i',
               sequence: i,
@@ -260,10 +283,69 @@ void main() {
         workcenters: setup.workcenters,
       );
 
-      // Lead times 4 h, 7 h, 10 h — average 7 — against a theoretical 4.
-      expect(metrics.averageLeadTime, const Duration(hours: 7));
+      // The workcenter runs back to back from the start, finishing at 4, 8, 12,
+      // 16, 20 and 24 h. The first delivery is therefore at 4 h, so the four
+      // orders released at 0, 1, 2 and 3 h are warm-up and the two released at
+      // 4 and 5 h are settled.
+      expect(metrics.warmUpOrders, 4);
+      expect(metrics.settledOrders, 2);
+
+      // Those two took 16 h and 19 h against a standard of 4 h each.
+      expect(metrics.settledActual, const Duration(hours: 17, minutes: 30));
+      expect(metrics.settledTheoretical, const Duration(hours: 4));
+
+      // **Below 100 % is more queueing than the standard allows for** (§8.7).
+      expect(metrics.leadTimeEfficiency, closeTo(4 / 17.5, 0.0001));
+
+      // And the two averages on the card still count every order, warm-up
+      // included: they are facts, not a ratio against a standard.
+      expect(metrics.averageLeadTime, const Duration(hours: 11, minutes: 30));
       expect(metrics.theoreticalLeadTime, const Duration(hours: 4));
-      expect(metrics.leadTimeEfficiency, closeTo(1.75, 0.0001));
+    });
+
+    test('efficiency goes above 100 % when a queue holds stock (§7.9)', () {
+      // **The reading §8 used to call impossible.** The standard charges the
+      // order for standing behind the two hours of stock in front of W; the
+      // engine charges nothing for it (§5.5). So a run that met no contention
+      // beats the standard, and that is a finding rather than a defect.
+      final setup = scenario(
+        nodes: [step(0, 'W', stock: const Duration(hours: 2))],
+        parts: {
+          'p1': SimPart(
+            id: 'p1',
+            partNumber: 'PN1',
+            processTimes: const {'W': Duration(hours: 1)},
+          ),
+        },
+        orders: [
+          for (var i = 0; i < 3; i++)
+            SimOrder(
+              id: 'o$i',
+              sequence: i,
+              partId: 'p1',
+              needDate: aug1.add(const Duration(days: 2)),
+            ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        release: const Duration(hours: 4),
+      );
+
+      final metrics = computeRunMetrics(
+        result: runSimulation(
+          studies: setup.studies,
+          workcenters: setup.workcenters,
+          start: aug1,
+        ),
+        studies: setup.studies,
+        workcenters: setup.workcenters,
+      );
+
+      // An hour of work each, four hours apart, so nothing ever waits.
+      expect(metrics.averageLeadTime, const Duration(hours: 1));
+      // Three hours of standard: two of stock on the wall clock, one of work.
+      expect(metrics.theoreticalLeadTime, const Duration(hours: 3));
+      expect(metrics.settledOrders, 2);
+      expect(metrics.leadTimeEfficiency, closeTo(3.0, 0.0001));
     });
   });
 
@@ -318,7 +400,7 @@ void main() {
   });
 
   group('the bottleneck rankings (§8.1)', () {
-    test('the headline names the station orders wait at longest', () {
+    test('the headline names the workcenter orders wait at longest', () {
       // W is slow and orders pile up behind it; X is quick and never queues.
       final setup = scenario(
         nodes: [step(0, 'W'), step(1, 'X')],
@@ -368,7 +450,7 @@ void main() {
       expect(metrics.shareOfFlow(metrics.bottleneck!), greaterThan(0.9));
     });
 
-    test('visits and changeovers are counted per station', () {
+    test('visits and changeovers are counted per workcenter', () {
       final setup = scenario(
         nodes: [step(0, 'W', changeover: const Duration(minutes: 30))],
         parts: {
@@ -408,8 +490,10 @@ void main() {
 
       final w = metrics.workcenters.single;
       expect(w.visits, 4);
-      // Alternating parts: every order after the first pays a setup.
-      expect(w.changeovers, 3);
+      // Alternating parts: every order pays a setup, including the first —
+      // cold start is a change, because an empty workcenter is set up for nothing
+      // (§7.6).
+      expect(w.changeovers, 4);
       expect(w.utilization, isNotNull);
     });
 
@@ -542,6 +626,177 @@ void main() {
       // between two reads of one run.
       expect(report().parts.map((p) => p.studyId), ['study-a', 'study-b']);
       expect(report().parts.map((p) => p.studyId), ['study-a', 'study-b']);
+    });
+  });
+
+  group('a crew is the throughput at a labour-paced workcenter (v30)', () {
+    /// The same one-hour order at one workcenter, run at [crew] and with the
+    /// workcenter paced one way or the other.
+    Duration ran({required int crew, required bool labourPaced}) {
+      final setup = scenario(
+        nodes: [step(0, 'W')],
+        parts: {
+          'p1': SimPart(
+            id: 'p1',
+            partNumber: 'PN1',
+            processTimes: const {'W': Duration(hours: 6)},
+          ),
+        },
+        orders: [
+          SimOrder(
+            id: 'o1',
+            sequence: 0,
+            partId: 'p1',
+            needDate: DateTime(2026, 12),
+          ),
+        ],
+        workcenters: {
+          'W': workcenter(
+            'W',
+            operatorsPerShift: [crew],
+            labourPaced: labourPaced,
+          ),
+        },
+      );
+      final result = runSimulation(
+        studies: setup.studies,
+        workcenters: setup.workcenters,
+        start: aug1,
+      );
+      final step0 = result.steps.single;
+      return step0.processEnd.difference(step0.processStart);
+    }
+
+    test('three operators finish one operator’s work three times sooner', () {
+      // The whole of phase 10: a process time is one operator's labour content.
+      expect(ran(crew: 1, labourPaced: true), const Duration(hours: 6));
+      expect(ran(crew: 3, labourPaced: true), const Duration(hours: 2));
+    });
+
+    test('a machine-paced workcenter is unmoved by its crew', () {
+      // The CNC case, still true and still the default: the operators open the
+      // shift and nothing else. This is what the field reported as a bug, and
+      // it is correct here.
+      expect(ran(crew: 1, labourPaced: false), const Duration(hours: 6));
+      expect(ran(crew: 3, labourPaced: false), const Duration(hours: 6));
+    });
+
+    test('capacity rises where the crew does, and demand does not fall', () {
+      // **What the field asked for, and the correction to how it was first
+      // built.** A crew does not shrink the work; it enlarges the room. The
+      // step still stores the labour content - six hours of one person's work
+      // is six hours of it whoever does it - while the workcenter's capacity is
+      // counted in operator-hours.
+      ({Duration labour, Duration capacity, Duration held}) run({
+        required int crew,
+        required bool labourPaced,
+      }) {
+        final setup = scenario(
+          nodes: [step(0, 'W')],
+          parts: {
+            'p1': SimPart(
+              id: 'p1',
+              partNumber: 'PN1',
+              processTimes: const {'W': Duration(hours: 6)},
+            ),
+          },
+          orders: [
+            SimOrder(
+              id: 'o1',
+              sequence: 0,
+              partId: 'p1',
+              needDate: DateTime(2026, 12),
+            ),
+          ],
+          workcenters: {
+            'W': workcenter(
+              'W',
+              operatorsPerShift: [crew],
+              labourPaced: labourPaced,
+            ),
+          },
+        );
+        final result = runSimulation(
+          studies: setup.studies,
+          workcenters: setup.workcenters,
+          start: aug1,
+        );
+        final only = result.steps.single;
+        return (
+          labour: Duration(seconds: only.processSeconds!),
+          // **The monthly rows, not the whole-run figure.** That one is
+          // utilization's denominator and is bounded by the run, which a crew
+          // makes *shorter* - so it cannot show the room growing. Occupation's
+          // capacity spans the workcenter's schedule (phase 9) and is what §10.3
+          // draws against.
+          capacity: result.openByWorkcenterMonth['W']!.values.fold(
+            Duration.zero,
+            (a, b) => a + b,
+          ),
+          held: only.processEnd.difference(only.processStart),
+        );
+      }
+
+      final alone = run(crew: 1, labourPaced: true);
+      final crewed = run(crew: 3, labourPaced: true);
+
+      // The work is the same work.
+      expect(crewed.labour, alone.labour);
+      expect(crewed.labour, const Duration(hours: 6));
+      // The room is three times the room.
+      expect(crewed.capacity, alone.capacity * 3);
+      // And the workcenter is genuinely held for less of it, which is what makes
+      // the dates move.
+      expect(crewed.held, const Duration(hours: 2));
+      expect(alone.held, const Duration(hours: 6));
+    });
+
+    test('a machine-paced workcenter counts capacity in workcenter hours', () {
+      // The crew must not enlarge a CNC's room either.
+      Duration capacityAt(int crew) {
+        final setup = scenario(
+          nodes: [step(0, 'W')],
+          parts: {
+            'p1': SimPart(
+              id: 'p1',
+              partNumber: 'PN1',
+              processTimes: const {'W': Duration(hours: 6)},
+            ),
+          },
+          orders: [
+            SimOrder(
+              id: 'o1',
+              sequence: 0,
+              partId: 'p1',
+              needDate: DateTime(2026, 12),
+            ),
+          ],
+          workcenters: {
+            'W': workcenter('W', operatorsPerShift: [crew]),
+          },
+        );
+        return runSimulation(
+          studies: setup.studies,
+          workcenters: setup.workcenters,
+          start: aug1,
+        ).openByWorkcenterMonth['W']!.values.fold(
+          Duration.zero,
+          (a, b) => a + b,
+        );
+      }
+
+      expect(capacityAt(3), capacityAt(1));
+    });
+
+    test('the default pacing leaves every existing run identical', () {
+      // v30 must be a no-op on a plant nobody has repaced, whatever its crews.
+      for (final crew in const [1, 2, 5]) {
+        expect(
+          ran(crew: crew, labourPaced: false),
+          const Duration(hours: 6),
+          reason: 'crew of $crew',
+        );
+      }
     });
   });
 }

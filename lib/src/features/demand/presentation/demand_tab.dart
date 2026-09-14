@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../common/data_grid.dart';
 import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/duration_input.dart';
+import '../../../common/help_icon.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../application/demand_paste.dart';
@@ -96,6 +98,16 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                     onSelectionChanged: (selection) =>
                         setState(() => _view = selection.first),
                   ),
+                  // **The selected segment is the name, so the `ⓘ` sits beside
+                  // it** (§12.7b). The three views had three captions rotating
+                  // through one slot under the toolbar; each is now its own
+                  // view's definition and nothing is painted when the reader
+                  // already knows which of the three they are looking at.
+                  ?helpIcon(context, switch (_view) {
+                    _DemandView.parts => l10n.demandTimesHelp,
+                    _DemandView.sequence => l10n.demandSequenceHelp,
+                    _DemandView.mm3 => l10n.mm3Help,
+                  }),
                   // Only the two grids can be imported into; MM3 is a reading
                   // of what they hold.
                   if (_view != _DemandView.mm3)
@@ -121,22 +133,6 @@ class _DemandTabState extends ConsumerState<DemandTab> {
                       label: Text(l10n.demandDeleteAll),
                     ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              // On its own line and capped at two: in the toolbar row it wraps
-              // as far as it likes and pushes the grid off the bottom of a
-              // short window, which is what the mounting test caught.
-              Text(
-                switch (_view) {
-                  _DemandView.parts => l10n.demandTimesHelp,
-                  _DemandView.sequence => l10n.demandSequenceHelp,
-                  _DemandView.mm3 => l10n.mm3Help,
-                },
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
               ),
             ],
           ),
@@ -186,6 +182,21 @@ class _PartsGrid extends ConsumerWidget {
             child: Text(
               l10n.demandNoSteps,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+        // **How to fill it, only while it is empty** (§12.7b). Pasting a block
+        // across rows and columns is not what every grid does and nobody tries
+        // it unprompted, so the hint is load-bearing — but it answers a
+        // question a filled grid has already answered, which is why it is
+        // conditional rather than a caption.
+        if (parts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              l10n.demandPasteHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
@@ -256,9 +267,12 @@ class _PartsGrid extends ConsumerWidget {
     if (column == _totalColumn) {
       return formatDurationInput(table.totalFor(part.id));
     }
+    // **By the node, not the target** (§9). Passing the target compiles and
+    // returns null, so every cell would read blank and every part would show
+    // as uncosted — which is what this looked like before the key was fixed.
     final time = table.timeFor(
       part.id,
-      table.columns[column - firstStepColumn].targetId,
+      table.columns[column - firstStepColumn].nodeId,
     );
     // Blank, not `00:00:00` — a part that skips a step has no time here, and
     // the two must not look alike (§5.1).
@@ -337,7 +351,7 @@ class _SequenceGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
     final orders = ref.watch(demandOrdersProvider(study.id)).value;
     if (orders == null) return const Center(child: CircularProgressIndicator());
 
@@ -350,10 +364,49 @@ class _SequenceGrid extends ConsumerWidget {
       );
     }
 
+    if (orders.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              l10n.demandPasteHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+          Expanded(child: _sequenceGrid(context, ref, l10n, dateStyle, orders)),
+        ],
+      );
+    }
+
+    return _sequenceGrid(context, ref, l10n, dateStyle, orders);
+  }
+
+  Widget _sequenceGrid(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    DateStyle dateStyle,
+    List<DemandOrder> orders,
+  ) {
     return DataGrid(
       rowCount: orders.length + 1,
       rowHeaderWidth: 44,
       rowActionsWidth: 48,
+      // **The one grid in the app that reorders** (#10). `demand_orders` is the
+      // only table carrying a `sequence` column — `demand_parts` has none and
+      // its row number is a display index — so this is one table's behaviour
+      // rather than a capability every grid grew.
+      //
+      // The trailing `+` row is excluded: it has no sequence to move, and
+      // dropping a real row past it would ask the repository to place
+      // something after a row that does not exist.
+      reorderableRows: orders.length,
+      onReorder: (from, to) =>
+          ref.read(demandRepositoryProvider).moveOrder(study.id, from, to),
       rowHeader: (row) => Center(
         child: Text(
           row < orders.length ? '${row + 1}' : '+',
@@ -377,6 +430,11 @@ class _SequenceGrid extends ConsumerWidget {
                     await repository.deleteOrder(study.id, orders[row].id);
                 }
               },
+              // **Move up / Move down stay** (#10). A drag is best at "put
+              // this somewhere over there" and worst at "nudge this one slot",
+              // which is the opposite of what this menu is good at — and it is
+              // the only path for a reader who cannot drag. The row-header
+              // handle is the addition, not the replacement.
               itemBuilder: (context) => [
                 PopupMenuItem(value: 'up', child: Text(l10n.actionMoveUp)),
                 PopupMenuItem(value: 'down', child: Text(l10n.actionMoveDown)),
@@ -405,11 +463,11 @@ class _SequenceGrid extends ConsumerWidget {
           helper: l10n.demandMaterialDateHelp,
         ),
       ],
-      valueAt: (row, column) => _valueAt(orders, row, column, locale),
+      valueAt: (row, column) => _valueAt(orders, row, column, dateStyle),
       errorAt: (row, column, raw) =>
-          _errorAt(l10n, locale, orders, row, column, raw),
+          _errorAt(l10n, dateStyle, orders, row, column, raw),
       onCommit: (row, column, block) =>
-          _commit(ref, locale, orders, row, column, block),
+          _commit(ref, dateStyle, orders, row, column, block),
     );
   }
 
@@ -417,7 +475,7 @@ class _SequenceGrid extends ConsumerWidget {
     List<DemandOrder> orders,
     int row,
     int column,
-    String locale,
+    DateStyle dateStyle,
   ) {
     if (row >= orders.length) return '';
     final order = orders[row];
@@ -427,14 +485,14 @@ class _SequenceGrid extends ConsumerWidget {
       orderProjectColumn => order.customerProject ?? '',
       orderBatchNumberColumn => order.batchNumber ?? '',
       orderBatchColumn => '${order.batchSize}',
-      orderNeedColumn => formatDateInput(order.needDate, locale),
-      _ => formatDateInput(order.materialDate, locale),
+      orderNeedColumn => dateStyle.format(order.needDate),
+      _ => dateStyle.format(order.materialDate),
     };
   }
 
   String? _errorAt(
     AppLocalizations l10n,
-    String locale,
+    DateStyle dateStyle,
     List<DemandOrder> orders,
     int row,
     int column,
@@ -470,12 +528,12 @@ class _SequenceGrid extends ConsumerWidget {
         return batch != null && batch > 0 ? null : l10n.validationPositiveWhole;
       case orderNeedColumn:
         if (text.isEmpty) return isNewRow ? null : l10n.validationRequired;
-        return parseDateInput(text, locale) == null
+        return dateStyle.parse(text) == null
             ? l10n.validationNotADate
             : null;
       default:
         if (text.isEmpty) return null;
-        return parseDateInput(text, locale) == null
+        return dateStyle.parse(text) == null
             ? l10n.validationNotADate
             : null;
     }
@@ -487,7 +545,7 @@ class _SequenceGrid extends ConsumerWidget {
   /// through.
   Future<void> _commit(
     WidgetRef ref,
-    String locale,
+    DateStyle dateStyle,
     List<DemandOrder> orders,
     int row,
     int column,
@@ -499,7 +557,7 @@ class _SequenceGrid extends ConsumerWidget {
       row: row,
       column: column,
       block: block,
-      locale: locale,
+      dateStyle: dateStyle,
     );
     if (writes.isEmpty) return;
     await ref

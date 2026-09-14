@@ -18,7 +18,7 @@ import '../../schedules/application/takt_schedule.dart';
 /// One workcenter or pool's load in the viewed period (DESIGN.md §8.1, §8.3).
 ///
 /// Keyed by **target, not by step.** Two steps of a flow may visit the same
-/// station, and the station has one calendar and one set of hours: its load is
+/// workcenter, and the workcenter has one calendar and one set of hours: its load is
 /// the sum of both visits, and both process boxes report that same figure.
 class TargetOccupation {
   const TargetOccupation({
@@ -36,7 +36,7 @@ class TargetOccupation {
   final String targetId;
   final String title;
 
-  /// How many steps of the flow route through this station.
+  /// How many steps of the flow route through this workcenter.
   final int visits;
 
   /// `Σ part_pt × batch × (1 + rework)` over the orders due in the period, once
@@ -44,34 +44,39 @@ class TargetOccupation {
   /// [availableProductive], and applying it twice is §4.4's oldest trap.
   final Duration work;
 
-  /// Orders whose part differed from the one before them at this station
+  /// Orders whose part differed from the one before them at this workcenter
   /// (§7.6). Sequence-dependent, and the sequence is known, so it is charged
   /// rather than ignored.
   final int changeovers;
 
   final Duration changeoverTime;
 
-  /// `open time across the span × availability` — the hours the station can
+  /// `open time across the span × availability` — the hours the workcenter can
   /// actually run. A walk of real dates, so a shutdown in the period reduces it.
   final Duration availableProductive;
 
   /// The crew the schedule buys per day: `1/1/1` is three.
   final int operatorsAllocated;
 
-  /// Parts due in the period with no process time at this station. Reported
-  /// rather than treated as zero: a part with no time at a step it must visit
-  /// is a blocking readiness error (§11), and until it is fixed the required
-  /// hours below are an understatement.
+  /// Parts due in the period with no process time at one of this workcenter's
+  /// steps — which since §9.7 means **they do not go there**, not that
+  /// something is missing.
+  ///
+  /// **Kept as information rather than as a fault.** It said the required hours
+  /// below were an understatement until somebody filled the cell in; a blank is
+  /// a deliberate skip now, so what this counts is how much of the period's
+  /// demand routes past this workcenter. It is still the figure that would show a
+  /// forgotten cell, and after §9.7 that is the only thing that would.
   final int partsWithoutTimes;
 
   Duration get required => work + changeoverTime;
 
   /// `required ÷ available productive` — the headline of §8.1. Above 1.0 is a
-  /// hard constraint: the station cannot do it however the sequence is
+  /// hard constraint: the workcenter cannot do it however the sequence is
   /// arranged.
   ///
-  /// Null when the station is closed for the whole period; a division by zero
-  /// dressed up as "infinitely busy" would rank a shut station as the
+  /// Null when the workcenter is closed for the whole period; a division by zero
+  /// dressed up as "infinitely busy" would rank a shut workcenter as the
   /// bottleneck.
   double? get occupation => availableProductive.inSeconds == 0
       ? null
@@ -104,7 +109,7 @@ class DemandTaktView {
     required this.configured,
   });
 
-  /// The station the figures are measured at, and the working day they are
+  /// The workcenter the figures are measured at, and the working day they are
   /// rendered in.
   final String paceSetterTitle;
   final Duration paceSetterWorkingDay;
@@ -143,10 +148,22 @@ class SummaryView {
     required this.targets,
     required this.ordersInPeriod,
     required this.demandTakt,
+    this.taktChange,
+    this.scheduleVaries = false,
   });
 
   final DateTime start;
   final DateTime end;
+
+  /// The takt change inside the viewed span, carried from the map so the Summary
+  /// says the same thing the Flow toolbar does (DESIGN.md §7.7.3). The two tabs
+  /// share the viewed period, so they share the caveat — see
+  /// [FlowView.taktChange].
+  final TaktChange? taktChange;
+
+  /// Whether the takt or the staffing moves inside the span — the icon case, for
+  /// a staffing change that has no single takt to name.
+  final bool scheduleVaries;
 
   /// Ranked by occupation, busiest first — the §8.1 bottleneck ranking.
   final List<TargetOccupation> targets;
@@ -154,7 +171,7 @@ class SummaryView {
   final int ordersInPeriod;
   final DemandTaktView? demandTakt;
 
-  /// The station the headline names. Null when nothing can be ranked.
+  /// The workcenter the headline names. Null when nothing can be ranked.
   TargetOccupation? get bottleneck =>
       targets.where((t) => t.occupation != null).firstOrNull;
 
@@ -167,7 +184,7 @@ class SummaryView {
 /// Builds the Summary (DESIGN.md §8).
 ///
 /// [orders] is the **whole** sequence in order, not just the period's: a
-/// changeover is charged against the order that ran before it at that station,
+/// changeover is charged against the order that ran before it at that workcenter,
 /// and that order may be in the month before (§7.6).
 SummaryView buildSummary({
   required FlowView flow,
@@ -184,7 +201,7 @@ SummaryView buildSummary({
 
   final inPeriod = orders.where(dueInPeriod).toList();
 
-  // Steps grouped by the station they route through: a station visited twice
+  // Steps grouped by the workcenter they route through: a workcenter visited twice
   // carries both visits' work against one set of hours.
   final byTarget = <String, List<FlowStepView>>{};
   for (final step in flow.steps) {
@@ -200,40 +217,69 @@ SummaryView buildSummary({
     final first = steps.first;
     final rework = first.rework ?? 0;
 
+    // **Summed over the visits, not multiplied by them** (§9). A stored time
+    // used to belong to the workcenter, so one figure times the number of steps
+    // was the whole of a part's work here. Since v24 each visit carries its
+    // own, and a routing that goes back to a machine for a *different*
+    // operation — rough then finish — is exactly the case that made the
+    // multiplication wrong.
     var work = Duration.zero;
     var missing = 0;
     final seenWithoutTime = <String>{};
     for (final order in inPeriod) {
-      final stored = demand.times[order.partId]?[targetId];
-      if (stored == null) {
-        if (seenWithoutTime.add(order.partId)) missing++;
-        continue;
+      var orderWork = Duration.zero;
+      var costedEvery = true;
+      for (final step in steps) {
+        final stored = demand.times[order.partId]?[step.node.id];
+        if (stored == null) {
+          costedEvery = false;
+          continue;
+        }
+        orderWork +=
+            Duration(seconds: (stored.inSeconds * (1 + rework)).round()) *
+            order.batchSize;
       }
-      work +=
-          Duration(
-            seconds: (stored.inSeconds * (1 + rework)).round(),
-          ) *
-          (order.batchSize * steps.length);
+      // **A part is reported once if any of its visits is uncosted**, not only
+      // when all of them are: a second pass nobody has typed a time for is
+      // §11's blocking error just as much as a first, and the hours below are
+      // an understatement until it is filled in.
+      if (!costedEvery && seenWithoutTime.add(order.partId)) missing++;
+      work += orderWork;
     }
 
-    // A changeover per visit, charged when the part differs from the order
-    // before it at this station. Walked over the whole sequence so the first
-    // order of the period is compared with the one that really preceded it.
+    // A changeover per visit, charged in full when the part differs from the
+    // order before it at this workcenter and at the step's own percentage when it
+    // does not (§7.6). Walked over the whole sequence so the first order of the
+    // period is compared with the one that really preceded it.
+    //
+    // **No previous order counts as a change**, which is the engine's rule since
+    // v17: an empty workcenter is set up for nothing. Only the very first order of
+    // a sequence takes that branch.
     var changeovers = 0;
+    var repeats = 0;
     String? previousPart;
     for (final order in orders) {
-      if (demand.times[order.partId]?[targetId] == null) continue;
-      if (previousPart != null &&
-          previousPart != order.partId &&
-          dueInPeriod(order)) {
-        changeovers++;
+      // Does this order come here at all? Any costed visit says yes (§9).
+      if (steps.every((s) => demand.times[order.partId]?[s.node.id] == null)) {
+        continue;
+      }
+      if (dueInPeriod(order)) {
+        if (previousPart == order.partId) {
+          repeats++;
+        } else {
+          changeovers++;
+        }
       }
       previousPart = order.partId;
     }
 
+    // Repeats are charged separately rather than folded into one count, because
+    // each step carries its own percentage and they need not agree.
     var changeoverTime = Duration.zero;
     for (final step in steps) {
-      changeoverTime += step.changeover * changeovers;
+      changeoverTime +=
+          step.changeover * changeovers +
+          step.changeover * (repeats * step.samePartFraction);
     }
 
     targets.add(
@@ -260,6 +306,8 @@ SummaryView buildSummary({
     end: end,
     targets: targets,
     ordersInPeriod: inPeriod.length,
+    taktChange: flow.taktChange,
+    scheduleVaries: flow.scheduleVariesInPeriod,
     demandTakt: _demandTakt(
       flow: flow,
       demand: demand,
@@ -269,11 +317,11 @@ SummaryView buildSummary({
   );
 }
 
-/// The demand takt, measured at the busiest station (DESIGN.md §8.2).
+/// The demand takt, measured at the busiest workcenter (DESIGN.md §8.2).
 ///
 /// **The bottleneck sets the pace**, so its hours are the ones demand has to
 /// fit into. "Available working time" cannot mean the line's, because a line is
-/// a set of stations with different calendars and no single figure of its own;
+/// a set of workcenters with different calendars and no single figure of its own;
 /// picking the constraint is the reading that makes the comparison with the
 /// configured takt mean something. Recorded as an open assumption (§18.8).
 DemandTaktView? _demandTakt({
@@ -294,7 +342,7 @@ DemandTaktView? _demandTakt({
     if (yardstick == 0) break;
     var work = 0.0;
     for (final column in demand.columns) {
-      final stored = demand.timeFor(order.partId, column.targetId);
+      final stored = demand.timeFor(order.partId, column.nodeId);
       if (stored != null) work += stored.inSeconds;
     }
     equivalents += work / yardstick * order.batchSize;

@@ -118,7 +118,7 @@ void main() {
     testWidgets('a working day makes days mean working days', (tester) async {
       await pumpWithLocalizations(tester, (l10n) {
         const workingDay = Duration(hours: 22, minutes: 40);
-        // A 3-day takt at a 22:40 station is 68 h, and must read as 3 days —
+        // A 3-day takt at a 22:40 workcenter is 68 h, and must read as 3 days —
         // not the 2.8 it would be against a 24-hour day nobody works.
         expect(
           formatAdaptiveDuration(

@@ -2,8 +2,9 @@ import 'package:drift/drift.dart';
 
 import 'enums.dart';
 
-// All ids are string uuids: stable across the `.flowmap` export/import bundle,
-// which is how a project or template reaches another machine (DESIGN.md §2).
+// All ids are string uuids: stable inside the `.flowmap` document a project
+// *is*, which is how it reaches another machine (DESIGN.md §2). A document's
+// own identity is its project id, which is also what a stored run is keyed by.
 //
 // Durations are stored as integer SECONDS and times of day as integer MINUTES
 // from midnight — never as DateTime. A shift boundary at 15:13 is a clock
@@ -162,6 +163,23 @@ class WorkcenterTypes extends Table {
   TextColumn get icon => textEnum<WorkcenterIcon>().nullable()();
   TextColumn get name => text().withLength(min: 1, max: 100)();
   BoolColumn get isBuiltIn => boolean().withDefault(const Constant(false))();
+
+  /// Whether the crew is this kind of workcenter's throughput (DESIGN.md §7.5,
+  /// v30).
+  ///
+  /// **Machine-paced by default, which is what every workcenter was.** A CNC's
+  /// operators only open its shift — two of them do not double its output — but
+  /// a spray booth, a bench, an inspection table and a weld workcenter are
+  /// *labour-paced*: the crew is the constraint, and adding to it is how the
+  /// work goes faster. §7.5 asserted the first for every workcenter in the plant
+  /// until the field crewed Coating from 1/1/1 to 3/2/2 and watched nothing
+  /// move.
+  ///
+  /// **On the type rather than on the workcenter**, because the pacing is a
+  /// property of what kind of machine it is. A run copies the type in (§7.10),
+  /// so a stored run can still say how it was paced.
+  BoolColumn get isLabourPaced =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
@@ -174,7 +192,7 @@ class WorkcenterTypes extends Table {
   ];
 }
 
-/// A machine or station. Belongs to exactly one plant, per the spec.
+/// A machine or workcenter. Belongs to exactly one plant, per the spec.
 ///
 /// **Which lines it is drawn under is a separate table** — [WorkcenterLines].
 /// The resource hierarchy is Plant → Cell → Line → Workcenter, but studies on
@@ -200,6 +218,28 @@ class Workcenters extends Table {
   /// user filled both fields with the same value, then had to read two
   /// identical columns in every picker. One name is what a workcenter has.
   TextColumn get name => text().withLength(min: 1, max: 200)();
+
+  /// How many orders it can run at once (DESIGN.md §3.1, §8.3).
+  ///
+  /// One is a single machine, which is what every workcenter was before this
+  /// column. Above one the engine gives the workcenter that many servers, and it
+  /// genuinely runs that many orders side by side, each with its own process
+  /// time — which is what distinguishes this from a batch process, where one
+  /// window holds several orders and the time does not double. The observed
+  /// data is what decided it: TTAT's process times scale with batch size, and
+  /// an oven curing a load would not.
+  ///
+  /// **It means the same thing everywhere.** §8.4's occupation, §8.3's
+  /// utilization denominator and §6.1's flow equivalent all divide by a
+  /// workcenter's available time, so all three take this — otherwise a two-unit
+  /// workcenter reads 200 % loaded on the Summary while the run reports it
+  /// comfortable.
+  ///
+  /// _Rejected: a pool of two invented members._ It needs no code at all, and
+  /// it puts two machines that do not exist into the plant, the Summary, the
+  /// Queue table and every Gantt from then on.
+  IntColumn get parallelCapacity =>
+      integer().withDefault(const Constant(1))();
 
   TextColumn get notes => text().nullable()();
   DateTimeColumn get archivedAt => dateTime().nullable()();

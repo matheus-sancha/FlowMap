@@ -139,22 +139,23 @@ DemandPartsPlan planPartsWrite({
 
     for (var c = 0; c < table.columns.length; c++) {
       final raw = cellAt(firstStepColumn + c);
-      final targetId = table.columns[c].targetId;
-      // An unbound step has nothing to key a time to, so its column is
-      // read-only and a pasted value for it is dropped (§11).
-      if (raw == null || targetId == null) continue;
+      final column = table.columns[c];
+      // An unbound step has nothing to run the work on, so its column is
+      // read-only and a pasted value for it is dropped (§11) — **the guard is
+      // still the target even though the write is keyed by the node** (§9).
+      if (raw == null || column.targetId == null) continue;
 
       final text = raw.trim();
       if (text.isEmpty) {
         times.add(
-          PartTimeWrite(partKey: partKey, targetId: targetId, time: null),
+          PartTimeWrite(partKey: partKey, nodeId: column.nodeId, time: null),
         );
         continue;
       }
       final parsed = parseDurationInput(text);
       if (parsed == null) continue;
       times.add(
-        PartTimeWrite(partKey: partKey, targetId: targetId, time: parsed),
+        PartTimeWrite(partKey: partKey, nodeId: column.nodeId, time: parsed),
       );
     }
   }
@@ -174,7 +175,7 @@ List<OrderWrite> planSequenceWrite({
   required int row,
   required int column,
   required List<List<String>> block,
-  required String locale,
+  required DateStyle dateStyle,
 }) {
   final byKey = {for (final part in parts) partKeyOf(part.partNumber): part.id};
   final byId = {for (final part in parts) part.id: part};
@@ -205,7 +206,7 @@ List<OrderWrite> planSequenceWrite({
     final typedNeed = cellAt(orderNeedColumn)?.trim();
     final needDate = typedNeed == null || typedNeed.isEmpty
         ? existing?.needDate
-        : parseDateInput(typedNeed, locale);
+        : dateStyle.parse(typedNeed);
     if (needDate == null) continue;
 
     final typedMaterial = cellAt(orderMaterialColumn);
@@ -213,7 +214,7 @@ List<OrderWrite> planSequenceWrite({
         ? existing?.materialDate
         : (typedMaterial.trim().isEmpty
               ? null
-              : parseDateInput(typedMaterial.trim(), locale) ??
+              : dateStyle.parse(typedMaterial.trim()) ??
                     existing?.materialDate);
 
     final typedBatch = cellAt(orderBatchColumn)?.trim();

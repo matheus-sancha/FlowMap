@@ -13,6 +13,7 @@
 /// screen cannot disagree about what the run did (§7.10).
 library;
 
+import '../../../data/database/enums.dart';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart' as xl;
@@ -22,8 +23,11 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import '../../../app/build_info.dart';
 import '../../../common/unit_labels.dart';
+import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../diagnostics/application/diagnostics.dart';
+import '../application/sim_result.dart' show EmptySlotReason;
 import '../data/simulation_runs_repository.dart';
 
 /// The strings the workbook needs, captured before the export goes async.
@@ -38,28 +42,40 @@ class PlanExcelStrings {
     required this.headers,
     required this.generated,
     required this.runLabel,
-    required this.dispatchOverrides,
+    required this.queueTypes,
     required this.unnamedStudy,
+    required this.emptySlotReason,
+    required this.takt,
   });
 
   /// The stamp sheet's own name.
   final String runSheet;
 
-  /// §8.5's thirteen columns, in order, with the unit on the three that carry
+  /// §8.5's fourteen columns, in order, with the unit on the four that carry
   /// one.
   final List<String> headers;
 
   /// `FlowMap 0.1.0-2026-08-08 · generated 8/8/2026 10:12`.
   final String generated;
 
-  /// `8/8/2026 · FIFO`.
+  /// `8/8/2026 · FIFO`, or the date alone when the run named no queue type.
   final String runLabel;
 
-  /// One line per station that dispatched by something else (§7.4).
-  final List<String> dispatchOverrides;
+  /// One line per workcenter, and only when they did not all dispatch alike
+  /// (§7.3). Empty on a run whose queues agreed, which [runLabel] already names.
+  final List<String> queueTypes;
 
   /// What a study whose name is nothing a sheet can be called falls back to.
   final String unnamedStudy;
+
+  /// Names the gate that held an empty release slot (§7.2). A function rather
+  /// than a list, because the reasons are an enum and the file is built off the
+  /// widget tree where `AppLocalizations` cannot be reached.
+  final String Function(EmptySlotReason) emptySlotReason;
+
+  /// A takt written the way the screen writes it (§7.9) — the same
+  /// `taktLabel`, so the file and the table cannot spell one two ways.
+  final String Function(double, TaktUnit) takt;
 }
 
 /// Builds the workbook.
@@ -73,7 +89,15 @@ Uint8List buildPlanWorkbook({
   required StoredRun run,
   required String projectName,
   required PlanExcelStrings strings,
+  required DateStyle dateStyle,
+  List<PlanEntry>? plan,
 }) {
+  // **What is on screen, not what is stored.** The export button sits under the
+  // production plan, so it takes whatever slice that table is showing (§12.1);
+  // handing back a different table from the one above it is how a planner sends
+  // the wrong list. Null means the whole run, which is what an unfiltered view
+  // passes anyway.
+  final rows = plan ?? run.plan;
   final book = xl.Excel.createExcel();
   // Whatever `createExcel` opens with. Deleted once there is something else in
   // the file, because `delete` refuses to remove the last sheet.
@@ -95,16 +119,16 @@ Uint8List buildPlanWorkbook({
   // Grouped in the order the plan presents them, which within a study is
   // sequence order — and §7.2 releases strictly from the head, so that is also
   // release order (§8.5).
-  final byStudy = <String, List<ProductionPlanRow>>{};
-  for (final row in run.plan) {
-    byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
+  final byStudy = <String, List<PlanEntry>>{};
+  for (final row in rows) {
+    byStudy.putIfAbsent(row.studyId, () => []).add(row);
   }
 
   stamp.appendRow([xl.TextCellValue(strings.generated)]);
   stamp.appendRow([xl.TextCellValue(projectName)]);
   stamp.appendRow([xl.TextCellValue(strings.runLabel)]);
-  for (final override in strings.dispatchOverrides) {
-    stamp.appendRow([xl.TextCellValue(override)]);
+  for (final queue in strings.queueTypes) {
+    stamp.appendRow([xl.TextCellValue(queue)]);
   }
 
   for (final entry in byStudy.entries) {
@@ -121,7 +145,8 @@ Uint8List buildPlanWorkbook({
       for (final header in strings.headers) xl.TextCellValue(header),
     ]);
     for (final row in entry.value) {
-      sheet.appendRow(_planRow(row));
+      sheet.appendRow(_planRow(row, strings.emptySlotReason, strings.takt));
+      _formatDates(sheet, sheet.maxRows - 1, dateStyle);
     }
   }
 
@@ -135,6 +160,50 @@ Uint8List buildPlanWorkbook({
   return Uint8List.fromList(bytes ?? const []);
 }
 
+/// The date columns of the row just written, in the user's own format (§12.4).
+///
+/// **Without this a date column reads `45 872`.** The cells are already typed —
+/// §13.1's whole claim is that they are dates rather than strings that look
+/// like dates — but a typed cell with no number format is rendered by whatever
+/// the *viewer's* Excel defaults to, which for this package is `mm-dd-yy`. So
+/// the one thing the file could not say was which way round it meant.
+///
+/// The pattern comes from the same [DateStyle] the screen renders with, so the
+/// exported file and the table it was exported from cannot disagree.
+///
+/// Applied per cell after the row is appended, because `appendRow` takes values
+/// and not styles.
+void _formatDates(xl.Sheet sheet, int row, DateStyle dateStyle) {
+  final date = xl.NumFormat.custom(formatCode: dateStyle.excelPattern);
+  // The two Order columns carry the instant, which is why the file says more
+  // than the screen does (§13.1). 24-hour, which is §12.4's split: dates follow
+  // the user, clock readings do not.
+  final instant = xl.NumFormat.custom(
+    formatCode: '${dateStyle.excelPattern} hh:mm',
+  );
+
+  for (final (column, format) in [
+    (_needDateColumn, date),
+    (_materialDateColumn, date),
+    (_orderStartColumn, instant),
+    (_orderEndColumn, instant),
+  ]) {
+    final cell = sheet.cell(
+      xl.CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row),
+    );
+    // An empty cell is left alone: a blank means blank (see `_planRow`), and
+    // giving it a date format would be claiming it holds a date.
+    if (cell.value == null) continue;
+    cell.cellStyle = xl.CellStyle(numberFormat: format);
+  }
+}
+
+/// Where the dates sit in [_planRow], which is §8.5's column order.
+const _needDateColumn = 6;
+const _materialDateColumn = 7;
+const _orderStartColumn = 8;
+const _orderEndColumn = 9;
+
 /// One order, typed.
 ///
 /// **A missing value is an empty cell, not the dash the table shows.** A dash is
@@ -142,7 +211,34 @@ Uint8List buildPlanWorkbook({
 /// someone reading; in a column about to be averaged it is text, and text in a
 /// number column is what turns a pivot into a mess. Blank means blank to a
 /// spreadsheet, which is the same statement in that language.
-List<xl.CellValue?> _planRow(ProductionPlanRow row) => [
+List<xl.CellValue?> _planRow(
+  PlanEntry entry,
+  String Function(EmptySlotReason) reasonOf,
+  String Function(double, TaktUnit) taktOf,
+) {
+  // A slot carries a moment and a reason and nothing else, so its row is mostly
+  // blank — which is the honest shape: there is no order to describe.
+  if (entry is PlanEmptySlot) {
+    return [
+      null,
+      xl.TextCellValue(reasonOf(entry.reason)),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      _instant(entry.slotAt),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ];
+  }
+  final row = entry as ProductionPlanRow;
+  return [
   xl.IntCellValue(row.orderNumber),
   xl.TextCellValue(row.partNumber),
   _text(row.partDescription),
@@ -151,15 +247,31 @@ List<xl.CellValue?> _planRow(ProductionPlanRow row) => [
   row.batchSize == null ? null : xl.IntCellValue(row.batchSize!),
   _date(row.outcome.needDate),
   _date(row.materialDate),
-  // The instant, where the screen shows only the date: a thirteen-column table
+  // The instant, where the screen shows only the date: a fourteen-column table
   // has no room for a clock and a spreadsheet has no such constraint. They
   // agree about the moment; the file simply says more of it.
   _instant(row.orderStart),
   _instant(row.delivery),
-  _days(row.theoreticalLeadTime),
-  _days(row.actualLeadTime),
-  _days(row.float),
-];
+    // The takt it opened under, written as the words the screen shows rather
+    // than as a number and a unit in two cells (§7.9). It is a label here — the
+    // figures it explains are the arithmetic ones beside it.
+    row.outcome.taktValue == null || row.outcome.taktUnit == null
+        ? null
+        : xl.TextCellValue(
+            taktOf(row.outcome.taktValue!, row.outcome.taktUnit!),
+          ),
+    _days(row.theoreticalLeadTime),
+    _days(row.actualLeadTime),
+    // A number the reader can average, like every other figure here — the `%`
+    // is in the heading, so the cell stays arithmetic.
+    row.leadTimeEfficiency == null
+        ? null
+        : xl.DoubleCellValue(
+            (row.leadTimeEfficiency! * 1000).roundToDouble() / 10,
+          ),
+    _days(row.float),
+  ];
+}
 
 xl.TextCellValue? _text(String? value) =>
     (value == null || value.isEmpty) ? null : xl.TextCellValue(value);
@@ -221,6 +333,7 @@ Future<void> exportPlanExcel(
   BuildContext context, {
   required StoredRun run,
   required String projectName,
+  List<PlanEntry>? plan,
 }) async {
   final l10n = AppLocalizations.of(context);
   final locale = Localizations.localeOf(context).toString();
@@ -229,24 +342,29 @@ Future<void> exportPlanExcel(
 
   final bytes = buildPlanWorkbook(
     run: run,
+    plan: plan,
     projectName: projectName,
+    dateStyle: DateStyleScope.of(context),
     strings: PlanExcelStrings(
       runSheet: l10n.simExportRunSheet,
       unnamedStudy: l10n.study,
+      emptySlotReason: (reason) => emptySlotReasonLabel(l10n, reason),
+      takt: (value, unit) => taktLabel(l10n, value, unit),
       generated: l10n.exportGenerated(
         kBuildLabel,
         timestamp.format(DateTime.now()),
       ),
-      runLabel: l10n.simRunLabel(
-        dates.format(run.createdAt),
-        dispatchRuleLabel(l10n, run.dispatch),
-      ),
-      dispatchOverrides: [
-        for (final override in run.dispatchOverrides)
-          l10n.simDispatchOverrideRow(
-            override.name,
-            dispatchRuleLabel(l10n, override.rule),
-          ),
+      runLabel: switch (runQueueLabel(l10n, run.queues)) {
+        final queues? => l10n.simRunLabel(dates.format(run.createdAt), queues),
+        null => dates.format(run.createdAt),
+      },
+      queueTypes: [
+        if (run.queues.isMixed)
+          for (final workcenter in run.queues.workcenters)
+            l10n.simRunQueueRow(
+              workcenter.name,
+              dispatchRuleLabel(l10n, workcenter.rule),
+            ),
       ],
       // The three duration columns carry their unit, because a column has one
       // where the screen picks one per figure.
@@ -261,8 +379,11 @@ Future<void> exportPlanExcel(
         l10n.demandMaterialDate,
         l10n.simPlanOrderStart,
         l10n.simPlanOrderEnd,
+        l10n.simPlanTakt,
         '${l10n.simPlanTheoreticalLeadTime} (${l10n.unitDaysShort})',
         '${l10n.simPlanActualLeadTime} (${l10n.unitDaysShort})',
+        // A ratio, so it carries `%` where its neighbours carry a unit of time.
+        '${l10n.simPlanLeadTimeEfficiency} (%)',
         '${l10n.simAverageFloat} (${l10n.unitDaysShort})',
       ],
     ),
@@ -281,7 +402,8 @@ Future<void> exportPlanExcel(
     mimeType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   ).saveTo(location.path);
-  Diag.event('plan.xlsx', 'orders ${run.plan.length}');
+  // The count that was written, which on a filtered view is not the run's.
+  Diag.event('plan.xlsx', 'orders ${(plan ?? run.plan).length}');
 
   if (context.mounted) {
     ScaffoldMessenger.of(

@@ -48,23 +48,48 @@ abstract final class FlowMetrics {
   static const nodeHeight =
       nodeHeaderHeight + nodeDataPadding * 2 + nodeDataRows * nodeDataRowHeight;
 
-  /// The inventory triangle's drawn size.
+  /// The inventory triangle a queue's stock is drawn as, hanging under the
+  /// connector it belongs to (§7.3).
   ///
-  /// A buffer occupies the same slot as a process box so the spine stays
-  /// evenly spaced, but it *draws* a small symbol — so the arrows either side
-  /// must reach that symbol rather than the empty slot around it, or they
-  /// stop short of nothing.
-  static const bufferSymbol = 56.0;
+  /// **Under the link rather than in a slot of its own.** A buffer used to take
+  /// a whole `nodeWidth` on the spine and draw a small symbol in the middle of
+  /// it; the queue is a property of the link now, so the triangle sits below
+  /// the arrow and the spine holds nothing but process boxes.
+  static const stockSymbol = 26.0;
 
-  /// How far in from a buffer's slot the arrows should stop.
-  static double get bufferInset => (nodeWidth - bufferSymbol) / 2;
+  /// How far below the spine the stock triangle's top edge sits, clear of the
+  /// connector's own shaft.
+  static const stockOffset = 12.0;
 
   /// The supplier and customer factory symbols.
   static const endpointWidth = 104.0;
   static const endpointHeight = 52.0;
 
-  /// Between nodes — wide enough for the connecting arrow and the insertion
-  /// affordance that sits on it.
+  /// The name printed under an endpoint's factory symbol.
+  ///
+  /// Here rather than as a literal in the canvas because the end stock's
+  /// triangle hangs below it (§7.3), and two files guessing at the same offset
+  /// is how a symbol comes to overlap the label it sits under.
+  static const endpointLabelHeight = 24.0;
+
+  /// A link that carries a queue — every link on the spine except the last.
+  ///
+  /// **The same width as a process box**, and that is the whole point: the
+  /// lead-time ladder puts one rung over each link and one under each box, so
+  /// equal slots make equal rungs. It also buys the queue room for its name and
+  /// its capacity, which `FIFO COATING · max 2` does not fit into 64 px — the
+  /// first build of §7.3 drew them into the gap below and they truncated to
+  /// `FIFO COA…`.
+  ///
+  /// _Rejected: sizing the ladder independently of the map._ Rungs could then be
+  /// equal at any gap width, but a rung that does not sit under the box or the
+  /// link it measures reads as the wrong one's time — which is the rule the
+  /// process rungs have been placed by since they were first drawn.
+  static const queueSlot = nodeWidth;
+
+  /// The one link that carries no queue: into the customer, which is not a
+  /// workcenter. Narrow, because there is nothing to put there — the flow's
+  /// outbound stock is §7.3's own open item and is not a queue when it lands.
   static const gap = 64.0;
 
   static const marginLeft = 32.0;
@@ -84,7 +109,23 @@ abstract final class FlowMetrics {
 class PlacedNode {
   const PlacedNode({required this.view, required this.rect});
 
-  final FlowNodeView view;
+  final FlowStepView view;
+  final Rect rect;
+}
+
+/// Stock at one end of the flow, and where its triangle sits (§7.3).
+///
+/// **Under its endpoint, not on a link.** A queue's triangle hangs below the
+/// arrow it belongs to; these belong to the supplier and customer symbols
+/// instead, which keeps the inbound pile clear of the first step's own queue —
+/// two different piles that would otherwise land on the same link and read as
+/// one.
+class PlacedEndStock {
+  const PlacedEndStock({required this.view, required this.rect});
+
+  final FlowEndStockView view;
+
+  /// The triangle's box, centred under the endpoint it belongs to.
   final Rect rect;
 }
 
@@ -99,17 +140,48 @@ class InsertionPoint {
   final ({double x, double y}) center;
 }
 
+/// Where a step dragged from [from] lands when it is dropped in the gap
+/// [gap], in the terms `StudiesRepository.moveNode` takes — or **null when the
+/// drop changes nothing** (§8.4).
+///
+/// **The two indices count different things**, which is the whole reason this
+/// is a function rather than a subtraction at the call site. An
+/// [InsertionPoint.position] is a gap in the list *as drawn*: five steps have
+/// six gaps, and gap 5 is past the end. `moveNode`'s `to` is an index in the
+/// list *after the dragged step has been taken out of it*, because that is what
+/// `insert(to, removeAt(from))` means. So every gap to the right of the step
+/// being dragged is one place further left than it looks.
+///
+/// **Two gaps are no-ops and both have to be caught here.** The gap immediately
+/// before a step and the one immediately after it are where that step already
+/// is; dropping into either should leave the map alone rather than write a
+/// reorder that renumbers every node and touches the study for nothing.
+int? dropTarget({required int from, required int gap}) {
+  if (gap == from || gap == from + 1) return null;
+  return gap > from ? gap - 1 : gap;
+}
+
 /// One straight run of the spine, and what it is drawn as.
 class FlowConnection {
   const FlowConnection({
     required this.from,
     required this.to,
     required this.kind,
+    this.queue,
   });
 
   final Offset from;
   final Offset to;
   final FlowConnectionKind kind;
+
+  /// The queue this link runs into (§7.3), or null on the link into the
+  /// customer — which is not a workcenter and stands in front of no floor space.
+  ///
+  /// Carried here rather than looked up again by the canvas, because this is
+  /// where [kind] was decided from it: the symbol and the row it is drawn for
+  /// have to be the same queue, and the click that edits it lands on this
+  /// segment.
+  final FlowQueueView? queue;
 }
 
 /// One rung of the lead-time ladder.
@@ -143,11 +215,17 @@ class FlowLayout {
     required this.connections,
     required this.ladder,
     required this.size,
+    this.inboundStock,
+    this.outboundStock,
   });
 
   final Rect supplier;
   final List<PlacedNode> nodes;
   final Rect customer;
+
+  /// The two end piles, or null where the study records none (§7.3).
+  final PlacedEndStock? inboundStock;
+  final PlacedEndStock? outboundStock;
   final List<InsertionPoint> insertionPoints;
 
   /// The arrows, in flow order. Computed here rather than in the canvas so the
@@ -177,7 +255,11 @@ FlowLayout layoutFlow(FlowView view) {
     FlowMetrics.endpointWidth,
     FlowMetrics.endpointHeight,
   );
-  x += FlowMetrics.endpointWidth + FlowMetrics.gap;
+  // Every link runs into a step and carries that step's queue — except the last
+  // one, which runs into the customer. An empty flow is only that last link.
+  x +=
+      FlowMetrics.endpointWidth +
+      (view.nodes.isEmpty ? FlowMetrics.gap : FlowMetrics.queueSlot);
 
   for (var i = 0; i < view.nodes.length; i++) {
     nodes.add(
@@ -191,7 +273,11 @@ FlowLayout layoutFlow(FlowView view) {
         ),
       ),
     );
-    x += FlowMetrics.nodeWidth + FlowMetrics.gap;
+    x +=
+        FlowMetrics.nodeWidth +
+        (i == view.nodes.length - 1
+            ? FlowMetrics.gap
+            : FlowMetrics.queueSlot);
   }
 
   final customer = Rect.fromLTWH(
@@ -202,54 +288,29 @@ FlowLayout layoutFlow(FlowView view) {
   );
   final width = x + FlowMetrics.endpointWidth + FlowMetrics.marginLeft;
 
-  // The ladder sits under the nodes, each rung **centred on its node** and
-  // reaching half a gap either side.
-  //
-  // Half a gap, not a whole one: it keeps the rungs edge to edge — so the
-  // sawtooth stays one continuous timeline — while putting each rung's midpoint
-  // exactly under its node's midpoint. Spanning the node plus the *following*
-  // gap, as this first did, shifts every rung half a gap right, and its label
-  // then sits between two steps and reads as the wrong one's time.
-  final ladderTop = top + FlowMetrics.nodeHeight + FlowMetrics.ladderOffset;
-  for (final placed in nodes) {
-    final isWaiting = placed.view is FlowInventoryView;
-    ladder.add(
-      LadderSegment(
-        rect: Rect.fromLTWH(
-          placed.rect.left - FlowMetrics.gap / 2,
-          isWaiting ? ladderTop : ladderTop + FlowMetrics.ladderHeight,
-          FlowMetrics.nodeWidth + FlowMetrics.gap,
-          FlowMetrics.ladderHeight,
-        ),
-        duration: placed.view.ladderTime,
-        isWaiting: isWaiting,
-        referenceWorkingDay: placed.view.referenceWorkingDay,
-      ),
-    );
-  }
-
-  // The arrows. A buffer draws a small triangle inside a full-width slot, so
-  // an arrow beside one stops where the symbol actually starts rather than at
-  // the empty slot edge — otherwise there is a gap either side and the triangle
-  // reads as off centre.
+  // The arrows, each one drawn as the queue it runs into (§7.3). Built before
+  // the ladder because the ladder's waiting rungs sit over them.
   final connections = <FlowConnection>[];
   final spine = FlowMetrics.marginTop + FlowMetrics.nodeHeight / 2;
   final hasWipCap = view.study.wipCap != null;
+  // A target already given a connection, so a workcenter two steps of one flow
+  // both visit draws — and charges the ladder for — one queue rather than two.
+  final drawn = <String>{};
   var previousRight = Offset(supplier.right, spine);
   for (final placed in nodes) {
-    final inset = placed.view is FlowInventoryView
-        ? FlowMetrics.bufferInset
-        : 0.0;
+    final step = placed.view;
+    final queue = step.queue;
     connections.add(
       FlowConnection(
         from: previousRight,
-        to: Offset(placed.rect.left + inset, spine),
-        kind: connectionKindInto(placed.view, hasWipCap: hasWipCap),
+        to: Offset(placed.rect.left, spine),
+        kind: connectionKindInto(step, hasWipCap: hasWipCap),
+        queue: queue == null || !drawn.add(queue.targetId) ? null : queue,
       ),
     );
-    previousRight = Offset(placed.rect.right - inset, spine);
+    previousRight = Offset(placed.rect.right, spine);
   }
-  // Into the customer, which is not a station and so has no queue of its own.
+  // Into the customer, which is not a workcenter and so has no queue of its own.
   connections.add(
     FlowConnection(
       from: previousRight,
@@ -258,15 +319,99 @@ FlowLayout layoutFlow(FlowView view) {
     ),
   );
 
-  // `+ Insert here`, one per link — centred on **the arrow it sits on**, not on
-  // the gap.
+  // The ladder: **one rung per link and one per box, strictly alternating and
+  // all the same width**, because a link is a slot as wide as a box.
   //
-  // They are the same point everywhere except beside an inventory node, where
-  // the arrow is inset by `bufferInset` on the buffer's side: that segment is
-  // 56px longer than the gap on one end, so its middle is 28px from the gap's,
-  // and the button sat visibly off the line it belongs to. Deriving it from the
-  // connection means the two cannot drift apart again — there is one place the
-  // arrow's extent is decided, and this reads it.
+  // Each rung is exactly the thing it measures — a queue rung spans its link, a
+  // process rung spans its box — so no label can sit under something it does
+  // not describe, and they tile edge to edge with nothing overlapping. The first
+  // build of this overlapped them by half a gap, and `LeadTimeLadderPainter`
+  // draws its riser at each rung's `left`: the path therefore doubled back 32 px
+  // at every queue, which is what made the teeth stubby and misplaced.
+  //
+  // **A waiting rung is drawn even when it is zero.** Alternation is what makes
+  // the comb regular, and a queue that holds nothing has a real answer — no time
+  // is spent there — rather than no answer.
+  //
+  // A link whose queue is null contributes zero: an unbound step has no floor
+  // space in front of it, and the *second* link into a workcenter a flow visits
+  // twice has already been counted at the first (`FlowConnection.queue` is null
+  // there). That is what keeps the rungs summing to the footer's lead time,
+  // which is §17.4's rule and the reason the totals are read off the rungs.
+  final ladderTop = top + FlowMetrics.nodeHeight + FlowMetrics.ladderOffset;
+
+  // **The ends get a rung each, over their own endpoint** (§7.3), so the comb
+  // still tiles edge to edge and every rung still sits under the thing it
+  // measures. They are the two rungs that are *not* drawn when there is nothing
+  // to draw: a queue rung is always present because alternation is what makes
+  // the comb regular, but an endpoint has no box after it to alternate with,
+  // and a study that has never been asked about its ends should look exactly as
+  // it did before this existed (§5.2 — the map draws decisions).
+  if (view.inbound case final stock?) {
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          supplier.left,
+          ladderTop,
+          FlowMetrics.endpointWidth,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: stock.wait,
+        isWaiting: true,
+        referenceWorkingDay: stock.rungWorkingDay,
+      ),
+    );
+  }
+  for (var i = 0; i < nodes.length; i++) {
+    final placed = nodes[i];
+    final queue = connections[i].queue;
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          connections[i].from.dx,
+          ladderTop,
+          connections[i].to.dx - connections[i].from.dx,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: queue?.wait ?? Duration.zero,
+        isWaiting: true,
+        referenceWorkingDay: queue?.rungWorkingDay,
+      ),
+    );
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          placed.rect.left,
+          ladderTop + FlowMetrics.ladderHeight,
+          FlowMetrics.nodeWidth,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: placed.view.ladderTime,
+        isWaiting: false,
+        referenceWorkingDay: placed.view.referenceWorkingDay,
+      ),
+    );
+  }
+  if (view.outbound case final stock?) {
+    ladder.add(
+      LadderSegment(
+        rect: Rect.fromLTWH(
+          customer.left,
+          ladderTop,
+          FlowMetrics.endpointWidth,
+          FlowMetrics.ladderHeight,
+        ),
+        duration: stock.wait,
+        isWaiting: true,
+        referenceWorkingDay: stock.rungWorkingDay,
+      ),
+    );
+  }
+
+  // `+ Insert here`, one per link — centred on **the arrow it sits on**, not on
+  // the gap. Derived from the connection so there is one place the arrow's
+  // extent is decided and this reads it; the two used to be able to drift apart
+  // when a buffer inset one end of a segment.
   for (var i = 0; i < connections.length; i++) {
     insertions.add(
       InsertionPoint(
@@ -283,6 +428,8 @@ FlowLayout layoutFlow(FlowView view) {
     supplier: supplier,
     nodes: nodes,
     customer: customer,
+    inboundStock: _placeEndStock(view.inbound, supplier),
+    outboundStock: _placeEndStock(view.outbound, customer),
     insertionPoints: insertions,
     connections: connections,
     ladder: ladder,
@@ -292,6 +439,27 @@ FlowLayout layoutFlow(FlowView view) {
     ),
   );
 }
+
+/// Centres an end pile's triangle under the endpoint it belongs to.
+///
+/// Below the symbol rather than beside it, so a long supplier name and a wide
+/// pile do not compete for the same horizontal room — and so the triangle sits
+/// at the same depth as the queue triangles that hang below the spine, which is
+/// what makes the row of them read as one kind of thing.
+PlacedEndStock? _placeEndStock(FlowEndStockView? view, Rect endpoint) =>
+    view == null
+    ? null
+    : PlacedEndStock(
+        view: view,
+        rect: Rect.fromLTWH(
+          endpoint.center.dx - FlowMetrics.stockSymbol / 2,
+          endpoint.bottom +
+              FlowMetrics.endpointLabelHeight +
+              FlowMetrics.stockOffset,
+          FlowMetrics.stockSymbol,
+          FlowMetrics.stockSymbol,
+        ),
+      );
 
 /// Whether the canvas should refit itself to [viewport] (DESIGN.md §12.2).
 ///

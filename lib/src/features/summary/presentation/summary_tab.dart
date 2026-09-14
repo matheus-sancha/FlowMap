@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/period_varies_caption.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../flow/application/flow_providers.dart';
-import '../../flow/application/flow_view.dart';
-import '../../flow/presentation/period_label.dart';
 import '../application/summary_providers.dart';
 import '../application/summary_view.dart';
 
@@ -31,12 +29,31 @@ class SummaryTab extends ConsumerWidget {
 
     return Column(
       children: [
-        _PeriodBar(study: study, summary: summary),
-        const Divider(height: 1),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // The count the period bar used to carry on its right-hand end.
+              // The bar is gone — the period is one control on the tab strip
+              // now (§12.1) — and this is a figure about the period rather
+              // than a control for it, so it stays on the page it describes.
+              Text(
+                l10n.summaryOrdersDue('${summary.ordersInPeriod}'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+              // The same takt-change caveat the Flow toolbar carries (§7.7.3):
+              // the two tabs share the viewed period, so a change that makes the
+              // map one moment of several makes this one too.
+              if (summary.taktChange != null || summary.scheduleVaries) ...[
+                const SizedBox(height: 8),
+                PeriodVariesCaption(
+                  taktChange: summary.taktChange,
+                  scheduleVaries: summary.scheduleVaries,
+                ),
+              ],
+              const SizedBox(height: 12),
               _Headline(summary: summary),
               const SizedBox(height: 16),
               Text(
@@ -64,74 +81,7 @@ class SummaryTab extends ConsumerWidget {
   }
 }
 
-class _PeriodBar extends ConsumerWidget {
-  const _PeriodBar({required this.study, required this.summary});
-
-  final Study study;
-  final SummaryView summary;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final period = ref.watch(viewedPeriodProvider(study.id));
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: l10n.periodPrevious,
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () =>
-                ref.read(viewedPeriodProvider(study.id).notifier).previous(),
-          ),
-          SizedBox(
-            width: 96,
-            child: Text(
-              periodLabel(context, period.anchor, period.granularity),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          IconButton(
-            tooltip: l10n.periodNext,
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () =>
-                ref.read(viewedPeriodProvider(study.id).notifier).next(),
-          ),
-          const SizedBox(width: 8),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<PeriodGranularity>(
-              value: period.granularity,
-              onChanged: (value) {
-                if (value != null) {
-                  ref
-                      .read(viewedPeriodProvider(study.id).notifier)
-                      .setGranularity(value);
-                }
-              },
-              items: [
-                for (final granularity in PeriodGranularity.values)
-                  DropdownMenuItem(
-                    value: granularity,
-                    child: Text(granularityLabel(l10n, granularity)),
-                  ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Text(
-            l10n.summaryOrdersDue('${summary.ordersInPeriod}'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
-    );
-  }
-}
-
-/// The one sentence a reader takes away: which station constrains this period,
+/// The one sentence a reader takes away: which workcenter constrains this period,
 /// and by how much (DESIGN.md §8.1).
 class _Headline extends StatelessWidget {
   const _Headline({required this.summary});
@@ -191,7 +141,11 @@ class _OccupationTable extends StatelessWidget {
     }
 
     return Card(
-      child: resultTable(
+      // **Sortable** (#10): the rule is that a surface sorts unless its row
+      // order is itself data, and this table's order is alphabetical by
+      // workcenter — a presentation choice, not a record. Sorting by Occupation
+      // descending is the question the tab exists to answer.
+      child: SortableResultTable<TargetOccupation>(
         // As tall as it is, and as wide as the window allows. A row per
         // workcenter is long enough to hit a 360 px pane, and a pane inside the
         // tab's own scroll gives two vertical bars a few pixels apart — one
@@ -206,9 +160,17 @@ class _OccupationTable extends StatelessWidget {
           ResultColumn(label: l10n.summaryOperatorsAllocated, width: 140),
           ResultColumn(label: l10n.summaryOperatorsNeeded, width: 140),
         ],
-        rowCount: summary.targets.length,
-        cellAt: (index, column) {
-          final target = summary.targets[index];
+        rows: summary.targets,
+        sortKeyOf: (target, column) => switch (column) {
+          0 => target.title,
+          1 => target.required,
+          2 => target.availableProductive,
+          3 => target.occupation,
+          4 => target.operatorsAllocated,
+          // A workcenter with no figure sorts as zero rather than scattering.
+          _ => target.operatorsNeeded ?? 0,
+        },
+        cellAt: (target, column) {
           return switch (column) {
             0 => Row(
               // Without this the Row fills the column and the centring around

@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../features/diagnostics/application/diagnostics.dart';
 import '../app_directory.dart';
 import 'enums.dart';
+import 'migration_backup.dart';
 import 'project_tables.dart';
 import 'seed_data.dart';
 import 'simulation_tables.dart';
@@ -43,20 +44,22 @@ const _seededAtKey = 'reference_data.seeded_at';
     CalendarExceptions,
     TaktPeriods,
     WorkcenterSchedulePeriods,
+    ProjectQueues,
     Studies,
     FlowNodes,
     FlowAnnotations,
     DemandParts,
     PartProcessTimes,
     DemandOrders,
-    WorkcenterDispatch,
     SimulationRuns,
     SimulationRunStudies,
     SimulationRunOrders,
     SimulationRunSteps,
     SimulationRunEmptySlots,
-    SimulationRunDispatch,
     SimulationRunWorkcenters,
+    SimulationRunLanes,
+    SimulationRunLaneVisits,
+    SimulationRunWorkcenterMonths,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -67,13 +70,31 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _openOnDevice() => LazyDatabase(() async {
     final dir = await appDataDirectory();
     await dir.create(recursive: true);
-    return NativeDatabase.createInBackground(
-      File(p.join(dir.path, 'flowmap.sqlite')),
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // **Before anything opens it.** The backup exists for a migration that
+    // fails halfway, and a copy taken after Drift has the file is a copy of a
+    // database already being changed. `copyAside` is a no-op on a fresh install
+    // and on a file already at this version, and it never throws — insurance
+    // that could deny you the building is worse than none.
+    final backup = await MigrationBackup.copyAside(
+      file,
+      schemaVersion: _schemaVersion,
+      onError: (error) => Diag.event('db.backup', 'failed: $error'),
     );
+    if (backup != null) {
+      Diag.event('db.backup', 'wrote ${p.basename(backup.path)}');
+    }
+
+    return NativeDatabase.createInBackground(file);
   });
 
+  /// The one place the number lives, so [_openOnDevice] can ask what a
+  /// migration would be *to* before there is an instance to ask.
+  static const int _schemaVersion = 32;
+
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => _schemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -127,8 +148,24 @@ class AppDatabase extends _$AppDatabase {
         // the dropped column is simply not carried across — and every other
         // value survives whatever column order this machine's table has,
         // which is the reason not to hand-roll the copy.
+        //
+        // **The transformer is not optional**, and it is the third time this
+        // file has learned that (§16.13, §16.15). `TableMigration` copies from
+        // the *current* Dart definition, so this reaches for every column
+        // `workcenters` has today — including `parallel_capacity`, which v15
+        // added and which a table this old has never had. Without a constant
+        // naming it the copy fails on a column twelve versions in the future.
+        // Every future column on this table needs the same line, here and in
+        // the v7 step below.
         if (await _hasColumn('workcenters', 'code')) {
-          await m.alterTable(TableMigration(workcenters));
+          await m.alterTable(
+            TableMigration(
+              workcenters,
+              columnTransformer: {
+                workcenters.parallelCapacity: const Constant<int>(1),
+              },
+            ),
+          );
         }
       }
 
@@ -169,8 +206,17 @@ class AppDatabase extends _$AppDatabase {
         // already been rebuilt by the v3 step above, from a definition that no
         // longer carries it, and so has a database whose upgrade died after
         // this point last time.
+        // The v3 step's note about `parallel_capacity` applies here too: this
+        // rebuild copies from the same current definition.
         if (await _hasColumn('workcenters', 'home_line_id')) {
-          await m.alterTable(TableMigration(workcenters));
+          await m.alterTable(
+            TableMigration(
+              workcenters,
+              columnTransformer: {
+                workcenters.parallelCapacity: const Constant<int>(1),
+              },
+            ),
+          );
         }
         await _ensureTable(m, workcenterLines);
 
@@ -264,7 +310,7 @@ class AppDatabase extends _$AppDatabase {
       }
 
       if (from < 12) {
-        // Field feedback: a batch carries the planner's own number, a station
+        // Field feedback: a batch carries the planner's own number, a workcenter
         // may override the run's dispatch rule, and a run records enough of an
         // order to print a production plan from it.
         //
@@ -275,7 +321,6 @@ class AppDatabase extends _$AppDatabase {
         // (§16.11), and a step that cannot rebuild a table cannot leave one
         // half-rebuilt.
         await _ensureColumn(m, demandOrders, demandOrders.batchNumber);
-        await _ensureTable(m, workcenterDispatch);
 
         // Deliberately not backfilled from the demand: a run stored before now
         // has no answer, and a blank saying so is true (§7.10).
@@ -299,7 +344,6 @@ class AppDatabase extends _$AppDatabase {
           simulationRunOrders,
           simulationRunOrders.materialDate,
         );
-        await _ensureTable(m, simulationRunDispatch);
       }
 
       if (from < 13) {
@@ -377,6 +421,867 @@ class AppDatabase extends _$AppDatabase {
         await m.alterTable(TableMigration(demandParts));
       }
 
+      if (from < 15) {
+        // Field feedback: the inventories should govern the flow. The queue
+        // discipline moves off the workcenter and onto the lane in front of it
+        // (§5.5, §7.4), lanes gain a capacity that blocks upstream, a workcenter
+        // may run more than one order at once (§3.1), and a study may add a
+        // margin ahead of its derived cold start (§7.8).
+        //
+        // **No table is rebuilt**, which is deliberate on a database that has
+        // already survived a half-finished upgrade (§16.11): nullable or
+        // defaulted columns and two new tables, so no step here can leave one
+        // half-copied. The two tables that go are dropped outright at the end,
+        // after their values have been carried across and after the code that
+        // read them has gone.
+        await _ensureColumn(m, flowNodes, flowNodes.laneRule);
+        await _ensureColumn(m, flowNodes, flowNodes.laneCapacity);
+        await _ensureColumn(m, studies, studies.startBufferDays);
+        await _ensureColumn(m, studies, studies.paceSetterTargetId);
+        await _ensureColumn(m, workcenters, workcenters.parallelCapacity);
+
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.startBufferDays,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.laneNodeId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.blockedSeconds,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.blockedSeconds,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.units,
+        );
+        await _ensureTable(m, simulationRunLanes);
+        await _ensureTable(m, simulationRunLaneVisits);
+
+        // Carry every stored dispatch rule onto the lane that feeds its target.
+        //
+        // The rule was keyed by workcenter or pool; a lane is the inventory
+        // node immediately before the step pointing at that target, which is
+        // the same queue seen from the other side. §5.1's spine is what makes
+        // "immediately before" exact — positions are dense and ordered, so the
+        // lane feeding a step is the node at `position - 1` if that node is an
+        // inventory.
+        //
+        // A target with no lane in front of it — a step that opens a flow, or a
+        // workcenter in no flow at all — has nowhere to carry its rule to and
+        // loses it. That is the honest outcome rather than a loss: the rule
+        // described a queue that the model no longer holds anywhere, and §7.4's
+        // fallback to the run's rule is what it becomes. `workcenter_dispatch`
+        // is still here if a value ever needs recovering by hand.
+        if (await _hasTable('workcenter_dispatch')) {
+          await customStatement('''
+            UPDATE flow_nodes SET lane_rule = (
+              SELECT d.rule
+              FROM flow_nodes step
+              JOIN studies s ON s.id = step.study_id
+              JOIN workcenter_dispatch d
+                ON d.project_id = s.project_id
+               AND d.target_id = COALESCE(step.pool_id, step.workcenter_id)
+              WHERE step.study_id = flow_nodes.study_id
+                AND step.position = flow_nodes.position + 1
+                AND step.kind = 'step'
+            )
+            WHERE flow_nodes.kind = 'inventory'
+          ''');
+        }
+
+        // Dropped last, and only once nothing reads them. `workcenter_dispatch`
+        // has been carried onto the lanes above; `simulation_run_dispatch` is
+        // superseded by `simulation_run_lanes`, which records the same fact
+        // about the queue that actually held the orders.
+        await customStatement('DROP TABLE IF EXISTS workcenter_dispatch');
+        await customStatement('DROP TABLE IF EXISTS simulation_run_dispatch');
+      }
+
+      if (from < 16) {
+        // §11.1's tail warning had nowhere to live. A run whose orders finish
+        // past the last defined schedule period carries that period forward,
+        // which is right — refusing would make an overloaded plant
+        // unsimulatable exactly when the simulation is most informative — but
+        // nothing said so. One nullable column, and no table is rebuilt.
+        await _ensureColumn(m, simulationRuns, simulationRuns.scheduleHorizon);
+      }
+
+      if (from < 17) {
+        // Field feedback: a changeover is two halves, not one. Setup rigs the
+        // workcenter and teardown strips it, both are optional, and a repeat of the
+        // same part pays a percentage of the pair rather than nothing (§7.6).
+        // The run records what it charged, because a percentage cannot be read
+        // back off a bool. And a stored run learns which cell and line each of
+        // its studies belonged to, so §7.10's copy-in rule can answer a filter
+        // that would otherwise need a join (§12.1).
+        //
+        // **No table is rebuilt**, for the third migration running: every column
+        // here is nullable and lands on a table that already exists, so no step
+        // can leave one half-copied on a database that has already survived an
+        // interrupted upgrade (§16.11).
+        await _ensureColumn(m, flowNodes, flowNodes.setupValue);
+        await _ensureColumn(m, flowNodes, flowNodes.setupUnit);
+        await _ensureColumn(m, flowNodes, flowNodes.teardownValue);
+        await _ensureColumn(m, flowNodes, flowNodes.teardownUnit);
+        await _ensureColumn(m, flowNodes, flowNodes.samePartPercent);
+
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.changeoverSeconds,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionCellId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionCellName,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionLineId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.productionLineName,
+        );
+
+        // Carry every stored changeover onto the setup it became.
+        //
+        // `changeover_seconds` was canonical seconds and `seconds` is a literal
+        // TaktUnit that resolves identically at every workcenter (§6.1), so this
+        // preserves the typed figure exactly. What it does not preserve is the
+        // charge: §7.6 stops derating setup by availability in the same round,
+        // so a 90-minute setup on a 74 % workcenter occupies 90 minutes rather than
+        // 121.6. That is the point of the change and it is why every stored run
+        // is invalidated by it.
+        //
+        // **A zero carries as null, not as zero.** They mean the same thing —
+        // nothing charged — and null is what an untouched node reads as, so the
+        // editor shows an empty field rather than a `0 s` nobody typed.
+        await customStatement('''
+          UPDATE flow_nodes
+             SET setup_value = changeover_seconds,
+                 setup_unit  = 'seconds'
+           WHERE changeover_seconds IS NOT NULL
+             AND changeover_seconds > 0
+        ''');
+      }
+
+      if (from < 18) {
+        // Field feedback, 2026-08-15: a pool's members read as three loose
+        // machines. §3.1 is right that a run's workcenters are real workcenters —
+        // that is what lets a run say which one ran an order — but nothing
+        // recorded which pool they came from, so nothing could group them.
+        //
+        // Two nullable columns on a table that already exists, so no table is
+        // rebuilt for the fourth migration running (§16.11).
+        //
+        // **Backfilled from nothing.** Pool membership lives in the plant and
+        // may have changed since; reading it here would make every stored run
+        // claim a grouping it never observed, which is the drift §7.10's
+        // copy-in rule exists to prevent. Pre-v18 runs group nothing, which is
+        // §12.1's rule that a blank is not a wildcard.
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.poolId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.poolName,
+        );
+      }
+
+      if (from < 19) {
+        // Field feedback, 2026-08-15: "the inventories of a workcenter used in
+        // multiple flows must be the same, they are not."
+        //
+        // They were not, because an inventory was a node on one study's spine
+        // (§5.5). Two studies whose flows both reached CLAD07 each had their
+        // own, with their own name, discipline and capacity — and the engine
+        // simulated two floor spaces where the plant has one. The Gantt drawing
+        // them twice was repeating what the model said.
+        //
+        // So a queue belongs to what a step *targets*, one row per
+        // `{project, target}`, and every step feeding that target reads it.
+        await _ensureTable(m, projectQueues);
+        await _ensureColumn(m, studies, studies.inboundStock);
+        await _ensureColumn(m, studies, studies.outboundStock);
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.queueType,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.queueCapacity,
+        );
+
+        // **The fold, and it is the first step here that moves data between
+        // concepts rather than adding a column.**
+        //
+        // Each inventory node becomes part of the queue in front of the step
+        // *after* it on its own spine — that step's target is what the node was
+        // really describing. Several nodes therefore land on one row: on the
+        // database this was written against, 15 nodes fold onto 10 targets,
+        // because the two studies share five workcenters and disagree about two of
+        // their names.
+        //
+        // **First study wins, by study then position.** The first node to reach
+        // a target sets the name; a later node's non-null rule or capacity
+        // fills a blank rather than being lost, so nothing that was actually
+        // configured is dropped in favour of something unset. Deterministic, and
+        // it never silently prefers one name without saying so.
+        //
+        // Guarded on emptiness rather than on `from`, so an upgrade interrupted
+        // after this point does not fold twice and overwrite a queue the user
+        // has since edited (§16.11).
+        final alreadyFolded = (await customSelect(
+          'SELECT 1 FROM project_queues LIMIT 1',
+        ).get()).isNotEmpty;
+
+        if (!alreadyFolded) {
+          // **`label` is asked for rather than assumed** (v27). This step reads
+          // the column v27 drops, which is safe on every real upgrade path —
+          // nothing rebuilds `flow_nodes` between here and there, so a v18
+          // database still has it when this runs. The path that does not have
+          // it is the synthetic one: a database old enough for the `from < 2`
+          // step to *create* `flow_nodes` gets it from the current Dart
+          // definition, which no longer names the column. Such a database has
+          // no nodes to fold, but SQLite resolves a column at prepare time, so
+          // an unguarded `inv.label` would fail before it found that out.
+          final foldLabel = await _hasColumn('flow_nodes', 'label')
+              ? 'inv.label'
+              : 'NULL';
+          // Ordered so the fold is reproducible: study, then position down the
+          // spine. `study_id` is a uuid, so this is arbitrary but stable —
+          // which is all determinism needs.
+          final nodes = await customSelect('''
+            SELECT inv.study_id      AS study_id,
+                   inv.position      AS position,
+                   $foldLabel        AS label,
+                   inv.lane_rule     AS lane_rule,
+                   inv.lane_capacity AS lane_capacity,
+                   inv.inventory_mode     AS mode,
+                   inv.inventory_quantity AS quantity,
+                   inv.inventory_seconds  AS seconds,
+                   inv.inventory_unit     AS unit,
+                   s.project_id      AS project_id,
+                   COALESCE(nxt.pool_id, nxt.workcenter_id) AS target_id
+              FROM flow_nodes inv
+              JOIN studies s ON s.id = inv.study_id
+              LEFT JOIN flow_nodes nxt
+                     ON nxt.study_id = inv.study_id
+                    AND nxt.position = inv.position + 1
+                    AND nxt.kind = 'step'
+             WHERE inv.kind = 'inventory'
+             ORDER BY inv.study_id, inv.position
+          ''').get();
+
+          final now = DateTime.now();
+          // What each target has been given so far, so a second node can fill a
+          // blank without overwriting an answer.
+          final folded = <String, Map<String, Object?>>{};
+
+          for (final node in nodes) {
+            final target = node.read<String?>('target_id');
+            if (target == null) {
+              // An inventory node with no step after it describes a queue in
+              // front of nothing. It is dropped rather than guessed at, and
+              // said out loud — the same rule §8.6 applies to a lane no step
+              // ever named.
+              Diag.event(
+                'v19.orphan',
+                'node at ${node.read<int>('position')} feeds no step',
+              );
+              continue;
+            }
+            final project = node.read<String>('project_id');
+            final key = '$project|$target';
+            final seen = folded[key];
+
+            if (seen == null) {
+              folded[key] = {
+                'name': node.read<String?>('label'),
+                'rule': node.read<String?>('lane_rule'),
+                'capacity': node.read<int?>('lane_capacity'),
+                'mode': node.read<String?>('mode'),
+                'quantity': node.read<int?>('quantity'),
+                'seconds': node.read<int?>('seconds'),
+                'unit': node.read<String?>('unit'),
+              };
+              continue;
+            }
+
+            // A later node on the same target. Fill what is blank, and say what
+            // is not taken — `FIFO BAN11` is recoverable from this line, and
+            // from the `flow_nodes` row itself, which is kept.
+            for (final pair in [
+              ('name', node.read<String?>('label')),
+              ('rule', node.read<String?>('lane_rule')),
+              ('mode', node.read<String?>('mode')),
+              ('unit', node.read<String?>('unit')),
+            ]) {
+              final (field, value) = pair;
+              if (value == null) continue;
+              if (seen[field] == null) {
+                seen[field] = value;
+              } else if (seen[field] != value) {
+                Diag.event('v19.discarded', '$field on $target');
+              }
+            }
+            for (final pair in [
+              ('capacity', node.read<int?>('lane_capacity')),
+              ('quantity', node.read<int?>('quantity')),
+              ('seconds', node.read<int?>('seconds')),
+            ]) {
+              final (field, value) = pair;
+              if (value == null) continue;
+              if (seen[field] == null) {
+                seen[field] = value;
+              } else if (seen[field] != value) {
+                Diag.event('v19.discarded', '$field on $target');
+              }
+            }
+          }
+
+          // **`name` is written only if the column is there** (v27), the same
+          // question the fold's own SELECT asks above and for the same reason:
+          // this step writes a column a later step drops, which is fine on
+          // every real upgrade path and not fine on a `project_queues` built
+          // fresh from today's Dart definition. The fold's name-picking still
+          // runs — `Diag.event` still reports what it discarded — it simply has
+          // nowhere to put the winner on a table that has moved past it.
+          final foldsName = await _hasColumn('project_queues', 'name');
+          for (final entry in folded.entries) {
+            final parts = entry.key.split('|');
+            await customInsert(
+              'INSERT INTO project_queues (project_id, target_id, '
+              '${foldsName ? 'name, ' : ''}rule, '
+              'capacity, stock_mode, stock_quantity, stock_seconds, '
+              'stock_unit, created_at, updated_at) '
+              'VALUES (?, ?, ${foldsName ? '?, ' : ''}?, ?, ?, ?, ?, ?, ?, ?)',
+              variables: [
+                Variable<String>(parts[0]),
+                Variable<String>(parts[1]),
+                if (foldsName)
+                  Variable<String>(entry.value['name'] as String?),
+                Variable<String>(entry.value['rule'] as String?),
+                Variable<int>(entry.value['capacity'] as int?),
+                Variable<String>(entry.value['mode'] as String?),
+                Variable<int>(entry.value['quantity'] as int?),
+                Variable<int>(entry.value['seconds'] as int?),
+                Variable<String>(entry.value['unit'] as String?),
+                Variable<DateTime>(now),
+                Variable<DateTime>(now),
+              ],
+            );
+          }
+
+          Diag.event(
+            'v19.fold',
+            '${nodes.length} nodes → ${folded.length} queues',
+          );
+        }
+
+        // **The inventory rows are kept and stop being read.** The same call
+        // §16.18 made for `changeover_seconds`, and stronger here: a row is a
+        // better recovery path for a name the fold discarded than a log line
+        // is. Deleting them would make the upgrade irreversible against a v18
+        // backup for no gain but tidiness.
+      }
+
+      if (from < 20) {
+        // Four nullable columns and **nothing rebuilt** — back to the shape
+        // §16.19 called safe, after v19's fold was the one migration in this
+        // repo that moved data between concepts (§16.21).
+        //
+        // Field, against célula 11D: a workcenter a part does not run on was being
+        // given a share of its neighbours' work, and there was no way to pin a
+        // workcenter out of §6.2.1's rebalancing at all. The first was a defect and
+        // is fixed in code; this is the flag for the second.
+        //
+        // **Null is off, so rebalancing stays on.** Every step already in the
+        // tree behaves exactly as it did, which is the call §16.18 made for the
+        // same-part percentage.
+        await _ensureColumn(m, flowNodes, flowNodes.balanceDisabled);
+
+        // What the run ran at. §18.3 is settled rather than deferred — a run
+        // keeps one cadence throughout — so the takt is the run's identity, and
+        // until now a stored run could not say what it was. `release_seconds`
+        // already held the *resolved* interval; these hold the figure a human
+        // typed, and when it next changes inside the run's span (§7.7.2, §7.7.3).
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.taktValue,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.taktUnit,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.nextTaktChange,
+        );
+
+        // **Nothing is backfilled**, and the reason is the one §16.19 gave for
+        // the pool columns: the takt schedule lives in the project and may say
+        // something different today from what a run used. Reading it here would
+        // make every stored run claim a cadence it never ran at, which is the
+        // drift §7.10's copy-in rule exists to prevent. Pre-v20 runs say
+        // nothing, which is §12.1's rule that a blank is not a wildcard.
+      }
+
+      if (from < 21) {
+        // What the work at a step actually cost, so §7.4's balance can be read
+        // off a run at all. The step rows bracket the work on the calendar and
+        // nothing recorded the work itself, so a workcenter given a bigger share
+        // and a workcenter that merely crossed a weekend looked the same on the
+        // Gantt. One nullable column on a table that predates it — no rebuild,
+        // the shape §16.19 called for.
+        //
+        // **Not backfilled**, for §16.21's reason one more time: deriving it
+        // would need the batch, availability and rework as they stood, and a
+        // run joins to nothing (§7.10). Pre-v21 runs say nothing and the card
+        // omits the line rather than inventing a figure.
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.processSeconds,
+        );
+      }
+
+      if (from < 22) {
+        // **The takt each order opened under, and where a cadence ran out**
+        // (§7.9). v21 recorded what the work at a step cost; this records why
+        // two orders of one part cost different amounts, which is that they
+        // opened under different takts. Recording an effect and leaving its
+        // cause to a schedule that may have moved is the drift §7.10 prevents.
+        //
+        // Three nullable columns on two tables that predate them — no rebuild,
+        // the shape §16.19 called safe.
+        //
+        // **Not backfilled**, for the reason every column since v17 has not
+        // been: a run made before this used one takt for everything, resolved
+        // at a date it no longer records, and writing today's schedule onto it
+        // would make it assert a cadence it never ran at.
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.taktValue,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunOrders,
+          simulationRunOrders.taktUnit,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunStudies,
+          simulationRunStudies.cadenceEndedAt,
+        );
+      }
+
+      if (from < 23) {
+        // **A stay in a queue belongs to a step, not to a workcenter** (§8.6).
+        //
+        // Found by driving: two steps of one study pointed at CEU32, the run
+        // computed 1775 steps in 1110 ms and then could not be stored —
+        // `UNIQUE constraint failed: simulation_run_lane_visits.run_id,
+        // .order_id, .node_id` — three times in four minutes. A part going back
+        // to a machine for a second operation is ordinary routing and the
+        // engine has always modelled it; only the save could not express it.
+        //
+        // **The first rebuild since v15.** Every migration since has been able
+        // to say "no rebuild, the shape §16.19 called safe" — a nullable column
+        // on a table that predates it. A primary key cannot be changed that
+        // way, so this one creates the table in its new shape, copies, and
+        // swaps. The old table is dropped last and inside the same
+        // transaction, so a failure leaves v22's table where it was.
+        //
+        // **`node_id` becomes `target_id`, which is what it always held.**
+        // `engine.dart` writes `waiting.lane.targetId` into it and has since
+        // §7.3 moved the queue onto the workcenter. The name is what made this
+        // defect invisible for six rounds: a key on "node" read as one stay per
+        // step and meant one stay per workcenter.
+        // **Only where the old shape is actually there.** A database coming
+        // from v19 or earlier had this table created by that step's
+        // `_ensureTable`, which builds from the *current* definition — so it
+        // arrives here already in the v23 shape with nothing to migrate. That
+        // is the same reason `_ensureColumn` tolerates a missing table:
+        // `from` says where the counter stopped, not what the file contains.
+        // Every column the copy reads, not just the renamed one. A database
+        // may carry a hand-rolled table of this name in a shape the app never
+        // shipped — `migration_test.dart`'s v16 fixture is one, with no
+        // `study_id` and `entered`/`left` rather than `entered_at`/`left_at`.
+        // The app could not read such a table before this migration and cannot
+        // after it; what matters is that v23 leaves it exactly as it found it
+        // rather than failing the whole upgrade on the way past.
+        if (await _hasColumn('simulation_run_lane_visits', 'node_id') &&
+            await _hasColumn('simulation_run_lane_visits', 'study_id') &&
+            await _hasColumn('simulation_run_lane_visits', 'entered_at')) {
+          await m.database.transaction(() async {
+            await m.database.customStatement('''
+            CREATE TABLE simulation_run_lane_visits_v23 (
+              run_id TEXT NOT NULL REFERENCES simulation_runs (id)
+                ON DELETE CASCADE,
+              study_id TEXT NOT NULL,
+              order_id TEXT NOT NULL,
+              target_id TEXT NOT NULL,
+              step_node_id TEXT NOT NULL,
+              entered_at INTEGER NOT NULL,
+              left_at INTEGER,
+              PRIMARY KEY (run_id, order_id, step_node_id)
+            )
+          ''');
+
+            // **Backfilled from the steps, and falling back to the target.** A
+            // stay that produced a step is matched to it on (run, order, lane),
+            // which is exactly the pair the writer derived it from — so a v22 row
+            // gets the step it was always about. A stay that produced *no* step
+            // is an order the guard caught still queueing; there is no step to
+            // name, and v22's own key guarantees at most one such row per order
+            // per workcenter, so taking the target as its surrogate collides with
+            // nothing and loses nothing.
+            //
+            // Deriving rather than dropping, because §7.10's posture is that a
+            // stored run is read with the build that made it in mind rather than
+            // discarded when the model moves under it.
+            await m.database.customStatement('''
+            INSERT INTO simulation_run_lane_visits_v23
+              (run_id, study_id, order_id, target_id, step_node_id,
+               entered_at, left_at)
+            SELECT v.run_id, v.study_id, v.order_id, v.node_id,
+                   COALESCE(
+                     (SELECT s.node_id FROM simulation_run_steps s
+                       WHERE s.run_id = v.run_id
+                         AND s.order_id = v.order_id
+                         AND s.lane_node_id = v.node_id
+                       LIMIT 1),
+                     v.node_id),
+                   v.entered_at, v.left_at
+              FROM simulation_run_lane_visits v
+          ''');
+
+            await m.database.customStatement(
+              'DROP TABLE simulation_run_lane_visits',
+            );
+            await m.database.customStatement(
+              'ALTER TABLE simulation_run_lane_visits_v23 '
+              'RENAME TO simulation_run_lane_visits',
+            );
+          });
+        }
+      }
+
+      if (from < 24) {
+        // **A process time belongs to a step, not to the workcenter it points at**
+        // (§9). Found by driving §8.6: adding a second CEU30 to a flow gave two
+        // columns over one value, so editing either edited both and the engine
+        // charged identical work on each pass. §8.6 made a revisit storable and
+        // left it unable to say what the second visit costs.
+        //
+        // **Every step inherits its target's time**, so nothing changes until
+        // somebody edits one of them — today's numbers are the starting state,
+        // and a study that never revisits a workcenter cannot tell this happened.
+        //
+        // **A time whose target has no step is dropped.** It cannot be keyed to
+        // a node that does not exist, and it was already unreachable: no column
+        // draws it and no run reads it. On the live database that was **8 rows
+        // of 279**, left behind when a step was deleted or repointed after
+        // somebody had typed a time. Said plainly because this is the only step
+        // in this file that removes anything.
+        if (await _hasColumn('part_process_times', 'target_id')) {
+          await m.database.transaction(() async {
+            await m.database.customStatement('''
+              CREATE TABLE part_process_times_v24 (
+                part_id TEXT NOT NULL REFERENCES demand_parts (id)
+                  ON DELETE CASCADE,
+                node_id TEXT NOT NULL REFERENCES flow_nodes (id)
+                  ON DELETE CASCADE,
+                seconds INTEGER NOT NULL,
+                PRIMARY KEY (part_id, node_id)
+              )
+            ''');
+
+            // **Joined through the part's own study**, which is what makes
+            // keying by node lose no sharing: `demand_parts` is study-scoped,
+            // so a time can only ever reach the steps of the flow it was typed
+            // against. Restricted to `kind = 'step'` because a queue or an
+            // inventory node targets nothing and would match on two nulls.
+            await m.database.customStatement('''
+              INSERT INTO part_process_times_v24 (part_id, node_id, seconds)
+              SELECT t.part_id, n.id, t.seconds
+                FROM part_process_times t
+                JOIN demand_parts p ON p.id = t.part_id
+                JOIN flow_nodes n ON n.study_id = p.study_id
+                 AND n.kind = 'step'
+                 AND COALESCE(n.pool_id, n.workcenter_id) = t.target_id
+            ''');
+
+            await m.database.customStatement('DROP TABLE part_process_times');
+            await m.database.customStatement(
+              'ALTER TABLE part_process_times_v24 '
+              'RENAME TO part_process_times',
+            );
+          });
+        }
+      }
+
+      if (from < 25) {
+        // **What a run must carry to be graphed over time** (§10.2). Three
+        // copy-ins, and every one of them is a figure the plant would answer
+        // differently tomorrow — which is the whole of §7.10's rule that a
+        // finished run is never joined back to a plant that may have been
+        // retuned since.
+        //
+        // **No rebuild.** Two nullable columns on tables that predate them and
+        // one new table, which is §16.19's safe shape and what every migration
+        // since v15 but v23 has been able to say.
+        //
+        // **Nothing is backfilled, and that is the point.** A run made before
+        // v25 cannot say what its rework cost or what a month of it was worth,
+        // because the figures were never fused into anything recoverable —
+        // `process_seconds` is `work × (1 + r)` with `r` gone. Inventing them
+        // from today's schedules would draw a capacity line for 2025 out of a
+        // plant retuned in 2026, and a wrong line is worse than no graph.
+        // §10.3 offers no graph on a pre-v25 run, the way pre-v18 runs group
+        // nothing.
+        await _ensureColumn(
+          m,
+          simulationRunSteps,
+          simulationRunSteps.processSecondsBeforeRework,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.typeId,
+        );
+        await _ensureColumn(
+          m,
+          simulationRunWorkcenters,
+          simulationRunWorkcenters.typeName,
+        );
+        await _ensureTable(m, simulationRunWorkcenterMonths);
+      }
+
+      if (from < 26) {
+        // **Where the float matrix turns red and green** (§10.4), per project.
+        //
+        // Two nullable-shaped columns with defaults on a table that predates
+        // them — §16.19's safe shape, no rebuild. Every existing project gets
+        // `0` and `30`, which is not a backfill in §10.2's sense: these are
+        // thresholds for *reading* a figure rather than a record of what the
+        // plant was, so a default is the right answer rather than an invented
+        // one. Nothing about any stored run changes.
+        await _ensureColumn(m, projects, projects.floatRedDays);
+        await _ensureColumn(m, projects, projects.floatGreenDays);
+      }
+
+      if (from < 27) {
+        // **A queue is an aspect of its target, and a box is its workcenter**
+        // (#5). Two names go: the queue's, which was never identity, and the
+        // step's label, which let a box be captioned something its workcenter was
+        // not called.
+        //
+        // **`DROP COLUMN` rather than the v3 rebuild.** SQLite has supported
+        // it since 3.35 and neither column is indexed or part of a key, so the
+        // whole copy is unnecessary here — and a copy is not free of risk:
+        // `TableMigration` reaches for every column the *current* Dart
+        // definition names, which is the trap the v3 step's comment is about.
+        // Dropping one column by name cannot reach for a column the table in
+        // front of it does not have.
+        //
+        // **Every dropped value is logged first**, as §16.20's fold logged what
+        // it discarded. All 15 of the live database's queue names are `FIFO `
+        // plus a mangled target name and all 2 step labels are one pool spelled
+        // two ways, so nothing here is information — but `FIFO CEU 21` is
+        // recoverable from the diagnostics if anyone asks, and that costs one
+        // line.
+        if (await _hasColumn('project_queues', 'name')) {
+          for (final row in await customSelect(
+            'SELECT target_id, name FROM project_queues '
+            'WHERE name IS NOT NULL AND name <> \'\'',
+          ).get()) {
+            Diag.event(
+              'v27.dropped',
+              'queue name ${row.read<String>('name')} '
+                  'on target ${row.read<String>('target_id')}',
+            );
+          }
+          await customStatement('ALTER TABLE project_queues DROP COLUMN name');
+        }
+
+        if (await _hasColumn('flow_nodes', 'label')) {
+          for (final row in await customSelect(
+            'SELECT id, label FROM flow_nodes '
+            'WHERE label IS NOT NULL AND label <> \'\'',
+          ).get()) {
+            Diag.event(
+              'v27.dropped',
+              'step label ${row.read<String>('label')} '
+                  'on node ${row.read<String>('id')}',
+            );
+          }
+          await customStatement('ALTER TABLE flow_nodes DROP COLUMN label');
+        }
+      }
+
+      if (from < 28) {
+        // **Study priority goes** (#6). It was a lever nobody ever pulled,
+        // wired *below* arrival in the fall-through so it could not have
+        // expedited anything if they had: two orders that reach a workcenter at
+        // different times never reach the priority key at all.
+        //
+        // Two columns, and they are dropped for different reasons. The study's
+        // is a field the app no longer offers. The run's copy
+        // (`simulation_run_studies`) is **write-only** — written on every run
+        // since it existed, read back by nothing — and §7.10's rule is that
+        // what a *report* needs is copied in. No report needs this one, so
+        // dropping it loses nothing a reader could ever have seen and stops
+        // every future run fabricating a value for a field that is gone.
+        //
+        // **`DROP COLUMN` on both, not the `TableMigration` rebuild #6
+        // proposed.** Neither column is indexed or part of a key — the run
+        // table is keyed `{runId, studyId}` — so v27's argument applies
+        // unchanged and more strongly: a rebuild reaches for every column the
+        // *current* Dart definition names, and dropping one column by name
+        // cannot reach for a column the table in front of it does not have.
+        //
+        // **Only a value someone actually set is logged.** v27 logged every
+        // dropped value because each was a string someone had typed; here the
+        // live database holds 3 studies and 324 run rows all sitting at the
+        // default 100, so logging them would be 327 lines saying nothing. A
+        // line appearing here at all is the interesting case, and its absence
+        // on upgrade is the evidence that the drop was the no-op #6 predicted.
+        if (await _hasColumn('studies', 'priority')) {
+          for (final row in await customSelect(
+            'SELECT id, priority FROM studies WHERE priority <> 100',
+          ).get()) {
+            Diag.event(
+              'v28.dropped',
+              'study priority ${row.read<int>('priority')} '
+                  'on study ${row.read<String>('id')}',
+            );
+          }
+          await customStatement('ALTER TABLE studies DROP COLUMN priority');
+        }
+
+        if (await _hasColumn('simulation_run_studies', 'priority')) {
+          await customStatement(
+            'ALTER TABLE simulation_run_studies DROP COLUMN priority',
+          );
+        }
+      }
+
+      if (from < 29) {
+        // **Where the Occupation grid turns amber and red** (#9), per project.
+        //
+        // v26's shape exactly, one section down the same settings card: two
+        // columns with defaults on a table that predates them, no rebuild.
+        // Every existing project gets 85 and 100 — a threshold for *reading* a
+        // figure rather than a record of what the plant was, so a default is
+        // the right answer rather than an invented one (§10.2).
+        //
+        // **No stored run is invalidated, and none changes.** The 3 runs that
+        // can draw this view already carry everything the grid reads, and the
+        // 144 that cannot could not draw the chart it replaces either.
+        await _ensureColumn(m, projects, projects.occupationAmberPct);
+        await _ensureColumn(m, projects, projects.occupationRedPct);
+      }
+
+      if (from < 30) {
+        // **Whether a type's crew is its throughput** (§7.5, phase 10). One
+        // defaulted column on a table that predates it, no rebuild — the same
+        // shape as v26 and v29.
+        //
+        // **Every existing type defaults to machine-paced**, which is what the
+        // model has assumed all along, so nothing moves until someone says
+        // otherwise. That is deliberate: the flag changes what a run computes
+        // at any workcenter carrying it, and a migration that silently repaced
+        // half a plant would invalidate every stored figure for it without
+        // anyone asking.
+        //
+        // **No stored run is touched.** The 150 keep what they have; a re-run
+        // is what moves, and only at a type someone has marked.
+        await _ensureColumn(m, workcenterTypes, workcenterTypes.isLabourPaced);
+      }
+
+      if (from < 31) {
+        // **Which build made this run** (#24). One nullable column on a table
+        // that predates it, no rebuild — the same shape as v26, v29 and v30.
+        //
+        // **Deliberately not backfilled.** Every run already stored keeps a
+        // null, and null means *"made before builds were stamped"* rather than
+        // *"unknown for some other reason"*. Stamping the 165 with the current
+        // build would be the one change that makes the app lie about its own
+        // records: they span three engine generations, and #19 moved what a run
+        // means with no migration at all, so two of them at the same schema
+        // version can still disagree about the plant.
+        //
+        // **No stored run is touched**, which is also what makes this the first
+        // migration since v2.0 opened that puts nothing at risk.
+        await _ensureColumn(m, simulationRuns, simulationRuns.appVersion);
+      }
+
+      if (from < 32) {
+        // **A run belongs to a document, not to a project row** (#37).
+        //
+        // `project_id` referenced `projects` with `onDelete: cascade`, which
+        // was right while the database owned the projects. Under the document
+        // model the working tables are emptied and refilled on every open, so
+        // that cascade would delete every stored run the first time someone
+        // opened a second document — the exact opposite of what the decision
+        // says runs are for.
+        //
+        // The value does not change: a document's identity *is* its project
+        // id, and it travels inside the file. Only the name and the foreign
+        // key do. **A rebuild, reluctantly**, against this file's own rule that
+        // a column is kept rather than dropped for tidiness (§16.11) — this is
+        // not tidiness, it is a cascade the app would otherwise have to evade
+        // on every load.
+        //
+        // **The transformer is not optional** (§16.13, §16.15): `TableMigration`
+        // copies column by column from the *current* Dart definition, so
+        // `document_id` has to be named here or the copy reaches for a column
+        // the old table does not have. `app_version` needs no line — v31 added
+        // it above, so it exists by the time this runs.
+        if (await _hasColumn('simulation_runs', 'project_id')) {
+          await m.alterTable(
+            TableMigration(
+              simulationRuns,
+              columnTransformer: {
+                simulationRuns.documentId: const CustomExpression<String>(
+                  'project_id',
+                ),
+              },
+            ),
+          );
+        }
+      }
+
       // Reference-data seeding runs outside every version guard, on every
       // upgrade, so content added to a later build reaches the people
       // already running the app — who are exactly who it is for.
@@ -404,11 +1309,10 @@ class AppDatabase extends _$AppDatabase {
   // step that has already run must be a no-op rather than an error, or one
   // interrupted upgrade locks the user out of their own data for good.
 
-  Future<bool> _hasTable(String name) async =>
-      (await customSelect(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
-        variables: [Variable<String>(name)],
-      ).get()).isNotEmpty;
+  Future<bool> _hasTable(String name) async => (await customSelect(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    variables: [Variable<String>(name)],
+  ).get()).isNotEmpty;
 
   /// Interpolated rather than bound: `PRAGMA` takes no parameters, and every
   /// caller passes a table name written in this file.
@@ -422,11 +1326,23 @@ class AppDatabase extends _$AppDatabase {
     if (!await _hasTable(table.actualTableName)) await m.createTable(table);
   }
 
+  /// Adds [column] unless it is already there — or the table is not.
+  ///
+  /// **The missing-table case is not defensive padding.** A step adds columns to
+  /// tables an earlier step creates, and `from` says only where the counter
+  /// stopped: a database whose upgrade died between the two has the version of
+  /// the second and the tables of neither (§16.11). Asking is what the note at
+  /// the top of `onUpgrade` requires, and [_ensureTable] has always asked.
+  ///
+  /// Skipping is safe rather than merely quiet: whatever creates the table
+  /// later builds it from the current Dart definition, which already carries
+  /// the column. There is no path where this loses one.
   Future<void> _ensureColumn(
     Migrator m,
     TableInfo<Table, dynamic> table,
     GeneratedColumn<Object> column,
   ) async {
+    if (!await _hasTable(table.actualTableName)) return;
     if (!await _hasColumn(table.actualTableName, column.name)) {
       await m.addColumn(table, column);
     }
@@ -446,9 +1362,7 @@ class AppDatabase extends _$AppDatabase {
     for (final type in blank) {
       final guess = guessWorkcenterIcon(type.name);
       if (guess == null) continue;
-      await (update(
-        workcenterTypes,
-      )..where((t) => t.id.equals(type.id))).write(
+      await (update(workcenterTypes)..where((t) => t.id.equals(type.id))).write(
         WorkcenterTypesCompanion(icon: Value(guess)),
       );
     }

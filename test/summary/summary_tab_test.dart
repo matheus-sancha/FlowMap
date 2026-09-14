@@ -1,4 +1,6 @@
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
+import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/summary/application/summary_providers.dart';
 import 'package:flowmap/src/features/summary/application/summary_view.dart';
 import 'package:flowmap/src/features/summary/presentation/summary_tab.dart';
@@ -18,7 +20,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
-    priority: 100,
+    startBufferDays: 0,
     createdAt: now,
     updatedAt: now,
   );
@@ -56,7 +58,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('names the bottleneck and lists every station', (tester) async {
+  testWidgets('names the bottleneck and lists every workcenter', (tester) async {
     await pump(
       tester,
       SummaryView(
@@ -95,6 +97,44 @@ void main() {
     expect(find.text('Raw demand takt'), findsOneWidget);
   });
 
+  testWidgets('a takt change in the span is named, not left to an icon', (
+    tester,
+  ) async {
+    // §7.7.3: the Summary shares the viewed period with the map, so it carries
+    // the same caption — visible text, not the bare ⓘ that went unread.
+    await pump(
+      tester,
+      SummaryView(
+        start: DateTime(2026),
+        end: DateTime(2026, 12, 31),
+        ordersInPeriod: 20,
+        targets: const [],
+        demandTakt: null,
+        taktChange: (
+          at: DateTime(2026, 4, 1),
+          from: TaktPeriodSpec(
+            startDate: DateTime(2026),
+            endDate: DateTime(2026, 3, 31),
+            value: 4,
+            unit: TaktUnit.days,
+          ),
+          to: TaktPeriodSpec(
+            startDate: DateTime(2026, 4, 1),
+            endDate: DateTime(2026, 12, 31),
+            value: 5,
+            unit: TaktUnit.days,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('Takt 4 days → 5 days'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('showing 4 days'), findsOneWidget);
+  });
+
   testWidgets('an empty study says what it is missing', (tester) async {
     await pump(
       tester,
@@ -111,7 +151,7 @@ void main() {
     expect(find.textContaining('No demand takt yet'), findsOneWidget);
   });
 
-  testWidgets('a station short of process times is flagged', (tester) async {
+  testWidgets('a workcenter short of process times is flagged', (tester) async {
     await pump(
       tester,
       SummaryView(

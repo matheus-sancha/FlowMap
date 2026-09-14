@@ -47,7 +47,7 @@ void main() {
     ShiftPatternSpec? pattern,
     double availability = 1,
     double rework = 0,
-    DispatchRule? dispatch,
+    int units = 1,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
@@ -66,22 +66,46 @@ void main() {
         staffing: schedule,
       ),
       schedule: schedule,
-      dispatch: dispatch,
+      units: units,
     );
   }
 
+  /// [changeover] is the **setup**, in seconds, which is what these tests meant
+  /// by a changeover before it had two halves. Teardown and the repeat
+  /// percentage get their own fixtures rather than being threaded through every
+  /// caller here.
   SimStep step(
     int position,
     List<String> candidates, {
     Duration changeover = Duration.zero,
+    Duration teardown = Duration.zero,
+    double samePartFraction = 0,
     String? demandKey,
+    DispatchRule rule = DispatchRule.fifo,
+    int? capacity,
   }) => SimStep(
     id: 'node-$position',
     position: position,
     title: candidates.first,
     candidates: candidates,
     demandKey: demandKey ?? candidates.first,
-    changeover: changeover,
+    // The queue belongs to what the step targets, so two steps naming one
+    // target share it (§5.5) — which is what these tests can now express and
+    // could not when a lane was a node of its own.
+    queue: SimQueue(
+      targetId: demandKey ?? candidates.first,
+      rule: rule,
+      capacity: capacity,
+    ),
+    setupValue: changeover == Duration.zero
+        ? null
+        : changeover.inSeconds.toDouble(),
+    setupUnit: TaktUnit.seconds,
+    teardownValue: teardown == Duration.zero
+        ? null
+        : teardown.inSeconds.toDouble(),
+    teardownUnit: TaktUnit.seconds,
+    samePartFraction: samePartFraction,
   );
 
   SimOrder order(
@@ -100,12 +124,14 @@ void main() {
   );
 
   SimStudy study({
-    required List<SimNode> nodes,
+    required List<SimStep> nodes,
     required Map<String, SimPart> parts,
     required List<SimOrder> orders,
     Duration release = const Duration(hours: 10),
+    List<SimTaktPeriod> taktPeriods = const [],
     String? releaseCalendarId,
-    int priority = 100,
+    String? paceSetterNodeId,
+    Duration startBuffer = Duration.zero,
     int? wipCap,
     String id = 'study-1',
   }) => SimStudy(
@@ -115,8 +141,10 @@ void main() {
     parts: parts,
     orders: orders,
     releaseInterval: release,
+    taktPeriods: taktPeriods,
     releaseCalendarId: releaseCalendarId,
-    priority: priority,
+    paceSetterNodeId: paceSetterNodeId,
+    startBuffer: startBuffer,
     wipCap: wipCap,
   );
 
@@ -125,7 +153,384 @@ void main() {
 
   final aug1 = DateTime(2026, 8, 1);
 
-  group('a single station', () {
+  SimTaktPeriod taktPeriod(
+    DateTime from,
+    DateTime to,
+    double value,
+    Duration interval,
+  ) => SimTaktPeriod(
+    start: from,
+    end: to,
+    value: value,
+    unit: TaktUnit.hours,
+    interval: interval,
+  );
+
+  group('a step worth zero is not a step the order visits (§8.1)', () {
+    // Found by driving 0.1.0-2026-08-27a on 2026-08-29. Zero is what a routing
+    // records where a part does not go through a workcenter — `processSeconds`'
+    // own doc says so — and the engine used to queue the order there anyway.
+    // Nothing in 892 tests said otherwise, which is why this group exists.
+
+    const early = (value: 4.0, unit: TaktUnit.hours);
+    const late = (value: 10.0, unit: TaktUnit.hours);
+    final lastEarly = DateTime(2026, 8, 1, 11);
+    final firstLate = DateTime(2026, 8, 1, 12);
+
+    test('no step row is stored for a workcenter the part does not visit', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(1, ['B']),
+              step(2, ['C']),
+            ],
+            parts: {
+              // B is explicitly zero: the part goes A -> C and the routing says
+              // so by charging nothing in between.
+              'p1': part('p1', {
+                'A': const Duration(hours: 2),
+                'B': Duration.zero,
+                'C': const Duration(hours: 2),
+              }),
+            },
+            orders: [order(0, 'p1')],
+          ),
+        ],
+        workcenters: {
+          'A': workcenter('A'),
+          'B': workcenter('B'),
+          'C': workcenter('C'),
+        },
+        start: aug1,
+      );
+
+      expect(
+        result.steps.map((s) => s.workcenterId).toList(),
+        ['A', 'C'],
+        reason: 'B is worth nothing to this part, so it is not a visit',
+      );
+    });
+
+    test('a zero step does not hold a slot on a capped lane', () {
+      // The half of §8.1 that nothing on screen shows, and the reason it is an
+      // engine fix rather than a drawing one. B's lane holds one order. Both
+      // orders skip B, so neither should ever be in that lane and neither
+      // should wait for the other there.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(1, ['B'], capacity: 1),
+              step(2, ['C']),
+            ],
+            parts: {
+              'p1': part('p1', {
+                'A': const Duration(hours: 1),
+                'B': Duration.zero,
+                'C': const Duration(hours: 1),
+              }),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {
+          'A': workcenter('A'),
+          'B': workcenter('B'),
+          'C': workcenter('C'),
+        },
+        start: aug1,
+      );
+
+      expect(
+        result.steps.any((s) => s.workcenterId == 'B'),
+        isFalse,
+        reason: 'the capped lane in front of B was never entered',
+      );
+      expect(
+        result.steps.every((s) => s.blocked == Duration.zero),
+        isTrue,
+        reason: 'a phantom order in a capped lane is what manufactures blocking',
+      );
+      expect(result.orders.where((o) => o.delivered != null).length, 2);
+    });
+
+    test('a step with no time at all is skipped, exactly as a zero is', () {
+      // **This asserted the opposite until 2026-08-29**, and the change was the
+      // field's: a blank stopped the order dead so that a forgotten figure
+      // could not pass unnoticed. §9 then gave a flow a second visit to one
+      // workcenter and left fifteen parts to be told, one cell at a time, that
+      // they cost `00:00:00` there — *"if it is empty consider 0"*.
+      //
+      // So a blank and a zero are one thing now, and the order delivers rather
+      // than vanishing. **What that costs is the point of keeping this test
+      // rather than deleting it**: a cell nobody typed and a workcenter a part
+      // genuinely skips are indistinguishable, so the run below is shorter than
+      // its author may have meant and nothing says so.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(1, ['B']),
+            ],
+            parts: {
+              // No entry for B at all, as against an entry of zero.
+              'p1': part('p1', {'A': const Duration(hours: 2)}),
+            },
+            orders: [order(0, 'p1')],
+          ),
+        ],
+        workcenters: {'A': workcenter('A'), 'B': workcenter('B')},
+        start: aug1,
+      );
+
+      expect(result.steps.map((s) => s.workcenterId), ['A']);
+      expect(
+        result.orders.single.delivered,
+        isNotNull,
+        reason: 'the order finishes the flow it does have',
+      );
+    });
+
+    test('which steps an order has follows the takt it opened under', () {
+      // Zero-ness is not a property of the step. §7.4's rebalance is free to
+      // empty a workcenter out of a routing at one takt and fill it at another,
+      // and §7.9 measured exactly that on the real plant: CEU32 at 0.0 h under
+      // a five-day takt and busy under four. So two orders of one part, on one
+      // flow, legitimately visit different workcenters.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              SimStep(
+                id: 'n0',
+                position: 0,
+                queue: SimQueue(targetId: 'W'),
+                title: 'W',
+                candidates: const ['W'],
+                demandKey: 'W',
+                balancedProcessTimes: {
+                  early: const {'p1': Duration(hours: 6)},
+                  late: const {'p1': Duration.zero},
+                },
+              ),
+              step(1, ['X']),
+            ],
+            parts: {
+              'p1': part('p1', {
+                'W': const Duration(hours: 9),
+                'X': const Duration(hours: 1),
+              }),
+            },
+            // Four, so the last one opens at noon under the late takt —
+            // the first three go at 00:00, 04:00 and 08:00 while the early
+            // one is still in force.
+            orders: [
+              order(0, 'p1'),
+              order(1, 'p1'),
+              order(2, 'p1'),
+              order(3, 'p1'),
+            ],
+            taktPeriods: [
+              taktPeriod(aug1, lastEarly, 4, const Duration(hours: 4)),
+              taktPeriod(
+                firstLate,
+                DateTime(2026, 12, 31),
+                10,
+                const Duration(hours: 10),
+              ),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W'), 'X': workcenter('X')},
+        start: aug1,
+      );
+
+      final visited = <String, List<String>>{};
+      for (final row in result.steps) {
+        visited.putIfAbsent(row.orderId, () => []).add(row.workcenterId);
+      }
+      expect(
+        visited['o0'],
+        ['W', 'X'],
+        reason: 'opened under the early takt, where W is worth six hours',
+      );
+      expect(
+        visited['o3'],
+        ['X'],
+        reason: 'opened under the late takt, which empties W out of its routing',
+      );
+    });
+  });
+
+  group('the takt belongs to the order (§7.9)', () {
+    // A line that opens an order every 4 hours until noon on 1 August and every
+    // 10 after it, over a workcenter whose work is worth one figure at the first
+    // takt and another at the second. Nothing here is a balance group — the
+    // split arrives already resolved from the assembler — so what these pin is
+    // the engine's half: which takt each order is costed at, and when slots
+    // come round.
+    const early = (value: 4.0, unit: TaktUnit.hours);
+    const late = (value: 10.0, unit: TaktUnit.hours);
+
+    // The first period stops at 11:00 and the second opens at noon, so a slot
+    // placed four hours after 08:00 lands under the *new* takt. Written as two
+    // instants rather than one boundary because a period's end is inclusive,
+    // and a slot falling exactly on it is still the old cadence's.
+    final lastEarly = DateTime(2026, 8, 1, 11);
+    final firstLate = DateTime(2026, 8, 1, 12);
+
+    SimStep splitStep() => SimStep(
+      id: 'n0',
+      position: 0,
+      queue: SimQueue(targetId: 'W'),
+      title: 'W',
+      candidates: const ['W'],
+      demandKey: 'W',
+      balancedProcessTimes: {
+        early: const {'p1': Duration(hours: 6)},
+        late: const {'p1': Duration(hours: 3)},
+      },
+    );
+
+    test('an order costs what its own takt says, not the run start s', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1'), order(3, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, lastEarly, 4, const Duration(hours: 4)),
+              taktPeriod(
+                firstLate,
+                DateTime(2026, 12, 31),
+                10,
+                const Duration(hours: 10),
+              ),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // Released at 00:00, 04:00 and 08:00 under the 4-hour takt, then the
+      // cadence widens and the fourth opens at noon under the 10-hour one. The
+      // first three are worth six hours each and the last three — the same
+      // part, the same workcenter, different work, which is exactly what the field
+      // could not get out of a run.
+      final byOrder = {
+        for (final row in result.steps) row.orderId: row.processSeconds,
+      };
+      expect(byOrder['o0'], const Duration(hours: 6).inSeconds);
+      expect(byOrder['o1'], const Duration(hours: 6).inSeconds);
+      expect(byOrder['o2'], const Duration(hours: 6).inSeconds);
+      expect(byOrder['o3'], const Duration(hours: 3).inSeconds);
+    });
+
+    test('an order keeps the takt it opened under all the way down', () {
+      // §18.3 as it was always meant: work already in flight is never
+      // re-cadenced. The third order opens at 08:00 under the 4-hour takt and
+      // queues behind the two before it, so it does not reach the workcenter until
+      // the 10-hour takt is in force — and it is still worth six hours there,
+      // not the three the clock around it now says.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, lastEarly, 4, const Duration(hours: 4)),
+              taktPeriod(
+                firstLate,
+                DateTime(2026, 12, 31),
+                10,
+                const Duration(hours: 10),
+              ),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      final third = result.steps.firstWhere((row) => row.orderId == 'o2');
+      expect(third.processStart.isBefore(firstLate), isFalse);
+      expect(third.processSeconds, const Duration(hours: 6).inSeconds);
+    });
+
+    test('no takt from here on and the line opens nothing more', () {
+      // §7.9.2: an instant no period covers has no cadence, so there is no next
+      // slot to bring an order round — the same thing a workcenter whose
+      // schedule has run out already does, which is go dark rather than carry
+      // its last staffing forward.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1'), order(2, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, aug1.add(const Duration(hours: 5)), 4,
+                  const Duration(hours: 4)),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // Two slots fall inside the period — 00:00 and 04:00 — and the third
+      // comes round at 08:00, where the line has no takt at all.
+      expect(result.steps.map((row) => row.orderId), ['o0', 'o1']);
+      expect(result.undelivered.map((o) => o.orderId), contains('o2'));
+    });
+
+    test('a gap is waited out, not filled in', () {
+      // The cadence resumes at the next period's first instant rather than an
+      // interval past where it stopped: a new takt starts when its period does.
+      final resumes = DateTime(2026, 8, 3);
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [splitStep()],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 9)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            taktPeriods: [
+              taktPeriod(aug1, aug1.add(const Duration(hours: 2)), 4,
+                  const Duration(hours: 4)),
+              taktPeriod(resumes, DateTime(2026, 12, 31), 10,
+                  const Duration(hours: 10)),
+            ],
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      final second = result.steps.firstWhere((row) => row.orderId == 'o1');
+      expect(second.queueStart, resumes);
+      expect(result.undelivered, isEmpty);
+      // And it opened under the takt that resumed, not the one that lapsed.
+      expect(second.processSeconds, const Duration(hours: 3).inSeconds);
+    });
+  });
+
+  group('a single workcenter', () {
     test('runs the sequence in order, one order at a time', () {
       final result = runSimulation(
         studies: [
@@ -154,7 +559,7 @@ void main() {
     });
 
     test('releases on takt slots and no faster', () {
-      // Work takes an hour; slots are ten hours apart. The station idles.
+      // Work takes an hour; slots are ten hours apart. The workcenter idles.
       final result = runSimulation(
         studies: [
           study(
@@ -195,7 +600,7 @@ void main() {
         start: aug1,
       );
 
-      // 1 h × 4 × 1.25 ÷ 0.5 = 10 h, and the station is open round the clock.
+      // 1 h × 4 × 1.25 ÷ 0.5 = 10 h, and the workcenter is open round the clock.
       expect(result.steps.single.occupied, const Duration(hours: 10));
     });
 
@@ -225,6 +630,485 @@ void main() {
     });
   });
 
+  group('a lane holds only so many (§5.5)', () {
+    /// Two workcenters with a lane between them. The first is quick and the
+    /// second is slow, so orders pile into the lane and the capacity bites.
+    SimRunResult twoWorkcenters({int? capacity}) => runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['FAST']),
+            step(2, ['SLOW'], capacity: capacity),
+          ],
+          parts: {
+            'p1': part('p1', {
+              'FAST': const Duration(hours: 1),
+              'SLOW': const Duration(hours: 6),
+            }),
+          },
+          orders: [for (var i = 0; i < 5; i++) order(i, 'p1')],
+          release: const Duration(hours: 1),
+        ),
+      ],
+      workcenters: {'FAST': workcenter('FAST'), 'SLOW': workcenter('SLOW')},
+      start: aug1,
+    );
+
+    test('an uncapped lane holds as many as arrive', () {
+      final result = twoWorkcenters();
+      expect(result.completed, isTrue);
+      // Nothing is ever held back, so the quick workcenter never waits to unload.
+      expect(result.blockedByWorkcenter['FAST'], Duration.zero);
+      expect(result.steps.every((s) => s.blocked == Duration.zero), isTrue);
+    });
+
+    test('a full lane blocks the workcenter behind it', () {
+      final result = twoWorkcenters(capacity: 1);
+      expect(result.completed, isTrue);
+
+      // FAST can only put an order down when the lane has room, so it spends
+      // most of the run holding finished work. This is the behaviour the whole
+      // item exists for: congestion at SLOW reaches back up the line instead
+      // of piling into an inventory nobody has floor space for.
+      expect(result.blockedByWorkcenter['FAST'], greaterThan(Duration.zero));
+      expect(result.steps.any((s) => s.blocked > Duration.zero), isTrue);
+
+      // And the lane never held more than it was told to. Counted as orders
+      // that had entered but not yet been pulled, at each instant one entered.
+      final atSlow = result.steps.where((s) => s.laneNodeId == 'lane').toList();
+      for (final probe in atSlow) {
+        final standing = atSlow
+            .where(
+              (s) =>
+                  !s.queueStart.isAfter(probe.queueStart) &&
+                  s.processStart.isAfter(probe.queueStart),
+            )
+            .length;
+        expect(standing, lessThanOrEqualTo(1));
+      }
+    });
+
+    test('a blocked step keeps the work it already measured', () {
+      // **The fault this exists for was a rebuild that copied most fields.**
+      // Recording a block replaces the whole row, and it used to omit
+      // `processSeconds`, `processSecondsBeforeRework` and
+      // `changeoverSeconds` — so a step whose workcenter was ever blocked
+      // discarded work the engine had already computed, *after* computing it.
+      //
+      // It reached the Occupation view, which reads demand out of exactly
+      // these columns: on the live database, 201 steps of one run's 1,871
+      // carried a block and therefore contributed nothing at all to the load.
+      // Null and "was blocked" correlated perfectly, with no exceptions either
+      // way, which is what a dropped field looks like from the data.
+      final result = twoWorkcenters(capacity: 1);
+
+      final held = result.steps.where((s) => s.blocked > Duration.zero);
+      expect(held, isNotEmpty, reason: 'the fixture must actually block');
+
+      for (final step in held) {
+        expect(
+          step.processSeconds,
+          isNotNull,
+          reason: 'a blocked step forgot what its work cost',
+        );
+        expect(
+          step.processSecondsBeforeRework,
+          isNotNull,
+          reason: 'a blocked step forgot its work before rework',
+        );
+        // FAST does one-hour jobs, blocked or not: holding a finished order is
+        // not work, and must not change what the work cost.
+        expect(step.processSeconds, const Duration(hours: 1).inSeconds);
+      }
+
+      // And the whole run agrees: no step is a hybrid of two moments (§7.10).
+      final some = result.steps.where((s) => s.processSeconds != null).length;
+      expect(some, result.steps.length);
+    });
+
+    test('blocked time is not busy time', () {
+      final result = twoWorkcenters(capacity: 1);
+
+      // The jam must not read as output (§8.3). FAST does five one-hour jobs
+      // however long it stands holding them, so its busy total is the work and
+      // nothing else — which is what keeps utilization a measure of running.
+      expect(result.busyByWorkcenter['FAST'], const Duration(hours: 5));
+      expect(
+        result.busyByWorkcenter['FAST']!.inSeconds,
+        lessThan(result.openByWorkcenter['FAST']!.inSeconds),
+      );
+    });
+
+    test('a full lane at the head of the flow sends the slot out empty', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(1, ['SLOW'], capacity: 1),
+            ],
+            parts: {
+              'p1': part('p1', {'SLOW': const Duration(hours: 8)}),
+            },
+            orders: [for (var i = 0; i < 4; i++) order(i, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {'SLOW': workcenter('SLOW')},
+        start: aug1,
+      );
+
+      // Nothing upstream can be blocked, so the only thing that can be held
+      // back is the release — and §7.2's slots are strict, so the slot is
+      // spent rather than deferred.
+      expect(
+        result.emptySlots.map((s) => s.reason),
+        contains(EmptySlotReason.laneFull),
+      );
+      // Distinct from a WIP cap on purpose: this study has none.
+      expect(
+        result.emptySlots.map((s) => s.reason),
+        isNot(contains(EmptySlotReason.wipCap)),
+      );
+    });
+
+    test('a linear line with full lanes still drains', () {
+      // §5.5 rejected capacity-limited buffers partly over deadlock. On §5.1's
+      // spine it cannot happen: the last workcenter has an unlimited sink ahead of
+      // it, so the head of the chain always moves and the jam unwinds
+      // backwards. Three workcenters, every lane holding one.
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['A']),
+              step(2, ['B'], capacity: 1),
+              step(4, ['C'], capacity: 1),
+            ],
+            parts: {
+              'p1': part('p1', {
+                'A': const Duration(hours: 1),
+                'B': const Duration(hours: 4),
+                'C': const Duration(hours: 2),
+              }),
+            },
+            orders: [for (var i = 0; i < 6; i++) order(i, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {
+          'A': workcenter('A'),
+          'B': workcenter('B'),
+          'C': workcenter('C'),
+        },
+        start: aug1,
+      );
+
+      expect(result.completed, isTrue);
+      expect(result.orders.every((o) => o.delivered != null), isTrue);
+    });
+  });
+
+  group('the pacemaker gates the release (§7.2)', () {
+    /// A quick first workcenter and a slow third, with a lane in front of the
+    /// slow one. Gating on the pacemaker holds the release at the front of the
+    /// line rather than letting orders pile up in front of the constraint.
+    SimRunResult line({String? pacemaker, int? laneCapacity}) => runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['FAST']),
+            step(2, ['SLOW'], capacity: laneCapacity),
+          ],
+          parts: {
+            'p1': part('p1', {
+              'FAST': const Duration(hours: 1),
+              'SLOW': const Duration(hours: 6),
+            }),
+          },
+          orders: [for (var i = 0; i < 5; i++) order(i, 'p1')],
+          release: const Duration(hours: 1),
+          paceSetterNodeId: pacemaker,
+        ),
+      ],
+      workcenters: {'FAST': workcenter('FAST'), 'SLOW': workcenter('SLOW')},
+      start: aug1,
+    );
+
+    test('a full lane at the pacemaker holds the release back', () {
+      final gated = line(pacemaker: 'node-2', laneCapacity: 1);
+
+      // The slot is spent rather than deferred (§7.2), and it says which of the
+      // two reasons it was: the flow has no WIP cap, so this can only be room.
+      expect(
+        gated.emptySlots.map((s) => s.reason),
+        contains(EmptySlotReason.laneFull),
+      );
+    });
+
+    test('naming no pacemaker leaves the release ungated', () {
+      // Which is what every study did before lanes had capacity, and what a
+      // study with no capacity anywhere still does.
+      final ungated = line(laneCapacity: 1);
+      final gated = line(pacemaker: 'node-2', laneCapacity: 1);
+      expect(
+        ungated.emptySlots.length,
+        lessThan(gated.emptySlots.length),
+      );
+    });
+
+    test('a lane with no capacity gates nothing', () {
+      expect(line(pacemaker: 'node-2').emptySlots, isEmpty);
+    });
+
+    test('a pacemaker that is not in the flow is ignored, not fatal', () {
+      // A node deleted from the map must not stop the study running: the
+      // cadence is still defensible and the Flow tab already shows that
+      // nothing is highlighted.
+      final result = line(pacemaker: 'node-does-not-exist', laneCapacity: 1);
+      expect(result.completed, isTrue);
+      expect(
+        result.emptySlots.map((s) => s.reason),
+        isNot(contains(EmptySlotReason.laneFull)),
+      );
+    });
+  });
+
+  group('one cold start per study (§7.8)', () {
+    /// Two lines on their own workcenters, wanted a fortnight apart. `early` is
+    /// due on the 10th and `late` on the 24th, each needing four hours of work
+    /// on a workcenter open round the clock — so their cold starts are two weeks
+    /// apart and nothing else differs.
+    List<SimStudy> lines() => [
+      study(
+        id: 'early',
+        nodes: [
+          step(0, ['W']),
+        ],
+        parts: {
+          'p1': part('p1', {'W': const Duration(hours: 4)}),
+        },
+        orders: [order(0, 'p1', needDay: 10)],
+      ),
+      study(
+        id: 'late',
+        nodes: [
+          step(0, ['X']),
+        ],
+        parts: {
+          'p2': part('p2', {'X': const Duration(hours: 4)}),
+        },
+        // Sequence 1, so the two studies' orders do not share an id: the
+        // engine keys its release and delivery instants by order id, which the
+        // database makes unique across the project (`DemandOrders.primaryKey`)
+        // but this fixture would otherwise not.
+        orders: [order(1, 'p2', needDay: 24)],
+      ),
+    ];
+
+    final plant = {'W': workcenter('W'), 'X': workcenter('X')};
+
+    DateTime releaseOf(SimRunResult result, String studyId) =>
+        result.orders.firstWhere((o) => o.studyId == studyId).released!;
+
+    final earlyStart = DateTime(2026, 8, 10).subtract(const Duration(hours: 4));
+    final lateStart = DateTime(2026, 8, 24).subtract(const Duration(hours: 4));
+
+    test('planRun keeps each study\'s own start beside the run\'s', () {
+      final plan = planRun(studies: lines(), workcenters: plant);
+
+      expect(plan.startByStudy, {'early': earlyStart, 'late': lateStart});
+      // The run's clock is the earliest of them, because it has to begin
+      // somewhere — but the fold is only for the clock.
+      expect(plan.start, earlyStart);
+    });
+
+    test('a later study waits for its own start, not the run\'s', () {
+      final result = runSimulation(studies: lines(), workcenters: plant);
+
+      // Each is four hours ahead of its own need date, which is what §7.8's
+      // derivation says and what the single-study case has always done.
+      expect(releaseOf(result, 'early'), earlyStart);
+      expect(releaseOf(result, 'late'), lateStart);
+
+      // **The two are a fortnight apart**, which is the whole point. Collapsed
+      // to the earliest — as this was — `late` released on the 9th and sat
+      // finished for two weeks, reporting float it did not have and holding a
+      // shared workcenter through time it would never have been there.
+      expect(
+        releaseOf(result, 'late').difference(releaseOf(result, 'early')),
+        const Duration(days: 14),
+      );
+    });
+
+    test('the run clock still begins at the earliest of them', () {
+      expect(runSimulation(studies: lines(), workcenters: plant).start, earlyStart);
+    });
+
+    test('an explicit start moves the run and keeps the offsets', () {
+      // A caller overriding the start says where the *run* begins, not that
+      // every line begins together — so the fortnight between them survives.
+      final shifted = runSimulation(
+        studies: lines(),
+        workcenters: plant,
+        start: DateTime(2026, 8),
+      );
+
+      expect(releaseOf(shifted, 'early'), DateTime(2026, 8));
+      expect(
+        releaseOf(shifted, 'late').difference(releaseOf(shifted, 'early')),
+        const Duration(days: 14),
+      );
+    });
+  });
+
+  group('the start buffer (§7.8)', () {
+    /// No explicit start, so §7.8's derivation is what is under test: the need
+    /// date, back through the theoretical walk, then back again by the buffer.
+    SimRunResult withBuffer(Duration buffer) => runSimulation(
+      studies: [
+        study(
+          nodes: [
+            step(0, ['W']),
+          ],
+          parts: {
+            'p1': part('p1', {'W': const Duration(hours: 4)}),
+          },
+          orders: [order(0, 'p1', needDay: 20)],
+          startBuffer: buffer,
+        ),
+      ],
+      workcenters: {'W': workcenter('W')},
+    );
+
+    test('it moves the cold start earlier by exactly its length', () {
+      // Calendar days, on the wall clock: ten days is ten days whether or not
+      // the plant was open for them (§17.4).
+      expect(
+        withBuffer(Duration.zero).start.difference(
+          withBuffer(const Duration(days: 10)).start,
+        ),
+        const Duration(days: 10),
+      );
+    });
+
+    test('no buffer leaves §7.8 exactly as it was', () {
+      // The derived start is the need date less the theoretical walk: four
+      // hours of work against a need date of the 20th, on a workcenter open round
+      // the clock.
+      expect(
+        withBuffer(Duration.zero).start,
+        DateTime(2026, 8, 20).subtract(const Duration(hours: 4)),
+      );
+    });
+
+    test('the order gains the margin against its need date', () {
+      final none = withBuffer(Duration.zero).orders.single.delivered!;
+      final ten = withBuffer(const Duration(days: 10)).orders.single.delivered!;
+
+      // It finishes ten days earlier against the same need date, which is what
+      // a safety margin is: the same work, started sooner.
+      expect(none.difference(ten), const Duration(days: 10));
+      expect(ten.isBefore(DateTime(2026, 8, 20)), isTrue);
+    });
+  });
+
+  group('parallel units (§3.1)', () {
+    /// Four orders alternating between two parts, released faster than one
+    /// unit can absorb them, so a queue forms and the units have a choice.
+    SimStudy alternating({Duration process = const Duration(hours: 2)}) => study(
+      nodes: [
+        step(0, ['W'], changeover: const Duration(hours: 1)),
+      ],
+      parts: {
+        'p1': part('p1', {'W': process}),
+        'p2': part('p2', {'W': process}),
+      },
+      orders: [
+        order(0, 'p1'),
+        order(1, 'p2'),
+        order(2, 'p1'),
+        order(3, 'p2'),
+      ],
+      release: const Duration(hours: 1),
+    );
+
+    test('two units run two orders at the same time', () {
+      final result = runSimulation(
+        studies: [alternating(process: const Duration(hours: 5))],
+        workcenters: {'W': workcenter('W', units: 2)},
+        start: aug1,
+      );
+
+      expect(result.completed, isTrue);
+      expect(result.steps, hasLength(4));
+
+      // The first two overlap, which a single server could not do. This is the
+      // whole claim: TTAT holds two orders at once.
+      final byOrder = {for (final s in result.steps) s.orderId: s};
+      expect(byOrder['o1']!.processStart.isBefore(byOrder['o0']!.processEnd),
+          isTrue);
+    });
+
+    test('each unit keeps its own last part, so it pays its own changeovers',
+        () {
+      final two = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W', units: 2)},
+        start: aug1,
+      );
+      final one = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // One unit alternating p1/p2/p1/p2 changes over on all four: three part
+      // changes, plus the cold start, which pays in full because an empty
+      // workcenter is set up for nothing (§7.6). Two units settle one part each,
+      // so each pays only its own cold start and never changes over again —
+      // which is only true because `lastPartId` lives on the unit rather than
+      // on the workcenter.
+      expect(one.steps.where((s) => s.changeoverIncurred), hasLength(4));
+      expect(two.steps.where((s) => s.changeoverIncurred), hasLength(2));
+    });
+
+    test('open time counts every unit, so utilization stays a fraction', () {
+      final two = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W', units: 2)},
+        start: aug1,
+      );
+
+      // The denominator is unit-hours, because the numerator is summed across
+      // units. Counting one clock against two servers' work is how a busy
+      // workcenter comes to report 200 %.
+      final elapsed = two.end.difference(two.start);
+      expect(two.openByWorkcenter['W'], elapsed * 2);
+      expect(
+        two.busyByWorkcenter['W']!.inSeconds,
+        lessThanOrEqualTo(two.openByWorkcenter['W']!.inSeconds),
+      );
+    });
+
+    test('one unit is exactly what it was before the column existed', () {
+      final explicit = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W', units: 1)},
+        start: aug1,
+      );
+      final defaulted = runSimulation(
+        studies: [alternating()],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      expect(
+        explicit.steps.map((s) => (s.orderId, s.processStart, s.processEnd)),
+        defaulted.steps.map((s) => (s.orderId, s.processStart, s.processEnd)),
+      );
+    });
+  });
+
   group('changeover (§7.6)', () {
     SimRunResult runSequence(List<String> partIds) => runSimulation(
       studies: [
@@ -246,24 +1130,185 @@ void main() {
       start: aug1,
     );
 
-    test('the first order of a run never pays a setup', () {
-      // Cold start: there is no previous order, so no *different* part number.
+    test('the first order of a run pays a setup in full', () {
+      // Cold start. This reverses what the engine did before v17, and the
+      // reason is physical rather than tidy: a workcenter that has run nothing is
+      // set up for nothing, so there is no sense in which the first order
+      // arrives to a machine already rigged for it.
+      //
+      // It also removes the rule's only special case. `no previous order` now
+      // reads as `not the same part`, so setup is charged unless the part
+      // repeated — one sentence, no exception (§7.6).
       final result = runSequence(['p1']);
-      expect(result.steps.single.changeoverIncurred, isFalse);
-      expect(result.steps.single.occupied, const Duration(hours: 1));
+      expect(result.steps.single.changeoverIncurred, isTrue);
+      expect(result.steps.single.changeoverSeconds, 3600);
+      expect(result.steps.single.occupied, const Duration(hours: 2));
     });
 
     test('like with like is genuinely cheaper', () {
       final same = runSequence(['p1', 'p1', 'p1']);
       final mixed = runSequence(['p1', 'p2', 'p1']);
 
-      expect(same.steps.where((s) => s.changeoverIncurred), isEmpty);
-      expect(mixed.steps.where((s) => s.changeoverIncurred), hasLength(2));
+      // Both pay the cold start; only the mixed sequence pays for its changes.
+      expect(same.steps.where((s) => s.changeoverIncurred), hasLength(1));
+      expect(mixed.steps.where((s) => s.changeoverIncurred), hasLength(3));
       // Which is what makes a smooth sequence worth chasing (§6.3).
       expect(
         mixed.busyByWorkcenter['W']! - same.busyByWorkcenter['W']!,
         const Duration(hours: 2),
       );
+    });
+
+    test('a repeat pays the percentage, not nothing', () {
+      SimRunResult atPercent(double fraction) => runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(
+                0,
+                ['W'],
+                changeover: const Duration(hours: 1),
+                samePartFraction: fraction,
+              ),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            release: const Duration(hours: 5),
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      // The second order repeats the part. At 0 % it is free, which is what
+      // this app did before v17; at 50 % it pays half a setup; at 100 % it pays
+      // as much as a change would, and batching buys nothing.
+      final seconds = [0.0, 0.5, 1.0]
+          .map((f) => atPercent(f).steps.last.changeoverSeconds)
+          .toList();
+      expect(seconds, [0, 1800, 3600]);
+
+      // The first order is unaffected by the percentage: it repeated nothing.
+      expect(atPercent(1).steps.first.changeoverSeconds, 3600);
+    });
+
+    test('the teardown is paid by whoever comes next', () {
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(
+                0,
+                ['W'],
+                changeover: const Duration(hours: 1),
+                teardown: const Duration(minutes: 30),
+              ),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+              'p2': part('p2', {'W': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p2'), order(2, 'p1')],
+            release: const Duration(hours: 5),
+          ),
+        ],
+        workcenters: {'W': workcenter('W')},
+        start: aug1,
+      );
+
+      final charged = result.steps
+          .map((s) => s.changeoverSeconds)
+          .toList();
+
+      // **The first order pays a setup and no teardown.** There is nothing on
+      // the workcenter to strip: a teardown is a debt left by a previous order and
+      // at cold start there is no previous order.
+      //
+      // Every order after it pays the teardown the one before left plus its own
+      // setup — 30 min + 60 min — which is what a changeover is.
+      expect(charged, [3600, 5400, 5400]);
+
+      // **And the last order's teardown is never paid at all.** Nothing waits
+      // on it, so charging it would extend the run past its final delivery for
+      // something no figure reads. Three orders, three charges, and the fourth
+      // teardown simply does not happen.
+      expect(charged, hasLength(3));
+    });
+
+    test('availability no longer derates the setup (§6.1)', () {
+      SimRunResult at(double availability) => runSimulation(
+        studies: [
+          study(
+            nodes: [
+              step(0, ['W'], changeover: const Duration(hours: 1)),
+            ],
+            parts: {
+              'p1': part('p1', {'W': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1')],
+          ),
+        ],
+        workcenters: {'W': workcenter('W', availability: availability)},
+        start: aug1,
+      );
+
+      // A setup typed in literal time is exactly that long however bad the
+      // workcenter's uptime. Before v17 this was `changeover ÷ availability`, so
+      // the same hour occupied 2 h at 50 % — the loss counted twice once `days`
+      // started meaning a productive day, which has availability already taken
+      // out of it.
+      expect(at(1).steps.single.changeoverSeconds, 3600);
+      expect(at(0.5).steps.single.changeoverSeconds, 3600);
+
+      // The part's own work is still derated, which is the half §4.4 owns: one
+      // hour of work at 50 % occupies two, and the setup adds its literal hour.
+      expect(at(0.5).steps.single.occupied, const Duration(hours: 3));
+    });
+
+    test('a setup in days is that server’s productive day', () {
+      // Two workcenters of very different capacity running the same step, so the
+      // resolution cannot be done once at assembly: `1 day` is ten hours at the
+      // weekday workcenter and twenty-four at the round-the-clock one. This is why
+      // the step carries a value and a unit rather than a duration (§7.6).
+      final result = runSimulation(
+        studies: [
+          study(
+            nodes: [
+              SimStep(
+                id: 'node-0',
+                position: 0,
+                title: 'pool',
+                candidates: const ['DAY', 'ALL'],
+                demandKey: 'pool',
+                queue: const SimQueue(targetId: 'pool'),
+                setupValue: 1,
+                setupUnit: TaktUnit.days,
+              ),
+            ],
+            parts: {
+              'p1': part('p1', {'pool': const Duration(hours: 1)}),
+            },
+            orders: [order(0, 'p1'), order(1, 'p1')],
+            release: const Duration(hours: 1),
+          ),
+        ],
+        workcenters: {
+          'DAY': workcenter('DAY', pattern: weekdayTen),
+          'ALL': workcenter('ALL'),
+        },
+        // A Monday morning with both workcenters open. `aug1` is a Saturday, and
+        // starting there sent both orders to the round-the-clock workcenter —
+        // which is correct pool behaviour and useless for this assertion.
+        start: DateTime(2026, 8, 3, 8),
+      );
+
+      final byWorkcenter = {
+        for (final s in result.steps) s.workcenterId: s.changeoverSeconds,
+      };
+      expect(byWorkcenter['DAY'], const Duration(hours: 10).inSeconds);
+      expect(byWorkcenter['ALL'], const Duration(hours: 24).inSeconds);
     });
   });
 
@@ -358,12 +1403,14 @@ void main() {
   group('dispatch (§7.4)', () {
     /// Two orders queued behind a long first one, so the rule decides which of
     /// the two runs second.
+    /// **The rule is on the workcenter's queue, not on the run** (§7.4). It was a
+    /// run-level setting with a per-lane override until v19; the queue type
+    /// replaced it outright, so one place decides and the map draws it.
     SimRunResult contend(DispatchRule rule) => runSimulation(
-      dispatch: rule,
       studies: [
         study(
           nodes: [
-            step(0, ['W']),
+            step(0, ['W'], rule: rule),
           ],
           parts: {
             'slow': part('slow', {'W': const Duration(hours: 8)}),
@@ -401,94 +1448,16 @@ void main() {
       expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
     });
 
-    /// The same contention, but the station carries its own rule.
-    SimRunResult contendWithStationRule({
-      required DispatchRule run,
-      required DispatchRule station,
-    }) => runSimulation(
-      dispatch: run,
-      studies: [
-        study(
-          nodes: [
-            step(0, ['W']),
-          ],
-          parts: {
-            'slow': part('slow', {'W': const Duration(hours: 8)}),
-            'quick': part('quick', {'W': const Duration(hours: 1)}),
-            'blocker': part('blocker', {'W': const Duration(hours: 10)}),
-          },
-          orders: [
-            order(0, 'blocker', needDay: 30),
-            order(1, 'slow', needDay: 20),
-            order(2, 'quick', needDay: 25),
-          ],
-          release: const Duration(hours: 1),
-        ),
-      ],
-      workcenters: {'W': workcenter('W', dispatch: station)},
-      start: aug1,
-    );
-
-    test("a station's own rule beats the run's", () {
-      // The run says FIFO, which would take o1; the station says shortest
-      // first, which takes o2. The station wins.
-      expect(
-        secondPart(
-          contendWithStationRule(
-            run: DispatchRule.fifo,
-            station: DispatchRule.shortestProcessing,
-          ),
-        ),
-        'o2',
-      );
-    });
-
-    test('a station may also be pinned against a non-default run rule', () {
-      // The mirror: the run is SPT and would take o2, but this station is held
-      // to arrival order. Proves the override is a real substitution rather
-      // than "any station rule wins over FIFO only".
-      expect(
-        secondPart(
-          contendWithStationRule(
-            run: DispatchRule.shortestProcessing,
-            station: DispatchRule.fifo,
-          ),
-        ),
-        'o1',
-      );
-    });
-
-    test('a station with no rule of its own still follows the run', () {
-      expect(
-        secondPart(
-          runSimulation(
-            dispatch: DispatchRule.shortestProcessing,
-            studies: [
-              study(
-                nodes: [
-                  step(0, ['W']),
-                ],
-                parts: {
-                  'slow': part('slow', {'W': const Duration(hours: 8)}),
-                  'quick': part('quick', {'W': const Duration(hours: 1)}),
-                  'blocker': part('blocker', {'W': const Duration(hours: 10)}),
-                },
-                orders: [
-                  order(0, 'blocker', needDay: 30),
-                  order(1, 'slow', needDay: 20),
-                  order(2, 'quick', needDay: 25),
-                ],
-                release: const Duration(hours: 1),
-              ),
-            ],
-            // Explicitly null, which is the state a station that was never
-            // touched is in — distinct from one set back to FIFO.
-            workcenters: {'W': workcenter('W')},
-            start: aug1,
-          ),
-        ),
-        'o2',
-      );
+    test('the queue the workcenter pulls from is what decides', () {
+      // **This replaced three tests about a lane override beating a run-level
+      // default, and about a step with no lane falling back to it.** There is no
+      // run-level default now and there is no step without a queue — the queue
+      // type replaced both. What is left to assert is that each rule genuinely
+      // reaches the workcenter, in both directions: a queue held to arrival order
+      // and one held to shortest-first must disagree about the same three
+      // orders.
+      expect(secondPart(contend(DispatchRule.fifo)), 'o1');
+      expect(secondPart(contend(DispatchRule.shortestProcessing)), 'o2');
     });
   });
 
@@ -550,6 +1519,58 @@ void main() {
   });
 
   group('contention between studies (§7.7)', () {
+    test('two studies share one queue, and its capacity', () {
+      // **The bug this round exists to fix, as arithmetic.** A queue used to be
+      // a node on one study's spine, so two lines feeding CLAD07 each got a
+      // floor space of their own — the Gantt drew two and the engine contended
+      // over two, when the plant has one.
+      //
+      // The numbers are chosen so one line alone is comfortable: an 8 h job
+      // released every 10 h never leaves two orders waiting, so a queue capped
+      // at two is never full. Put a second line through the same workcenter and it
+      // is — which can only happen if the capacity is shared.
+      final shared = {'W': workcenter('W')};
+      final capped = [
+        step(0, ['W'], capacity: 2),
+      ];
+      final parts = {
+        'p1': part('p1', {'W': const Duration(hours: 8)}),
+      };
+      SimStudy line(String id) => study(
+        id: id,
+        nodes: capped,
+        parts: parts,
+        orders: [for (var i = 0; i < 4; i++) order(i, 'p1')],
+        release: const Duration(hours: 10),
+      );
+
+      Iterable<SimEmptySlot> blocked(SimRunResult r) =>
+          r.emptySlots.where((s) => s.reason == EmptySlotReason.laneFull);
+
+      final alone = runSimulation(
+        studies: [line('a')],
+        workcenters: shared,
+        start: aug1,
+      );
+      final together = runSimulation(
+        studies: [line('a'), line('b')],
+        workcenters: shared,
+        start: aug1,
+      );
+
+      expect(
+        blocked(alone),
+        isEmpty,
+        reason: 'one line alone never fills a queue of two',
+      );
+      expect(
+        blocked(together),
+        isNotEmpty,
+        reason: 'the second line fills slots the first can then not have — '
+            'which is only true if the queue is one, not one each',
+      );
+    });
+
     test('one workcenter, two studies, and the queue is shared', () {
       final shared = {'W': workcenter('W')};
       final nodes = [
@@ -566,14 +1587,12 @@ void main() {
             nodes: nodes,
             parts: parts,
             orders: [order(0, 'p1')],
-            priority: 1,
           ),
           study(
             id: 'B',
             nodes: nodes,
             parts: parts,
             orders: [order(0, 'p1')],
-            priority: 2,
           ),
         ],
         workcenters: shared,
@@ -589,8 +1608,18 @@ void main() {
       expect(byStudy['B'], aug1.add(const Duration(hours: 6)));
     });
 
-    test('study priority breaks the tie, reproducibly', () {
-      SimRunResult runWith(int priorityOfB) => runSimulation(
+    test('the need date breaks a tie on arrival, reproducibly (§7.4)', () {
+      // **The slot study priority used to hold** (#6, v28). Priority sat *below*
+      // arrival, so it never expedited anything — what it actually decided was
+      // this: two orders that reach one workcenter at the same instant. On the live
+      // database that happened 78 times in 189,623 step rows, and **27 of them
+      // fell through to comparing two UUIDs**, so "why did this order go first?"
+      // had no answer a third of the time.
+      //
+      // Both orders here are sequence 0 and so share an id, and neither study
+      // types a rule, so the need date is the only key left that can separate
+      // them. Which is the point: this test fails if the slot is left empty.
+      SimRunResult runWith({required int dueDayOfB}) => runSimulation(
         studies: [
           study(
             id: 'A',
@@ -600,8 +1629,7 @@ void main() {
             parts: {
               'p1': part('p1', {'W': const Duration(hours: 3)}),
             },
-            orders: [order(0, 'p1')],
-            priority: 5,
+            orders: [order(0, 'p1', needDay: 20)],
           ),
           study(
             id: 'B',
@@ -611,8 +1639,7 @@ void main() {
             parts: {
               'p1': part('p1', {'W': const Duration(hours: 3)}),
             },
-            orders: [order(0, 'p1')],
-            priority: priorityOfB,
+            orders: [order(0, 'p1', needDay: dueDayOfB)],
           ),
         ],
         workcenters: {'W': workcenter('W')},
@@ -625,8 +1652,12 @@ void main() {
         return ordered.first.studyId;
       }
 
-      expect(firstStudy(runWith(9)), 'A', reason: 'lower priority runs first');
-      expect(firstStudy(runWith(1)), 'B');
+      expect(
+        firstStudy(runWith(dueDayOfB: 25)),
+        'A',
+        reason: 'the earlier-due order runs first',
+      );
+      expect(firstStudy(runWith(dueDayOfB: 15)), 'B');
     });
   });
 
@@ -653,7 +1684,7 @@ void main() {
       expect(result.steps.single.processEnd, DateTime(2026, 8, 6, 11));
     });
 
-    test('a station shut for the whole run delivers nothing, and says so', () {
+    test('a workcenter shut for the whole run delivers nothing, and says so', () {
       final shut = WorkcenterScheduleSpec([
         WorkcenterSchedulePeriodSpec(
           startDate: DateTime(2020),
@@ -695,7 +1726,7 @@ void main() {
 
   group('the horizon guard (§7.8)', () {
     test('demand beyond capacity aborts rather than looping', () {
-      // A slot every hour against a station that takes fifty hours an order:
+      // A slot every hour against a workcenter that takes fifty hours an order:
       // the queue can only grow.
       final result = runSimulation(
         studies: [
@@ -749,7 +1780,6 @@ void main() {
             id: 'A',
             nodes: [
               step(0, ['LAT01', 'LAT02'], demandKey: 'pool'),
-              const SimBuffer(id: 'buffer', position: 1),
               step(2, ['W'], changeover: const Duration(minutes: 30)),
             ],
             parts: {
@@ -796,15 +1826,14 @@ void main() {
     // It used to hold the order for its stored figure. That figure is an
     // observation of a current state, and how long an order really waits is
     // what the run is for — so imposing it charged the order twice, once for
-    // the fixed wait and again for the queue at the station behind it. On the
+    // the fixed wait and again for the queue at the workcenter behind it. On the
     // real célula 11B run it was 14 of the 39.8 days, held whether or not the
-    // next station was free.
+    // next workcenter was free.
     final result = runSimulation(
       studies: [
         study(
           nodes: [
             step(0, ['W']),
-            const SimBuffer(id: 'cool', position: 1),
             step(2, ['X']),
           ],
           parts: {
@@ -827,20 +1856,19 @@ void main() {
     expect(result.busyByWorkcenter['X'], const Duration(hours: 1));
   });
 
-  test('an order behind another still waits, at the station', () {
+  test('an order behind another still waits, at the workcenter', () {
     // The other half of the same rule: taking the fixed wait out does not make
     // a flow instant, it moves the waiting to where the engine measures it.
     //
     // Two orders half an hour apart, an hour at W and three at X. The second
     // clears W at 02:00 and X is busy until 04:00, so it waits two hours —
-    // against X, which is the station that made it wait, rather than against
+    // against X, which is the workcenter that made it wait, rather than against
     // the lane it passed through on the way.
     final result = runSimulation(
       studies: [
         study(
           nodes: [
             step(0, ['W']),
-            const SimBuffer(id: 'lane', position: 1),
             step(2, ['X']),
           ],
           parts: {

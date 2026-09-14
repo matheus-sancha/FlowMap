@@ -50,7 +50,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
-    priority: 100,
+    startBufferDays: 0,
     createdAt: now,
     updatedAt: now,
   );
@@ -91,8 +91,8 @@ void main() {
         columns: columns,
         times: {
           'p1': {
-            'wc-1': const Duration(hours: 55),
-            'wc-2': const Duration(hours: 3),
+            'node-0': const Duration(hours: 55),
+            'node-1': const Duration(hours: 3),
           },
         },
       ),
@@ -113,7 +113,7 @@ void main() {
         parts: [part('p1', 'PN1')],
         columns: columns,
         times: {
-          'p1': {'wc-1': const Duration(hours: 8)},
+          'p1': {'node-0': const Duration(hours: 8)},
         },
       ),
     );

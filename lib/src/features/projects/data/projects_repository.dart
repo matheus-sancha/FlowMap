@@ -50,16 +50,42 @@ class ProjectsRepository {
   /// workcenters of that plant; repointing it would leave all of them dangling
   /// with no sensible remapping. Duplicating the project onto another plant is
   /// the operation that makes sense, and it is a different one.
+  /// Writes the editable half of the row.
+  ///
+  /// **The float thresholds are absent rather than defaulted when omitted**
+  /// (§10.4). A caller that does not care about them - the Projects list's
+  /// Rename - leaves them out and they are not written, which is what
+  /// `Value.absent()` is for and is the difference between "unchanged" and
+  /// "set it back to zero".
   Future<void> updateProject(
     String id, {
     required String name,
     required String shiftPatternId,
     String? notes,
+    int? floatRedDays,
+    int? floatGreenDays,
+    int? occupationAmberPct,
+    int? occupationRedPct,
   }) => (_db.update(_db.projects)..where((p) => p.id.equals(id))).write(
     ProjectsCompanion(
       name: Value(name),
       shiftPatternId: Value(shiftPatternId),
       notes: Value(notes),
+      floatRedDays: floatRedDays == null
+          ? const Value.absent()
+          : Value(floatRedDays),
+      floatGreenDays: floatGreenDays == null
+          ? const Value.absent()
+          : Value(floatGreenDays),
+      // #9's two, absent-when-null for the reason the float pair is: this
+      // method writes every field it is given, so a caller editing one
+      // threshold must not clear the other three.
+      occupationAmberPct: occupationAmberPct == null
+          ? const Value.absent()
+          : Value(occupationAmberPct),
+      occupationRedPct: occupationRedPct == null
+          ? const Value.absent()
+          : Value(occupationRedPct),
       updatedAt: Value(DateTime.now()),
     ),
   );

@@ -6,6 +6,7 @@ import '../../../data/database/database.dart';
 import '../../../data/database/database_providers.dart';
 import '../../demand/application/demand_providers.dart';
 import '../../diagnostics/application/diagnostics.dart';
+import '../../projects/application/projects_providers.dart';
 import '../../resources/application/resources_providers.dart';
 import '../../schedules/application/schedules_providers.dart';
 import '../../studies/application/studies_providers.dart';
@@ -40,37 +41,12 @@ final flaggedStudiesProvider = StreamProvider.family<List<Study>, String>(
       ref.watch(studiesRepositoryProvider).watchFlaggedStudies(projectId),
 );
 
-/// The project's stored runs, newest first (§7.10).
-final projectRunsProvider = StreamProvider.family<List<SimulationRun>, String>(
+/// The project's stored runs, newest first, each with what it dispatched by
+/// (§7.10, §7.3).
+final projectRunsProvider = StreamProvider.family<List<RunListing>, String>(
   (ref, projectId) =>
       ref.watch(simulationRunsRepositoryProvider).watchRuns(projectId),
 );
-
-/// The stations that override the run's rule, by target id (§7.4).
-///
-/// Stored, unlike [DispatchRuleSelection] below: the run's rule is the knob the
-/// experiment turns and belongs to the moment, while "CEU27 is run to due date"
-/// is a fact about how that cell is actually managed and should survive
-/// closing the app. Project-scoped, because a station exists once in a run
-/// however many studies reach it (§7.7).
-final workcenterDispatchProvider =
-    StreamProvider.family<Map<String, DispatchRule>, String>(
-      (ref, projectId) =>
-          ref.watch(simulationRepositoryProvider).watchDispatchRules(projectId),
-    );
-
-/// Which rule the workcenters dispatch by (§7.4).
-///
-/// Per project and held in memory, not stored: it is the knob the experiment
-/// turns, and a run records the rule it was made with, so the answer to "what
-/// did EDD do here" lives on the run rather than on the project.
-@riverpod
-class DispatchRuleSelection extends _$DispatchRuleSelection {
-  @override
-  DispatchRule build(String projectId) => DispatchRule.fifo;
-
-  void select(DispatchRule rule) => state = rule;
-}
 
 /// The assembled run, rebuilt whenever anything it reads changes (§11).
 ///
@@ -91,10 +67,26 @@ final simRunInputProvider = FutureProvider.family<SimRunInput, String>((
   ref.watch(projectSchedulesProvider(projectId));
   ref.watch(calendarExceptionsProvider(projectId));
   ref.watch(shiftPatternsProvider);
-  // A station's queue discipline is resolved onto its [SimWorkcenter] at
-  // assembly time (§7.4), so changing one on the map has to rebuild this the
-  // same way rebinding a step does.
-  ref.watch(workcenterDispatchProvider(projectId));
+
+  // **The plant itself, which this watched nothing of until §7.4 made it
+  // load-bearing.** A workcenter's *type* is the identity a balance group is
+  // formed on, so typing CLAD06 `Cladding` changes what every order costs at it
+  // — and with none of these watched, the assembled input stayed cached and
+  // Simulate silently re-ran the plant as it was before the edit. The map got it
+  // right the whole time, because `flowViewProvider` has always watched these
+  // four; the two surfaces disagreeing about one plant is exactly what §12.6
+  // warns about.
+  //
+  // Watched rather than gated on: a null project is `assembleRun`'s own empty
+  // case, and returning early here would make the readiness panel go blank
+  // while the stream is still warming up.
+  final project = ref.watch(projectProvider(projectId)).value;
+  if (project != null) {
+    ref.watch(workcentersProvider(project.plantId));
+    ref.watch(poolsProvider(project.plantId));
+    ref.watch(poolMembershipProvider(project.plantId));
+  }
+  ref.watch(workcenterTypesProvider);
   for (final study in flagged) {
     ref.watch(flowNodesProvider(study.id));
     ref.watch(demandOrdersProvider(study.id));
@@ -121,7 +113,9 @@ class SimulationRunner extends _$SimulationRunner {
   Future<StoredRun?> build(String projectId) async {
     final runs = ref.watch(projectRunsProvider(projectId)).value;
     if (runs == null || runs.isEmpty) return null;
-    return ref.read(simulationRunsRepositoryProvider).loadRun(runs.first.id);
+    return ref
+        .read(simulationRunsRepositoryProvider)
+        .loadRun(runs.first.run.id);
   }
 
   /// Assembles, runs and stores. Does nothing if the run is not ready (§11) —
@@ -131,7 +125,6 @@ class SimulationRunner extends _$SimulationRunner {
     final assembled = await ref.read(simRunInputProvider(projectId).future);
     if (!assembled.canRun) return;
 
-    final dispatch = ref.read(dispatchRuleSelectionProvider(projectId));
     final runs = ref.read(simulationRunsRepositoryProvider);
 
     state = const AsyncValue.loading();
@@ -140,14 +133,12 @@ class SimulationRunner extends _$SimulationRunner {
       // Off the UI isolate (§7.1). `SimStudy` and `SimWorkcenter` carry no
       // database handle precisely so they can cross — an isolate can only be
       // passed things that hold no open connection.
-      final result = await compute(
-        runSimulationOffThread,
-        (
-          studies: assembled.studies,
-          workcenters: assembled.workcenters,
-          dispatch: dispatch,
-        ),
-      );
+      final result = await compute(runSimulationOffThread, (
+        studies: assembled.studies,
+        workcenters: assembled.workcenters,
+        scheduledWorkcenters: assembled.scheduledWorkcenters,
+        scheduleHorizon: assembled.scheduleHorizon,
+      ));
       // The measurement §14 is still short of, recorded where a field report
       // will carry it (§16.9).
       Diag.event(
@@ -160,10 +151,15 @@ class SimulationRunner extends _$SimulationRunner {
 
       final id = await runs.saveRun(
         projectId: projectId,
-        dispatch: dispatch,
         result: result,
         studies: assembled.studies,
-        workcenters: assembled.workcenters,
+        // The union, not the resource model: the result now carries capacity
+        // for scheduled workcenters the routings never reach (phase 9), and each
+        // still has to be stored under its own name and type.
+        workcenters: {
+          ...assembled.workcenters,
+          ...assembled.scheduledWorkcenters,
+        },
       );
       return runs.loadRun(id);
     });
@@ -185,7 +181,8 @@ class SimulationRunner extends _$SimulationRunner {
 typedef SimRunRequest = ({
   List<SimStudy> studies,
   Map<String, SimWorkcenter> workcenters,
-  DispatchRule dispatch,
+  Map<String, SimWorkcenter> scheduledWorkcenters,
+  DateTime? scheduleHorizon,
 });
 
 /// The run, on a background isolate (DESIGN.md §7.1).
@@ -198,5 +195,6 @@ typedef SimRunRequest = ({
 SimRunResult runSimulationOffThread(SimRunRequest request) => runSimulation(
   studies: request.studies,
   workcenters: request.workcenters,
-  dispatch: request.dispatch,
+  scheduledWorkcenters: request.scheduledWorkcenters,
+  scheduleHorizon: request.scheduleHorizon,
 );

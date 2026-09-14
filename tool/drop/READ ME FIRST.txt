@@ -1,0 +1,113 @@
+﻿FlowMap
+=======
+
+English · Español (abajo) · Português (abaixo)
+
+
+ENGLISH
+-------
+
+1. Unzip this folder somewhere of your own, for example Documents. Do not run
+   FlowMap from inside the zip.
+
+2. Double-click flowmap.exe. The first time, Windows may say "Windows protected
+   your PC". FlowMap is not signed, which is why. Click "More info", then
+   "Run anyway". Windows remembers, and does not ask again for this copy.
+
+3. On the first screen, click "Open the example". It is a real plant, ready to
+   simulate. It opens as your own copy, so you cannot damage the original.
+
+4. The user guide is manual.html in this folder, and in FlowMap under
+   About > User guide.
+
+Where your work is
+  A project is a .flowmap file. You choose where it goes: your PC, a shared
+  drive, OneDrive. It saves by itself; there is no Save button. Only one person
+  can have a project open at a time.
+
+  FlowMap's own files (settings, simulation results, the diagnostics log) are
+  in %APPDATA%\com.sancha\flowmap. Paste that into the Explorer address bar,
+  or use About > Open folder.
+
+Installing a newer version
+  1. Close FlowMap.
+  2. Copy the folder %APPDATA%\com.sancha\flowmap somewhere safe.
+  3. Unzip the new version over this folder.
+  Your .flowmap files are not in this folder, so replacing it does not touch
+  them.
+
+If something goes wrong
+  In FlowMap, open About. Send the build shown there, and the file log.txt from
+  About > Open folder, to whoever gave you FlowMap.
+
+
+ESPAÑOL
+-------
+
+1. Descomprime esta carpeta en un lugar tuyo, por ejemplo Documentos. No
+   ejecutes FlowMap desde dentro del zip.
+
+2. Haz doble clic en flowmap.exe. La primera vez, Windows puede decir "Windows
+   protegió su PC". Es porque FlowMap no está firmado. Haz clic en "Más
+   información" y luego en "Ejecutar de todas formas". Windows lo recuerda.
+
+3. En la primera pantalla, haz clic en "Abrir el ejemplo". Es una planta real,
+   lista para simular. Se abre como tu propia copia.
+
+4. La guía de uso es manual.html, en esta carpeta, y en FlowMap en
+   Acerca de > Guía de uso.
+
+Dónde está tu trabajo
+  Un proyecto es un archivo .flowmap. Tú eliges dónde va: tu PC, una unidad
+  compartida, OneDrive. Se guarda solo; no hay botón Guardar. Solo una persona
+  puede tener un proyecto abierto a la vez.
+
+  Los archivos propios de FlowMap (ajustes, resultados de simulación, el
+  registro de diagnóstico) están en %APPDATA%\com.sancha\flowmap, o en
+  Acerca de > Abrir carpeta.
+
+Instalar una versión nueva
+  1. Cierra FlowMap.
+  2. Copia la carpeta %APPDATA%\com.sancha\flowmap a un lugar seguro.
+  3. Descomprime la versión nueva encima de esta carpeta.
+  Tus archivos .flowmap no están en esta carpeta.
+
+Si algo sale mal
+  En FlowMap, abre Acerca de. Envía la versión que aparece allí, y el archivo
+  log.txt de Acerca de > Abrir carpeta, a quien te dio FlowMap.
+
+
+PORTUGUÊS
+---------
+
+1. Descompacte esta pasta num lugar seu, por exemplo Documentos. Não execute o
+   FlowMap de dentro do zip.
+
+2. Clique duas vezes em flowmap.exe. Na primeira vez, o Windows pode dizer "O
+   Windows protegeu o computador". É porque o FlowMap não é assinado. Clique em
+   "Mais informações" e depois em "Executar assim mesmo". O Windows lembra.
+
+3. Na primeira tela, clique em "Abrir o exemplo". É uma fábrica real, pronta
+   para simular. Abre como a sua própria cópia.
+
+4. O guia do usuário é manual.html, nesta pasta, e no FlowMap em
+   Acerca de > Guia do usuário.
+
+Onde fica o seu trabalho
+  Um projeto é um arquivo .flowmap. Você escolhe onde fica: o seu PC, uma
+  unidade compartilhada, o OneDrive. Ele se guarda sozinho; não há botão
+  Guardar. Só uma pessoa por vez pode ter um projeto aberto.
+
+  Os arquivos do próprio FlowMap (configurações, resultados de simulação, o
+  registro de diagnóstico) ficam em %APPDATA%\com.sancha\flowmap, ou em
+  Acerca de > Abrir pasta.
+
+Instalar uma versão nova
+  1. Feche o FlowMap.
+  2. Copie a pasta %APPDATA%\com.sancha\flowmap para um lugar seguro.
+  3. Descompacte a versão nova por cima desta pasta.
+  Os seus arquivos .flowmap não ficam nesta pasta.
+
+Se algo der errado
+  No FlowMap, abra Acerca de. Envie a versão mostrada ali, e o arquivo log.txt
+  de Acerca de > Abrir pasta, para quem lhe deu o FlowMap.

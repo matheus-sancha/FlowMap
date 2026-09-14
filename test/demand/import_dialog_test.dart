@@ -24,7 +24,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
-    priority: 100,
+    startBufferDays: 0,
     createdAt: now,
     updatedAt: now,
   );
@@ -90,7 +90,7 @@ void main() {
     expect(find.text('2 rows ready'), findsOneWidget);
     expect(
       tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Import 2 rows'))
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Import 2 Rows'))
           .onPressed,
       isNotNull,
     );

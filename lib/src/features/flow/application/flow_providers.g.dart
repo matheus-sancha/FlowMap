@@ -271,3 +271,145 @@ abstract class _$FlowDataSourceSelection extends $Notifier<FlowDataSource> {
     return element.handleCreate(ref, () => build(_$args));
   }
 }
+
+/// A batch size typed on the Flow toolbar, or null to follow the demand table.
+///
+/// **Null is a real state rather than a missing one.** It means "whatever this
+/// part's orders actually use", so switching parts follows the new part instead
+/// of carrying the last one's lot across — and typing a number is the lot-sizing
+/// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+/// the period and the data source: it is a question being asked of the map, not
+/// a property of the study.
+
+@ProviderFor(FlowBatchOverride)
+final flowBatchOverrideProvider = FlowBatchOverrideFamily._();
+
+/// A batch size typed on the Flow toolbar, or null to follow the demand table.
+///
+/// **Null is a real state rather than a missing one.** It means "whatever this
+/// part's orders actually use", so switching parts follows the new part instead
+/// of carrying the last one's lot across — and typing a number is the lot-sizing
+/// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+/// the period and the data source: it is a question being asked of the map, not
+/// a property of the study.
+final class FlowBatchOverrideProvider
+    extends $NotifierProvider<FlowBatchOverride, int?> {
+  /// A batch size typed on the Flow toolbar, or null to follow the demand table.
+  ///
+  /// **Null is a real state rather than a missing one.** It means "whatever this
+  /// part's orders actually use", so switching parts follows the new part instead
+  /// of carrying the last one's lot across — and typing a number is the lot-sizing
+  /// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+  /// the period and the data source: it is a question being asked of the map, not
+  /// a property of the study.
+  FlowBatchOverrideProvider._({
+    required FlowBatchOverrideFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'flowBatchOverrideProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$flowBatchOverrideHash();
+
+  @override
+  String toString() {
+    return r'flowBatchOverrideProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  FlowBatchOverride create() => FlowBatchOverride();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int?>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is FlowBatchOverrideProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$flowBatchOverrideHash() => r'679bf7a0b33e0c336c226578500b7fd1d0e299f0';
+
+/// A batch size typed on the Flow toolbar, or null to follow the demand table.
+///
+/// **Null is a real state rather than a missing one.** It means "whatever this
+/// part's orders actually use", so switching parts follows the new part instead
+/// of carrying the last one's lot across — and typing a number is the lot-sizing
+/// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+/// the period and the data source: it is a question being asked of the map, not
+/// a property of the study.
+
+final class FlowBatchOverrideFamily extends $Family
+    with $ClassFamilyOverride<FlowBatchOverride, int?, int?, int?, String> {
+  FlowBatchOverrideFamily._()
+    : super(
+        retry: null,
+        name: r'flowBatchOverrideProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// A batch size typed on the Flow toolbar, or null to follow the demand table.
+  ///
+  /// **Null is a real state rather than a missing one.** It means "whatever this
+  /// part's orders actually use", so switching parts follows the new part instead
+  /// of carrying the last one's lot across — and typing a number is the lot-sizing
+  /// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+  /// the period and the data source: it is a question being asked of the map, not
+  /// a property of the study.
+
+  FlowBatchOverrideProvider call(String studyId) =>
+      FlowBatchOverrideProvider._(argument: studyId, from: this);
+
+  @override
+  String toString() => r'flowBatchOverrideProvider';
+}
+
+/// A batch size typed on the Flow toolbar, or null to follow the demand table.
+///
+/// **Null is a real state rather than a missing one.** It means "whatever this
+/// part's orders actually use", so switching parts follows the new part instead
+/// of carrying the last one's lot across — and typing a number is the lot-sizing
+/// experiment §7.6 says Batch Size exists to be. Held in memory per study, like
+/// the period and the data source: it is a question being asked of the map, not
+/// a property of the study.
+
+abstract class _$FlowBatchOverride extends $Notifier<int?> {
+  late final _$args = ref.$arg as String;
+  String get studyId => _$args;
+
+  int? build(String studyId);
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<int?, int?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<int?, int?>,
+              int?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, () => build(_$args));
+  }
+}

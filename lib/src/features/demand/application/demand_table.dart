@@ -19,11 +19,15 @@ class DemandColumn {
     required this.title,
   });
 
-  /// The flow node this column was drawn from. Two nodes may share a
-  /// [targetId] — a part that visits the same station twice — and then they are
-  /// two columns over one stored value, which is right: the station takes the
-  /// same time per piece on both passes, and a total that counts it twice is
-  /// counting two real visits.
+  /// The flow node this column was drawn from, and **what its process time is
+  /// keyed by** since §9.
+  ///
+  /// Two columns may share a [targetId] — a part that visits one workcenter twice
+  /// — and until v24 they were two columns over *one* stored value, on the
+  /// argument that the workcenter takes the same time per piece on both passes.
+  /// Driving §8.6 overturned that: a routing revisits a machine because the
+  /// second pass is a different operation, and the model could not say so. They
+  /// are two independent cells now.
   final String nodeId;
 
   /// The workcenter or pool the step targets, or null when the step is unbound.
@@ -60,7 +64,6 @@ List<DemandColumn> demandColumnsOf({
         nodeId: node.id,
         targetId: demandTargetOf(node),
         title: flowStepTitle(
-          node,
           workcenterName: workcenterNames[node.workcenterId],
           poolName: poolNames[node.poolId],
         ),
@@ -78,26 +81,38 @@ class DemandTable {
   final List<DemandPart> parts;
   final List<DemandColumn> columns;
 
-  /// `partId → targetId → per-piece time`, as the repository loads it.
+  /// `partId → nodeId → per-piece time`, as the repository loads it (§9).
   ///
-  /// **A cell is absent, not zero, when a part skips a step** (§5.1). The whole
-  /// grid rests on that distinction: a blank means "not routed here" and costs
-  /// nothing, a zero means "takes no time" and is almost always a typo.
+  /// **A blank and a zero are the same thing since §9.7**, and both mean the
+  /// part does not go there.
+  ///
+  /// They were kept apart: a blank meant "not routed here" and a zero meant
+  /// "takes no time and is almost always a typo", and the engine refused to
+  /// admit an order with a blank at a step. The field overturned it on
+  /// 2026-08-29 — *"if it is empty consider 0"* — after §9 gave a flow a second
+  /// visit to one workcenter and left fifteen cells to be filled with `00:00:00`
+  /// to say what a blank already said.
+  ///
+  /// The cost is that a forgotten cell now reads as a deliberate skip. Recorded
+  /// in §11.
   final Map<String, Map<String, Duration>> times;
 
-  Duration? timeFor(String partId, String? targetId) =>
-      targetId == null ? null : times[partId]?[targetId];
+  /// **Keyed by the node, not the target.** Passing a target id compiles and
+  /// returns null — a part silently uncosted rather than a build failure —
+  /// which is why §9 visited every call site by hand.
+  Duration? timeFor(String partId, String? nodeId) =>
+      nodeId == null ? null : times[partId]?[nodeId];
 
   /// What one piece of [partId] costs across the whole flow — the numerator of
   /// `eq(part, flow)` (§6.2).
   ///
-  /// Summed over the **columns**, not over the stored rows: a station visited
+  /// Summed over the **columns**, not over the stored rows: a workcenter visited
   /// twice is paid for twice, and a stored time for a step no longer in the
   /// flow is not paid for at all.
   Duration totalFor(String partId) {
     var total = Duration.zero;
     for (final column in columns) {
-      total += timeFor(partId, column.targetId) ?? Duration.zero;
+      total += timeFor(partId, column.nodeId) ?? Duration.zero;
     }
     return total;
   }
@@ -108,13 +123,13 @@ class DemandTable {
   /// visit is a blocking readiness error, and the panel has to be able to name
   /// the part and the step (§11).
   bool isFullyCosted(String partId) =>
-      columns.every((c) => timeFor(partId, c.targetId) != null);
+      columns.every((c) => timeFor(partId, c.nodeId) != null);
 
   /// Every (part, column) pair with no time — what the readiness panel lists.
   Iterable<({DemandPart part, DemandColumn column})> get missingCells sync* {
     for (final part in parts) {
       for (final column in columns) {
-        if (timeFor(part.id, column.targetId) == null) {
+        if (timeFor(part.id, column.nodeId) == null) {
           yield (part: part, column: column);
         }
       }

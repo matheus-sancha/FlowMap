@@ -72,14 +72,20 @@ void main() {
     ],
   );
 
-  SimWorkcenter workcenter(String id, String name) {
+  SimWorkcenter workcenter(
+    String id,
+    String name, {
+    double rework = 0,
+    String? typeId,
+    String? typeName,
+  }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
         startDate: DateTime(2020),
         endDate: DateTime(2030),
         operatorsPerShift: const [1],
         availability: 1,
-        rework: 0,
+        rework: rework,
       ),
     ]);
     return SimWorkcenter(
@@ -87,10 +93,12 @@ void main() {
       name: name,
       calendar: WorkingCalendar.scheduled(pattern: always, staffing: schedule),
       schedule: schedule,
+      typeId: typeId,
+      typeName: typeName,
     );
   }
 
-  /// Two stations, three orders of two parts, and a changeover — enough that
+  /// Two workcenters, three orders of two parts, and a changeover — enough that
   /// every table below gets rows and the two rankings have something to rank.
   ({List<SimStudy> studies, Map<String, SimWorkcenter> plant}) model() {
     final plant = {
@@ -107,7 +115,9 @@ void main() {
           title: 'Cladding',
           candidates: const ['wc-1'],
           demandKey: 'wc-1',
-          changeover: const Duration(hours: 1),
+          queue: SimQueue(targetId: 'wc-1'),
+          setupValue: 3600,
+          setupUnit: TaktUnit.seconds,
         ),
         SimStep(
           id: 'node-1',
@@ -115,6 +125,7 @@ void main() {
           title: 'Milling',
           candidates: const ['wc-2'],
           demandKey: 'wc-2',
+          queue: SimQueue(targetId: 'wc-2'),
         ),
       ],
       parts: {
@@ -166,22 +177,514 @@ void main() {
       ],
       releaseInterval: const Duration(hours: 6),
       releaseCalendarId: 'wc-1',
-      priority: 20,
       wipCap: 2,
     );
     return (studies: [study], plant: plant);
   }
 
-  test('a stored run reports exactly what it reported when it was made',
-      () async {
+  group('a flow that visits one workcenter twice (§8.6)', () {
+    /// One study, three steps, and the **middle and last both point at
+    /// `wc-2`** — a part going back to a machine for a second operation.
+    ({List<SimStudy> studies, Map<String, SimWorkcenter> plant}) revisiting() {
+      final plant = {
+        'wc-1': workcenter('wc-1', 'CLAD04'),
+        'wc-2': workcenter('wc-2', 'CEU32'),
+      };
+      final study = SimStudy(
+        id: 'study-1',
+        name: 'Revisits CEU32',
+        nodes: [
+          SimStep(
+            id: 'node-0',
+            position: 0,
+            title: 'Cladding',
+            candidates: const ['wc-1'],
+            demandKey: 'wc-1',
+            queue: SimQueue(targetId: 'wc-1'),
+          ),
+          SimStep(
+            id: 'node-1',
+            position: 1,
+            title: 'CEU32 first op',
+            candidates: const ['wc-2'],
+            demandKey: 'wc-2',
+            // **The same queue as node-2**, because §7.3 gives the queue to
+            // the workcenter rather than to the step. That sharing is correct and
+            // is precisely what broke the save.
+            queue: SimQueue(targetId: 'wc-2'),
+          ),
+          SimStep(
+            id: 'node-2',
+            position: 2,
+            title: 'CEU32 second op',
+            candidates: const ['wc-2'],
+            demandKey: 'wc-2',
+            queue: SimQueue(targetId: 'wc-2'),
+          ),
+        ],
+        parts: {
+          'part-a': const SimPart(
+            id: 'part-a',
+            partNumber: 'PN1',
+            processTimes: {
+              'wc-1': Duration(hours: 2),
+              'wc-2': Duration(hours: 1),
+            },
+          ),
+        },
+        orders: [
+          SimOrder(
+            id: 'o0',
+            sequence: 0,
+            partId: 'part-a',
+            needDate: DateTime(2026, 8, 10),
+          ),
+          SimOrder(
+            id: 'o1',
+            sequence: 1,
+            partId: 'part-a',
+            needDate: DateTime(2026, 8, 11),
+          ),
+        ],
+        releaseInterval: const Duration(hours: 6),
+        releaseCalendarId: 'wc-1',
+      );
+      return (studies: [study], plant: plant);
+    }
+
+    test('the run stores at all, which is the whole defect', () async {
+      // Before §8.6 this threw `UNIQUE constraint failed:
+      // simulation_run_lane_visits.run_id, .order_id, .node_id` — the run
+      // computed and was then thrown away, and the screen said only that it
+      // could not be completed.
+      final projectId = await seedProject();
+      final (:studies, :plant) = revisiting();
+      final result = runSimulation(studies: studies, workcenters: plant);
+
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+      expect(runId, isNotEmpty);
+    });
+
+    test('both stays survive, told apart by the step they fed', () async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = revisiting();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final visits = await (db.select(
+        db.simulationRunLaneVisits,
+      )..where((v) => v.runId.equals(runId))).get();
+
+      final atCeu = visits.where((v) => v.targetId == 'wc-2').toList();
+      // Two orders, two visits each to the one workcenter's queue.
+      expect(atCeu.length, 4);
+      expect(
+        atCeu.map((v) => v.stepNodeId).toSet(),
+        {'node-1', 'node-2'},
+        reason: 'the two stays name the two steps, not the one workcenter',
+      );
+      for (final order in ['o0', 'o1']) {
+        expect(
+          atCeu.where((v) => v.orderId == order).length,
+          2,
+          reason: '$order queued at CEU32 twice and both are recorded',
+        );
+      }
+    });
+
+    test('the two stays are the two the engine actually had', () async {
+      // Not merely two rows: the second stay must start after the first ended,
+      // because between them the order was being worked rather than waiting.
+      // Folding them into one row would have satisfied the row count and drawn
+      // the order queueing through its own first operation.
+      final projectId = await seedProject();
+      final (:studies, :plant) = revisiting();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final rows = await (db.select(
+        db.simulationRunLaneVisits,
+      )..where((v) => v.runId.equals(runId))).get();
+      final visits = rows.where((v) => v.orderId == 'o0').toList();
+      final first = visits.firstWhere((v) => v.stepNodeId == 'node-1');
+      final second = visits.firstWhere((v) => v.stepNodeId == 'node-2');
+
+      expect(first.leftAt, isNotNull);
+      expect(
+        second.enteredAt.isBefore(first.leftAt!),
+        isFalse,
+        reason: 'the second stay begins no earlier than the first one ended',
+      );
+    });
+  });
+
+  test('a step records the work it cost, not only the span (v21)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final loaded = await runs.loadRun(runId);
+    final steps = loaded!.result.steps;
+
+    // **Written, and read back.** A column written by nobody is the failure
+    // §1.5 found once already, and one read by nobody is the same defect from
+    // the other end — this is the only figure in a run that states §7.4's
+    // balance, so both halves have to hold.
+    expect(steps.every((s) => s.processSeconds != null), isTrue);
+
+    // And it is the *work*, not the span: `occupied` lays the same work on the
+    // calendar, so it can only be longer. Equal where the work fitted inside
+    // one open stretch, which the fixture's short steps do.
+    for (final step in steps) {
+      expect(step.process, isNotNull);
+      expect(step.process!, lessThanOrEqualTo(step.occupied));
+    }
+
+    // The first step of `model()` carries a 1-hour setup, so its work and its
+    // occupancy are not the same number — which is what makes the two columns
+    // worth keeping apart (§7.6).
+    final clad = steps.firstWhere((s) => s.workcenterId == 'wc-1');
+    expect(clad.changeoverSeconds, greaterThan(0));
+  });
+
+  group('what a run carries so it can be graphed (§10.2, v25)', () {
+    test('rework is stored as its own figure, not fused into the work',
+        () async {
+      // **The column exists because the subtraction cannot be undone.**
+      // `process_seconds` is `work × (1 + r)`, and `r` lives on a schedule the
+      // plant is free to retune — which §7.10 forbids reading back. So the run
+      // states both and their difference is what rework cost.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final withRework = {
+        for (final entry in plant.entries)
+          entry.key: workcenter(entry.key, entry.value.name, rework: 0.1),
+      };
+      final result = runSimulation(studies: studies, workcenters: withRework);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: withRework,
+      );
+
+      final steps = (await runs.loadRun(runId))!.result.steps;
+      expect(steps, isNotEmpty);
+      for (final step in steps) {
+        expect(step.processSecondsBeforeRework, isNotNull);
+        // 10 % rework on top, so the fused figure is the larger of the two and
+        // their difference is a tenth of the smaller.
+        expect(step.processSeconds, greaterThan(step.processSecondsBeforeRework!));
+        expect(
+          step.reworkTime!.inSeconds,
+          closeTo(step.processSecondsBeforeRework! * 0.1, 1),
+        );
+      }
+    });
+
+    test('a workcenter with no rework reads a true zero, not a rounding',
+        () async {
+      // The distinction the column has to keep: *no rework* and *nobody
+      // recorded it* are different answers, and only the second is null.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final steps = (await runs.loadRun(runId))!.result.steps;
+      expect(steps.every((s) => s.reworkTime == Duration.zero), isTrue);
+      expect(steps.every((s) => s.processSecondsBeforeRework != null), isTrue);
+    });
+
+    test('a workcenter carries its own type into the run', () async {
+      // Copied in for the reason the pool name is: a workcenter retyped afterwards
+      // must not re-column a run already in the picker (§7.10).
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final typed = {
+        for (final entry in plant.entries)
+          entry.key: workcenter(
+            entry.key,
+            entry.value.name,
+            typeId: 'type-clad',
+            typeName: 'Cladding',
+          ),
+      };
+      final result = runSimulation(studies: studies, workcenters: typed);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: typed,
+      );
+
+      final rows = await (db.select(
+        db.simulationRunWorkcenters,
+      )..where((w) => w.runId.equals(runId))).get();
+      expect(rows, isNotEmpty);
+      expect(rows.every((r) => r.typeId == 'type-clad'), isTrue);
+      expect(rows.every((r) => r.typeName == 'Cladding'), isTrue);
+    });
+
+    test('the months follow the schedule, not the run (phase 9)', () async {
+      // **Two questions, two spans — and they stopped being the same span.**
+      // The whole-run figure is utilization's denominator (§8.3): what the
+      // workcenter was open for while the run was on the clock. The monthly rows
+      // are occupation's (§10.2), and clipping them to the run made capacity
+      // exist only where demand did — a workcenter open all March and idle until
+      // June began in June, and a plant with room to spare could not be drawn.
+      //
+      // So the months now span the workcenter's **own schedule** and deliberately
+      // no longer add back to the run's open time. They were never a second
+      // opinion about the calendar and still are not; they answer a wider
+      // question about it. This test is the one that used to assert the sum.
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final workcenters = await (db.select(
+        db.simulationRunWorkcenters,
+      )..where((w) => w.runId.equals(runId))).get();
+      final months = await (db.select(
+        db.simulationRunWorkcenterMonths,
+      )..where((m) => m.runId.equals(runId))).get();
+
+      expect(months, isNotEmpty, reason: 'a run spans at least one month');
+      // The fixture schedules every workcenter 2020 → 2030 and the run is one
+      // month inside it, so the two figures are far apart rather than
+      // arguably equal.
+      for (final workcenter in workcenters) {
+        final mine = months.where((m) => m.workcenterId == workcenter.workcenterId);
+        expect(mine, isNotEmpty);
+        expect(
+          mine.fold(0, (sum, m) => sum + m.openSeconds),
+          greaterThan(workcenter.openSeconds),
+          reason: '${workcenter.name}: the schedule outlasts the run',
+        );
+        // And the run's own months are still among them, so nothing the old
+        // rule drew has gone missing.
+        expect(
+          mine.map((m) => m.month),
+          contains(DateTime(result.start.year, result.start.month)),
+          reason: '${workcenter.name}: the run is inside its own capacity',
+        );
+      }
+    });
+
+    test('every month of the schedule has a row, including a closed one',
+        () async {
+      // *Closed* and *not scheduled at all* are different answers and §10.3
+      // draws them differently, so a month with no open time inside the
+      // schedule is a zero rather than a missing row — and a month outside it
+      // is missing rather than a zero (§10.2, phase 9).
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: result,
+        studies: studies,
+        workcenters: plant,
+      );
+
+      final months = await (db.select(
+        db.simulationRunWorkcenterMonths,
+      )..where((m) => m.runId.equals(runId))).get();
+
+      for (final entry in plant.entries) {
+        final periods = entry.value.schedule.periods;
+        final spanned = <DateTime>{};
+        for (var month = DateTime(
+              periods.first.startDate.year,
+              periods.first.startDate.month,
+            );
+            !month.isAfter(
+              DateTime(periods.last.endDate.year, periods.last.endDate.month),
+            );
+            month = DateTime(month.year, month.month + 1)) {
+          spanned.add(month);
+        }
+        expect(
+          months
+              .where((m) => m.workcenterId == entry.key)
+              .map((m) => m.month)
+              .toSet(),
+          spanned,
+          reason: 'every month ${entry.key} is scheduled for has a row',
+        );
+      }
+    });
+  });
+
+  test('the lanes survive storage, so the chart can draw them', () async {
+    final projectId = await seedProject();
+    final plant = {
+      'wc-1': workcenter('wc-1', 'CLAD04'),
+      'wc-2': workcenter('wc-2', 'CEU27'),
+    };
+    final study = SimStudy(
+      id: 'study-1',
+      name: 'Current state',
+      nodes: const [
+        SimStep(
+          id: 'node-0',
+          position: 0,
+          title: 'Cladding',
+          candidates: ['wc-1'],
+          demandKey: 'wc-1',
+          queue: SimQueue(targetId: 'wc-1'),
+        ),
+        // The named, capped queue is a property of the step it feeds now, so
+        // both halves of §8.6's row-height rule still have something to read.
+        SimStep(
+          id: 'node-2',
+          position: 2,
+          title: 'CEU27',
+          candidates: ['wc-2'],
+          demandKey: 'wc-2',
+          queue: SimQueue(
+            targetId: 'wc-2',
+            rule: DispatchRule.lifo,
+            capacity: 1,
+          ),
+        ),
+      ],
+      parts: {
+        'part-a': const SimPart(
+          id: 'part-a',
+          partNumber: 'PN1',
+          processTimes: {
+            'wc-1': Duration(hours: 1),
+            'wc-2': Duration(hours: 6),
+          },
+        ),
+      },
+      orders: [
+        for (var i = 0; i < 4; i++)
+          SimOrder(
+            id: 'o$i',
+            sequence: i,
+            partId: 'part-a',
+            needDate: DateTime(2026, 8, 20),
+          ),
+      ],
+      releaseInterval: const Duration(hours: 1),
+      releaseCalendarId: 'wc-1',
+    );
+
+    final result = runSimulation(studies: [study], workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: [study],
+      workcenters: plant,
+    );
+    final stored = (await runs.loadRun(runId))!;
+
+    // The snapshot the chart places a row from. §7.10 joins to nothing, so
+    // without the position there is no way to draw the lane between the two
+    // workcenters it connects.
+    //
+    // **One row per target now, and the target is the id.** A queue belongs to
+    // the workcenter it stands in front of, so both steps have one — and a lane is
+    // identified by what it feeds rather than by a node of its own.
+    expect(stored.result.lanes.map((l) => l.nodeId), ['wc-1', 'wc-2']);
+    final lane = stored.result.lanes.firstWhere((l) => l.nodeId == 'wc-2');
+    // **No stored name since v27** (#5): the caption is `<type> · <target>` and
+    // both halves are already on the run, so it is derived at render and reads
+    // in the reader's own language rather than frozen in whoever ran it. The
+    // rule is what the caption is derived *from*, so that is what has to
+    // survive storage.
+    expect(lane.name, isNull);
+    expect(lane.rule, DispatchRule.lifo);
+    expect(lane.position, 2);
+    expect(lane.capacity, 1);
+
+    // **And an untyped lane comes back null, not FIFO** (#6, v28). `node-0`'s
+    // queue names no rule, and the engine runs it FIFO — but nobody *chose*
+    // that, and the run has to keep the difference or the caption cannot.
+    // Phase 1's drive is what found this: the default was applied when the
+    // project was loaded, so run `e0d93a45` stored `fifo` on all 15 lanes while
+    // the project held 8 and 7, and the seven untyped ones drew `FIFO · CEU27`
+    // on a Gantt whose map said `Queue · CEU27`. This assertion is the one that
+    // fails if the default moves back.
+    expect(
+      stored.result.lanes.firstWhere((l) => l.nodeId == 'wc-1').rule,
+      isNull,
+    );
+
+    // And the stays themselves: every order that was pulled leaves a step
+    // naming the lane it stood in, which is what the occupancy is read from.
+    final visits = stored.result.steps.where((s) => s.laneNodeId == 'wc-2');
+    expect(visits, isNotEmpty);
+    expect(visits.every((s) => !s.processStart.isBefore(s.queueStart)), isTrue);
+
+    // A capped lane with a slow workcenter behind it blocks, and that time is
+    // stored beside the step rather than inside its occupancy.
+    expect(
+      stored.result.blockedByWorkcenter['wc-1'],
+      greaterThan(Duration.zero),
+    );
+
+    // **Per step as well as per workcenter**, and the two have to agree. Both of
+    // these columns were being read back and written by nobody until this test
+    // asked — §1.5's failure, from the other direction.
+    final blockedSteps = stored.result.steps.where(
+      (s) => s.workcenterId == 'wc-1' && s.blocked > Duration.zero,
+    );
+    expect(blockedSteps, isNotEmpty);
+    expect(
+      blockedSteps.fold(Duration.zero, (sum, s) => sum + s.blocked),
+      stored.result.blockedByWorkcenter['wc-1'],
+    );
+
+    // And the fresh result says the same as the stored one, which is the whole
+    // claim of this file.
+    expect(
+      stored.result.steps
+          .map((s) => (s.orderId, s.laneNodeId, s.blocked))
+          .toSet(),
+      result.steps.map((s) => (s.orderId, s.laneNodeId, s.blocked)).toSet(),
+    );
+  });
+
+  test('a stored run reports exactly what it reported when it was made', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
 
-    final result = runSimulation(
-      studies: studies,
-      workcenters: plant,
-      dispatch: DispatchRule.earliestDueDate,
-    );
+    final result = runSimulation(studies: studies, workcenters: plant);
     final fresh = computeRunMetrics(
       result: result,
       studies: studies,
@@ -190,7 +693,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.earliestDueDate,
       result: result,
       studies: studies,
       workcenters: plant,
@@ -198,7 +700,7 @@ void main() {
 
     final stored = await runs.loadRun(runId);
     expect(stored, isNotNull);
-    expect(stored!.dispatch, DispatchRule.earliestDueDate);
+    expect(stored!.queues.uniform, DispatchRule.fifo);
     expect(stored.projectId, projectId);
 
     // The result itself.
@@ -210,6 +712,32 @@ void main() {
     expect(stored.result.orders, hasLength(result.orders.length));
     expect(stored.result.busyByWorkcenter, result.busyByWorkcenter);
     expect(stored.result.openByWorkcenter, result.openByWorkcenter);
+
+    // **What each changeover cost, per step, round-tripped.** A column written
+    // by nobody is the failure this repo has had twice (§1.5, §2.3) and this
+    // one is the only place the new setup rule can be checked against what it
+    // actually did — so it is asserted against the fresh run rather than merely
+    // for being non-null.
+    expect(
+      stored.result.steps
+          .map((s) => (s.orderId, s.nodeId, s.changeoverSeconds))
+          .toSet(),
+      result.steps
+          .map((s) => (s.orderId, s.nodeId, s.changeoverSeconds))
+          .toSet(),
+    );
+    // And it is stated rather than left blank: a fresh run always says, even
+    // when the answer is zero. Null would mean nobody recorded it, which is
+    // only ever true of a run made before v17.
+    expect(
+      stored.result.steps.map((s) => s.changeoverSeconds),
+      everyElement(isNotNull),
+    );
+    // The fixture has a setup and two parts, so at least one step paid.
+    expect(
+      stored.result.steps.where((s) => (s.changeoverSeconds ?? 0) > 0),
+      isNotEmpty,
+    );
 
     // And every figure §8 asks of it.
     expect(stored.metrics.orders, fresh.orders);
@@ -242,7 +770,6 @@ void main() {
     expect(stored.studies.single.name, 'Current state');
     expect(stored.studies.single.releaseSeconds, 6 * 3600);
     expect(stored.studies.single.releaseCalendarId, 'wc-1');
-    expect(stored.studies.single.priority, 20);
     expect(stored.studies.single.wipCap, 2);
   });
 
@@ -252,7 +779,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: runSimulation(studies: studies, workcenters: plant),
       studies: studies,
       workcenters: plant,
@@ -291,7 +817,6 @@ void main() {
 
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.shortestProcessing,
       result: aborted,
       studies: studies,
       workcenters: plant,
@@ -300,36 +825,135 @@ void main() {
     final stored = await runs.loadRun(runId);
     expect(stored!.result.abort, SimAbortReason.horizonExceeded);
     expect(stored.result.completed, isFalse);
-    expect(stored.dispatch, DispatchRule.shortestProcessing);
   });
 
-  test('a rule this build has never heard of reads as the default', () async {
+  test(
+    'a queue type this build has never heard of is not read as FIFO',
+    () async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final runId = await runs.saveRun(
+        projectId: projectId,
+        result: runSimulation(studies: studies, workcenters: plant),
+        studies: studies,
+        workcenters: plant,
+      );
+
+      // What a database written by a later build looks like to this one. Two
+      // things have to hold, and the second is the one §7.3 changed: the run
+      // still **opens**, because a list of runs that cannot be read at all is a
+      // worse answer than one run that reads oddly — and the workcenter is not
+      // claimed to have dispatched FIFO, because it did not, and a run's whole
+      // job is to say what it observed.
+      await (db.update(db.simulationRunWorkcenters)
+            ..where((w) => w.runId.equals(runId))
+            ..where((w) => w.workcenterId.equals('wc-1')))
+          .write(
+            const SimulationRunWorkcentersCompanion(
+              queueType: Value('leastSlack'),
+            ),
+          );
+
+      final stored = await runs.loadRun(runId);
+      expect(stored, isNotNull);
+      expect(stored!.queues.workcenters.map((s) => s.name), ['MILL02']);
+    },
+  );
+
+  test('a run made before v19 reports its one rule at every workcenter', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: runSimulation(studies: studies, workcenters: plant),
       studies: studies,
       workcenters: plant,
     );
 
-    // What a database written by a later build looks like to this one. A list
-    // of runs that cannot be opened at all is a worse answer than one run that
-    // reads as FIFO.
-    await (db.update(db.simulationRuns)..where((r) => r.id.equals(runId)))
-        .write(const SimulationRunsCompanion(dispatch: Value('leastSlack')));
+    // The 35 runs on the real database: no queue type per workcenter, and one rule
+    // on the header. It really did dispatch the whole plant by that rule, and
+    // reading it here is the only thing `simulation_runs.dispatch` is still for
+    // (§7.3).
+    await (db.update(db.simulationRunWorkcenters)
+          ..where((w) => w.runId.equals(runId)))
+        .write(const SimulationRunWorkcentersCompanion(queueType: Value(null)));
+    await (db.update(
+      db.simulationRuns,
+    )..where((r) => r.id.equals(runId))).write(
+      const SimulationRunsCompanion(dispatch: Value('earliestDueDate')),
+    );
 
     final stored = await runs.loadRun(runId);
-    expect(stored!.dispatch, DispatchRule.fifo);
+    expect(stored!.queues.uniform, DispatchRule.earliestDueDate);
+    expect(stored.queues.isMixed, isFalse);
+    expect(stored.queues.workcenters.map((s) => (s.name, s.rule)), [
+      ('CLAD04', DispatchRule.earliestDueDate),
+      ('MILL02', DispatchRule.earliestDueDate),
+    ]);
   });
 
-  test('deleting the project takes its runs with it', () async {
+  test('a run whose workcenters differ is mixed, and says which', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
+      result: runSimulation(studies: studies, workcenters: plant),
+      studies: studies,
+      workcenters: plant,
+    );
+
+    await (db.update(db.simulationRunWorkcenters)
+          ..where((w) => w.runId.equals(runId))
+          ..where((w) => w.workcenterId.equals('wc-2')))
+        .write(
+          const SimulationRunWorkcentersCompanion(queueType: Value('lifo')),
+        );
+
+    final stored = await runs.loadRun(runId);
+    // No one rule to name, and the breakdown is what says so. Both are read off
+    // the same list, so the header and the line under it cannot disagree.
+    expect(stored!.queues.uniform, isNull);
+    expect(stored.queues.isMixed, isTrue);
+    expect(stored.queues.workcenters.map((s) => (s.name, s.rule)), [
+      ('CLAD04', DispatchRule.fifo),
+      ('MILL02', DispatchRule.lifo),
+    ]);
+  });
+
+  test('a v19 run writes no rule of its own', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: runSimulation(studies: studies, workcenters: plant),
+      studies: studies,
+      workcenters: plant,
+    );
+
+    // The column stays on the schema so the pre-v19 runs keep what they were
+    // made with, and stops being written (§7.3). Empty rather than `fifo`,
+    // which would be a claim: every workcenter of this run speaks for itself, and
+    // a workcenter missing its type has nothing to fall back on.
+    final header = await (db.select(
+      db.simulationRuns,
+    )..where((r) => r.id.equals(runId))).getSingle();
+    expect(header.dispatch, isEmpty);
+  });
+
+  test('a run outlives the project row it was made from (v32, #37)', () async {
+    // **This test used to assert the opposite**, and it was right to: while the
+    // database owned the projects, deleting one should take its runs.
+    //
+    // A project is a document now. The working tables are emptied and refilled
+    // every time one is opened, so a cascade from `projects` would have deleted
+    // every stored run on the first switch — the precise opposite of runs
+    // staying on the machine that made them. A run belongs to a document id,
+    // which has no row to hang off and may name a file this machine cannot
+    // currently see.
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final runId = await runs.saveRun(
+      projectId: projectId,
       result: runSimulation(studies: studies, workcenters: plant),
       studies: studies,
       workcenters: plant,
@@ -337,11 +961,19 @@ void main() {
 
     await (db.delete(db.projects)..where((p) => p.id.equals(projectId))).go();
 
-    expect(await runs.loadRun(runId), isNull);
-    // And the children went with the header rather than being orphaned.
+    final survivor = await runs.loadRun(runId);
+    expect(survivor, isNotNull, reason: 'the run went with the project row');
+    // And every child is still hanging off the header, which still cascades
+    // from `simulation_runs` — that relationship was never the problem.
+    expect(await db.select(db.simulationRunSteps).get(), isNotEmpty);
+    expect(await db.select(db.simulationRunOrders).get(), isNotEmpty);
+    expect(await db.select(db.simulationRunWorkcenters).get(), isNotEmpty);
+
+    // Deleting the run itself still takes them, so the cascade that remains is
+    // the one that was always right.
+    await (db.delete(db.simulationRuns)..where((r) => r.id.equals(runId))).go();
     expect(await db.select(db.simulationRunSteps).get(), isEmpty);
     expect(await db.select(db.simulationRunOrders).get(), isEmpty);
-    expect(await db.select(db.simulationRunWorkcenters).get(), isEmpty);
   });
 
   test('watchRuns lists a project newest first', () async {
@@ -351,14 +983,12 @@ void main() {
 
     final older = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: result,
       studies: studies,
       workcenters: plant,
     );
     final newer = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.earliestDueDate,
       result: result,
       studies: studies,
       workcenters: plant,
@@ -371,38 +1001,211 @@ void main() {
         .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
 
     final listed = await runs.watchRuns(projectId).first;
-    expect(listed.map((r) => r.id), [newer, older]);
+    expect(listed.map((r) => r.run.id), [newer, older]);
   });
 
-  test('two runs in the same second still come back in a fixed order',
-      () async {
+  test('the history carries what each run dispatched by', () async {
     final projectId = await seedProject();
     final (:studies, :plant) = model();
     final result = runSimulation(studies: studies, workcenters: plant);
 
-    final ids = [
-      for (var i = 0; i < 3; i++)
-        await runs.saveRun(
-          projectId: projectId,
-          dispatch: DispatchRule.fifo,
-          result: result,
-          studies: studies,
-          workcenters: plant,
-        ),
-    ]..sort();
+    final uniform = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+    final mixed = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+    await (db.update(db.simulationRunWorkcenters)
+          ..where((w) => w.runId.equals(mixed))
+          ..where((w) => w.workcenterId.equals('wc-2')))
+        .write(
+          const SimulationRunWorkcentersCompanion(queueType: Value('lifo')),
+        );
 
-    // Pinned to one instant rather than trusting three saves to land inside
-    // the same second: the tie is the thing under test, and a test that only
-    // creates one when the clock cooperates is a test that passes for the
-    // wrong reason.
-    await db
-        .update(db.simulationRuns)
-        .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
-
-    // Ties break by id, so the list cannot reorder itself between rebuilds
-    // (§4.4) — a run list that shuffles reads as a bug in the run.
-    expect((await runs.watchRuns(projectId).first).map((r) => r.id), ids);
+    // Read with the list rather than per run, and folded by the same code the
+    // run header uses — a menu row saying `FIFO` over a header saying `mixed`
+    // is the disagreement the join exists to make impossible.
+    final listed = await runs.watchRuns(projectId).first;
+    final byId = {for (final listing in listed) listing.run.id: listing.queues};
+    expect(byId[uniform]!.uniform, DispatchRule.fifo);
+    expect(byId[uniform]!.isMixed, isFalse);
+    expect(byId[mixed]!.uniform, isNull);
+    expect(byId[mixed]!.isMixed, isTrue);
   });
+
+  test('the history carries the studies each run covered', () async {
+    // A run is named by its studies and when it was made (drive, 2026-09-13),
+    // and Compare finds each study's latest run through this.
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    // Deduped past the workcenter cartesian: one entry per study.
+    final listed = await runs.watchRuns(projectId).first;
+    expect(
+      listed.single.studies.map((s) => (s.id, s.name)),
+      [for (final s in studies) (s.id, s.name)],
+    );
+  });
+
+  test('an order remembers the takt it opened under (§7.9, v22)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final base = studies.single;
+
+    // A line that opens every 6 hours for the first six hours of 1 August and
+    // every 12 after it, so this three-order sequence straddles the change and
+    // the orders either side of it carry different takts.
+    final changes = DateTime(2026, 8).add(const Duration(hours: 6));
+    final crossing = SimStudy(
+      id: base.id,
+      name: base.name,
+      nodes: base.nodes,
+      parts: base.parts,
+      orders: base.orders,
+      releaseInterval: const Duration(hours: 6),
+      releaseCalendarId: base.releaseCalendarId,
+      wipCap: base.wipCap,
+      taktValue: 6,
+      taktUnit: TaktUnit.hours,
+      taktPeriods: [
+        SimTaktPeriod(
+          start: DateTime(2026, 8),
+          end: changes,
+          value: 6,
+          unit: TaktUnit.hours,
+          interval: const Duration(hours: 6),
+        ),
+        SimTaktPeriod(
+          start: changes.add(const Duration(hours: 1)),
+          end: DateTime(2026, 12, 31),
+          value: 12,
+          unit: TaktUnit.hours,
+          interval: const Duration(hours: 12),
+        ),
+      ],
+    );
+
+    final result = runSimulation(
+      studies: [crossing],
+      workcenters: plant,
+      start: DateTime(2026, 8),
+    );
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: [crossing],
+      workcenters: plant,
+    );
+
+    // **The cause travels with the order**, which is the whole of v22: the
+    // stored run can say why two orders of one part were charged different
+    // work without asking a schedule that may have moved (§7.10).
+    final stored = await runs.loadRun(runId);
+    final takts = {
+      for (final order in stored!.result.orders)
+        if (order.taktValue case final value?) (value, order.taktUnit),
+    };
+    expect(takts, {(6.0, TaktUnit.hours), (12.0, TaktUnit.hours)});
+
+  });
+
+  test('a study says where its cadence ran out (§7.9.2, v22)', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final base = studies.single;
+
+    // The takt table stops six hours in, so the line opens what it can and then
+    // stops — and the run has to say that rather than leaving orders that never
+    // opened looking like a jam.
+    final stopping = SimStudy(
+      id: base.id,
+      name: base.name,
+      nodes: base.nodes,
+      parts: base.parts,
+      orders: base.orders,
+      releaseInterval: const Duration(hours: 6),
+      releaseCalendarId: base.releaseCalendarId,
+      wipCap: base.wipCap,
+      taktValue: 6,
+      taktUnit: TaktUnit.hours,
+      taktPeriods: [
+        SimTaktPeriod(
+          start: DateTime(2026, 8),
+          end: DateTime(2026, 8).add(const Duration(hours: 6)),
+          value: 6,
+          unit: TaktUnit.hours,
+          interval: const Duration(hours: 6),
+        ),
+      ],
+    );
+
+    final result = runSimulation(
+      studies: [stopping],
+      workcenters: plant,
+      start: DateTime(2026, 8),
+    );
+    expect(result.cadenceEndedByStudy, contains(base.id));
+
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: [stopping],
+      workcenters: plant,
+    );
+    final stored = await runs.loadRun(runId);
+
+    expect(stored!.studies.single.cadenceEndedAt, isNotNull);
+    // The count the header states is the orders that never opened, which is a
+    // fact about the run rather than a second stored number.
+    expect(
+      stored.result.orders.where((o) => o.released == null),
+      isNotEmpty,
+    );
+  });
+
+  test(
+    'two runs in the same second still come back in a fixed order',
+    () async {
+      final projectId = await seedProject();
+      final (:studies, :plant) = model();
+      final result = runSimulation(studies: studies, workcenters: plant);
+
+      final ids = [
+        for (var i = 0; i < 3; i++)
+          await runs.saveRun(
+            projectId: projectId,
+            result: result,
+            studies: studies,
+            workcenters: plant,
+          ),
+      ]..sort();
+
+      // Pinned to one instant rather than trusting three saves to land inside
+      // the same second: the tie is the thing under test, and a test that only
+      // creates one when the clock cooperates is a test that passes for the
+      // wrong reason.
+      await db
+          .update(db.simulationRuns)
+          .write(SimulationRunsCompanion(createdAt: Value(DateTime(2026))));
+
+      // Ties break by id, so the list cannot reorder itself between rebuilds
+      // (§4.4) — a run list that shuffles reads as a bug in the run.
+      expect((await runs.watchRuns(projectId).first).map((r) => r.run.id), ids);
+    },
+  );
 
   test('the production plan survives the demand it was built from', () async {
     final projectId = await seedProject();
@@ -411,14 +1214,13 @@ void main() {
     final result = runSimulation(studies: studies, workcenters: plant);
     final runId = await runs.saveRun(
       projectId: projectId,
-      dispatch: DispatchRule.fifo,
       result: result,
       studies: studies,
       workcenters: plant,
     );
 
     final stored = await runs.loadRun(runId);
-    final plan = stored!.plan;
+    final plan = stored!.plan.orders;
 
     // One row per order, in sequence order — which is release order, so the
     // Order column and "over time" are the same list (§7.2, §8.4).
@@ -450,7 +1252,8 @@ void main() {
     // the whole reason both columns sit side by side.
     expect(first.theoreticalLeadTime, isNotNull);
     expect(
-      first.theoreticalLeadTime!, lessThanOrEqualTo(first.actualLeadTime!),
+      first.theoreticalLeadTime!,
+      lessThanOrEqualTo(first.actualLeadTime!),
     );
 
     // An order with no batch number simply has none — a label, not identity.
@@ -462,4 +1265,163 @@ void main() {
     // (§16.14). The plan draws a dash for both, which is honest either way.
     expect(plan[1].partDescription, isNull);
   });
+
+  test('an empty release slot is a row in the plan, in date order', () async {
+    // Reported from the field: a study that spends eight of twenty-three slots
+    // waiting for material read as a plan with invisible gaps. Interleaved, the
+    // table reads as the cadence actually ran (§7.2, §8.5).
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final plan = (await runs.loadRun(runId))!.plan;
+    expect(
+      plan.whereType<PlanEmptySlot>(),
+      hasLength(result.emptySlots.length),
+      reason: 'every slot the run recorded is a row',
+    );
+    expect(plan.orders, hasLength(result.orders.length));
+
+    // In date order, which is the whole point of interleaving them: an order
+    // that never released has no date and sorts last rather than first.
+    final dated = [for (final entry in plan) ?entry.at];
+    expect(
+      dated,
+      orderedEquals([...dated]..sort((a, b) => a.compareTo(b))),
+    );
+    final undated = plan.where((e) => e.at == null);
+    if (undated.isNotEmpty) {
+      expect(plan.reversed.take(undated.length), containsAll(undated));
+    }
+  });
+
+  test('a slot carries which gate held the line', () async {
+    // "8 empty slots" is not something a planner can act on; *which* gate is.
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+    final result = runSimulation(studies: studies, workcenters: plant);
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final slots = (await runs.loadRun(
+      runId,
+    ))!.plan.whereType<PlanEmptySlot>().toList();
+    if (slots.isEmpty) return;
+    expect(slots.first.studyId, 'study-1');
+    expect(slots.map((s) => s.reason).toSet(), isNotEmpty);
+  });
+
+  test('the schedule horizon survives, and with it the warning', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+
+    // A run that finished past the last defined schedule. The horizon has to
+    // be stored, not recomputed: how far the periods reach is a fact about the
+    // plant, and §7.10 forbids a stored run joining back to it — so a run that
+    // could not say this would drop its own caveat exactly when the reader
+    // comes back to quote the figures.
+    final horizon = DateTime(2026, 12, 31);
+    final result = SimRunResult(
+      start: DateTime(2026, 8),
+      end: DateTime(2027, 2),
+      guard: DateTime(2027, 6),
+      steps: const [],
+      orders: [
+        SimOrderOutcome(
+          studyId: 'study-1',
+          orderId: 'o1',
+          sequence: 0,
+          partId: 'part-1',
+          needDate: DateTime(2026, 12),
+          released: DateTime(2026, 11),
+          delivered: DateTime(2026, 12, 20),
+        ),
+        SimOrderOutcome(
+          studyId: 'study-1',
+          orderId: 'o2',
+          sequence: 1,
+          partId: 'part-1',
+          needDate: DateTime(2027),
+          released: DateTime(2026, 12),
+          delivered: DateTime(2027, 1, 15),
+        ),
+      ],
+      emptySlots: const [],
+      busyByWorkcenter: const {},
+      openByWorkcenter: const {},
+      scheduleHorizon: horizon,
+    );
+
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: result,
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final stored = await runs.loadRun(runId);
+    expect(stored!.result.scheduleHorizon, horizon);
+
+    // The count is derived from the stored orders rather than stored beside
+    // the date, so the two cannot come to describe different sets.
+    expect(stored.result.ordersPastHorizon.map((o) => o.orderId), ['o2']);
+  });
+
+  test('a run with no horizon warns about nothing', () async {
+    final projectId = await seedProject();
+    final (:studies, :plant) = model();
+
+    // Every run made before v16, and every plant with no periods at all. The
+    // absence has to read as "no warning" rather than as "everything is past
+    // it", which is what an epoch default would have done.
+    final runId = await runs.saveRun(
+      projectId: projectId,
+      result: SimRunResult(
+        start: DateTime(2026, 8),
+        end: DateTime(2026, 9),
+        guard: DateTime(2026, 10),
+        steps: const [],
+        orders: [
+          SimOrderOutcome(
+            studyId: 'study-1',
+            orderId: 'o1',
+            sequence: 0,
+            partId: 'part-1',
+            needDate: DateTime(2026, 9),
+            released: DateTime(2026, 8),
+            delivered: DateTime(2026, 9),
+          ),
+        ],
+        emptySlots: const [],
+        busyByWorkcenter: const {},
+        openByWorkcenter: const {},
+      ),
+      studies: studies,
+      workcenters: plant,
+    );
+
+    final stored = await runs.loadRun(runId);
+    expect(stored!.result.scheduleHorizon, isNull);
+    expect(stored.result.ordersPastHorizon, isEmpty);
+  });
+}
+
+
+/// The plan's order rows, for tests that are about orders (§8.5).
+///
+/// The plan carries empty release slots too since they became rows; a test
+/// asserting on part numbers wants the orders, and saying so is better than
+/// indexing past a slot.
+extension PlanOrders on List<PlanEntry> {
+  List<ProductionPlanRow> get orders => whereType<ProductionPlanRow>().toList();
 }

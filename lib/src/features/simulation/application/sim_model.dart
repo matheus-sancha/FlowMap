@@ -12,9 +12,10 @@ library;
 
 import '../../../data/database/enums.dart';
 import '../../calendar/application/working_calendar.dart';
+import '../../schedules/application/takt_schedule.dart';
 import '../../schedules/application/workcenter_schedule.dart';
 
-/// [DispatchRule] moved to the schema's enums when a station gained the right
+/// [DispatchRule] moved to the schema's enums when a workcenter gained the right
 /// to override the run's rule (§7.4) — a stored column has to name it, and the
 /// schema cannot import this file. Re-exported so the engine, the assembly and
 /// every caller still take it from here, which is where it reads as belonging.
@@ -27,12 +28,28 @@ class SimWorkcenter {
     required this.name,
     required this.calendar,
     required this.schedule,
-    this.dispatch,
+    this.units = 1,
+    this.typeId,
+    this.typeName,
+    this.labourPaced = false,
   });
 
   final String id;
 
-  /// `CLAD04` — what a result names, so a bottleneck reads as a station rather
+  /// How many orders it runs at once (§3.1).
+  ///
+  /// The engine gives the workcenter this many servers, each with its own clock
+  /// and its own last-part memory — so two units of one machine pay changeovers
+  /// independently, which is what two units are.
+  ///
+  /// **A pool is the precedent, not the alternative.** Three cladding machines
+  /// already reach a run as three candidates on one step, and a two-unit
+  /// workcenter is the same arithmetic with one name: the capacity doubles and
+  /// the per-machine yardstick does not, which is why §6.1's equivalent still
+  /// reads per machine while §8.4's occupation halves.
+  final int units;
+
+  /// `CLAD04` — what a result names, so a bottleneck reads as a workcenter rather
   /// than as a uuid.
   final String name;
 
@@ -43,37 +60,100 @@ class SimWorkcenter {
   /// where the staffing changes (§4.2).
   final WorkcenterScheduleSpec schedule;
 
-  /// This station's own queue discipline, or null to follow the run's (§7.4).
+  /// The workcenter's type, carried so a finished run can be filtered and
+  /// pivoted by it without joining back to the plant (§7.10, §10.2).
   ///
-  /// **Resolved onto the server, not left on the step's target.** The rule is
-  /// stored against a workcenter *or a pool* (§3.1), but the engine picks when
-  /// a single machine frees, and one machine can be a candidate for two steps —
-  /// its own and a pool's. If the rule travelled with the step, two orders
-  /// waiting at one machine could be governed by different comparators, and
-  /// "which runs first" would have no answer. The assembly flattens pool
-  /// membership down to the member before the engine ever sees it, so each
-  /// server has exactly one rule and the ordering stays a total one.
-  final DispatchRule? dispatch;
+  /// The engine reads neither — §7.4 forms its balance groups on the type *name*
+  /// out of `SimResourceContext`, before a run exists. These are here to be
+  /// copied into the stored run, which is the only thing that needs them and the
+  /// only thing a retyped workcenter would otherwise silently rewrite.
+  ///
+  /// Null on a workcenter whose type was never set, which the plant allows and
+  /// §7.4 already reads as *"nothing says it is like its neighbours"*.
+  final String? typeId;
+  final String? typeName;
+
+  /// Whether the crew is this workcenter's throughput (§7.5, v30).
+  ///
+  /// Carried from the workcenter *type*, because the pacing is a property of
+  /// what kind of machine it is. **False is what every workcenter was**: a CNC's
+  /// operators only open its shift. True divides the work by the crew on shift,
+  /// which is the only honest thing to say about a bench or a spray booth.
+  final bool labourPaced;
 }
 
-/// A node of a study's flow, as the engine walks it.
-sealed class SimNode {
-  const SimNode({required this.id, required this.position});
+/// A takt as a **figure**, which is the identity a balance group is split
+/// against (DESIGN.md §7.9).
+///
+/// A record rather than a class so equality and hashing are structural: two
+/// periods both stating `4 days` are the same key, and a `Map<SimTakt, …>`
+/// needs no more than that. Which is also the rule
+/// `TaktScheduleSpec.changeAfter` applies — a period boundary is not a change
+/// if the number either side of it is the same.
+typedef SimTakt = ({double value, TaktUnit unit});
 
-  final String id;
-  final int position;
+/// One stretch of a line's cadence, with the takt already resolved against the
+/// pace setter's productive day (§7.9, §7.2).
+///
+/// **The engine is handed durations and never a schedule to interpret**, which
+/// is the same division [SimStudy.releaseInterval] drew when there was only one
+/// of these: what `days` means is a question about a workcenter's calendar, and the
+/// assembler is where that is answered.
+class SimTaktPeriod {
+  const SimTaktPeriod({
+    required this.start,
+    required this.end,
+    required this.value,
+    required this.unit,
+    required this.interval,
+  });
+
+  /// First and last day the period covers, inclusive at both ends — the same
+  /// span `TaktPeriodSpec` states.
+  final DateTime start;
+  final DateTime end;
+
+  /// The figure a human typed, which is also the balance's key.
+  final double value;
+  final TaktUnit unit;
+
+  /// The gap between release slots here, on the pace setter's clock.
+  final Duration interval;
+
+  SimTakt get takt => (value: value, unit: unit);
 }
 
-/// A process step (§5.1).
-class SimStep extends SimNode {
+/// A process step (§5.1) — and, since the queue re-model, the only kind of node
+/// the engine walks.
+///
+/// The spine used to alternate steps and buffers. A buffer is now the queue in
+/// front of a step ([SimQueue]), so what the engine gets is a list of steps,
+/// each carrying the queue orders wait in to reach it.
+class SimStep {
   const SimStep({
-    required super.id,
-    required super.position,
+    required this.id,
+    required this.position,
+    required this.queue,
     required this.title,
     required this.candidates,
     required this.demandKey,
-    this.changeover = Duration.zero,
+    this.poolId,
+    this.poolName,
+    this.setupValue,
+    this.setupUnit,
+    this.teardownValue,
+    this.teardownUnit,
+    this.samePartFraction = 0,
+    this.queueStock = Duration.zero,
+    this.balancedProcessTimes = const {},
   });
+
+  final String id;
+  final int position;
+
+  /// The queue orders wait in to reach this step, shared with every other step
+  /// that targets the same workcenter or pool.
+  final SimQueue queue;
 
   /// What the process box is labelled.
   final String title;
@@ -86,32 +166,223 @@ class SimStep extends SimNode {
   /// one, never a member standing in for it (§9).
   final String demandKey;
 
-  /// Charged only when the previous order on that workcenter was a different
-  /// part (§7.6).
-  final Duration changeover;
+  /// Takt → part id → the share §7.4's balance gave this step, where it sits in
+  /// a run of adjacent like machines. Empty everywhere else.
+  ///
+  /// **Keyed by part and held on the step**, rather than folded into
+  /// [SimPart.processTimes] before the engine sees them. Those are keyed by
+  /// *target*, and two steps of one group are two workcenters only if they name
+  /// two — a flow that visits one machine twice in a row would collide on the
+  /// key and take one member's share for both.
+  ///
+  /// **And keyed by takt, because the split is against the takt in force and a
+  /// run no longer has one** (§7.9). An order takes the takt it opened under
+  /// and keeps it down the plant, so two orders of one part legitimately carry
+  /// different work — every distinct takt the study's schedule states is
+  /// resolved here at assembly and the engine looks up the order's.
+  ///
+  /// **By figure, not by period.** Two adjacent periods both stating `4 days`
+  /// are one key and not a change, which is the rule
+  /// `TaktScheduleSpec.changeAfter` already applies to the map's caption.
+  final Map<SimTakt, Map<String, Duration>> balancedProcessTimes;
+
+  /// What one piece of [partId] costs here **at [takt]**: the balanced share
+  /// where this step is in a group, and the measured time otherwise.
+  ///
+  /// The one place the choice is made, so the engine and the theoretical walk
+  /// cannot disagree about which of the two figures a step is worth.
+  ///
+  /// A null [takt] is a caller with no order in hand — the map's own reading is
+  /// elsewhere — and falls back to the measurement, which is what every step
+  /// outside a balance group is worth anyway.
+  Duration? processTimeFor(String partId, SimPart? part, {SimTakt? takt}) =>
+      (takt == null ? null : balancedProcessTimes[takt]?[partId]) ??
+      part?.timeAt(demandKey);
+
+  /// The pool this step targets, or null where it names a single workcenter
+  /// (§3.1). Carried so a finished run can record which pool each of its
+  /// workcenters was dispatched through (§7.10) — [candidates] says *which*
+  /// machines, and says nothing about what they were collectively called.
+  ///
+  /// Not derived from `candidates.length`: a pool with one member is still a
+  /// pool, and a reader who typed its name is owed it back.
+  final String? poolId;
+  final String? poolName;
+
+  /// The two halves of a changeover: [setupValue] rigs the workcenter for an order
+  /// and [teardownValue] strips it afterwards (§7.6).
+  ///
+  /// **Unresolved on purpose.** A step may target a pool, and a pool's members
+  /// do not share a working day — so `1 day` of setup is a different duration at
+  /// each of three cladding machines. Resolving here would need one of them
+  /// nominated to stand for the rest, which is exactly the invention §3.2
+  /// rejected when it refused to model a two-unit workcenter as two machines. The
+  /// engine resolves against the server it is about to occupy, where the answer
+  /// is not a guess.
+  final double? setupValue;
+  final TaktUnit? setupUnit;
+  final double? teardownValue;
+  final TaktUnit? teardownUnit;
+
+  /// How much of `setup + teardown` a repeat of the same part still pays, as a
+  /// fraction. Zero is what this app did before v17: like-with-like was free.
+  final double samePartFraction;
 
   bool get isPool => candidates.length > 1;
+
+  /// The same step, carrying the shares §7.4's balance gave it.
+  ///
+  /// A copy rather than a mutable field: a `SimStep` is handed to the engine,
+  /// the theoretical walk and the run writer, and a value any of them could
+  /// change is a value none of them can trust.
+  SimStep withBalance(Map<SimTakt, Map<String, Duration>> shares) => SimStep(
+    id: id,
+    position: position,
+    queue: queue,
+    title: title,
+    candidates: candidates,
+    demandKey: demandKey,
+    poolId: poolId,
+    poolName: poolName,
+    setupValue: setupValue,
+    setupUnit: setupUnit,
+    teardownValue: teardownValue,
+    teardownUnit: teardownUnit,
+    samePartFraction: samePartFraction,
+    queueStock: queueStock,
+    balancedProcessTimes: shares,
+  );
+
+  /// How long the stock in [queue] represents, resolved for **this study**
+  /// (§5.5, §7.9).
+  ///
+  /// A quantity is `pieces × takt` at this step's own productive day, which is
+  /// the same arithmetic the map draws — so a queue's days of stock read alike
+  /// on both. Zero where nothing is standing there.
+  ///
+  /// **The engine does not charge it** and never has: it is an observation of a
+  /// current state, and how long an order really waits is the question a run
+  /// exists to answer (§5.5). What reads it is the walk that says when an order
+  /// must *start*, where the floor space is real and an order has to sit in it.
+  final Duration queueStock;
+
+  bool get hasChangeover => setupValue != null || teardownValue != null;
+
+  /// Rigging this workcenter for an order, at a workcenter whose productive day is
+  /// [productiveDay] and given whether the part [repeated] from the order
+  /// before it.
+  Duration setupAt(Duration productiveDay, {required bool repeated}) =>
+      _resolve(setupValue, setupUnit, productiveDay, repeated);
+
+  /// Stripping this workcenter after an order.
+  ///
+  /// **Charged by whoever comes next, not by the order that incurred it** — the
+  /// engine holds it on the server until there is an answer to *is a strip-down
+  /// even needed*, which depends on the next order and is not knowable when this
+  /// one finishes.
+  Duration teardownAt(Duration productiveDay, {required bool repeated}) =>
+      _resolve(teardownValue, teardownUnit, productiveDay, repeated);
+
+  /// **Each half carries its own step's discount.** Usually the teardown owed
+  /// and the setup arriving belong to the same step and this is the same thing
+  /// as discounting the pair; they differ only when one workcenter is the target of
+  /// two steps, and then each half is governed by the step that specified it
+  /// rather than by whichever happened to arrive second.
+  Duration _resolve(
+    double? value,
+    TaktUnit? unit,
+    Duration productiveDay,
+    bool repeated,
+  ) {
+    if (value == null) return Duration.zero;
+    final full = taktUnitDuration(
+      value,
+      // A unit is meaningless without a value and is only ever stored beside
+      // one, so this fallback is unreachable rather than a default worth
+      // reasoning about.
+      unit ?? TaktUnit.seconds,
+      productiveDay,
+    );
+    return repeated
+        ? Duration(seconds: (full.inSeconds * samePartFraction).round())
+        : full;
+  }
 }
 
-/// An inventory buffer (§5.5).
+/// The queue in front of one dispatch target (§5.5, §3.1).
 ///
-/// **It carries no time.** A buffer's figure — N pieces of stock, or a wait in
-/// days — is an *observation* of a current state, and what a simulation is for
-/// is working out how long an order actually waits. Imposing the observed
-/// figure as a delay makes the run partly a restatement of what was typed into
-/// it, and does it twice over: the order serves the fixed wait and *then*
-/// queues at the station anyway.
+/// **It belongs to the target, not to a study's flow.** This was `SimBuffer` —
+/// a node on one study's spine — so two studies whose flows both reached CLAD07
+/// each had their own, and the engine contended over two floor spaces where the
+/// plant has one. The field reported it as the Gantt doubling its inventories;
+/// the chart was repeating what the model said.
 ///
-/// So an order passes through instantly and waits, if it waits, in the queue at
-/// the next station — where the engine measures it. The figure keeps its two
-/// real jobs, neither of which is here: the lead-time ladder on the map (§5.5),
-/// which is read off the flow rather than off a run, and the days-of-stock a
-/// current-state VSM exists to state.
+/// So a step carries the queue of whatever it targets, and two steps naming one
+/// target carry the same one. The engine counts what is waiting **by target**,
+/// which is what makes a shared queue actually shared: an order from line B
+/// fills a slot that line A can then not have.
 ///
-/// Kept as a node rather than dropped from the model, so the engine's view of a
-/// flow stays a faithful image of the map's — same nodes, same positions.
-class SimBuffer extends SimNode {
-  const SimBuffer({required super.id, required super.position});
+/// It still carries no time. An order passes straight through and waits, if it
+/// waits, in this queue where the engine measures it — §2.12's correction,
+/// unchanged by the re-model.
+class SimQueue {
+  const SimQueue({
+    required this.targetId,
+    this.rule,
+    this.capacity,
+    this.stockMode,
+    this.stockQuantity,
+    this.stockSeconds,
+  });
+
+  /// What is standing in this queue today, exactly as stored (§5.5).
+  ///
+  /// **Carried raw, and read by nobody but the assembler.** A quantity is
+  /// `pieces × takt`, and a takt belongs to a *study's* line while this queue is
+  /// shared across every study that reaches the target — so the resolution
+  /// happens per study, into [SimStep.queueStock]. The engine still charges
+  /// nothing for it: an order passes straight through and waits, if it waits, in
+  /// the queue where the engine measures it.
+  final InventoryMode? stockMode;
+  final int? stockQuantity;
+  final int? stockSeconds;
+
+  /// The workcenter or pool this queue stands in front of. Two steps sharing a
+  /// target share this id, and that identity is the whole point.
+  final String targetId;
+
+  /// How the workcenter chooses what to take next (§7.4), or **null for a lane
+  /// nobody has given a discipline**.
+  ///
+  /// **Nullable since v28, and this is a correction phase 1's drive forced.**
+  /// It used to default to [DispatchRule.fifo] here, at the boundary where the
+  /// project is loaded — which reads as harmless, because §5.5 says the engine
+  /// runs an untyped lane FIFO and that is what a shop floor does. But the
+  /// default was applied *before* the run copied the lane in, so a stored run
+  /// could not tell *someone chose FIFO* from *nobody chose anything*: run
+  /// `e0d93a45` stored `fifo` on all 15 lanes while the project held 8 and 7.
+  ///
+  /// That was invisible while the column was write-only. Phase 1 made it the
+  /// Gantt's caption, so those seven lanes drew `FIFO · CEU27` on a run while
+  /// the map drew `Queue · CEU27` — §5.5's *null is not FIFO* holding on the
+  /// map and lost on the run. **The default now lives where the engine sorts**
+  /// ([effectiveRule]), which is the only place it ever meant anything.
+  final DispatchRule? rule;
+
+  /// What the workcenter actually does with this lane: the discipline someone set,
+  /// or FIFO where nobody set one (§5.5).
+  ///
+  /// **The one place the default belongs.** Every reader that wants to know how
+  /// the queue *behaves* asks this; every reader that wants to know what someone
+  /// *chose* — the caption, the run's copy-in — reads [rule] and keeps the null.
+  DispatchRule get effectiveRule => rule ?? DispatchRule.fifo;
+
+  /// How many orders fit, or null for unlimited.
+  ///
+  /// In orders, because the order is the unit of flow here; a piece-level limit
+  /// would need a rule for a batch that half fits, which the spine cannot
+  /// express.
+  final int? capacity;
 }
 
 /// One part's per-piece process times, keyed by step target (§9).
@@ -188,18 +459,139 @@ class SimStudy {
     required this.parts,
     required this.orders,
     required this.releaseInterval,
+    this.taktPeriods = const [],
     this.releaseCalendarId,
-    this.priority = 100,
+    this.taktValue,
+    this.taktUnit,
+    this.nextTaktChange,
+    this.paceSetterNodeId,
+    this.startBuffer = Duration.zero,
     this.wipCap,
+    this.productionCellId,
+    this.productionCellName,
+    this.productionLineId,
+    this.productionLineName,
   });
 
-  /// One takt — the gap between release slots (§7.2).
+  /// Where this study sits in the plant, carried through the run so a stored
+  /// result can be filtered by cell and by line without joining back to a study
+  /// that may since have moved or been deleted (§7.10).
+  ///
+  /// **The engine never reads any of them** — passengers, exactly as
+  /// `SimPart.partNumber` and `SimOrder.batchNumber` are, so what a run reports
+  /// is what was *assembled* rather than a second look at the database at save
+  /// time (§8.5).
+  final String? productionCellId;
+  final String? productionCellName;
+  final String? productionLineId;
+  final String? productionLineName;
+
+  /// The step whose lane gates the releases — the pacemaker (§7.2).
+  ///
+  /// Lean injects the schedule at the pacemaker, so that is the queue whose
+  /// room decides whether a slot can be used. It is a node id rather than a
+  /// workcenter id because the gate is a *place in the flow*: the same machine
+  /// may appear in two studies, and only one of those appearances is this
+  /// study's pacemaker.
+  ///
+  /// Null leaves the releases ungated by room, which is what every study did
+  /// before lanes had capacity.
+  final String? paceSetterNodeId;
+
+  /// Margin subtracted from the derived cold start, in wall-clock time (§7.8).
+  ///
+  /// Calendar days rather than working ones: a start buffer protects against
+  /// real-world slippage, and slippage accrues on a wall calendar whether or
+  /// not the plant was open. It also composes — the theoretical walk already
+  /// returns a wall-clock instant, so the cold start stays one subtraction on
+  /// one clock (§17.4).
+  final Duration startBuffer;
+
+  /// The gap between release slots **at this study's first release** (§7.2).
   ///
   /// Resolved by the caller, not here: a takt in days means productive days of
-  /// a particular station (§6.1), and which station is the question §8.2 has
+  /// a particular workcenter (§6.1), and which workcenter is the question §8.2 has
   /// already answered — the bottleneck sets the pace (§18.8). The engine is
   /// handed a duration and a clock to measure it on.
+  ///
+  /// **It is no longer the whole cadence** — [taktPeriods] is (§7.9). This
+  /// stays because it is what a run stores and what a reader is shown, and
+  /// because it is the interval an empty [taktPeriods] means throughout.
   final Duration releaseInterval;
+
+  /// The line's cadence over time, in start order, each period already resolved
+  /// (§7.9).
+  ///
+  /// **Empty means one unbounded period at [releaseInterval]**, which is what
+  /// every study was before a takt could vary inside a run — so a caller that
+  /// hands over no schedule gets exactly the old behaviour, and a test that
+  /// cares about nothing else need not build one.
+  ///
+  /// Non-empty, it is authoritative: an instant no period covers has **no
+  /// cadence**, and a study with no cadence does not open orders. That is what
+  /// `WorkcenterScheduleSpec` already does one level down, where a workcenter whose
+  /// schedule has run out is closed rather than still staffed as it last was.
+  final List<SimTaktPeriod> taktPeriods;
+
+  /// The takt in force at [instant], or null where nothing covers it.
+  SimTaktPeriod? taktAt(DateTime instant) {
+    for (final period in taktPeriods) {
+      if (instant.isBefore(period.start)) continue;
+      if (instant.isAfter(period.end)) continue;
+      return period;
+    }
+    return null;
+  }
+
+  /// The gap to the next release slot at [instant] — the resolved takt there,
+  /// or [releaseInterval] where this study carries no schedule at all.
+  Duration? intervalAt(DateTime instant) =>
+      taktPeriods.isEmpty ? releaseInterval : taktAt(instant)?.interval;
+
+  /// The figure the balance is keyed on at [instant], or null where nothing
+  /// covers it (§7.9).
+  SimTakt? taktKeyAt(DateTime instant) => taktPeriods.isEmpty
+      ? (taktValue == null || taktUnit == null
+            ? null
+            : (value: taktValue!, unit: taktUnit!))
+      : taktAt(instant)?.takt;
+
+  /// When the cadence next resumes after [instant], or null where it never
+  /// does — the start of the first period beginning after it (§7.9).
+  ///
+  /// What a study does in a gap: it stops opening orders and looks again here.
+  /// Null is the end of the line's schedule, and the study stops for good.
+  DateTime? cadenceResumesAfter(DateTime instant) {
+    DateTime? soonest;
+    for (final period in taktPeriods) {
+      if (!period.start.isAfter(instant)) continue;
+      if (soonest == null || period.start.isBefore(soonest)) {
+        soonest = period.start;
+      }
+    }
+    return soonest;
+  }
+
+  /// The takt this study **first released at**, as it was typed (§7.7.2, §7.9).
+  ///
+  /// **[releaseInterval] is this same takt already resolved** against the pace
+  /// setter's productive day; these two are the figure a human typed and reads.
+  /// Neither can be recovered from the other once a schedule is edited, which is
+  /// why a run stores both (§7.10).
+  ///
+  /// It stopped being *the run's* takt when the takt became the order's (§7.9);
+  /// what a run spanning a change ran at is read off its orders.
+  final double? taktValue;
+  final TaktUnit? taktUnit;
+
+  /// When the line's takt next becomes a different figure after this study's
+  /// start, or null if it never does (§7.7.3).
+  ///
+  /// **The boundary the run crosses**, and no longer a caveat about one it
+  /// ignores: since §7.9 the engine acts on it — orders opened past it take the
+  /// new figure. §18.3 stands as it was always meant, which is that work already
+  /// in flight is never re-cadenced.
+  final DateTime? nextTaktChange;
 
   /// Whose open time [releaseInterval] is measured in. Null puts the slots on
   /// the wall clock, which is right for a takt given in hours and wrong for one
@@ -210,7 +602,7 @@ class SimStudy {
   final String name;
 
   /// The spine in order.
-  final List<SimNode> nodes;
+  final List<SimStep> nodes;
 
   /// Keyed by part id.
   final Map<String, SimPart> parts;
@@ -218,12 +610,26 @@ class SimStudy {
   /// In sequence order.
   final List<SimOrder> orders;
 
-  /// Breaks dispatch ties between studies contending for a shared workcenter
-  /// (§7.4). Lower runs first.
-  final int priority;
-
   /// CONWIP cap: orders open in the flow at once. Null is unlimited (§7.3).
   final int? wipCap;
 
-  Iterable<SimStep> get steps => nodes.whereType<SimStep>();
+  Iterable<SimStep> get steps => nodes;
+}
+
+/// The pool a run's workcenter belonged to, as far as the run can tell
+/// (DESIGN.md §3.1, §7.10).
+///
+/// [id] null means **ungrouped**, never "every pool" — the same rule §12.1
+/// wrote for a pre-v17 run's cell. [name] is still worth having when [id] is
+/// null: it says which pools the workcenter served, which is the reason it is
+/// standing on its own.
+///
+/// Resolved by `simWorkcenterPools` in `sim_assembly.dart`, stored on the run, and
+/// read back beside the workcenter it describes so the grouping cannot drift when
+/// the plant is re-pooled.
+class SimWorkcenterPool {
+  const SimWorkcenterPool({required this.id, required this.name});
+
+  final String? id;
+  final String name;
 }

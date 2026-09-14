@@ -9,6 +9,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../application/resources_providers.dart';
 import '../data/resources_repository.dart';
 import 'workcenter_editor.dart';
+import '../../../common/help_icon.dart';
 
 /// The Plant → Cells → Lines → Workcenters tree.
 ///
@@ -55,6 +56,14 @@ class PlantStructureView extends ConsumerWidget {
       for (final lineId in lines) {
         workcentersByLine.putIfAbsent(lineId, () => []).add(workcenter);
       }
+    }
+
+    // **A new project starts empty, and says what to do about it.** The
+    // 2026-09-13 drive asked for this by name: without it the first thing a new
+    // document shows is a blank page with an unexplained `+`, which reads as a
+    // dead end rather than as a beginning.
+    if (workcenterList.isEmpty && cellList.isEmpty) {
+      return _NothingYet(plantId: plantId);
     }
 
     return ListView(
@@ -281,7 +290,7 @@ class _LineTile extends ConsumerWidget {
                 const SizedBox(width: 8),
                 // A workcenter belongs to the plant, not to this line, so an
                 // existing one can be shown here **as well as** wherever else
-                // it is filed — a station that genuinely serves two lines is
+                // it is filed — a workcenter that genuinely serves two lines is
                 // drawn under both.
                 TextButton.icon(
                   onPressed: () => _showExistingWorkcenter(
@@ -304,7 +313,7 @@ class _LineTile extends ConsumerWidget {
 
 /// Also draws an existing plant workcenter under this line.
 ///
-/// **Adds, never moves.** Membership is a set: a station that genuinely serves
+/// **Adds, never moves.** Membership is a set: a workcenter that genuinely serves
 /// two lines belongs under both, and the single home line this replaces meant
 /// filing it here silently took it out of the other one.
 ///
@@ -334,15 +343,17 @@ Future<void> _showExistingWorkcenter(
   final chosen = await showDialog<String>(
     context: context,
     builder: (context) => SimpleDialog(
-      title: Text(l10n.workcenterAddExisting),
+      // **One canonical sentence, said once** (§12.7b). This dialog and the
+      // workcenter editor each carried their own paragraph making the same
+      // claim in different words — a workcenter belongs to the plant, lines
+      // are organisational — so neither read as authoritative. They share
+      // `workcenterLinesHelp` now, beside the name in both places.
+      title: namedHelp(
+        context,
+        l10n.workcenterAddExisting,
+        l10n.workcenterLinesHelp,
+      ),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-          child: Text(
-            l10n.workcenterAddExistingHelp,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
         for (final workcenter in candidates)
           SimpleDialogOption(
             onPressed: () => Navigator.of(context).pop(workcenter.id),
@@ -375,8 +386,11 @@ class _UnassignedSection extends ConsumerWidget {
     return ExpansionTile(
       initiallyExpanded: workcenters.isNotEmpty,
       leading: const Icon(Icons.inventory_2_outlined),
-      title: Text(l10n.resourcesUnassigned),
-      subtitle: Text(l10n.resourcesUnassignedHelp),
+      title: namedHelp(
+        context,
+        l10n.resourcesUnassigned,
+        l10n.resourcesUnassignedHelp,
+      ),
       children: [
         for (final workcenter in workcenters)
           _WorkcenterTile(
@@ -449,7 +463,7 @@ class _WorkcenterTile extends ConsumerWidget {
           [
             type?.name ?? l10n.workcenterTypeUnset,
             // Said on the row, so a reader of one line's group knows this
-            // station is shared before they plan around it.
+            // workcenter is shared before they plan around it.
             if (lines.length > 1) l10n.workcenterOnLines('${lines.length}'),
           ].join(' · '),
         ),
@@ -484,6 +498,7 @@ class _WorkcenterTile extends ConsumerWidget {
                 workcenter.id,
                 name: draft.name,
                 typeId: draft.typeId,
+                parallelCapacity: draft.parallelCapacity,
                 lineIds: draft.lineIds,
               );
             }
@@ -532,6 +547,81 @@ Future<void> _addWorkcenter(
         plantId: plantId,
         name: draft.name,
         typeId: draft.typeId,
+        parallelCapacity: draft.parallelCapacity,
         lineIds: draft.lineIds,
       );
+}
+
+
+/// What a plant with nothing in it says.
+class _NothingYet extends ConsumerWidget {
+  const _NothingYet({required this.plantId});
+
+  final String plantId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.precision_manufacturing_outlined,
+              size: 40,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.resourcesNoWorkcenters,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            // Names the other way in as well as this one. Building a plant by
+            // hand is the long road; opening an existing project and saving a
+            // copy is the short one.
+            Text(
+              l10n.resourcesNoWorkcentersHelp,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // **Both ways in, on the page that tells you to use them.** This
+            // state replaced the whole tree, and the tree is where the add
+            // buttons were — so it told the reader to add a workcenter and
+            // left nothing to press (field report, 2026-09-13).
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () =>
+                      _createCell(context, ref, plantId, const []),
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.productionCellNew),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _addWorkcenter(
+                    context,
+                    ref,
+                    plantId: plantId,
+                    allLines: const [],
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.workcenterNew),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

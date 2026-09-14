@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flowmap/src/data/database/database.dart';
+import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -768,9 +769,10 @@ void main() {
       // The run header itself is undisturbed — this step rebuilds no table.
       expect((await db.select(db.simulationRuns).get()).single.id, 'run-1');
 
-      // And the two new tables exist and are usable.
-      expect(await db.select(db.workcenterDispatch).get(), isEmpty);
-      expect(await db.select(db.simulationRunDispatch).get(), isEmpty);
+      // v12's two tables were dropped again by v15, once the lanes had taken
+      // over what they held — so what this step now has to prove is that a
+      // database arriving from v11 still reaches the end.
+      expect(await db.select(db.simulationRunLanes).get(), isEmpty);
     },
   );
 
@@ -1074,6 +1076,15 @@ void main() {
           "VALUES ('part-c', 'study-1', 'PN5', '', $now, $now)",
         )
         ..execute(
+          // **A step for the times to belong to.** §9 keys a process time by
+          // its flow node, and the v24 migration joins through the part's own
+          // study to find one — a time whose target has no step is dropped,
+          // which would have taken both of these with it.
+          'INSERT INTO flow_nodes (id, study_id, position, kind, '
+          'workcenter_id, created_at, updated_at) '
+          "VALUES ('node-1', 'study-1', 0, 'step', 'wc-1', $now, $now)",
+        )
+        ..execute(
           'INSERT INTO part_process_times (part_id, target_id, seconds) '
           "VALUES ('part-a', 'wc-1', 14400)",
         )
@@ -1131,6 +1142,985 @@ void main() {
       expect(orders.map((o) => o.partId), ['part-a', 'part-b', 'part-c']);
     },
   );
+
+  test('v14 to v15: the dispatch rule moves onto the lane that feeds it', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final withoutWorkcenters = resourceTables.replaceAll(
+      RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+      '',
+    );
+
+    // v14's shape: `code` and `home_line_id` both long gone, so neither the v3
+    // nor the v7 rebuild runs and `parallel_capacity` has to arrive by
+    // `addColumn` on a live table rather than by a copy.
+    const v14Workcenters = """
+      CREATE TABLE workcenters (
+        id TEXT NOT NULL,
+        plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+        type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+        name TEXT NOT NULL, notes TEXT NULL,
+        archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+    """;
+
+    const v14DemandTables = """
+      CREATE TABLE demand_parts (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_number TEXT NOT NULL, description TEXT NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, part_number));
+      CREATE TABLE part_process_times (
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, seconds INTEGER NOT NULL,
+        PRIMARY KEY (part_id, target_id));
+      CREATE TABLE demand_orders (
+        id TEXT NOT NULL,
+        study_id TEXT NOT NULL REFERENCES studies (id) ON DELETE CASCADE,
+        part_id TEXT NOT NULL REFERENCES demand_parts (id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL, batch_size INTEGER NOT NULL DEFAULT 1,
+        batch_number TEXT NULL, customer_project TEXT NULL,
+        need_date INTEGER NOT NULL, material_date INTEGER NULL,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (id), UNIQUE (study_id, sequence));
+      CREATE TABLE workcenter_dispatch (
+        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, rule TEXT NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (project_id, target_id));
+    """;
+
+    // M4's storage, as v11 built it. It has to be here: the v15 step adds
+    // columns to three of these tables and only a database below v11 gets them
+    // created on the way past.
+    const v14RunTables = """
+      CREATE TABLE simulation_runs (
+        id TEXT NOT NULL,
+        project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+        dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+        run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+        abort_reason TEXT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (id));
+      CREATE TABLE simulation_run_studies (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, name TEXT NOT NULL,
+        release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+        priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+        PRIMARY KEY (run_id, study_id));
+      CREATE TABLE simulation_run_orders (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+        part_number TEXT NOT NULL, customer_project TEXT NULL,
+        batch_number TEXT NULL, batch_size INTEGER NULL,
+        material_date INTEGER NULL, part_description TEXT NULL,
+        need_date INTEGER NOT NULL, released INTEGER NULL,
+        delivered INTEGER NULL, theoretical_seconds INTEGER NULL,
+        PRIMARY KEY (run_id, order_id));
+      CREATE TABLE simulation_run_steps (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+        workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+        process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+        changeover_incurred INTEGER NOT NULL DEFAULT 0
+          CHECK (changeover_incurred IN (0, 1)),
+        PRIMARY KEY (run_id, order_id, node_id));
+      CREATE TABLE simulation_run_empty_slots (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+        PRIMARY KEY (run_id, study_id, slot_at));
+      CREATE TABLE simulation_run_dispatch (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL, name TEXT NOT NULL, rule TEXT NOT NULL,
+        PRIMARY KEY (run_id, target_id));
+      CREATE TABLE simulation_run_workcenters (
+        run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+        workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+        busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+        PRIMARY KEY (run_id, workcenter_id));
+    """;
+
+    final v14 = sqlite3.open(file.path)
+      ..execute(withoutWorkcenters)
+      ..execute(v14Workcenters)
+      ..execute(projectTables)
+      ..execute(v14DemandTables)
+      ..execute(v14RunTables)
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+      ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+      ..execute(
+        'CREATE TABLE workcenter_lines ('
+        'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+        'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+        'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+      )
+      ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+      ..execute('PRAGMA user_version = 14');
+
+    v14
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells '
+        '(id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-2', 'plant-1', 'TTAT', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_pools (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('pool-1', 'plant-1', 'CLAD Pool', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      );
+
+    // The flow the rules have to land on. Positions 0-3 are the ordinary case
+    // — a lane, then the step it feeds, twice — and position 4 is the case with
+    // nowhere to carry a rule to: a step whose upstream neighbour is another
+    // step rather than a lane.
+    for (final (id, position, kind, target) in [
+      ('node-0', 0, 'inventory', null),
+      ('node-1', 1, 'step', 'pool-1'),
+      ('node-2', 2, 'inventory', null),
+      ('node-3', 3, 'step', 'wc-1'),
+      ('node-4', 4, 'step', 'wc-2'),
+    ]) {
+      final pool = kind == 'step' && target!.startsWith('pool')
+          ? "'$target'"
+          : 'NULL';
+      final workcenter = kind == 'step' && target!.startsWith('wc')
+          ? "'$target'"
+          : 'NULL';
+      v14.execute(
+        'INSERT INTO flow_nodes (id, study_id, position, kind, workcenter_id, '
+        'pool_id, label, created_at, updated_at) '
+        "VALUES ('$id', 'study-1', $position, '$kind', $workcenter, $pool, "
+        "'FIFO $position', $now, $now)",
+      );
+    }
+
+    v14
+      // One rule per kind of target, plus one for the step that has no lane.
+      ..execute(
+        'INSERT INTO workcenter_dispatch '
+        '(project_id, target_id, rule, updated_at) '
+        "VALUES ('proj-1', 'pool-1', 'shortestProcessing', $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_dispatch '
+        '(project_id, target_id, rule, updated_at) '
+        "VALUES ('proj-1', 'wc-1', 'earliestDueDate', $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_dispatch '
+        '(project_id, target_id, rule, updated_at) '
+        "VALUES ('proj-1', 'wc-2', 'earliestDueDate', $now)",
+      )
+      // A stored run, to show the added columns land on real rows rather than
+      // only on an empty table.
+      ..execute(
+        'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+        'run_end, guard, created_at) '
+        "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_studies (run_id, study_id, name, '
+        'release_seconds, priority) '
+        "VALUES ('run-1', 'study-1', 'Current', 3600, 100)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_steps (run_id, study_id, order_id, node_id, '
+        'workcenter_id, queue_start, process_start, process_end) '
+        "VALUES ('run-1', 'study-1', 'order-1', 'node-3', 'wc-1', "
+        '$now, $now, $now)',
+      )
+      ..execute(
+        'INSERT INTO simulation_run_workcenters '
+        '(run_id, workcenter_id, name, busy_seconds, open_seconds) '
+        "VALUES ('run-1', 'wc-1', 'CLAD04', 3600, 7200)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final nodes = await db.select(db.flowNodes).get()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    // **The rule now sits on the lane that feeds the step, not on the step's
+    // target.** Both kinds of target carry across: a pool's rule and a single
+    // workcenter's, because the queue forms in the same place either way.
+    expect(nodes[0].laneRule, DispatchRule.shortestProcessing);
+    expect(nodes[2].laneRule, DispatchRule.earliestDueDate);
+
+    // A step is not a lane, so nothing was written to one.
+    expect(nodes[1].laneRule, isNull);
+    expect(nodes[3].laneRule, isNull);
+
+    // And `wc-2`'s rule had nowhere to go: node-4 is a step whose upstream
+    // neighbour is node-3, another step. The rule is dropped rather than
+    // guessed at, which is the honest outcome — it described a queue this model
+    // no longer holds anywhere — and the upgrade does not fail over it.
+    expect(nodes[4].laneRule, isNull);
+
+    // Capacity is untouched by the carry-over: a rule says how to choose, not
+    // how many fit, and nothing in v14 knew the second thing.
+    expect(nodes.map((n) => n.laneCapacity), everyElement(isNull));
+
+    // The defaults land on rows that already existed, which is what makes them
+    // safe: every workcenter is one unit and every study has no buffer, exactly as
+    // they behaved before the columns were there.
+    final workcenters = await db.select(db.workcenters).get()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    expect(workcenters.map((w) => w.parallelCapacity), [1, 1]);
+
+    final study = await db.select(db.studies).getSingle();
+    expect(study.startBufferDays, 0);
+    expect(study.paceSetterTargetId, isNull);
+
+    // A run stored before lanes had capacity says nothing was ever blocked and
+    // every workcenter was one unit, which is true of it.
+    final step = await db.select(db.simulationRunSteps).getSingle();
+    expect(step.blockedSeconds, 0);
+
+    final workcenter = await db.select(db.simulationRunWorkcenters).getSingle();
+    expect(workcenter.blockedSeconds, 0);
+    expect(workcenter.units, 1);
+    expect(workcenter.busySeconds, 3600);
+
+    final runStudy = await db.select(db.simulationRunStudies).getSingle();
+    expect(runStudy.startBufferDays, 0);
+
+    // The two new tables arrive empty, so the counter really did reach the end.
+    expect(await db.select(db.simulationRunLanes).get(), isEmpty);
+    expect(await db.select(db.simulationRunLaneVisits).get(), isEmpty);
+
+    // v16 rides on the same fixture: one nullable column, and a run stored
+    // before §11.1 had anywhere to put its horizon says it has none — which is
+    // true of it, and is what makes the warning absent rather than wrong on
+    // every run made before this version.
+    final header = await db.select(db.simulationRuns).getSingle();
+    expect(header.scheduleHorizon, isNull);
+
+    // v17 rides on the same fixture for the columns that only have to *arrive*.
+    // The carry-over that has something to lose gets its own test below, with a
+    // changeover populated — this fixture's nodes have none, so it could not
+    // tell a working carry from a missing one.
+    expect(nodes.map((n) => n.setupValue), everyElement(isNull));
+    expect(nodes.map((n) => n.teardownValue), everyElement(isNull));
+    expect(nodes.map((n) => n.samePartPercent), everyElement(isNull));
+    expect(step.changeoverSeconds, isNull);
+    expect(runStudy.productionCellId, isNull);
+    expect(runStudy.productionLineName, isNull);
+  });
+
+  // v16's shape, built the way the real chain reached it: v14's tables, then
+  // the columns v15 and v16 added. Written out rather than migrated up from
+  // v14, because a fixture that ran the earlier steps would be testing them
+  // again and would stop being the one shape v17 has to survive.
+  //
+  // Hoisted out of the v16 test when v18 arrived: the v17 fixture is this plus
+  // v17's own columns, and copying eighty lines of DDL to add two is how two
+  // fixtures come to disagree about the version they both claim to be.
+  const v16Workcenters = """
+    CREATE TABLE workcenters (
+      id TEXT NOT NULL,
+      plant_id TEXT NOT NULL REFERENCES plants (id) ON DELETE CASCADE,
+      type_id TEXT NULL REFERENCES workcenter_types (id) ON DELETE SET NULL,
+      name TEXT NOT NULL, notes TEXT NULL,
+      parallel_capacity INTEGER NOT NULL DEFAULT 1,
+      archived_at INTEGER NULL, created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL, PRIMARY KEY (id), UNIQUE (plant_id, name));
+  """;
+
+  const v16RunTables = """
+    CREATE TABLE simulation_runs (
+      id TEXT NOT NULL,
+      project_id TEXT NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+      dispatch TEXT NOT NULL, run_start INTEGER NOT NULL,
+      run_end INTEGER NOT NULL, guard INTEGER NOT NULL,
+      abort_reason TEXT NULL, schedule_horizon INTEGER NULL,
+      created_at INTEGER NOT NULL, PRIMARY KEY (id));
+    CREATE TABLE simulation_run_studies (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, name TEXT NOT NULL,
+      release_seconds INTEGER NOT NULL, release_calendar_id TEXT NULL,
+      priority INTEGER NOT NULL, wip_cap INTEGER NULL,
+      start_buffer_days INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (run_id, study_id));
+    CREATE TABLE simulation_run_orders (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, order_id TEXT NOT NULL,
+      sequence INTEGER NOT NULL, part_id TEXT NOT NULL,
+      part_number TEXT NOT NULL, customer_project TEXT NULL,
+      batch_number TEXT NULL, batch_size INTEGER NULL,
+      material_date INTEGER NULL, part_description TEXT NULL,
+      need_date INTEGER NOT NULL, released INTEGER NULL,
+      delivered INTEGER NULL, theoretical_seconds INTEGER NULL,
+      PRIMARY KEY (run_id, order_id));
+    CREATE TABLE simulation_run_steps (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, order_id TEXT NOT NULL, node_id TEXT NOT NULL,
+      workcenter_id TEXT NOT NULL, queue_start INTEGER NOT NULL,
+      process_start INTEGER NOT NULL, process_end INTEGER NOT NULL,
+      changeover_incurred INTEGER NOT NULL DEFAULT 0
+        CHECK (changeover_incurred IN (0, 1)),
+      lane_node_id TEXT NULL,
+      blocked_seconds INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (run_id, order_id, node_id));
+    CREATE TABLE simulation_run_empty_slots (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, slot_at INTEGER NOT NULL, reason TEXT NOT NULL,
+      PRIMARY KEY (run_id, study_id, slot_at));
+    CREATE TABLE simulation_run_workcenters (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      workcenter_id TEXT NOT NULL, name TEXT NOT NULL,
+      busy_seconds INTEGER NOT NULL, open_seconds INTEGER NOT NULL,
+      blocked_seconds INTEGER NOT NULL DEFAULT 0,
+      units INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (run_id, workcenter_id));
+    CREATE TABLE simulation_run_lanes (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      study_id TEXT NOT NULL, node_id TEXT NOT NULL, name TEXT NULL,
+      position INTEGER NOT NULL, rule TEXT NULL, capacity INTEGER NULL,
+      PRIMARY KEY (run_id, node_id));
+    CREATE TABLE simulation_run_lane_visits (
+      run_id TEXT NOT NULL REFERENCES simulation_runs (id) ON DELETE CASCADE,
+      node_id TEXT NOT NULL, order_id TEXT NOT NULL,
+      entered INTEGER NOT NULL, left INTEGER NULL,
+      PRIMARY KEY (run_id, node_id, order_id));
+  """;
+
+  test('v16 to v17: a changeover becomes a setup and keeps its length', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final v16 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute(
+            'CREATE TABLE workcenter_lines ('
+            'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+            'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+            'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+          )
+          ..execute('PRAGMA user_version = 16');
+
+    v16
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD04', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      );
+
+    // Three nodes, so the carry is shown to be selective rather than blanket: a
+    // step with a real changeover, a step explicitly at zero, and an inventory
+    // node which never had one.
+    for (final (id, position, kind, changeover) in [
+      ('node-0', 0, 'step', 5400),
+      ('node-1', 1, 'inventory', 0),
+      ('node-2', 2, 'step', 0),
+    ]) {
+      final workcenter = kind == 'step' ? "'wc-1'" : 'NULL';
+      v16.execute(
+        'INSERT INTO flow_nodes (id, study_id, position, kind, workcenter_id, '
+        'changeover_seconds, label, created_at, updated_at) '
+        "VALUES ('$id', 'study-1', $position, '$kind', $workcenter, "
+        "$changeover, 'node $position', $now, $now)",
+      );
+    }
+
+    v16
+      ..execute(
+        'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+        'run_end, guard, created_at) '
+        "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_studies (run_id, study_id, name, '
+        'release_seconds, priority) '
+        "VALUES ('run-1', 'study-1', 'Current', 3600, 100)",
+      )
+      // A step that paid a changeover under the old rule. It is the row that
+      // shows `changeover_incurred` survives while `changeover_seconds` arrives
+      // null — the two say different things about the same run and only one of
+      // them could have been recorded at the time.
+      ..execute(
+        'INSERT INTO simulation_run_steps (run_id, study_id, order_id, node_id, '
+        'workcenter_id, queue_start, process_start, process_end, '
+        'changeover_incurred) '
+        "VALUES ('run-1', 'study-1', 'order-1', 'node-0', 'wc-1', "
+        '$now, $now, $now, 1)',
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final nodes = await db.select(db.flowNodes).get()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    // **The changeover carried onto the setup, and its length is unchanged.**
+    // 5400 seconds stored as `5400 seconds` rather than `90 minutes`: the unit
+    // is literal and resolves identically at every workcenter (§6.1), so this is
+    // the same duration written in the one unit that cannot mean two things.
+    // Reducing it to `1.5 hours` would have been prettier and would have been
+    // the first place a productive day could sneak in.
+    expect(nodes[0].setupValue, 5400);
+    expect(nodes[0].setupUnit, TaktUnit.seconds);
+
+    // A zero carries as null, on both kinds of node. They meant the same thing
+    // — nothing charged — and null is what an untouched node reads as, so the
+    // editor shows an empty field rather than a `0 s` nobody typed.
+    expect(nodes[1].setupValue, isNull);
+    expect(nodes[2].setupValue, isNull);
+    expect(nodes[2].setupUnit, isNull);
+
+    // Teardown and the percentage arrive empty on every node, which is what
+    // makes the upgrade behaviour-preserving: no node had a teardown to carry
+    // and a null percentage is 0 %, exactly the free-repeat rule v16 followed.
+    expect(nodes.map((n) => n.teardownValue), everyElement(isNull));
+    expect(nodes.map((n) => n.teardownUnit), everyElement(isNull));
+    expect(nodes.map((n) => n.samePartPercent), everyElement(isNull));
+
+    // **`changeover_seconds` is not the old column read back.** The source
+    // column is still there and still holds what it held, which is what makes a
+    // pre-v17 setup recoverable by hand if this carry ever turns out to be
+    // wrong for someone.
+    expect(nodes[0].changeoverSeconds, 5400);
+
+    // A run stored before v17 says a changeover happened and cannot say what it
+    // cost. Null is *made before this column existed*, and it is deliberately
+    // not zero — zero would claim the changeover was free, which this run did
+    // not observe and cannot now be asked.
+    final step = await db.select(db.simulationRunSteps).getSingle();
+    expect(step.changeoverIncurred, isTrue);
+    expect(step.changeoverSeconds, isNull);
+
+    // The same distinction on the study: it belonged to a cell and a line, and
+    // this run predates the columns that would have said which.
+    final runStudy = await db.select(db.simulationRunStudies).getSingle();
+    expect(runStudy.productionCellId, isNull);
+    expect(runStudy.productionCellName, isNull);
+    expect(runStudy.productionLineId, isNull);
+    expect(runStudy.productionLineName, isNull);
+
+    // The counter reached the end rather than stopping inside the step.
+    //
+    // Against `schemaVersion` rather than a literal: what this asserts is that
+    // the upgrade ran to completion, and pinning the number made a later
+    // version's arrival read as this step failing.
+    expect(
+      await db.customSelect('PRAGMA user_version').getSingle().then(
+        (row) => row.data.values.first,
+      ),
+      db.schemaVersion,
+    );
+  });
+
+  test('v17 to v18: a run\'s workcenters arrive without a pool', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // v17's shape: v16's tables plus the five columns v17 added. Built from the
+    // hoisted fixture rather than copied, so the two versions cannot drift
+    // apart in the one thing they are both supposed to be — the same schema,
+    // one step apart.
+    final v17 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute(
+            'CREATE TABLE workcenter_lines ('
+            'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+            'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+            'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+          )
+          // v17's own five.
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN same_part_percent REAL NULL')
+          ..execute('ALTER TABLE simulation_run_steps ADD COLUMN changeover_seconds INTEGER NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_name TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_name TEXT NULL')
+          ..execute('PRAGMA user_version = 17');
+
+    v17
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-1', 'plant-1', 'CLAD07', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenter_pools (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('pool-1', 'plant-1', 'CAL Pool', $now, $now)",
+      )
+      // **The membership exists in the plant and must not reach the run.** This
+      // is the whole point of the step: a v17 run observed no pool, and reading
+      // today's grouping into it would make it claim something it never saw
+      // (§7.10).
+      ..execute(
+        'INSERT INTO workcenter_pool_members (pool_id, workcenter_id, created_at) '
+        "VALUES ('pool-1', 'wc-1', $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_runs (id, project_id, dispatch, run_start, '
+        'run_end, guard, created_at) '
+        "VALUES ('run-1', 'proj-1', 'fifo', $now, $now, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO simulation_run_workcenters (run_id, workcenter_id, name, '
+        'busy_seconds, open_seconds) '
+        "VALUES ('run-1', 'wc-1', 'CLAD07', 3600, 7200)",
+      )
+      ..close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final workcenter = await db.select(db.simulationRunWorkcenters).getSingle();
+
+    // **Both null, and the pool in the plant is why that matters.** `wc-1` is a
+    // member of `CAL Pool` today; this run predates the columns that would have
+    // said so, and a backfill from current membership would have it group under
+    // a heading it never dispatched through. Null means ungrouped, never
+    // "every pool" (§12.1).
+    expect(workcenter.poolId, isNull);
+    expect(workcenter.poolName, isNull);
+
+    // What the run did record is untouched — the step is additive and rebuilds
+    // no table, which is the fourth migration running that can say so (§16.11).
+    expect(workcenter.name, 'CLAD07');
+    expect(workcenter.busySeconds, 3600);
+    expect(workcenter.openSeconds, 7200);
+
+    expect(
+      await db.customSelect('PRAGMA user_version').getSingle().then(
+        (row) => row.data.values.first,
+      ),
+      db.schemaVersion,
+    );
+  });
+
+
+  test('v18 to v19: two studies\' inventories fold onto one queue', () async {
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    // v18's shape: the v17 fixture plus v18's two columns. Built from the
+    // hoisted strings for the reason the v17 one is — two fixtures claiming to
+    // be one schema apart must not drift.
+    final v18 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute(
+            'CREATE TABLE workcenter_lines ('
+            'workcenter_id TEXT NOT NULL REFERENCES workcenters (id) ON DELETE CASCADE, '
+            'line_id TEXT NOT NULL REFERENCES production_lines (id) ON DELETE CASCADE, '
+            'created_at INTEGER NOT NULL, PRIMARY KEY (workcenter_id, line_id))',
+          )
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN setup_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN teardown_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN same_part_percent REAL NULL')
+          ..execute('ALTER TABLE simulation_run_steps ADD COLUMN changeover_seconds INTEGER NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_cell_name TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_studies ADD COLUMN production_line_name TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_workcenters ADD COLUMN pool_id TEXT NULL')
+          ..execute('ALTER TABLE simulation_run_workcenters ADD COLUMN pool_name TEXT NULL')
+          ..execute('PRAGMA user_version = 18');
+
+    v18
+      ..execute(
+        'INSERT INTO plants (id, name, created_at, updated_at) '
+        "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+        "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO shift_patterns '
+        '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+        "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-ban', 'plant-1', 'BAN11', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+        "VALUES ('wc-solo', 'plant-1', 'TCN20', $now, $now)",
+      )
+      ..execute(
+        'INSERT INTO projects '
+        '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+        "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+      );
+
+    // Two studies, both reaching BAN11 — the shape the real database has, and
+    // the reason this is a fold rather than a rename. Study `a` sorts first.
+    for (final id in ['a-study', 'b-study']) {
+      v18.execute(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('$id', 'proj-1', 'cell-1', 'line-1', '$id', $now, $now)",
+      );
+    }
+
+    // `a-study`: an inventory naming the lane, then the step it feeds.
+    // `b-study`: the same target, a different name, and a rule and capacity
+    // `a` left blank.
+    for (final (study, pos, kind, label, rule, cap, target) in [
+      ('a-study', 0, 'inventory', 'FIFO BAN', null, null, null),
+      ('a-study', 1, 'step', null, null, null, 'wc-ban'),
+      ('b-study', 0, 'inventory', 'FIFO BAN11', 'shortestProcessing', 3, null),
+      ('b-study', 1, 'step', null, null, null, 'wc-ban'),
+      // A queue nothing shares, so the ordinary case is covered too.
+      ('b-study', 2, 'inventory', 'FIFO TCN', null, null, null),
+      ('b-study', 3, 'step', null, null, null, 'wc-solo'),
+      // And an inventory with no step after it: a queue in front of nothing.
+      ('b-study', 4, 'inventory', 'FIFO NOWHERE', null, null, null),
+    ]) {
+      final wc = target == null ? 'NULL' : "'$target'";
+      final lbl = label == null ? 'NULL' : "'$label'";
+      final rl = rule == null ? 'NULL' : "'$rule'";
+      final cp = cap?.toString() ?? 'NULL';
+      v18.execute(
+        'INSERT INTO flow_nodes (id, study_id, position, kind, workcenter_id, '
+        'label, lane_rule, lane_capacity, changeover_seconds, created_at, '
+        'updated_at) '
+        "VALUES ('$study-$pos', '$study', $pos, '$kind', $wc, $lbl, $rl, $cp, "
+        '0, $now, $now)',
+      );
+    }
+    v18.close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final queues = await db.select(db.projectQueues).get()
+      ..sort((a, b) => a.targetId.compareTo(b.targetId));
+
+    // Three inventory nodes across two studies land on **two** queues, and the
+    // fourth — the one feeding no step — lands on none.
+    expect(queues.map((q) => q.targetId), ['wc-ban', 'wc-solo']);
+
+    // **A later node fills what the first left blank.** `a` set no rule and no
+    // capacity, so `b`'s survive.
+    //
+    // *The name half of this rule is no longer observable*: v27 dropped
+    // `project_queues.name`, and this database is opened at the current
+    // version, so the fold's "first study wins the name" — `FIFO BAN` over
+    // `FIFO BAN11` — is gone by the time the row can be read. The fold still
+    // does it, and still logs what it discarded; what is asserted here is the
+    // half that survives into the schema.
+    final ban = queues.first;
+    expect(ban.rule, DispatchRule.shortestProcessing);
+    expect(ban.capacity, 3);
+
+    // **The inventory rows are still there.** They stop being read; they are
+    // not deleted, because they are the recovery path for `FIFO BAN11`.
+    final nodes = await db.select(db.flowNodes).get();
+    expect(
+      nodes.where((n) => n.kind == FlowNodeKind.inventory),
+      hasLength(4),
+    );
+
+    // **v20 rides along, and its whole claim is that it changes nothing.**
+    // Asserted here rather than from a fixture of its own because it carries
+    // four nullable columns and no carry — there is nothing to isolate, and
+    // §16.18's warning about a fixture full of nulls is about a migration that
+    // *moves* data, which this one deliberately does not.
+    //
+    // Rebalancing is on for every step that already existed, which is what a
+    // null in a disable flag means (§7.7.4).
+    expect(
+      nodes.every((n) => n.balanceDisabled == null),
+      isTrue,
+      reason: 'a pre-v20 step must keep rebalancing on',
+    );
+
+    // And the run's three takt columns land. Asserted against the table's own
+    // shape rather than against rows, because this fixture stores no run —
+    // a `every()` over an empty list passes whether or not the columns exist,
+    // which is §16.18's warning arriving from the other direction.
+    final columns = await db
+        .customSelect('PRAGMA table_info(simulation_run_studies)')
+        .get();
+    expect(
+      columns.map((row) => row.data['name']),
+      containsAll(['takt_value', 'takt_unit', 'next_takt_change']),
+    );
+
+    // **v21 rides along on the same terms**, and is asserted the same way and
+    // for the same reason: one nullable column, no carry, and no row in this
+    // fixture to carry it — so the claim worth making is that the column
+    // exists on a table that predates it, not that some row is null.
+    final stepColumns = await db
+        .customSelect('PRAGMA table_info(simulation_run_steps)')
+        .get();
+    expect(
+      stepColumns.map((row) => row.data['name']),
+      contains('process_seconds'),
+    );
+
+    // **And v22 on the same terms again** (§7.9): the takt each order opened
+    // under, and where a study's cadence ran out. Three nullable columns on two
+    // tables that predate them, so what is worth asserting is that they arrived
+    // on the old tables rather than that some row is null.
+    final orderColumns = await db
+        .customSelect('PRAGMA table_info(simulation_run_orders)')
+        .get();
+    expect(
+      orderColumns.map((row) => row.data['name']),
+      containsAll(['takt_value', 'takt_unit']),
+    );
+    expect(
+      columns.map((row) => row.data['name']),
+      contains('cadence_ended_at'),
+    );
+
+    expect(
+      await db.customSelect('PRAGMA user_version').getSingle().then(
+        (row) => row.data.values.first,
+      ),
+      db.schemaVersion,
+    );
+  });
+
+  test('v19 folds once, however often the upgrade is replayed', () async {
+    // §16.11's shape: an upgrade that died after the fold and replays from a
+    // counter that no longer describes the tables. Folding twice would
+    // overwrite a queue the user has since edited, so the step is guarded on
+    // the table being empty rather than on `from`.
+    final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+    final v18 =
+        sqlite3.open(file.path)
+          ..execute(
+            resourceTables.replaceAll(
+              RegExp(r'CREATE TABLE workcenters \([^;]*\);'),
+              '',
+            ),
+          )
+          ..execute(v16Workcenters)
+          ..execute(projectTables)
+          ..execute(v16RunTables)
+          // Faithful to v18 rather than minimal: `inventory_unit` arrives at v4
+          // and the fold reads it, so a fixture without it is not a database
+          // that could ever reach v19.
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN inventory_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_value REAL NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN equivalent_unit TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_rule TEXT NULL')
+          ..execute('ALTER TABLE flow_nodes ADD COLUMN lane_capacity INTEGER NULL')
+          ..execute('ALTER TABLE studies ADD COLUMN start_buffer_days INTEGER NOT NULL DEFAULT 0')
+          ..execute('ALTER TABLE studies ADD COLUMN pace_setter_target_id TEXT NULL')
+          // Reference-data seeding runs on every upgrade, and it writes an
+          // icon — so a v18 fixture without the column fails on the seed rather
+          // than on anything this test is about.
+          ..execute('ALTER TABLE workcenter_types ADD COLUMN icon TEXT NULL')
+          ..execute('PRAGMA user_version = 18')
+          ..execute(
+            'INSERT INTO plants (id, name, created_at, updated_at) '
+            "VALUES ('plant-1', 'Werk Nord', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO shift_patterns '
+            '(id, name, cycle_type, working_weekdays, created_at, updated_at) '
+            "VALUES ('pattern-1', 'ABC', 'fixedWeekly', 31, $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO workcenters (id, plant_id, name, created_at, updated_at) '
+            "VALUES ('wc-1', 'plant-1', 'CLAD07', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO projects '
+            '(id, name, plant_id, shift_pattern_id, created_at, updated_at) '
+            "VALUES ('proj-1', 'H2 2026', 'plant-1', 'pattern-1', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO production_cells (id, plant_id, name, created_at, updated_at) '
+            "VALUES ('cell-1', 'plant-1', 'Cell A', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO production_lines (id, cell_id, name, created_at, updated_at) '
+            "VALUES ('line-1', 'cell-1', 'Line 1', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO studies (id, project_id, production_cell_id, '
+            'production_line_id, name, created_at, updated_at) '
+            "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'Current', $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO flow_nodes (id, study_id, position, kind, label, '
+            'changeover_seconds, created_at, updated_at) '
+            "VALUES ('n0', 'study-1', 0, 'inventory', 'FIFO CLAD', 0, $now, $now)",
+          )
+          ..execute(
+            'INSERT INTO flow_nodes (id, study_id, position, kind, '
+            'workcenter_id, changeover_seconds, created_at, updated_at) '
+            "VALUES ('n1', 'study-1', 1, 'step', 'wc-1', 0, $now, $now)",
+          );
+    v18.close();
+
+    final first = AppDatabase(NativeDatabase(file));
+    await first.select(first.projectQueues).get();
+    // The user edits the queue after the upgrade. **Capacity rather than the
+    // name**, which v27 dropped — the point of the test is that a replayed fold
+    // must not overwrite an edit, and any surviving column proves it.
+    await first.customStatement('UPDATE project_queues SET capacity = 42');
+    await first.close();
+
+    // Wind the counter back, as an interrupted upgrade leaves it.
+    final rewound = sqlite3.open(file.path)
+      ..execute('PRAGMA user_version = 18');
+    rewound.close();
+
+    final second = AppDatabase(NativeDatabase(file));
+    addTearDown(second.close);
+    final queues = await second.select(second.projectQueues).get();
+
+    expect(queues, hasLength(1));
+    expect(
+      queues.single.capacity,
+      42,
+      reason: 'the fold ran once; a replay must not undo an edit',
+    );
+  });
 
   test('an upgrade that died part-way can still be opened', () async {
     // The shape found on the developer's own machine: `user_version` 6, but
@@ -1268,4 +2258,730 @@ void main() {
       expect(types.map((t) => t.name), contains('Machining'));
     },
   );
+
+  group('v22 to v23: a stay in a queue belongs to a step (§8.6)', () {
+    /// Puts an existing database back into v22's shape for this one table and
+    /// stamps the version, so the v23 step runs against what it will actually
+    /// meet.
+    ///
+    /// **Built by regressing the current schema rather than by hand.** Every
+    /// fixture above builds its era from scratch, which is right when the
+    /// migration reaches across many tables; this one touches exactly one, and
+    /// a hand-built v22 of the whole database would be four hundred lines that
+    /// could drift from the twenty-two steps above it.
+    Future<File> v22WithVisits({
+      required List<({String order, String lane, String? step})> visits,
+    }) async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+
+      // Create at the current version, then seed the rows the migration reads.
+      final fresh = AppDatabase(NativeDatabase(file));
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
+        "run_end, guard, created_at) VALUES "
+        "('run-1', 'proj-1', 'fifo', 0, 1, 2, 3)",
+      );
+      for (final v in visits.where((v) => v.step != null)) {
+        await fresh.customStatement(
+          "INSERT INTO simulation_run_steps (run_id, study_id, order_id, "
+          "node_id, workcenter_id, queue_start, process_start, process_end, "
+          "changeover_incurred, lane_node_id) VALUES "
+          "('run-1', 'study-1', '${v.order}', '${v.step}', 'wc-1', "
+          "10, 20, 30, 0, '${v.lane}')",
+        );
+      }
+      await fresh.close();
+
+      // Now put the one table back the way v22 had it, rows and all.
+      final raw = sqlite3.open(file.path)
+        ..execute('DROP TABLE simulation_run_lane_visits')
+        ..execute('''
+          CREATE TABLE simulation_run_lane_visits (
+            run_id TEXT NOT NULL REFERENCES simulation_runs (id)
+              ON DELETE CASCADE,
+            study_id TEXT NOT NULL,
+            order_id TEXT NOT NULL,
+            node_id TEXT NOT NULL,
+            entered_at INTEGER NOT NULL,
+            left_at INTEGER NULL,
+            PRIMARY KEY (run_id, order_id, node_id))
+        ''');
+      for (final v in visits) {
+        raw.execute(
+          "INSERT INTO simulation_run_lane_visits VALUES "
+          "('run-1', 'study-1', '${v.order}', '${v.lane}', 10, 20)",
+        );
+      }
+      raw
+        ..execute('PRAGMA user_version = 22')
+        ..close();
+      return file;
+    }
+
+    test('a stay that produced a step is matched to it', () async {
+      final file = await v22WithVisits(
+        visits: [(order: 'o0', lane: 'wc-2', step: 'node-1')],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.length, 1);
+      expect(rows.single.targetId, 'wc-2', reason: 'node_id held the workcenter');
+      expect(
+        rows.single.stepNodeId,
+        'node-1',
+        reason: 'backfilled from the step the writer derived it from',
+      );
+      expect(rows.single.enteredAt.millisecondsSinceEpoch, isNotNull);
+      await db.close();
+    });
+
+    test('a stay with no step keeps the workcenter as its surrogate', () async {
+      // An order the guard caught still queueing produced no step, so there is
+      // nothing to name. v22's own key guaranteed at most one such row per
+      // order per workcenter, so the target collides with nothing.
+      final file = await v22WithVisits(
+        visits: [(order: 'o9', lane: 'wc-2', step: null)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.length, 1, reason: 'the row is carried, not dropped');
+      expect(rows.single.stepNodeId, 'wc-2');
+      await db.close();
+    });
+
+    test('nothing is lost across a mixed table', () async {
+      final file = await v22WithVisits(
+        visits: [
+          (order: 'o0', lane: 'wc-1', step: 'node-0'),
+          (order: 'o0', lane: 'wc-2', step: 'node-1'),
+          (order: 'o1', lane: 'wc-1', step: 'node-0'),
+          (order: 'o9', lane: 'wc-2', step: null),
+        ],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.length, 4, reason: 'every v22 row survives the rebuild');
+      expect(
+        rows.map((r) => '${r.orderId}/${r.targetId}').toSet(),
+        {'o0/wc-1', 'o0/wc-2', 'o1/wc-1', 'o9/wc-2'},
+      );
+      await db.close();
+    });
+
+    test('the new key admits what the old one refused', () async {
+      // The defect itself, at the far end of a migration: once upgraded, the
+      // table takes two stays of one order in one workcenter's queue — which is
+      // what a part going back for a second operation produces, and what v22
+      // rejected with a UNIQUE constraint after the run had been computed.
+      final file = await v22WithVisits(
+        visits: [(order: 'o0', lane: 'wc-2', step: 'node-1')],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      await db.customStatement(
+        "INSERT INTO simulation_run_lane_visits (run_id, study_id, order_id, "
+        "target_id, step_node_id, entered_at, left_at) VALUES "
+        "('run-1', 'study-1', 'o0', 'wc-2', 'node-2', 40, 50)",
+      );
+      final rows = await db.select(db.simulationRunLaneVisits).get();
+      expect(rows.where((r) => r.orderId == 'o0').length, 2);
+      await db.close();
+    });
+  });
+
+  group('v23 to v24: a process time belongs to a step (§9)', () {
+    /// Regresses `part_process_times` to its v23 shape and stamps the version,
+    /// so the v24 step runs against what it will actually meet.
+    ///
+    /// [steps] are `(nodeId, targetId)` pairs inserted into one study, and
+    /// [times] are `(partId, targetId)` rows in the old shape.
+    Future<File> v23With({
+      required List<(String, String)> steps,
+      required List<(String, String, int)> times,
+    }) async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement(
+        "INSERT INTO studies (id, project_id, production_cell_id, "
+        "production_line_id, name, created_at, updated_at) VALUES "
+        "('study-1', 'proj-1', 'cell-1', 'line-1', 'S', $now, $now)",
+      );
+      for (final (i, (nodeId, targetId)) in steps.indexed) {
+        await fresh.customStatement(
+          "INSERT INTO flow_nodes (id, study_id, position, kind, "
+          "workcenter_id, created_at, updated_at) VALUES "
+          "('$nodeId', 'study-1', $i, 'step', '$targetId', $now, $now)",
+        );
+      }
+      for (final (partId, _, _) in times.toSet()) {
+        await fresh.customStatement(
+          "INSERT OR IGNORE INTO demand_parts (id, study_id, part_number, "
+          "created_at, updated_at) VALUES "
+          "('$partId', 'study-1', '$partId', $now, $now)",
+        );
+      }
+      await fresh.close();
+
+      final raw = sqlite3.open(file.path)
+        ..execute('DROP TABLE part_process_times')
+        ..execute('''
+          CREATE TABLE part_process_times (
+            part_id TEXT NOT NULL REFERENCES demand_parts (id)
+              ON DELETE CASCADE,
+            target_id TEXT NOT NULL,
+            seconds INTEGER NOT NULL,
+            PRIMARY KEY (part_id, target_id))
+        ''');
+      for (final (partId, targetId, seconds) in times) {
+        raw.execute(
+          "INSERT INTO part_process_times VALUES "
+          "('$partId', '$targetId', $seconds)",
+        );
+      }
+      raw
+        ..execute('PRAGMA user_version = 23')
+        ..close();
+      return file;
+    }
+
+    test('a time follows its target onto the step that points there', () async {
+      final file = await v23With(
+        steps: [('node-1', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(rows.single.nodeId, 'node-1');
+      expect(rows.single.seconds, 7200);
+      await db.close();
+    });
+
+    test('a workcenter used twice becomes two cells at the same value', () async {
+      // **What the round is for.** They start equal, so nothing about today's
+      // numbers changes — and they can now diverge, which is what a routing
+      // revisit means.
+      final file = await v23With(
+        steps: [('node-1', 'wc-1'), ('node-2', 'wc-2'), ('node-3', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200), ('part-a', 'wc-2', 3600)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(rows.length, 3, reason: 'two rows became three');
+      expect(
+        {for (final r in rows) r.nodeId: r.seconds},
+        {'node-1': 7200, 'node-3': 7200, 'node-2': 3600},
+      );
+      await db.close();
+    });
+
+    test('a time whose target has no step is dropped', () async {
+      // The only step in this file that removes anything. On the live database
+      // it was 8 rows of 279 — left behind when a step was deleted or
+      // repointed after somebody had typed a time, already drawn by no column
+      // and read by no run.
+      final file = await v23With(
+        steps: [('node-1', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200), ('part-a', 'wc-9', 999)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(rows.map((r) => r.nodeId), ['node-1']);
+      await db.close();
+    });
+
+    test('the new key admits what the old one could not hold', () async {
+      // Two visits, two different times — impossible under v23, where the two
+      // steps shared one row keyed by the workcenter.
+      final file = await v23With(
+        steps: [('node-1', 'wc-1'), ('node-2', 'wc-1')],
+        times: [('part-a', 'wc-1', 7200)],
+      );
+
+      final db = AppDatabase(NativeDatabase(file));
+      await db.customStatement(
+        "UPDATE part_process_times SET seconds = 1800 "
+        "WHERE node_id = 'node-2'",
+      );
+      final rows = await db.select(db.partProcessTimes).get();
+      expect(
+        {for (final r in rows) r.nodeId: r.seconds},
+        {'node-1': 7200, 'node-2': 1800},
+        reason: 'the second pass is charged its own work',
+      );
+      await db.close();
+    });
+  });
+  group('v24 to v25: what a run must carry to be graphed (§10.2)', () {
+    /// A v24 database holding one stored run, with the three things v25 adds
+    /// absent — which is exactly what a real one arrives with.
+    Future<File> v24WithARun() async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
+        "run_end, guard, created_at) VALUES "
+        "('run-1', 'proj-1', '', $now, $now, $now, $now)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_run_steps (run_id, study_id, order_id, "
+        "node_id, workcenter_id, queue_start, process_start, process_end, "
+        "process_seconds) VALUES "
+        "('run-1', 'study-1', 'order-1', 'node-1', 'wc-1', $now, $now, $now, "
+        "3737)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_run_workcenters (run_id, workcenter_id, name, "
+        "busy_seconds, open_seconds) VALUES "
+        "('run-1', 'wc-1', 'CLAD06', 100, 200)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE simulation_run_steps '
+            'DROP COLUMN process_seconds_before_rework')
+        ..execute('ALTER TABLE simulation_run_workcenters DROP COLUMN type_id')
+        ..execute(
+          'ALTER TABLE simulation_run_workcenters DROP COLUMN type_name',
+        )
+        ..execute('DROP TABLE simulation_run_workcenter_months')
+        ..execute('PRAGMA user_version = 24')
+        ..close();
+      return file;
+    }
+
+    test('the two columns and the table arrive, and no rebuild is needed',
+        () async {
+      final file = await v24WithARun();
+
+      final db = AppDatabase(NativeDatabase(file));
+      // Opening it runs the migration; the assertion is that all three landed.
+      final step = await db.select(db.simulationRunSteps).getSingle();
+      final workcenter = await db.select(db.simulationRunWorkcenters).getSingle();
+      final months = await db.select(db.simulationRunWorkcenterMonths).get();
+
+      expect(step.processSecondsBeforeRework, isNull);
+      expect(workcenter.typeId, isNull);
+      expect(workcenter.typeName, isNull);
+      expect(months, isEmpty);
+      await db.close();
+    });
+
+    test('the run it found is left exactly as it was', () async {
+      // **No backfill, deliberately** (§10.2). `process_seconds` is
+      // `work × (1 + rework)` with the rework gone, so there is nothing to
+      // recover it from — and inventing a figure out of today's schedules would
+      // draw a 2025 capacity line from a plant retuned in 2026. A run that
+      // cannot be graphed says so by holding nulls.
+      final file = await v24WithARun();
+
+      final db = AppDatabase(NativeDatabase(file));
+      final step = await db.select(db.simulationRunSteps).getSingle();
+
+      expect(step.processSeconds, 3737, reason: 'the old figure is untouched');
+      expect(step.workcenterId, 'wc-1');
+      await db.close();
+    });
+
+    test('a second open is a no-op', () async {
+      // The rule at the top of `onUpgrade`: a migration is not atomic, so every
+      // step has to tolerate having already run.
+      final file = await v24WithARun();
+
+      final first = AppDatabase(NativeDatabase(file));
+      await first.select(first.simulationRunSteps).get();
+      await first.close();
+
+      final second = AppDatabase(NativeDatabase(file));
+      final version = await second
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(version.read<int>('user_version'), second.schemaVersion);
+      expect(await second.select(second.simulationRunSteps).get(), hasLength(1));
+      await second.close();
+    });
+  });
+
+  group('v25 to v26: where the float matrix turns red (§10.4)', () {
+    test('every project gets the defaults, and nothing else moves', () async {
+      // **Not a backfill in §10.2's sense.** These are thresholds for *reading*
+      // a figure rather than a record of what the plant was, so a default is
+      // the right answer where an invented capacity would not be. Nothing about
+      // any stored run changes.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "created_at, updated_at) VALUES "
+        "('proj-1', 'Old', 'plant-1', 'pattern-1', $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE projects DROP COLUMN float_red_days')
+        ..execute('ALTER TABLE projects DROP COLUMN float_green_days')
+        ..execute('PRAGMA user_version = 25')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      final project = await (db.select(
+        db.projects,
+      )..where((p) => p.id.equals('proj-1'))).getSingle();
+
+      expect(project.floatRedDays, 0);
+      expect(project.floatGreenDays, 30);
+      expect(project.name, 'Old', reason: 'the row is otherwise untouched');
+      await db.close();
+    });
+  });
+
+  group('v26 to v27: a queue is an aspect, and a box is its workcenter (#5)', () {
+    /// A v26 database with both columns present and filled, so the step can
+    /// actually be exercised rather than skipped.
+    Future<File> v26() async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "created_at, updated_at) VALUES "
+        "('proj-1', 'P', 'plant-1', 'pattern-1', $now, $now)",
+      );
+      await fresh.customStatement(
+        'INSERT INTO studies (id, project_id, production_cell_id, '
+        'production_line_id, name, created_at, updated_at) '
+        "VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'S', $now, $now)",
+      );
+      await fresh.close();
+
+      // Put the two columns back, exactly as a v26 database has them, and fill
+      // each with the shape the live database actually holds.
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE project_queues ADD COLUMN name TEXT')
+        ..execute('ALTER TABLE flow_nodes ADD COLUMN label TEXT')
+        ..execute(
+          'INSERT INTO project_queues (project_id, target_id, name, rule, '
+          'capacity, created_at, updated_at) VALUES '
+          "('proj-1', 'wc-1', 'FIFO CEU 21', 'fifo', 3, $now, $now)",
+        )
+        ..execute(
+          'INSERT INTO flow_nodes (id, study_id, position, kind, '
+          'workcenter_id, label, changeover_seconds, created_at, updated_at) '
+          "VALUES ('n1', 'study-1', 0, 'step', 'wc-1', 'CLAD Pool', 0, "
+          '$now, $now)',
+        )
+        ..execute('PRAGMA user_version = 26')
+        ..close();
+      return file;
+    }
+
+    test('both columns go, and every other value survives', () async {
+      final db = AppDatabase(NativeDatabase(await v26()));
+      addTearDown(db.close);
+
+      // The rows are kept; only the two names are dropped. A queue was never
+      // identity — its key is its target — so nothing here is lost that the
+      // caption cannot derive.
+      final queue = await db.select(db.projectQueues).getSingle();
+      expect(queue.targetId, 'wc-1');
+      expect(queue.rule, DispatchRule.fifo);
+      expect(queue.capacity, 3);
+
+      final node = await db.select(db.flowNodes).getSingle();
+      expect(node.id, 'n1');
+      expect(node.workcenterId, 'wc-1');
+      expect(node.position, 0);
+
+      // Asked of the database rather than inferred from the row class, because
+      // it is the *table* the migration had to rebuild.
+      Future<bool> hasColumn(String table, String column) async =>
+          (await db.customSelect('PRAGMA table_info($table)').get()).any(
+            (row) => row.read<String>('name') == column,
+          );
+      expect(await hasColumn('project_queues', 'name'), isFalse);
+      expect(await hasColumn('flow_nodes', 'label'), isFalse);
+    });
+
+    test('running it twice is a no-op, as an interrupted upgrade replays', () async {
+      final file = await v26();
+      final first = AppDatabase(NativeDatabase(file));
+      await first.select(first.projectQueues).get();
+      await first.close();
+
+      // Wind the counter back, as an interrupted upgrade leaves it. The step
+      // asks the database what it has rather than trusting `from`, so it finds
+      // the columns already gone and does nothing.
+      sqlite3.open(file.path)
+        ..execute('PRAGMA user_version = 26')
+        ..close();
+
+      final second = AppDatabase(NativeDatabase(file));
+      addTearDown(second.close);
+      expect(await second.select(second.projectQueues).get(), hasLength(1));
+      expect(await second.select(second.flowNodes).get(), hasLength(1));
+    });
+  });
+
+  group('v27 to v28: study priority goes (#6)', () {
+    /// A v27 database with both priority columns present and filled, so the
+    /// step is exercised rather than skipped.
+    ///
+    /// **One of them holds a value nobody ever set in reality.** All 3 live
+    /// studies and all 324 stored run rows sit at the default 100 — which is
+    /// the evidence the drop is a no-op, and exactly why the fixture uses 7
+    /// instead: a migration that only ever meets the default cannot show that
+    /// it drops anything.
+    Future<File> v27() async {
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "created_at, updated_at) VALUES "
+        "('proj-1', 'P', 'plant-1', 'pattern-1', $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute(
+          'ALTER TABLE studies ADD COLUMN priority INTEGER NOT NULL '
+          'DEFAULT 100',
+        )
+        ..execute(
+          'ALTER TABLE simulation_run_studies ADD COLUMN priority INTEGER '
+          'NOT NULL DEFAULT 100',
+        )
+        ..execute(
+          'INSERT INTO studies (id, project_id, production_cell_id, '
+          'production_line_id, name, priority, wip_cap, created_at, '
+          "updated_at) VALUES ('study-1', 'proj-1', 'cell-1', 'line-1', 'S', "
+          '7, 4, $now, $now)',
+        )
+        ..execute('PRAGMA user_version = 27')
+        ..close();
+      return file;
+    }
+
+    test('the column goes, and the study survives it', () async {
+      final db = AppDatabase(NativeDatabase(await v27()));
+      addTearDown(db.close);
+
+      // The row is kept and so is the cap beside it — §17.5 listed the two
+      // together and only one of them was a lever nobody pulled.
+      final study = await db.select(db.studies).getSingle();
+      expect(study.id, 'study-1');
+      expect(study.name, 'S');
+      expect(study.wipCap, 4);
+
+      Future<bool> hasColumn(String table, String column) async =>
+          (await db.customSelect('PRAGMA table_info($table)').get()).any(
+            (row) => row.read<String>('name') == column,
+          );
+      expect(await hasColumn('studies', 'priority'), isFalse);
+      // The run's copy goes with it: written on every run since it existed and
+      // read back by nothing, so §7.10's copy-in rule never covered it.
+      expect(
+        await hasColumn('simulation_run_studies', 'priority'),
+        isFalse,
+      );
+    });
+
+    test('running it twice is a no-op, as an interrupted upgrade replays', () async {
+      final file = await v27();
+      final first = AppDatabase(NativeDatabase(file));
+      await first.select(first.studies).get();
+      await first.close();
+
+      sqlite3.open(file.path)
+        ..execute('PRAGMA user_version = 27')
+        ..close();
+
+      final second = AppDatabase(NativeDatabase(file));
+      addTearDown(second.close);
+      expect(await second.select(second.studies).get(), hasLength(1));
+    });
+  });
+
+  group('v28 to v29: where the Occupation grid bands (#9)', () {
+    test('every project gets the defaults, and nothing else moves', () async {
+      // v26's shape one section down the same settings card, so this is v26's
+      // test one section down too: two columns with defaults on a table that
+      // predates them, no rebuild.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "float_red_days, float_green_days, created_at, updated_at) VALUES "
+        "('proj-1', 'P', 'plant-1', 'pattern-1', 3, 21, $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE projects DROP COLUMN occupation_amber_pct')
+        ..execute('ALTER TABLE projects DROP COLUMN occupation_red_pct')
+        ..execute('PRAGMA user_version = 28')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final project = await db.select(db.projects).getSingle();
+      expect(project.occupationAmberPct, 85);
+      expect(project.occupationRedPct, 100);
+      // **And the float thresholds beside them are untouched.** The two pairs
+      // share a card and a migration number apiece; a step that reset the
+      // neighbour it sits next to is the failure worth checking for.
+      expect(project.floatRedDays, 3);
+      expect(project.floatGreenDays, 21);
+    });
+  });
+
+  group('v29 to v30: whether a type’s crew is its throughput (#20)', () {
+    test('every existing type stays machine-paced', () async {
+      // **The default has to be the old behaviour**, because the flag changes
+      // what a run computes at any workcenter carrying it. A migration that
+      // silently repaced half a plant would invalidate every stored figure for
+      // it without anyone asking.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO workcenter_types (id, name, is_built_in, created_at) "
+        "VALUES ('type-1', 'Spray Booth', 0, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE workcenter_types DROP COLUMN is_labour_paced')
+        ..execute('PRAGMA user_version = 29')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      // By id: reference seeding runs on every upgrade, so the built-in types
+      // are here too — and they are worth asserting over as well.
+      final types = await db.select(db.workcenterTypes).get();
+      final mine = types.firstWhere((t) => t.id == 'type-1');
+      expect(mine.isLabourPaced, isFalse);
+      // And the row it landed on is otherwise untouched.
+      expect(mine.name, 'Spray Booth');
+      expect(mine.isBuiltIn, isFalse);
+      // Every seeded type too: the migration repaces nothing.
+      expect(types.every((t) => !t.isLabourPaced), isTrue);
+    });
+  });
+
+  group('v30 to v31: which build made this run (#24)', () {
+    test('every stored run keeps a null stamp, and is otherwise untouched',
+        () async {
+      // **Null is the answer, not an oversight.** A backfill would be the one
+      // change that makes the app lie about its own records: the runs already
+      // stored span three engine generations, and #19 moved what a run *means*
+      // with no migration at all — so two runs at the same schema version can
+      // still disagree about the plant.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "float_red_days, float_green_days, occupation_amber_pct, "
+        "occupation_red_pct, created_at, updated_at) "
+        "VALUES ('proj-1', 'P', 'plant-1', 'sp-1', 0, 30, 85, 100, $now, $now)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
+        "run_end, guard, created_at) "
+        "VALUES ('run-1', 'proj-1', '', $now, $now, $now, $now)",
+      );
+      await fresh.close();
+
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE simulation_runs DROP COLUMN app_version')
+        ..execute('PRAGMA user_version = 30')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final runs = await db.select(db.simulationRuns).get();
+      expect(runs, hasLength(1));
+      expect(runs.single.appVersion, isNull);
+      // The row the migration landed on is otherwise as it was.
+      expect(runs.single.id, 'run-1');
+      expect(runs.single.documentId, 'proj-1');
+      expect(runs.single.dispatch, '');
+    });
+  });
+
+  group('v31 to v32: a run belongs to a document, not a project row (#37)', () {
+    test('the id carries across and the cascade is gone', () async {
+      // **The cascade had to go or the document model would eat the runs.**
+      // `project_id` referenced `projects` with `onDelete: cascade`, which was
+      // right while the database owned the projects; under #37 the working
+      // tables are emptied and refilled on every open, so the first document
+      // switch would have deleted every stored run.
+      //
+      // The value does not change — a document's identity *is* its project id,
+      // and it travels inside the file — so this asserts the rename carried it
+      // rather than defaulting it.
+      final file = File(p.join(dir.path, 'flowmap.sqlite'));
+      final fresh = AppDatabase(NativeDatabase(file));
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await fresh.customStatement('PRAGMA foreign_keys = OFF');
+      await fresh.customStatement(
+        "INSERT INTO projects (id, name, plant_id, shift_pattern_id, "
+        "float_red_days, float_green_days, occupation_amber_pct, "
+        "occupation_red_pct, created_at, updated_at) "
+        "VALUES ('proj-1', 'P', 'plant-1', 'sp-1', 0, 30, 85, 100, $now, $now)",
+      );
+      await fresh.customStatement(
+        "INSERT INTO simulation_runs (id, document_id, dispatch, run_start, "
+        "run_end, guard, created_at, app_version) "
+        "VALUES ('run-1', 'proj-1', '', $now, $now, $now, $now, '0.1.0-test')",
+      );
+      await fresh.close();
+
+      // Put the table back into its v31 shape: the column named and referenced
+      // as it was.
+      sqlite3.open(file.path)
+        ..execute('ALTER TABLE simulation_runs RENAME COLUMN document_id TO project_id')
+        ..execute('PRAGMA user_version = 31')
+        ..close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+
+      final runs = await db.select(db.simulationRuns).get();
+      expect(runs, hasLength(1));
+      expect(runs.single.documentId, 'proj-1');
+      // Everything else the rebuild copied, including v31's own column — a
+      // TableMigration reaches for every column the *current* definition has,
+      // which is how this file has been bitten three times.
+      expect(runs.single.id, 'run-1');
+      expect(runs.single.appVersion, '0.1.0-test');
+
+      // And the run now outlives its project, which is the point.
+      await db.customStatement("DELETE FROM projects WHERE id = 'proj-1'");
+      expect(await db.select(db.simulationRuns).get(), hasLength(1));
+    });
+  });
 }

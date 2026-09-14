@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlowMap — User guide</title>
+<style>
+  :root { --ink:#1b1f24; --muted:#5b6470; --line:#dde1e6; --seed:#1f5c8b; --bg:#fbfbfa; --card:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e6e8eb; --muted:#9aa3ad; --line:#2c3238; --seed:#7fb2dc; --bg:#15181b; --card:#1c2024; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 "Segoe UI", Roboto, system-ui, sans-serif; }
+  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); z-index:1; }
+  .bar { max-width:860px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .bar h1 { font-size:20px; margin:0; flex:1; }
+  .langs button { font:inherit; font-size:14px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:4px 12px; border-radius:6px; cursor:pointer; }
+  .langs button[aria-pressed="true"] { border-color:var(--seed); color:var(--seed); font-weight:600; }
+  main { max-width:860px; margin:0 auto; padding:8px 20px 64px; }
+  h2 { font-size:22px; margin:40px 0 8px; padding-top:8px; border-top:1px solid var(--line); }
+  h3 { font-size:17px; margin:24px 0 4px; }
+  nav.toc { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 20px; margin:20px 0; }
+  nav.toc ol { margin:0; padding-left:20px; columns:2; }
+  @media (max-width:600px) { nav.toc ol { columns:1; } }
+  a { color:var(--seed); }
+  .ui { font-weight:600; white-space:nowrap; }
+  .note { border-left:3px solid var(--seed); padding:4px 14px; color:var(--muted); margin:12px 0; }
+  code { font-family:Consolas, monospace; font-size:14px; background:var(--card); border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+  [data-lang] { display:none; }
+  [data-lang].on { display:block; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>FlowMap</h1>
+    <div class="langs">
+      <button data-set="en">English</button>
+      <button data-set="es">Español</button>
+      <button data-set="pt">Português</button>
+    </div>
+  </div>
+</header>
+<main>
+
+<!-- ======================================================= ENGLISH -->
+<div data-lang="en">
+<p>FlowMap draws a value stream, loads it with real demand, and simulates it against your plant's real calendar, so you can see what arrives on time, what is late, and which workcenter decides it.</p>
+<nav class="toc"><ol>
+  <li><a href="#en-start">Start here</a></li>
+  <li><a href="#en-files">A project is a file</a></li>
+  <li><a href="#en-plant">The plant</a></li>
+  <li><a href="#en-study">A study</a></li>
+  <li><a href="#en-sim">Simulating and reading a run</a></li>
+  <li><a href="#en-compare">Comparing two runs</a></li>
+  <li><a href="#en-templates">Templates</a></li>
+  <li><a href="#en-help">When something goes wrong</a></li>
+</ol></nav>
+
+<h2 id="en-start">1. Start here</h2>
+<p>On the first screen, click <span class="ui">Open the example</span>. It is a real plant, with three studies already built. It opens as your own copy in <code>Documents\FlowMap</code>, so nothing you do can damage the original.</p>
+<ol>
+  <li>Click <span class="ui">Simulate</span> at the top right. It takes a few seconds.</li>
+  <li>Click <span class="ui">Simulation Results</span> on the banner that appears.</li>
+  <li>The card at the top gives <b>on-time delivery</b> and the workcenter orders waited at longest. The tabs below break it down.</li>
+</ol>
+<p>A new project opens with empty results, because results are kept on the machine that made them. Pressing <span class="ui">Simulate</span> always gives the same numbers for the same inputs.</p>
+
+<h2 id="en-files">2. A project is a file</h2>
+<p>A project is a single <code>.flowmap</code> file. <span class="ui">Open…</span> opens one, and <span class="ui">New project…</span> asks where to put a new one: your PC, a shared drive, OneDrive. Recently opened projects are listed on the first screen.</p>
+<ul>
+  <li><b>It saves by itself.</b> There is no Save button. The app bar shows <i>Saved</i> after each change.</li>
+  <li><b>One person at a time.</b> If a colleague has the project open, FlowMap tells you who. If their PC crashed or lost the network, the project frees itself after a few minutes.</li>
+  <li><span class="ui">Save a copy…</span> in the project menu makes a copy that is yours to change.</li>
+  <li>Simulation results stay on your PC. A colleague who opens your project presses <span class="ui">Simulate</span> and gets the same numbers.</li>
+</ul>
+
+<h2 id="en-plant">3. The plant</h2>
+<p><span class="ui">Resources</span> holds the plant the project uses: its cells and lines, its <b>workcenters</b>, pools of like workcenters, and shift patterns. A workcenter can have several machines inside it. The project's own copy of the plant travels inside the file.</p>
+
+<h2 id="en-study">4. A study</h2>
+<p>A study is one flow on one line. In <span class="ui">Study</span> mode, pick a study on the left or create one with <span class="ui">New Study</span>. It has five tabs:</p>
+<h3>Flow</h3>
+<p>The value stream map. Add steps, point each one at a workcenter or a pool, and set the queue in front of it (FIFO, LIFO, earliest due date, shortest processing). <span class="ui">Export PDF</span> prints the map.</p>
+<h3>Study Settings</h3>
+<p>The WIP cap (how many orders may be in the flow at once), the start buffer, and <span class="ui">Include in simulation</span>. Only one study per line can be included in a run.</p>
+<h3>Capacity</h3>
+<p>Each workcenter's schedule over time (operators per shift, availability) and the takt the line releases at.</p>
+<h3>Demand</h3>
+<p>The parts, their process times at each step, and the orders in the sequence they will be released. Paste from Excel, or import a spreadsheet: FlowMap asks which of its columns are which, and shows what will go in before anything is imported.</p>
+<h3>Summary</h3>
+<p>Required against available hours, before any simulation.</p>
+
+<h2 id="en-sim">5. Simulating and reading a run</h2>
+<p><span class="ui">Simulate</span> runs every included study together, against one model of the plant, so one line's orders really do delay another's. Anything that stops a study from running is listed in a red strip under the app bar.</p>
+<p>In <span class="ui">Simulation</span> mode:</p>
+<ul>
+  <li><b>Simulation Overview</b>: the figures, the workcenters ranked by queue time and by share of the flow, and per part.</li>
+  <li><b>Production Plan</b>: every order's start, end and float. <span class="ui">Export to Excel</span> gives a sheet you can pivot.</li>
+  <li><b>Production Gantt</b>: each workcenter over time.</li>
+  <li><b>Occupation</b>: demand against capacity, month by month.</li>
+  <li><b>Delivery Float</b>: slack against the need date. Positive is early.</li>
+</ul>
+<p>The filters above narrow what you read: studies, cells, lines, parts, orders, workcenters, and the period. The period opens on the months the plant is actually working on this demand; <span class="ui">Clear Filters</span> shows the whole span.</p>
+<p><span class="ui">PDF report</span> prints what you are looking at: the headline, the inputs, the bottlenecks, the occupation chart and every late order.</p>
+
+<h2 id="en-compare">6. Comparing two runs</h2>
+<p>Compare weighs two versions of one line. Duplicate a study, change the copy (a takt, a WIP cap, a queue rule), include the copy in the simulation instead of the original, and simulate. Then open <span class="ui">Compare</span>, pick the cell and line and the two studies. Each study is shown at its latest run, named by the study and the date and time it ran.</p>
+<p>You get the change in on-time delivery, what was different between the two, and every figure side by side, green where it got better and red where it got worse. The figures are each study's own orders, not the whole plant's.</p>
+<h2 id="en-templates">7. Templates</h2>
+<p><span class="ui">Save as template…</span> saves a study's flow and demand as a file in <code>Documents\FlowMap\Templates</code>. <span class="ui">Study Templates</span> lists them, and <span class="ui">Apply to this project</span> brings one into the open project. Its workcenters are matched by name, and anything missing is created. To share a template, send the file.</p>
+
+<h2 id="en-help">8. When something goes wrong</h2>
+<ul>
+  <li>Open <span class="ui">About</span>. It shows the <b>build</b> you are running. Copy it into your message.</li>
+  <li><span class="ui">Open folder</span> under FlowMap's own files shows <code>log.txt</code>. Send that file too. It records what the app did, not your data.</li>
+  <li>If FlowMap cannot open its data when it starts, it says so, and gives you the folder and a copy of your data from before the last update. Nothing is deleted.</li>
+</ul>
+</div>
+
+<!-- ======================================================= ESPAÑOL -->
+<div data-lang="es">
+<p>FlowMap dibuja un flujo de valor, lo carga con la demanda real y lo simula contra el calendario real de tu planta, para ver qué llega a tiempo, qué se atrasa y qué centro de trabajo lo decide.</p>
+<nav class="toc"><ol>
+  <li><a href="#es-start">Empieza aquí</a></li>
+  <li><a href="#es-files">Un proyecto es un archivo</a></li>
+  <li><a href="#es-plant">La planta</a></li>
+  <li><a href="#es-study">Un estudio</a></li>
+  <li><a href="#es-sim">Simular y leer una corrida</a></li>
+  <li><a href="#es-compare">Comparar dos corridas</a></li>
+  <li><a href="#es-templates">Plantillas</a></li>
+  <li><a href="#es-help">Si algo sale mal</a></li>
+</ol></nav>
+
+<h2 id="es-start">1. Empieza aquí</h2>
+<p>En la primera pantalla, haz clic en <span class="ui">Abrir el ejemplo</span>. Es una planta real, con tres estudios ya construidos. Se abre como tu propia copia en <code>Documentos\FlowMap</code>, así que nada de lo que hagas daña el original.</p>
+<ol>
+  <li>Haz clic en <span class="ui">Simular</span>, arriba a la derecha. Tarda unos segundos.</li>
+  <li>Haz clic en <span class="ui">Resultados de Simulación</span> en el aviso que aparece.</li>
+  <li>La tarjeta de arriba da la <b>entrega a tiempo</b> y el centro de trabajo donde más esperaron las órdenes. Las pestañas de abajo lo detallan.</li>
+</ol>
+<p>Un proyecto nuevo se abre sin resultados, porque los resultados quedan en el equipo que los hizo. <span class="ui">Simular</span> siempre da los mismos números para las mismas entradas.</p>
+
+<h2 id="es-files">2. Un proyecto es un archivo</h2>
+<p>Un proyecto es un solo archivo <code>.flowmap</code>. <span class="ui">Abrir…</span> abre uno y <span class="ui">Nuevo proyecto…</span> pregunta dónde guardar uno nuevo: tu PC, una unidad compartida, OneDrive. Los proyectos recientes aparecen en la primera pantalla.</p>
+<ul>
+  <li><b>Se guarda solo.</b> No hay botón Guardar. La barra muestra <i>Guardado</i> después de cada cambio.</li>
+  <li><b>Una persona a la vez.</b> Si un colega tiene el proyecto abierto, FlowMap te dice quién. Si su PC se colgó o perdió la red, el proyecto se libera solo en unos minutos.</li>
+  <li><span class="ui">Guardar una copia…</span> en el menú del proyecto hace una copia que es tuya.</li>
+  <li>Los resultados quedan en tu PC. Un colega que abre tu proyecto pulsa <span class="ui">Simular</span> y obtiene los mismos números.</li>
+</ul>
+
+<h2 id="es-plant">3. La planta</h2>
+<p><span class="ui">Recursos</span> contiene la planta del proyecto: sus celdas y líneas, sus <b>centros de trabajo</b>, grupos de centros iguales y patrones de turno. Un centro de trabajo puede tener varias máquinas. La copia de la planta viaja dentro del archivo.</p>
+
+<h2 id="es-study">4. Un estudio</h2>
+<p>Un estudio es un flujo en una línea. En el modo <span class="ui">Estudio</span>, elige un estudio a la izquierda o crea uno con <span class="ui">Nuevo Estudio</span>. Tiene cinco pestañas:</p>
+<h3>Flujo</h3>
+<p>El mapa del flujo de valor. Agrega pasos, apunta cada uno a un centro de trabajo o a un grupo, y define la cola delante de él (FIFO, LIFO, fecha de entrega más próxima, procesamiento más corto). <span class="ui">Exportar PDF</span> imprime el mapa.</p>
+<h3>Ajustes del estudio</h3>
+<p>El límite de WIP (cuántas órdenes puede haber en el flujo a la vez), el margen de inicio e <span class="ui">Incluir en la simulación</span>. Solo un estudio por línea puede entrar en una corrida.</p>
+<h3>Capacidad</h3>
+<p>El horario de cada centro de trabajo en el tiempo (operadores por turno, disponibilidad) y el takt con que libera la línea.</p>
+<h3>Demanda</h3>
+<p>Las piezas, sus tiempos de proceso en cada paso y las órdenes en la secuencia en que se liberarán. Pega desde Excel o importa una hoja: FlowMap pregunta qué columna es cuál y muestra lo que va a entrar antes de importar.</p>
+<h3>Resumen</h3>
+<p>Horas requeridas contra disponibles, antes de simular.</p>
+
+<h2 id="es-sim">5. Simular y leer una corrida</h2>
+<p><span class="ui">Simular</span> corre todos los estudios incluidos juntos, contra un solo modelo de la planta, así que las órdenes de una línea sí retrasan las de otra. Lo que impide correr un estudio aparece en una franja roja bajo la barra.</p>
+<p>En el modo <span class="ui">Simulación</span>:</p>
+<ul>
+  <li><b>Resumen de simulación</b>: las cifras, los centros ordenados por tiempo en fila y por peso en el flujo, y por pieza.</li>
+  <li><b>Plan de producción</b>: inicio, fin y holgura de cada orden. <span class="ui">Exportar a Excel</span> da una hoja para tablas dinámicas.</li>
+  <li><b>Gantt de producción</b>: cada centro de trabajo en el tiempo.</li>
+  <li><b>Ocupación</b>: demanda contra capacidad, mes a mes.</li>
+  <li><b>Holgura de entrega</b>: margen contra la fecha de necesidad. Positivo es adelantado.</li>
+</ul>
+<p>Los filtros de arriba acotan lo que lees. El periodo se abre en los meses en que la planta trabaja de verdad en esta demanda; <span class="ui">Quitar Filtros</span> muestra todo.</p>
+<p><span class="ui">Informe PDF</span> imprime lo que estás viendo: el resultado, las entradas, los cuellos de botella, el gráfico de ocupación y cada orden atrasada.</p>
+
+<h2 id="es-compare">6. Comparar dos corridas</h2>
+<p>Comparar sopesa dos versiones de una misma línea. Duplica un estudio, cambia la copia (un takt, un límite de WIP, una regla de cola), incluye la copia en la simulación en lugar del original y simula. Luego abre <span class="ui">Comparar</span> y elige la celda y línea y los dos estudios. Cada estudio se muestra en su corrida más reciente, nombrada por el estudio y la fecha y hora en que corrió.</p>
+<p>Ves el cambio en la entrega a tiempo, qué fue distinto entre los dos y cada cifra lado a lado, en verde donde mejoró y en rojo donde empeoró. Las cifras son las órdenes de cada estudio, no las de toda la planta.</p>
+<h2 id="es-templates">7. Plantillas</h2>
+<p><span class="ui">Guardar como plantilla…</span> guarda el flujo y la demanda de un estudio como archivo en <code>Documentos\FlowMap\Templates</code>. <span class="ui">Plantillas de estudio</span> las lista y <span class="ui">Aplicar a este proyecto</span> trae una al proyecto abierto; los centros se emparejan por nombre y lo que falta se crea. Para compartir una plantilla, envía el archivo.</p>
+
+<h2 id="es-help">8. Si algo sale mal</h2>
+<ul>
+  <li>Abre <span class="ui">Acerca de</span>. Muestra la <b>versión</b> que usas. Cópiala en tu mensaje.</li>
+  <li><span class="ui">Abrir carpeta</span> en los archivos propios de FlowMap muestra <code>log.txt</code>. Envía ese archivo también. Registra lo que hizo la aplicación, no tus datos.</li>
+  <li>Si FlowMap no puede abrir sus datos al iniciar, lo dice, y te da la carpeta y una copia de tus datos de antes de la última actualización. No se borra nada.</li>
+</ul>
+</div>
+
+<!-- ======================================================= PORTUGUÊS -->
+<div data-lang="pt">
+<p>O FlowMap desenha um fluxo de valor, carrega-o com a demanda real e o simula contra o calendário real da sua fábrica, para mostrar o que chega no prazo, o que atrasa e qual centro de trabalho decide isso.</p>
+<nav class="toc"><ol>
+  <li><a href="#pt-start">Comece aqui</a></li>
+  <li><a href="#pt-files">Um projeto é um arquivo</a></li>
+  <li><a href="#pt-plant">A fábrica</a></li>
+  <li><a href="#pt-study">Um estudo</a></li>
+  <li><a href="#pt-sim">Simular e ler uma corrida</a></li>
+  <li><a href="#pt-compare">Comparar duas corridas</a></li>
+  <li><a href="#pt-templates">Modelos</a></li>
+  <li><a href="#pt-help">Se algo der errado</a></li>
+</ol></nav>
+
+<h2 id="pt-start">1. Comece aqui</h2>
+<p>Na primeira tela, clique em <span class="ui">Abrir o exemplo</span>. É uma fábrica real, com três estudos já montados. Abre como a sua própria cópia em <code>Documentos\FlowMap</code>, então nada do que fizer danifica o original.</p>
+<ol>
+  <li>Clique em <span class="ui">Simular</span>, no canto superior direito. Leva alguns segundos.</li>
+  <li>Clique em <span class="ui">Resultados da Simulação</span> no aviso que aparece.</li>
+  <li>O cartão do topo mostra a <b>entrega no prazo</b> e o centro de trabalho onde as ordens mais esperaram. As abas abaixo detalham.</li>
+</ol>
+<p>Um projeto novo abre sem resultados, porque os resultados ficam na máquina que os fez. <span class="ui">Simular</span> sempre dá os mesmos números para as mesmas entradas.</p>
+
+<h2 id="pt-files">2. Um projeto é um arquivo</h2>
+<p>Um projeto é um único arquivo <code>.flowmap</code>. <span class="ui">Abrir…</span> abre um e <span class="ui">Novo projeto…</span> pergunta onde guardar um novo: o seu PC, uma unidade compartilhada, o OneDrive. Os projetos recentes aparecem na primeira tela.</p>
+<ul>
+  <li><b>Guarda sozinho.</b> Não há botão Guardar. A barra mostra <i>Guardado</i> depois de cada alteração.</li>
+  <li><b>Uma pessoa por vez.</b> Se um colega está com o projeto aberto, o FlowMap diz quem. Se o PC dele travou ou perdeu a rede, o projeto se libera sozinho em alguns minutos.</li>
+  <li><span class="ui">Guardar uma cópia…</span> no menu do projeto faz uma cópia que é sua.</li>
+  <li>Os resultados ficam no seu PC. Um colega que abre o seu projeto clica em <span class="ui">Simular</span> e obtém os mesmos números.</li>
+</ul>
+
+<h2 id="pt-plant">3. A fábrica</h2>
+<p><span class="ui">Recursos</span> contém a fábrica do projeto: células e linhas, <b>centros de trabalho</b>, grupos de centros iguais e padrões de turno. Um centro de trabalho pode ter várias máquinas. A cópia da fábrica viaja dentro do arquivo.</p>
+
+<h2 id="pt-study">4. Um estudo</h2>
+<p>Um estudo é um fluxo numa linha. No modo <span class="ui">Estudo</span>, escolha um estudo à esquerda ou crie um com <span class="ui">Novo Estudo</span>. Ele tem cinco abas:</p>
+<h3>Fluxo</h3>
+<p>O mapa do fluxo de valor. Adicione etapas, aponte cada uma para um centro de trabalho ou um grupo, e defina a fila na frente dela (FIFO, LIFO, data de entrega mais próxima, menor processamento). <span class="ui">Exportar PDF</span> imprime o mapa.</p>
+<h3>Definições do estudo</h3>
+<p>O limite de WIP (quantas ordens podem estar no fluxo ao mesmo tempo), a folga de início e <span class="ui">Incluir na simulação</span>. Só um estudo por linha pode entrar numa corrida.</p>
+<h3>Capacidade</h3>
+<p>A agenda de cada centro de trabalho ao longo do tempo (operadores por turno, disponibilidade) e o takt com que a linha libera.</p>
+<h3>Demanda</h3>
+<p>As peças, os tempos de processo em cada etapa e as ordens na sequência em que serão liberadas. Cole do Excel ou importe uma planilha: o FlowMap pergunta qual coluna é qual e mostra o que vai entrar antes de importar.</p>
+<h3>Resumo</h3>
+<p>Horas necessárias contra disponíveis, antes de simular.</p>
+
+<h2 id="pt-sim">5. Simular e ler uma corrida</h2>
+<p><span class="ui">Simular</span> roda todos os estudos incluídos juntos, contra um único modelo da fábrica, então as ordens de uma linha atrasam de verdade as de outra. O que impede um estudo de rodar aparece numa faixa vermelha abaixo da barra.</p>
+<p>No modo <span class="ui">Simulação</span>:</p>
+<ul>
+  <li><b>Resumo da simulação</b>: os números, os centros ordenados por tempo em fila e por peso no fluxo, e por peça.</li>
+  <li><b>Plano de produção</b>: início, fim e folga de cada ordem. <span class="ui">Exportar para Excel</span> gera uma planilha para tabelas dinâmicas.</li>
+  <li><b>Gantt de produção</b>: cada centro de trabalho ao longo do tempo.</li>
+  <li><b>Ocupação</b>: demanda contra capacidade, mês a mês.</li>
+  <li><b>Folga de entrega</b>: margem contra a data de necessidade. Positivo é adiantado.</li>
+</ul>
+<p>Os filtros no topo limitam o que você lê. O período abre nos meses em que a fábrica realmente trabalha nesta demanda; <span class="ui">Limpar Filtros</span> mostra tudo.</p>
+<p><span class="ui">Relatório PDF</span> imprime o que você está vendo: o resultado, as entradas, os gargalos, o gráfico de ocupação e cada ordem atrasada.</p>
+
+<h2 id="pt-compare">6. Comparar duas corridas</h2>
+<p>Comparar pesa duas versões de uma mesma linha. Duplique um estudo, mude a cópia (um takt, um limite de WIP, uma regra de fila), inclua a cópia na simulação no lugar do original e simule. Depois abra <span class="ui">Comparar</span> e escolha a célula e linha e os dois estudos. Cada estudo aparece na sua corrida mais recente, nomeada pelo estudo e pela data e hora em que rodou.</p>
+<p>Você vê a variação da entrega no prazo, o que foi diferente entre os dois e cada número lado a lado, em verde onde melhorou e em vermelho onde piorou. Os números são as ordens de cada estudo, não as da fábrica inteira.</p>
+<h2 id="pt-templates">7. Modelos</h2>
+<p><span class="ui">Guardar como modelo…</span> guarda o fluxo e a demanda de um estudo como arquivo em <code>Documentos\FlowMap\Templates</code>. <span class="ui">Modelos de estudo</span> os lista e <span class="ui">Aplicar a este projeto</span> traz um para o projeto aberto; os centros são casados pelo nome e o que falta é criado. Para compartilhar um modelo, envie o arquivo.</p>
+
+<h2 id="pt-help">8. Se algo der errado</h2>
+<ul>
+  <li>Abra <span class="ui">Acerca de</span>. Mostra a <b>versão</b> que você usa. Copie-a na sua mensagem.</li>
+  <li><span class="ui">Abrir pasta</span> nos arquivos do próprio FlowMap mostra <code>log.txt</code>. Envie esse arquivo também. Ele registra o que o aplicativo fez, não os seus dados.</li>
+  <li>Se o FlowMap não conseguir abrir os dados ao iniciar, ele avisa, e mostra a pasta e uma cópia dos seus dados de antes da última atualização. Nada é apagado.</li>
+</ul>
+</div>
+
+</main>
+<script>
+  (function () {
+    var langs = ['en', 'es', 'pt'];
+    function show(lang) {
+      document.querySelectorAll('[data-lang]').forEach(function (el) {
+        el.classList.toggle('on', el.getAttribute('data-lang') === lang);
+      });
+      document.querySelectorAll('[data-set]').forEach(function (b) {
+        b.setAttribute('aria-pressed', b.getAttribute('data-set') === lang ? 'true' : 'false');
+      });
+      document.documentElement.lang = lang;
+      try { localStorage.setItem('flowmap.manual.lang', lang); } catch (e) {}
+    }
+    var saved = null;
+    try { saved = localStorage.getItem('flowmap.manual.lang'); } catch (e) {}
+    var guess = (navigator.language || 'en').slice(0, 2);
+    show(langs.indexOf(saved) >= 0 ? saved : langs.indexOf(guess) >= 0 ? guess : 'en');
+    document.querySelectorAll('[data-set]').forEach(function (b) {
+      b.addEventListener('click', function () { show(b.getAttribute('data-set')); });
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-
 import '../../../data/database/database.dart';
 import '../../demand/data/demand_repository.dart';
 import '../../resources/data/resources_repository.dart';
@@ -14,7 +12,7 @@ import '../application/sim_model.dart';
 ///
 /// The loading half of `sim_assembly.dart`: this reads the rows and builds the
 /// calendars, and every decision about what they mean — what a quantity buffer
-/// becomes, which station paces the releases, whether a study can run at all —
+/// becomes, which workcenter paces the releases, whether a study can run at all —
 /// stays in the pure assembler beside it, where it is a unit test rather than a
 /// question you answer by pressing Simulate.
 ///
@@ -73,11 +71,19 @@ class SimulationRepository {
         )..where((w) => w.plantId.equals(project.plantId))).get();
     final byId = {for (final row in workcenterRows) row.id: row};
 
-    // Queue disciplines, keyed by target — a workcenter or a pool (§7.4).
-    // Loaded whole rather than per station: it is one small table per project,
-    // and resolving a pool's rule needs to see rules the loop below has not
-    // reached yet.
-    final dispatchByTarget = await loadDispatchRules(projectId);
+    // Read before the loop below so a workcenter can carry its own type into the
+    // run (§10.2). By id *and* by name: the balance compares two workcenters by
+    // name (§7.4) and §10.3's pivot columns need an identity a rename cannot
+    // move, so the run keeps both.
+    final typeRows = await _db.select(_db.workcenterTypes).get();
+    final typeNames = {for (final type in typeRows) type.id: type.name};
+    // Whether a type's crew is its throughput (§7.5, v30). Read here with the
+    // names because it travels the same way: a property of the type, copied
+    // onto each workcenter so the engine never joins back to the plant.
+    final labourPaced = {
+      for (final type in typeRows)
+        if (type.isLabourPaced) type.id,
+    };
 
     final workcenters = <String, SimWorkcenter>{};
     for (final id in needed) {
@@ -93,29 +99,137 @@ class SimulationRepository {
         name: row.name,
         calendar: calendar,
         schedule: await _schedules.loadWorkcenterSchedule(projectId, id),
-        // Flattened onto the member here, once, so the engine never has to ask
-        // which of a step's targets a freeing machine belongs to.
-        dispatch: resolveDispatch(
-          workcenterId: id,
-          byTarget: dispatchByTarget,
-          poolMembers: poolMembers,
-        ),
+        units: row.parallelCapacity,
+        typeId: row.typeId,
+        typeName: typeNames[row.typeId],
+        labourPaced: labourPaced.contains(row.typeId),
       );
     }
+
+    // **Every workcenter the plant has scheduled**, which is a wider set than the
+    // routings reach and is what monthly capacity is written for (phase 9).
+    //
+    // A workcenter with a schedule and no demand is *idle*; a workcenter with neither
+    // is *unmodelled*, and drawing it as a row of zeroes would invent a machine
+    // nobody has said anything about. So the schedule is the filter — on the
+    // live plant that is 18 of 42 workcenters, and 17 of the 18 already carry
+    // work.
+    //
+    // The schedule is read before the calendar because it is the cheap half of
+    // the pair and it decides: 24 of the 42 are answered without a calendar
+    // walk. Workcenters already assembled above are reused rather than rebuilt.
+    final scheduledWorkcenters = <String, SimWorkcenter>{};
+    for (final row in workcenterRows) {
+      final existing = workcenters[row.id];
+      if (existing != null) {
+        if (existing.schedule.periods.isNotEmpty) {
+          scheduledWorkcenters[row.id] = existing;
+        }
+        continue;
+      }
+      final schedule = await _schedules.loadWorkcenterSchedule(
+        projectId,
+        row.id,
+      );
+      if (schedule.periods.isEmpty) continue;
+      final calendar = await _schedules.loadWorkcenterCalendar(
+        projectId: projectId,
+        workcenterId: row.id,
+      );
+      if (calendar == null) continue;
+      scheduledWorkcenters[row.id] = SimWorkcenter(
+        id: row.id,
+        name: row.name,
+        calendar: calendar,
+        schedule: schedule,
+        units: row.parallelCapacity,
+        typeId: row.typeId,
+        typeName: typeNames[row.typeId],
+        labourPaced: labourPaced.contains(row.typeId),
+      );
+    }
+
+    // Workcenter → the name of its type, which is the identity §7.4 balances
+    // on. By name rather than by id because the balance compares two workcenters
+    // and a name is what a reader would compare them by — and because the type
+    // rows are a handful, so the join is one query for the whole plant.
+    final workcenterTypeNames = {
+      for (final row in workcenterRows) row.id: ?typeNames[row.typeId],
+    };
 
     final pools = await (_db.select(
       _db.workcenterPools,
     )..where((p) => p.plantId.equals(project.plantId))).get();
 
-    // A takt in days means productive days of a station (§6.1), so resolving
-    // one into a duration needs each station's own open time. Read at the
-    // run's start, once: §18.3 leaves mid-flight takt changes open, and a run
-    // keeps one cadence throughout.
-    Map<String, Duration> productiveOn(DateTime asOf) => {
+    // The queue in front of each dispatch target (§5.5). Read whole-project and
+    // handed to every study, which is the point: two studies stepping on CLAD07
+    // are given the *same* queue, so the engine contends over one floor space
+    // rather than one each.
+    //
+    // A target with no row is an uncapped FIFO — what a shop floor does, and
+    // what every lane was before it could say otherwise. The assembler applies
+    // that default, so a plant nobody has configured behaves exactly as it did.
+    final queues = {
+      for (final row in await (_db.select(
+        _db.projectQueues,
+      )..where((q) => q.projectId.equals(project.id))).get())
+        row.targetId: SimQueue(
+          targetId: row.targetId,
+          // **Carried as stored, null and all** (v28). §5.5 is explicit that
+          // an unset rule is not the statement that a lane is FIFO even though
+          // the engine runs it that way, and the default used to be applied
+          // here — before the run copied the lane in, so a stored run could not
+          // tell the two apart. `SimQueue.effectiveRule` applies it where the
+          // engine sorts instead.
+          rule: row.rule,
+          capacity: row.capacity,
+          // Raw, for the assembler to resolve against each study's takt.
+          stockMode: row.stockMode,
+          stockQuantity: row.stockQuantity,
+          stockSeconds: row.stockSeconds,
+        ),
+    };
+
+    // Where each study sits, read once and copied into the run so §12.1's cell
+    // and line filters never join back to a plant that may have been
+    // rearranged since (§7.10). Whole-plant rather than per-study: there are a
+    // handful of each, and two queries beat one per flagged study.
+    final cellNames = {
+      for (final cell
+          in await (_db.select(
+            _db.productionCells,
+          )..where((c) => c.plantId.equals(project.plantId))).get())
+        cell.id: cell.name,
+    };
+    final lineNames = {
+      for (final line in await _db.select(_db.productionLines).get())
+        line.id: line.name,
+    };
+
+    // A takt in days means productive days of a workcenter (§6.1), so resolving
+    // one into a duration needs each workcenter's own open time.
+    //
+    // **Read at the run's start, once, and that is now the only thing here that
+    // is.** §7.9 made the *takt* the order's — every period the line states is
+    // resolved and the engine reads the one in force — but a workcenter's own
+    // staffing is a second axis and this round did not touch it. A workcenter
+    // whose shift pattern changes in July still reports one productive day for
+    // the whole run, exactly as it always has, and the takt periods are
+    // resolved against that one figure.
+    Map<String, Duration> openOn(DateTime asOf) => {
       for (final entry in workcenters.entries)
+        entry.key: entry.value.calendar.openTimePerWorkingDay(asOf),
+    };
+
+    // **The same day, derated once.** Both figures come from the one call above
+    // so a workcenter cannot report an open day the productive one disagrees with
+    // — which is the shape §7.2's cadence defect had.
+    Map<String, Duration> productiveOn(DateTime asOf) => {
+      for (final entry in openOn(asOf).entries)
         entry.key:
-            entry.value.calendar.openTimePerWorkingDay(asOf) *
-            (entry.value.schedule.lookup(asOf).period?.availability ?? 1),
+            entry.value *
+            (workcenters[entry.key]!.schedule.lookup(asOf).period?.availability ??
+                1),
     };
 
     final demand = <String, _StudyDemand>{};
@@ -157,6 +271,20 @@ class SimulationRepository {
             poolNames: {for (final pool in pools) pool.id: pool.name},
             poolMembers: poolMembers,
             productivePerWorkingDay: productiveOn(asOf),
+            // What a release slot is measured in (§7.2) — the open clock the
+            // engine actually walks, not the productive content of a takt.
+            openPerWorkingDay: openOn(asOf),
+            // Read the same way and at the same instant as the productive day
+            // above, so the cap and the charge cannot disagree (§9.8).
+            rework: {
+              for (final entry in workcenters.entries)
+                entry.key:
+                    entry.value.schedule.lookup(asOf).period?.rework ?? 0,
+            },
+            queues: queues,
+            cellNames: cellNames,
+            lineNames: lineNames,
+            workcenterTypeNames: workcenterTypeNames,
           ),
           asOf: asOf,
           problems: problems,
@@ -175,18 +303,35 @@ class SimulationRepository {
       return SimRunInput(
         studies: assembled,
         workcenters: workcenters,
+        scheduledWorkcenters: scheduledWorkcenters,
         readiness: readiness,
+        // **Over the workcenters the run USES, not the ones it can draw**, and
+        // this is the trap in phase 9. On the live plant the one idle
+        // scheduled workcenter ends 2026-12-31 while all seventeen busy ones end
+        // 2027-12-31, so `scheduledWorkcenters.values` here would drag the
+        // horizon back a year and fire §11.1's warning on runs with nothing
+        // wrong with them.
+        scheduleHorizon: _horizonOf(
+          takts: [for (final study in flagged) demand[study.id]!.takt],
+          workcenters: workcenters.values,
+        ),
       );
     }
 
-    // Assembled twice, deliberately. §7.2 resolves the takt at the run's
-    // start, and the run's start is the first order's need date minus its
-    // theoretical lead time (§7.8) — which cannot be walked until the study
-    // has been assembled. So the first pass uses the need date itself, the
-    // plan it produces gives the real start, and the second pass resolves the
-    // takt there. There is no third: chasing a fixed point is exactly the
-    // mid-flight takt change §18.3 has not settled, and a run keeps one
-    // cadence throughout.
+    // Assembled twice, deliberately, and it survives §7.9 with a smaller job.
+    // The run's start is the first order's need date minus its theoretical lead
+    // time (§7.8), which cannot be walked until the study has been assembled.
+    // So the first pass uses the need date itself and the plan it produces
+    // gives the real start.
+    //
+    // **What the second pass now settles is the staffing and the study's stated
+    // takt, not which cadence the run keeps.** The engine reads the takt at
+    // each slot from the schedule it was handed, so a run spanning a change no
+    // longer depends on this pass to notice. What it still fixes is
+    // `productiveOn` and the `taktValue` a study reports as its first
+    // release's. There is no third pass: chasing a fixed point across a takt
+    // boundary would let two takts argue over one order, which is the
+    // mid-flight re-cadencing §18.3 rules out.
     final first = assembleAt(null);
     if (!first.canRun) return first;
 
@@ -195,57 +340,6 @@ class SimulationRepository {
       workcenters: workcenters,
     ).start;
     return start == null ? first : assembleAt(start);
-  }
-
-  // --- Queue disciplines (§7.4) --------------------------------------------
-
-  /// This project's per-station rules, by target id — a workcenter or a pool.
-  ///
-  /// **Only the overrides.** A station following the run's rule has no row, so
-  /// an absent key is the answer rather than a value to compare against a
-  /// default; that is what keeps "never touched" and "deliberately set back to
-  /// FIFO" different states.
-  Future<Map<String, DispatchRule>> loadDispatchRules(String projectId) async {
-    final rows = await (_db.select(
-      _db.workcenterDispatch,
-    )..where((d) => d.projectId.equals(projectId))).get();
-    return {for (final row in rows) row.targetId: row.rule};
-  }
-
-  Stream<Map<String, DispatchRule>> watchDispatchRules(String projectId) =>
-      (_db.select(
-        _db.workcenterDispatch,
-      )..where((d) => d.projectId.equals(projectId))).watch().map(
-        (rows) => {for (final row in rows) row.targetId: row.rule},
-      );
-
-  /// Sets or clears one station's rule.
-  ///
-  /// A null [rule] deletes the row rather than storing the run's current
-  /// default, so "follow the run" keeps following it when the run's rule is
-  /// changed afterwards. Storing the default instead would silently pin every
-  /// station the first time one was edited.
-  Future<void> setDispatchRule({
-    required String projectId,
-    required String targetId,
-    required DispatchRule? rule,
-  }) async {
-    if (rule == null) {
-      await (_db.delete(_db.workcenterDispatch)..where(
-        (d) => d.projectId.equals(projectId) & d.targetId.equals(targetId),
-      )).go();
-      return;
-    }
-    await _db
-        .into(_db.workcenterDispatch)
-        .insertOnConflictUpdate(
-          WorkcenterDispatchCompanion.insert(
-            projectId: projectId,
-            targetId: targetId,
-            rule: rule,
-            updatedAt: DateTime.now(),
-          ),
-        );
   }
 }
 
@@ -256,3 +350,33 @@ typedef _StudyDemand = ({
   Map<String, Map<String, Duration>> processTimes,
   TaktScheduleSpec takt,
 });
+
+/// The last date every schedule in the run is actually defined for (§11.1).
+///
+/// **The minimum of each schedule's own last end date**, because past the
+/// earliest of them at least one schedule is being carried forward — and a
+/// figure is only as defined as the least-defined thing that produced it.
+/// Taking the maximum would say the run was covered right up to whichever
+/// workcenter happened to have the longest schedule.
+///
+/// Null when nothing has any periods, which is a state the readiness panel
+/// already blocks on: there is no horizon to be past.
+DateTime? _horizonOf({
+  required Iterable<TaktScheduleSpec> takts,
+  required Iterable<SimWorkcenter> workcenters,
+}) {
+  DateTime? earliest;
+  void consider(Iterable<DateTime> ends) {
+    if (ends.isEmpty) return;
+    final last = ends.reduce((a, b) => a.isAfter(b) ? a : b);
+    if (earliest == null || last.isBefore(earliest!)) earliest = last;
+  }
+
+  for (final takt in takts) {
+    consider([for (final period in takt.periods) period.endDate]);
+  }
+  for (final workcenter in workcenters) {
+    consider([for (final period in workcenter.schedule.periods) period.endDate]);
+  }
+  return earliest;
+}

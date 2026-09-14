@@ -130,18 +130,6 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get navSettings;
 
-  /// No description provided for @navAbout.
-  ///
-  /// In en, this message translates to:
-  /// **'About'**
-  String get navAbout;
-
-  /// No description provided for @actionAdd.
-  ///
-  /// In en, this message translates to:
-  /// **'Add'**
-  String get actionAdd;
-
   /// No description provided for @actionEdit.
   ///
   /// In en, this message translates to:
@@ -201,18 +189,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get fieldName;
-
-  /// No description provided for @fieldCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Code'**
-  String get fieldCode;
-
-  /// No description provided for @fieldType.
-  ///
-  /// In en, this message translates to:
-  /// **'Type'**
-  String get fieldType;
 
   /// No description provided for @fieldNotes.
   ///
@@ -277,14 +253,8 @@ abstract class AppLocalizations {
   /// No description provided for @plantNew.
   ///
   /// In en, this message translates to:
-  /// **'New plant'**
+  /// **'New Plant'**
   String get plantNew;
-
-  /// No description provided for @plantDeleteBlocked.
-  ///
-  /// In en, this message translates to:
-  /// **'This plant has production cells. Archive it instead.'**
-  String get plantDeleteBlocked;
 
   /// No description provided for @productionCell.
   ///
@@ -301,7 +271,7 @@ abstract class AppLocalizations {
   /// No description provided for @productionCellNew.
   ///
   /// In en, this message translates to:
-  /// **'New production cell'**
+  /// **'New Production Cell'**
   String get productionCellNew;
 
   /// No description provided for @productionLine.
@@ -319,7 +289,7 @@ abstract class AppLocalizations {
   /// No description provided for @productionLineNew.
   ///
   /// In en, this message translates to:
-  /// **'New production line'**
+  /// **'New Production Line'**
   String get productionLineNew;
 
   /// No description provided for @workcenter.
@@ -327,6 +297,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Workcenter'**
   String get workcenter;
+
+  /// No description provided for @studyTabCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Capacity'**
+  String get studyTabCapacity;
+
+  /// No description provided for @exceptionsScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to the whole project — every study in it.'**
+  String get exceptionsScope;
+
+  /// No description provided for @projectSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Project settings'**
+  String get projectSettings;
+
+  /// No description provided for @projectSettingsIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get projectSettingsIdentity;
+
+  /// No description provided for @projectPatternHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The shift pattern every workcenter in this project reads its open hours from. Changing it re-times every workcenter, and every figure derived from one.'**
+  String get projectPatternHelp;
+
+  /// No description provided for @calendarExceptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Exceptions'**
+  String get calendarExceptions;
+
+  /// No description provided for @schedulesTaktScope.
+  ///
+  /// In en, this message translates to:
+  /// **'shared by every study on this line'**
+  String get schedulesTaktScope;
+
+  /// No description provided for @schedulesWorkcentersScope.
+  ///
+  /// In en, this message translates to:
+  /// **'this study\'s flow'**
+  String get schedulesWorkcentersScope;
 
   /// No description provided for @workcenters.
   ///
@@ -337,7 +355,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterNew.
   ///
   /// In en, this message translates to:
-  /// **'New workcenter'**
+  /// **'New Workcenter'**
   String get workcenterNew;
 
   /// No description provided for @workcenterType.
@@ -367,7 +385,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterLinesHelp.
   ///
   /// In en, this message translates to:
-  /// **'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a station that serves two lines belongs under both.'**
+  /// **'Organisational only. Any study of any line can use this workcenter whichever boxes are ticked, and a workcenter that serves two lines belongs under both.'**
   String get workcenterLinesHelp;
 
   /// No description provided for @workcenterNoLines.
@@ -400,11 +418,35 @@ abstract class AppLocalizations {
   /// **'Icon'**
   String get workcenterTypeIcon;
 
-  /// No description provided for @workcenterTypeIconHelp.
+  /// No description provided for @workcenterTypeLabourPaced.
   ///
   /// In en, this message translates to:
-  /// **'Workcenters of this type are drawn with it, in the tree and in the pickers.'**
-  String get workcenterTypeIconHelp;
+  /// **'Operators set the pace'**
+  String get workcenterTypeLabourPaced;
+
+  /// No description provided for @workcenterCapacityType.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter Capacity Type'**
+  String get workcenterCapacityType;
+
+  /// No description provided for @workcenterCapacityMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine Pace'**
+  String get workcenterCapacityMachine;
+
+  /// No description provided for @workcenterCapacityOperator.
+  ///
+  /// In en, this message translates to:
+  /// **'Operator Pace'**
+  String get workcenterCapacityOperator;
+
+  /// No description provided for @workcenterTypeLabourPacedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine Pace: the machine runs at its own rate whoever is standing at it, and the crew only opens the shift — a second operator on one CNC does not double its output. Operator Pace: a bench, a booth or an inspection table, where the crew on shift is the throughput. Process times are entered as one operator\'s work either way.'**
+  String get workcenterTypeLabourPacedHelp;
 
   /// No description provided for @workcenterTypeNone.
   ///
@@ -565,7 +607,7 @@ abstract class AppLocalizations {
   /// No description provided for @workcenterPoolNew.
   ///
   /// In en, this message translates to:
-  /// **'New pool'**
+  /// **'New Pool'**
   String get workcenterPoolNew;
 
   /// No description provided for @workcenterPoolMembers.
@@ -607,13 +649,13 @@ abstract class AppLocalizations {
   /// No description provided for @shiftPatternCycleFixedWeekly.
   ///
   /// In en, this message translates to:
-  /// **'Fixed weekly'**
+  /// **'Fixed Weekly'**
   String get shiftPatternCycleFixedWeekly;
 
   /// No description provided for @shiftPatternCycleRotating.
   ///
   /// In en, this message translates to:
-  /// **'Rotating (continuous)'**
+  /// **'Rotating (Continuous)'**
   String get shiftPatternCycleRotating;
 
   /// No description provided for @shiftPatternWorkingDays.
@@ -631,7 +673,7 @@ abstract class AppLocalizations {
   /// No description provided for @shiftPatternShiftNew.
   ///
   /// In en, this message translates to:
-  /// **'Add shift'**
+  /// **'Add Shift'**
   String get shiftPatternShiftNew;
 
   /// No description provided for @shiftPatternNoShifts.
@@ -657,30 +699,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End'**
   String get shiftEnd;
-
-  /// No description provided for @shiftBreak.
-  ///
-  /// In en, this message translates to:
-  /// **'Break'**
-  String get shiftBreak;
-
-  /// No description provided for @shiftCrossesMidnight.
-  ///
-  /// In en, this message translates to:
-  /// **'Crosses midnight'**
-  String get shiftCrossesMidnight;
-
-  /// No description provided for @shiftDuration.
-  ///
-  /// In en, this message translates to:
-  /// **'Net duration'**
-  String get shiftDuration;
-
-  /// No description provided for @shiftOverlapWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This shift overlaps {other}.'**
-  String shiftOverlapWarning(String other);
 
   /// No description provided for @weekdayMon.
   ///
@@ -736,30 +754,6 @@ abstract class AppLocalizations {
   /// **'This cannot be undone.'**
   String get confirmDeleteBody;
 
-  /// No description provided for @confirmArchiveBody.
-  ///
-  /// In en, this message translates to:
-  /// **'It stays available to projects already using it, but is hidden from pickers.'**
-  String get confirmArchiveBody;
-
-  /// No description provided for @aboutVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Version {version}'**
-  String aboutVersion(String version);
-
-  /// No description provided for @aboutBuild.
-  ///
-  /// In en, this message translates to:
-  /// **'Build {build}'**
-  String aboutBuild(String build);
-
-  /// No description provided for @settingsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get settingsTitle;
-
   /// No description provided for @settingsLanguage.
   ///
   /// In en, this message translates to:
@@ -769,7 +763,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLanguageSystem.
   ///
   /// In en, this message translates to:
-  /// **'System'**
+  /// **'Follow the system'**
   String get settingsLanguageSystem;
 
   /// No description provided for @settingsDateFormat.
@@ -777,12 +771,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Date format'**
   String get settingsDateFormat;
-
-  /// No description provided for @settingsDateFormatLocale.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow language'**
-  String get settingsDateFormatLocale;
 
   /// No description provided for @comingSoon.
   ///
@@ -796,41 +784,17 @@ abstract class AppLocalizations {
   /// **'None'**
   String get valueNone;
 
-  /// No description provided for @workcenterNameHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'What the shop floor calls it, and the label on the process box — e.g. CLAD04.'**
-  String get workcenterNameHelp;
-
   /// No description provided for @workcenterAddExisting.
   ///
   /// In en, this message translates to:
-  /// **'Add existing'**
+  /// **'Add Existing'**
   String get workcenterAddExisting;
-
-  /// No description provided for @workcenterAddExistingHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'A workcenter belongs to the plant, so this only changes where it appears in the tree. Any study of any line can use it either way.'**
-  String get workcenterAddExistingHelp;
 
   /// No description provided for @workcenterNoneToAdd.
   ///
   /// In en, this message translates to:
   /// **'Every workcenter in this plant is already on this line.'**
   String get workcenterNoneToAdd;
-
-  /// No description provided for @workcenterHomeLine.
-  ///
-  /// In en, this message translates to:
-  /// **'Home production line'**
-  String get workcenterHomeLine;
-
-  /// No description provided for @workcenterHomeLineHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Where it appears in the tree. Studies on other lines can still use it, and that shared use is what the simulation contends for.'**
-  String get workcenterHomeLineHelp;
 
   /// No description provided for @workcenterTypeUnset.
   ///
@@ -901,7 +865,7 @@ abstract class AppLocalizations {
   /// No description provided for @projectNew.
   ///
   /// In en, this message translates to:
-  /// **'New project'**
+  /// **'New Project'**
   String get projectNew;
 
   /// No description provided for @projectsEmpty.
@@ -925,14 +889,8 @@ abstract class AppLocalizations {
   /// No description provided for @projectPlantHelp.
   ///
   /// In en, this message translates to:
-  /// **'Cannot be changed later: every study, schedule and flow step in the project points at this plant\'s workcenters.'**
+  /// **'The plant this project\'s studies run on. Choosing another moves the whole project there: workcenters, pools, cells and lines are found by name, and anything missing is copied across. The plant it leaves is not changed.'**
   String get projectPlantHelp;
-
-  /// No description provided for @projectPatternHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'The shift split every workcenter in this project is staffed against.'**
-  String get projectPatternHelp;
 
   /// No description provided for @projectDeleteBody.
   ///
@@ -949,7 +907,7 @@ abstract class AppLocalizations {
   /// No description provided for @studyNew.
   ///
   /// In en, this message translates to:
-  /// **'New study'**
+  /// **'New Study'**
   String get studyNew;
 
   /// No description provided for @studiesEmpty.
@@ -982,18 +940,6 @@ abstract class AppLocalizations {
   /// **'Its flow and annotations go with it. This cannot be undone.'**
   String get studyDeleteBody;
 
-  /// No description provided for @studyIncludeInSimulation.
-  ///
-  /// In en, this message translates to:
-  /// **'Include in simulation'**
-  String get studyIncludeInSimulation;
-
-  /// No description provided for @studyExcludeFromSimulation.
-  ///
-  /// In en, this message translates to:
-  /// **'Exclude from simulation'**
-  String get studyExcludeFromSimulation;
-
   /// No description provided for @studiesCollapse.
   ///
   /// In en, this message translates to:
@@ -1006,17 +952,77 @@ abstract class AppLocalizations {
   /// **'Show the studies list'**
   String get studiesExpand;
 
+  /// No description provided for @studyTabSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Study Settings'**
+  String get studyTabSettings;
+
+  /// No description provided for @studyTabTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Flow Takt'**
+  String get studyTabTakt;
+
+  /// No description provided for @studySettingsIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get studySettingsIdentity;
+
+  /// No description provided for @studySettingsInRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation settings'**
+  String get studySettingsInRuns;
+
+  /// No description provided for @studyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get studyName;
+
+  /// No description provided for @studyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Production line'**
+  String get studyLine;
+
+  /// No description provided for @studyIncludeInRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Include in simulation'**
+  String get studyIncludeInRuns;
+
+  /// No description provided for @studyIncludeInRunsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A run takes every included study at once, contending for the same plant.'**
+  String get studyIncludeInRunsHelp;
+
+  /// No description provided for @studyWipCap.
+  ///
+  /// In en, this message translates to:
+  /// **'WIP cap'**
+  String get studyWipCap;
+
+  /// No description provided for @studyWipCapUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited'**
+  String get studyWipCapUnlimited;
+
+  /// No description provided for @studyWipCapHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The most orders this study may have in the flow at once. A release waits for a completion, which is what makes the flow pulled rather than pushed. Blank is unlimited.'**
+  String get studyWipCapHelp;
+
   /// No description provided for @studyTabFlow.
   ///
   /// In en, this message translates to:
   /// **'Flow'**
   String get studyTabFlow;
-
-  /// No description provided for @studyTabTakt.
-  ///
-  /// In en, this message translates to:
-  /// **'Takt'**
-  String get studyTabTakt;
 
   /// No description provided for @studyTabDemand.
   ///
@@ -1054,6 +1060,24 @@ abstract class AppLocalizations {
   /// **'Not a date'**
   String get validationNotADate;
 
+  /// No description provided for @validationPositiveNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'A number above zero'**
+  String get validationPositiveNumber;
+
+  /// No description provided for @validationUnknownUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a unit — try days, hours, min or s'**
+  String get validationUnknownUnit;
+
+  /// No description provided for @validationNotAPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'A percentage between 0 and 100'**
+  String get validationNotAPercentage;
+
   /// No description provided for @validationPositiveWhole.
   ///
   /// In en, this message translates to:
@@ -1077,18 +1101,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Equivalent'**
   String get stepEquivalence;
-
-  /// No description provided for @flowPart.
-  ///
-  /// In en, this message translates to:
-  /// **'Part'**
-  String get flowPart;
-
-  /// No description provided for @flowNoParts.
-  ///
-  /// In en, this message translates to:
-  /// **'No parts yet'**
-  String get flowNoParts;
 
   /// No description provided for @footerEquivalence.
   ///
@@ -1150,12 +1162,6 @@ abstract class AppLocalizations {
   /// **'Slot load'**
   String get mm3SlotLoad;
 
-  /// No description provided for @mm3SlotLoadHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'The part\'s equivalent times its batch size — what this release slot actually costs the flow. MM3 averages this, not the equivalent.'**
-  String get mm3SlotLoadHelp;
-
   /// No description provided for @mm3NoSequence.
   ///
   /// In en, this message translates to:
@@ -1171,7 +1177,7 @@ abstract class AppLocalizations {
   /// No description provided for @mm3Help.
   ///
   /// In en, this message translates to:
-  /// **'A centred moving average of three over the sequence, blank at both ends. Reorder on the Sequence tab and watch it flatten.'**
+  /// **'A centred moving average of three over the sequence, blank at both ends.'**
   String get mm3Help;
 
   /// No description provided for @summaryOccupation.
@@ -1225,7 +1231,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryOverloaded.
   ///
   /// In en, this message translates to:
-  /// **'Above 100 %: this station cannot do it however the sequence is arranged.'**
+  /// **'Above 100 %: this workcenter cannot do it however the sequence is arranged.'**
   String get summaryOverloaded;
 
   /// No description provided for @summaryWithinCapacity.
@@ -1237,7 +1243,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryNoDemandTakt.
   ///
   /// In en, this message translates to:
-  /// **'No demand takt yet: it needs a station with hours and orders due in this period.'**
+  /// **'No demand takt yet: it needs a workcenter with hours and orders due in this period.'**
   String get summaryNoDemandTakt;
 
   /// No description provided for @summaryBottleneck.
@@ -1255,7 +1261,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryVisitsHelp.
   ///
   /// In en, this message translates to:
-  /// **'The flow routes through this station {count} times, and every visit loads it.'**
+  /// **'The flow routes through this workcenter {count} times, and every visit loads it.'**
   String summaryVisitsHelp(String count);
 
   /// No description provided for @summaryMissingTimes.
@@ -1287,7 +1293,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryPaceSetter.
   ///
   /// In en, this message translates to:
-  /// **'Measured at {name}, the busiest station, which has {available} available this period.'**
+  /// **'Measured at {name}, the busiest workcenter, which has {available} available this period.'**
   String summaryPaceSetter(String name, String available);
 
   /// No description provided for @summaryTaktConfigured.
@@ -1299,7 +1305,7 @@ abstract class AppLocalizations {
   /// No description provided for @summaryTaktConfiguredHelp.
   ///
   /// In en, this message translates to:
-  /// **'The takt this line is set to run at, resolved at the pace-setting station.'**
+  /// **'The takt this line is set to run at, resolved at the pace-setting workcenter.'**
   String get summaryTaktConfiguredHelp;
 
   /// No description provided for @summaryTaktRaw.
@@ -1401,7 +1407,7 @@ abstract class AppLocalizations {
   /// No description provided for @importAccept.
   ///
   /// In en, this message translates to:
-  /// **'Import {count} rows'**
+  /// **'Import {count} Rows'**
   String importAccept(String count);
 
   /// No description provided for @importDone.
@@ -1461,7 +1467,7 @@ abstract class AppLocalizations {
   /// No description provided for @exceptionNew.
   ///
   /// In en, this message translates to:
-  /// **'New exception'**
+  /// **'New Exception'**
   String get exceptionNew;
 
   /// No description provided for @exceptionsEmpty.
@@ -1485,7 +1491,7 @@ abstract class AppLocalizations {
   /// No description provided for @exceptionKindExtraWorking.
   ///
   /// In en, this message translates to:
-  /// **'Extra hours'**
+  /// **'Extra Hours'**
   String get exceptionKindExtraWorking;
 
   /// No description provided for @exceptionScope.
@@ -1533,7 +1539,7 @@ abstract class AppLocalizations {
   /// No description provided for @demandDeleteAll.
   ///
   /// In en, this message translates to:
-  /// **'Delete all orders'**
+  /// **'Delete All Orders'**
   String get demandDeleteAll;
 
   /// No description provided for @demandDeleteAllBody.
@@ -1577,12 +1583,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total'**
   String get demandTotal;
-
-  /// No description provided for @demandOrderNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Order'**
-  String get demandOrderNumber;
 
   /// No description provided for @demandBatchSize.
   ///
@@ -1629,13 +1629,13 @@ abstract class AppLocalizations {
   /// No description provided for @demandTimesHelp.
   ///
   /// In en, this message translates to:
-  /// **'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step. Paste a block from Excel with Ctrl+V.'**
+  /// **'Per piece. Type 30:00:00, 1.5h, 90min or 2d; a bare number is read as hours. Leave a cell blank where the part skips the step.'**
   String get demandTimesHelp;
 
   /// No description provided for @demandSequenceHelp.
   ///
   /// In en, this message translates to:
-  /// **'The order the plant will build in. Nothing reorders it but you. Paste a block from Excel with Ctrl+V.'**
+  /// **'The order the plant will build in. Nothing reorders it but you.'**
   String get demandSequenceHelp;
 
   /// No description provided for @demandNoSteps.
@@ -1668,35 +1668,11 @@ abstract class AppLocalizations {
   /// **'Unit'**
   String get taktUnit;
 
-  /// No description provided for @taktEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'No takt defined for this production line yet.'**
-  String get taktEmpty;
-
-  /// No description provided for @taktPeriodNew.
-  ///
-  /// In en, this message translates to:
-  /// **'New takt period'**
-  String get taktPeriodNew;
-
   /// No description provided for @taktPeriodDeleteTitle.
   ///
   /// In en, this message translates to:
   /// **'Delete this takt period?'**
   String get taktPeriodDeleteTitle;
-
-  /// No description provided for @taktDaysHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Days are relative to each workcenter\'s own capacity: a 3-day takt is 68 h at a station open 22:40 a day, and 26:24 at one open 8:48.'**
-  String get taktDaysHelp;
-
-  /// No description provided for @taktLiteralHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Resolves to the same duration at every workcenter.'**
-  String get taktLiteralHelp;
 
   /// No description provided for @unitDays.
   ///
@@ -1746,12 +1722,6 @@ abstract class AppLocalizations {
   /// **'s'**
   String get unitSecondsShort;
 
-  /// No description provided for @schedulePeriodNew.
-  ///
-  /// In en, this message translates to:
-  /// **'New period'**
-  String get schedulePeriodNew;
-
   /// No description provided for @schedulePeriodDeleteTitle.
   ///
   /// In en, this message translates to:
@@ -1770,11 +1740,11 @@ abstract class AppLocalizations {
   /// **'Operators per shift'**
   String get scheduleOperatorsPerShift;
 
-  /// No description provided for @scheduleShiftsDerived.
+  /// No description provided for @scheduleOperatorsHelp.
   ///
   /// In en, this message translates to:
-  /// **'Shifts: {count} ({operators}) — counted from the shifts with operators, never stored separately.'**
-  String scheduleShiftsDerived(String count, String operators);
+  /// **'How many people are on each shift. A zero closes that shift. Whether more of them finish the work sooner is a property of the workcenter\'s type, not of this number — turn on “Operators set the pace” under Resources › Workcenter types, or the crew only opens the shift.'**
+  String get scheduleOperatorsHelp;
 
   /// No description provided for @availability.
   ///
@@ -1782,35 +1752,11 @@ abstract class AppLocalizations {
   /// **'Availability'**
   String get availability;
 
-  /// No description provided for @availabilityHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Fraction of open time the workcenter can actually run. Applied once, to process time.'**
-  String get availabilityHelp;
-
-  /// No description provided for @availabilityInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Must be above 0% and at most 100%'**
-  String get availabilityInvalid;
-
   /// No description provided for @rework.
   ///
   /// In en, this message translates to:
   /// **'Rework'**
   String get rework;
-
-  /// No description provided for @reworkHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Fraction of work that has to be redone. Inflates process time.'**
-  String get reworkHelp;
-
-  /// No description provided for @reworkInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Must be 0% or more'**
-  String get reworkInvalid;
 
   /// No description provided for @occupation.
   ///
@@ -1932,12 +1878,6 @@ abstract class AppLocalizations {
   /// **'Process cycle efficiency: process time ÷ lead time. The share of elapsed time that is value-adding.'**
   String get footerPceHelp;
 
-  /// No description provided for @flowDataSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Timeline'**
-  String get flowDataSource;
-
   /// No description provided for @flowSourceEquivalent.
   ///
   /// In en, this message translates to:
@@ -1962,6 +1902,12 @@ abstract class AppLocalizations {
   /// **'Export PDF'**
   String get exportPdf;
 
+  /// No description provided for @flowShowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing'**
+  String get flowShowing;
+
   /// No description provided for @flowSupplier.
   ///
   /// In en, this message translates to:
@@ -1977,7 +1923,7 @@ abstract class AppLocalizations {
   /// No description provided for @flowFitToScreen.
   ///
   /// In en, this message translates to:
-  /// **'Fit to screen'**
+  /// **'Fit to Screen'**
   String get flowFitToScreen;
 
   /// No description provided for @flowZoomIn.
@@ -2004,35 +1950,11 @@ abstract class AppLocalizations {
   /// **'Process step'**
   String get flowInsertStep;
 
-  /// No description provided for @flowInsertStepHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Runs on a workcenter or a pool.'**
-  String get flowInsertStepHelp;
-
-  /// No description provided for @flowInsertInventory.
-  ///
-  /// In en, this message translates to:
-  /// **'Inventory'**
-  String get flowInsertInventory;
-
-  /// No description provided for @flowInsertInventoryHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Where orders wait between steps.'**
-  String get flowInsertInventoryHelp;
-
   /// No description provided for @flowStep.
   ///
   /// In en, this message translates to:
   /// **'Process step'**
   String get flowStep;
-
-  /// No description provided for @flowInventory.
-  ///
-  /// In en, this message translates to:
-  /// **'Inventory'**
-  String get flowInventory;
 
   /// No description provided for @flowStepTarget.
   ///
@@ -2046,35 +1968,11 @@ abstract class AppLocalizations {
   /// **'A step runs on exactly one. A pool sends each order to whichever member frees first.'**
   String get flowStepTargetHelp;
 
-  /// No description provided for @flowNodeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Label'**
-  String get flowNodeLabel;
-
-  /// No description provided for @flowNodeLabelHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Shown instead of the workcenter code.'**
-  String get flowNodeLabelHelp;
-
   /// No description provided for @flowNodeNotes.
   ///
   /// In en, this message translates to:
   /// **'Notes'**
   String get flowNodeNotes;
-
-  /// No description provided for @flowNodeNotesHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Problems and opportunities found here while walking the current state. Free text, on this node, affecting no number — it appears on the map and on the exported PDF.'**
-  String get flowNodeNotesHelp;
-
-  /// No description provided for @flowNodeHasNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Has notes'**
-  String get flowNodeHasNotes;
 
   /// No description provided for @flowMoveLeft.
   ///
@@ -2100,35 +1998,113 @@ abstract class AppLocalizations {
   /// **'Process time'**
   String get stepProcessTime;
 
+  /// No description provided for @stepSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup'**
+  String get stepSetup;
+
+  /// No description provided for @stepTeardown.
+  ///
+  /// In en, this message translates to:
+  /// **'Teardown'**
+  String get stepTeardown;
+
+  /// No description provided for @stepTeardownHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stripping the workcenter after an order. Charged together with the next order’s setup, because whether a strip-down is needed depends on what comes next.'**
+  String get stepTeardownHelp;
+
+  /// No description provided for @stepSamePart.
+  ///
+  /// In en, this message translates to:
+  /// **'Same part'**
+  String get stepSamePart;
+
+  /// No description provided for @stepSamePartHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How much of the setup and teardown is still charged when the previous order was the same part. 0% makes a repeat free; 100% means batching buys nothing.'**
+  String get stepSamePartHelp;
+
   /// No description provided for @stepChangeover.
   ///
   /// In en, this message translates to:
   /// **'Changeover'**
   String get stepChangeover;
 
-  /// No description provided for @stepChangeoverHelp.
+  /// No description provided for @laneCapacity.
   ///
   /// In en, this message translates to:
-  /// **'Charged only when the previous order on this workcenter was a different part.'**
-  String get stepChangeoverHelp;
+  /// **'Lane capacity (orders)'**
+  String get laneCapacity;
 
-  /// No description provided for @stepDispatch.
+  /// No description provided for @laneCapacityHelp.
   ///
   /// In en, this message translates to:
-  /// **'Queue order'**
-  String get stepDispatch;
+  /// **'How many orders fit here. Leave blank for unlimited. When it is full the workcenter behind cannot put its finished order down and stops, which is how congestion reaches back up the line. Separate from the pieces above: that figure is what is standing here today, this is what the floor allows.'**
+  String get laneCapacityHelp;
 
-  /// No description provided for @stepDispatchHelp.
+  /// No description provided for @workcenterParallelCapacity.
   ///
   /// In en, this message translates to:
-  /// **'How this station picks the next order from its queue. It belongs to the station, not to this step — every study in the project that reaches it dispatches the same way. A pool queues as one.'**
-  String get stepDispatchHelp;
+  /// **'Orders at once'**
+  String get workcenterParallelCapacity;
 
-  /// No description provided for @stepDispatchFollowsRun.
+  /// No description provided for @workcenterParallelCapacityHelp.
   ///
   /// In en, this message translates to:
-  /// **'Follow the run\'s rule'**
-  String get stepDispatchFollowsRun;
+  /// **'How many orders this workcenter runs side by side. One is a single machine. Above one it has that many independent units, each paying its own changeovers — and twice the capacity everywhere it is measured. Use a pool instead when the machines are really separate and you want to see which ran what.'**
+  String get workcenterParallelCapacityHelp;
+
+  /// No description provided for @studyStartBuffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Start buffer (calendar days)'**
+  String get studyStartBuffer;
+
+  /// No description provided for @studyStartBufferHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra margin ahead of the calculated start. A run begins at the first order\'s need date, less its theoretical lead time, less this. Calendar days, because slippage happens whether or not the plant is open.'**
+  String get studyStartBufferHelp;
+
+  /// No description provided for @studyPaceSetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Pacemaker'**
+  String get studyPaceSetter;
+
+  /// No description provided for @studyPaceSetterHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The workcenter whose clock sets the release cadence, and whose lane decides when another order may start. Leave on automatic to use the busiest step.'**
+  String get studyPaceSetterHelp;
+
+  /// No description provided for @studyPaceSetterAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic — the busiest step'**
+  String get studyPaceSetterAutomatic;
+
+  /// No description provided for @simBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get simBlocked;
+
+  /// No description provided for @simBlockedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Time the workcenter spent holding a finished order because the lane ahead was full. Not counted as busy: a jammed workcenter is occupied and producing nothing.'**
+  String get simBlockedHelp;
+
+  /// No description provided for @simEmptySlotLaneFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane full'**
+  String get simEmptySlotLaneFull;
 
   /// No description provided for @stepOperators.
   ///
@@ -2151,7 +2127,7 @@ abstract class AppLocalizations {
   /// No description provided for @stepEquivalentHelp.
   ///
   /// In en, this message translates to:
-  /// **'This step\'s own takt, used by the flow equivalent instead of the line\'s. Leave blank to follow the line\'s takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this station\'s productive days, so 1 day equals one takt-day.'**
+  /// **'This step\'s own takt, used by the flow equivalent instead of the line\'s. Leave blank to follow the line\'s takt. Set it where a full takt would skew the balance — an inspection worth a fraction of one. Days are this workcenter\'s productive days, so 1 day equals one takt-day.'**
   String get stepEquivalentHelp;
 
   /// No description provided for @stepProblemUnbound.
@@ -2193,7 +2169,7 @@ abstract class AppLocalizations {
   /// No description provided for @inventoryModeDuration.
   ///
   /// In en, this message translates to:
-  /// **'Fixed wait'**
+  /// **'Fixed Wait'**
   String get inventoryModeDuration;
 
   /// No description provided for @inventoryPieces.
@@ -2220,18 +2196,6 @@ abstract class AppLocalizations {
   /// **'A day is 24 hours here. Whether those hours pass on the clock or only while the plant runs is the switch below.'**
   String get inventoryWaitHelp;
 
-  /// No description provided for @inventoryWorkingTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Working time only'**
-  String get inventoryWorkingTime;
-
-  /// No description provided for @inventoryWorkingTimeHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Off for cooling or transport, which do not stop for the weekend. On for a queue that only moves while the plant runs.'**
-  String get inventoryWorkingTimeHelp;
-
   /// No description provided for @footerProcessTime.
   ///
   /// In en, this message translates to:
@@ -2241,32 +2205,26 @@ abstract class AppLocalizations {
   /// No description provided for @footerLeadTime.
   ///
   /// In en, this message translates to:
-  /// **'Lead time'**
+  /// **'Lead time (working days)'**
   String get footerLeadTime;
+
+  /// No description provided for @footerLeadTimeRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Lead time (running days)'**
+  String get footerLeadTimeRunning;
+
+  /// No description provided for @footerLeadTimeRunningHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The working-day lead time × 1.4, the usual seven-over-five convention. A planning figure rather than a measurement: a simulation walks each workcenter’s real calendar instead, so the two can differ and the run is what happened.'**
+  String get footerLeadTimeRunningHelp;
 
   /// No description provided for @footerPce.
   ///
   /// In en, this message translates to:
-  /// **'PCE'**
+  /// **'Process efficiency'**
   String get footerPce;
-
-  /// No description provided for @footerEndDate.
-  ///
-  /// In en, this message translates to:
-  /// **'End date'**
-  String get footerEndDate;
-
-  /// No description provided for @footerRunningDays.
-  ///
-  /// In en, this message translates to:
-  /// **'{days} running days · {date}'**
-  String footerRunningDays(String days, String date);
-
-  /// No description provided for @footerEndDateHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'When one order starting on the first day of this period would finish, walked through the real calendars. The gap against lead time is the weekends and shutdowns.'**
-  String get footerEndDateHelp;
 
   /// No description provided for @exportGenerated.
   ///
@@ -2280,11 +2238,107 @@ abstract class AppLocalizations {
   /// **'Saved to {path}'**
   String exportSaved(String path);
 
-  /// No description provided for @projectTabSimulation.
+  /// No description provided for @simFilterStudies.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies'**
+  String get simFilterStudies;
+
+  /// No description provided for @simFilterCells.
+  ///
+  /// In en, this message translates to:
+  /// **'Cells'**
+  String get simFilterCells;
+
+  /// No description provided for @simFilterLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines'**
+  String get simFilterLines;
+
+  /// No description provided for @simFilterPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get simFilterPeriod;
+
+  /// No description provided for @simFilterPeriodHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Selects orders by their need date — the only one of an order’s dates that is never blank, so an order the run never completed still appears in its period. Workcenter utilisation and blocked time keep describing the whole run, because the run does not store what a windowed figure would need.'**
+  String get simFilterPeriodHelp;
+
+  /// No description provided for @simFilterPeriodStart.
+  ///
+  /// In en, this message translates to:
+  /// **'First month'**
+  String get simFilterPeriodStart;
+
+  /// No description provided for @simFilterPeriodEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Last month'**
+  String get simFilterPeriodEnd;
+
+  /// No description provided for @simFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'all'**
+  String get simFilterAll;
+
+  /// No description provided for @simFilterProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get simFilterProjects;
+
+  /// No description provided for @simFilterParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Part numbers'**
+  String get simFilterParts;
+
+  /// No description provided for @simFilterOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get simFilterOrders;
+
+  /// No description provided for @simFilterOrdersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 5, 12'**
+  String get simFilterOrdersHint;
+
+  /// No description provided for @simFilterNoProject.
+  ///
+  /// In en, this message translates to:
+  /// **'(no project)'**
+  String get simFilterNoProject;
+
+  /// No description provided for @simFilterOrdersEachStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Order numbers repeat in every study — {count} studies are in view'**
+  String simFilterOrdersEachStudy(int count);
+
+  /// No description provided for @simFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Filters'**
+  String get simFilterClear;
+
+  /// No description provided for @simWorkspace.
   ///
   /// In en, this message translates to:
   /// **'Simulation'**
-  String get projectTabSimulation;
+  String get simWorkspace;
+
+  /// No description provided for @simWorkcentersWholeRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Utilization and Blocked describe the whole run — the run does not store what a narrowed open time would need. The other columns follow the filter.'**
+  String get simWorkcentersWholeRun;
 
   /// No description provided for @simulationRun.
   ///
@@ -2298,23 +2352,17 @@ abstract class AppLocalizations {
   /// **'Running…'**
   String get simulationRunning;
 
-  /// No description provided for @simulationDispatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Dispatch'**
-  String get simulationDispatch;
-
-  /// No description provided for @simulationDispatchHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'How a workcenter picks which waiting order to run next. Every rule breaks ties by arrival, then study priority, then sequence, so the same inputs always produce the same run.'**
-  String get simulationDispatchHelp;
-
   /// No description provided for @dispatchFifo.
   ///
   /// In en, this message translates to:
   /// **'FIFO — by arrival'**
   String get dispatchFifo;
+
+  /// No description provided for @dispatchLifo.
+  ///
+  /// In en, this message translates to:
+  /// **'LIFO'**
+  String get dispatchLifo;
 
   /// No description provided for @dispatchEarliestDueDate.
   ///
@@ -2328,12 +2376,6 @@ abstract class AppLocalizations {
   /// **'Shortest processing time'**
   String get dispatchShortestProcessing;
 
-  /// No description provided for @simulationStudiesIn.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{No studies selected} =1{1 study in this run} other{{count} studies in this run}}'**
-  String simulationStudiesIn(int count);
-
   /// No description provided for @simulationNoStudies.
   ///
   /// In en, this message translates to:
@@ -2345,12 +2387,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Flag a study in the sidebar. Several studies of one line are scenarios of one reality, so a run takes at most one of each.'**
   String get simulationNoStudiesHelp;
-
-  /// No description provided for @simulationNotReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Not ready to run'**
-  String get simulationNotReady;
 
   /// No description provided for @simProblemNoTakt.
   ///
@@ -2397,7 +2433,7 @@ abstract class AppLocalizations {
   /// No description provided for @simulationAbortNothingToRun.
   ///
   /// In en, this message translates to:
-  /// **'Nothing could be started: every station’s calendar is shut, or no study had a costable first order.'**
+  /// **'Nothing could be started: every workcenter’s calendar is shut, or no study had a costable first order.'**
   String get simulationAbortNothingToRun;
 
   /// No description provided for @simOnTimeDelivery.
@@ -2463,7 +2499,7 @@ abstract class AppLocalizations {
   /// No description provided for @simTheoreticalLeadTimeHelp.
   ///
   /// In en, this message translates to:
-  /// **'The same orders without queueing, each walked from its own release through the real calendars. Excludes changeover, which depends on what ran before and so is not a property of the part.'**
+  /// **'What these orders would take flowing through the plant as it stands — the work, a full changeover at every step and the stock standing in each queue — walked from each order\'s own release through the real calendars.'**
   String get simTheoreticalLeadTimeHelp;
 
   /// No description provided for @simLeadTimeEfficiency.
@@ -2475,7 +2511,7 @@ abstract class AppLocalizations {
   /// No description provided for @simLeadTimeEfficiencyHelp.
   ///
   /// In en, this message translates to:
-  /// **'Actual ÷ theoretical. 1.0 is queue-free and higher is worse; the excess over 1.0 is exactly the waiting.'**
+  /// **'Theoretical ÷ actual. Above 100% the flow queued less than the standard expects; below 100% it queued more. Warm-up orders — those released before their line\'s first delivery, when the flow was still empty — are left out.'**
   String get simLeadTimeEfficiencyHelp;
 
   /// No description provided for @simEmptySlots.
@@ -2483,6 +2519,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Empty release slots'**
   String get simEmptySlots;
+
+  /// No description provided for @workspaceModeCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare'**
+  String get workspaceModeCompare;
+
+  /// No description provided for @compareStudiesDifference.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies Difference'**
+  String get compareStudiesDifference;
+
+  /// No description provided for @compareOccupation.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupation'**
+  String get compareOccupation;
+
+  /// No description provided for @compareLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Cell and line'**
+  String get compareLine;
+
+  /// No description provided for @compareSameStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick two different studies.'**
+  String get compareSameStudy;
+
+  /// No description provided for @compareNeedsTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare needs two studies of one cell and line'**
+  String get compareNeedsTwo;
+
+  /// No description provided for @compareNeedsTwoHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate a study, change the copy, include the copy in the simulation instead of the original, and simulate. Each study is compared at its latest run.'**
+  String get compareNeedsTwoHelp;
+
+  /// No description provided for @compareDifferentBuilds.
+  ///
+  /// In en, this message translates to:
+  /// **'These runs were made by different builds of FlowMap ({before} and {after}). A change in the app can move the numbers as much as a change in the plant.'**
+  String compareDifferentBuilds(String before, String after);
+
+  /// No description provided for @compareUnstamped.
+  ///
+  /// In en, this message translates to:
+  /// **'not recorded'**
+  String get compareUnstamped;
+
+  /// No description provided for @compareNoInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'No input recorded on the two runs differs. Edits to a flow, its demand or its capacity are not stored as run inputs — if the two studies differ in one of those, that is the difference.'**
+  String get compareNoInputs;
+
+  /// No description provided for @compareResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get compareResults;
+
+  /// No description provided for @compareChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get compareChange;
+
+  /// No description provided for @compareInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get compareInput;
+
+  /// No description provided for @compareDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get compareDispatch;
+
+  /// No description provided for @comparePoints.
+  ///
+  /// In en, this message translates to:
+  /// **'{delta} pts'**
+  String comparePoints(String delta);
+
+  /// No description provided for @simReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation report'**
+  String get simReport;
+
+  /// No description provided for @simReportExport.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF report'**
+  String get simReportExport;
+
+  /// No description provided for @simReportInputs.
+  ///
+  /// In en, this message translates to:
+  /// **'Inputs'**
+  String get simReportInputs;
+
+  /// No description provided for @simReportLateOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Late orders'**
+  String get simReportLateOrders;
+
+  /// No description provided for @simReportNoneLate.
+  ///
+  /// In en, this message translates to:
+  /// **'Every order in this view was on time.'**
+  String get simReportNoneLate;
+
+  /// No description provided for @simReportNotDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Not delivered'**
+  String get simReportNotDelivered;
 
   /// No description provided for @simEmptySlotsHelp.
   ///
@@ -2505,7 +2667,7 @@ abstract class AppLocalizations {
   /// No description provided for @simRankingsHelp.
   ///
   /// In en, this message translates to:
-  /// **'Both rankings are here because their disagreement is the diagnostic: a long queue at a station that is not busy is a sequencing problem, not a capacity one.'**
+  /// **'Both rankings are here because their disagreement is the diagnostic: a long queue at a workcenter that is not busy is a sequencing problem, not a capacity one.'**
   String get simRankingsHelp;
 
   /// No description provided for @simQueue.
@@ -2577,7 +2739,7 @@ abstract class AppLocalizations {
   /// No description provided for @simNothingRanked.
   ///
   /// In en, this message translates to:
-  /// **'No station ran anything.'**
+  /// **'No workcenter ran anything.'**
   String get simNothingRanked;
 
   /// No description provided for @simRunSpan.
@@ -2601,7 +2763,7 @@ abstract class AppLocalizations {
   /// No description provided for @simViewResults.
   ///
   /// In en, this message translates to:
-  /// **'View results'**
+  /// **'Simulation Results'**
   String get simViewResults;
 
   /// No description provided for @simulationRunFailed.
@@ -2610,16 +2772,10 @@ abstract class AppLocalizations {
   /// **'The run could not be completed'**
   String get simulationRunFailed;
 
-  /// No description provided for @simProductionPlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Production plan — orders over time'**
-  String get simProductionPlan;
-
   /// No description provided for @simProductionPlanHelp.
   ///
   /// In en, this message translates to:
-  /// **'What this run says each order does. Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.'**
+  /// **'Rows are in sequence order, which is also release order: the engine releases strictly from the head of the sequence and never reorders it. Blank columns mean a run made before FlowMap recorded them.'**
   String get simProductionPlanHelp;
 
   /// No description provided for @simPlanOrder.
@@ -2640,6 +2796,12 @@ abstract class AppLocalizations {
   /// **'Order end'**
   String get simPlanOrderEnd;
 
+  /// No description provided for @simPlanTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt'**
+  String get simPlanTakt;
+
   /// No description provided for @simPlanTheoreticalLeadTime.
   ///
   /// In en, this message translates to:
@@ -2652,17 +2814,23 @@ abstract class AppLocalizations {
   /// **'Actual LT'**
   String get simPlanActualLeadTime;
 
-  /// No description provided for @simDispatchOverrides.
+  /// No description provided for @simPlanLeadTimeEfficiency.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 station overridden} other{{count} stations overridden}}'**
-  String simDispatchOverrides(int count);
+  /// **'Efficiency'**
+  String get simPlanLeadTimeEfficiency;
 
-  /// No description provided for @simDispatchOverrideRow.
+  /// No description provided for @simRunQueuesMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'mixed'**
+  String get simRunQueuesMixed;
+
+  /// No description provided for @simRunQueueRow.
   ///
   /// In en, this message translates to:
   /// **'{name}: {rule}'**
-  String simDispatchOverrideRow(String name, String rule);
+  String simRunQueueRow(String name, String rule);
 
   /// No description provided for @simRunDeleteBody.
   ///
@@ -2670,16 +2838,10 @@ abstract class AppLocalizations {
   /// **'The run and everything it recorded go. The studies it was made from are untouched.'**
   String get simRunDeleteBody;
 
-  /// No description provided for @simResultsView.
-  ///
-  /// In en, this message translates to:
-  /// **'Results'**
-  String get simResultsView;
-
   /// No description provided for @simGanttView.
   ///
   /// In en, this message translates to:
-  /// **'Gantt'**
+  /// **'Production Gantt'**
   String get simGanttView;
 
   /// No description provided for @simGanttEmpty.
@@ -2691,7 +2853,7 @@ abstract class AppLocalizations {
   /// No description provided for @simGanttGapHelp.
   ///
   /// In en, this message translates to:
-  /// **'One row per station, one bar per order, all studies together — a station is shared, so splitting the chart by study would draw it idle while it was running another line\'s order. A bar is the station committed to that order, closed hours included. A gap is a station not running: closed, or starved. How much of it was open at all is in the Queue table.'**
+  /// **'A bar is the workcenter committed to that order, closed hours included. A gap is a workcenter not running: closed, or starved. How much of it was open at all is in the Queue table.'**
   String get simGanttGapHelp;
 
   /// No description provided for @simGanttOrder.
@@ -2700,11 +2862,29 @@ abstract class AppLocalizations {
   /// **'Order {number}'**
   String simGanttOrder(String number);
 
+  /// No description provided for @simGanttProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get simGanttProject;
+
   /// No description provided for @simGanttCommitted.
   ///
   /// In en, this message translates to:
   /// **'Committed'**
   String get simGanttCommitted;
+
+  /// No description provided for @simGanttTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt'**
+  String get simGanttTakt;
+
+  /// No description provided for @simGanttProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process time'**
+  String get simGanttProcess;
 
   /// No description provided for @simGanttWaited.
   ///
@@ -2717,6 +2897,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A changeover was paid to start it'**
   String get simGanttChangeover;
+
+  /// No description provided for @simScheduleTail.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 order finished after {date} using the last defined schedule} other{{count} orders finished after {date} using the last defined schedule}}'**
+  String simScheduleTail(int count, String date);
+
+  /// No description provided for @simScheduleTailHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt and workcenter schedule periods stop at that date, so the run carried the last one forward past it. That is not an error — a run goes until the last order completes — but the figures after that date describe capacity nobody has defined. Extend the periods and run again to be sure of them.'**
+  String get simScheduleTailHelp;
+
+  /// No description provided for @settingsDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get settingsDisplay;
+
+  /// No description provided for @settingsDateFormatHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How dates are written and read across the app, including the Excel export. Independent of the interface language. ISO dates are always accepted when typing, whichever format is chosen.'**
+  String get settingsDateFormatHelp;
+
+  /// No description provided for @dateFormatLocale.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the system language'**
+  String get dateFormatLocale;
+
+  /// No description provided for @dateFormatDayMonthYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Day/month/year'**
+  String get dateFormatDayMonthYear;
+
+  /// No description provided for @dateFormatMonthDayYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Month/day/year'**
+  String get dateFormatMonthDayYear;
+
+  /// No description provided for @dateFormatIso.
+  ///
+  /// In en, this message translates to:
+  /// **'Year-month-day (ISO)'**
+  String get dateFormatIso;
+
+  /// No description provided for @simGanttLaneHolds.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Lane holds 1 order} other{Lane holds {count} orders}}'**
+  String simGanttLaneHolds(int count);
+
+  /// No description provided for @simGanttLaneUncapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane has no limit'**
+  String get simGanttLaneUncapped;
+
+  /// No description provided for @simGanttStillWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Still standing here when the run ended'**
+  String get simGanttStillWaiting;
+
+  /// No description provided for @simGanttRowsWorkcenters.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenters'**
+  String get simGanttRowsWorkcenters;
+
+  /// No description provided for @simGanttRowsWithLanes.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenters + lanes'**
+  String get simGanttRowsWithLanes;
+
+  /// No description provided for @simGanttRowsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Whether the queue bands between workcenters are drawn. Without them the chart reads as a flow; with them it reads as a queue.'**
+  String get simGanttRowsHelp;
 
   /// No description provided for @simGanttZoomIn.
   ///
@@ -2753,6 +3017,1077 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Run'**
   String get simExportRunSheet;
+
+  /// No description provided for @flowQueueEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the queue in front of this step'**
+  String get flowQueueEdit;
+
+  /// No description provided for @flowQueueShared.
+  ///
+  /// In en, this message translates to:
+  /// **'One queue per workcenter: every step that feeds {target} waits in this one, in this study and in every other.'**
+  String flowQueueShared(String target);
+
+  /// No description provided for @flowQueueName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get flowQueueName;
+
+  /// No description provided for @flowQueueType.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue type'**
+  String get flowQueueType;
+
+  /// No description provided for @flowQueueTypeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How the workcenter ahead picks the next order out of this queue. An untyped queue is a line nobody has given a rule to; the four rules are disciplines, and the map draws each one differently. The queue\'s caption on the map is this type and the workcenter it stands in front of.'**
+  String get flowQueueTypeHelp;
+
+  /// No description provided for @flowQueueStock.
+  ///
+  /// In en, this message translates to:
+  /// **'What is standing here now'**
+  String get flowQueueStock;
+
+  /// No description provided for @queueTypeQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue — a line, no rule'**
+  String get queueTypeQueue;
+
+  /// No description provided for @queueShortFifo.
+  ///
+  /// In en, this message translates to:
+  /// **'FIFO'**
+  String get queueShortFifo;
+
+  /// No description provided for @queueShortLifo.
+  ///
+  /// In en, this message translates to:
+  /// **'LIFO'**
+  String get queueShortLifo;
+
+  /// No description provided for @queueShortEarliestDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'EDD'**
+  String get queueShortEarliestDueDate;
+
+  /// No description provided for @queueShortShortestProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'SPT'**
+  String get queueShortShortestProcessing;
+
+  /// No description provided for @queueShortQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get queueShortQueue;
+
+  /// No description provided for @queueTypeSupermarket.
+  ///
+  /// In en, this message translates to:
+  /// **'Supermarket — not yet'**
+  String get queueTypeSupermarket;
+
+  /// No description provided for @flowBatchHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How many pieces each box is costed for. Process times are per piece, so an order of ten occupies a workcenter ten times as long — which is what the simulation charges. Leave it blank to follow the orders this part actually has.'**
+  String get flowBatchHelp;
+
+  /// No description provided for @validationNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number'**
+  String get validationNumber;
+
+  /// No description provided for @validationAboveZero.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number above zero'**
+  String get validationAboveZero;
+
+  /// No description provided for @simEmptySlotAwaitingMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting material'**
+  String get simEmptySlotAwaitingMaterial;
+
+  /// No description provided for @simEmptySlotWipCap.
+  ///
+  /// In en, this message translates to:
+  /// **'WIP cap reached'**
+  String get simEmptySlotWipCap;
+
+  /// No description provided for @flowEndStockInbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw material stock'**
+  String get flowEndStockInbound;
+
+  /// No description provided for @flowEndStockOutbound.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished goods stock'**
+  String get flowEndStockOutbound;
+
+  /// No description provided for @flowEndStockQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Pieces standing here'**
+  String get flowEndStockQuantity;
+
+  /// No description provided for @flowEndStockHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An observation of what is on the floor today, in pieces, shown as days through the takt of the period on screen. It counts towards the lead time and the days of stock, and nothing is dispatched out of it — orders are released on a takt, not pulled from a rack. Leave it blank if nobody has counted.'**
+  String get flowEndStockHelp;
+
+  /// No description provided for @flowEndStockNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not counted'**
+  String get flowEndStockNone;
+
+  /// No description provided for @stepBalancedMark.
+  ///
+  /// In en, this message translates to:
+  /// **'⇄'**
+  String get stepBalancedMark;
+
+  /// No description provided for @stepBalancedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalanced across the {type} workcenters next to each other in this flow: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. {measured} was measured here, and the demand table still holds it.'**
+  String stepBalancedHelp(String type, String measured);
+
+  /// No description provided for @stepRebalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebalance with adjacent like workcenters'**
+  String get stepRebalance;
+
+  /// No description provided for @stepRebalanceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenters of the same type standing next to each other share their work: each fills to its takt and the last takes the remainder, so changing the takt moves the split with no other edit. Turn it off to pin this workcenter at what was measured on it.'**
+  String get stepRebalanceHelp;
+
+  /// No description provided for @stepRebalanceNoType.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has no workcenter type, so nothing says it is like its neighbours.'**
+  String stepRebalanceNoType(String name);
+
+  /// No description provided for @stepRebalanceNoNeighbour.
+  ///
+  /// In en, this message translates to:
+  /// **'No adjacent step shares the type {type}.'**
+  String stepRebalanceNoNeighbour(String type);
+
+  /// No description provided for @stepRebalanceNoWork.
+  ///
+  /// In en, this message translates to:
+  /// **'This part has no time here, so the workcenter is not sharing work.'**
+  String get stepRebalanceNoWork;
+
+  /// No description provided for @stepRebalanceOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} workcenters.'**
+  String stepRebalanceOn(String type);
+
+  /// No description provided for @simRunTakt.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran at {takt}'**
+  String simRunTakt(String takt);
+
+  /// No description provided for @simRunTaktChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'The takt changed on {date}, inside this run.'**
+  String simRunTaktChanges(String date);
+
+  /// No description provided for @simRunTaktMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'mixed'**
+  String get simRunTaktMixed;
+
+  /// No description provided for @flowTaktChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Takt {from} → {to} on {date} — showing {shown}'**
+  String flowTaktChanges(String from, String to, String date, String shown);
+
+  /// No description provided for @simRunCadenceEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'{study} stopped opening orders on {date} — its takt schedule ends there, and {count} never opened.'**
+  String simRunCadenceEnded(String study, String date, int count);
+
+  /// No description provided for @settingsLanguageHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Which language the app is drawn in. Follow the system uses your Windows display language.'**
+  String get settingsLanguageHelp;
+
+  /// No description provided for @settingsTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsTheme;
+
+  /// No description provided for @settingsThemeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Whether the app is drawn light or dark. Follow the system uses your Windows app colour mode.'**
+  String get settingsThemeHelp;
+
+  /// No description provided for @settingsThemeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the system'**
+  String get settingsThemeSystem;
+
+  /// No description provided for @settingsThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeLight;
+
+  /// No description provided for @settingsThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeDark;
+
+  /// No description provided for @languageEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEn;
+
+  /// No description provided for @languageEs.
+  ///
+  /// In en, this message translates to:
+  /// **'Español'**
+  String get languageEs;
+
+  /// No description provided for @languagePt.
+  ///
+  /// In en, this message translates to:
+  /// **'Português'**
+  String get languagePt;
+
+  /// No description provided for @stepRebalanceOnWithRework.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} workcenters. Filled to {filled} of {capacity} — {rework}% rework means that much content uses one whole takt.'**
+  String stepRebalanceOnWithRework(
+    String type,
+    String filled,
+    String capacity,
+    String rework,
+  );
+
+  /// No description provided for @stepRebalanceRemainder.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} workcenters. They fill to their takt and this one takes what is left — {filled}, inside the {capacity} one takt holds.'**
+  String stepRebalanceRemainder(String type, String filled, String capacity);
+
+  /// No description provided for @stepRebalanceRemainderOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing work with the adjacent {type} workcenters. They fill to their takt and this one takes what is left — {filled}, past the {capacity} one takt holds. The group needs more than its workcenters have.'**
+  String stepRebalanceRemainderOver(
+    String type,
+    String filled,
+    String capacity,
+  );
+
+  /// No description provided for @occupationView.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupation'**
+  String get occupationView;
+
+  /// No description provided for @occupationType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get occupationType;
+
+  /// No description provided for @occupationLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get occupationLine;
+
+  /// No description provided for @occupationUngraphable.
+  ///
+  /// In en, this message translates to:
+  /// **'This run was made before the app recorded what a month of a workcenter was worth, so it cannot be graphed. Run the simulation again to get a chart.'**
+  String get occupationUngraphable;
+
+  /// No description provided for @projectSettingsFloat.
+  ///
+  /// In en, this message translates to:
+  /// **'Float thresholds'**
+  String get projectSettingsFloat;
+
+  /// No description provided for @projectSettingsFloatHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the float matrix turns red and green. Between the two is amber.'**
+  String get projectSettingsFloatHelp;
+
+  /// No description provided for @projectFloatRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red at or below (days)'**
+  String get projectFloatRed;
+
+  /// No description provided for @projectFloatGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green at or above (days)'**
+  String get projectFloatGreen;
+
+  /// No description provided for @projectFloatRedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An order with this much slack or less is drawn red. Zero means an order delivered exactly on its need date has none left.'**
+  String get projectFloatRedHelp;
+
+  /// No description provided for @projectFloatGreenHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An order with at least this much slack is drawn green.'**
+  String get projectFloatGreenHelp;
+
+  /// No description provided for @floatMatrixTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Float'**
+  String get floatMatrixTitle;
+
+  /// No description provided for @floatMatrixHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns are the month of the order\'s need date, rows its rank in that month by need date. Cells are slack in days — positive is early.'**
+  String get floatMatrixHelp;
+
+  /// No description provided for @floatMatrixUndelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Never delivered'**
+  String get floatMatrixUndelivered;
+
+  /// No description provided for @floatMatrixEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders in this slice have a need date to place.'**
+  String get floatMatrixEmpty;
+
+  /// No description provided for @floatLegendRed.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d or less'**
+  String floatLegendRed(String days);
+
+  /// No description provided for @floatLegendAmber.
+  ///
+  /// In en, this message translates to:
+  /// **'Between {red} d and {green} d'**
+  String floatLegendAmber(String red, String green);
+
+  /// No description provided for @floatLegendGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} d or more'**
+  String floatLegendGreen(String days);
+
+  /// No description provided for @workspaceModeStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Study'**
+  String get workspaceModeStudy;
+
+  /// No description provided for @simTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation Overview'**
+  String get simTabOverview;
+
+  /// No description provided for @simTabPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Production Plan'**
+  String get simTabPlan;
+
+  /// No description provided for @simPlanByStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'By Study'**
+  String get simPlanByStudy;
+
+  /// No description provided for @simPlanCombined.
+  ///
+  /// In en, this message translates to:
+  /// **'Combined'**
+  String get simPlanCombined;
+
+  /// No description provided for @simPlanStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Study'**
+  String get simPlanStudy;
+
+  /// No description provided for @simPlanCell.
+  ///
+  /// In en, this message translates to:
+  /// **'Cell'**
+  String get simPlanCell;
+
+  /// No description provided for @simPlanLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get simPlanLine;
+
+  /// No description provided for @simRunCovers.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies in this run'**
+  String get simRunCovers;
+
+  /// No description provided for @simRunCoversFiltered.
+  ///
+  /// In en, this message translates to:
+  /// **'filtered out'**
+  String get simRunCoversFiltered;
+
+  /// No description provided for @simulationStudiesNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 study is not ready to run} other{{count} studies are not ready to run}}'**
+  String simulationStudiesNotReady(int count);
+
+  /// No description provided for @occupationByWorkcenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Per Workcenter'**
+  String get occupationByWorkcenter;
+
+  /// No description provided for @occupationByLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Per Line'**
+  String get occupationByLine;
+
+  /// No description provided for @occupationByType.
+  ///
+  /// In en, this message translates to:
+  /// **'Per Type'**
+  String get occupationByType;
+
+  /// No description provided for @occupationWorkcenterType.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter Type'**
+  String get occupationWorkcenterType;
+
+  /// No description provided for @occupationUntyped.
+  ///
+  /// In en, this message translates to:
+  /// **'Untyped'**
+  String get occupationUntyped;
+
+  /// No description provided for @occupationUnitPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'%'**
+  String get occupationUnitPercent;
+
+  /// No description provided for @occupationUnitHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours'**
+  String get occupationUnitHours;
+
+  /// No description provided for @occupationUnitGap.
+  ///
+  /// In en, this message translates to:
+  /// **'Gap'**
+  String get occupationUnitGap;
+
+  /// No description provided for @occupationWorkcenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenter'**
+  String get occupationWorkcenter;
+
+  /// No description provided for @occupationAmberAbove.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber above'**
+  String get occupationAmberAbove;
+
+  /// No description provided for @occupationRedAbove.
+  ///
+  /// In en, this message translates to:
+  /// **'Red above'**
+  String get occupationRedAbove;
+
+  /// No description provided for @occupationBands.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the Occupation grid turns amber and red. A workcenter asked for more hours than it has open is over by definition; the amber band is the room left for the changeover the next order brings.'**
+  String get occupationBands;
+
+  /// No description provided for @occupationProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get occupationProcess;
+
+  /// No description provided for @occupationRework.
+  ///
+  /// In en, this message translates to:
+  /// **'Rework'**
+  String get occupationRework;
+
+  /// No description provided for @occupationChangeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Changeover'**
+  String get occupationChangeover;
+
+  /// No description provided for @occupationOutsideFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside the filter'**
+  String get occupationOutsideFilter;
+
+  /// No description provided for @occupationWorkcentersAggregated.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 workcenter aggregated} other{{count} workcenters aggregated}}'**
+  String occupationWorkcentersAggregated(int count);
+
+  /// No description provided for @occupationTipDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'Demand'**
+  String get occupationTipDemand;
+
+  /// No description provided for @occupationTipCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Capacity'**
+  String get occupationTipCapacity;
+
+  /// No description provided for @occupationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String occupationHours(Object hours);
+
+  /// No description provided for @occupationTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'TOTAL'**
+  String get occupationTotal;
+
+  /// No description provided for @occupationAllMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'all months shown'**
+  String get occupationAllMonths;
+
+  /// No description provided for @floatAverage.
+  ///
+  /// In en, this message translates to:
+  /// **'AVG'**
+  String get floatAverage;
+
+  /// No description provided for @floatAverageHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days of float on average.'**
+  String floatAverageHelp(Object days);
+
+  /// Shown above an empty Demand grid: how to fill it.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a value, or paste a block from Excel with Ctrl+V.'**
+  String get demandPasteHint;
+
+  /// Heading for the two Occupation grid thresholds.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupation bands'**
+  String get occupationBandsTitle;
+
+  /// No description provided for @documentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get documentsTitle;
+
+  /// No description provided for @documentsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No project open.'**
+  String get documentsNone;
+
+  /// No description provided for @documentsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open…'**
+  String get documentsOpen;
+
+  /// No description provided for @documentsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New project…'**
+  String get documentsNew;
+
+  /// No description provided for @documentsRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get documentsRecent;
+
+  /// No description provided for @documentsIsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is open'**
+  String documentsIsOpen(String name);
+
+  /// No description provided for @documentsGoToProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to project'**
+  String get documentsGoToProject;
+
+  /// No description provided for @documentsOpenNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open now'**
+  String get documentsOpenNow;
+
+  /// No description provided for @documentsTakenHere.
+  ///
+  /// In en, this message translates to:
+  /// **'This project is already open in FlowMap on this computer. If FlowMap closed unexpectedly, the project frees itself within five minutes.'**
+  String get documentsTakenHere;
+
+  /// No description provided for @documentsMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found right now'**
+  String get documentsMissing;
+
+  /// No description provided for @documentsMissingHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The file may be on a drive that is not connected. It has not been forgotten.'**
+  String get documentsMissingHelp;
+
+  /// No description provided for @documentsForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this list'**
+  String get documentsForget;
+
+  /// No description provided for @documentsClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close project'**
+  String get documentsClose;
+
+  /// No description provided for @documentsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {time}'**
+  String documentsSaved(String time);
+
+  /// No description provided for @documentsSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get documentsSaving;
+
+  /// No description provided for @documentsSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save'**
+  String get documentsSaveFailed;
+
+  /// No description provided for @documentsSaveFailedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your work is safe in FlowMap. The file could not be written — check the drive is connected.'**
+  String get documentsSaveFailedHelp;
+
+  /// No description provided for @documentsSaveConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'File changed elsewhere'**
+  String get documentsSaveConflict;
+
+  /// No description provided for @documentsSaveConflictHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This project\'s file was replaced while it was open, so FlowMap is not saving over it. Your work is safe: closing the project keeps it as a separate copy beside the file.'**
+  String get documentsSaveConflictHelp;
+
+  /// No description provided for @documentsConflictKept.
+  ///
+  /// In en, this message translates to:
+  /// **'The file had been replaced while the project was open, so your work was kept separately as {name}.'**
+  String documentsConflictKept(String name);
+
+  /// No description provided for @documentsTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'{who} has this project open'**
+  String documentsTaken(String who);
+
+  /// No description provided for @documentsTakenHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Only one person can edit a project at a time. Try again in a few minutes, or ask them to close it.'**
+  String get documentsTakenHelp;
+
+  /// No description provided for @documentsConverted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your existing work is now a project file.'**
+  String get documentsConverted;
+
+  /// No description provided for @documentsOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be opened'**
+  String get documentsOpenFailed;
+
+  /// No description provided for @documentsOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening {name}…'**
+  String documentsOpening(String name);
+
+  /// No description provided for @documentsCurrentUnsaved.
+  ///
+  /// In en, this message translates to:
+  /// **'The project that is open could not be saved, so it was kept open and nothing else was opened. Check that its folder is reachable, then try again.'**
+  String get documentsCurrentUnsaved;
+
+  /// No description provided for @resourcesNeedDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a project to see its plant'**
+  String get resourcesNeedDocument;
+
+  /// No description provided for @resourcesNeedDocumentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Workcenters, cells, lines and shift patterns belong to a project, and travel inside its file.'**
+  String get resourcesNeedDocumentHelp;
+
+  /// No description provided for @resourcesNoWorkcenters.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first workcenter'**
+  String get resourcesNoWorkcenters;
+
+  /// No description provided for @resourcesNoWorkcentersHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A new project starts empty. Start with a production cell, then its lines and workcenters — or open an existing project and save a copy of it.'**
+  String get resourcesNoWorkcentersHelp;
+
+  /// No description provided for @documentsSaveAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a copy…'**
+  String get documentsSaveAs;
+
+  /// No description provided for @templatesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No templates yet'**
+  String get templatesEmpty;
+
+  /// No description provided for @templatesEmptyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Save a study as a template and it appears here. A template is one study’s flow, which you can apply to any project — its workcenters are matched by name, and anything missing is created.'**
+  String get templatesEmptyHelp;
+
+  /// No description provided for @templatesSaveStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as template…'**
+  String get templatesSaveStudy;
+
+  /// No description provided for @templatesIncludeDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'Include demand parts and sequence'**
+  String get templatesIncludeDemand;
+
+  /// No description provided for @templatesSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as a template'**
+  String get templatesSaved;
+
+  /// No description provided for @templatesSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The template could not be saved'**
+  String get templatesSaveFailed;
+
+  /// No description provided for @templatesApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to this project'**
+  String get templatesApply;
+
+  /// No description provided for @templatesNeedDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a project to apply a template'**
+  String get templatesNeedDocument;
+
+  /// No description provided for @templatesApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied as {study}'**
+  String templatesApplied(String study);
+
+  /// No description provided for @templatesAppliedDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{matched} matched, {created} created'**
+  String templatesAppliedDetail(int matched, int created);
+
+  /// No description provided for @templatesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete template'**
+  String get templatesDelete;
+
+  /// No description provided for @templatesWithDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'with demand'**
+  String get templatesWithDemand;
+
+  /// No description provided for @templatesNoDemand.
+  ///
+  /// In en, this message translates to:
+  /// **'flow only'**
+  String get templatesNoDemand;
+
+  /// No description provided for @templatesStepCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 step} other{{count} steps}}'**
+  String templatesStepCount(int count);
+
+  /// No description provided for @navAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get navAbout;
+
+  /// No description provided for @aboutBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Build'**
+  String get aboutBuild;
+
+  /// No description provided for @aboutCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get aboutCopy;
+
+  /// No description provided for @aboutUnstamped.
+  ///
+  /// In en, this message translates to:
+  /// **'This build was packaged without a version label, so exports from it cannot be traced back to a release.'**
+  String get aboutUnstamped;
+
+  /// No description provided for @aboutYourWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Your projects'**
+  String get aboutYourWork;
+
+  /// No description provided for @aboutYourWorkHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Where new projects and templates are saved by default. You can keep them anywhere.'**
+  String get aboutYourWorkHelp;
+
+  /// No description provided for @aboutAppData.
+  ///
+  /// In en, this message translates to:
+  /// **'FlowMap’s own files'**
+  String get aboutAppData;
+
+  /// No description provided for @aboutAppDataHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings, the diagnostics log, and simulation results. Your projects are not here.'**
+  String get aboutAppDataHelp;
+
+  /// No description provided for @aboutDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get aboutDiagnostics;
+
+  /// No description provided for @aboutOpenFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get aboutOpenFolder;
+
+  /// No description provided for @documentsExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the example'**
+  String get documentsExample;
+
+  /// No description provided for @documentsExampleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A real plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.'**
+  String get documentsExampleHelp;
+
+  /// No description provided for @documentsExampleFile.
+  ///
+  /// In en, this message translates to:
+  /// **'FlowMap example.flowmap'**
+  String get documentsExampleFile;
+
+  /// No description provided for @aboutUserGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'User guide'**
+  String get aboutUserGuide;
+
+  /// No description provided for @startupOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening your data…'**
+  String get startupOpening;
+
+  /// No description provided for @startupOpeningHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The first launch after an update can take a minute.'**
+  String get startupOpeningHelp;
+
+  /// No description provided for @startupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'FlowMap could not open its data'**
+  String get startupFailed;
+
+  /// No description provided for @startupFailedHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been deleted. Open the folder below and send the file log.txt to whoever gave you FlowMap.'**
+  String get startupFailedHelp;
+
+  /// No description provided for @startupFailedBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'A copy of your data from before this update is in the same folder: {file}.'**
+  String startupFailedBackup(String file);
+
+  /// No description provided for @startupCopyDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy details'**
+  String get startupCopyDetails;
+
+  /// No description provided for @startupRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get startupRetry;
+
+  /// No description provided for @aboutOpenLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Open log'**
+  String get aboutOpenLog;
+
+  /// No description provided for @plantMoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {project} to {plant}?'**
+  String plantMoveTitle(String project, String plant);
+
+  /// No description provided for @plantMoveMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Found on {plant} by name: {names}'**
+  String plantMoveMatched(String plant, String names);
+
+  /// No description provided for @plantMoveCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Not on {plant}, so copied there from {from}: {names}'**
+  String plantMoveCreated(String plant, String from, String names);
+
+  /// No description provided for @plantMoveNothingCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'{plant} already has every name this project uses, so nothing is copied.'**
+  String plantMoveNothingCreated(String plant);
+
+  /// No description provided for @plantMoveStudies.
+  ///
+  /// In en, this message translates to:
+  /// **'Studies that move with it: {count}, with their hours, takt, queues and calendar exceptions. {from} is left as it is.'**
+  String plantMoveStudies(String count, String from);
+
+  /// No description provided for @plantMoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Move project'**
+  String get plantMoveConfirm;
+
+  /// No description provided for @plantMoveDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved to {plant}.'**
+  String plantMoveDone(String plant);
+
+  /// No description provided for @plantMoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The project could not be moved, and nothing was changed.'**
+  String get plantMoveFailed;
 }
 
 class _AppLocalizationsDelegate

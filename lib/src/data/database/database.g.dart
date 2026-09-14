@@ -2486,6 +2486,21 @@ class $WorkcenterTypesTable extends WorkcenterTypes
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isLabourPacedMeta = const VerificationMeta(
+    'isLabourPaced',
+  );
+  @override
+  late final GeneratedColumn<bool> isLabourPaced = GeneratedColumn<bool>(
+    'is_labour_paced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_labour_paced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -2514,6 +2529,7 @@ class $WorkcenterTypesTable extends WorkcenterTypes
     icon,
     name,
     isBuiltIn,
+    isLabourPaced,
     archivedAt,
     createdAt,
   ];
@@ -2546,6 +2562,15 @@ class $WorkcenterTypesTable extends WorkcenterTypes
       context.handle(
         _isBuiltInMeta,
         isBuiltIn.isAcceptableOrUnknown(data['is_built_in']!, _isBuiltInMeta),
+      );
+    }
+    if (data.containsKey('is_labour_paced')) {
+      context.handle(
+        _isLabourPacedMeta,
+        isLabourPaced.isAcceptableOrUnknown(
+          data['is_labour_paced']!,
+          _isLabourPacedMeta,
+        ),
       );
     }
     if (data.containsKey('archived_at')) {
@@ -2593,6 +2618,10 @@ class $WorkcenterTypesTable extends WorkcenterTypes
         DriftSqlType.bool,
         data['${effectivePrefix}is_built_in'],
       )!,
+      isLabourPaced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_labour_paced'],
+      )!,
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -2628,6 +2657,22 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   final WorkcenterIcon? icon;
   final String name;
   final bool isBuiltIn;
+
+  /// Whether the crew is this kind of workcenter's throughput (DESIGN.md §7.5,
+  /// v30).
+  ///
+  /// **Machine-paced by default, which is what every workcenter was.** A CNC's
+  /// operators only open its shift — two of them do not double its output — but
+  /// a spray booth, a bench, an inspection table and a weld workcenter are
+  /// *labour-paced*: the crew is the constraint, and adding to it is how the
+  /// work goes faster. §7.5 asserted the first for every workcenter in the plant
+  /// until the field crewed Coating from 1/1/1 to 3/2/2 and watched nothing
+  /// move.
+  ///
+  /// **On the type rather than on the workcenter**, because the pacing is a
+  /// property of what kind of machine it is. A run copies the type in (§7.10),
+  /// so a stored run can still say how it was paced.
+  final bool isLabourPaced;
   final DateTime? archivedAt;
   final DateTime createdAt;
   const WorkcenterType({
@@ -2635,6 +2680,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     this.icon,
     required this.name,
     required this.isBuiltIn,
+    required this.isLabourPaced,
     this.archivedAt,
     required this.createdAt,
   });
@@ -2649,6 +2695,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     }
     map['name'] = Variable<String>(name);
     map['is_built_in'] = Variable<bool>(isBuiltIn);
+    map['is_labour_paced'] = Variable<bool>(isLabourPaced);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -2662,6 +2709,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
       name: Value(name),
       isBuiltIn: Value(isBuiltIn),
+      isLabourPaced: Value(isLabourPaced),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -2681,6 +2729,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       ),
       name: serializer.fromJson<String>(json['name']),
       isBuiltIn: serializer.fromJson<bool>(json['isBuiltIn']),
+      isLabourPaced: serializer.fromJson<bool>(json['isLabourPaced']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -2695,6 +2744,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       ),
       'name': serializer.toJson<String>(name),
       'isBuiltIn': serializer.toJson<bool>(isBuiltIn),
+      'isLabourPaced': serializer.toJson<bool>(isLabourPaced),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -2705,6 +2755,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     Value<WorkcenterIcon?> icon = const Value.absent(),
     String? name,
     bool? isBuiltIn,
+    bool? isLabourPaced,
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
   }) => WorkcenterType(
@@ -2712,6 +2763,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
     icon: icon.present ? icon.value : this.icon,
     name: name ?? this.name,
     isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+    isLabourPaced: isLabourPaced ?? this.isLabourPaced,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -2721,6 +2773,9 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
       icon: data.icon.present ? data.icon.value : this.icon,
       name: data.name.present ? data.name.value : this.name,
       isBuiltIn: data.isBuiltIn.present ? data.isBuiltIn.value : this.isBuiltIn,
+      isLabourPaced: data.isLabourPaced.present
+          ? data.isLabourPaced.value
+          : this.isLabourPaced,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -2735,6 +2790,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
           ..write('icon: $icon, ')
           ..write('name: $name, ')
           ..write('isBuiltIn: $isBuiltIn, ')
+          ..write('isLabourPaced: $isLabourPaced, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -2742,8 +2798,15 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, icon, name, isBuiltIn, archivedAt, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    icon,
+    name,
+    isBuiltIn,
+    isLabourPaced,
+    archivedAt,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2752,6 +2815,7 @@ class WorkcenterType extends DataClass implements Insertable<WorkcenterType> {
           other.icon == this.icon &&
           other.name == this.name &&
           other.isBuiltIn == this.isBuiltIn &&
+          other.isLabourPaced == this.isLabourPaced &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt);
 }
@@ -2761,6 +2825,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
   final Value<WorkcenterIcon?> icon;
   final Value<String> name;
   final Value<bool> isBuiltIn;
+  final Value<bool> isLabourPaced;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -2769,6 +2834,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     this.icon = const Value.absent(),
     this.name = const Value.absent(),
     this.isBuiltIn = const Value.absent(),
+    this.isLabourPaced = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2778,6 +2844,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     this.icon = const Value.absent(),
     required String name,
     this.isBuiltIn = const Value.absent(),
+    this.isLabourPaced = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
@@ -2789,6 +2856,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     Expression<String>? icon,
     Expression<String>? name,
     Expression<bool>? isBuiltIn,
+    Expression<bool>? isLabourPaced,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -2798,6 +2866,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
       if (icon != null) 'icon': icon,
       if (name != null) 'name': name,
       if (isBuiltIn != null) 'is_built_in': isBuiltIn,
+      if (isLabourPaced != null) 'is_labour_paced': isLabourPaced,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -2809,6 +2878,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     Value<WorkcenterIcon?>? icon,
     Value<String>? name,
     Value<bool>? isBuiltIn,
+    Value<bool>? isLabourPaced,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -2818,6 +2888,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
       icon: icon ?? this.icon,
       name: name ?? this.name,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+      isLabourPaced: isLabourPaced ?? this.isLabourPaced,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -2841,6 +2912,9 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
     if (isBuiltIn.present) {
       map['is_built_in'] = Variable<bool>(isBuiltIn.value);
     }
+    if (isLabourPaced.present) {
+      map['is_labour_paced'] = Variable<bool>(isLabourPaced.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -2860,6 +2934,7 @@ class WorkcenterTypesCompanion extends UpdateCompanion<WorkcenterType> {
           ..write('icon: $icon, ')
           ..write('name: $name, ')
           ..write('isBuiltIn: $isBuiltIn, ')
+          ..write('isLabourPaced: $isLabourPaced, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -2922,6 +2997,18 @@ class $WorkcentersTable extends Workcenters
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _parallelCapacityMeta = const VerificationMeta(
+    'parallelCapacity',
+  );
+  @override
+  late final GeneratedColumn<int> parallelCapacity = GeneratedColumn<int>(
+    'parallel_capacity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -2970,6 +3057,7 @@ class $WorkcentersTable extends Workcenters
     plantId,
     typeId,
     name,
+    parallelCapacity,
     notes,
     archivedAt,
     createdAt,
@@ -3013,6 +3101,15 @@ class $WorkcentersTable extends Workcenters
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('parallel_capacity')) {
+      context.handle(
+        _parallelCapacityMeta,
+        parallelCapacity.isAcceptableOrUnknown(
+          data['parallel_capacity']!,
+          _parallelCapacityMeta,
+        ),
+      );
     }
     if (data.containsKey('notes')) {
       context.handle(
@@ -3071,6 +3168,10 @@ class $WorkcentersTable extends Workcenters
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      parallelCapacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}parallel_capacity'],
+      )!,
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -3108,6 +3209,27 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
   /// user filled both fields with the same value, then had to read two
   /// identical columns in every picker. One name is what a workcenter has.
   final String name;
+
+  /// How many orders it can run at once (DESIGN.md §3.1, §8.3).
+  ///
+  /// One is a single machine, which is what every workcenter was before this
+  /// column. Above one the engine gives the workcenter that many servers, and it
+  /// genuinely runs that many orders side by side, each with its own process
+  /// time — which is what distinguishes this from a batch process, where one
+  /// window holds several orders and the time does not double. The observed
+  /// data is what decided it: TTAT's process times scale with batch size, and
+  /// an oven curing a load would not.
+  ///
+  /// **It means the same thing everywhere.** §8.4's occupation, §8.3's
+  /// utilization denominator and §6.1's flow equivalent all divide by a
+  /// workcenter's available time, so all three take this — otherwise a two-unit
+  /// workcenter reads 200 % loaded on the Summary while the run reports it
+  /// comfortable.
+  ///
+  /// _Rejected: a pool of two invented members._ It needs no code at all, and
+  /// it puts two machines that do not exist into the plant, the Summary, the
+  /// Queue table and every Gantt from then on.
+  final int parallelCapacity;
   final String? notes;
   final DateTime? archivedAt;
   final DateTime createdAt;
@@ -3117,6 +3239,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     required this.plantId,
     this.typeId,
     required this.name,
+    required this.parallelCapacity,
     this.notes,
     this.archivedAt,
     required this.createdAt,
@@ -3131,6 +3254,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
       map['type_id'] = Variable<String>(typeId);
     }
     map['name'] = Variable<String>(name);
+    map['parallel_capacity'] = Variable<int>(parallelCapacity);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -3150,6 +3274,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
           ? const Value.absent()
           : Value(typeId),
       name: Value(name),
+      parallelCapacity: Value(parallelCapacity),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -3171,6 +3296,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
       plantId: serializer.fromJson<String>(json['plantId']),
       typeId: serializer.fromJson<String?>(json['typeId']),
       name: serializer.fromJson<String>(json['name']),
+      parallelCapacity: serializer.fromJson<int>(json['parallelCapacity']),
       notes: serializer.fromJson<String?>(json['notes']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -3185,6 +3311,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
       'plantId': serializer.toJson<String>(plantId),
       'typeId': serializer.toJson<String?>(typeId),
       'name': serializer.toJson<String>(name),
+      'parallelCapacity': serializer.toJson<int>(parallelCapacity),
       'notes': serializer.toJson<String?>(notes),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -3197,6 +3324,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     String? plantId,
     Value<String?> typeId = const Value.absent(),
     String? name,
+    int? parallelCapacity,
     Value<String?> notes = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
@@ -3206,6 +3334,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     plantId: plantId ?? this.plantId,
     typeId: typeId.present ? typeId.value : this.typeId,
     name: name ?? this.name,
+    parallelCapacity: parallelCapacity ?? this.parallelCapacity,
     notes: notes.present ? notes.value : this.notes,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
@@ -3217,6 +3346,9 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
       plantId: data.plantId.present ? data.plantId.value : this.plantId,
       typeId: data.typeId.present ? data.typeId.value : this.typeId,
       name: data.name.present ? data.name.value : this.name,
+      parallelCapacity: data.parallelCapacity.present
+          ? data.parallelCapacity.value
+          : this.parallelCapacity,
       notes: data.notes.present ? data.notes.value : this.notes,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
@@ -3233,6 +3365,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
           ..write('plantId: $plantId, ')
           ..write('typeId: $typeId, ')
           ..write('name: $name, ')
+          ..write('parallelCapacity: $parallelCapacity, ')
           ..write('notes: $notes, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -3247,6 +3380,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
     plantId,
     typeId,
     name,
+    parallelCapacity,
     notes,
     archivedAt,
     createdAt,
@@ -3260,6 +3394,7 @@ class Workcenter extends DataClass implements Insertable<Workcenter> {
           other.plantId == this.plantId &&
           other.typeId == this.typeId &&
           other.name == this.name &&
+          other.parallelCapacity == this.parallelCapacity &&
           other.notes == this.notes &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
@@ -3271,6 +3406,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
   final Value<String> plantId;
   final Value<String?> typeId;
   final Value<String> name;
+  final Value<int> parallelCapacity;
   final Value<String?> notes;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
@@ -3281,6 +3417,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     this.plantId = const Value.absent(),
     this.typeId = const Value.absent(),
     this.name = const Value.absent(),
+    this.parallelCapacity = const Value.absent(),
     this.notes = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -3292,6 +3429,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     required String plantId,
     this.typeId = const Value.absent(),
     required String name,
+    this.parallelCapacity = const Value.absent(),
     this.notes = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
@@ -3307,6 +3445,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     Expression<String>? plantId,
     Expression<String>? typeId,
     Expression<String>? name,
+    Expression<int>? parallelCapacity,
     Expression<String>? notes,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
@@ -3318,6 +3457,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
       if (plantId != null) 'plant_id': plantId,
       if (typeId != null) 'type_id': typeId,
       if (name != null) 'name': name,
+      if (parallelCapacity != null) 'parallel_capacity': parallelCapacity,
       if (notes != null) 'notes': notes,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -3331,6 +3471,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     Value<String>? plantId,
     Value<String?>? typeId,
     Value<String>? name,
+    Value<int>? parallelCapacity,
     Value<String?>? notes,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
@@ -3342,6 +3483,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
       plantId: plantId ?? this.plantId,
       typeId: typeId ?? this.typeId,
       name: name ?? this.name,
+      parallelCapacity: parallelCapacity ?? this.parallelCapacity,
       notes: notes ?? this.notes,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
@@ -3364,6 +3506,9 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (parallelCapacity.present) {
+      map['parallel_capacity'] = Variable<int>(parallelCapacity.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -3390,6 +3535,7 @@ class WorkcentersCompanion extends UpdateCompanion<Workcenter> {
           ..write('plantId: $plantId, ')
           ..write('typeId: $typeId, ')
           ..write('name: $name, ')
+          ..write('parallelCapacity: $parallelCapacity, ')
           ..write('notes: $notes, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -4752,6 +4898,53 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _floatRedDaysMeta = const VerificationMeta(
+    'floatRedDays',
+  );
+  @override
+  late final GeneratedColumn<int> floatRedDays = GeneratedColumn<int>(
+    'float_red_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _floatGreenDaysMeta = const VerificationMeta(
+    'floatGreenDays',
+  );
+  @override
+  late final GeneratedColumn<int> floatGreenDays = GeneratedColumn<int>(
+    'float_green_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(30),
+  );
+  static const VerificationMeta _occupationAmberPctMeta =
+      const VerificationMeta('occupationAmberPct');
+  @override
+  late final GeneratedColumn<int> occupationAmberPct = GeneratedColumn<int>(
+    'occupation_amber_pct',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(85),
+  );
+  static const VerificationMeta _occupationRedPctMeta = const VerificationMeta(
+    'occupationRedPct',
+  );
+  @override
+  late final GeneratedColumn<int> occupationRedPct = GeneratedColumn<int>(
+    'occupation_red_pct',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(100),
+  );
   static const VerificationMeta _archivedAtMeta = const VerificationMeta(
     'archivedAt',
   );
@@ -4792,6 +4985,10 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
     plantId,
     shiftPatternId,
     notes,
+    floatRedDays,
+    floatGreenDays,
+    occupationAmberPct,
+    occupationRedPct,
     archivedAt,
     createdAt,
     updatedAt,
@@ -4844,6 +5041,42 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
       context.handle(
         _notesMeta,
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('float_red_days')) {
+      context.handle(
+        _floatRedDaysMeta,
+        floatRedDays.isAcceptableOrUnknown(
+          data['float_red_days']!,
+          _floatRedDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('float_green_days')) {
+      context.handle(
+        _floatGreenDaysMeta,
+        floatGreenDays.isAcceptableOrUnknown(
+          data['float_green_days']!,
+          _floatGreenDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occupation_amber_pct')) {
+      context.handle(
+        _occupationAmberPctMeta,
+        occupationAmberPct.isAcceptableOrUnknown(
+          data['occupation_amber_pct']!,
+          _occupationAmberPctMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occupation_red_pct')) {
+      context.handle(
+        _occupationRedPctMeta,
+        occupationRedPct.isAcceptableOrUnknown(
+          data['occupation_red_pct']!,
+          _occupationRedPctMeta,
+        ),
       );
     }
     if (data.containsKey('archived_at')) {
@@ -4901,6 +5134,22 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      floatRedDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}float_red_days'],
+      )!,
+      floatGreenDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}float_green_days'],
+      )!,
+      occupationAmberPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}occupation_amber_pct'],
+      )!,
+      occupationRedPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}occupation_red_pct'],
+      )!,
       archivedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
@@ -4936,6 +5185,48 @@ class Project extends DataClass implements Insertable<Project> {
   /// against (DESIGN.md §4.1).
   final String shiftPatternId;
   final String? notes;
+
+  /// Where the float matrix turns red and where it turns green, in **days**
+  /// (§10.4).
+  ///
+  /// At or below [floatRedDays] is red, at or above [floatGreenDays] is green,
+  /// and between them is amber. Defaults `0` and `30`: zero because an order
+  /// delivered on its need date has no slack left and is the thing a planner is
+  /// scanning for, and thirty because §7.8's start buffer is thirty days on this
+  /// plant and a month of room is what "comfortable" has meant in every
+  /// conversation about it.
+  ///
+  /// **Per project rather than global**, because what counts as comfortable is a
+  /// property of the business a project models — and because §10.1 gave a
+  /// project a screen to hold them, which is the whole reason that entry came
+  /// first.
+  ///
+  /// Stored as plain integers with defaults rather than nullable: there is no
+  /// meaningful *unset* here — a matrix has to colour every cell somehow, and a
+  /// null would only be a second spelling of the default.
+  final int floatRedDays;
+  final int floatGreenDays;
+
+  /// Where the Occupation grid turns amber and where it turns red, in **per
+  /// cent** (#9, v29).
+  ///
+  /// Above [occupationAmberPct] is amber, above [occupationRedPct] is red;
+  /// at or below the amber threshold is good. Defaults 85 and 100 — 100 because
+  /// a workcenter asked for more than it has open is over by definition, and 85
+  /// because a month that close has no room for the changeover the next order
+  /// brings.
+  ///
+  /// **The float matrix's own shape, deliberately** (§10.4): two integers on
+  /// the project, plain rather than nullable, sitting on the same settings card.
+  /// A grid has to colour every cell somehow, so a null would only be a second
+  /// spelling of the default — and the two surfaces reading the same shape is
+  /// what lets one settings section serve both.
+  ///
+  /// *Rejected: a third `idle below` threshold.* CLAD17 sat at 0–67 % for a
+  /// whole year and owning a machine nobody loads is a real finding — but it is
+  /// a fourth colour and a third setting for a question this view was not asked.
+  final int occupationAmberPct;
+  final int occupationRedPct;
   final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -4945,6 +5236,10 @@ class Project extends DataClass implements Insertable<Project> {
     required this.plantId,
     required this.shiftPatternId,
     this.notes,
+    required this.floatRedDays,
+    required this.floatGreenDays,
+    required this.occupationAmberPct,
+    required this.occupationRedPct,
     this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -4959,6 +5254,10 @@ class Project extends DataClass implements Insertable<Project> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    map['float_red_days'] = Variable<int>(floatRedDays);
+    map['float_green_days'] = Variable<int>(floatGreenDays);
+    map['occupation_amber_pct'] = Variable<int>(occupationAmberPct);
+    map['occupation_red_pct'] = Variable<int>(occupationRedPct);
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
     }
@@ -4976,6 +5275,10 @@ class Project extends DataClass implements Insertable<Project> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      floatRedDays: Value(floatRedDays),
+      floatGreenDays: Value(floatGreenDays),
+      occupationAmberPct: Value(occupationAmberPct),
+      occupationRedPct: Value(occupationRedPct),
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
@@ -4995,6 +5298,10 @@ class Project extends DataClass implements Insertable<Project> {
       plantId: serializer.fromJson<String>(json['plantId']),
       shiftPatternId: serializer.fromJson<String>(json['shiftPatternId']),
       notes: serializer.fromJson<String?>(json['notes']),
+      floatRedDays: serializer.fromJson<int>(json['floatRedDays']),
+      floatGreenDays: serializer.fromJson<int>(json['floatGreenDays']),
+      occupationAmberPct: serializer.fromJson<int>(json['occupationAmberPct']),
+      occupationRedPct: serializer.fromJson<int>(json['occupationRedPct']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -5009,6 +5316,10 @@ class Project extends DataClass implements Insertable<Project> {
       'plantId': serializer.toJson<String>(plantId),
       'shiftPatternId': serializer.toJson<String>(shiftPatternId),
       'notes': serializer.toJson<String?>(notes),
+      'floatRedDays': serializer.toJson<int>(floatRedDays),
+      'floatGreenDays': serializer.toJson<int>(floatGreenDays),
+      'occupationAmberPct': serializer.toJson<int>(occupationAmberPct),
+      'occupationRedPct': serializer.toJson<int>(occupationRedPct),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -5021,6 +5332,10 @@ class Project extends DataClass implements Insertable<Project> {
     String? plantId,
     String? shiftPatternId,
     Value<String?> notes = const Value.absent(),
+    int? floatRedDays,
+    int? floatGreenDays,
+    int? occupationAmberPct,
+    int? occupationRedPct,
     Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -5030,6 +5345,10 @@ class Project extends DataClass implements Insertable<Project> {
     plantId: plantId ?? this.plantId,
     shiftPatternId: shiftPatternId ?? this.shiftPatternId,
     notes: notes.present ? notes.value : this.notes,
+    floatRedDays: floatRedDays ?? this.floatRedDays,
+    floatGreenDays: floatGreenDays ?? this.floatGreenDays,
+    occupationAmberPct: occupationAmberPct ?? this.occupationAmberPct,
+    occupationRedPct: occupationRedPct ?? this.occupationRedPct,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -5043,6 +5362,18 @@ class Project extends DataClass implements Insertable<Project> {
           ? data.shiftPatternId.value
           : this.shiftPatternId,
       notes: data.notes.present ? data.notes.value : this.notes,
+      floatRedDays: data.floatRedDays.present
+          ? data.floatRedDays.value
+          : this.floatRedDays,
+      floatGreenDays: data.floatGreenDays.present
+          ? data.floatGreenDays.value
+          : this.floatGreenDays,
+      occupationAmberPct: data.occupationAmberPct.present
+          ? data.occupationAmberPct.value
+          : this.occupationAmberPct,
+      occupationRedPct: data.occupationRedPct.present
+          ? data.occupationRedPct.value
+          : this.occupationRedPct,
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
@@ -5059,6 +5390,10 @@ class Project extends DataClass implements Insertable<Project> {
           ..write('plantId: $plantId, ')
           ..write('shiftPatternId: $shiftPatternId, ')
           ..write('notes: $notes, ')
+          ..write('floatRedDays: $floatRedDays, ')
+          ..write('floatGreenDays: $floatGreenDays, ')
+          ..write('occupationAmberPct: $occupationAmberPct, ')
+          ..write('occupationRedPct: $occupationRedPct, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -5073,6 +5408,10 @@ class Project extends DataClass implements Insertable<Project> {
     plantId,
     shiftPatternId,
     notes,
+    floatRedDays,
+    floatGreenDays,
+    occupationAmberPct,
+    occupationRedPct,
     archivedAt,
     createdAt,
     updatedAt,
@@ -5086,6 +5425,10 @@ class Project extends DataClass implements Insertable<Project> {
           other.plantId == this.plantId &&
           other.shiftPatternId == this.shiftPatternId &&
           other.notes == this.notes &&
+          other.floatRedDays == this.floatRedDays &&
+          other.floatGreenDays == this.floatGreenDays &&
+          other.occupationAmberPct == this.occupationAmberPct &&
+          other.occupationRedPct == this.occupationRedPct &&
           other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -5097,6 +5440,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
   final Value<String> plantId;
   final Value<String> shiftPatternId;
   final Value<String?> notes;
+  final Value<int> floatRedDays;
+  final Value<int> floatGreenDays;
+  final Value<int> occupationAmberPct;
+  final Value<int> occupationRedPct;
   final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -5107,6 +5454,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     this.plantId = const Value.absent(),
     this.shiftPatternId = const Value.absent(),
     this.notes = const Value.absent(),
+    this.floatRedDays = const Value.absent(),
+    this.floatGreenDays = const Value.absent(),
+    this.occupationAmberPct = const Value.absent(),
+    this.occupationRedPct = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -5118,6 +5469,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     required String plantId,
     required String shiftPatternId,
     this.notes = const Value.absent(),
+    this.floatRedDays = const Value.absent(),
+    this.floatGreenDays = const Value.absent(),
+    this.occupationAmberPct = const Value.absent(),
+    this.occupationRedPct = const Value.absent(),
     this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -5134,6 +5489,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     Expression<String>? plantId,
     Expression<String>? shiftPatternId,
     Expression<String>? notes,
+    Expression<int>? floatRedDays,
+    Expression<int>? floatGreenDays,
+    Expression<int>? occupationAmberPct,
+    Expression<int>? occupationRedPct,
     Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -5145,6 +5504,11 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       if (plantId != null) 'plant_id': plantId,
       if (shiftPatternId != null) 'shift_pattern_id': shiftPatternId,
       if (notes != null) 'notes': notes,
+      if (floatRedDays != null) 'float_red_days': floatRedDays,
+      if (floatGreenDays != null) 'float_green_days': floatGreenDays,
+      if (occupationAmberPct != null)
+        'occupation_amber_pct': occupationAmberPct,
+      if (occupationRedPct != null) 'occupation_red_pct': occupationRedPct,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -5158,6 +5522,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     Value<String>? plantId,
     Value<String>? shiftPatternId,
     Value<String?>? notes,
+    Value<int>? floatRedDays,
+    Value<int>? floatGreenDays,
+    Value<int>? occupationAmberPct,
+    Value<int>? occupationRedPct,
     Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -5169,6 +5537,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       plantId: plantId ?? this.plantId,
       shiftPatternId: shiftPatternId ?? this.shiftPatternId,
       notes: notes ?? this.notes,
+      floatRedDays: floatRedDays ?? this.floatRedDays,
+      floatGreenDays: floatGreenDays ?? this.floatGreenDays,
+      occupationAmberPct: occupationAmberPct ?? this.occupationAmberPct,
+      occupationRedPct: occupationRedPct ?? this.occupationRedPct,
       archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -5194,6 +5566,18 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (floatRedDays.present) {
+      map['float_red_days'] = Variable<int>(floatRedDays.value);
+    }
+    if (floatGreenDays.present) {
+      map['float_green_days'] = Variable<int>(floatGreenDays.value);
+    }
+    if (occupationAmberPct.present) {
+      map['occupation_amber_pct'] = Variable<int>(occupationAmberPct.value);
+    }
+    if (occupationRedPct.present) {
+      map['occupation_red_pct'] = Variable<int>(occupationRedPct.value);
+    }
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
@@ -5217,6 +5601,10 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
           ..write('plantId: $plantId, ')
           ..write('shiftPatternId: $shiftPatternId, ')
           ..write('notes: $notes, ')
+          ..write('floatRedDays: $floatRedDays, ')
+          ..write('floatGreenDays: $floatGreenDays, ')
+          ..write('occupationAmberPct: $occupationAmberPct, ')
+          ..write('occupationRedPct: $occupationRedPct, ')
           ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -6104,8 +6492,8 @@ class TaktPeriod extends DataClass implements Insertable<TaktPeriod> {
   ///
   /// **Stored with its unit rather than as canonical seconds**, because "3
   /// days" cannot be reduced to a duration without knowing whose working day is
-  /// meant, and the answer differs per workcenter: a 1-shift station and a
-  /// 3-shift station have very different days. The flow equivalent resolves it
+  /// meant, and the answer differs per workcenter: a 1-shift workcenter and a
+  /// 3-shift workcenter have very different days. The flow equivalent resolves it
   /// per workcenter at calculation time (DESIGN.md §6.1) — one takt of *that*
   /// workcenter's capacity. Hours, minutes and seconds are literal and resolve
   /// the same everywhere.
@@ -7072,6 +7460,693 @@ class WorkcenterSchedulePeriodsCompanion
   }
 }
 
+class $ProjectQueuesTable extends ProjectQueues
+    with TableInfo<$ProjectQueuesTable, ProjectQueue> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProjectQueuesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _projectIdMeta = const VerificationMeta(
+    'projectId',
+  );
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+    'project_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES projects (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
+  @override
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DispatchRule?, String> rule =
+      GeneratedColumn<String>(
+        'rule',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<DispatchRule?>($ProjectQueuesTable.$converterrulen);
+  static const VerificationMeta _capacityMeta = const VerificationMeta(
+    'capacity',
+  );
+  @override
+  late final GeneratedColumn<int> capacity = GeneratedColumn<int>(
+    'capacity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<InventoryMode?, String>
+  stockMode = GeneratedColumn<String>(
+    'stock_mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  ).withConverter<InventoryMode?>($ProjectQueuesTable.$converterstockModen);
+  static const VerificationMeta _stockQuantityMeta = const VerificationMeta(
+    'stockQuantity',
+  );
+  @override
+  late final GeneratedColumn<int> stockQuantity = GeneratedColumn<int>(
+    'stock_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stockSecondsMeta = const VerificationMeta(
+    'stockSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> stockSeconds = GeneratedColumn<int>(
+    'stock_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DurationUnit?, String> stockUnit =
+      GeneratedColumn<String>(
+        'stock_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<DurationUnit?>($ProjectQueuesTable.$converterstockUnitn);
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    projectId,
+    targetId,
+    rule,
+    capacity,
+    stockMode,
+    stockQuantity,
+    stockSeconds,
+    stockUnit,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'project_queues';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProjectQueue> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('project_id')) {
+      context.handle(
+        _projectIdMeta,
+        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('target_id')) {
+      context.handle(
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetIdMeta);
+    }
+    if (data.containsKey('capacity')) {
+      context.handle(
+        _capacityMeta,
+        capacity.isAcceptableOrUnknown(data['capacity']!, _capacityMeta),
+      );
+    }
+    if (data.containsKey('stock_quantity')) {
+      context.handle(
+        _stockQuantityMeta,
+        stockQuantity.isAcceptableOrUnknown(
+          data['stock_quantity']!,
+          _stockQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('stock_seconds')) {
+      context.handle(
+        _stockSecondsMeta,
+        stockSeconds.isAcceptableOrUnknown(
+          data['stock_seconds']!,
+          _stockSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {projectId, targetId};
+  @override
+  ProjectQueue map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProjectQueue(
+      projectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}project_id'],
+      )!,
+      targetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_id'],
+      )!,
+      rule: $ProjectQueuesTable.$converterrulen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}rule'],
+        ),
+      ),
+      capacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}capacity'],
+      ),
+      stockMode: $ProjectQueuesTable.$converterstockModen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}stock_mode'],
+        ),
+      ),
+      stockQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stock_quantity'],
+      ),
+      stockSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stock_seconds'],
+      ),
+      stockUnit: $ProjectQueuesTable.$converterstockUnitn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}stock_unit'],
+        ),
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ProjectQueuesTable createAlias(String alias) {
+    return $ProjectQueuesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<DispatchRule, String, String> $converterrule =
+      const EnumNameConverter<DispatchRule>(DispatchRule.values);
+  static JsonTypeConverter2<DispatchRule?, String?, String?> $converterrulen =
+      JsonTypeConverter2.asNullable($converterrule);
+  static JsonTypeConverter2<InventoryMode, String, String> $converterstockMode =
+      const EnumNameConverter<InventoryMode>(InventoryMode.values);
+  static JsonTypeConverter2<InventoryMode?, String?, String?>
+  $converterstockModen = JsonTypeConverter2.asNullable($converterstockMode);
+  static JsonTypeConverter2<DurationUnit, String, String> $converterstockUnit =
+      const EnumNameConverter<DurationUnit>(DurationUnit.values);
+  static JsonTypeConverter2<DurationUnit?, String?, String?>
+  $converterstockUnitn = JsonTypeConverter2.asNullable($converterstockUnit);
+}
+
+class ProjectQueue extends DataClass implements Insertable<ProjectQueue> {
+  final String projectId;
+
+  /// The workcenter or pool the queue sits in front of.
+  ///
+  /// **It is also the whole of the queue's identity.** A queue is an aspect of
+  /// a dispatch target, not a thing: it cannot exist without one, its primary
+  /// key *is* one, and the only thing that ever made it look like an entity was
+  /// a nullable `name` nobody wanted to type. That column went in v27 (#5) and
+  /// the caption is derived — see `flowQueueCaption`. The live database's 15
+  /// names were all `FIFO ` plus a mangled target name, which is the evidence
+  /// the name was never identity.
+  ///
+  /// The invariant, so it stops being rediscovered: **one queue per dispatch
+  /// target, not per workcenter.** A target is a workcenter *or* a pool, so a
+  /// machine reached directly by one study and through a pool by another
+  /// genuinely has two lines in front of it, and that is correct.
+  final String targetId;
+
+  /// How the next order is chosen (§7.4).
+  ///
+  /// **This replaced the run's dispatch rule.** One place a dispatch decision is
+  /// made and the map shows every one of them, which is what a value stream map
+  /// is for. Null is [DispatchRule.fifo] — what a shop floor does, and what
+  /// every lane was before it could say otherwise.
+  final DispatchRule? rule;
+
+  /// How many orders fit, in orders. Null is unlimited.
+  ///
+  /// **Its own figure, not [stockQuantity].** One is a rule about the future
+  /// and the other an observation of today; they share a unit and mean opposite
+  /// things (§16.16), and §5.5's correction was precisely that an observation
+  /// must not be read as a rule.
+  final int? capacity;
+
+  /// What is standing here now — the days-of-stock a current-state VSM exists to
+  /// state, and a rung on the lead-time ladder (§5.5).
+  ///
+  /// Carries no time in a run: an order passes straight through and waits, if it
+  /// waits, in this queue where the engine measures it. That is §2.12's
+  /// correction and it is unchanged by the re-model.
+  final InventoryMode? stockMode;
+  final int? stockQuantity;
+  final int? stockSeconds;
+  final DurationUnit? stockUnit;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const ProjectQueue({
+    required this.projectId,
+    required this.targetId,
+    this.rule,
+    this.capacity,
+    this.stockMode,
+    this.stockQuantity,
+    this.stockSeconds,
+    this.stockUnit,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['project_id'] = Variable<String>(projectId);
+    map['target_id'] = Variable<String>(targetId);
+    if (!nullToAbsent || rule != null) {
+      map['rule'] = Variable<String>(
+        $ProjectQueuesTable.$converterrulen.toSql(rule),
+      );
+    }
+    if (!nullToAbsent || capacity != null) {
+      map['capacity'] = Variable<int>(capacity);
+    }
+    if (!nullToAbsent || stockMode != null) {
+      map['stock_mode'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockModen.toSql(stockMode),
+      );
+    }
+    if (!nullToAbsent || stockQuantity != null) {
+      map['stock_quantity'] = Variable<int>(stockQuantity);
+    }
+    if (!nullToAbsent || stockSeconds != null) {
+      map['stock_seconds'] = Variable<int>(stockSeconds);
+    }
+    if (!nullToAbsent || stockUnit != null) {
+      map['stock_unit'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockUnitn.toSql(stockUnit),
+      );
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ProjectQueuesCompanion toCompanion(bool nullToAbsent) {
+    return ProjectQueuesCompanion(
+      projectId: Value(projectId),
+      targetId: Value(targetId),
+      rule: rule == null && nullToAbsent ? const Value.absent() : Value(rule),
+      capacity: capacity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capacity),
+      stockMode: stockMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockMode),
+      stockQuantity: stockQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockQuantity),
+      stockSeconds: stockSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockSeconds),
+      stockUnit: stockUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockUnit),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ProjectQueue.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProjectQueue(
+      projectId: serializer.fromJson<String>(json['projectId']),
+      targetId: serializer.fromJson<String>(json['targetId']),
+      rule: $ProjectQueuesTable.$converterrulen.fromJson(
+        serializer.fromJson<String?>(json['rule']),
+      ),
+      capacity: serializer.fromJson<int?>(json['capacity']),
+      stockMode: $ProjectQueuesTable.$converterstockModen.fromJson(
+        serializer.fromJson<String?>(json['stockMode']),
+      ),
+      stockQuantity: serializer.fromJson<int?>(json['stockQuantity']),
+      stockSeconds: serializer.fromJson<int?>(json['stockSeconds']),
+      stockUnit: $ProjectQueuesTable.$converterstockUnitn.fromJson(
+        serializer.fromJson<String?>(json['stockUnit']),
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'projectId': serializer.toJson<String>(projectId),
+      'targetId': serializer.toJson<String>(targetId),
+      'rule': serializer.toJson<String?>(
+        $ProjectQueuesTable.$converterrulen.toJson(rule),
+      ),
+      'capacity': serializer.toJson<int?>(capacity),
+      'stockMode': serializer.toJson<String?>(
+        $ProjectQueuesTable.$converterstockModen.toJson(stockMode),
+      ),
+      'stockQuantity': serializer.toJson<int?>(stockQuantity),
+      'stockSeconds': serializer.toJson<int?>(stockSeconds),
+      'stockUnit': serializer.toJson<String?>(
+        $ProjectQueuesTable.$converterstockUnitn.toJson(stockUnit),
+      ),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ProjectQueue copyWith({
+    String? projectId,
+    String? targetId,
+    Value<DispatchRule?> rule = const Value.absent(),
+    Value<int?> capacity = const Value.absent(),
+    Value<InventoryMode?> stockMode = const Value.absent(),
+    Value<int?> stockQuantity = const Value.absent(),
+    Value<int?> stockSeconds = const Value.absent(),
+    Value<DurationUnit?> stockUnit = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => ProjectQueue(
+    projectId: projectId ?? this.projectId,
+    targetId: targetId ?? this.targetId,
+    rule: rule.present ? rule.value : this.rule,
+    capacity: capacity.present ? capacity.value : this.capacity,
+    stockMode: stockMode.present ? stockMode.value : this.stockMode,
+    stockQuantity: stockQuantity.present
+        ? stockQuantity.value
+        : this.stockQuantity,
+    stockSeconds: stockSeconds.present ? stockSeconds.value : this.stockSeconds,
+    stockUnit: stockUnit.present ? stockUnit.value : this.stockUnit,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ProjectQueue copyWithCompanion(ProjectQueuesCompanion data) {
+    return ProjectQueue(
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      capacity: data.capacity.present ? data.capacity.value : this.capacity,
+      stockMode: data.stockMode.present ? data.stockMode.value : this.stockMode,
+      stockQuantity: data.stockQuantity.present
+          ? data.stockQuantity.value
+          : this.stockQuantity,
+      stockSeconds: data.stockSeconds.present
+          ? data.stockSeconds.value
+          : this.stockSeconds,
+      stockUnit: data.stockUnit.present ? data.stockUnit.value : this.stockUnit,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectQueue(')
+          ..write('projectId: $projectId, ')
+          ..write('targetId: $targetId, ')
+          ..write('rule: $rule, ')
+          ..write('capacity: $capacity, ')
+          ..write('stockMode: $stockMode, ')
+          ..write('stockQuantity: $stockQuantity, ')
+          ..write('stockSeconds: $stockSeconds, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    projectId,
+    targetId,
+    rule,
+    capacity,
+    stockMode,
+    stockQuantity,
+    stockSeconds,
+    stockUnit,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProjectQueue &&
+          other.projectId == this.projectId &&
+          other.targetId == this.targetId &&
+          other.rule == this.rule &&
+          other.capacity == this.capacity &&
+          other.stockMode == this.stockMode &&
+          other.stockQuantity == this.stockQuantity &&
+          other.stockSeconds == this.stockSeconds &&
+          other.stockUnit == this.stockUnit &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ProjectQueuesCompanion extends UpdateCompanion<ProjectQueue> {
+  final Value<String> projectId;
+  final Value<String> targetId;
+  final Value<DispatchRule?> rule;
+  final Value<int?> capacity;
+  final Value<InventoryMode?> stockMode;
+  final Value<int?> stockQuantity;
+  final Value<int?> stockSeconds;
+  final Value<DurationUnit?> stockUnit;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ProjectQueuesCompanion({
+    this.projectId = const Value.absent(),
+    this.targetId = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.capacity = const Value.absent(),
+    this.stockMode = const Value.absent(),
+    this.stockQuantity = const Value.absent(),
+    this.stockSeconds = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProjectQueuesCompanion.insert({
+    required String projectId,
+    required String targetId,
+    this.rule = const Value.absent(),
+    this.capacity = const Value.absent(),
+    this.stockMode = const Value.absent(),
+    this.stockQuantity = const Value.absent(),
+    this.stockSeconds = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : projectId = Value(projectId),
+       targetId = Value(targetId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ProjectQueue> custom({
+    Expression<String>? projectId,
+    Expression<String>? targetId,
+    Expression<String>? rule,
+    Expression<int>? capacity,
+    Expression<String>? stockMode,
+    Expression<int>? stockQuantity,
+    Expression<int>? stockSeconds,
+    Expression<String>? stockUnit,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (projectId != null) 'project_id': projectId,
+      if (targetId != null) 'target_id': targetId,
+      if (rule != null) 'rule': rule,
+      if (capacity != null) 'capacity': capacity,
+      if (stockMode != null) 'stock_mode': stockMode,
+      if (stockQuantity != null) 'stock_quantity': stockQuantity,
+      if (stockSeconds != null) 'stock_seconds': stockSeconds,
+      if (stockUnit != null) 'stock_unit': stockUnit,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProjectQueuesCompanion copyWith({
+    Value<String>? projectId,
+    Value<String>? targetId,
+    Value<DispatchRule?>? rule,
+    Value<int?>? capacity,
+    Value<InventoryMode?>? stockMode,
+    Value<int?>? stockQuantity,
+    Value<int?>? stockSeconds,
+    Value<DurationUnit?>? stockUnit,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ProjectQueuesCompanion(
+      projectId: projectId ?? this.projectId,
+      targetId: targetId ?? this.targetId,
+      rule: rule ?? this.rule,
+      capacity: capacity ?? this.capacity,
+      stockMode: stockMode ?? this.stockMode,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
+      stockSeconds: stockSeconds ?? this.stockSeconds,
+      stockUnit: stockUnit ?? this.stockUnit,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(
+        $ProjectQueuesTable.$converterrulen.toSql(rule.value),
+      );
+    }
+    if (capacity.present) {
+      map['capacity'] = Variable<int>(capacity.value);
+    }
+    if (stockMode.present) {
+      map['stock_mode'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockModen.toSql(stockMode.value),
+      );
+    }
+    if (stockQuantity.present) {
+      map['stock_quantity'] = Variable<int>(stockQuantity.value);
+    }
+    if (stockSeconds.present) {
+      map['stock_seconds'] = Variable<int>(stockSeconds.value);
+    }
+    if (stockUnit.present) {
+      map['stock_unit'] = Variable<String>(
+        $ProjectQueuesTable.$converterstockUnitn.toSql(stockUnit.value),
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectQueuesCompanion(')
+          ..write('projectId: $projectId, ')
+          ..write('targetId: $targetId, ')
+          ..write('rule: $rule, ')
+          ..write('capacity: $capacity, ')
+          ..write('stockMode: $stockMode, ')
+          ..write('stockQuantity: $stockQuantity, ')
+          ..write('stockSeconds: $stockSeconds, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -7155,18 +8230,6 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     ),
     defaultValue: const Constant(false),
   );
-  static const VerificationMeta _priorityMeta = const VerificationMeta(
-    'priority',
-  );
-  @override
-  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
-    'priority',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(100),
-  );
   static const VerificationMeta _wipCapMeta = const VerificationMeta('wipCap');
   @override
   late final GeneratedColumn<int> wipCap = GeneratedColumn<int>(
@@ -7176,6 +8239,29 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startBufferDaysMeta = const VerificationMeta(
+    'startBufferDays',
+  );
+  @override
+  late final GeneratedColumn<int> startBufferDays = GeneratedColumn<int>(
+    'start_buffer_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _paceSetterTargetIdMeta =
+      const VerificationMeta('paceSetterTargetId');
+  @override
+  late final GeneratedColumn<String> paceSetterTargetId =
+      GeneratedColumn<String>(
+        'pace_setter_target_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _supplierNameMeta = const VerificationMeta(
     'supplierName',
   );
@@ -7196,6 +8282,28 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     aliasedName,
     true,
     type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inboundStockMeta = const VerificationMeta(
+    'inboundStock',
+  );
+  @override
+  late final GeneratedColumn<int> inboundStock = GeneratedColumn<int>(
+    'inbound_stock',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _outboundStockMeta = const VerificationMeta(
+    'outboundStock',
+  );
+  @override
+  late final GeneratedColumn<int> outboundStock = GeneratedColumn<int>(
+    'outbound_stock',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
@@ -7237,10 +8345,13 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
     productionLineId,
     name,
     includeInSimulation,
-    priority,
     wipCap,
+    startBufferDays,
+    paceSetterTargetId,
     supplierName,
     customerName,
+    inboundStock,
+    outboundStock,
     notes,
     createdAt,
     updatedAt,
@@ -7309,16 +8420,28 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
         ),
       );
     }
-    if (data.containsKey('priority')) {
-      context.handle(
-        _priorityMeta,
-        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
-      );
-    }
     if (data.containsKey('wip_cap')) {
       context.handle(
         _wipCapMeta,
         wipCap.isAcceptableOrUnknown(data['wip_cap']!, _wipCapMeta),
+      );
+    }
+    if (data.containsKey('start_buffer_days')) {
+      context.handle(
+        _startBufferDaysMeta,
+        startBufferDays.isAcceptableOrUnknown(
+          data['start_buffer_days']!,
+          _startBufferDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pace_setter_target_id')) {
+      context.handle(
+        _paceSetterTargetIdMeta,
+        paceSetterTargetId.isAcceptableOrUnknown(
+          data['pace_setter_target_id']!,
+          _paceSetterTargetIdMeta,
+        ),
       );
     }
     if (data.containsKey('supplier_name')) {
@@ -7336,6 +8459,24 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
         customerName.isAcceptableOrUnknown(
           data['customer_name']!,
           _customerNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('inbound_stock')) {
+      context.handle(
+        _inboundStockMeta,
+        inboundStock.isAcceptableOrUnknown(
+          data['inbound_stock']!,
+          _inboundStockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('outbound_stock')) {
+      context.handle(
+        _outboundStockMeta,
+        outboundStock.isAcceptableOrUnknown(
+          data['outbound_stock']!,
+          _outboundStockMeta,
         ),
       );
     }
@@ -7398,13 +8539,17 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
         DriftSqlType.bool,
         data['${effectivePrefix}include_in_simulation'],
       )!,
-      priority: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}priority'],
-      )!,
       wipCap: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}wip_cap'],
+      ),
+      startBufferDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_buffer_days'],
+      )!,
+      paceSetterTargetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pace_setter_target_id'],
       ),
       supplierName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -7413,6 +8558,14 @@ class $StudiesTable extends Studies with TableInfo<$StudiesTable, Study> {
       customerName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}customer_name'],
+      ),
+      inboundStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}inbound_stock'],
+      ),
+      outboundStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}outbound_stock'],
       ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -7446,20 +8599,62 @@ class Study extends DataClass implements Insertable<Study> {
   /// enforces at most one flagged study per line before a run.
   final bool includeInSimulation;
 
-  /// Breaks dispatch ties between studies contending for a shared workcenter
-  /// (DESIGN.md §7.4). Lower runs first.
-  final int priority;
-
   /// CONWIP cap: maximum orders open in the flow at once. Null is unlimited,
   /// the default, so a first run shows raw demand-vs-capacity behaviour
   /// (DESIGN.md §7.3).
   final int? wipCap;
+
+  /// Safety margin ahead of the derived cold start, in **calendar days**
+  /// (DESIGN.md §7.8).
+  ///
+  /// `order start = need date − theoretical lead time − this`. §7.8 derives the
+  /// first half and it is correct; this is the deliberate margin on top, which
+  /// nothing expressed before.
+  ///
+  /// **Calendar days, and every surface that shows it says so.** A start buffer
+  /// protects against real-world slippage and slippage accrues on a wall
+  /// calendar — a week late is a week late whether or not the plant was open.
+  /// It also composes: the theoretical walk already returns a wall-clock
+  /// instant, so the cold start stays one subtraction on one clock. §17.4 is
+  /// why the unit is stated rather than assumed.
+  ///
+  /// Zero is no buffer, which is what every study did before this column.
+  final int startBufferDays;
+
+  /// The workcenter or pool whose clock paces the releases, or null to derive
+  /// it (DESIGN.md §7.2, §18.8).
+  ///
+  /// Derived by work content across the demand when null, which is what
+  /// `_paceSetter` has always done. It is selectable now because the pacemaker
+  /// gained a second job: §7.2 gates a release on whether the lane in front of
+  /// it has room, so a workcenter chosen silently by summing batch sizes would be
+  /// a gate that moves when the demand is edited and tells nobody.
+  ///
+  /// A target id — workcenter or pool — the convention `part_process_times`
+  /// and `workcenter_dispatch` already use, and unreferenced for the same
+  /// reason they are: no one foreign key can point at two tables.
+  final String? paceSetterTargetId;
 
   /// Endpoint labels on the map. Stored on the study rather than as nodes:
   /// they carry no data and take part in no calculation, so a row for each
   /// would be a row that can only ever be renamed.
   final String? supplierName;
   final String? customerName;
+
+  /// Stock standing at the two ends of the flow (DESIGN.md §5.5, §12.6).
+  ///
+  /// **Observations, not queues.** Every step has a queue in front of it
+  /// ([ProjectQueues]) and the ends have no step to belong to — so these are
+  /// the raw material waiting before the first box and the finished goods
+  /// waiting after the last, drawn as triangles against the endpoints. Nothing
+  /// dispatches out of them: §7.2 releases orders on a takt rather than pulling
+  /// from a rack, and inventing a pull here would be a mechanism the engine
+  /// does not have.
+  ///
+  /// In pieces, like [FlowNodes.inventoryQuantity], so the map can show them as
+  /// days through the takt of the period being viewed.
+  final int? inboundStock;
+  final int? outboundStock;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -7470,10 +8665,13 @@ class Study extends DataClass implements Insertable<Study> {
     required this.productionLineId,
     required this.name,
     required this.includeInSimulation,
-    required this.priority,
     this.wipCap,
+    required this.startBufferDays,
+    this.paceSetterTargetId,
     this.supplierName,
     this.customerName,
+    this.inboundStock,
+    this.outboundStock,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -7487,15 +8685,24 @@ class Study extends DataClass implements Insertable<Study> {
     map['production_line_id'] = Variable<String>(productionLineId);
     map['name'] = Variable<String>(name);
     map['include_in_simulation'] = Variable<bool>(includeInSimulation);
-    map['priority'] = Variable<int>(priority);
     if (!nullToAbsent || wipCap != null) {
       map['wip_cap'] = Variable<int>(wipCap);
+    }
+    map['start_buffer_days'] = Variable<int>(startBufferDays);
+    if (!nullToAbsent || paceSetterTargetId != null) {
+      map['pace_setter_target_id'] = Variable<String>(paceSetterTargetId);
     }
     if (!nullToAbsent || supplierName != null) {
       map['supplier_name'] = Variable<String>(supplierName);
     }
     if (!nullToAbsent || customerName != null) {
       map['customer_name'] = Variable<String>(customerName);
+    }
+    if (!nullToAbsent || inboundStock != null) {
+      map['inbound_stock'] = Variable<int>(inboundStock);
+    }
+    if (!nullToAbsent || outboundStock != null) {
+      map['outbound_stock'] = Variable<int>(outboundStock);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -7513,16 +8720,25 @@ class Study extends DataClass implements Insertable<Study> {
       productionLineId: Value(productionLineId),
       name: Value(name),
       includeInSimulation: Value(includeInSimulation),
-      priority: Value(priority),
       wipCap: wipCap == null && nullToAbsent
           ? const Value.absent()
           : Value(wipCap),
+      startBufferDays: Value(startBufferDays),
+      paceSetterTargetId: paceSetterTargetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paceSetterTargetId),
       supplierName: supplierName == null && nullToAbsent
           ? const Value.absent()
           : Value(supplierName),
       customerName: customerName == null && nullToAbsent
           ? const Value.absent()
           : Value(customerName),
+      inboundStock: inboundStock == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inboundStock),
+      outboundStock: outboundStock == null && nullToAbsent
+          ? const Value.absent()
+          : Value(outboundStock),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -7545,10 +8761,15 @@ class Study extends DataClass implements Insertable<Study> {
       includeInSimulation: serializer.fromJson<bool>(
         json['includeInSimulation'],
       ),
-      priority: serializer.fromJson<int>(json['priority']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
+      startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
+      paceSetterTargetId: serializer.fromJson<String?>(
+        json['paceSetterTargetId'],
+      ),
       supplierName: serializer.fromJson<String?>(json['supplierName']),
       customerName: serializer.fromJson<String?>(json['customerName']),
+      inboundStock: serializer.fromJson<int?>(json['inboundStock']),
+      outboundStock: serializer.fromJson<int?>(json['outboundStock']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -7564,10 +8785,13 @@ class Study extends DataClass implements Insertable<Study> {
       'productionLineId': serializer.toJson<String>(productionLineId),
       'name': serializer.toJson<String>(name),
       'includeInSimulation': serializer.toJson<bool>(includeInSimulation),
-      'priority': serializer.toJson<int>(priority),
       'wipCap': serializer.toJson<int?>(wipCap),
+      'startBufferDays': serializer.toJson<int>(startBufferDays),
+      'paceSetterTargetId': serializer.toJson<String?>(paceSetterTargetId),
       'supplierName': serializer.toJson<String?>(supplierName),
       'customerName': serializer.toJson<String?>(customerName),
+      'inboundStock': serializer.toJson<int?>(inboundStock),
+      'outboundStock': serializer.toJson<int?>(outboundStock),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -7581,10 +8805,13 @@ class Study extends DataClass implements Insertable<Study> {
     String? productionLineId,
     String? name,
     bool? includeInSimulation,
-    int? priority,
     Value<int?> wipCap = const Value.absent(),
+    int? startBufferDays,
+    Value<String?> paceSetterTargetId = const Value.absent(),
     Value<String?> supplierName = const Value.absent(),
     Value<String?> customerName = const Value.absent(),
+    Value<int?> inboundStock = const Value.absent(),
+    Value<int?> outboundStock = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -7595,10 +8822,17 @@ class Study extends DataClass implements Insertable<Study> {
     productionLineId: productionLineId ?? this.productionLineId,
     name: name ?? this.name,
     includeInSimulation: includeInSimulation ?? this.includeInSimulation,
-    priority: priority ?? this.priority,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
+    startBufferDays: startBufferDays ?? this.startBufferDays,
+    paceSetterTargetId: paceSetterTargetId.present
+        ? paceSetterTargetId.value
+        : this.paceSetterTargetId,
     supplierName: supplierName.present ? supplierName.value : this.supplierName,
     customerName: customerName.present ? customerName.value : this.customerName,
+    inboundStock: inboundStock.present ? inboundStock.value : this.inboundStock,
+    outboundStock: outboundStock.present
+        ? outboundStock.value
+        : this.outboundStock,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -7617,14 +8851,25 @@ class Study extends DataClass implements Insertable<Study> {
       includeInSimulation: data.includeInSimulation.present
           ? data.includeInSimulation.value
           : this.includeInSimulation,
-      priority: data.priority.present ? data.priority.value : this.priority,
       wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
+      startBufferDays: data.startBufferDays.present
+          ? data.startBufferDays.value
+          : this.startBufferDays,
+      paceSetterTargetId: data.paceSetterTargetId.present
+          ? data.paceSetterTargetId.value
+          : this.paceSetterTargetId,
       supplierName: data.supplierName.present
           ? data.supplierName.value
           : this.supplierName,
       customerName: data.customerName.present
           ? data.customerName.value
           : this.customerName,
+      inboundStock: data.inboundStock.present
+          ? data.inboundStock.value
+          : this.inboundStock,
+      outboundStock: data.outboundStock.present
+          ? data.outboundStock.value
+          : this.outboundStock,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -7640,10 +8885,13 @@ class Study extends DataClass implements Insertable<Study> {
           ..write('productionLineId: $productionLineId, ')
           ..write('name: $name, ')
           ..write('includeInSimulation: $includeInSimulation, ')
-          ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
+          ..write('startBufferDays: $startBufferDays, ')
+          ..write('paceSetterTargetId: $paceSetterTargetId, ')
           ..write('supplierName: $supplierName, ')
           ..write('customerName: $customerName, ')
+          ..write('inboundStock: $inboundStock, ')
+          ..write('outboundStock: $outboundStock, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -7659,10 +8907,13 @@ class Study extends DataClass implements Insertable<Study> {
     productionLineId,
     name,
     includeInSimulation,
-    priority,
     wipCap,
+    startBufferDays,
+    paceSetterTargetId,
     supplierName,
     customerName,
+    inboundStock,
+    outboundStock,
     notes,
     createdAt,
     updatedAt,
@@ -7677,10 +8928,13 @@ class Study extends DataClass implements Insertable<Study> {
           other.productionLineId == this.productionLineId &&
           other.name == this.name &&
           other.includeInSimulation == this.includeInSimulation &&
-          other.priority == this.priority &&
           other.wipCap == this.wipCap &&
+          other.startBufferDays == this.startBufferDays &&
+          other.paceSetterTargetId == this.paceSetterTargetId &&
           other.supplierName == this.supplierName &&
           other.customerName == this.customerName &&
+          other.inboundStock == this.inboundStock &&
+          other.outboundStock == this.outboundStock &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -7693,10 +8947,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
   final Value<String> productionLineId;
   final Value<String> name;
   final Value<bool> includeInSimulation;
-  final Value<int> priority;
   final Value<int?> wipCap;
+  final Value<int> startBufferDays;
+  final Value<String?> paceSetterTargetId;
   final Value<String?> supplierName;
   final Value<String?> customerName;
+  final Value<int?> inboundStock;
+  final Value<int?> outboundStock;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -7708,10 +8965,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     this.productionLineId = const Value.absent(),
     this.name = const Value.absent(),
     this.includeInSimulation = const Value.absent(),
-    this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
+    this.startBufferDays = const Value.absent(),
+    this.paceSetterTargetId = const Value.absent(),
     this.supplierName = const Value.absent(),
     this.customerName = const Value.absent(),
+    this.inboundStock = const Value.absent(),
+    this.outboundStock = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -7724,10 +8984,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     required String productionLineId,
     required String name,
     this.includeInSimulation = const Value.absent(),
-    this.priority = const Value.absent(),
     this.wipCap = const Value.absent(),
+    this.startBufferDays = const Value.absent(),
+    this.paceSetterTargetId = const Value.absent(),
     this.supplierName = const Value.absent(),
     this.customerName = const Value.absent(),
+    this.inboundStock = const Value.absent(),
+    this.outboundStock = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -7746,10 +9009,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     Expression<String>? productionLineId,
     Expression<String>? name,
     Expression<bool>? includeInSimulation,
-    Expression<int>? priority,
     Expression<int>? wipCap,
+    Expression<int>? startBufferDays,
+    Expression<String>? paceSetterTargetId,
     Expression<String>? supplierName,
     Expression<String>? customerName,
+    Expression<int>? inboundStock,
+    Expression<int>? outboundStock,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -7763,10 +9029,14 @@ class StudiesCompanion extends UpdateCompanion<Study> {
       if (name != null) 'name': name,
       if (includeInSimulation != null)
         'include_in_simulation': includeInSimulation,
-      if (priority != null) 'priority': priority,
       if (wipCap != null) 'wip_cap': wipCap,
+      if (startBufferDays != null) 'start_buffer_days': startBufferDays,
+      if (paceSetterTargetId != null)
+        'pace_setter_target_id': paceSetterTargetId,
       if (supplierName != null) 'supplier_name': supplierName,
       if (customerName != null) 'customer_name': customerName,
+      if (inboundStock != null) 'inbound_stock': inboundStock,
+      if (outboundStock != null) 'outbound_stock': outboundStock,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -7781,10 +9051,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     Value<String>? productionLineId,
     Value<String>? name,
     Value<bool>? includeInSimulation,
-    Value<int>? priority,
     Value<int?>? wipCap,
+    Value<int>? startBufferDays,
+    Value<String?>? paceSetterTargetId,
     Value<String?>? supplierName,
     Value<String?>? customerName,
+    Value<int?>? inboundStock,
+    Value<int?>? outboundStock,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -7797,10 +9070,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
       productionLineId: productionLineId ?? this.productionLineId,
       name: name ?? this.name,
       includeInSimulation: includeInSimulation ?? this.includeInSimulation,
-      priority: priority ?? this.priority,
       wipCap: wipCap ?? this.wipCap,
+      startBufferDays: startBufferDays ?? this.startBufferDays,
+      paceSetterTargetId: paceSetterTargetId ?? this.paceSetterTargetId,
       supplierName: supplierName ?? this.supplierName,
       customerName: customerName ?? this.customerName,
+      inboundStock: inboundStock ?? this.inboundStock,
+      outboundStock: outboundStock ?? this.outboundStock,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -7829,17 +9105,26 @@ class StudiesCompanion extends UpdateCompanion<Study> {
     if (includeInSimulation.present) {
       map['include_in_simulation'] = Variable<bool>(includeInSimulation.value);
     }
-    if (priority.present) {
-      map['priority'] = Variable<int>(priority.value);
-    }
     if (wipCap.present) {
       map['wip_cap'] = Variable<int>(wipCap.value);
+    }
+    if (startBufferDays.present) {
+      map['start_buffer_days'] = Variable<int>(startBufferDays.value);
+    }
+    if (paceSetterTargetId.present) {
+      map['pace_setter_target_id'] = Variable<String>(paceSetterTargetId.value);
     }
     if (supplierName.present) {
       map['supplier_name'] = Variable<String>(supplierName.value);
     }
     if (customerName.present) {
       map['customer_name'] = Variable<String>(customerName.value);
+    }
+    if (inboundStock.present) {
+      map['inbound_stock'] = Variable<int>(inboundStock.value);
+    }
+    if (outboundStock.present) {
+      map['outbound_stock'] = Variable<int>(outboundStock.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -7865,10 +9150,13 @@ class StudiesCompanion extends UpdateCompanion<Study> {
           ..write('productionLineId: $productionLineId, ')
           ..write('name: $name, ')
           ..write('includeInSimulation: $includeInSimulation, ')
-          ..write('priority: $priority, ')
           ..write('wipCap: $wipCap, ')
+          ..write('startBufferDays: $startBufferDays, ')
+          ..write('paceSetterTargetId: $paceSetterTargetId, ')
           ..write('supplierName: $supplierName, ')
           ..write('customerName: $customerName, ')
+          ..write('inboundStock: $inboundStock, ')
+          ..write('outboundStock: $outboundStock, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -7965,6 +9253,71 @@ class $FlowNodesTable extends FlowNodes
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _setupValueMeta = const VerificationMeta(
+    'setupValue',
+  );
+  @override
+  late final GeneratedColumn<double> setupValue = GeneratedColumn<double>(
+    'setup_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<TaktUnit?, String> setupUnit =
+      GeneratedColumn<String>(
+        'setup_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<TaktUnit?>($FlowNodesTable.$convertersetupUnitn);
+  static const VerificationMeta _teardownValueMeta = const VerificationMeta(
+    'teardownValue',
+  );
+  @override
+  late final GeneratedColumn<double> teardownValue = GeneratedColumn<double>(
+    'teardown_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<TaktUnit?, String> teardownUnit =
+      GeneratedColumn<String>(
+        'teardown_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<TaktUnit?>($FlowNodesTable.$converterteardownUnitn);
+  static const VerificationMeta _samePartPercentMeta = const VerificationMeta(
+    'samePartPercent',
+  );
+  @override
+  late final GeneratedColumn<double> samePartPercent = GeneratedColumn<double>(
+    'same_part_percent',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _balanceDisabledMeta = const VerificationMeta(
+    'balanceDisabled',
+  );
+  @override
+  late final GeneratedColumn<bool> balanceDisabled = GeneratedColumn<bool>(
+    'balance_disabled',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("balance_disabled" IN (0, 1))',
+    ),
+  );
   static const VerificationMeta _equivalentValueMeta = const VerificationMeta(
     'equivalentValue',
   );
@@ -8040,13 +9393,24 @@ class $FlowNodesTable extends FlowNodes
         ),
         defaultValue: const Constant(false),
       );
-  static const VerificationMeta _labelMeta = const VerificationMeta('label');
   @override
-  late final GeneratedColumn<String> label = GeneratedColumn<String>(
-    'label',
+  late final GeneratedColumnWithTypeConverter<DispatchRule?, String> laneRule =
+      GeneratedColumn<String>(
+        'lane_rule',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<DispatchRule?>($FlowNodesTable.$converterlaneRulen);
+  static const VerificationMeta _laneCapacityMeta = const VerificationMeta(
+    'laneCapacity',
+  );
+  @override
+  late final GeneratedColumn<int> laneCapacity = GeneratedColumn<int>(
+    'lane_capacity',
     aliasedName,
     true,
-    type: DriftSqlType.string,
+    type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
@@ -8089,6 +9453,12 @@ class $FlowNodesTable extends FlowNodes
     workcenterId,
     poolId,
     changeoverSeconds,
+    setupValue,
+    setupUnit,
+    teardownValue,
+    teardownUnit,
+    samePartPercent,
+    balanceDisabled,
     equivalentValue,
     equivalentUnit,
     inventoryMode,
@@ -8096,7 +9466,8 @@ class $FlowNodesTable extends FlowNodes
     inventorySeconds,
     inventoryUnit,
     inventoryUsesWorkingTime,
-    label,
+    laneRule,
+    laneCapacity,
     notes,
     createdAt,
     updatedAt,
@@ -8158,6 +9529,39 @@ class $FlowNodesTable extends FlowNodes
         ),
       );
     }
+    if (data.containsKey('setup_value')) {
+      context.handle(
+        _setupValueMeta,
+        setupValue.isAcceptableOrUnknown(data['setup_value']!, _setupValueMeta),
+      );
+    }
+    if (data.containsKey('teardown_value')) {
+      context.handle(
+        _teardownValueMeta,
+        teardownValue.isAcceptableOrUnknown(
+          data['teardown_value']!,
+          _teardownValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('same_part_percent')) {
+      context.handle(
+        _samePartPercentMeta,
+        samePartPercent.isAcceptableOrUnknown(
+          data['same_part_percent']!,
+          _samePartPercentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_disabled')) {
+      context.handle(
+        _balanceDisabledMeta,
+        balanceDisabled.isAcceptableOrUnknown(
+          data['balance_disabled']!,
+          _balanceDisabledMeta,
+        ),
+      );
+    }
     if (data.containsKey('equivalent_value')) {
       context.handle(
         _equivalentValueMeta,
@@ -8194,10 +9598,13 @@ class $FlowNodesTable extends FlowNodes
         ),
       );
     }
-    if (data.containsKey('label')) {
+    if (data.containsKey('lane_capacity')) {
       context.handle(
-        _labelMeta,
-        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+        _laneCapacityMeta,
+        laneCapacity.isAcceptableOrUnknown(
+          data['lane_capacity']!,
+          _laneCapacityMeta,
+        ),
       );
     }
     if (data.containsKey('notes')) {
@@ -8265,6 +9672,34 @@ class $FlowNodesTable extends FlowNodes
         DriftSqlType.int,
         data['${effectivePrefix}changeover_seconds'],
       )!,
+      setupValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}setup_value'],
+      ),
+      setupUnit: $FlowNodesTable.$convertersetupUnitn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}setup_unit'],
+        ),
+      ),
+      teardownValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}teardown_value'],
+      ),
+      teardownUnit: $FlowNodesTable.$converterteardownUnitn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}teardown_unit'],
+        ),
+      ),
+      samePartPercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}same_part_percent'],
+      ),
+      balanceDisabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}balance_disabled'],
+      ),
       equivalentValue: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}equivalent_value'],
@@ -8299,9 +9734,15 @@ class $FlowNodesTable extends FlowNodes
         DriftSqlType.bool,
         data['${effectivePrefix}inventory_uses_working_time'],
       )!,
-      label: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}label'],
+      laneRule: $FlowNodesTable.$converterlaneRulen.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}lane_rule'],
+        ),
+      ),
+      laneCapacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}lane_capacity'],
       ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -8325,6 +9766,16 @@ class $FlowNodesTable extends FlowNodes
 
   static JsonTypeConverter2<FlowNodeKind, String, String> $converterkind =
       const EnumNameConverter<FlowNodeKind>(FlowNodeKind.values);
+  static JsonTypeConverter2<TaktUnit, String, String> $convertersetupUnit =
+      const EnumNameConverter<TaktUnit>(TaktUnit.values);
+  static JsonTypeConverter2<TaktUnit?, String?, String?> $convertersetupUnitn =
+      JsonTypeConverter2.asNullable($convertersetupUnit);
+  static JsonTypeConverter2<TaktUnit, String, String> $converterteardownUnit =
+      const EnumNameConverter<TaktUnit>(TaktUnit.values);
+  static JsonTypeConverter2<TaktUnit?, String?, String?>
+  $converterteardownUnitn = JsonTypeConverter2.asNullable(
+    $converterteardownUnit,
+  );
   static JsonTypeConverter2<TaktUnit, String, String> $converterequivalentUnit =
       const EnumNameConverter<TaktUnit>(TaktUnit.values);
   static JsonTypeConverter2<TaktUnit?, String?, String?>
@@ -8347,6 +9798,10 @@ class $FlowNodesTable extends FlowNodes
   $converterinventoryUnitn = JsonTypeConverter2.asNullable(
     $converterinventoryUnit,
   );
+  static JsonTypeConverter2<DispatchRule, String, String> $converterlaneRule =
+      const EnumNameConverter<DispatchRule>(DispatchRule.values);
+  static JsonTypeConverter2<DispatchRule?, String?, String?>
+  $converterlaneRulen = JsonTypeConverter2.asNullable($converterlaneRule);
 }
 
 class FlowNode extends DataClass implements Insertable<FlowNode> {
@@ -8365,20 +9820,76 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   final String? workcenterId;
   final String? poolId;
 
-  /// Setup charged when the previous order on this workcenter was a different
-  /// part number (DESIGN.md §7.6).
+  /// Superseded by [setupValue] in v17, and kept rather than dropped.
+  ///
+  /// Its values were carried onto the setup columns by the migration and
+  /// nothing reads it now. Dropping a column means a [TableMigration], which
+  /// rebuilds from the *current* Dart definition — the trap this file has hit
+  /// three times (§16.13, §16.15, §16.16) and the one thing §16.11's
+  /// half-finished upgrade says not to risk for tidiness. It is also the only
+  /// place a pre-v17 setup can be recovered by hand.
   final int changeoverSeconds;
+
+  /// A changeover, in two halves: [setupValue] rigs the workcenter for the order
+  /// and [teardownValue] strips it afterwards (DESIGN.md §7.6).
+  ///
+  /// **Stored as a value plus a [TaktUnit], never as canonical seconds**, for
+  /// the same reason takt and [equivalentValue] are: `days` here means
+  /// productive days of *this* workcenter, and cannot be reduced to a duration
+  /// without saying whose day is meant (§6.1). One kind of day per dialog is
+  /// §17.4's rule, and the field two below this one already uses that one.
+  ///
+  /// Null is no setup, which is what every node had before v17.
+  final double? setupValue;
+  final TaktUnit? setupUnit;
+
+  /// The teardown, charged **with the next order's setup rather than at the end
+  /// of this one** — the workcenter remembers what it owes, because whether a
+  /// strip-down is needed depends on what comes next and the engine has not
+  /// picked it yet (DESIGN.md §7.6).
+  ///
+  /// Named teardown and not breakdown: in a plant "breakdown" means the machine
+  /// failed, and §4.4's Availability — the actual breakdown figure — is drawn on
+  /// the same process box.
+  final double? teardownValue;
+  final TaktUnit? teardownUnit;
+
+  /// How much of `setup + teardown` is still charged when the previous order at
+  /// this workcenter was the **same part**, as a percentage.
+  ///
+  /// Null is 0 %, which is exactly what this app did before v17: like-with-like
+  /// was free. 100 % makes batching buy nothing. It governs the pair rather than
+  /// the setup alone, because the two are one changeover split in half and a
+  /// second percentage would only ever move with the first.
+  final double? samePartPercent;
+
+  /// Pins this step out of §6.2.1's takt rebalancing (DESIGN.md §7.7.4).
+  ///
+  /// **Per step, not per workcenter**, for §7.6's reason — it is this line's
+  /// use of the workcenter, and a duplicated study must be re-tunable without
+  /// disturbing the original. Célula 11B, 11C and 11D share four workcenters
+  /// between them, so a flag on the machine would change three studies from a
+  /// screen showing one.
+  ///
+  /// **Null is off, so rebalancing is on.** A disable flag rather than an
+  /// enable one, so every step already in the tree keeps today's behaviour with
+  /// no backfill — the same call §7.6 made for the same-part percentage.
+  ///
+  /// A pinned workcenter is **transparent** to its group rather than a wall: it is
+  /// the same operation, so the members either side of it still balance with
+  /// each other (§6.2.1).
+  final bool? balanceDisabled;
 
   /// The flow equivalent's process time at this step, overriding one takt
   /// (DESIGN.md §6.1).
   ///
-  /// A property of the **yardstick**, not of the station: an inspection that
+  /// A property of the **yardstick**, not of the workcenter: an inspection that
   /// genuinely takes a fraction of a takt would otherwise drag every real
   /// part's equivalence at that step toward zero and skew the balance measure.
   /// Null follows the line's takt, which is the usual case.
   ///
   /// Stored as a value plus a [TaktUnit] — not a canonical duration — for the
-  /// same reason takt is: `days` here means productive days of *this* station.
+  /// same reason takt is: `days` here means productive days of *this* workcenter.
   final double? equivalentValue;
   final TaktUnit? equivalentUnit;
   final InventoryMode? inventoryMode;
@@ -8399,7 +9910,35 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   /// clock. A cooling rack does not stop for the weekend; a manual inspection
   /// queue does.
   final bool inventoryUsesWorkingTime;
-  final String? label;
+
+  /// The queue discipline of the lane, or null to follow the run's rule
+  /// (DESIGN.md §5.5, §7.4).
+  ///
+  /// **The rule lives here rather than on the workcenter**, which reverses §7.4 as
+  /// it was first built. On a physical FIFO lane you cannot take from the back,
+  /// so a discipline is not a property of the channel — it is how the next
+  /// workcenter *chooses* from what is standing in front of it, and that is a
+  /// thing the map draws. Stored on the workcenter it was invisible; stored here
+  /// it sits on the node the reader is already looking at.
+  ///
+  /// §5.1's spine is what makes this a total order: a step has at most one lane
+  /// in front of it, so there is exactly one comparator per queue. That is the
+  /// ambiguity a workcenter-level rule could not avoid — one machine can be a
+  /// candidate for its own step and for a pool's.
+  final DispatchRule? laneRule;
+
+  /// How many orders the lane holds, or null for unlimited.
+  ///
+  /// **In orders, and its own column rather than [inventoryQuantity].** That
+  /// figure means *N pieces standing here today* — an observation of a current
+  /// state — and §5.5's whole correction is that an observation must not be
+  /// read as a rule. They would share a unit and mean opposite things.
+  ///
+  /// Counted in orders because the order is the engine's unit of flow; a
+  /// piece-level limit would need a rule for a batch that half fits, which the
+  /// spine has no way to express. Null keeps a lane unbounded, which is what
+  /// every node did before this column existed.
+  final int? laneCapacity;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -8411,6 +9950,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     this.workcenterId,
     this.poolId,
     required this.changeoverSeconds,
+    this.setupValue,
+    this.setupUnit,
+    this.teardownValue,
+    this.teardownUnit,
+    this.samePartPercent,
+    this.balanceDisabled,
     this.equivalentValue,
     this.equivalentUnit,
     this.inventoryMode,
@@ -8418,7 +9963,8 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     this.inventorySeconds,
     this.inventoryUnit,
     required this.inventoryUsesWorkingTime,
-    this.label,
+    this.laneRule,
+    this.laneCapacity,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -8441,6 +9987,28 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       map['pool_id'] = Variable<String>(poolId);
     }
     map['changeover_seconds'] = Variable<int>(changeoverSeconds);
+    if (!nullToAbsent || setupValue != null) {
+      map['setup_value'] = Variable<double>(setupValue);
+    }
+    if (!nullToAbsent || setupUnit != null) {
+      map['setup_unit'] = Variable<String>(
+        $FlowNodesTable.$convertersetupUnitn.toSql(setupUnit),
+      );
+    }
+    if (!nullToAbsent || teardownValue != null) {
+      map['teardown_value'] = Variable<double>(teardownValue);
+    }
+    if (!nullToAbsent || teardownUnit != null) {
+      map['teardown_unit'] = Variable<String>(
+        $FlowNodesTable.$converterteardownUnitn.toSql(teardownUnit),
+      );
+    }
+    if (!nullToAbsent || samePartPercent != null) {
+      map['same_part_percent'] = Variable<double>(samePartPercent);
+    }
+    if (!nullToAbsent || balanceDisabled != null) {
+      map['balance_disabled'] = Variable<bool>(balanceDisabled);
+    }
     if (!nullToAbsent || equivalentValue != null) {
       map['equivalent_value'] = Variable<double>(equivalentValue);
     }
@@ -8468,8 +10036,13 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     map['inventory_uses_working_time'] = Variable<bool>(
       inventoryUsesWorkingTime,
     );
-    if (!nullToAbsent || label != null) {
-      map['label'] = Variable<String>(label);
+    if (!nullToAbsent || laneRule != null) {
+      map['lane_rule'] = Variable<String>(
+        $FlowNodesTable.$converterlaneRulen.toSql(laneRule),
+      );
+    }
+    if (!nullToAbsent || laneCapacity != null) {
+      map['lane_capacity'] = Variable<int>(laneCapacity);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -8492,6 +10065,24 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ? const Value.absent()
           : Value(poolId),
       changeoverSeconds: Value(changeoverSeconds),
+      setupValue: setupValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(setupValue),
+      setupUnit: setupUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(setupUnit),
+      teardownValue: teardownValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(teardownValue),
+      teardownUnit: teardownUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(teardownUnit),
+      samePartPercent: samePartPercent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(samePartPercent),
+      balanceDisabled: balanceDisabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceDisabled),
       equivalentValue: equivalentValue == null && nullToAbsent
           ? const Value.absent()
           : Value(equivalentValue),
@@ -8511,9 +10102,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ? const Value.absent()
           : Value(inventoryUnit),
       inventoryUsesWorkingTime: Value(inventoryUsesWorkingTime),
-      label: label == null && nullToAbsent
+      laneRule: laneRule == null && nullToAbsent
           ? const Value.absent()
-          : Value(label),
+          : Value(laneRule),
+      laneCapacity: laneCapacity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(laneCapacity),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -8537,6 +10131,16 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       workcenterId: serializer.fromJson<String?>(json['workcenterId']),
       poolId: serializer.fromJson<String?>(json['poolId']),
       changeoverSeconds: serializer.fromJson<int>(json['changeoverSeconds']),
+      setupValue: serializer.fromJson<double?>(json['setupValue']),
+      setupUnit: $FlowNodesTable.$convertersetupUnitn.fromJson(
+        serializer.fromJson<String?>(json['setupUnit']),
+      ),
+      teardownValue: serializer.fromJson<double?>(json['teardownValue']),
+      teardownUnit: $FlowNodesTable.$converterteardownUnitn.fromJson(
+        serializer.fromJson<String?>(json['teardownUnit']),
+      ),
+      samePartPercent: serializer.fromJson<double?>(json['samePartPercent']),
+      balanceDisabled: serializer.fromJson<bool?>(json['balanceDisabled']),
       equivalentValue: serializer.fromJson<double?>(json['equivalentValue']),
       equivalentUnit: $FlowNodesTable.$converterequivalentUnitn.fromJson(
         serializer.fromJson<String?>(json['equivalentUnit']),
@@ -8552,7 +10156,10 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       inventoryUsesWorkingTime: serializer.fromJson<bool>(
         json['inventoryUsesWorkingTime'],
       ),
-      label: serializer.fromJson<String?>(json['label']),
+      laneRule: $FlowNodesTable.$converterlaneRulen.fromJson(
+        serializer.fromJson<String?>(json['laneRule']),
+      ),
+      laneCapacity: serializer.fromJson<int?>(json['laneCapacity']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -8571,6 +10178,16 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       'workcenterId': serializer.toJson<String?>(workcenterId),
       'poolId': serializer.toJson<String?>(poolId),
       'changeoverSeconds': serializer.toJson<int>(changeoverSeconds),
+      'setupValue': serializer.toJson<double?>(setupValue),
+      'setupUnit': serializer.toJson<String?>(
+        $FlowNodesTable.$convertersetupUnitn.toJson(setupUnit),
+      ),
+      'teardownValue': serializer.toJson<double?>(teardownValue),
+      'teardownUnit': serializer.toJson<String?>(
+        $FlowNodesTable.$converterteardownUnitn.toJson(teardownUnit),
+      ),
+      'samePartPercent': serializer.toJson<double?>(samePartPercent),
+      'balanceDisabled': serializer.toJson<bool?>(balanceDisabled),
       'equivalentValue': serializer.toJson<double?>(equivalentValue),
       'equivalentUnit': serializer.toJson<String?>(
         $FlowNodesTable.$converterequivalentUnitn.toJson(equivalentUnit),
@@ -8586,7 +10203,10 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       'inventoryUsesWorkingTime': serializer.toJson<bool>(
         inventoryUsesWorkingTime,
       ),
-      'label': serializer.toJson<String?>(label),
+      'laneRule': serializer.toJson<String?>(
+        $FlowNodesTable.$converterlaneRulen.toJson(laneRule),
+      ),
+      'laneCapacity': serializer.toJson<int?>(laneCapacity),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -8601,6 +10221,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     Value<String?> workcenterId = const Value.absent(),
     Value<String?> poolId = const Value.absent(),
     int? changeoverSeconds,
+    Value<double?> setupValue = const Value.absent(),
+    Value<TaktUnit?> setupUnit = const Value.absent(),
+    Value<double?> teardownValue = const Value.absent(),
+    Value<TaktUnit?> teardownUnit = const Value.absent(),
+    Value<double?> samePartPercent = const Value.absent(),
+    Value<bool?> balanceDisabled = const Value.absent(),
     Value<double?> equivalentValue = const Value.absent(),
     Value<TaktUnit?> equivalentUnit = const Value.absent(),
     Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -8608,7 +10234,8 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     Value<int?> inventorySeconds = const Value.absent(),
     Value<DurationUnit?> inventoryUnit = const Value.absent(),
     bool? inventoryUsesWorkingTime,
-    Value<String?> label = const Value.absent(),
+    Value<DispatchRule?> laneRule = const Value.absent(),
+    Value<int?> laneCapacity = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -8620,6 +10247,18 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     workcenterId: workcenterId.present ? workcenterId.value : this.workcenterId,
     poolId: poolId.present ? poolId.value : this.poolId,
     changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
+    setupValue: setupValue.present ? setupValue.value : this.setupValue,
+    setupUnit: setupUnit.present ? setupUnit.value : this.setupUnit,
+    teardownValue: teardownValue.present
+        ? teardownValue.value
+        : this.teardownValue,
+    teardownUnit: teardownUnit.present ? teardownUnit.value : this.teardownUnit,
+    samePartPercent: samePartPercent.present
+        ? samePartPercent.value
+        : this.samePartPercent,
+    balanceDisabled: balanceDisabled.present
+        ? balanceDisabled.value
+        : this.balanceDisabled,
     equivalentValue: equivalentValue.present
         ? equivalentValue.value
         : this.equivalentValue,
@@ -8640,7 +10279,8 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
         : this.inventoryUnit,
     inventoryUsesWorkingTime:
         inventoryUsesWorkingTime ?? this.inventoryUsesWorkingTime,
-    label: label.present ? label.value : this.label,
+    laneRule: laneRule.present ? laneRule.value : this.laneRule,
+    laneCapacity: laneCapacity.present ? laneCapacity.value : this.laneCapacity,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -8658,6 +10298,22 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       changeoverSeconds: data.changeoverSeconds.present
           ? data.changeoverSeconds.value
           : this.changeoverSeconds,
+      setupValue: data.setupValue.present
+          ? data.setupValue.value
+          : this.setupValue,
+      setupUnit: data.setupUnit.present ? data.setupUnit.value : this.setupUnit,
+      teardownValue: data.teardownValue.present
+          ? data.teardownValue.value
+          : this.teardownValue,
+      teardownUnit: data.teardownUnit.present
+          ? data.teardownUnit.value
+          : this.teardownUnit,
+      samePartPercent: data.samePartPercent.present
+          ? data.samePartPercent.value
+          : this.samePartPercent,
+      balanceDisabled: data.balanceDisabled.present
+          ? data.balanceDisabled.value
+          : this.balanceDisabled,
       equivalentValue: data.equivalentValue.present
           ? data.equivalentValue.value
           : this.equivalentValue,
@@ -8679,7 +10335,10 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
       inventoryUsesWorkingTime: data.inventoryUsesWorkingTime.present
           ? data.inventoryUsesWorkingTime.value
           : this.inventoryUsesWorkingTime,
-      label: data.label.present ? data.label.value : this.label,
+      laneRule: data.laneRule.present ? data.laneRule.value : this.laneRule,
+      laneCapacity: data.laneCapacity.present
+          ? data.laneCapacity.value
+          : this.laneCapacity,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -8696,6 +10355,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ..write('workcenterId: $workcenterId, ')
           ..write('poolId: $poolId, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('setupValue: $setupValue, ')
+          ..write('setupUnit: $setupUnit, ')
+          ..write('teardownValue: $teardownValue, ')
+          ..write('teardownUnit: $teardownUnit, ')
+          ..write('samePartPercent: $samePartPercent, ')
+          ..write('balanceDisabled: $balanceDisabled, ')
           ..write('equivalentValue: $equivalentValue, ')
           ..write('equivalentUnit: $equivalentUnit, ')
           ..write('inventoryMode: $inventoryMode, ')
@@ -8703,7 +10368,8 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           ..write('inventorySeconds: $inventorySeconds, ')
           ..write('inventoryUnit: $inventoryUnit, ')
           ..write('inventoryUsesWorkingTime: $inventoryUsesWorkingTime, ')
-          ..write('label: $label, ')
+          ..write('laneRule: $laneRule, ')
+          ..write('laneCapacity: $laneCapacity, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -8712,7 +10378,7 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     studyId,
     position,
@@ -8720,6 +10386,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     workcenterId,
     poolId,
     changeoverSeconds,
+    setupValue,
+    setupUnit,
+    teardownValue,
+    teardownUnit,
+    samePartPercent,
+    balanceDisabled,
     equivalentValue,
     equivalentUnit,
     inventoryMode,
@@ -8727,11 +10399,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
     inventorySeconds,
     inventoryUnit,
     inventoryUsesWorkingTime,
-    label,
+    laneRule,
+    laneCapacity,
     notes,
     createdAt,
     updatedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -8743,6 +10416,12 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           other.workcenterId == this.workcenterId &&
           other.poolId == this.poolId &&
           other.changeoverSeconds == this.changeoverSeconds &&
+          other.setupValue == this.setupValue &&
+          other.setupUnit == this.setupUnit &&
+          other.teardownValue == this.teardownValue &&
+          other.teardownUnit == this.teardownUnit &&
+          other.samePartPercent == this.samePartPercent &&
+          other.balanceDisabled == this.balanceDisabled &&
           other.equivalentValue == this.equivalentValue &&
           other.equivalentUnit == this.equivalentUnit &&
           other.inventoryMode == this.inventoryMode &&
@@ -8750,7 +10429,8 @@ class FlowNode extends DataClass implements Insertable<FlowNode> {
           other.inventorySeconds == this.inventorySeconds &&
           other.inventoryUnit == this.inventoryUnit &&
           other.inventoryUsesWorkingTime == this.inventoryUsesWorkingTime &&
-          other.label == this.label &&
+          other.laneRule == this.laneRule &&
+          other.laneCapacity == this.laneCapacity &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -8764,6 +10444,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
   final Value<String?> workcenterId;
   final Value<String?> poolId;
   final Value<int> changeoverSeconds;
+  final Value<double?> setupValue;
+  final Value<TaktUnit?> setupUnit;
+  final Value<double?> teardownValue;
+  final Value<TaktUnit?> teardownUnit;
+  final Value<double?> samePartPercent;
+  final Value<bool?> balanceDisabled;
   final Value<double?> equivalentValue;
   final Value<TaktUnit?> equivalentUnit;
   final Value<InventoryMode?> inventoryMode;
@@ -8771,7 +10457,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
   final Value<int?> inventorySeconds;
   final Value<DurationUnit?> inventoryUnit;
   final Value<bool> inventoryUsesWorkingTime;
-  final Value<String?> label;
+  final Value<DispatchRule?> laneRule;
+  final Value<int?> laneCapacity;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -8784,6 +10471,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.workcenterId = const Value.absent(),
     this.poolId = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
+    this.setupValue = const Value.absent(),
+    this.setupUnit = const Value.absent(),
+    this.teardownValue = const Value.absent(),
+    this.teardownUnit = const Value.absent(),
+    this.samePartPercent = const Value.absent(),
+    this.balanceDisabled = const Value.absent(),
     this.equivalentValue = const Value.absent(),
     this.equivalentUnit = const Value.absent(),
     this.inventoryMode = const Value.absent(),
@@ -8791,7 +10484,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.inventorySeconds = const Value.absent(),
     this.inventoryUnit = const Value.absent(),
     this.inventoryUsesWorkingTime = const Value.absent(),
-    this.label = const Value.absent(),
+    this.laneRule = const Value.absent(),
+    this.laneCapacity = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -8805,6 +10499,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.workcenterId = const Value.absent(),
     this.poolId = const Value.absent(),
     this.changeoverSeconds = const Value.absent(),
+    this.setupValue = const Value.absent(),
+    this.setupUnit = const Value.absent(),
+    this.teardownValue = const Value.absent(),
+    this.teardownUnit = const Value.absent(),
+    this.samePartPercent = const Value.absent(),
+    this.balanceDisabled = const Value.absent(),
     this.equivalentValue = const Value.absent(),
     this.equivalentUnit = const Value.absent(),
     this.inventoryMode = const Value.absent(),
@@ -8812,7 +10512,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     this.inventorySeconds = const Value.absent(),
     this.inventoryUnit = const Value.absent(),
     this.inventoryUsesWorkingTime = const Value.absent(),
-    this.label = const Value.absent(),
+    this.laneRule = const Value.absent(),
+    this.laneCapacity = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -8831,6 +10532,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Expression<String>? workcenterId,
     Expression<String>? poolId,
     Expression<int>? changeoverSeconds,
+    Expression<double>? setupValue,
+    Expression<String>? setupUnit,
+    Expression<double>? teardownValue,
+    Expression<String>? teardownUnit,
+    Expression<double>? samePartPercent,
+    Expression<bool>? balanceDisabled,
     Expression<double>? equivalentValue,
     Expression<String>? equivalentUnit,
     Expression<String>? inventoryMode,
@@ -8838,7 +10545,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Expression<int>? inventorySeconds,
     Expression<String>? inventoryUnit,
     Expression<bool>? inventoryUsesWorkingTime,
-    Expression<String>? label,
+    Expression<String>? laneRule,
+    Expression<int>? laneCapacity,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -8852,6 +10560,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       if (workcenterId != null) 'workcenter_id': workcenterId,
       if (poolId != null) 'pool_id': poolId,
       if (changeoverSeconds != null) 'changeover_seconds': changeoverSeconds,
+      if (setupValue != null) 'setup_value': setupValue,
+      if (setupUnit != null) 'setup_unit': setupUnit,
+      if (teardownValue != null) 'teardown_value': teardownValue,
+      if (teardownUnit != null) 'teardown_unit': teardownUnit,
+      if (samePartPercent != null) 'same_part_percent': samePartPercent,
+      if (balanceDisabled != null) 'balance_disabled': balanceDisabled,
       if (equivalentValue != null) 'equivalent_value': equivalentValue,
       if (equivalentUnit != null) 'equivalent_unit': equivalentUnit,
       if (inventoryMode != null) 'inventory_mode': inventoryMode,
@@ -8860,7 +10574,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       if (inventoryUnit != null) 'inventory_unit': inventoryUnit,
       if (inventoryUsesWorkingTime != null)
         'inventory_uses_working_time': inventoryUsesWorkingTime,
-      if (label != null) 'label': label,
+      if (laneRule != null) 'lane_rule': laneRule,
+      if (laneCapacity != null) 'lane_capacity': laneCapacity,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -8876,6 +10591,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Value<String?>? workcenterId,
     Value<String?>? poolId,
     Value<int>? changeoverSeconds,
+    Value<double?>? setupValue,
+    Value<TaktUnit?>? setupUnit,
+    Value<double?>? teardownValue,
+    Value<TaktUnit?>? teardownUnit,
+    Value<double?>? samePartPercent,
+    Value<bool?>? balanceDisabled,
     Value<double?>? equivalentValue,
     Value<TaktUnit?>? equivalentUnit,
     Value<InventoryMode?>? inventoryMode,
@@ -8883,7 +10604,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     Value<int?>? inventorySeconds,
     Value<DurationUnit?>? inventoryUnit,
     Value<bool>? inventoryUsesWorkingTime,
-    Value<String?>? label,
+    Value<DispatchRule?>? laneRule,
+    Value<int?>? laneCapacity,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -8897,6 +10619,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       workcenterId: workcenterId ?? this.workcenterId,
       poolId: poolId ?? this.poolId,
       changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
+      setupValue: setupValue ?? this.setupValue,
+      setupUnit: setupUnit ?? this.setupUnit,
+      teardownValue: teardownValue ?? this.teardownValue,
+      teardownUnit: teardownUnit ?? this.teardownUnit,
+      samePartPercent: samePartPercent ?? this.samePartPercent,
+      balanceDisabled: balanceDisabled ?? this.balanceDisabled,
       equivalentValue: equivalentValue ?? this.equivalentValue,
       equivalentUnit: equivalentUnit ?? this.equivalentUnit,
       inventoryMode: inventoryMode ?? this.inventoryMode,
@@ -8905,7 +10633,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
       inventoryUnit: inventoryUnit ?? this.inventoryUnit,
       inventoryUsesWorkingTime:
           inventoryUsesWorkingTime ?? this.inventoryUsesWorkingTime,
-      label: label ?? this.label,
+      laneRule: laneRule ?? this.laneRule,
+      laneCapacity: laneCapacity ?? this.laneCapacity,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -8939,6 +10668,28 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
     if (changeoverSeconds.present) {
       map['changeover_seconds'] = Variable<int>(changeoverSeconds.value);
     }
+    if (setupValue.present) {
+      map['setup_value'] = Variable<double>(setupValue.value);
+    }
+    if (setupUnit.present) {
+      map['setup_unit'] = Variable<String>(
+        $FlowNodesTable.$convertersetupUnitn.toSql(setupUnit.value),
+      );
+    }
+    if (teardownValue.present) {
+      map['teardown_value'] = Variable<double>(teardownValue.value);
+    }
+    if (teardownUnit.present) {
+      map['teardown_unit'] = Variable<String>(
+        $FlowNodesTable.$converterteardownUnitn.toSql(teardownUnit.value),
+      );
+    }
+    if (samePartPercent.present) {
+      map['same_part_percent'] = Variable<double>(samePartPercent.value);
+    }
+    if (balanceDisabled.present) {
+      map['balance_disabled'] = Variable<bool>(balanceDisabled.value);
+    }
     if (equivalentValue.present) {
       map['equivalent_value'] = Variable<double>(equivalentValue.value);
     }
@@ -8968,8 +10719,13 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
         inventoryUsesWorkingTime.value,
       );
     }
-    if (label.present) {
-      map['label'] = Variable<String>(label.value);
+    if (laneRule.present) {
+      map['lane_rule'] = Variable<String>(
+        $FlowNodesTable.$converterlaneRulen.toSql(laneRule.value),
+      );
+    }
+    if (laneCapacity.present) {
+      map['lane_capacity'] = Variable<int>(laneCapacity.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -8996,6 +10752,12 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
           ..write('workcenterId: $workcenterId, ')
           ..write('poolId: $poolId, ')
           ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('setupValue: $setupValue, ')
+          ..write('setupUnit: $setupUnit, ')
+          ..write('teardownValue: $teardownValue, ')
+          ..write('teardownUnit: $teardownUnit, ')
+          ..write('samePartPercent: $samePartPercent, ')
+          ..write('balanceDisabled: $balanceDisabled, ')
           ..write('equivalentValue: $equivalentValue, ')
           ..write('equivalentUnit: $equivalentUnit, ')
           ..write('inventoryMode: $inventoryMode, ')
@@ -9003,7 +10765,8 @@ class FlowNodesCompanion extends UpdateCompanion<FlowNode> {
           ..write('inventorySeconds: $inventorySeconds, ')
           ..write('inventoryUnit: $inventoryUnit, ')
           ..write('inventoryUsesWorkingTime: $inventoryUsesWorkingTime, ')
-          ..write('label: $label, ')
+          ..write('laneRule: $laneRule, ')
+          ..write('laneCapacity: $laneCapacity, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9972,16 +11735,17 @@ class $PartProcessTimesTable extends PartProcessTimes
       'REFERENCES demand_parts (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _targetIdMeta = const VerificationMeta(
-    'targetId',
-  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
   @override
-  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
-    'target_id',
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES flow_nodes (id) ON DELETE CASCADE',
+    ),
   );
   static const VerificationMeta _secondsMeta = const VerificationMeta(
     'seconds',
@@ -9995,7 +11759,7 @@ class $PartProcessTimesTable extends PartProcessTimes
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [partId, targetId, seconds];
+  List<GeneratedColumn> get $columns => [partId, nodeId, seconds];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -10016,13 +11780,13 @@ class $PartProcessTimesTable extends PartProcessTimes
     } else if (isInserting) {
       context.missing(_partIdMeta);
     }
-    if (data.containsKey('target_id')) {
+    if (data.containsKey('node_id')) {
       context.handle(
-        _targetIdMeta,
-        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_targetIdMeta);
+      context.missing(_nodeIdMeta);
     }
     if (data.containsKey('seconds')) {
       context.handle(
@@ -10036,7 +11800,7 @@ class $PartProcessTimesTable extends PartProcessTimes
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {partId, targetId};
+  Set<GeneratedColumn> get $primaryKey => {partId, nodeId};
   @override
   PartProcessTime map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -10045,9 +11809,9 @@ class $PartProcessTimesTable extends PartProcessTimes
         DriftSqlType.string,
         data['${effectivePrefix}part_id'],
       )!,
-      targetId: attachedDatabase.typeMapping.read(
+      nodeId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}target_id'],
+        data['${effectivePrefix}node_id'],
       )!,
       seconds: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -10065,8 +11829,21 @@ class $PartProcessTimesTable extends PartProcessTimes
 class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   final String partId;
 
-  /// The workcenter or pool the step targets.
-  final String targetId;
+  /// The **flow node** whose step this time belongs to (§9).
+  ///
+  /// **Keyed by the step since v24, not by the workcenter it points at.** It was
+  /// the target, and two steps aiming at one workcenter were then two columns
+  /// over one stored value — editing either edited both, and the engine charged
+  /// the same work on each pass. That was written down as right: *"the workcenter
+  /// takes the same time per piece on both passes."* Driving §8.6 overturned
+  /// it. A routing goes back to a machine because the second pass is a
+  /// *different operation* — rough then finish, tack then final weld — and the
+  /// model could not say so.
+  ///
+  /// **A pool still shares, and the rule §3.1 cared about is untouched.** A
+  /// step targeting a pool is one step, so its members go on drawing one time:
+  /// *"a part has one process time at `CNC Lathes`, not four."*
+  final String nodeId;
 
   /// **Per piece**, in canonical seconds (§7.6, §12.4). An order of batch 10
   /// occupies its workcenter for ten times this, which is what makes batch size
@@ -10074,14 +11851,14 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   final int seconds;
   const PartProcessTime({
     required this.partId,
-    required this.targetId,
+    required this.nodeId,
     required this.seconds,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['part_id'] = Variable<String>(partId);
-    map['target_id'] = Variable<String>(targetId);
+    map['node_id'] = Variable<String>(nodeId);
     map['seconds'] = Variable<int>(seconds);
     return map;
   }
@@ -10089,7 +11866,7 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   PartProcessTimesCompanion toCompanion(bool nullToAbsent) {
     return PartProcessTimesCompanion(
       partId: Value(partId),
-      targetId: Value(targetId),
+      nodeId: Value(nodeId),
       seconds: Value(seconds),
     );
   }
@@ -10101,7 +11878,7 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PartProcessTime(
       partId: serializer.fromJson<String>(json['partId']),
-      targetId: serializer.fromJson<String>(json['targetId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
       seconds: serializer.fromJson<int>(json['seconds']),
     );
   }
@@ -10110,21 +11887,21 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'partId': serializer.toJson<String>(partId),
-      'targetId': serializer.toJson<String>(targetId),
+      'nodeId': serializer.toJson<String>(nodeId),
       'seconds': serializer.toJson<int>(seconds),
     };
   }
 
-  PartProcessTime copyWith({String? partId, String? targetId, int? seconds}) =>
+  PartProcessTime copyWith({String? partId, String? nodeId, int? seconds}) =>
       PartProcessTime(
         partId: partId ?? this.partId,
-        targetId: targetId ?? this.targetId,
+        nodeId: nodeId ?? this.nodeId,
         seconds: seconds ?? this.seconds,
       );
   PartProcessTime copyWithCompanion(PartProcessTimesCompanion data) {
     return PartProcessTime(
       partId: data.partId.present ? data.partId.value : this.partId,
-      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
       seconds: data.seconds.present ? data.seconds.value : this.seconds,
     );
   }
@@ -10133,51 +11910,51 @@ class PartProcessTime extends DataClass implements Insertable<PartProcessTime> {
   String toString() {
     return (StringBuffer('PartProcessTime(')
           ..write('partId: $partId, ')
-          ..write('targetId: $targetId, ')
+          ..write('nodeId: $nodeId, ')
           ..write('seconds: $seconds')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(partId, targetId, seconds);
+  int get hashCode => Object.hash(partId, nodeId, seconds);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PartProcessTime &&
           other.partId == this.partId &&
-          other.targetId == this.targetId &&
+          other.nodeId == this.nodeId &&
           other.seconds == this.seconds);
 }
 
 class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
   final Value<String> partId;
-  final Value<String> targetId;
+  final Value<String> nodeId;
   final Value<int> seconds;
   final Value<int> rowid;
   const PartProcessTimesCompanion({
     this.partId = const Value.absent(),
-    this.targetId = const Value.absent(),
+    this.nodeId = const Value.absent(),
     this.seconds = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PartProcessTimesCompanion.insert({
     required String partId,
-    required String targetId,
+    required String nodeId,
     required int seconds,
     this.rowid = const Value.absent(),
   }) : partId = Value(partId),
-       targetId = Value(targetId),
+       nodeId = Value(nodeId),
        seconds = Value(seconds);
   static Insertable<PartProcessTime> custom({
     Expression<String>? partId,
-    Expression<String>? targetId,
+    Expression<String>? nodeId,
     Expression<int>? seconds,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (partId != null) 'part_id': partId,
-      if (targetId != null) 'target_id': targetId,
+      if (nodeId != null) 'node_id': nodeId,
       if (seconds != null) 'seconds': seconds,
       if (rowid != null) 'rowid': rowid,
     });
@@ -10185,13 +11962,13 @@ class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
 
   PartProcessTimesCompanion copyWith({
     Value<String>? partId,
-    Value<String>? targetId,
+    Value<String>? nodeId,
     Value<int>? seconds,
     Value<int>? rowid,
   }) {
     return PartProcessTimesCompanion(
       partId: partId ?? this.partId,
-      targetId: targetId ?? this.targetId,
+      nodeId: nodeId ?? this.nodeId,
       seconds: seconds ?? this.seconds,
       rowid: rowid ?? this.rowid,
     );
@@ -10203,8 +11980,8 @@ class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
     if (partId.present) {
       map['part_id'] = Variable<String>(partId.value);
     }
-    if (targetId.present) {
-      map['target_id'] = Variable<String>(targetId.value);
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
     }
     if (seconds.present) {
       map['seconds'] = Variable<int>(seconds.value);
@@ -10219,7 +11996,7 @@ class PartProcessTimesCompanion extends UpdateCompanion<PartProcessTime> {
   String toString() {
     return (StringBuffer('PartProcessTimesCompanion(')
           ..write('partId: $partId, ')
-          ..write('targetId: $targetId, ')
+          ..write('nodeId: $nodeId, ')
           ..write('seconds: $seconds, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -10946,333 +12723,6 @@ class DemandOrdersCompanion extends UpdateCompanion<DemandOrder> {
   }
 }
 
-class $WorkcenterDispatchTable extends WorkcenterDispatch
-    with TableInfo<$WorkcenterDispatchTable, WorkcenterDispatchData> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $WorkcenterDispatchTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _projectIdMeta = const VerificationMeta(
-    'projectId',
-  );
-  @override
-  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
-    'project_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES projects (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _targetIdMeta = const VerificationMeta(
-    'targetId',
-  );
-  @override
-  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
-    'target_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DispatchRule, String> rule =
-      GeneratedColumn<String>(
-        'rule',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<DispatchRule>($WorkcenterDispatchTable.$converterrule);
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [projectId, targetId, rule, updatedAt];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'workcenter_dispatch';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<WorkcenterDispatchData> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('project_id')) {
-      context.handle(
-        _projectIdMeta,
-        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_projectIdMeta);
-    }
-    if (data.containsKey('target_id')) {
-      context.handle(
-        _targetIdMeta,
-        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_targetIdMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {projectId, targetId};
-  @override
-  WorkcenterDispatchData map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return WorkcenterDispatchData(
-      projectId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}project_id'],
-      )!,
-      targetId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}target_id'],
-      )!,
-      rule: $WorkcenterDispatchTable.$converterrule.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}rule'],
-        )!,
-      ),
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-    );
-  }
-
-  @override
-  $WorkcenterDispatchTable createAlias(String alias) {
-    return $WorkcenterDispatchTable(attachedDatabase, alias);
-  }
-
-  static JsonTypeConverter2<DispatchRule, String, String> $converterrule =
-      const EnumNameConverter<DispatchRule>(DispatchRule.values);
-}
-
-class WorkcenterDispatchData extends DataClass
-    implements Insertable<WorkcenterDispatchData> {
-  final String projectId;
-
-  /// The workcenter or pool whose queue this orders.
-  final String targetId;
-  final DispatchRule rule;
-  final DateTime updatedAt;
-  const WorkcenterDispatchData({
-    required this.projectId,
-    required this.targetId,
-    required this.rule,
-    required this.updatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['project_id'] = Variable<String>(projectId);
-    map['target_id'] = Variable<String>(targetId);
-    {
-      map['rule'] = Variable<String>(
-        $WorkcenterDispatchTable.$converterrule.toSql(rule),
-      );
-    }
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  WorkcenterDispatchCompanion toCompanion(bool nullToAbsent) {
-    return WorkcenterDispatchCompanion(
-      projectId: Value(projectId),
-      targetId: Value(targetId),
-      rule: Value(rule),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory WorkcenterDispatchData.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return WorkcenterDispatchData(
-      projectId: serializer.fromJson<String>(json['projectId']),
-      targetId: serializer.fromJson<String>(json['targetId']),
-      rule: $WorkcenterDispatchTable.$converterrule.fromJson(
-        serializer.fromJson<String>(json['rule']),
-      ),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'projectId': serializer.toJson<String>(projectId),
-      'targetId': serializer.toJson<String>(targetId),
-      'rule': serializer.toJson<String>(
-        $WorkcenterDispatchTable.$converterrule.toJson(rule),
-      ),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  WorkcenterDispatchData copyWith({
-    String? projectId,
-    String? targetId,
-    DispatchRule? rule,
-    DateTime? updatedAt,
-  }) => WorkcenterDispatchData(
-    projectId: projectId ?? this.projectId,
-    targetId: targetId ?? this.targetId,
-    rule: rule ?? this.rule,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
-  WorkcenterDispatchData copyWithCompanion(WorkcenterDispatchCompanion data) {
-    return WorkcenterDispatchData(
-      projectId: data.projectId.present ? data.projectId.value : this.projectId,
-      targetId: data.targetId.present ? data.targetId.value : this.targetId,
-      rule: data.rule.present ? data.rule.value : this.rule,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WorkcenterDispatchData(')
-          ..write('projectId: $projectId, ')
-          ..write('targetId: $targetId, ')
-          ..write('rule: $rule, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(projectId, targetId, rule, updatedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is WorkcenterDispatchData &&
-          other.projectId == this.projectId &&
-          other.targetId == this.targetId &&
-          other.rule == this.rule &&
-          other.updatedAt == this.updatedAt);
-}
-
-class WorkcenterDispatchCompanion
-    extends UpdateCompanion<WorkcenterDispatchData> {
-  final Value<String> projectId;
-  final Value<String> targetId;
-  final Value<DispatchRule> rule;
-  final Value<DateTime> updatedAt;
-  final Value<int> rowid;
-  const WorkcenterDispatchCompanion({
-    this.projectId = const Value.absent(),
-    this.targetId = const Value.absent(),
-    this.rule = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  WorkcenterDispatchCompanion.insert({
-    required String projectId,
-    required String targetId,
-    required DispatchRule rule,
-    required DateTime updatedAt,
-    this.rowid = const Value.absent(),
-  }) : projectId = Value(projectId),
-       targetId = Value(targetId),
-       rule = Value(rule),
-       updatedAt = Value(updatedAt);
-  static Insertable<WorkcenterDispatchData> custom({
-    Expression<String>? projectId,
-    Expression<String>? targetId,
-    Expression<String>? rule,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (projectId != null) 'project_id': projectId,
-      if (targetId != null) 'target_id': targetId,
-      if (rule != null) 'rule': rule,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  WorkcenterDispatchCompanion copyWith({
-    Value<String>? projectId,
-    Value<String>? targetId,
-    Value<DispatchRule>? rule,
-    Value<DateTime>? updatedAt,
-    Value<int>? rowid,
-  }) {
-    return WorkcenterDispatchCompanion(
-      projectId: projectId ?? this.projectId,
-      targetId: targetId ?? this.targetId,
-      rule: rule ?? this.rule,
-      updatedAt: updatedAt ?? this.updatedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (projectId.present) {
-      map['project_id'] = Variable<String>(projectId.value);
-    }
-    if (targetId.present) {
-      map['target_id'] = Variable<String>(targetId.value);
-    }
-    if (rule.present) {
-      map['rule'] = Variable<String>(
-        $WorkcenterDispatchTable.$converterrule.toSql(rule.value),
-      );
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WorkcenterDispatchCompanion(')
-          ..write('projectId: $projectId, ')
-          ..write('targetId: $targetId, ')
-          ..write('rule: $rule, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $SimulationRunsTable extends SimulationRuns
     with TableInfo<$SimulationRunsTable, SimulationRun> {
   @override
@@ -11288,19 +12738,16 @@ class $SimulationRunsTable extends SimulationRuns
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _projectIdMeta = const VerificationMeta(
-    'projectId',
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
   );
   @override
-  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
-    'project_id',
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
     aliasedName,
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES projects (id) ON DELETE CASCADE',
-    ),
   );
   static const VerificationMeta _dispatchMeta = const VerificationMeta(
     'dispatch',
@@ -11353,6 +12800,29 @@ class $SimulationRunsTable extends SimulationRuns
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _scheduleHorizonMeta = const VerificationMeta(
+    'scheduleHorizon',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduleHorizon =
+      GeneratedColumn<DateTime>(
+        'schedule_horizon',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _appVersionMeta = const VerificationMeta(
+    'appVersion',
+  );
+  @override
+  late final GeneratedColumn<String> appVersion = GeneratedColumn<String>(
+    'app_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -11367,12 +12837,14 @@ class $SimulationRunsTable extends SimulationRuns
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    projectId,
+    documentId,
     dispatch,
     runStart,
     runEnd,
     guard,
     abortReason,
+    scheduleHorizon,
+    appVersion,
     createdAt,
   ];
   @override
@@ -11392,13 +12864,13 @@ class $SimulationRunsTable extends SimulationRuns
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('project_id')) {
+    if (data.containsKey('document_id')) {
       context.handle(
-        _projectIdMeta,
-        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_projectIdMeta);
+      context.missing(_documentIdMeta);
     }
     if (data.containsKey('dispatch')) {
       context.handle(
@@ -11441,6 +12913,21 @@ class $SimulationRunsTable extends SimulationRuns
         ),
       );
     }
+    if (data.containsKey('schedule_horizon')) {
+      context.handle(
+        _scheduleHorizonMeta,
+        scheduleHorizon.isAcceptableOrUnknown(
+          data['schedule_horizon']!,
+          _scheduleHorizonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('app_version')) {
+      context.handle(
+        _appVersionMeta,
+        appVersion.isAcceptableOrUnknown(data['app_version']!, _appVersionMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -11462,9 +12949,9 @@ class $SimulationRunsTable extends SimulationRuns
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      projectId: attachedDatabase.typeMapping.read(
+      documentId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}project_id'],
+        data['${effectivePrefix}document_id'],
       )!,
       dispatch: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -11486,6 +12973,14 @@ class $SimulationRunsTable extends SimulationRuns
         DriftSqlType.string,
         data['${effectivePrefix}abort_reason'],
       ),
+      scheduleHorizon: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}schedule_horizon'],
+      ),
+      appVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}app_version'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -11501,7 +12996,34 @@ class $SimulationRunsTable extends SimulationRuns
 
 class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   final String id;
-  final String projectId;
+
+  /// The document this run was made from (#37), which is that document's
+  /// project id — a value that travels inside the file and is stable wherever
+  /// it is opened.
+  ///
+  /// **Unreferenced, and that is the whole change at v32.** It was
+  /// `projectId references Projects onDelete: cascade`, which was right while
+  /// the database owned the projects: deleting one should take its runs.
+  /// Under the document model the working database is **emptied and refilled
+  /// every time a document is opened**, so the same cascade would delete every
+  /// stored run on the first switch — the precise opposite of #37's *"runs
+  /// stay on the machine that made them"*.
+  ///
+  /// So there is no foreign key here at all, and there cannot be one: the
+  /// document a run belongs to may not be open, may live on a drive this
+  /// machine cannot currently see, or may have been deleted by someone else.
+  /// A run outliving its project row is the ordinary case now rather than a
+  /// broken one.
+  ///
+  /// **A rebuild rather than a kept column**, which is against this file's own
+  /// standing preference — `changeoverSeconds` is kept precisely because
+  /// dropping a column means a `TableMigration` and this file has been bitten
+  /// three times (§16.11, §16.13, §16.15). It earns the exception because the
+  /// alternative is a declared cascade that every load would have to
+  /// deliberately evade, and a schema that states a relationship the app works
+  /// around is worse than a rebuild of 165 rows. The seven child tables cascade
+  /// from `simulation_runs` and not from `projects`, so none of them is touched.
+  final String documentId;
 
   /// §7.4's rule, by name.
   ///
@@ -11525,28 +13047,74 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
 
   /// Why it stopped early, by name. Null means it completed.
   final String? abortReason;
+
+  /// The last date every schedule this run used was actually defined for
+  /// (§11.1), or null when the run never went past one.
+  ///
+  /// **Stored, because the warning has to survive being reopened.** How far the
+  /// takt and workcenter periods reach is a fact about the plant, and §7.10
+  /// forbids joining back to it — so a run that could not say this would drop
+  /// its own caveat the moment the reader came back to it, which is exactly
+  /// when they are most likely to quote the figures.
+  ///
+  /// **The date and not the count.** How many orders finished past it is
+  /// derivable from `simulation_run_orders`, and storing both would let the two
+  /// disagree — §1.5's lesson, from the direction of duplication rather than of
+  /// omission.
+  final DateTime? scheduleHorizon;
+
+  /// The build that produced this run — `kBuildLabel` at the moment it was
+  /// stored (#24).
+  ///
+  /// **This is the column [#11] refused, and the reason it refused was sound
+  /// until the file could travel.** Its argument was that `created_at` already
+  /// dates the run, which is true *on one machine*, where the person reading it
+  /// knows what was installed when. A run arriving inside a `.flowmap` from
+  /// another install has a `created_at` that says nothing about which build
+  /// made it.
+  ///
+  /// **Schema version cannot stand in for it.** #19 changed what a run *means*
+  /// — capacity stopped being clipped to demand — with no migration at all,
+  /// while #20 bumped to v30. Two runs both at v30 can therefore disagree about
+  /// the plant, and only the build separates them.
+  ///
+  /// **Null means "made before builds were stamped"**, which is every run
+  /// stored up to v31. They are shown and never compared against a stamped one;
+  /// two *equally* unknown runs still compare, which is what keeps the 165
+  /// already in this file usable. **Deliberately not backfilled**: those runs
+  /// span three engine generations, and stamping them all with the current
+  /// build would make the app lie about its own records.
+  final String? appVersion;
   final DateTime createdAt;
   const SimulationRun({
     required this.id,
-    required this.projectId,
+    required this.documentId,
     required this.dispatch,
     required this.runStart,
     required this.runEnd,
     required this.guard,
     this.abortReason,
+    this.scheduleHorizon,
+    this.appVersion,
     required this.createdAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['project_id'] = Variable<String>(projectId);
+    map['document_id'] = Variable<String>(documentId);
     map['dispatch'] = Variable<String>(dispatch);
     map['run_start'] = Variable<DateTime>(runStart);
     map['run_end'] = Variable<DateTime>(runEnd);
     map['guard'] = Variable<DateTime>(guard);
     if (!nullToAbsent || abortReason != null) {
       map['abort_reason'] = Variable<String>(abortReason);
+    }
+    if (!nullToAbsent || scheduleHorizon != null) {
+      map['schedule_horizon'] = Variable<DateTime>(scheduleHorizon);
+    }
+    if (!nullToAbsent || appVersion != null) {
+      map['app_version'] = Variable<String>(appVersion);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -11555,7 +13123,7 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   SimulationRunsCompanion toCompanion(bool nullToAbsent) {
     return SimulationRunsCompanion(
       id: Value(id),
-      projectId: Value(projectId),
+      documentId: Value(documentId),
       dispatch: Value(dispatch),
       runStart: Value(runStart),
       runEnd: Value(runEnd),
@@ -11563,6 +13131,12 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       abortReason: abortReason == null && nullToAbsent
           ? const Value.absent()
           : Value(abortReason),
+      scheduleHorizon: scheduleHorizon == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduleHorizon),
+      appVersion: appVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appVersion),
       createdAt: Value(createdAt),
     );
   }
@@ -11574,12 +13148,14 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SimulationRun(
       id: serializer.fromJson<String>(json['id']),
-      projectId: serializer.fromJson<String>(json['projectId']),
+      documentId: serializer.fromJson<String>(json['documentId']),
       dispatch: serializer.fromJson<String>(json['dispatch']),
       runStart: serializer.fromJson<DateTime>(json['runStart']),
       runEnd: serializer.fromJson<DateTime>(json['runEnd']),
       guard: serializer.fromJson<DateTime>(json['guard']),
       abortReason: serializer.fromJson<String?>(json['abortReason']),
+      scheduleHorizon: serializer.fromJson<DateTime?>(json['scheduleHorizon']),
+      appVersion: serializer.fromJson<String?>(json['appVersion']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -11588,39 +13164,49 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'projectId': serializer.toJson<String>(projectId),
+      'documentId': serializer.toJson<String>(documentId),
       'dispatch': serializer.toJson<String>(dispatch),
       'runStart': serializer.toJson<DateTime>(runStart),
       'runEnd': serializer.toJson<DateTime>(runEnd),
       'guard': serializer.toJson<DateTime>(guard),
       'abortReason': serializer.toJson<String?>(abortReason),
+      'scheduleHorizon': serializer.toJson<DateTime?>(scheduleHorizon),
+      'appVersion': serializer.toJson<String?>(appVersion),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
   SimulationRun copyWith({
     String? id,
-    String? projectId,
+    String? documentId,
     String? dispatch,
     DateTime? runStart,
     DateTime? runEnd,
     DateTime? guard,
     Value<String?> abortReason = const Value.absent(),
+    Value<DateTime?> scheduleHorizon = const Value.absent(),
+    Value<String?> appVersion = const Value.absent(),
     DateTime? createdAt,
   }) => SimulationRun(
     id: id ?? this.id,
-    projectId: projectId ?? this.projectId,
+    documentId: documentId ?? this.documentId,
     dispatch: dispatch ?? this.dispatch,
     runStart: runStart ?? this.runStart,
     runEnd: runEnd ?? this.runEnd,
     guard: guard ?? this.guard,
     abortReason: abortReason.present ? abortReason.value : this.abortReason,
+    scheduleHorizon: scheduleHorizon.present
+        ? scheduleHorizon.value
+        : this.scheduleHorizon,
+    appVersion: appVersion.present ? appVersion.value : this.appVersion,
     createdAt: createdAt ?? this.createdAt,
   );
   SimulationRun copyWithCompanion(SimulationRunsCompanion data) {
     return SimulationRun(
       id: data.id.present ? data.id.value : this.id,
-      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
       dispatch: data.dispatch.present ? data.dispatch.value : this.dispatch,
       runStart: data.runStart.present ? data.runStart.value : this.runStart,
       runEnd: data.runEnd.present ? data.runEnd.value : this.runEnd,
@@ -11628,6 +13214,12 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       abortReason: data.abortReason.present
           ? data.abortReason.value
           : this.abortReason,
+      scheduleHorizon: data.scheduleHorizon.present
+          ? data.scheduleHorizon.value
+          : this.scheduleHorizon,
+      appVersion: data.appVersion.present
+          ? data.appVersion.value
+          : this.appVersion,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -11636,12 +13228,14 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   String toString() {
     return (StringBuffer('SimulationRun(')
           ..write('id: $id, ')
-          ..write('projectId: $projectId, ')
+          ..write('documentId: $documentId, ')
           ..write('dispatch: $dispatch, ')
           ..write('runStart: $runStart, ')
           ..write('runEnd: $runEnd, ')
           ..write('guard: $guard, ')
           ..write('abortReason: $abortReason, ')
+          ..write('scheduleHorizon: $scheduleHorizon, ')
+          ..write('appVersion: $appVersion, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -11650,12 +13244,14 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
   @override
   int get hashCode => Object.hash(
     id,
-    projectId,
+    documentId,
     dispatch,
     runStart,
     runEnd,
     guard,
     abortReason,
+    scheduleHorizon,
+    appVersion,
     createdAt,
   );
   @override
@@ -11663,48 +13259,56 @@ class SimulationRun extends DataClass implements Insertable<SimulationRun> {
       identical(this, other) ||
       (other is SimulationRun &&
           other.id == this.id &&
-          other.projectId == this.projectId &&
+          other.documentId == this.documentId &&
           other.dispatch == this.dispatch &&
           other.runStart == this.runStart &&
           other.runEnd == this.runEnd &&
           other.guard == this.guard &&
           other.abortReason == this.abortReason &&
+          other.scheduleHorizon == this.scheduleHorizon &&
+          other.appVersion == this.appVersion &&
           other.createdAt == this.createdAt);
 }
 
 class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   final Value<String> id;
-  final Value<String> projectId;
+  final Value<String> documentId;
   final Value<String> dispatch;
   final Value<DateTime> runStart;
   final Value<DateTime> runEnd;
   final Value<DateTime> guard;
   final Value<String?> abortReason;
+  final Value<DateTime?> scheduleHorizon;
+  final Value<String?> appVersion;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const SimulationRunsCompanion({
     this.id = const Value.absent(),
-    this.projectId = const Value.absent(),
+    this.documentId = const Value.absent(),
     this.dispatch = const Value.absent(),
     this.runStart = const Value.absent(),
     this.runEnd = const Value.absent(),
     this.guard = const Value.absent(),
     this.abortReason = const Value.absent(),
+    this.scheduleHorizon = const Value.absent(),
+    this.appVersion = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunsCompanion.insert({
     required String id,
-    required String projectId,
+    required String documentId,
     required String dispatch,
     required DateTime runStart,
     required DateTime runEnd,
     required DateTime guard,
     this.abortReason = const Value.absent(),
+    this.scheduleHorizon = const Value.absent(),
+    this.appVersion = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       projectId = Value(projectId),
+       documentId = Value(documentId),
        dispatch = Value(dispatch),
        runStart = Value(runStart),
        runEnd = Value(runEnd),
@@ -11712,23 +13316,27 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
        createdAt = Value(createdAt);
   static Insertable<SimulationRun> custom({
     Expression<String>? id,
-    Expression<String>? projectId,
+    Expression<String>? documentId,
     Expression<String>? dispatch,
     Expression<DateTime>? runStart,
     Expression<DateTime>? runEnd,
     Expression<DateTime>? guard,
     Expression<String>? abortReason,
+    Expression<DateTime>? scheduleHorizon,
+    Expression<String>? appVersion,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (projectId != null) 'project_id': projectId,
+      if (documentId != null) 'document_id': documentId,
       if (dispatch != null) 'dispatch': dispatch,
       if (runStart != null) 'run_start': runStart,
       if (runEnd != null) 'run_end': runEnd,
       if (guard != null) 'guard': guard,
       if (abortReason != null) 'abort_reason': abortReason,
+      if (scheduleHorizon != null) 'schedule_horizon': scheduleHorizon,
+      if (appVersion != null) 'app_version': appVersion,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -11736,23 +13344,27 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
 
   SimulationRunsCompanion copyWith({
     Value<String>? id,
-    Value<String>? projectId,
+    Value<String>? documentId,
     Value<String>? dispatch,
     Value<DateTime>? runStart,
     Value<DateTime>? runEnd,
     Value<DateTime>? guard,
     Value<String?>? abortReason,
+    Value<DateTime?>? scheduleHorizon,
+    Value<String?>? appVersion,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
     return SimulationRunsCompanion(
       id: id ?? this.id,
-      projectId: projectId ?? this.projectId,
+      documentId: documentId ?? this.documentId,
       dispatch: dispatch ?? this.dispatch,
       runStart: runStart ?? this.runStart,
       runEnd: runEnd ?? this.runEnd,
       guard: guard ?? this.guard,
       abortReason: abortReason ?? this.abortReason,
+      scheduleHorizon: scheduleHorizon ?? this.scheduleHorizon,
+      appVersion: appVersion ?? this.appVersion,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -11764,8 +13376,8 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (projectId.present) {
-      map['project_id'] = Variable<String>(projectId.value);
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
     }
     if (dispatch.present) {
       map['dispatch'] = Variable<String>(dispatch.value);
@@ -11782,6 +13394,12 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
     if (abortReason.present) {
       map['abort_reason'] = Variable<String>(abortReason.value);
     }
+    if (scheduleHorizon.present) {
+      map['schedule_horizon'] = Variable<DateTime>(scheduleHorizon.value);
+    }
+    if (appVersion.present) {
+      map['app_version'] = Variable<String>(appVersion.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -11795,12 +13413,14 @@ class SimulationRunsCompanion extends UpdateCompanion<SimulationRun> {
   String toString() {
     return (StringBuffer('SimulationRunsCompanion(')
           ..write('id: $id, ')
-          ..write('projectId: $projectId, ')
+          ..write('documentId: $documentId, ')
           ..write('dispatch: $dispatch, ')
           ..write('runStart: $runStart, ')
           ..write('runEnd: $runEnd, ')
           ..write('guard: $guard, ')
           ..write('abortReason: $abortReason, ')
+          ..write('scheduleHorizon: $scheduleHorizon, ')
+          ..write('appVersion: $appVersion, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -11869,17 +13489,52 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _priorityMeta = const VerificationMeta(
-    'priority',
+  static const VerificationMeta _taktValueMeta = const VerificationMeta(
+    'taktValue',
   );
   @override
-  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
-    'priority',
+  late final GeneratedColumn<double> taktValue = GeneratedColumn<double>(
+    'takt_value',
     aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
   );
+  static const VerificationMeta _taktUnitMeta = const VerificationMeta(
+    'taktUnit',
+  );
+  @override
+  late final GeneratedColumn<String> taktUnit = GeneratedColumn<String>(
+    'takt_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextTaktChangeMeta = const VerificationMeta(
+    'nextTaktChange',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextTaktChange =
+      GeneratedColumn<DateTime>(
+        'next_takt_change',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _cadenceEndedAtMeta = const VerificationMeta(
+    'cadenceEndedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> cadenceEndedAt =
+      GeneratedColumn<DateTime>(
+        'cadence_ended_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _wipCapMeta = const VerificationMeta('wipCap');
   @override
   late final GeneratedColumn<int> wipCap = GeneratedColumn<int>(
@@ -11889,6 +13544,62 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startBufferDaysMeta = const VerificationMeta(
+    'startBufferDays',
+  );
+  @override
+  late final GeneratedColumn<int> startBufferDays = GeneratedColumn<int>(
+    'start_buffer_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _productionCellIdMeta = const VerificationMeta(
+    'productionCellId',
+  );
+  @override
+  late final GeneratedColumn<String> productionCellId = GeneratedColumn<String>(
+    'production_cell_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productionCellNameMeta =
+      const VerificationMeta('productionCellName');
+  @override
+  late final GeneratedColumn<String> productionCellName =
+      GeneratedColumn<String>(
+        'production_cell_name',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _productionLineIdMeta = const VerificationMeta(
+    'productionLineId',
+  );
+  @override
+  late final GeneratedColumn<String> productionLineId = GeneratedColumn<String>(
+    'production_line_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _productionLineNameMeta =
+      const VerificationMeta('productionLineName');
+  @override
+  late final GeneratedColumn<String> productionLineName =
+      GeneratedColumn<String>(
+        'production_line_name',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -11896,8 +13607,16 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
     name,
     releaseSeconds,
     releaseCalendarId,
-    priority,
+    taktValue,
+    taktUnit,
+    nextTaktChange,
+    cadenceEndedAt,
     wipCap,
+    startBufferDays,
+    productionCellId,
+    productionCellName,
+    productionLineId,
+    productionLineName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11955,18 +13674,85 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         ),
       );
     }
-    if (data.containsKey('priority')) {
+    if (data.containsKey('takt_value')) {
       context.handle(
-        _priorityMeta,
-        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+        _taktValueMeta,
+        taktValue.isAcceptableOrUnknown(data['takt_value']!, _taktValueMeta),
       );
-    } else if (isInserting) {
-      context.missing(_priorityMeta);
+    }
+    if (data.containsKey('takt_unit')) {
+      context.handle(
+        _taktUnitMeta,
+        taktUnit.isAcceptableOrUnknown(data['takt_unit']!, _taktUnitMeta),
+      );
+    }
+    if (data.containsKey('next_takt_change')) {
+      context.handle(
+        _nextTaktChangeMeta,
+        nextTaktChange.isAcceptableOrUnknown(
+          data['next_takt_change']!,
+          _nextTaktChangeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cadence_ended_at')) {
+      context.handle(
+        _cadenceEndedAtMeta,
+        cadenceEndedAt.isAcceptableOrUnknown(
+          data['cadence_ended_at']!,
+          _cadenceEndedAtMeta,
+        ),
+      );
     }
     if (data.containsKey('wip_cap')) {
       context.handle(
         _wipCapMeta,
         wipCap.isAcceptableOrUnknown(data['wip_cap']!, _wipCapMeta),
+      );
+    }
+    if (data.containsKey('start_buffer_days')) {
+      context.handle(
+        _startBufferDaysMeta,
+        startBufferDays.isAcceptableOrUnknown(
+          data['start_buffer_days']!,
+          _startBufferDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_cell_id')) {
+      context.handle(
+        _productionCellIdMeta,
+        productionCellId.isAcceptableOrUnknown(
+          data['production_cell_id']!,
+          _productionCellIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_cell_name')) {
+      context.handle(
+        _productionCellNameMeta,
+        productionCellName.isAcceptableOrUnknown(
+          data['production_cell_name']!,
+          _productionCellNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_line_id')) {
+      context.handle(
+        _productionLineIdMeta,
+        productionLineId.isAcceptableOrUnknown(
+          data['production_line_id']!,
+          _productionLineIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('production_line_name')) {
+      context.handle(
+        _productionLineNameMeta,
+        productionLineName.isAcceptableOrUnknown(
+          data['production_line_name']!,
+          _productionLineNameMeta,
+        ),
       );
     }
     return context;
@@ -11998,13 +13784,45 @@ class $SimulationRunStudiesTable extends SimulationRunStudies
         DriftSqlType.string,
         data['${effectivePrefix}release_calendar_id'],
       ),
-      priority: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}priority'],
-      )!,
+      taktValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}takt_value'],
+      ),
+      taktUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}takt_unit'],
+      ),
+      nextTaktChange: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_takt_change'],
+      ),
+      cadenceEndedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cadence_ended_at'],
+      ),
       wipCap: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}wip_cap'],
+      ),
+      startBufferDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_buffer_days'],
+      )!,
+      productionCellId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_cell_id'],
+      ),
+      productionCellName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_cell_name'],
+      ),
+      productionLineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_line_id'],
+      ),
+      productionLineName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}production_line_name'],
       ),
     );
   }
@@ -12028,16 +13846,96 @@ class SimulationRunStudy extends DataClass
 
   /// Whose open time that interval was measured in — the pace setter.
   final String? releaseCalendarId;
-  final int priority;
+
+  /// The takt this study ran at, as it was typed — `4` and `days`
+  /// (DESIGN.md §7.7.2).
+  ///
+  /// **The run's identity, and until v20 it did not carry one.** §18.3 is
+  /// settled: a run keeps one cadence throughout, so the takt is the parameter
+  /// the whole experiment turns on — and a stored run could not say what it
+  /// was. §7.10 forbids joining back to `takt_periods`, so editing the schedule
+  /// silently rewrote what every past run claimed to have done.
+  ///
+  /// **Beside [releaseSeconds] rather than instead of it.** That is the same
+  /// takt already resolved against the pace setter's productive day, which is
+  /// what the engine spaced slots by; this is the figure a human typed and
+  /// reads. One cannot be recovered from the other once a schedule moves.
+  ///
+  /// **Per study, because takt is keyed by production line** — a run carrying
+  /// two lines ran at two takts, and a column on the run could only hold one.
+  ///
+  /// Null on every run made before v20, which means *made before a run said
+  /// this* — the meaning a blank has had on these tables since v12.
+  final double? taktValue;
+
+  /// [taktValue]'s unit by name. Plain text rather than `textEnum` for §16.10's
+  /// reason: a run written by a later build must not stop an older one opening
+  /// the list.
+  final String? taktUnit;
+
+  /// When the takt next changes inside this run's span, or null if it does not
+  /// (DESIGN.md §7.7.3).
+  ///
+  /// **Stored rather than derived, for §11.1's stated reason**: a run that
+  /// could not say this would drop its own caveat the moment the reader came
+  /// back to it, which is exactly when they are most likely to quote the
+  /// figures. Célula 11D's takt goes 4 d → 5 d on 1 April 2026, and a run
+  /// spanning that date ran entirely at one of them.
+  final DateTime? nextTaktChange;
+
+  /// When this study's cadence ran out, or null where it did not (§7.9.2, v22).
+  ///
+  /// A line with no takt period covering an instant has no cadence, so it opens
+  /// nothing there — and a study whose takt table stops before its sequence
+  /// does leaves the rest of it unreleased. **Stored because the alternative is
+  /// reporting the symptom and hiding the cause**: orders that never opened
+  /// look exactly like a jammed plant, and a missing schedule row and a jam
+  /// want opposite responses.
+  ///
+  /// §11.1's warning cannot stand in for it — that compares the run's *end*
+  /// against the schedule horizon, and a run that stops releasing early may
+  /// well end before the horizon with the warning silent.
+  final DateTime? cadenceEndedAt;
   final int? wipCap;
+
+  /// The margin that was added ahead of the derived cold start (§7.8), in
+  /// calendar days. Copied in so a run can say why it began where it did after
+  /// the study's buffer is changed.
+  final int startBufferDays;
+
+  /// Where this study sat in the plant, copied in so a stored run can be
+  /// filtered by cell and by production line (§7.10).
+  ///
+  /// **The id and the name both**, for the reason every other copied-in label
+  /// carries both: the id survives a rename and the name survives a deletion,
+  /// and a filter has to keep working after either. §7.10 forbids joining back
+  /// to `studies`, which is the only other place this could be read.
+  ///
+  /// **A cell or line filter is a study filter one level up.** Workcenters
+  /// belong to a plant rather than to a cell, so workcenters are never filtered
+  /// this way — the studies narrow, and their workcenters follow.
+  ///
+  /// Null on every run made before v17.
+  final String? productionCellId;
+  final String? productionCellName;
+  final String? productionLineId;
+  final String? productionLineName;
   const SimulationRunStudy({
     required this.runId,
     required this.studyId,
     required this.name,
     required this.releaseSeconds,
     this.releaseCalendarId,
-    required this.priority,
+    this.taktValue,
+    this.taktUnit,
+    this.nextTaktChange,
+    this.cadenceEndedAt,
     this.wipCap,
+    required this.startBufferDays,
+    this.productionCellId,
+    this.productionCellName,
+    this.productionLineId,
+    this.productionLineName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12049,9 +13947,33 @@ class SimulationRunStudy extends DataClass
     if (!nullToAbsent || releaseCalendarId != null) {
       map['release_calendar_id'] = Variable<String>(releaseCalendarId);
     }
-    map['priority'] = Variable<int>(priority);
+    if (!nullToAbsent || taktValue != null) {
+      map['takt_value'] = Variable<double>(taktValue);
+    }
+    if (!nullToAbsent || taktUnit != null) {
+      map['takt_unit'] = Variable<String>(taktUnit);
+    }
+    if (!nullToAbsent || nextTaktChange != null) {
+      map['next_takt_change'] = Variable<DateTime>(nextTaktChange);
+    }
+    if (!nullToAbsent || cadenceEndedAt != null) {
+      map['cadence_ended_at'] = Variable<DateTime>(cadenceEndedAt);
+    }
     if (!nullToAbsent || wipCap != null) {
       map['wip_cap'] = Variable<int>(wipCap);
+    }
+    map['start_buffer_days'] = Variable<int>(startBufferDays);
+    if (!nullToAbsent || productionCellId != null) {
+      map['production_cell_id'] = Variable<String>(productionCellId);
+    }
+    if (!nullToAbsent || productionCellName != null) {
+      map['production_cell_name'] = Variable<String>(productionCellName);
+    }
+    if (!nullToAbsent || productionLineId != null) {
+      map['production_line_id'] = Variable<String>(productionLineId);
+    }
+    if (!nullToAbsent || productionLineName != null) {
+      map['production_line_name'] = Variable<String>(productionLineName);
     }
     return map;
   }
@@ -12065,10 +13987,34 @@ class SimulationRunStudy extends DataClass
       releaseCalendarId: releaseCalendarId == null && nullToAbsent
           ? const Value.absent()
           : Value(releaseCalendarId),
-      priority: Value(priority),
+      taktValue: taktValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktValue),
+      taktUnit: taktUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktUnit),
+      nextTaktChange: nextTaktChange == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextTaktChange),
+      cadenceEndedAt: cadenceEndedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cadenceEndedAt),
       wipCap: wipCap == null && nullToAbsent
           ? const Value.absent()
           : Value(wipCap),
+      startBufferDays: Value(startBufferDays),
+      productionCellId: productionCellId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionCellId),
+      productionCellName: productionCellName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionCellName),
+      productionLineId: productionLineId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionLineId),
+      productionLineName: productionLineName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(productionLineName),
     );
   }
 
@@ -12085,8 +14031,20 @@ class SimulationRunStudy extends DataClass
       releaseCalendarId: serializer.fromJson<String?>(
         json['releaseCalendarId'],
       ),
-      priority: serializer.fromJson<int>(json['priority']),
+      taktValue: serializer.fromJson<double?>(json['taktValue']),
+      taktUnit: serializer.fromJson<String?>(json['taktUnit']),
+      nextTaktChange: serializer.fromJson<DateTime?>(json['nextTaktChange']),
+      cadenceEndedAt: serializer.fromJson<DateTime?>(json['cadenceEndedAt']),
       wipCap: serializer.fromJson<int?>(json['wipCap']),
+      startBufferDays: serializer.fromJson<int>(json['startBufferDays']),
+      productionCellId: serializer.fromJson<String?>(json['productionCellId']),
+      productionCellName: serializer.fromJson<String?>(
+        json['productionCellName'],
+      ),
+      productionLineId: serializer.fromJson<String?>(json['productionLineId']),
+      productionLineName: serializer.fromJson<String?>(
+        json['productionLineName'],
+      ),
     );
   }
   @override
@@ -12098,8 +14056,16 @@ class SimulationRunStudy extends DataClass
       'name': serializer.toJson<String>(name),
       'releaseSeconds': serializer.toJson<int>(releaseSeconds),
       'releaseCalendarId': serializer.toJson<String?>(releaseCalendarId),
-      'priority': serializer.toJson<int>(priority),
+      'taktValue': serializer.toJson<double?>(taktValue),
+      'taktUnit': serializer.toJson<String?>(taktUnit),
+      'nextTaktChange': serializer.toJson<DateTime?>(nextTaktChange),
+      'cadenceEndedAt': serializer.toJson<DateTime?>(cadenceEndedAt),
       'wipCap': serializer.toJson<int?>(wipCap),
+      'startBufferDays': serializer.toJson<int>(startBufferDays),
+      'productionCellId': serializer.toJson<String?>(productionCellId),
+      'productionCellName': serializer.toJson<String?>(productionCellName),
+      'productionLineId': serializer.toJson<String?>(productionLineId),
+      'productionLineName': serializer.toJson<String?>(productionLineName),
     };
   }
 
@@ -12109,8 +14075,16 @@ class SimulationRunStudy extends DataClass
     String? name,
     int? releaseSeconds,
     Value<String?> releaseCalendarId = const Value.absent(),
-    int? priority,
+    Value<double?> taktValue = const Value.absent(),
+    Value<String?> taktUnit = const Value.absent(),
+    Value<DateTime?> nextTaktChange = const Value.absent(),
+    Value<DateTime?> cadenceEndedAt = const Value.absent(),
     Value<int?> wipCap = const Value.absent(),
+    int? startBufferDays,
+    Value<String?> productionCellId = const Value.absent(),
+    Value<String?> productionCellName = const Value.absent(),
+    Value<String?> productionLineId = const Value.absent(),
+    Value<String?> productionLineName = const Value.absent(),
   }) => SimulationRunStudy(
     runId: runId ?? this.runId,
     studyId: studyId ?? this.studyId,
@@ -12119,8 +14093,28 @@ class SimulationRunStudy extends DataClass
     releaseCalendarId: releaseCalendarId.present
         ? releaseCalendarId.value
         : this.releaseCalendarId,
-    priority: priority ?? this.priority,
+    taktValue: taktValue.present ? taktValue.value : this.taktValue,
+    taktUnit: taktUnit.present ? taktUnit.value : this.taktUnit,
+    nextTaktChange: nextTaktChange.present
+        ? nextTaktChange.value
+        : this.nextTaktChange,
+    cadenceEndedAt: cadenceEndedAt.present
+        ? cadenceEndedAt.value
+        : this.cadenceEndedAt,
     wipCap: wipCap.present ? wipCap.value : this.wipCap,
+    startBufferDays: startBufferDays ?? this.startBufferDays,
+    productionCellId: productionCellId.present
+        ? productionCellId.value
+        : this.productionCellId,
+    productionCellName: productionCellName.present
+        ? productionCellName.value
+        : this.productionCellName,
+    productionLineId: productionLineId.present
+        ? productionLineId.value
+        : this.productionLineId,
+    productionLineName: productionLineName.present
+        ? productionLineName.value
+        : this.productionLineName,
   );
   SimulationRunStudy copyWithCompanion(SimulationRunStudiesCompanion data) {
     return SimulationRunStudy(
@@ -12133,8 +14127,30 @@ class SimulationRunStudy extends DataClass
       releaseCalendarId: data.releaseCalendarId.present
           ? data.releaseCalendarId.value
           : this.releaseCalendarId,
-      priority: data.priority.present ? data.priority.value : this.priority,
+      taktValue: data.taktValue.present ? data.taktValue.value : this.taktValue,
+      taktUnit: data.taktUnit.present ? data.taktUnit.value : this.taktUnit,
+      nextTaktChange: data.nextTaktChange.present
+          ? data.nextTaktChange.value
+          : this.nextTaktChange,
+      cadenceEndedAt: data.cadenceEndedAt.present
+          ? data.cadenceEndedAt.value
+          : this.cadenceEndedAt,
       wipCap: data.wipCap.present ? data.wipCap.value : this.wipCap,
+      startBufferDays: data.startBufferDays.present
+          ? data.startBufferDays.value
+          : this.startBufferDays,
+      productionCellId: data.productionCellId.present
+          ? data.productionCellId.value
+          : this.productionCellId,
+      productionCellName: data.productionCellName.present
+          ? data.productionCellName.value
+          : this.productionCellName,
+      productionLineId: data.productionLineId.present
+          ? data.productionLineId.value
+          : this.productionLineId,
+      productionLineName: data.productionLineName.present
+          ? data.productionLineName.value
+          : this.productionLineName,
     );
   }
 
@@ -12146,8 +14162,16 @@ class SimulationRunStudy extends DataClass
           ..write('name: $name, ')
           ..write('releaseSeconds: $releaseSeconds, ')
           ..write('releaseCalendarId: $releaseCalendarId, ')
-          ..write('priority: $priority, ')
-          ..write('wipCap: $wipCap')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
+          ..write('nextTaktChange: $nextTaktChange, ')
+          ..write('cadenceEndedAt: $cadenceEndedAt, ')
+          ..write('wipCap: $wipCap, ')
+          ..write('startBufferDays: $startBufferDays, ')
+          ..write('productionCellId: $productionCellId, ')
+          ..write('productionCellName: $productionCellName, ')
+          ..write('productionLineId: $productionLineId, ')
+          ..write('productionLineName: $productionLineName')
           ..write(')'))
         .toString();
   }
@@ -12159,8 +14183,16 @@ class SimulationRunStudy extends DataClass
     name,
     releaseSeconds,
     releaseCalendarId,
-    priority,
+    taktValue,
+    taktUnit,
+    nextTaktChange,
+    cadenceEndedAt,
     wipCap,
+    startBufferDays,
+    productionCellId,
+    productionCellName,
+    productionLineId,
+    productionLineName,
   );
   @override
   bool operator ==(Object other) =>
@@ -12171,8 +14203,16 @@ class SimulationRunStudy extends DataClass
           other.name == this.name &&
           other.releaseSeconds == this.releaseSeconds &&
           other.releaseCalendarId == this.releaseCalendarId &&
-          other.priority == this.priority &&
-          other.wipCap == this.wipCap);
+          other.taktValue == this.taktValue &&
+          other.taktUnit == this.taktUnit &&
+          other.nextTaktChange == this.nextTaktChange &&
+          other.cadenceEndedAt == this.cadenceEndedAt &&
+          other.wipCap == this.wipCap &&
+          other.startBufferDays == this.startBufferDays &&
+          other.productionCellId == this.productionCellId &&
+          other.productionCellName == this.productionCellName &&
+          other.productionLineId == this.productionLineId &&
+          other.productionLineName == this.productionLineName);
 }
 
 class SimulationRunStudiesCompanion
@@ -12182,8 +14222,16 @@ class SimulationRunStudiesCompanion
   final Value<String> name;
   final Value<int> releaseSeconds;
   final Value<String?> releaseCalendarId;
-  final Value<int> priority;
+  final Value<double?> taktValue;
+  final Value<String?> taktUnit;
+  final Value<DateTime?> nextTaktChange;
+  final Value<DateTime?> cadenceEndedAt;
   final Value<int?> wipCap;
+  final Value<int> startBufferDays;
+  final Value<String?> productionCellId;
+  final Value<String?> productionCellName;
+  final Value<String?> productionLineId;
+  final Value<String?> productionLineName;
   final Value<int> rowid;
   const SimulationRunStudiesCompanion({
     this.runId = const Value.absent(),
@@ -12191,8 +14239,16 @@ class SimulationRunStudiesCompanion
     this.name = const Value.absent(),
     this.releaseSeconds = const Value.absent(),
     this.releaseCalendarId = const Value.absent(),
-    this.priority = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
+    this.nextTaktChange = const Value.absent(),
+    this.cadenceEndedAt = const Value.absent(),
     this.wipCap = const Value.absent(),
+    this.startBufferDays = const Value.absent(),
+    this.productionCellId = const Value.absent(),
+    this.productionCellName = const Value.absent(),
+    this.productionLineId = const Value.absent(),
+    this.productionLineName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunStudiesCompanion.insert({
@@ -12201,22 +14257,37 @@ class SimulationRunStudiesCompanion
     required String name,
     required int releaseSeconds,
     this.releaseCalendarId = const Value.absent(),
-    required int priority,
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
+    this.nextTaktChange = const Value.absent(),
+    this.cadenceEndedAt = const Value.absent(),
     this.wipCap = const Value.absent(),
+    this.startBufferDays = const Value.absent(),
+    this.productionCellId = const Value.absent(),
+    this.productionCellName = const Value.absent(),
+    this.productionLineId = const Value.absent(),
+    this.productionLineName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        studyId = Value(studyId),
        name = Value(name),
-       releaseSeconds = Value(releaseSeconds),
-       priority = Value(priority);
+       releaseSeconds = Value(releaseSeconds);
   static Insertable<SimulationRunStudy> custom({
     Expression<String>? runId,
     Expression<String>? studyId,
     Expression<String>? name,
     Expression<int>? releaseSeconds,
     Expression<String>? releaseCalendarId,
-    Expression<int>? priority,
+    Expression<double>? taktValue,
+    Expression<String>? taktUnit,
+    Expression<DateTime>? nextTaktChange,
+    Expression<DateTime>? cadenceEndedAt,
     Expression<int>? wipCap,
+    Expression<int>? startBufferDays,
+    Expression<String>? productionCellId,
+    Expression<String>? productionCellName,
+    Expression<String>? productionLineId,
+    Expression<String>? productionLineName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -12225,8 +14296,18 @@ class SimulationRunStudiesCompanion
       if (name != null) 'name': name,
       if (releaseSeconds != null) 'release_seconds': releaseSeconds,
       if (releaseCalendarId != null) 'release_calendar_id': releaseCalendarId,
-      if (priority != null) 'priority': priority,
+      if (taktValue != null) 'takt_value': taktValue,
+      if (taktUnit != null) 'takt_unit': taktUnit,
+      if (nextTaktChange != null) 'next_takt_change': nextTaktChange,
+      if (cadenceEndedAt != null) 'cadence_ended_at': cadenceEndedAt,
       if (wipCap != null) 'wip_cap': wipCap,
+      if (startBufferDays != null) 'start_buffer_days': startBufferDays,
+      if (productionCellId != null) 'production_cell_id': productionCellId,
+      if (productionCellName != null)
+        'production_cell_name': productionCellName,
+      if (productionLineId != null) 'production_line_id': productionLineId,
+      if (productionLineName != null)
+        'production_line_name': productionLineName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -12237,8 +14318,16 @@ class SimulationRunStudiesCompanion
     Value<String>? name,
     Value<int>? releaseSeconds,
     Value<String?>? releaseCalendarId,
-    Value<int>? priority,
+    Value<double?>? taktValue,
+    Value<String?>? taktUnit,
+    Value<DateTime?>? nextTaktChange,
+    Value<DateTime?>? cadenceEndedAt,
     Value<int?>? wipCap,
+    Value<int>? startBufferDays,
+    Value<String?>? productionCellId,
+    Value<String?>? productionCellName,
+    Value<String?>? productionLineId,
+    Value<String?>? productionLineName,
     Value<int>? rowid,
   }) {
     return SimulationRunStudiesCompanion(
@@ -12247,8 +14336,16 @@ class SimulationRunStudiesCompanion
       name: name ?? this.name,
       releaseSeconds: releaseSeconds ?? this.releaseSeconds,
       releaseCalendarId: releaseCalendarId ?? this.releaseCalendarId,
-      priority: priority ?? this.priority,
+      taktValue: taktValue ?? this.taktValue,
+      taktUnit: taktUnit ?? this.taktUnit,
+      nextTaktChange: nextTaktChange ?? this.nextTaktChange,
+      cadenceEndedAt: cadenceEndedAt ?? this.cadenceEndedAt,
       wipCap: wipCap ?? this.wipCap,
+      startBufferDays: startBufferDays ?? this.startBufferDays,
+      productionCellId: productionCellId ?? this.productionCellId,
+      productionCellName: productionCellName ?? this.productionCellName,
+      productionLineId: productionLineId ?? this.productionLineId,
+      productionLineName: productionLineName ?? this.productionLineName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -12271,11 +14368,35 @@ class SimulationRunStudiesCompanion
     if (releaseCalendarId.present) {
       map['release_calendar_id'] = Variable<String>(releaseCalendarId.value);
     }
-    if (priority.present) {
-      map['priority'] = Variable<int>(priority.value);
+    if (taktValue.present) {
+      map['takt_value'] = Variable<double>(taktValue.value);
+    }
+    if (taktUnit.present) {
+      map['takt_unit'] = Variable<String>(taktUnit.value);
+    }
+    if (nextTaktChange.present) {
+      map['next_takt_change'] = Variable<DateTime>(nextTaktChange.value);
+    }
+    if (cadenceEndedAt.present) {
+      map['cadence_ended_at'] = Variable<DateTime>(cadenceEndedAt.value);
     }
     if (wipCap.present) {
       map['wip_cap'] = Variable<int>(wipCap.value);
+    }
+    if (startBufferDays.present) {
+      map['start_buffer_days'] = Variable<int>(startBufferDays.value);
+    }
+    if (productionCellId.present) {
+      map['production_cell_id'] = Variable<String>(productionCellId.value);
+    }
+    if (productionCellName.present) {
+      map['production_cell_name'] = Variable<String>(productionCellName.value);
+    }
+    if (productionLineId.present) {
+      map['production_line_id'] = Variable<String>(productionLineId.value);
+    }
+    if (productionLineName.present) {
+      map['production_line_name'] = Variable<String>(productionLineName.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -12291,8 +14412,16 @@ class SimulationRunStudiesCompanion
           ..write('name: $name, ')
           ..write('releaseSeconds: $releaseSeconds, ')
           ..write('releaseCalendarId: $releaseCalendarId, ')
-          ..write('priority: $priority, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
+          ..write('nextTaktChange: $nextTaktChange, ')
+          ..write('cadenceEndedAt: $cadenceEndedAt, ')
           ..write('wipCap: $wipCap, ')
+          ..write('startBufferDays: $startBufferDays, ')
+          ..write('productionCellId: $productionCellId, ')
+          ..write('productionCellName: $productionCellName, ')
+          ..write('productionLineId: $productionLineId, ')
+          ..write('productionLineName: $productionLineName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -12458,6 +14587,28 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _taktValueMeta = const VerificationMeta(
+    'taktValue',
+  );
+  @override
+  late final GeneratedColumn<double> taktValue = GeneratedColumn<double>(
+    'takt_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _taktUnitMeta = const VerificationMeta(
+    'taktUnit',
+  );
+  @override
+  late final GeneratedColumn<String> taktUnit = GeneratedColumn<String>(
+    'takt_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _theoreticalSecondsMeta =
       const VerificationMeta('theoreticalSeconds');
   @override
@@ -12484,6 +14635,8 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
     needDate,
     released,
     delivered,
+    taktValue,
+    taktUnit,
     theoreticalSeconds,
   ];
   @override
@@ -12608,6 +14761,18 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
         delivered.isAcceptableOrUnknown(data['delivered']!, _deliveredMeta),
       );
     }
+    if (data.containsKey('takt_value')) {
+      context.handle(
+        _taktValueMeta,
+        taktValue.isAcceptableOrUnknown(data['takt_value']!, _taktValueMeta),
+      );
+    }
+    if (data.containsKey('takt_unit')) {
+      context.handle(
+        _taktUnitMeta,
+        taktUnit.isAcceptableOrUnknown(data['takt_unit']!, _taktUnitMeta),
+      );
+    }
     if (data.containsKey('theoretical_seconds')) {
       context.handle(
         _theoreticalSecondsMeta,
@@ -12682,6 +14847,14 @@ class $SimulationRunOrdersTable extends SimulationRunOrders
         DriftSqlType.dateTime,
         data['${effectivePrefix}delivered'],
       ),
+      taktValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}takt_value'],
+      ),
+      taktUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}takt_unit'],
+      ),
       theoreticalSeconds: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}theoretical_seconds'],
@@ -12738,6 +14911,29 @@ class SimulationRunOrder extends DataClass
   /// When it finished its last semantic step (§18.1). Null if it never did.
   final DateTime? delivered;
 
+  /// The takt this order **opened** under, as it was typed (§7.9, v22).
+  ///
+  /// **The cause, stored beside the effects.** An order's work at each step is
+  /// the balance's split against this figure, so two orders of one part
+  /// legitimately carry different work — and v21's `process_seconds` records
+  /// that difference while saying nothing about where it came from. Recording
+  /// an effect and leaving its cause to be re-derived from a schedule the plant
+  /// may have retuned is the drift §7.10 exists to prevent, one level up.
+  ///
+  /// Kept as the pair a human reads rather than the resolved interval: the
+  /// seconds only ever mattered for reproducing the cadence, and the study row
+  /// still carries those for its first release.
+  ///
+  /// Null on every run made before v22 — *made before a run said this* — and on
+  /// an order that never opened, which had no takt to take.
+  final double? taktValue;
+
+  /// [TaktUnit.name], the unit [taktValue] is in.
+  ///
+  /// Stored as a plain name rather than `textEnum` for §16.10's reason: a value
+  /// a later build knows and this one does not must not stop the run opening.
+  final String? taktUnit;
+
   /// §7.9's queue-free figure, walked from **this order's own release**.
   ///
   /// Stored rather than recomputed on read, because the walk needs the plant
@@ -12760,6 +14956,8 @@ class SimulationRunOrder extends DataClass
     required this.needDate,
     this.released,
     this.delivered,
+    this.taktValue,
+    this.taktUnit,
     this.theoreticalSeconds,
   });
   @override
@@ -12792,6 +14990,12 @@ class SimulationRunOrder extends DataClass
     }
     if (!nullToAbsent || delivered != null) {
       map['delivered'] = Variable<DateTime>(delivered);
+    }
+    if (!nullToAbsent || taktValue != null) {
+      map['takt_value'] = Variable<double>(taktValue);
+    }
+    if (!nullToAbsent || taktUnit != null) {
+      map['takt_unit'] = Variable<String>(taktUnit);
     }
     if (!nullToAbsent || theoreticalSeconds != null) {
       map['theoretical_seconds'] = Variable<int>(theoreticalSeconds);
@@ -12829,6 +15033,12 @@ class SimulationRunOrder extends DataClass
       delivered: delivered == null && nullToAbsent
           ? const Value.absent()
           : Value(delivered),
+      taktValue: taktValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktValue),
+      taktUnit: taktUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taktUnit),
       theoreticalSeconds: theoreticalSeconds == null && nullToAbsent
           ? const Value.absent()
           : Value(theoreticalSeconds),
@@ -12855,6 +15065,8 @@ class SimulationRunOrder extends DataClass
       needDate: serializer.fromJson<DateTime>(json['needDate']),
       released: serializer.fromJson<DateTime?>(json['released']),
       delivered: serializer.fromJson<DateTime?>(json['delivered']),
+      taktValue: serializer.fromJson<double?>(json['taktValue']),
+      taktUnit: serializer.fromJson<String?>(json['taktUnit']),
       theoreticalSeconds: serializer.fromJson<int?>(json['theoreticalSeconds']),
     );
   }
@@ -12876,6 +15088,8 @@ class SimulationRunOrder extends DataClass
       'needDate': serializer.toJson<DateTime>(needDate),
       'released': serializer.toJson<DateTime?>(released),
       'delivered': serializer.toJson<DateTime?>(delivered),
+      'taktValue': serializer.toJson<double?>(taktValue),
+      'taktUnit': serializer.toJson<String?>(taktUnit),
       'theoreticalSeconds': serializer.toJson<int?>(theoreticalSeconds),
     };
   }
@@ -12895,6 +15109,8 @@ class SimulationRunOrder extends DataClass
     DateTime? needDate,
     Value<DateTime?> released = const Value.absent(),
     Value<DateTime?> delivered = const Value.absent(),
+    Value<double?> taktValue = const Value.absent(),
+    Value<String?> taktUnit = const Value.absent(),
     Value<int?> theoreticalSeconds = const Value.absent(),
   }) => SimulationRunOrder(
     runId: runId ?? this.runId,
@@ -12915,6 +15131,8 @@ class SimulationRunOrder extends DataClass
     needDate: needDate ?? this.needDate,
     released: released.present ? released.value : this.released,
     delivered: delivered.present ? delivered.value : this.delivered,
+    taktValue: taktValue.present ? taktValue.value : this.taktValue,
+    taktUnit: taktUnit.present ? taktUnit.value : this.taktUnit,
     theoreticalSeconds: theoreticalSeconds.present
         ? theoreticalSeconds.value
         : this.theoreticalSeconds,
@@ -12945,6 +15163,8 @@ class SimulationRunOrder extends DataClass
       needDate: data.needDate.present ? data.needDate.value : this.needDate,
       released: data.released.present ? data.released.value : this.released,
       delivered: data.delivered.present ? data.delivered.value : this.delivered,
+      taktValue: data.taktValue.present ? data.taktValue.value : this.taktValue,
+      taktUnit: data.taktUnit.present ? data.taktUnit.value : this.taktUnit,
       theoreticalSeconds: data.theoreticalSeconds.present
           ? data.theoreticalSeconds.value
           : this.theoreticalSeconds,
@@ -12968,6 +15188,8 @@ class SimulationRunOrder extends DataClass
           ..write('needDate: $needDate, ')
           ..write('released: $released, ')
           ..write('delivered: $delivered, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
           ..write('theoreticalSeconds: $theoreticalSeconds')
           ..write(')'))
         .toString();
@@ -12989,6 +15211,8 @@ class SimulationRunOrder extends DataClass
     needDate,
     released,
     delivered,
+    taktValue,
+    taktUnit,
     theoreticalSeconds,
   );
   @override
@@ -13009,6 +15233,8 @@ class SimulationRunOrder extends DataClass
           other.needDate == this.needDate &&
           other.released == this.released &&
           other.delivered == this.delivered &&
+          other.taktValue == this.taktValue &&
+          other.taktUnit == this.taktUnit &&
           other.theoreticalSeconds == this.theoreticalSeconds);
 }
 
@@ -13027,6 +15253,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
   final Value<DateTime> needDate;
   final Value<DateTime?> released;
   final Value<DateTime?> delivered;
+  final Value<double?> taktValue;
+  final Value<String?> taktUnit;
   final Value<int?> theoreticalSeconds;
   final Value<int> rowid;
   const SimulationRunOrdersCompanion({
@@ -13044,6 +15272,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     this.needDate = const Value.absent(),
     this.released = const Value.absent(),
     this.delivered = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
     this.theoreticalSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -13062,6 +15292,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     required DateTime needDate,
     this.released = const Value.absent(),
     this.delivered = const Value.absent(),
+    this.taktValue = const Value.absent(),
+    this.taktUnit = const Value.absent(),
     this.theoreticalSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
@@ -13086,6 +15318,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     Expression<DateTime>? needDate,
     Expression<DateTime>? released,
     Expression<DateTime>? delivered,
+    Expression<double>? taktValue,
+    Expression<String>? taktUnit,
     Expression<int>? theoreticalSeconds,
     Expression<int>? rowid,
   }) {
@@ -13104,6 +15338,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
       if (needDate != null) 'need_date': needDate,
       if (released != null) 'released': released,
       if (delivered != null) 'delivered': delivered,
+      if (taktValue != null) 'takt_value': taktValue,
+      if (taktUnit != null) 'takt_unit': taktUnit,
       if (theoreticalSeconds != null) 'theoretical_seconds': theoreticalSeconds,
       if (rowid != null) 'rowid': rowid,
     });
@@ -13124,6 +15360,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     Value<DateTime>? needDate,
     Value<DateTime?>? released,
     Value<DateTime?>? delivered,
+    Value<double?>? taktValue,
+    Value<String?>? taktUnit,
     Value<int?>? theoreticalSeconds,
     Value<int>? rowid,
   }) {
@@ -13142,6 +15380,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
       needDate: needDate ?? this.needDate,
       released: released ?? this.released,
       delivered: delivered ?? this.delivered,
+      taktValue: taktValue ?? this.taktValue,
+      taktUnit: taktUnit ?? this.taktUnit,
       theoreticalSeconds: theoreticalSeconds ?? this.theoreticalSeconds,
       rowid: rowid ?? this.rowid,
     );
@@ -13192,6 +15432,12 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
     if (delivered.present) {
       map['delivered'] = Variable<DateTime>(delivered.value);
     }
+    if (taktValue.present) {
+      map['takt_value'] = Variable<double>(taktValue.value);
+    }
+    if (taktUnit.present) {
+      map['takt_unit'] = Variable<String>(taktUnit.value);
+    }
     if (theoreticalSeconds.present) {
       map['theoretical_seconds'] = Variable<int>(theoreticalSeconds.value);
     }
@@ -13218,6 +15464,8 @@ class SimulationRunOrdersCompanion extends UpdateCompanion<SimulationRunOrder> {
           ..write('needDate: $needDate, ')
           ..write('released: $released, ')
           ..write('delivered: $delivered, ')
+          ..write('taktValue: $taktValue, ')
+          ..write('taktUnit: $taktUnit, ')
           ..write('theoreticalSeconds: $theoreticalSeconds, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -13332,6 +15580,62 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _changeoverSecondsMeta = const VerificationMeta(
+    'changeoverSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> changeoverSeconds = GeneratedColumn<int>(
+    'changeover_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _processSecondsMeta = const VerificationMeta(
+    'processSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> processSeconds = GeneratedColumn<int>(
+    'process_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _processSecondsBeforeReworkMeta =
+      const VerificationMeta('processSecondsBeforeRework');
+  @override
+  late final GeneratedColumn<int> processSecondsBeforeRework =
+      GeneratedColumn<int>(
+        'process_seconds_before_rework',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _laneNodeIdMeta = const VerificationMeta(
+    'laneNodeId',
+  );
+  @override
+  late final GeneratedColumn<String> laneNodeId = GeneratedColumn<String>(
+    'lane_node_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _blockedSecondsMeta = const VerificationMeta(
+    'blockedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> blockedSeconds = GeneratedColumn<int>(
+    'blocked_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -13343,6 +15647,11 @@ class $SimulationRunStepsTable extends SimulationRunSteps
     processStart,
     processEnd,
     changeoverIncurred,
+    changeoverSeconds,
+    processSeconds,
+    processSecondsBeforeRework,
+    laneNodeId,
+    blockedSeconds,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -13435,6 +15744,51 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         ),
       );
     }
+    if (data.containsKey('changeover_seconds')) {
+      context.handle(
+        _changeoverSecondsMeta,
+        changeoverSeconds.isAcceptableOrUnknown(
+          data['changeover_seconds']!,
+          _changeoverSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('process_seconds')) {
+      context.handle(
+        _processSecondsMeta,
+        processSeconds.isAcceptableOrUnknown(
+          data['process_seconds']!,
+          _processSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('process_seconds_before_rework')) {
+      context.handle(
+        _processSecondsBeforeReworkMeta,
+        processSecondsBeforeRework.isAcceptableOrUnknown(
+          data['process_seconds_before_rework']!,
+          _processSecondsBeforeReworkMeta,
+        ),
+      );
+    }
+    if (data.containsKey('lane_node_id')) {
+      context.handle(
+        _laneNodeIdMeta,
+        laneNodeId.isAcceptableOrUnknown(
+          data['lane_node_id']!,
+          _laneNodeIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('blocked_seconds')) {
+      context.handle(
+        _blockedSecondsMeta,
+        blockedSeconds.isAcceptableOrUnknown(
+          data['blocked_seconds']!,
+          _blockedSecondsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -13480,6 +15834,26 @@ class $SimulationRunStepsTable extends SimulationRunSteps
         DriftSqlType.bool,
         data['${effectivePrefix}changeover_incurred'],
       )!,
+      changeoverSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}changeover_seconds'],
+      ),
+      processSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}process_seconds'],
+      ),
+      processSecondsBeforeRework: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}process_seconds_before_rework'],
+      ),
+      laneNodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lane_node_id'],
+      ),
+      blockedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}blocked_seconds'],
+      )!,
     );
   }
 
@@ -13507,7 +15881,84 @@ class SimulationRunStep extends DataClass
 
   /// Whether the order before this one on that workcenter was a different part
   /// (§7.6).
+  ///
+  /// **Derived from [changeoverSeconds] since v17**, and kept because every run
+  /// made before that column existed can still answer this and nothing else.
   final bool changeoverIncurred;
+
+  /// What the changeover actually cost this step, in seconds of the workcenter's
+  /// open time (§7.6).
+  ///
+  /// A bool could say *whether* a changeover was paid and that was enough while
+  /// the answer was all-or-nothing. Since v17 a repeat may be charged at a
+  /// percentage, so "incurred" stopped being a yes/no about a figure the reader
+  /// cannot see — and §8.6's hover card was the only place the new setup rule
+  /// could be checked against what it actually did.
+  ///
+  /// Null means made before this column existed, which is what a blank has meant
+  /// on these tables since v12 — not "no changeover", which is zero.
+  final int? changeoverSeconds;
+
+  /// What the **work** cost at this step, in seconds of the workcenter's open
+  /// clock — `per-piece × batch × (1 + rework) ÷ availability`, changeover
+  /// excluded (§7.4, §7.6).
+  ///
+  /// **The only place a run says what a step was actually worth.**
+  /// [processStart] and [processEnd] bracket the work on the *calendar*, so
+  /// their difference is an elapsed span that swallows nights, weekends and
+  /// shutdowns — a 76-hour operation reads as 148 hours across a normal week.
+  /// That is the right figure for drawing a bar and the wrong one for checking
+  /// what a workcenter was asked to do, and until this column there was no second
+  /// figure to check it against: §7.4's balance moves work *between* workcenters,
+  /// and a reader could not see the split it produced anywhere in the run.
+  ///
+  /// Recomputing it on read is not open to us — it needs the batch, the
+  /// availability and the rework as they stood, and §7.10 forbids joining back
+  /// to a plant that may have been retuned since. So it is copied in like every
+  /// other figure a run has to keep saying.
+  ///
+  /// Null on every run made before v21, which means *made before a run said
+  /// this* — not "no work", which is zero and is what a step the part does not
+  /// route through legitimately records.
+  final int? processSeconds;
+
+  /// The same work with **rework not yet charged** — `per-piece × batch ÷
+  /// availability` (§10.2).
+  ///
+  /// **Stored rather than derived, because [processSeconds] has already fused
+  /// them.** `process × (1 + r)` cannot be undone without `r`, and `r` lives on
+  /// a workcenter schedule the plant is free to retune — which §7.10 forbids
+  /// joining a finished run back to. Two figures side by side, and their
+  /// difference is what rework cost: the middle segment of §10.3's stacked bar,
+  /// which is the only reason the column exists.
+  ///
+  /// Null on every run made before v25, which is *made before a run said this*
+  /// rather than "no rework" — that is zero, and a workcenter with none records it
+  /// honestly as `processSeconds == processSecondsBeforeRework`.
+  final int? processSecondsBeforeRework;
+
+  /// The lane the order waited in before this step, or null when the step had
+  /// none and it queued at the workcenter itself (§5.5).
+  ///
+  /// With it, [queueStart] and [processStart] become the two ends of a stay in
+  /// a named lane — which is what makes `simulation_run_lane_visits` derivable
+  /// rather than a second record of the same event. Null on every run made
+  /// before lanes governed anything.
+  final String? laneNodeId;
+
+  /// How long the workcenter stood holding this order after finishing it, because
+  /// the lane ahead was full (§5.5).
+  ///
+  /// Blocking is after service — a workcenter cannot know in advance whether there
+  /// will be room, so it finishes and then waits — which means [processEnd] is
+  /// when the work stopped and `processEnd + this` is when the workcenter was free
+  /// again. Kept apart from the work for the reason it is kept out of
+  /// `busySeconds` on the workcenter: a jammed machine is occupied and not
+  /// producing, and folding the two would make utilization report the jam as
+  /// output.
+  ///
+  /// Zero on every run made before lanes had capacity, which is true of them.
+  final int blockedSeconds;
   const SimulationRunStep({
     required this.runId,
     required this.studyId,
@@ -13518,6 +15969,11 @@ class SimulationRunStep extends DataClass
     required this.processStart,
     required this.processEnd,
     required this.changeoverIncurred,
+    this.changeoverSeconds,
+    this.processSeconds,
+    this.processSecondsBeforeRework,
+    this.laneNodeId,
+    required this.blockedSeconds,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -13531,6 +15987,21 @@ class SimulationRunStep extends DataClass
     map['process_start'] = Variable<DateTime>(processStart);
     map['process_end'] = Variable<DateTime>(processEnd);
     map['changeover_incurred'] = Variable<bool>(changeoverIncurred);
+    if (!nullToAbsent || changeoverSeconds != null) {
+      map['changeover_seconds'] = Variable<int>(changeoverSeconds);
+    }
+    if (!nullToAbsent || processSeconds != null) {
+      map['process_seconds'] = Variable<int>(processSeconds);
+    }
+    if (!nullToAbsent || processSecondsBeforeRework != null) {
+      map['process_seconds_before_rework'] = Variable<int>(
+        processSecondsBeforeRework,
+      );
+    }
+    if (!nullToAbsent || laneNodeId != null) {
+      map['lane_node_id'] = Variable<String>(laneNodeId);
+    }
+    map['blocked_seconds'] = Variable<int>(blockedSeconds);
     return map;
   }
 
@@ -13545,6 +16016,20 @@ class SimulationRunStep extends DataClass
       processStart: Value(processStart),
       processEnd: Value(processEnd),
       changeoverIncurred: Value(changeoverIncurred),
+      changeoverSeconds: changeoverSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(changeoverSeconds),
+      processSeconds: processSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processSeconds),
+      processSecondsBeforeRework:
+          processSecondsBeforeRework == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processSecondsBeforeRework),
+      laneNodeId: laneNodeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(laneNodeId),
+      blockedSeconds: Value(blockedSeconds),
     );
   }
 
@@ -13563,6 +16048,13 @@ class SimulationRunStep extends DataClass
       processStart: serializer.fromJson<DateTime>(json['processStart']),
       processEnd: serializer.fromJson<DateTime>(json['processEnd']),
       changeoverIncurred: serializer.fromJson<bool>(json['changeoverIncurred']),
+      changeoverSeconds: serializer.fromJson<int?>(json['changeoverSeconds']),
+      processSeconds: serializer.fromJson<int?>(json['processSeconds']),
+      processSecondsBeforeRework: serializer.fromJson<int?>(
+        json['processSecondsBeforeRework'],
+      ),
+      laneNodeId: serializer.fromJson<String?>(json['laneNodeId']),
+      blockedSeconds: serializer.fromJson<int>(json['blockedSeconds']),
     );
   }
   @override
@@ -13578,6 +16070,13 @@ class SimulationRunStep extends DataClass
       'processStart': serializer.toJson<DateTime>(processStart),
       'processEnd': serializer.toJson<DateTime>(processEnd),
       'changeoverIncurred': serializer.toJson<bool>(changeoverIncurred),
+      'changeoverSeconds': serializer.toJson<int?>(changeoverSeconds),
+      'processSeconds': serializer.toJson<int?>(processSeconds),
+      'processSecondsBeforeRework': serializer.toJson<int?>(
+        processSecondsBeforeRework,
+      ),
+      'laneNodeId': serializer.toJson<String?>(laneNodeId),
+      'blockedSeconds': serializer.toJson<int>(blockedSeconds),
     };
   }
 
@@ -13591,6 +16090,11 @@ class SimulationRunStep extends DataClass
     DateTime? processStart,
     DateTime? processEnd,
     bool? changeoverIncurred,
+    Value<int?> changeoverSeconds = const Value.absent(),
+    Value<int?> processSeconds = const Value.absent(),
+    Value<int?> processSecondsBeforeRework = const Value.absent(),
+    Value<String?> laneNodeId = const Value.absent(),
+    int? blockedSeconds,
   }) => SimulationRunStep(
     runId: runId ?? this.runId,
     studyId: studyId ?? this.studyId,
@@ -13601,6 +16105,17 @@ class SimulationRunStep extends DataClass
     processStart: processStart ?? this.processStart,
     processEnd: processEnd ?? this.processEnd,
     changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
+    changeoverSeconds: changeoverSeconds.present
+        ? changeoverSeconds.value
+        : this.changeoverSeconds,
+    processSeconds: processSeconds.present
+        ? processSeconds.value
+        : this.processSeconds,
+    processSecondsBeforeRework: processSecondsBeforeRework.present
+        ? processSecondsBeforeRework.value
+        : this.processSecondsBeforeRework,
+    laneNodeId: laneNodeId.present ? laneNodeId.value : this.laneNodeId,
+    blockedSeconds: blockedSeconds ?? this.blockedSeconds,
   );
   SimulationRunStep copyWithCompanion(SimulationRunStepsCompanion data) {
     return SimulationRunStep(
@@ -13623,6 +16138,21 @@ class SimulationRunStep extends DataClass
       changeoverIncurred: data.changeoverIncurred.present
           ? data.changeoverIncurred.value
           : this.changeoverIncurred,
+      changeoverSeconds: data.changeoverSeconds.present
+          ? data.changeoverSeconds.value
+          : this.changeoverSeconds,
+      processSeconds: data.processSeconds.present
+          ? data.processSeconds.value
+          : this.processSeconds,
+      processSecondsBeforeRework: data.processSecondsBeforeRework.present
+          ? data.processSecondsBeforeRework.value
+          : this.processSecondsBeforeRework,
+      laneNodeId: data.laneNodeId.present
+          ? data.laneNodeId.value
+          : this.laneNodeId,
+      blockedSeconds: data.blockedSeconds.present
+          ? data.blockedSeconds.value
+          : this.blockedSeconds,
     );
   }
 
@@ -13637,7 +16167,12 @@ class SimulationRunStep extends DataClass
           ..write('queueStart: $queueStart, ')
           ..write('processStart: $processStart, ')
           ..write('processEnd: $processEnd, ')
-          ..write('changeoverIncurred: $changeoverIncurred')
+          ..write('changeoverIncurred: $changeoverIncurred, ')
+          ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('processSeconds: $processSeconds, ')
+          ..write('processSecondsBeforeRework: $processSecondsBeforeRework, ')
+          ..write('laneNodeId: $laneNodeId, ')
+          ..write('blockedSeconds: $blockedSeconds')
           ..write(')'))
         .toString();
   }
@@ -13653,6 +16188,11 @@ class SimulationRunStep extends DataClass
     processStart,
     processEnd,
     changeoverIncurred,
+    changeoverSeconds,
+    processSeconds,
+    processSecondsBeforeRework,
+    laneNodeId,
+    blockedSeconds,
   );
   @override
   bool operator ==(Object other) =>
@@ -13666,7 +16206,12 @@ class SimulationRunStep extends DataClass
           other.queueStart == this.queueStart &&
           other.processStart == this.processStart &&
           other.processEnd == this.processEnd &&
-          other.changeoverIncurred == this.changeoverIncurred);
+          other.changeoverIncurred == this.changeoverIncurred &&
+          other.changeoverSeconds == this.changeoverSeconds &&
+          other.processSeconds == this.processSeconds &&
+          other.processSecondsBeforeRework == this.processSecondsBeforeRework &&
+          other.laneNodeId == this.laneNodeId &&
+          other.blockedSeconds == this.blockedSeconds);
 }
 
 class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
@@ -13679,6 +16224,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
   final Value<DateTime> processStart;
   final Value<DateTime> processEnd;
   final Value<bool> changeoverIncurred;
+  final Value<int?> changeoverSeconds;
+  final Value<int?> processSeconds;
+  final Value<int?> processSecondsBeforeRework;
+  final Value<String?> laneNodeId;
+  final Value<int> blockedSeconds;
   final Value<int> rowid;
   const SimulationRunStepsCompanion({
     this.runId = const Value.absent(),
@@ -13690,6 +16240,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     this.processStart = const Value.absent(),
     this.processEnd = const Value.absent(),
     this.changeoverIncurred = const Value.absent(),
+    this.changeoverSeconds = const Value.absent(),
+    this.processSeconds = const Value.absent(),
+    this.processSecondsBeforeRework = const Value.absent(),
+    this.laneNodeId = const Value.absent(),
+    this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunStepsCompanion.insert({
@@ -13702,6 +16257,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     required DateTime processStart,
     required DateTime processEnd,
     this.changeoverIncurred = const Value.absent(),
+    this.changeoverSeconds = const Value.absent(),
+    this.processSeconds = const Value.absent(),
+    this.processSecondsBeforeRework = const Value.absent(),
+    this.laneNodeId = const Value.absent(),
+    this.blockedSeconds = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        studyId = Value(studyId),
@@ -13721,6 +16281,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Expression<DateTime>? processStart,
     Expression<DateTime>? processEnd,
     Expression<bool>? changeoverIncurred,
+    Expression<int>? changeoverSeconds,
+    Expression<int>? processSeconds,
+    Expression<int>? processSecondsBeforeRework,
+    Expression<String>? laneNodeId,
+    Expression<int>? blockedSeconds,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -13733,6 +16298,12 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       if (processStart != null) 'process_start': processStart,
       if (processEnd != null) 'process_end': processEnd,
       if (changeoverIncurred != null) 'changeover_incurred': changeoverIncurred,
+      if (changeoverSeconds != null) 'changeover_seconds': changeoverSeconds,
+      if (processSeconds != null) 'process_seconds': processSeconds,
+      if (processSecondsBeforeRework != null)
+        'process_seconds_before_rework': processSecondsBeforeRework,
+      if (laneNodeId != null) 'lane_node_id': laneNodeId,
+      if (blockedSeconds != null) 'blocked_seconds': blockedSeconds,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -13747,6 +16318,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     Value<DateTime>? processStart,
     Value<DateTime>? processEnd,
     Value<bool>? changeoverIncurred,
+    Value<int?>? changeoverSeconds,
+    Value<int?>? processSeconds,
+    Value<int?>? processSecondsBeforeRework,
+    Value<String?>? laneNodeId,
+    Value<int>? blockedSeconds,
     Value<int>? rowid,
   }) {
     return SimulationRunStepsCompanion(
@@ -13759,6 +16335,12 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
       processStart: processStart ?? this.processStart,
       processEnd: processEnd ?? this.processEnd,
       changeoverIncurred: changeoverIncurred ?? this.changeoverIncurred,
+      changeoverSeconds: changeoverSeconds ?? this.changeoverSeconds,
+      processSeconds: processSeconds ?? this.processSeconds,
+      processSecondsBeforeRework:
+          processSecondsBeforeRework ?? this.processSecondsBeforeRework,
+      laneNodeId: laneNodeId ?? this.laneNodeId,
+      blockedSeconds: blockedSeconds ?? this.blockedSeconds,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -13793,6 +16375,23 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
     if (changeoverIncurred.present) {
       map['changeover_incurred'] = Variable<bool>(changeoverIncurred.value);
     }
+    if (changeoverSeconds.present) {
+      map['changeover_seconds'] = Variable<int>(changeoverSeconds.value);
+    }
+    if (processSeconds.present) {
+      map['process_seconds'] = Variable<int>(processSeconds.value);
+    }
+    if (processSecondsBeforeRework.present) {
+      map['process_seconds_before_rework'] = Variable<int>(
+        processSecondsBeforeRework.value,
+      );
+    }
+    if (laneNodeId.present) {
+      map['lane_node_id'] = Variable<String>(laneNodeId.value);
+    }
+    if (blockedSeconds.present) {
+      map['blocked_seconds'] = Variable<int>(blockedSeconds.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -13811,6 +16410,11 @@ class SimulationRunStepsCompanion extends UpdateCompanion<SimulationRunStep> {
           ..write('processStart: $processStart, ')
           ..write('processEnd: $processEnd, ')
           ..write('changeoverIncurred: $changeoverIncurred, ')
+          ..write('changeoverSeconds: $changeoverSeconds, ')
+          ..write('processSeconds: $processSeconds, ')
+          ..write('processSecondsBeforeRework: $processSecondsBeforeRework, ')
+          ..write('laneNodeId: $laneNodeId, ')
+          ..write('blockedSeconds: $blockedSeconds, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -14135,333 +16739,6 @@ class SimulationRunEmptySlotsCompanion
   }
 }
 
-class $SimulationRunDispatchTable extends SimulationRunDispatch
-    with TableInfo<$SimulationRunDispatchTable, SimulationRunDispatchData> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SimulationRunDispatchTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
-  @override
-  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
-    'run_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _targetIdMeta = const VerificationMeta(
-    'targetId',
-  );
-  @override
-  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
-    'target_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _ruleMeta = const VerificationMeta('rule');
-  @override
-  late final GeneratedColumn<String> rule = GeneratedColumn<String>(
-    'rule',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [runId, targetId, name, rule];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'simulation_run_dispatch';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SimulationRunDispatchData> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('run_id')) {
-      context.handle(
-        _runIdMeta,
-        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_runIdMeta);
-    }
-    if (data.containsKey('target_id')) {
-      context.handle(
-        _targetIdMeta,
-        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_targetIdMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('rule')) {
-      context.handle(
-        _ruleMeta,
-        rule.isAcceptableOrUnknown(data['rule']!, _ruleMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_ruleMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {runId, targetId};
-  @override
-  SimulationRunDispatchData map(
-    Map<String, dynamic> data, {
-    String? tablePrefix,
-  }) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SimulationRunDispatchData(
-      runId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}run_id'],
-      )!,
-      targetId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}target_id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      rule: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}rule'],
-      )!,
-    );
-  }
-
-  @override
-  $SimulationRunDispatchTable createAlias(String alias) {
-    return $SimulationRunDispatchTable(attachedDatabase, alias);
-  }
-}
-
-class SimulationRunDispatchData extends DataClass
-    implements Insertable<SimulationRunDispatchData> {
-  final String runId;
-
-  /// The workcenter or pool, whether or not it still exists.
-  final String targetId;
-
-  /// `CLAD04` — copied in, as everything else in this file is, so an override
-  /// still reads as a station after the workcenter is renamed or removed.
-  final String name;
-
-  /// The rule that station actually used, by name. Plain text and parsed on
-  /// read, for the reason [SimulationRuns.dispatch] is.
-  final String rule;
-  const SimulationRunDispatchData({
-    required this.runId,
-    required this.targetId,
-    required this.name,
-    required this.rule,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['run_id'] = Variable<String>(runId);
-    map['target_id'] = Variable<String>(targetId);
-    map['name'] = Variable<String>(name);
-    map['rule'] = Variable<String>(rule);
-    return map;
-  }
-
-  SimulationRunDispatchCompanion toCompanion(bool nullToAbsent) {
-    return SimulationRunDispatchCompanion(
-      runId: Value(runId),
-      targetId: Value(targetId),
-      name: Value(name),
-      rule: Value(rule),
-    );
-  }
-
-  factory SimulationRunDispatchData.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SimulationRunDispatchData(
-      runId: serializer.fromJson<String>(json['runId']),
-      targetId: serializer.fromJson<String>(json['targetId']),
-      name: serializer.fromJson<String>(json['name']),
-      rule: serializer.fromJson<String>(json['rule']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'runId': serializer.toJson<String>(runId),
-      'targetId': serializer.toJson<String>(targetId),
-      'name': serializer.toJson<String>(name),
-      'rule': serializer.toJson<String>(rule),
-    };
-  }
-
-  SimulationRunDispatchData copyWith({
-    String? runId,
-    String? targetId,
-    String? name,
-    String? rule,
-  }) => SimulationRunDispatchData(
-    runId: runId ?? this.runId,
-    targetId: targetId ?? this.targetId,
-    name: name ?? this.name,
-    rule: rule ?? this.rule,
-  );
-  SimulationRunDispatchData copyWithCompanion(
-    SimulationRunDispatchCompanion data,
-  ) {
-    return SimulationRunDispatchData(
-      runId: data.runId.present ? data.runId.value : this.runId,
-      targetId: data.targetId.present ? data.targetId.value : this.targetId,
-      name: data.name.present ? data.name.value : this.name,
-      rule: data.rule.present ? data.rule.value : this.rule,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SimulationRunDispatchData(')
-          ..write('runId: $runId, ')
-          ..write('targetId: $targetId, ')
-          ..write('name: $name, ')
-          ..write('rule: $rule')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(runId, targetId, name, rule);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SimulationRunDispatchData &&
-          other.runId == this.runId &&
-          other.targetId == this.targetId &&
-          other.name == this.name &&
-          other.rule == this.rule);
-}
-
-class SimulationRunDispatchCompanion
-    extends UpdateCompanion<SimulationRunDispatchData> {
-  final Value<String> runId;
-  final Value<String> targetId;
-  final Value<String> name;
-  final Value<String> rule;
-  final Value<int> rowid;
-  const SimulationRunDispatchCompanion({
-    this.runId = const Value.absent(),
-    this.targetId = const Value.absent(),
-    this.name = const Value.absent(),
-    this.rule = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SimulationRunDispatchCompanion.insert({
-    required String runId,
-    required String targetId,
-    required String name,
-    required String rule,
-    this.rowid = const Value.absent(),
-  }) : runId = Value(runId),
-       targetId = Value(targetId),
-       name = Value(name),
-       rule = Value(rule);
-  static Insertable<SimulationRunDispatchData> custom({
-    Expression<String>? runId,
-    Expression<String>? targetId,
-    Expression<String>? name,
-    Expression<String>? rule,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (runId != null) 'run_id': runId,
-      if (targetId != null) 'target_id': targetId,
-      if (name != null) 'name': name,
-      if (rule != null) 'rule': rule,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SimulationRunDispatchCompanion copyWith({
-    Value<String>? runId,
-    Value<String>? targetId,
-    Value<String>? name,
-    Value<String>? rule,
-    Value<int>? rowid,
-  }) {
-    return SimulationRunDispatchCompanion(
-      runId: runId ?? this.runId,
-      targetId: targetId ?? this.targetId,
-      name: name ?? this.name,
-      rule: rule ?? this.rule,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (runId.present) {
-      map['run_id'] = Variable<String>(runId.value);
-    }
-    if (targetId.present) {
-      map['target_id'] = Variable<String>(targetId.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (rule.present) {
-      map['rule'] = Variable<String>(rule.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SimulationRunDispatchCompanion(')
-          ..write('runId: $runId, ')
-          ..write('targetId: $targetId, ')
-          ..write('name: $name, ')
-          ..write('rule: $rule, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     with TableInfo<$SimulationRunWorkcentersTable, SimulationRunWorkcenter> {
   @override
@@ -14522,6 +16799,90 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _blockedSecondsMeta = const VerificationMeta(
+    'blockedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> blockedSeconds = GeneratedColumn<int>(
+    'blocked_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _unitsMeta = const VerificationMeta('units');
+  @override
+  late final GeneratedColumn<int> units = GeneratedColumn<int>(
+    'units',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _poolIdMeta = const VerificationMeta('poolId');
+  @override
+  late final GeneratedColumn<String> poolId = GeneratedColumn<String>(
+    'pool_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _poolNameMeta = const VerificationMeta(
+    'poolName',
+  );
+  @override
+  late final GeneratedColumn<String> poolName = GeneratedColumn<String>(
+    'pool_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _queueTypeMeta = const VerificationMeta(
+    'queueType',
+  );
+  @override
+  late final GeneratedColumn<String> queueType = GeneratedColumn<String>(
+    'queue_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _queueCapacityMeta = const VerificationMeta(
+    'queueCapacity',
+  );
+  @override
+  late final GeneratedColumn<int> queueCapacity = GeneratedColumn<int>(
+    'queue_capacity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeIdMeta = const VerificationMeta('typeId');
+  @override
+  late final GeneratedColumn<String> typeId = GeneratedColumn<String>(
+    'type_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeNameMeta = const VerificationMeta(
+    'typeName',
+  );
+  @override
+  late final GeneratedColumn<String> typeName = GeneratedColumn<String>(
+    'type_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runId,
@@ -14529,6 +16890,14 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     name,
     busySeconds,
     openSeconds,
+    blockedSeconds,
+    units,
+    poolId,
+    poolName,
+    queueType,
+    queueCapacity,
+    typeId,
+    typeName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -14591,6 +16960,60 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
     } else if (isInserting) {
       context.missing(_openSecondsMeta);
     }
+    if (data.containsKey('blocked_seconds')) {
+      context.handle(
+        _blockedSecondsMeta,
+        blockedSeconds.isAcceptableOrUnknown(
+          data['blocked_seconds']!,
+          _blockedSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('units')) {
+      context.handle(
+        _unitsMeta,
+        units.isAcceptableOrUnknown(data['units']!, _unitsMeta),
+      );
+    }
+    if (data.containsKey('pool_id')) {
+      context.handle(
+        _poolIdMeta,
+        poolId.isAcceptableOrUnknown(data['pool_id']!, _poolIdMeta),
+      );
+    }
+    if (data.containsKey('pool_name')) {
+      context.handle(
+        _poolNameMeta,
+        poolName.isAcceptableOrUnknown(data['pool_name']!, _poolNameMeta),
+      );
+    }
+    if (data.containsKey('queue_type')) {
+      context.handle(
+        _queueTypeMeta,
+        queueType.isAcceptableOrUnknown(data['queue_type']!, _queueTypeMeta),
+      );
+    }
+    if (data.containsKey('queue_capacity')) {
+      context.handle(
+        _queueCapacityMeta,
+        queueCapacity.isAcceptableOrUnknown(
+          data['queue_capacity']!,
+          _queueCapacityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('type_id')) {
+      context.handle(
+        _typeIdMeta,
+        typeId.isAcceptableOrUnknown(data['type_id']!, _typeIdMeta),
+      );
+    }
+    if (data.containsKey('type_name')) {
+      context.handle(
+        _typeNameMeta,
+        typeName.isAcceptableOrUnknown(data['type_name']!, _typeNameMeta),
+      );
+    }
     return context;
   }
 
@@ -14623,6 +17046,38 @@ class $SimulationRunWorkcentersTable extends SimulationRunWorkcenters
         DriftSqlType.int,
         data['${effectivePrefix}open_seconds'],
       )!,
+      blockedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}blocked_seconds'],
+      )!,
+      units: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}units'],
+      )!,
+      poolId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pool_id'],
+      ),
+      poolName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pool_name'],
+      ),
+      queueType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}queue_type'],
+      ),
+      queueCapacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}queue_capacity'],
+      ),
+      typeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type_id'],
+      ),
+      typeName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type_name'],
+      ),
     );
   }
 
@@ -14637,21 +17092,109 @@ class SimulationRunWorkcenter extends DataClass
   final String runId;
   final String workcenterId;
 
-  /// `CLAD04` — copied in, so a bottleneck still reads as a station after the
+  /// `CLAD04` — copied in, so a bottleneck still reads as a workcenter after the
   /// workcenter is renamed or removed from the plant.
   final String name;
 
-  /// Open time the station spent running (§8.3's utilization numerator).
+  /// Open time the workcenter spent running (§8.3's utilization numerator).
   final int busySeconds;
 
   /// Open time it had available across the run — the denominator.
+  ///
+  /// Already multiplied by [units]: a workcenter with two of them has twice the
+  /// time to be busy in, and utilization is meaningless if the numerator counts
+  /// two servers and the denominator one.
   final int openSeconds;
+
+  /// Open time it spent holding a finished order with nowhere to put it (§5.5).
+  ///
+  /// **Not part of [busySeconds].** A blocked workcenter is occupied and producing
+  /// nothing, so counting it as busy would report a jam as output — and on a
+  /// line whose constraint already sits at 86 % utilization that is not a
+  /// rounding error. Reported as its own column, which is what §5.5 meant by
+  /// "needs blocking-time metrics to be interpretable".
+  final int blockedSeconds;
+
+  /// How many orders it could run at once when the run was made (§3.1).
+  ///
+  /// Copied in like [name], for the same reason: a workcenter re-rated from one
+  /// unit to two afterwards must not silently rewrite what a finished run's
+  /// utilization meant.
+  final int units;
+
+  /// The pool this workcenter was dispatched through in this run (§3.1), copied in
+  /// like [name] and for the same reason: moving CLAD07 to another pool
+  /// afterwards must not regroup a finished run's workcenters.
+  ///
+  /// **Null means ungrouped, never "every pool".** A workcenter may belong to
+  /// several pools — `WorkcenterPoolMembers`' key is `{poolId, workcenterId}` —
+  /// so with two studies in one run, line A can reach CLAD07 through `CAL`
+  /// while line B reaches it through `All Lathes`. Resolved at write time by
+  /// `simWorkcenterPools`: **exactly one pool is stored, none or several store null**
+  /// and the workcenter reads ungrouped. Treating a blank as a wildcard is the
+  /// mistake §12.1 already wrote a rule against for the pre-v17 cell.
+  ///
+  /// Null on every run made before v18, which therefore group nothing.
+  final String? poolId;
+
+  /// `CAL Pool` — the pool's name at run time, for the same copy-in reason as
+  /// [name].
+  ///
+  /// **Set even when [poolId] is null and several pools were involved**, as
+  /// `CAL Pool · All Lathes`: the workcenter is not grouped, and a reader still
+  /// deserves to see why it is standing on its own. Null only when no step
+  /// reached it through a pool at all.
+  final String? poolName;
+
+  /// The queue this workcenter dispatched by when the run was made (§7.4, §12.6).
+  ///
+  /// Copied in for §7.10's reason and no other: the queue lives on the project
+  /// and can be retuned tomorrow, and a run that read it back would silently
+  /// change what it claims to have done. It is also what lets a comparison say
+  /// *which* queues differed rather than only that something did.
+  ///
+  /// Null on a run made before v19, whose rule is on [SimulationRuns.dispatch]
+  /// instead — the one column this replaced.
+  ///
+  /// **Plain text, not `textEnum`**, for the reason [SimulationRuns.dispatch]
+  /// gives at the top of this file: `textEnum` throws on a name it has never
+  /// heard of, so a queue type added by a later build would make an older one
+  /// fail to open the whole run list rather than show the one run it cannot
+  /// read. The repository parses, and falls back.
+  final String? queueType;
+  final int? queueCapacity;
+
+  /// The workcenter's type, copied in (§10.2).
+  ///
+  /// **`Workcenters.typeId` is in the plant and a run has never carried it**, so
+  /// §10.3's type filter and the columns of its pivot could not be read off a
+  /// stored run at all — and joining back to find out is exactly what §7.10
+  /// forbids, because a workcenter retyped since would silently re-column every
+  /// run in the picker.
+  ///
+  /// The **name** travels beside the id for the reason [poolName] does: a type
+  /// deleted since still named this workcenter when it ran, and a pivot headed by
+  /// a uuid is not a pivot anyone can read.
+  ///
+  /// Both null on a run made before v25, and on a workcenter whose type was never
+  /// set — which is a real state the plant allows and §7.4 already treats as
+  /// *"nothing says it is like its neighbours"*.
+  final String? typeId;
+  final String? typeName;
   const SimulationRunWorkcenter({
     required this.runId,
     required this.workcenterId,
     required this.name,
     required this.busySeconds,
     required this.openSeconds,
+    required this.blockedSeconds,
+    required this.units,
+    this.poolId,
+    this.poolName,
+    this.queueType,
+    this.queueCapacity,
+    this.typeId,
+    this.typeName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -14661,6 +17204,26 @@ class SimulationRunWorkcenter extends DataClass
     map['name'] = Variable<String>(name);
     map['busy_seconds'] = Variable<int>(busySeconds);
     map['open_seconds'] = Variable<int>(openSeconds);
+    map['blocked_seconds'] = Variable<int>(blockedSeconds);
+    map['units'] = Variable<int>(units);
+    if (!nullToAbsent || poolId != null) {
+      map['pool_id'] = Variable<String>(poolId);
+    }
+    if (!nullToAbsent || poolName != null) {
+      map['pool_name'] = Variable<String>(poolName);
+    }
+    if (!nullToAbsent || queueType != null) {
+      map['queue_type'] = Variable<String>(queueType);
+    }
+    if (!nullToAbsent || queueCapacity != null) {
+      map['queue_capacity'] = Variable<int>(queueCapacity);
+    }
+    if (!nullToAbsent || typeId != null) {
+      map['type_id'] = Variable<String>(typeId);
+    }
+    if (!nullToAbsent || typeName != null) {
+      map['type_name'] = Variable<String>(typeName);
+    }
     return map;
   }
 
@@ -14671,6 +17234,26 @@ class SimulationRunWorkcenter extends DataClass
       name: Value(name),
       busySeconds: Value(busySeconds),
       openSeconds: Value(openSeconds),
+      blockedSeconds: Value(blockedSeconds),
+      units: Value(units),
+      poolId: poolId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poolId),
+      poolName: poolName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(poolName),
+      queueType: queueType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(queueType),
+      queueCapacity: queueCapacity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(queueCapacity),
+      typeId: typeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(typeId),
+      typeName: typeName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(typeName),
     );
   }
 
@@ -14685,6 +17268,14 @@ class SimulationRunWorkcenter extends DataClass
       name: serializer.fromJson<String>(json['name']),
       busySeconds: serializer.fromJson<int>(json['busySeconds']),
       openSeconds: serializer.fromJson<int>(json['openSeconds']),
+      blockedSeconds: serializer.fromJson<int>(json['blockedSeconds']),
+      units: serializer.fromJson<int>(json['units']),
+      poolId: serializer.fromJson<String?>(json['poolId']),
+      poolName: serializer.fromJson<String?>(json['poolName']),
+      queueType: serializer.fromJson<String?>(json['queueType']),
+      queueCapacity: serializer.fromJson<int?>(json['queueCapacity']),
+      typeId: serializer.fromJson<String?>(json['typeId']),
+      typeName: serializer.fromJson<String?>(json['typeName']),
     );
   }
   @override
@@ -14696,6 +17287,14 @@ class SimulationRunWorkcenter extends DataClass
       'name': serializer.toJson<String>(name),
       'busySeconds': serializer.toJson<int>(busySeconds),
       'openSeconds': serializer.toJson<int>(openSeconds),
+      'blockedSeconds': serializer.toJson<int>(blockedSeconds),
+      'units': serializer.toJson<int>(units),
+      'poolId': serializer.toJson<String?>(poolId),
+      'poolName': serializer.toJson<String?>(poolName),
+      'queueType': serializer.toJson<String?>(queueType),
+      'queueCapacity': serializer.toJson<int?>(queueCapacity),
+      'typeId': serializer.toJson<String?>(typeId),
+      'typeName': serializer.toJson<String?>(typeName),
     };
   }
 
@@ -14705,12 +17304,30 @@ class SimulationRunWorkcenter extends DataClass
     String? name,
     int? busySeconds,
     int? openSeconds,
+    int? blockedSeconds,
+    int? units,
+    Value<String?> poolId = const Value.absent(),
+    Value<String?> poolName = const Value.absent(),
+    Value<String?> queueType = const Value.absent(),
+    Value<int?> queueCapacity = const Value.absent(),
+    Value<String?> typeId = const Value.absent(),
+    Value<String?> typeName = const Value.absent(),
   }) => SimulationRunWorkcenter(
     runId: runId ?? this.runId,
     workcenterId: workcenterId ?? this.workcenterId,
     name: name ?? this.name,
     busySeconds: busySeconds ?? this.busySeconds,
     openSeconds: openSeconds ?? this.openSeconds,
+    blockedSeconds: blockedSeconds ?? this.blockedSeconds,
+    units: units ?? this.units,
+    poolId: poolId.present ? poolId.value : this.poolId,
+    poolName: poolName.present ? poolName.value : this.poolName,
+    queueType: queueType.present ? queueType.value : this.queueType,
+    queueCapacity: queueCapacity.present
+        ? queueCapacity.value
+        : this.queueCapacity,
+    typeId: typeId.present ? typeId.value : this.typeId,
+    typeName: typeName.present ? typeName.value : this.typeName,
   );
   SimulationRunWorkcenter copyWithCompanion(
     SimulationRunWorkcentersCompanion data,
@@ -14727,6 +17344,18 @@ class SimulationRunWorkcenter extends DataClass
       openSeconds: data.openSeconds.present
           ? data.openSeconds.value
           : this.openSeconds,
+      blockedSeconds: data.blockedSeconds.present
+          ? data.blockedSeconds.value
+          : this.blockedSeconds,
+      units: data.units.present ? data.units.value : this.units,
+      poolId: data.poolId.present ? data.poolId.value : this.poolId,
+      poolName: data.poolName.present ? data.poolName.value : this.poolName,
+      queueType: data.queueType.present ? data.queueType.value : this.queueType,
+      queueCapacity: data.queueCapacity.present
+          ? data.queueCapacity.value
+          : this.queueCapacity,
+      typeId: data.typeId.present ? data.typeId.value : this.typeId,
+      typeName: data.typeName.present ? data.typeName.value : this.typeName,
     );
   }
 
@@ -14737,14 +17366,35 @@ class SimulationRunWorkcenter extends DataClass
           ..write('workcenterId: $workcenterId, ')
           ..write('name: $name, ')
           ..write('busySeconds: $busySeconds, ')
-          ..write('openSeconds: $openSeconds')
+          ..write('openSeconds: $openSeconds, ')
+          ..write('blockedSeconds: $blockedSeconds, ')
+          ..write('units: $units, ')
+          ..write('poolId: $poolId, ')
+          ..write('poolName: $poolName, ')
+          ..write('queueType: $queueType, ')
+          ..write('queueCapacity: $queueCapacity, ')
+          ..write('typeId: $typeId, ')
+          ..write('typeName: $typeName')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runId, workcenterId, name, busySeconds, openSeconds);
+  int get hashCode => Object.hash(
+    runId,
+    workcenterId,
+    name,
+    busySeconds,
+    openSeconds,
+    blockedSeconds,
+    units,
+    poolId,
+    poolName,
+    queueType,
+    queueCapacity,
+    typeId,
+    typeName,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -14753,7 +17403,15 @@ class SimulationRunWorkcenter extends DataClass
           other.workcenterId == this.workcenterId &&
           other.name == this.name &&
           other.busySeconds == this.busySeconds &&
-          other.openSeconds == this.openSeconds);
+          other.openSeconds == this.openSeconds &&
+          other.blockedSeconds == this.blockedSeconds &&
+          other.units == this.units &&
+          other.poolId == this.poolId &&
+          other.poolName == this.poolName &&
+          other.queueType == this.queueType &&
+          other.queueCapacity == this.queueCapacity &&
+          other.typeId == this.typeId &&
+          other.typeName == this.typeName);
 }
 
 class SimulationRunWorkcentersCompanion
@@ -14763,6 +17421,14 @@ class SimulationRunWorkcentersCompanion
   final Value<String> name;
   final Value<int> busySeconds;
   final Value<int> openSeconds;
+  final Value<int> blockedSeconds;
+  final Value<int> units;
+  final Value<String?> poolId;
+  final Value<String?> poolName;
+  final Value<String?> queueType;
+  final Value<int?> queueCapacity;
+  final Value<String?> typeId;
+  final Value<String?> typeName;
   final Value<int> rowid;
   const SimulationRunWorkcentersCompanion({
     this.runId = const Value.absent(),
@@ -14770,6 +17436,14 @@ class SimulationRunWorkcentersCompanion
     this.name = const Value.absent(),
     this.busySeconds = const Value.absent(),
     this.openSeconds = const Value.absent(),
+    this.blockedSeconds = const Value.absent(),
+    this.units = const Value.absent(),
+    this.poolId = const Value.absent(),
+    this.poolName = const Value.absent(),
+    this.queueType = const Value.absent(),
+    this.queueCapacity = const Value.absent(),
+    this.typeId = const Value.absent(),
+    this.typeName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SimulationRunWorkcentersCompanion.insert({
@@ -14778,6 +17452,14 @@ class SimulationRunWorkcentersCompanion
     required String name,
     required int busySeconds,
     required int openSeconds,
+    this.blockedSeconds = const Value.absent(),
+    this.units = const Value.absent(),
+    this.poolId = const Value.absent(),
+    this.poolName = const Value.absent(),
+    this.queueType = const Value.absent(),
+    this.queueCapacity = const Value.absent(),
+    this.typeId = const Value.absent(),
+    this.typeName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : runId = Value(runId),
        workcenterId = Value(workcenterId),
@@ -14790,6 +17472,14 @@ class SimulationRunWorkcentersCompanion
     Expression<String>? name,
     Expression<int>? busySeconds,
     Expression<int>? openSeconds,
+    Expression<int>? blockedSeconds,
+    Expression<int>? units,
+    Expression<String>? poolId,
+    Expression<String>? poolName,
+    Expression<String>? queueType,
+    Expression<int>? queueCapacity,
+    Expression<String>? typeId,
+    Expression<String>? typeName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -14798,6 +17488,14 @@ class SimulationRunWorkcentersCompanion
       if (name != null) 'name': name,
       if (busySeconds != null) 'busy_seconds': busySeconds,
       if (openSeconds != null) 'open_seconds': openSeconds,
+      if (blockedSeconds != null) 'blocked_seconds': blockedSeconds,
+      if (units != null) 'units': units,
+      if (poolId != null) 'pool_id': poolId,
+      if (poolName != null) 'pool_name': poolName,
+      if (queueType != null) 'queue_type': queueType,
+      if (queueCapacity != null) 'queue_capacity': queueCapacity,
+      if (typeId != null) 'type_id': typeId,
+      if (typeName != null) 'type_name': typeName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -14808,6 +17506,14 @@ class SimulationRunWorkcentersCompanion
     Value<String>? name,
     Value<int>? busySeconds,
     Value<int>? openSeconds,
+    Value<int>? blockedSeconds,
+    Value<int>? units,
+    Value<String?>? poolId,
+    Value<String?>? poolName,
+    Value<String?>? queueType,
+    Value<int?>? queueCapacity,
+    Value<String?>? typeId,
+    Value<String?>? typeName,
     Value<int>? rowid,
   }) {
     return SimulationRunWorkcentersCompanion(
@@ -14816,6 +17522,14 @@ class SimulationRunWorkcentersCompanion
       name: name ?? this.name,
       busySeconds: busySeconds ?? this.busySeconds,
       openSeconds: openSeconds ?? this.openSeconds,
+      blockedSeconds: blockedSeconds ?? this.blockedSeconds,
+      units: units ?? this.units,
+      poolId: poolId ?? this.poolId,
+      poolName: poolName ?? this.poolName,
+      queueType: queueType ?? this.queueType,
+      queueCapacity: queueCapacity ?? this.queueCapacity,
+      typeId: typeId ?? this.typeId,
+      typeName: typeName ?? this.typeName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -14838,6 +17552,30 @@ class SimulationRunWorkcentersCompanion
     if (openSeconds.present) {
       map['open_seconds'] = Variable<int>(openSeconds.value);
     }
+    if (blockedSeconds.present) {
+      map['blocked_seconds'] = Variable<int>(blockedSeconds.value);
+    }
+    if (units.present) {
+      map['units'] = Variable<int>(units.value);
+    }
+    if (poolId.present) {
+      map['pool_id'] = Variable<String>(poolId.value);
+    }
+    if (poolName.present) {
+      map['pool_name'] = Variable<String>(poolName.value);
+    }
+    if (queueType.present) {
+      map['queue_type'] = Variable<String>(queueType.value);
+    }
+    if (queueCapacity.present) {
+      map['queue_capacity'] = Variable<int>(queueCapacity.value);
+    }
+    if (typeId.present) {
+      map['type_id'] = Variable<String>(typeId.value);
+    }
+    if (typeName.present) {
+      map['type_name'] = Variable<String>(typeName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -14851,6 +17589,1358 @@ class SimulationRunWorkcentersCompanion
           ..write('workcenterId: $workcenterId, ')
           ..write('name: $name, ')
           ..write('busySeconds: $busySeconds, ')
+          ..write('openSeconds: $openSeconds, ')
+          ..write('blockedSeconds: $blockedSeconds, ')
+          ..write('units: $units, ')
+          ..write('poolId: $poolId, ')
+          ..write('poolName: $poolName, ')
+          ..write('queueType: $queueType, ')
+          ..write('queueCapacity: $queueCapacity, ')
+          ..write('typeId: $typeId, ')
+          ..write('typeName: $typeName, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunLanesTable extends SimulationRunLanes
+    with TableInfo<$SimulationRunLanesTable, SimulationRunLane> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunLanesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  @override
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ruleMeta = const VerificationMeta('rule');
+  @override
+  late final GeneratedColumn<String> rule = GeneratedColumn<String>(
+    'rule',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _capacityMeta = const VerificationMeta(
+    'capacity',
+  );
+  @override
+  late final GeneratedColumn<int> capacity = GeneratedColumn<int>(
+    'capacity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    studyId,
+    nodeId,
+    name,
+    position,
+    rule,
+    capacity,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_lanes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunLane> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('node_id')) {
+      context.handle(
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nodeIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('rule')) {
+      context.handle(
+        _ruleMeta,
+        rule.isAcceptableOrUnknown(data['rule']!, _ruleMeta),
+      );
+    }
+    if (data.containsKey('capacity')) {
+      context.handle(
+        _capacityMeta,
+        capacity.isAcceptableOrUnknown(data['capacity']!, _capacityMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, nodeId};
+  @override
+  SimulationRunLane map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunLane(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      nodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}node_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      rule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule'],
+      ),
+      capacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}capacity'],
+      ),
+    );
+  }
+
+  @override
+  $SimulationRunLanesTable createAlias(String alias) {
+    return $SimulationRunLanesTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunLane extends DataClass
+    implements Insertable<SimulationRunLane> {
+  final String runId;
+  final String studyId;
+
+  /// The `flow_nodes` row it was, whether or not it still exists.
+  final String nodeId;
+
+  /// `FIFO CEU27` — the node's label, copied in. Null when it was never
+  /// labelled, which is what an unnamed buffer on the map looks like.
+  final String? name;
+
+  /// Its place on the spine, so a lane row can be drawn between the workcenters it
+  /// sits between.
+  final int position;
+
+  /// The discipline in force, by name. Null means the run's own rule was used.
+  ///
+  /// Plain text rather than `textEnum` for the reason [SimulationRuns.dispatch]
+  /// gives: a run written by a later build must not stop an older one opening
+  /// the list of runs.
+  final String? rule;
+
+  /// Orders it could hold, or null for unlimited.
+  final int? capacity;
+  const SimulationRunLane({
+    required this.runId,
+    required this.studyId,
+    required this.nodeId,
+    this.name,
+    required this.position,
+    this.rule,
+    this.capacity,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['study_id'] = Variable<String>(studyId);
+    map['node_id'] = Variable<String>(nodeId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    map['position'] = Variable<int>(position);
+    if (!nullToAbsent || rule != null) {
+      map['rule'] = Variable<String>(rule);
+    }
+    if (!nullToAbsent || capacity != null) {
+      map['capacity'] = Variable<int>(capacity);
+    }
+    return map;
+  }
+
+  SimulationRunLanesCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunLanesCompanion(
+      runId: Value(runId),
+      studyId: Value(studyId),
+      nodeId: Value(nodeId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      position: Value(position),
+      rule: rule == null && nullToAbsent ? const Value.absent() : Value(rule),
+      capacity: capacity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capacity),
+    );
+  }
+
+  factory SimulationRunLane.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunLane(
+      runId: serializer.fromJson<String>(json['runId']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
+      name: serializer.fromJson<String?>(json['name']),
+      position: serializer.fromJson<int>(json['position']),
+      rule: serializer.fromJson<String?>(json['rule']),
+      capacity: serializer.fromJson<int?>(json['capacity']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'studyId': serializer.toJson<String>(studyId),
+      'nodeId': serializer.toJson<String>(nodeId),
+      'name': serializer.toJson<String?>(name),
+      'position': serializer.toJson<int>(position),
+      'rule': serializer.toJson<String?>(rule),
+      'capacity': serializer.toJson<int?>(capacity),
+    };
+  }
+
+  SimulationRunLane copyWith({
+    String? runId,
+    String? studyId,
+    String? nodeId,
+    Value<String?> name = const Value.absent(),
+    int? position,
+    Value<String?> rule = const Value.absent(),
+    Value<int?> capacity = const Value.absent(),
+  }) => SimulationRunLane(
+    runId: runId ?? this.runId,
+    studyId: studyId ?? this.studyId,
+    nodeId: nodeId ?? this.nodeId,
+    name: name.present ? name.value : this.name,
+    position: position ?? this.position,
+    rule: rule.present ? rule.value : this.rule,
+    capacity: capacity.present ? capacity.value : this.capacity,
+  );
+  SimulationRunLane copyWithCompanion(SimulationRunLanesCompanion data) {
+    return SimulationRunLane(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+      name: data.name.present ? data.name.value : this.name,
+      position: data.position.present ? data.position.value : this.position,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      capacity: data.capacity.present ? data.capacity.value : this.capacity,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunLane(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('name: $name, ')
+          ..write('position: $position, ')
+          ..write('rule: $rule, ')
+          ..write('capacity: $capacity')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runId, studyId, nodeId, name, position, rule, capacity);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunLane &&
+          other.runId == this.runId &&
+          other.studyId == this.studyId &&
+          other.nodeId == this.nodeId &&
+          other.name == this.name &&
+          other.position == this.position &&
+          other.rule == this.rule &&
+          other.capacity == this.capacity);
+}
+
+class SimulationRunLanesCompanion extends UpdateCompanion<SimulationRunLane> {
+  final Value<String> runId;
+  final Value<String> studyId;
+  final Value<String> nodeId;
+  final Value<String?> name;
+  final Value<int> position;
+  final Value<String?> rule;
+  final Value<int?> capacity;
+  final Value<int> rowid;
+  const SimulationRunLanesCompanion({
+    this.runId = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.nodeId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.position = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.capacity = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunLanesCompanion.insert({
+    required String runId,
+    required String studyId,
+    required String nodeId,
+    this.name = const Value.absent(),
+    required int position,
+    this.rule = const Value.absent(),
+    this.capacity = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       studyId = Value(studyId),
+       nodeId = Value(nodeId),
+       position = Value(position);
+  static Insertable<SimulationRunLane> custom({
+    Expression<String>? runId,
+    Expression<String>? studyId,
+    Expression<String>? nodeId,
+    Expression<String>? name,
+    Expression<int>? position,
+    Expression<String>? rule,
+    Expression<int>? capacity,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (studyId != null) 'study_id': studyId,
+      if (nodeId != null) 'node_id': nodeId,
+      if (name != null) 'name': name,
+      if (position != null) 'position': position,
+      if (rule != null) 'rule': rule,
+      if (capacity != null) 'capacity': capacity,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunLanesCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? studyId,
+    Value<String>? nodeId,
+    Value<String?>? name,
+    Value<int>? position,
+    Value<String?>? rule,
+    Value<int?>? capacity,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunLanesCompanion(
+      runId: runId ?? this.runId,
+      studyId: studyId ?? this.studyId,
+      nodeId: nodeId ?? this.nodeId,
+      name: name ?? this.name,
+      position: position ?? this.position,
+      rule: rule ?? this.rule,
+      capacity: capacity ?? this.capacity,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(rule.value);
+    }
+    if (capacity.present) {
+      map['capacity'] = Variable<int>(capacity.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunLanesCompanion(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('name: $name, ')
+          ..write('position: $position, ')
+          ..write('rule: $rule, ')
+          ..write('capacity: $capacity, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunLaneVisitsTable extends SimulationRunLaneVisits
+    with TableInfo<$SimulationRunLaneVisitsTable, SimulationRunLaneVisit> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunLaneVisitsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _studyIdMeta = const VerificationMeta(
+    'studyId',
+  );
+  @override
+  late final GeneratedColumn<String> studyId = GeneratedColumn<String>(
+    'study_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orderIdMeta = const VerificationMeta(
+    'orderId',
+  );
+  @override
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+    'order_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetIdMeta = const VerificationMeta(
+    'targetId',
+  );
+  @override
+  late final GeneratedColumn<String> targetId = GeneratedColumn<String>(
+    'target_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stepNodeIdMeta = const VerificationMeta(
+    'stepNodeId',
+  );
+  @override
+  late final GeneratedColumn<String> stepNodeId = GeneratedColumn<String>(
+    'step_node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _enteredAtMeta = const VerificationMeta(
+    'enteredAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> enteredAt = GeneratedColumn<DateTime>(
+    'entered_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _leftAtMeta = const VerificationMeta('leftAt');
+  @override
+  late final GeneratedColumn<DateTime> leftAt = GeneratedColumn<DateTime>(
+    'left_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    studyId,
+    orderId,
+    targetId,
+    stepNodeId,
+    enteredAt,
+    leftAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_lane_visits';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunLaneVisit> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('study_id')) {
+      context.handle(
+        _studyIdMeta,
+        studyId.isAcceptableOrUnknown(data['study_id']!, _studyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studyIdMeta);
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(
+        _orderIdMeta,
+        orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('target_id')) {
+      context.handle(
+        _targetIdMeta,
+        targetId.isAcceptableOrUnknown(data['target_id']!, _targetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetIdMeta);
+    }
+    if (data.containsKey('step_node_id')) {
+      context.handle(
+        _stepNodeIdMeta,
+        stepNodeId.isAcceptableOrUnknown(
+          data['step_node_id']!,
+          _stepNodeIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_stepNodeIdMeta);
+    }
+    if (data.containsKey('entered_at')) {
+      context.handle(
+        _enteredAtMeta,
+        enteredAt.isAcceptableOrUnknown(data['entered_at']!, _enteredAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_enteredAtMeta);
+    }
+    if (data.containsKey('left_at')) {
+      context.handle(
+        _leftAtMeta,
+        leftAt.isAcceptableOrUnknown(data['left_at']!, _leftAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, orderId, stepNodeId};
+  @override
+  SimulationRunLaneVisit map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunLaneVisit(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      studyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}study_id'],
+      )!,
+      orderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}order_id'],
+      )!,
+      targetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_id'],
+      )!,
+      stepNodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step_node_id'],
+      )!,
+      enteredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}entered_at'],
+      )!,
+      leftAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}left_at'],
+      ),
+    );
+  }
+
+  @override
+  $SimulationRunLaneVisitsTable createAlias(String alias) {
+    return $SimulationRunLaneVisitsTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunLaneVisit extends DataClass
+    implements Insertable<SimulationRunLaneVisit> {
+  final String runId;
+  final String studyId;
+  final String orderId;
+
+  /// The **workcenter or pool** whose queue this is (§7.3, §8.6).
+  ///
+  /// **Renamed from `node_id` at v23, which is what it never was.** §7.3 moved
+  /// the queue off the flow and onto the workcenter — `engine.dart` writes
+  /// `waiting.lane.targetId` here — and the column name stayed behind. A name
+  /// that says node while holding a workcenter is what made §8.6 invisible:
+  /// the key built on it read as "one order queues once per step" and meant
+  /// "one order queues once per workcenter".
+  ///
+  /// **On a pre-v19 run this holds a flow node after all**, and the old name
+  /// was right for it. A lane *was* a node until §7.3 moved the queue onto the
+  /// workcenter, so runs made before that recorded the inventory node's id here.
+  /// Observed on the live database at the v23 migration: **31 480 rows across
+  /// 37 runs, all made 2026-08-15 and 16**, against zero in every run since.
+  /// Nothing was rewritten — §7.10 forbids joining a finished run back to a
+  /// plant — so those rows say what they always said under a name that is now
+  /// wrong for them. It is the same shape as [stepNodeId]'s own caveat: an old
+  /// run answers what it can and is read with the build that made it in mind.
+  final String targetId;
+
+  /// The flow node this stay was waiting *for* (§8.6).
+  ///
+  /// **This is what makes a visit unique, and [targetId] is not.** A part may
+  /// go back to a machine for a second operation — ordinary routing, which the
+  /// engine has always modelled — and both stays are then in one workcenter's
+  /// queue. Keyed by the workcenter, the second stay collided with the first and
+  /// the run was computed and then thrown away with a UNIQUE constraint the
+  /// screen reported only as "could not be completed".
+  ///
+  /// Keyed by the step, the two stays are two rows, which is what
+  /// [SimulationRunSteps] has always done with the identical key shape. That
+  /// table survived because it is keyed by *where in the flow*; this one is
+  /// the odd one out being brought into line.
+  ///
+  /// **On rows migrated from v22 it may hold a [targetId] instead.** A stay
+  /// that produced no step — an order the guard caught still queueing — has no
+  /// step to name, and the old key already guaranteed at most one such row per
+  /// order per workcenter, so nothing collides and nothing is lost. It means a
+  /// pre-v23 run cannot say which step a stay belonged to, which is true.
+  final String stepNodeId;
+
+  /// When the order took a place in the lane.
+  final DateTime enteredAt;
+
+  /// When the workcenter ahead pulled it out. Null means it was still in the lane
+  /// when the run ended, which is the honest reading of an order the guard
+  /// caught mid-flight.
+  final DateTime? leftAt;
+  const SimulationRunLaneVisit({
+    required this.runId,
+    required this.studyId,
+    required this.orderId,
+    required this.targetId,
+    required this.stepNodeId,
+    required this.enteredAt,
+    this.leftAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['study_id'] = Variable<String>(studyId);
+    map['order_id'] = Variable<String>(orderId);
+    map['target_id'] = Variable<String>(targetId);
+    map['step_node_id'] = Variable<String>(stepNodeId);
+    map['entered_at'] = Variable<DateTime>(enteredAt);
+    if (!nullToAbsent || leftAt != null) {
+      map['left_at'] = Variable<DateTime>(leftAt);
+    }
+    return map;
+  }
+
+  SimulationRunLaneVisitsCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunLaneVisitsCompanion(
+      runId: Value(runId),
+      studyId: Value(studyId),
+      orderId: Value(orderId),
+      targetId: Value(targetId),
+      stepNodeId: Value(stepNodeId),
+      enteredAt: Value(enteredAt),
+      leftAt: leftAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(leftAt),
+    );
+  }
+
+  factory SimulationRunLaneVisit.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunLaneVisit(
+      runId: serializer.fromJson<String>(json['runId']),
+      studyId: serializer.fromJson<String>(json['studyId']),
+      orderId: serializer.fromJson<String>(json['orderId']),
+      targetId: serializer.fromJson<String>(json['targetId']),
+      stepNodeId: serializer.fromJson<String>(json['stepNodeId']),
+      enteredAt: serializer.fromJson<DateTime>(json['enteredAt']),
+      leftAt: serializer.fromJson<DateTime?>(json['leftAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'studyId': serializer.toJson<String>(studyId),
+      'orderId': serializer.toJson<String>(orderId),
+      'targetId': serializer.toJson<String>(targetId),
+      'stepNodeId': serializer.toJson<String>(stepNodeId),
+      'enteredAt': serializer.toJson<DateTime>(enteredAt),
+      'leftAt': serializer.toJson<DateTime?>(leftAt),
+    };
+  }
+
+  SimulationRunLaneVisit copyWith({
+    String? runId,
+    String? studyId,
+    String? orderId,
+    String? targetId,
+    String? stepNodeId,
+    DateTime? enteredAt,
+    Value<DateTime?> leftAt = const Value.absent(),
+  }) => SimulationRunLaneVisit(
+    runId: runId ?? this.runId,
+    studyId: studyId ?? this.studyId,
+    orderId: orderId ?? this.orderId,
+    targetId: targetId ?? this.targetId,
+    stepNodeId: stepNodeId ?? this.stepNodeId,
+    enteredAt: enteredAt ?? this.enteredAt,
+    leftAt: leftAt.present ? leftAt.value : this.leftAt,
+  );
+  SimulationRunLaneVisit copyWithCompanion(
+    SimulationRunLaneVisitsCompanion data,
+  ) {
+    return SimulationRunLaneVisit(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      studyId: data.studyId.present ? data.studyId.value : this.studyId,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      targetId: data.targetId.present ? data.targetId.value : this.targetId,
+      stepNodeId: data.stepNodeId.present
+          ? data.stepNodeId.value
+          : this.stepNodeId,
+      enteredAt: data.enteredAt.present ? data.enteredAt.value : this.enteredAt,
+      leftAt: data.leftAt.present ? data.leftAt.value : this.leftAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunLaneVisit(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('orderId: $orderId, ')
+          ..write('targetId: $targetId, ')
+          ..write('stepNodeId: $stepNodeId, ')
+          ..write('enteredAt: $enteredAt, ')
+          ..write('leftAt: $leftAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runId,
+    studyId,
+    orderId,
+    targetId,
+    stepNodeId,
+    enteredAt,
+    leftAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunLaneVisit &&
+          other.runId == this.runId &&
+          other.studyId == this.studyId &&
+          other.orderId == this.orderId &&
+          other.targetId == this.targetId &&
+          other.stepNodeId == this.stepNodeId &&
+          other.enteredAt == this.enteredAt &&
+          other.leftAt == this.leftAt);
+}
+
+class SimulationRunLaneVisitsCompanion
+    extends UpdateCompanion<SimulationRunLaneVisit> {
+  final Value<String> runId;
+  final Value<String> studyId;
+  final Value<String> orderId;
+  final Value<String> targetId;
+  final Value<String> stepNodeId;
+  final Value<DateTime> enteredAt;
+  final Value<DateTime?> leftAt;
+  final Value<int> rowid;
+  const SimulationRunLaneVisitsCompanion({
+    this.runId = const Value.absent(),
+    this.studyId = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.targetId = const Value.absent(),
+    this.stepNodeId = const Value.absent(),
+    this.enteredAt = const Value.absent(),
+    this.leftAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunLaneVisitsCompanion.insert({
+    required String runId,
+    required String studyId,
+    required String orderId,
+    required String targetId,
+    required String stepNodeId,
+    required DateTime enteredAt,
+    this.leftAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       studyId = Value(studyId),
+       orderId = Value(orderId),
+       targetId = Value(targetId),
+       stepNodeId = Value(stepNodeId),
+       enteredAt = Value(enteredAt);
+  static Insertable<SimulationRunLaneVisit> custom({
+    Expression<String>? runId,
+    Expression<String>? studyId,
+    Expression<String>? orderId,
+    Expression<String>? targetId,
+    Expression<String>? stepNodeId,
+    Expression<DateTime>? enteredAt,
+    Expression<DateTime>? leftAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (studyId != null) 'study_id': studyId,
+      if (orderId != null) 'order_id': orderId,
+      if (targetId != null) 'target_id': targetId,
+      if (stepNodeId != null) 'step_node_id': stepNodeId,
+      if (enteredAt != null) 'entered_at': enteredAt,
+      if (leftAt != null) 'left_at': leftAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunLaneVisitsCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? studyId,
+    Value<String>? orderId,
+    Value<String>? targetId,
+    Value<String>? stepNodeId,
+    Value<DateTime>? enteredAt,
+    Value<DateTime?>? leftAt,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunLaneVisitsCompanion(
+      runId: runId ?? this.runId,
+      studyId: studyId ?? this.studyId,
+      orderId: orderId ?? this.orderId,
+      targetId: targetId ?? this.targetId,
+      stepNodeId: stepNodeId ?? this.stepNodeId,
+      enteredAt: enteredAt ?? this.enteredAt,
+      leftAt: leftAt ?? this.leftAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (studyId.present) {
+      map['study_id'] = Variable<String>(studyId.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (targetId.present) {
+      map['target_id'] = Variable<String>(targetId.value);
+    }
+    if (stepNodeId.present) {
+      map['step_node_id'] = Variable<String>(stepNodeId.value);
+    }
+    if (enteredAt.present) {
+      map['entered_at'] = Variable<DateTime>(enteredAt.value);
+    }
+    if (leftAt.present) {
+      map['left_at'] = Variable<DateTime>(leftAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunLaneVisitsCompanion(')
+          ..write('runId: $runId, ')
+          ..write('studyId: $studyId, ')
+          ..write('orderId: $orderId, ')
+          ..write('targetId: $targetId, ')
+          ..write('stepNodeId: $stepNodeId, ')
+          ..write('enteredAt: $enteredAt, ')
+          ..write('leftAt: $leftAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SimulationRunWorkcenterMonthsTable extends SimulationRunWorkcenterMonths
+    with
+        TableInfo<
+          $SimulationRunWorkcenterMonthsTable,
+          SimulationRunWorkcenterMonth
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SimulationRunWorkcenterMonthsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+    'run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES simulation_runs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _workcenterIdMeta = const VerificationMeta(
+    'workcenterId',
+  );
+  @override
+  late final GeneratedColumn<String> workcenterId = GeneratedColumn<String>(
+    'workcenter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<DateTime> month = GeneratedColumn<DateTime>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openSecondsMeta = const VerificationMeta(
+    'openSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> openSeconds = GeneratedColumn<int>(
+    'open_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    runId,
+    workcenterId,
+    month,
+    openSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'simulation_run_workcenter_months';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SimulationRunWorkcenterMonth> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('run_id')) {
+      context.handle(
+        _runIdMeta,
+        runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('workcenter_id')) {
+      context.handle(
+        _workcenterIdMeta,
+        workcenterId.isAcceptableOrUnknown(
+          data['workcenter_id']!,
+          _workcenterIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workcenterIdMeta);
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('open_seconds')) {
+      context.handle(
+        _openSecondsMeta,
+        openSeconds.isAcceptableOrUnknown(
+          data['open_seconds']!,
+          _openSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_openSecondsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {runId, workcenterId, month};
+  @override
+  SimulationRunWorkcenterMonth map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SimulationRunWorkcenterMonth(
+      runId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_id'],
+      )!,
+      workcenterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workcenter_id'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}month'],
+      )!,
+      openSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}open_seconds'],
+      )!,
+    );
+  }
+
+  @override
+  $SimulationRunWorkcenterMonthsTable createAlias(String alias) {
+    return $SimulationRunWorkcenterMonthsTable(attachedDatabase, alias);
+  }
+}
+
+class SimulationRunWorkcenterMonth extends DataClass
+    implements Insertable<SimulationRunWorkcenterMonth> {
+  final String runId;
+  final String workcenterId;
+
+  /// The first instant of the month, local — the same key §10.3 buckets
+  /// `queueStart` into, so a bar and its line cannot land in different columns.
+  final DateTime month;
+
+  /// Open seconds in that month, **already multiplied by the workcenter's units**,
+  /// exactly as `openSeconds` is on the whole-run row. A two-unit workcenter has
+  /// twice the capacity and one clock, and the two figures must agree about
+  /// which of those they are stating.
+  final int openSeconds;
+  const SimulationRunWorkcenterMonth({
+    required this.runId,
+    required this.workcenterId,
+    required this.month,
+    required this.openSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['run_id'] = Variable<String>(runId);
+    map['workcenter_id'] = Variable<String>(workcenterId);
+    map['month'] = Variable<DateTime>(month);
+    map['open_seconds'] = Variable<int>(openSeconds);
+    return map;
+  }
+
+  SimulationRunWorkcenterMonthsCompanion toCompanion(bool nullToAbsent) {
+    return SimulationRunWorkcenterMonthsCompanion(
+      runId: Value(runId),
+      workcenterId: Value(workcenterId),
+      month: Value(month),
+      openSeconds: Value(openSeconds),
+    );
+  }
+
+  factory SimulationRunWorkcenterMonth.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SimulationRunWorkcenterMonth(
+      runId: serializer.fromJson<String>(json['runId']),
+      workcenterId: serializer.fromJson<String>(json['workcenterId']),
+      month: serializer.fromJson<DateTime>(json['month']),
+      openSeconds: serializer.fromJson<int>(json['openSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'runId': serializer.toJson<String>(runId),
+      'workcenterId': serializer.toJson<String>(workcenterId),
+      'month': serializer.toJson<DateTime>(month),
+      'openSeconds': serializer.toJson<int>(openSeconds),
+    };
+  }
+
+  SimulationRunWorkcenterMonth copyWith({
+    String? runId,
+    String? workcenterId,
+    DateTime? month,
+    int? openSeconds,
+  }) => SimulationRunWorkcenterMonth(
+    runId: runId ?? this.runId,
+    workcenterId: workcenterId ?? this.workcenterId,
+    month: month ?? this.month,
+    openSeconds: openSeconds ?? this.openSeconds,
+  );
+  SimulationRunWorkcenterMonth copyWithCompanion(
+    SimulationRunWorkcenterMonthsCompanion data,
+  ) {
+    return SimulationRunWorkcenterMonth(
+      runId: data.runId.present ? data.runId.value : this.runId,
+      workcenterId: data.workcenterId.present
+          ? data.workcenterId.value
+          : this.workcenterId,
+      month: data.month.present ? data.month.value : this.month,
+      openSeconds: data.openSeconds.present
+          ? data.openSeconds.value
+          : this.openSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunWorkcenterMonth(')
+          ..write('runId: $runId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('month: $month, ')
+          ..write('openSeconds: $openSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(runId, workcenterId, month, openSeconds);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SimulationRunWorkcenterMonth &&
+          other.runId == this.runId &&
+          other.workcenterId == this.workcenterId &&
+          other.month == this.month &&
+          other.openSeconds == this.openSeconds);
+}
+
+class SimulationRunWorkcenterMonthsCompanion
+    extends UpdateCompanion<SimulationRunWorkcenterMonth> {
+  final Value<String> runId;
+  final Value<String> workcenterId;
+  final Value<DateTime> month;
+  final Value<int> openSeconds;
+  final Value<int> rowid;
+  const SimulationRunWorkcenterMonthsCompanion({
+    this.runId = const Value.absent(),
+    this.workcenterId = const Value.absent(),
+    this.month = const Value.absent(),
+    this.openSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SimulationRunWorkcenterMonthsCompanion.insert({
+    required String runId,
+    required String workcenterId,
+    required DateTime month,
+    required int openSeconds,
+    this.rowid = const Value.absent(),
+  }) : runId = Value(runId),
+       workcenterId = Value(workcenterId),
+       month = Value(month),
+       openSeconds = Value(openSeconds);
+  static Insertable<SimulationRunWorkcenterMonth> custom({
+    Expression<String>? runId,
+    Expression<String>? workcenterId,
+    Expression<DateTime>? month,
+    Expression<int>? openSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (runId != null) 'run_id': runId,
+      if (workcenterId != null) 'workcenter_id': workcenterId,
+      if (month != null) 'month': month,
+      if (openSeconds != null) 'open_seconds': openSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SimulationRunWorkcenterMonthsCompanion copyWith({
+    Value<String>? runId,
+    Value<String>? workcenterId,
+    Value<DateTime>? month,
+    Value<int>? openSeconds,
+    Value<int>? rowid,
+  }) {
+    return SimulationRunWorkcenterMonthsCompanion(
+      runId: runId ?? this.runId,
+      workcenterId: workcenterId ?? this.workcenterId,
+      month: month ?? this.month,
+      openSeconds: openSeconds ?? this.openSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (workcenterId.present) {
+      map['workcenter_id'] = Variable<String>(workcenterId.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<DateTime>(month.value);
+    }
+    if (openSeconds.present) {
+      map['open_seconds'] = Variable<int>(openSeconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SimulationRunWorkcenterMonthsCompanion(')
+          ..write('runId: $runId, ')
+          ..write('workcenterId: $workcenterId, ')
+          ..write('month: $month, ')
           ..write('openSeconds: $openSeconds, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -14889,6 +18979,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaktPeriodsTable taktPeriods = $TaktPeriodsTable(this);
   late final $WorkcenterSchedulePeriodsTable workcenterSchedulePeriods =
       $WorkcenterSchedulePeriodsTable(this);
+  late final $ProjectQueuesTable projectQueues = $ProjectQueuesTable(this);
   late final $StudiesTable studies = $StudiesTable(this);
   late final $FlowNodesTable flowNodes = $FlowNodesTable(this);
   late final $FlowAnnotationsTable flowAnnotations = $FlowAnnotationsTable(
@@ -14899,8 +18990,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $DemandOrdersTable demandOrders = $DemandOrdersTable(this);
-  late final $WorkcenterDispatchTable workcenterDispatch =
-      $WorkcenterDispatchTable(this);
   late final $SimulationRunsTable simulationRuns = $SimulationRunsTable(this);
   late final $SimulationRunStudiesTable simulationRunStudies =
       $SimulationRunStudiesTable(this);
@@ -14910,10 +18999,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $SimulationRunStepsTable(this);
   late final $SimulationRunEmptySlotsTable simulationRunEmptySlots =
       $SimulationRunEmptySlotsTable(this);
-  late final $SimulationRunDispatchTable simulationRunDispatch =
-      $SimulationRunDispatchTable(this);
   late final $SimulationRunWorkcentersTable simulationRunWorkcenters =
       $SimulationRunWorkcentersTable(this);
+  late final $SimulationRunLanesTable simulationRunLanes =
+      $SimulationRunLanesTable(this);
+  late final $SimulationRunLaneVisitsTable simulationRunLaneVisits =
+      $SimulationRunLaneVisitsTable(this);
+  late final $SimulationRunWorkcenterMonthsTable simulationRunWorkcenterMonths =
+      $SimulationRunWorkcenterMonthsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -14934,20 +19027,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     calendarExceptions,
     taktPeriods,
     workcenterSchedulePeriods,
+    projectQueues,
     studies,
     flowNodes,
     flowAnnotations,
     demandParts,
     partProcessTimes,
     demandOrders,
-    workcenterDispatch,
     simulationRuns,
     simulationRunStudies,
     simulationRunOrders,
     simulationRunSteps,
     simulationRunEmptySlots,
-    simulationRunDispatch,
     simulationRunWorkcenters,
+    simulationRunLanes,
+    simulationRunLaneVisits,
+    simulationRunWorkcenterMonths,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -15065,6 +19160,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         'projects',
         limitUpdateKind: UpdateKind.delete,
       ),
+      result: [TableUpdate('project_queues', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'projects',
+        limitUpdateKind: UpdateKind.delete,
+      ),
       result: [TableUpdate('studies', kind: UpdateKind.delete)],
     ),
     WritePropagation(
@@ -15125,6 +19227,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
+        'flow_nodes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('part_process_times', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
         'studies',
         limitUpdateKind: UpdateKind.delete,
       ),
@@ -15136,20 +19245,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('demand_orders', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'projects',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('workcenter_dispatch', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'projects',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('simulation_runs', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -15186,7 +19281,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         'simulation_runs',
         limitUpdateKind: UpdateKind.delete,
       ),
-      result: [TableUpdate('simulation_run_dispatch', kind: UpdateKind.delete)],
+      result: [
+        TableUpdate('simulation_run_workcenters', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('simulation_run_lanes', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -15194,7 +19298,19 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [
-        TableUpdate('simulation_run_workcenters', kind: UpdateKind.delete),
+        TableUpdate('simulation_run_lane_visits', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'simulation_runs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate(
+          'simulation_run_workcenter_months',
+          kind: UpdateKind.delete,
+        ),
       ],
     ),
   ]);
@@ -17883,6 +21999,7 @@ typedef $$WorkcenterTypesTableCreateCompanionBuilder =
       Value<WorkcenterIcon?> icon,
       required String name,
       Value<bool> isBuiltIn,
+      Value<bool> isLabourPaced,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       Value<int> rowid,
@@ -17893,6 +22010,7 @@ typedef $$WorkcenterTypesTableUpdateCompanionBuilder =
       Value<WorkcenterIcon?> icon,
       Value<String> name,
       Value<bool> isBuiltIn,
+      Value<bool> isLabourPaced,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -17953,6 +22071,11 @@ class $$WorkcenterTypesTableFilterComposer
 
   ColumnFilters<bool> get isBuiltIn => $composableBuilder(
     column: $table.isBuiltIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isLabourPaced => $composableBuilder(
+    column: $table.isLabourPaced,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18021,6 +22144,11 @@ class $$WorkcenterTypesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isLabourPaced => $composableBuilder(
+    column: $table.isLabourPaced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
     builder: (column) => ColumnOrderings(column),
@@ -18052,6 +22180,11 @@ class $$WorkcenterTypesTableAnnotationComposer
 
   GeneratedColumn<bool> get isBuiltIn =>
       $composableBuilder(column: $table.isBuiltIn, builder: (column) => column);
+
+  GeneratedColumn<bool> get isLabourPaced => $composableBuilder(
+    column: $table.isLabourPaced,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
@@ -18121,6 +22254,7 @@ class $$WorkcenterTypesTableTableManager
                 Value<WorkcenterIcon?> icon = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<bool> isBuiltIn = const Value.absent(),
+                Value<bool> isLabourPaced = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -18129,6 +22263,7 @@ class $$WorkcenterTypesTableTableManager
                 icon: icon,
                 name: name,
                 isBuiltIn: isBuiltIn,
+                isLabourPaced: isLabourPaced,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -18139,6 +22274,7 @@ class $$WorkcenterTypesTableTableManager
                 Value<WorkcenterIcon?> icon = const Value.absent(),
                 required String name,
                 Value<bool> isBuiltIn = const Value.absent(),
+                Value<bool> isLabourPaced = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
@@ -18147,6 +22283,7 @@ class $$WorkcenterTypesTableTableManager
                 icon: icon,
                 name: name,
                 isBuiltIn: isBuiltIn,
+                isLabourPaced: isLabourPaced,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -18213,6 +22350,7 @@ typedef $$WorkcentersTableCreateCompanionBuilder =
       required String plantId,
       Value<String?> typeId,
       required String name,
+      Value<int> parallelCapacity,
       Value<String?> notes,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
@@ -18225,6 +22363,7 @@ typedef $$WorkcentersTableUpdateCompanionBuilder =
       Value<String> plantId,
       Value<String?> typeId,
       Value<String> name,
+      Value<int> parallelCapacity,
       Value<String?> notes,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
@@ -18377,6 +22516,11 @@ class $$WorkcentersTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get parallelCapacity => $composableBuilder(
+    column: $table.parallelCapacity,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18569,6 +22713,11 @@ class $$WorkcentersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get parallelCapacity => $composableBuilder(
+    column: $table.parallelCapacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -18650,6 +22799,11 @@ class $$WorkcentersTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get parallelCapacity => $composableBuilder(
+    column: $table.parallelCapacity,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -18854,6 +23008,7 @@ class $$WorkcentersTableTableManager
                 Value<String> plantId = const Value.absent(),
                 Value<String?> typeId = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<int> parallelCapacity = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -18864,6 +23019,7 @@ class $$WorkcentersTableTableManager
                 plantId: plantId,
                 typeId: typeId,
                 name: name,
+                parallelCapacity: parallelCapacity,
                 notes: notes,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
@@ -18876,6 +23032,7 @@ class $$WorkcentersTableTableManager
                 required String plantId,
                 Value<String?> typeId = const Value.absent(),
                 required String name,
+                Value<int> parallelCapacity = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
@@ -18886,6 +23043,7 @@ class $$WorkcentersTableTableManager
                 plantId: plantId,
                 typeId: typeId,
                 name: name,
+                parallelCapacity: parallelCapacity,
                 notes: notes,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
@@ -20590,6 +24748,10 @@ typedef $$ProjectsTableCreateCompanionBuilder =
       required String plantId,
       required String shiftPatternId,
       Value<String?> notes,
+      Value<int> floatRedDays,
+      Value<int> floatGreenDays,
+      Value<int> occupationAmberPct,
+      Value<int> occupationRedPct,
       Value<DateTime?> archivedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -20602,6 +24764,10 @@ typedef $$ProjectsTableUpdateCompanionBuilder =
       Value<String> plantId,
       Value<String> shiftPatternId,
       Value<String?> notes,
+      Value<int> floatRedDays,
+      Value<int> floatGreenDays,
+      Value<int> occupationAmberPct,
+      Value<int> occupationRedPct,
       Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -20711,6 +24877,24 @@ final class $$ProjectsTableReferences
     );
   }
 
+  static MultiTypedResultKey<$ProjectQueuesTable, List<ProjectQueue>>
+  _projectQueuesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.projectQueues,
+    aliasName: 'projects__id__project_queues__project_id',
+  );
+
+  $$ProjectQueuesTableProcessedTableManager get projectQueuesRefs {
+    final manager = $$ProjectQueuesTableTableManager(
+      $_db,
+      $_db.projectQueues,
+    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_projectQueuesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$StudiesTable, List<Study>> _studiesRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
@@ -20725,48 +24909,6 @@ final class $$ProjectsTableReferences
     ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_studiesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
-    $WorkcenterDispatchTable,
-    List<WorkcenterDispatchData>
-  >
-  _workcenterDispatchRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.workcenterDispatch,
-        aliasName: 'projects__id__workcenter_dispatch__project_id',
-      );
-
-  $$WorkcenterDispatchTableProcessedTableManager get workcenterDispatchRefs {
-    final manager = $$WorkcenterDispatchTableTableManager(
-      $_db,
-      $_db.workcenterDispatch,
-    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _workcenterDispatchRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$SimulationRunsTable, List<SimulationRun>>
-  _simulationRunsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.simulationRuns,
-    aliasName: 'projects__id__simulation_runs__project_id',
-  );
-
-  $$SimulationRunsTableProcessedTableManager get simulationRunsRefs {
-    final manager = $$SimulationRunsTableTableManager(
-      $_db,
-      $_db.simulationRuns,
-    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_simulationRunsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -20794,6 +24936,26 @@ class $$ProjectsTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get floatRedDays => $composableBuilder(
+    column: $table.floatRedDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get floatGreenDays => $composableBuilder(
+    column: $table.floatGreenDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get occupationAmberPct => $composableBuilder(
+    column: $table.occupationAmberPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get occupationRedPct => $composableBuilder(
+    column: $table.occupationRedPct,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20935,6 +25097,31 @@ class $$ProjectsTableFilterComposer
     return f(composer);
   }
 
+  Expression<bool> projectQueuesRefs(
+    Expression<bool> Function($$ProjectQueuesTableFilterComposer f) f,
+  ) {
+    final $$ProjectQueuesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.projectQueues,
+      getReferencedColumn: (t) => t.projectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectQueuesTableFilterComposer(
+            $db: $db,
+            $table: $db.projectQueues,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<bool> studiesRefs(
     Expression<bool> Function($$StudiesTableFilterComposer f) f,
   ) {
@@ -20951,56 +25138,6 @@ class $$ProjectsTableFilterComposer
           }) => $$StudiesTableFilterComposer(
             $db: $db,
             $table: $db.studies,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> workcenterDispatchRefs(
-    Expression<bool> Function($$WorkcenterDispatchTableFilterComposer f) f,
-  ) {
-    final $$WorkcenterDispatchTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.workcenterDispatch,
-      getReferencedColumn: (t) => t.projectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WorkcenterDispatchTableFilterComposer(
-            $db: $db,
-            $table: $db.workcenterDispatch,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> simulationRunsRefs(
-    Expression<bool> Function($$SimulationRunsTableFilterComposer f) f,
-  ) {
-    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.projectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableFilterComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21032,6 +25169,26 @@ class $$ProjectsTableOrderingComposer
 
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get floatRedDays => $composableBuilder(
+    column: $table.floatRedDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get floatGreenDays => $composableBuilder(
+    column: $table.floatGreenDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get occupationAmberPct => $composableBuilder(
+    column: $table.occupationAmberPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get occupationRedPct => $composableBuilder(
+    column: $table.occupationRedPct,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -21114,6 +25271,26 @@ class $$ProjectsTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<int> get floatRedDays => $composableBuilder(
+    column: $table.floatRedDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get floatGreenDays => $composableBuilder(
+    column: $table.floatGreenDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get occupationAmberPct => $composableBuilder(
+    column: $table.occupationAmberPct,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get occupationRedPct => $composableBuilder(
+    column: $table.occupationRedPct,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
@@ -21250,6 +25427,31 @@ class $$ProjectsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> projectQueuesRefs<T extends Object>(
+    Expression<T> Function($$ProjectQueuesTableAnnotationComposer a) f,
+  ) {
+    final $$ProjectQueuesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.projectQueues,
+      getReferencedColumn: (t) => t.projectId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectQueuesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.projectQueues,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> studiesRefs<T extends Object>(
     Expression<T> Function($$StudiesTableAnnotationComposer a) f,
   ) {
@@ -21266,57 +25468,6 @@ class $$ProjectsTableAnnotationComposer
           }) => $$StudiesTableAnnotationComposer(
             $db: $db,
             $table: $db.studies,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> workcenterDispatchRefs<T extends Object>(
-    Expression<T> Function($$WorkcenterDispatchTableAnnotationComposer a) f,
-  ) {
-    final $$WorkcenterDispatchTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.workcenterDispatch,
-          getReferencedColumn: (t) => t.projectId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$WorkcenterDispatchTableAnnotationComposer(
-                $db: $db,
-                $table: $db.workcenterDispatch,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<T> simulationRunsRefs<T extends Object>(
-    Expression<T> Function($$SimulationRunsTableAnnotationComposer a) f,
-  ) {
-    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.projectId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21346,9 +25497,8 @@ class $$ProjectsTableTableManager
             bool calendarExceptionsRefs,
             bool taktPeriodsRefs,
             bool workcenterSchedulePeriodsRefs,
+            bool projectQueuesRefs,
             bool studiesRefs,
-            bool workcenterDispatchRefs,
-            bool simulationRunsRefs,
           })
         > {
   $$ProjectsTableTableManager(_$AppDatabase db, $ProjectsTable table)
@@ -21369,6 +25519,10 @@ class $$ProjectsTableTableManager
                 Value<String> plantId = const Value.absent(),
                 Value<String> shiftPatternId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<int> floatRedDays = const Value.absent(),
+                Value<int> floatGreenDays = const Value.absent(),
+                Value<int> occupationAmberPct = const Value.absent(),
+                Value<int> occupationRedPct = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -21379,6 +25533,10 @@ class $$ProjectsTableTableManager
                 plantId: plantId,
                 shiftPatternId: shiftPatternId,
                 notes: notes,
+                floatRedDays: floatRedDays,
+                floatGreenDays: floatGreenDays,
+                occupationAmberPct: occupationAmberPct,
+                occupationRedPct: occupationRedPct,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -21391,6 +25549,10 @@ class $$ProjectsTableTableManager
                 required String plantId,
                 required String shiftPatternId,
                 Value<String?> notes = const Value.absent(),
+                Value<int> floatRedDays = const Value.absent(),
+                Value<int> floatGreenDays = const Value.absent(),
+                Value<int> occupationAmberPct = const Value.absent(),
+                Value<int> occupationRedPct = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -21401,6 +25563,10 @@ class $$ProjectsTableTableManager
                 plantId: plantId,
                 shiftPatternId: shiftPatternId,
                 notes: notes,
+                floatRedDays: floatRedDays,
+                floatGreenDays: floatGreenDays,
+                occupationAmberPct: occupationAmberPct,
+                occupationRedPct: occupationRedPct,
                 archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -21421,9 +25587,8 @@ class $$ProjectsTableTableManager
                 calendarExceptionsRefs = false,
                 taktPeriodsRefs = false,
                 workcenterSchedulePeriodsRefs = false,
+                projectQueuesRefs = false,
                 studiesRefs = false,
-                workcenterDispatchRefs = false,
-                simulationRunsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -21432,9 +25597,8 @@ class $$ProjectsTableTableManager
                     if (taktPeriodsRefs) db.taktPeriods,
                     if (workcenterSchedulePeriodsRefs)
                       db.workcenterSchedulePeriods,
+                    if (projectQueuesRefs) db.projectQueues,
                     if (studiesRefs) db.studies,
-                    if (workcenterDispatchRefs) db.workcenterDispatch,
-                    if (simulationRunsRefs) db.simulationRuns,
                   ],
                   addJoins:
                       <
@@ -21546,6 +25710,27 @@ class $$ProjectsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (projectQueuesRefs)
+                        await $_getPrefetchedData<
+                          Project,
+                          $ProjectsTable,
+                          ProjectQueue
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ProjectsTableReferences
+                              ._projectQueuesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ProjectsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).projectQueuesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.projectId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (studiesRefs)
                         await $_getPrefetchedData<
                           Project,
@@ -21561,48 +25746,6 @@ class $$ProjectsTableTableManager
                                 table,
                                 p0,
                               ).studiesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.projectId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (workcenterDispatchRefs)
-                        await $_getPrefetchedData<
-                          Project,
-                          $ProjectsTable,
-                          WorkcenterDispatchData
-                        >(
-                          currentTable: table,
-                          referencedTable: $$ProjectsTableReferences
-                              ._workcenterDispatchRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$ProjectsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).workcenterDispatchRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.projectId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (simulationRunsRefs)
-                        await $_getPrefetchedData<
-                          Project,
-                          $ProjectsTable,
-                          SimulationRun
-                        >(
-                          currentTable: table,
-                          referencedTable: $$ProjectsTableReferences
-                              ._simulationRunsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$ProjectsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).simulationRunsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.projectId == item.id,
@@ -21635,9 +25778,8 @@ typedef $$ProjectsTableProcessedTableManager =
         bool calendarExceptionsRefs,
         bool taktPeriodsRefs,
         bool workcenterSchedulePeriodsRefs,
+        bool projectQueuesRefs,
         bool studiesRefs,
-        bool workcenterDispatchRefs,
-        bool simulationRunsRefs,
       })
     >;
 typedef $$CalendarExceptionsTableCreateCompanionBuilder =
@@ -23078,6 +27220,429 @@ typedef $$WorkcenterSchedulePeriodsTableProcessedTableManager =
       WorkcenterSchedulePeriod,
       PrefetchHooks Function({bool projectId, bool workcenterId})
     >;
+typedef $$ProjectQueuesTableCreateCompanionBuilder =
+    ProjectQueuesCompanion Function({
+      required String projectId,
+      required String targetId,
+      Value<DispatchRule?> rule,
+      Value<int?> capacity,
+      Value<InventoryMode?> stockMode,
+      Value<int?> stockQuantity,
+      Value<int?> stockSeconds,
+      Value<DurationUnit?> stockUnit,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ProjectQueuesTableUpdateCompanionBuilder =
+    ProjectQueuesCompanion Function({
+      Value<String> projectId,
+      Value<String> targetId,
+      Value<DispatchRule?> rule,
+      Value<int?> capacity,
+      Value<InventoryMode?> stockMode,
+      Value<int?> stockQuantity,
+      Value<int?> stockSeconds,
+      Value<DurationUnit?> stockUnit,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ProjectQueuesTableReferences
+    extends BaseReferences<_$AppDatabase, $ProjectQueuesTable, ProjectQueue> {
+  $$ProjectQueuesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
+      db.projects.createAlias('project_queues__project_id__projects__id');
+
+  $$ProjectsTableProcessedTableManager get projectId {
+    final $_column = $_itemColumn<String>('project_id')!;
+
+    final manager = $$ProjectsTableTableManager(
+      $_db,
+      $_db.projects,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ProjectQueuesTableFilterComposer
+    extends Composer<_$AppDatabase, $ProjectQueuesTable> {
+  $$ProjectQueuesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DispatchRule?, DispatchRule, String>
+  get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get capacity => $composableBuilder(
+    column: $table.capacity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<InventoryMode?, InventoryMode, String>
+  get stockMode => $composableBuilder(
+    column: $table.stockMode,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stockSeconds => $composableBuilder(
+    column: $table.stockSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DurationUnit?, DurationUnit, String>
+  get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ProjectsTableFilterComposer get projectId {
+    final $$ProjectsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableFilterComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProjectQueuesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProjectQueuesTable> {
+  $$ProjectQueuesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get capacity => $composableBuilder(
+    column: $table.capacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stockMode => $composableBuilder(
+    column: $table.stockMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stockSeconds => $composableBuilder(
+    column: $table.stockSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ProjectsTableOrderingComposer get projectId {
+    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableOrderingComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProjectQueuesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProjectQueuesTable> {
+  $$ProjectQueuesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DispatchRule?, String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<int> get capacity =>
+      $composableBuilder(column: $table.capacity, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<InventoryMode?, String> get stockMode =>
+      $composableBuilder(column: $table.stockMode, builder: (column) => column);
+
+  GeneratedColumn<int> get stockQuantity => $composableBuilder(
+    column: $table.stockQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stockSeconds => $composableBuilder(
+    column: $table.stockSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DurationUnit?, String> get stockUnit =>
+      $composableBuilder(column: $table.stockUnit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ProjectsTableAnnotationComposer get projectId {
+    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ProjectsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ProjectQueuesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProjectQueuesTable,
+          ProjectQueue,
+          $$ProjectQueuesTableFilterComposer,
+          $$ProjectQueuesTableOrderingComposer,
+          $$ProjectQueuesTableAnnotationComposer,
+          $$ProjectQueuesTableCreateCompanionBuilder,
+          $$ProjectQueuesTableUpdateCompanionBuilder,
+          (ProjectQueue, $$ProjectQueuesTableReferences),
+          ProjectQueue,
+          PrefetchHooks Function({bool projectId})
+        > {
+  $$ProjectQueuesTableTableManager(_$AppDatabase db, $ProjectQueuesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProjectQueuesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProjectQueuesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProjectQueuesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> projectId = const Value.absent(),
+                Value<String> targetId = const Value.absent(),
+                Value<DispatchRule?> rule = const Value.absent(),
+                Value<int?> capacity = const Value.absent(),
+                Value<InventoryMode?> stockMode = const Value.absent(),
+                Value<int?> stockQuantity = const Value.absent(),
+                Value<int?> stockSeconds = const Value.absent(),
+                Value<DurationUnit?> stockUnit = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProjectQueuesCompanion(
+                projectId: projectId,
+                targetId: targetId,
+                rule: rule,
+                capacity: capacity,
+                stockMode: stockMode,
+                stockQuantity: stockQuantity,
+                stockSeconds: stockSeconds,
+                stockUnit: stockUnit,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String projectId,
+                required String targetId,
+                Value<DispatchRule?> rule = const Value.absent(),
+                Value<int?> capacity = const Value.absent(),
+                Value<InventoryMode?> stockMode = const Value.absent(),
+                Value<int?> stockQuantity = const Value.absent(),
+                Value<int?> stockSeconds = const Value.absent(),
+                Value<DurationUnit?> stockUnit = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ProjectQueuesCompanion.insert(
+                projectId: projectId,
+                targetId: targetId,
+                rule: rule,
+                capacity: capacity,
+                stockMode: stockMode,
+                stockQuantity: stockQuantity,
+                stockSeconds: stockSeconds,
+                stockUnit: stockUnit,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ProjectQueuesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({projectId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (projectId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.projectId,
+                                referencedTable: $$ProjectQueuesTableReferences
+                                    ._projectIdTable(db),
+                                referencedColumn: $$ProjectQueuesTableReferences
+                                    ._projectIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ProjectQueuesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProjectQueuesTable,
+      ProjectQueue,
+      $$ProjectQueuesTableFilterComposer,
+      $$ProjectQueuesTableOrderingComposer,
+      $$ProjectQueuesTableAnnotationComposer,
+      $$ProjectQueuesTableCreateCompanionBuilder,
+      $$ProjectQueuesTableUpdateCompanionBuilder,
+      (ProjectQueue, $$ProjectQueuesTableReferences),
+      ProjectQueue,
+      PrefetchHooks Function({bool projectId})
+    >;
 typedef $$StudiesTableCreateCompanionBuilder =
     StudiesCompanion Function({
       required String id,
@@ -23086,10 +27651,13 @@ typedef $$StudiesTableCreateCompanionBuilder =
       required String productionLineId,
       required String name,
       Value<bool> includeInSimulation,
-      Value<int> priority,
       Value<int?> wipCap,
+      Value<int> startBufferDays,
+      Value<String?> paceSetterTargetId,
       Value<String?> supplierName,
       Value<String?> customerName,
+      Value<int?> inboundStock,
+      Value<int?> outboundStock,
       Value<String?> notes,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -23103,10 +27671,13 @@ typedef $$StudiesTableUpdateCompanionBuilder =
       Value<String> productionLineId,
       Value<String> name,
       Value<bool> includeInSimulation,
-      Value<int> priority,
       Value<int?> wipCap,
+      Value<int> startBufferDays,
+      Value<String?> paceSetterTargetId,
       Value<String?> supplierName,
       Value<String?> customerName,
+      Value<int?> inboundStock,
+      Value<int?> outboundStock,
       Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -23269,13 +27840,18 @@ class $$StudiesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get priority => $composableBuilder(
-    column: $table.priority,
+  ColumnFilters<int> get wipCap => $composableBuilder(
+    column: $table.wipCap,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get wipCap => $composableBuilder(
-    column: $table.wipCap,
+  ColumnFilters<int> get startBufferDays => $composableBuilder(
+    column: $table.startBufferDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paceSetterTargetId => $composableBuilder(
+    column: $table.paceSetterTargetId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23286,6 +27862,16 @@ class $$StudiesTableFilterComposer
 
   ColumnFilters<String> get customerName => $composableBuilder(
     column: $table.customerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get inboundStock => $composableBuilder(
+    column: $table.inboundStock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get outboundStock => $composableBuilder(
+    column: $table.outboundStock,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23498,13 +28084,18 @@ class $$StudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get priority => $composableBuilder(
-    column: $table.priority,
+  ColumnOrderings<int> get wipCap => $composableBuilder(
+    column: $table.wipCap,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get wipCap => $composableBuilder(
-    column: $table.wipCap,
+  ColumnOrderings<int> get startBufferDays => $composableBuilder(
+    column: $table.startBufferDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paceSetterTargetId => $composableBuilder(
+    column: $table.paceSetterTargetId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -23515,6 +28106,16 @@ class $$StudiesTableOrderingComposer
 
   ColumnOrderings<String> get customerName => $composableBuilder(
     column: $table.customerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get inboundStock => $composableBuilder(
+    column: $table.inboundStock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get outboundStock => $composableBuilder(
+    column: $table.outboundStock,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -23623,11 +28224,18 @@ class $$StudiesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get priority =>
-      $composableBuilder(column: $table.priority, builder: (column) => column);
-
   GeneratedColumn<int> get wipCap =>
       $composableBuilder(column: $table.wipCap, builder: (column) => column);
+
+  GeneratedColumn<int> get startBufferDays => $composableBuilder(
+    column: $table.startBufferDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get paceSetterTargetId => $composableBuilder(
+    column: $table.paceSetterTargetId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get supplierName => $composableBuilder(
     column: $table.supplierName,
@@ -23636,6 +28244,16 @@ class $$StudiesTableAnnotationComposer
 
   GeneratedColumn<String> get customerName => $composableBuilder(
     column: $table.customerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get inboundStock => $composableBuilder(
+    column: $table.inboundStock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get outboundStock => $composableBuilder(
+    column: $table.outboundStock,
     builder: (column) => column,
   );
 
@@ -23860,10 +28478,13 @@ class $$StudiesTableTableManager
                 Value<String> productionLineId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<bool> includeInSimulation = const Value.absent(),
-                Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
+                Value<int> startBufferDays = const Value.absent(),
+                Value<String?> paceSetterTargetId = const Value.absent(),
                 Value<String?> supplierName = const Value.absent(),
                 Value<String?> customerName = const Value.absent(),
+                Value<int?> inboundStock = const Value.absent(),
+                Value<int?> outboundStock = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -23875,10 +28496,13 @@ class $$StudiesTableTableManager
                 productionLineId: productionLineId,
                 name: name,
                 includeInSimulation: includeInSimulation,
-                priority: priority,
                 wipCap: wipCap,
+                startBufferDays: startBufferDays,
+                paceSetterTargetId: paceSetterTargetId,
                 supplierName: supplierName,
                 customerName: customerName,
+                inboundStock: inboundStock,
+                outboundStock: outboundStock,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -23892,10 +28516,13 @@ class $$StudiesTableTableManager
                 required String productionLineId,
                 required String name,
                 Value<bool> includeInSimulation = const Value.absent(),
-                Value<int> priority = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
+                Value<int> startBufferDays = const Value.absent(),
+                Value<String?> paceSetterTargetId = const Value.absent(),
                 Value<String?> supplierName = const Value.absent(),
                 Value<String?> customerName = const Value.absent(),
+                Value<int?> inboundStock = const Value.absent(),
+                Value<int?> outboundStock = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -23907,10 +28534,13 @@ class $$StudiesTableTableManager
                 productionLineId: productionLineId,
                 name: name,
                 includeInSimulation: includeInSimulation,
-                priority: priority,
                 wipCap: wipCap,
+                startBufferDays: startBufferDays,
+                paceSetterTargetId: paceSetterTargetId,
                 supplierName: supplierName,
                 customerName: customerName,
+                inboundStock: inboundStock,
+                outboundStock: outboundStock,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -24125,6 +28755,12 @@ typedef $$FlowNodesTableCreateCompanionBuilder =
       Value<String?> workcenterId,
       Value<String?> poolId,
       Value<int> changeoverSeconds,
+      Value<double?> setupValue,
+      Value<TaktUnit?> setupUnit,
+      Value<double?> teardownValue,
+      Value<TaktUnit?> teardownUnit,
+      Value<double?> samePartPercent,
+      Value<bool?> balanceDisabled,
       Value<double?> equivalentValue,
       Value<TaktUnit?> equivalentUnit,
       Value<InventoryMode?> inventoryMode,
@@ -24132,7 +28768,8 @@ typedef $$FlowNodesTableCreateCompanionBuilder =
       Value<int?> inventorySeconds,
       Value<DurationUnit?> inventoryUnit,
       Value<bool> inventoryUsesWorkingTime,
-      Value<String?> label,
+      Value<DispatchRule?> laneRule,
+      Value<int?> laneCapacity,
       Value<String?> notes,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -24147,6 +28784,12 @@ typedef $$FlowNodesTableUpdateCompanionBuilder =
       Value<String?> workcenterId,
       Value<String?> poolId,
       Value<int> changeoverSeconds,
+      Value<double?> setupValue,
+      Value<TaktUnit?> setupUnit,
+      Value<double?> teardownValue,
+      Value<TaktUnit?> teardownUnit,
+      Value<double?> samePartPercent,
+      Value<bool?> balanceDisabled,
       Value<double?> equivalentValue,
       Value<TaktUnit?> equivalentUnit,
       Value<InventoryMode?> inventoryMode,
@@ -24154,7 +28797,8 @@ typedef $$FlowNodesTableUpdateCompanionBuilder =
       Value<int?> inventorySeconds,
       Value<DurationUnit?> inventoryUnit,
       Value<bool> inventoryUsesWorkingTime,
-      Value<String?> label,
+      Value<DispatchRule?> laneRule,
+      Value<int?> laneCapacity,
       Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -24216,6 +28860,26 @@ final class $$FlowNodesTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<$PartProcessTimesTable, List<PartProcessTime>>
+  _partProcessTimesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.partProcessTimes,
+    aliasName: 'flow_nodes__id__part_process_times__node_id',
+  );
+
+  $$PartProcessTimesTableProcessedTableManager get partProcessTimesRefs {
+    final manager = $$PartProcessTimesTableTableManager(
+      $_db,
+      $_db.partProcessTimes,
+    ).filter((f) => f.nodeId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _partProcessTimesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$FlowNodesTableFilterComposer
@@ -24245,6 +28909,38 @@ class $$FlowNodesTableFilterComposer
 
   ColumnFilters<int> get changeoverSeconds => $composableBuilder(
     column: $table.changeoverSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get setupValue => $composableBuilder(
+    column: $table.setupValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<TaktUnit?, TaktUnit, String> get setupUnit =>
+      $composableBuilder(
+        column: $table.setupUnit,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<double> get teardownValue => $composableBuilder(
+    column: $table.teardownValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<TaktUnit?, TaktUnit, String>
+  get teardownUnit => $composableBuilder(
+    column: $table.teardownUnit,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<double> get samePartPercent => $composableBuilder(
+    column: $table.samePartPercent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get balanceDisabled => $composableBuilder(
+    column: $table.balanceDisabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24286,8 +28982,14 @@ class $$FlowNodesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get label => $composableBuilder(
-    column: $table.label,
+  ColumnWithTypeConverterFilters<DispatchRule?, DispatchRule, String>
+  get laneRule => $composableBuilder(
+    column: $table.laneRule,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get laneCapacity => $composableBuilder(
+    column: $table.laneCapacity,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24374,6 +29076,31 @@ class $$FlowNodesTableFilterComposer
     );
     return composer;
   }
+
+  Expression<bool> partProcessTimesRefs(
+    Expression<bool> Function($$PartProcessTimesTableFilterComposer f) f,
+  ) {
+    final $$PartProcessTimesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.partProcessTimes,
+      getReferencedColumn: (t) => t.nodeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartProcessTimesTableFilterComposer(
+            $db: $db,
+            $table: $db.partProcessTimes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$FlowNodesTableOrderingComposer
@@ -24402,6 +29129,36 @@ class $$FlowNodesTableOrderingComposer
 
   ColumnOrderings<int> get changeoverSeconds => $composableBuilder(
     column: $table.changeoverSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get setupValue => $composableBuilder(
+    column: $table.setupValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get setupUnit => $composableBuilder(
+    column: $table.setupUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get teardownValue => $composableBuilder(
+    column: $table.teardownValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get teardownUnit => $composableBuilder(
+    column: $table.teardownUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get samePartPercent => $composableBuilder(
+    column: $table.samePartPercent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get balanceDisabled => $composableBuilder(
+    column: $table.balanceDisabled,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -24440,8 +29197,13 @@ class $$FlowNodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get label => $composableBuilder(
-    column: $table.label,
+  ColumnOrderings<String> get laneRule => $composableBuilder(
+    column: $table.laneRule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get laneCapacity => $composableBuilder(
+    column: $table.laneCapacity,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -24553,6 +29315,35 @@ class $$FlowNodesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get setupValue => $composableBuilder(
+    column: $table.setupValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<TaktUnit?, String> get setupUnit =>
+      $composableBuilder(column: $table.setupUnit, builder: (column) => column);
+
+  GeneratedColumn<double> get teardownValue => $composableBuilder(
+    column: $table.teardownValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<TaktUnit?, String> get teardownUnit =>
+      $composableBuilder(
+        column: $table.teardownUnit,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<double> get samePartPercent => $composableBuilder(
+    column: $table.samePartPercent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get balanceDisabled => $composableBuilder(
+    column: $table.balanceDisabled,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get equivalentValue => $composableBuilder(
     column: $table.equivalentValue,
     builder: (column) => column,
@@ -24591,8 +29382,13 @@ class $$FlowNodesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get label =>
-      $composableBuilder(column: $table.label, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<DispatchRule?, String> get laneRule =>
+      $composableBuilder(column: $table.laneRule, builder: (column) => column);
+
+  GeneratedColumn<int> get laneCapacity => $composableBuilder(
+    column: $table.laneCapacity,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -24671,6 +29467,31 @@ class $$FlowNodesTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> partProcessTimesRefs<T extends Object>(
+    Expression<T> Function($$PartProcessTimesTableAnnotationComposer a) f,
+  ) {
+    final $$PartProcessTimesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.partProcessTimes,
+      getReferencedColumn: (t) => t.nodeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartProcessTimesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.partProcessTimes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$FlowNodesTableTableManager
@@ -24686,7 +29507,12 @@ class $$FlowNodesTableTableManager
           $$FlowNodesTableUpdateCompanionBuilder,
           (FlowNode, $$FlowNodesTableReferences),
           FlowNode,
-          PrefetchHooks Function({bool studyId, bool workcenterId, bool poolId})
+          PrefetchHooks Function({
+            bool studyId,
+            bool workcenterId,
+            bool poolId,
+            bool partProcessTimesRefs,
+          })
         > {
   $$FlowNodesTableTableManager(_$AppDatabase db, $FlowNodesTable table)
     : super(
@@ -24708,6 +29534,12 @@ class $$FlowNodesTableTableManager
                 Value<String?> workcenterId = const Value.absent(),
                 Value<String?> poolId = const Value.absent(),
                 Value<int> changeoverSeconds = const Value.absent(),
+                Value<double?> setupValue = const Value.absent(),
+                Value<TaktUnit?> setupUnit = const Value.absent(),
+                Value<double?> teardownValue = const Value.absent(),
+                Value<TaktUnit?> teardownUnit = const Value.absent(),
+                Value<double?> samePartPercent = const Value.absent(),
+                Value<bool?> balanceDisabled = const Value.absent(),
                 Value<double?> equivalentValue = const Value.absent(),
                 Value<TaktUnit?> equivalentUnit = const Value.absent(),
                 Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -24715,7 +29547,8 @@ class $$FlowNodesTableTableManager
                 Value<int?> inventorySeconds = const Value.absent(),
                 Value<DurationUnit?> inventoryUnit = const Value.absent(),
                 Value<bool> inventoryUsesWorkingTime = const Value.absent(),
-                Value<String?> label = const Value.absent(),
+                Value<DispatchRule?> laneRule = const Value.absent(),
+                Value<int?> laneCapacity = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -24728,6 +29561,12 @@ class $$FlowNodesTableTableManager
                 workcenterId: workcenterId,
                 poolId: poolId,
                 changeoverSeconds: changeoverSeconds,
+                setupValue: setupValue,
+                setupUnit: setupUnit,
+                teardownValue: teardownValue,
+                teardownUnit: teardownUnit,
+                samePartPercent: samePartPercent,
+                balanceDisabled: balanceDisabled,
                 equivalentValue: equivalentValue,
                 equivalentUnit: equivalentUnit,
                 inventoryMode: inventoryMode,
@@ -24735,7 +29574,8 @@ class $$FlowNodesTableTableManager
                 inventorySeconds: inventorySeconds,
                 inventoryUnit: inventoryUnit,
                 inventoryUsesWorkingTime: inventoryUsesWorkingTime,
-                label: label,
+                laneRule: laneRule,
+                laneCapacity: laneCapacity,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -24750,6 +29590,12 @@ class $$FlowNodesTableTableManager
                 Value<String?> workcenterId = const Value.absent(),
                 Value<String?> poolId = const Value.absent(),
                 Value<int> changeoverSeconds = const Value.absent(),
+                Value<double?> setupValue = const Value.absent(),
+                Value<TaktUnit?> setupUnit = const Value.absent(),
+                Value<double?> teardownValue = const Value.absent(),
+                Value<TaktUnit?> teardownUnit = const Value.absent(),
+                Value<double?> samePartPercent = const Value.absent(),
+                Value<bool?> balanceDisabled = const Value.absent(),
                 Value<double?> equivalentValue = const Value.absent(),
                 Value<TaktUnit?> equivalentUnit = const Value.absent(),
                 Value<InventoryMode?> inventoryMode = const Value.absent(),
@@ -24757,7 +29603,8 @@ class $$FlowNodesTableTableManager
                 Value<int?> inventorySeconds = const Value.absent(),
                 Value<DurationUnit?> inventoryUnit = const Value.absent(),
                 Value<bool> inventoryUsesWorkingTime = const Value.absent(),
-                Value<String?> label = const Value.absent(),
+                Value<DispatchRule?> laneRule = const Value.absent(),
+                Value<int?> laneCapacity = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -24770,6 +29617,12 @@ class $$FlowNodesTableTableManager
                 workcenterId: workcenterId,
                 poolId: poolId,
                 changeoverSeconds: changeoverSeconds,
+                setupValue: setupValue,
+                setupUnit: setupUnit,
+                teardownValue: teardownValue,
+                teardownUnit: teardownUnit,
+                samePartPercent: samePartPercent,
+                balanceDisabled: balanceDisabled,
                 equivalentValue: equivalentValue,
                 equivalentUnit: equivalentUnit,
                 inventoryMode: inventoryMode,
@@ -24777,7 +29630,8 @@ class $$FlowNodesTableTableManager
                 inventorySeconds: inventorySeconds,
                 inventoryUnit: inventoryUnit,
                 inventoryUsesWorkingTime: inventoryUsesWorkingTime,
-                label: label,
+                laneRule: laneRule,
+                laneCapacity: laneCapacity,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -24792,10 +29646,17 @@ class $$FlowNodesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({studyId = false, workcenterId = false, poolId = false}) {
+              ({
+                studyId = false,
+                workcenterId = false,
+                poolId = false,
+                partProcessTimesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
-                  explicitlyWatchedTables: [],
+                  explicitlyWatchedTables: [
+                    if (partProcessTimesRefs) db.partProcessTimes,
+                  ],
                   addJoins:
                       <
                         T extends TableManagerState<
@@ -24855,7 +29716,29 @@ class $$FlowNodesTableTableManager
                         return state;
                       },
                   getPrefetchedDataCallback: (items) async {
-                    return [];
+                    return [
+                      if (partProcessTimesRefs)
+                        await $_getPrefetchedData<
+                          FlowNode,
+                          $FlowNodesTable,
+                          PartProcessTime
+                        >(
+                          currentTable: table,
+                          referencedTable: $$FlowNodesTableReferences
+                              ._partProcessTimesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FlowNodesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).partProcessTimesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.nodeId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
                 );
               },
@@ -24875,7 +29758,12 @@ typedef $$FlowNodesTableProcessedTableManager =
       $$FlowNodesTableUpdateCompanionBuilder,
       (FlowNode, $$FlowNodesTableReferences),
       FlowNode,
-      PrefetchHooks Function({bool studyId, bool workcenterId, bool poolId})
+      PrefetchHooks Function({
+        bool studyId,
+        bool workcenterId,
+        bool poolId,
+        bool partProcessTimesRefs,
+      })
     >;
 typedef $$FlowAnnotationsTableCreateCompanionBuilder =
     FlowAnnotationsCompanion Function({
@@ -25803,14 +30691,14 @@ typedef $$DemandPartsTableProcessedTableManager =
 typedef $$PartProcessTimesTableCreateCompanionBuilder =
     PartProcessTimesCompanion Function({
       required String partId,
-      required String targetId,
+      required String nodeId,
       required int seconds,
       Value<int> rowid,
     });
 typedef $$PartProcessTimesTableUpdateCompanionBuilder =
     PartProcessTimesCompanion Function({
       Value<String> partId,
-      Value<String> targetId,
+      Value<String> nodeId,
       Value<int> seconds,
       Value<int> rowid,
     });
@@ -25840,6 +30728,23 @@ final class $$PartProcessTimesTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static $FlowNodesTable _nodeIdTable(_$AppDatabase db) =>
+      db.flowNodes.createAlias('part_process_times__node_id__flow_nodes__id');
+
+  $$FlowNodesTableProcessedTableManager get nodeId {
+    final $_column = $_itemColumn<String>('node_id')!;
+
+    final manager = $$FlowNodesTableTableManager(
+      $_db,
+      $_db.flowNodes,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_nodeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 }
 
 class $$PartProcessTimesTableFilterComposer
@@ -25851,11 +30756,6 @@ class $$PartProcessTimesTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<int> get seconds => $composableBuilder(
     column: $table.seconds,
     builder: (column) => ColumnFilters(column),
@@ -25883,6 +30783,29 @@ class $$PartProcessTimesTableFilterComposer
     );
     return composer;
   }
+
+  $$FlowNodesTableFilterComposer get nodeId {
+    final $$FlowNodesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.flowNodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlowNodesTableFilterComposer(
+            $db: $db,
+            $table: $db.flowNodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartProcessTimesTableOrderingComposer
@@ -25894,11 +30817,6 @@ class $$PartProcessTimesTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get seconds => $composableBuilder(
     column: $table.seconds,
     builder: (column) => ColumnOrderings(column),
@@ -25926,6 +30844,29 @@ class $$PartProcessTimesTableOrderingComposer
     );
     return composer;
   }
+
+  $$FlowNodesTableOrderingComposer get nodeId {
+    final $$FlowNodesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.flowNodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlowNodesTableOrderingComposer(
+            $db: $db,
+            $table: $db.flowNodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartProcessTimesTableAnnotationComposer
@@ -25937,9 +30878,6 @@ class $$PartProcessTimesTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get targetId =>
-      $composableBuilder(column: $table.targetId, builder: (column) => column);
-
   GeneratedColumn<int> get seconds =>
       $composableBuilder(column: $table.seconds, builder: (column) => column);
 
@@ -25965,6 +30903,29 @@ class $$PartProcessTimesTableAnnotationComposer
     );
     return composer;
   }
+
+  $$FlowNodesTableAnnotationComposer get nodeId {
+    final $$FlowNodesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.flowNodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FlowNodesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.flowNodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartProcessTimesTableTableManager
@@ -25980,7 +30941,7 @@ class $$PartProcessTimesTableTableManager
           $$PartProcessTimesTableUpdateCompanionBuilder,
           (PartProcessTime, $$PartProcessTimesTableReferences),
           PartProcessTime,
-          PrefetchHooks Function({bool partId})
+          PrefetchHooks Function({bool partId, bool nodeId})
         > {
   $$PartProcessTimesTableTableManager(
     _$AppDatabase db,
@@ -25998,24 +30959,24 @@ class $$PartProcessTimesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> partId = const Value.absent(),
-                Value<String> targetId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
                 Value<int> seconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PartProcessTimesCompanion(
                 partId: partId,
-                targetId: targetId,
+                nodeId: nodeId,
                 seconds: seconds,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String partId,
-                required String targetId,
+                required String nodeId,
                 required int seconds,
                 Value<int> rowid = const Value.absent(),
               }) => PartProcessTimesCompanion.insert(
                 partId: partId,
-                targetId: targetId,
+                nodeId: nodeId,
                 seconds: seconds,
                 rowid: rowid,
               ),
@@ -26027,7 +30988,7 @@ class $$PartProcessTimesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({partId = false}) {
+          prefetchHooksCallback: ({partId = false, nodeId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -26062,6 +31023,21 @@ class $$PartProcessTimesTableTableManager
                               )
                               as T;
                     }
+                    if (nodeId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.nodeId,
+                                referencedTable:
+                                    $$PartProcessTimesTableReferences
+                                        ._nodeIdTable(db),
+                                referencedColumn:
+                                    $$PartProcessTimesTableReferences
+                                        ._nodeIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
 
                     return state;
                   },
@@ -26086,7 +31062,7 @@ typedef $$PartProcessTimesTableProcessedTableManager =
       $$PartProcessTimesTableUpdateCompanionBuilder,
       (PartProcessTime, $$PartProcessTimesTableReferences),
       PartProcessTime,
-      PrefetchHooks Function({bool partId})
+      PrefetchHooks Function({bool partId, bool nodeId})
     >;
 typedef $$DemandOrdersTableCreateCompanionBuilder =
     DemandOrdersCompanion Function({
@@ -26611,342 +31587,31 @@ typedef $$DemandOrdersTableProcessedTableManager =
       DemandOrder,
       PrefetchHooks Function({bool studyId, bool partId})
     >;
-typedef $$WorkcenterDispatchTableCreateCompanionBuilder =
-    WorkcenterDispatchCompanion Function({
-      required String projectId,
-      required String targetId,
-      required DispatchRule rule,
-      required DateTime updatedAt,
-      Value<int> rowid,
-    });
-typedef $$WorkcenterDispatchTableUpdateCompanionBuilder =
-    WorkcenterDispatchCompanion Function({
-      Value<String> projectId,
-      Value<String> targetId,
-      Value<DispatchRule> rule,
-      Value<DateTime> updatedAt,
-      Value<int> rowid,
-    });
-
-final class $$WorkcenterDispatchTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $WorkcenterDispatchTable,
-          WorkcenterDispatchData
-        > {
-  $$WorkcenterDispatchTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
-      db.projects.createAlias('workcenter_dispatch__project_id__projects__id');
-
-  $$ProjectsTableProcessedTableManager get projectId {
-    final $_column = $_itemColumn<String>('project_id')!;
-
-    final manager = $$ProjectsTableTableManager(
-      $_db,
-      $_db.projects,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$WorkcenterDispatchTableFilterComposer
-    extends Composer<_$AppDatabase, $WorkcenterDispatchTable> {
-  $$WorkcenterDispatchTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DispatchRule, DispatchRule, String> get rule =>
-      $composableBuilder(
-        column: $table.rule,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$ProjectsTableFilterComposer get projectId {
-    final $$ProjectsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableFilterComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$WorkcenterDispatchTableOrderingComposer
-    extends Composer<_$AppDatabase, $WorkcenterDispatchTable> {
-  $$WorkcenterDispatchTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rule => $composableBuilder(
-    column: $table.rule,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$ProjectsTableOrderingComposer get projectId {
-    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableOrderingComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$WorkcenterDispatchTableAnnotationComposer
-    extends Composer<_$AppDatabase, $WorkcenterDispatchTable> {
-  $$WorkcenterDispatchTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get targetId =>
-      $composableBuilder(column: $table.targetId, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<DispatchRule, String> get rule =>
-      $composableBuilder(column: $table.rule, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  $$ProjectsTableAnnotationComposer get projectId {
-    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$WorkcenterDispatchTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $WorkcenterDispatchTable,
-          WorkcenterDispatchData,
-          $$WorkcenterDispatchTableFilterComposer,
-          $$WorkcenterDispatchTableOrderingComposer,
-          $$WorkcenterDispatchTableAnnotationComposer,
-          $$WorkcenterDispatchTableCreateCompanionBuilder,
-          $$WorkcenterDispatchTableUpdateCompanionBuilder,
-          (WorkcenterDispatchData, $$WorkcenterDispatchTableReferences),
-          WorkcenterDispatchData,
-          PrefetchHooks Function({bool projectId})
-        > {
-  $$WorkcenterDispatchTableTableManager(
-    _$AppDatabase db,
-    $WorkcenterDispatchTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$WorkcenterDispatchTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$WorkcenterDispatchTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$WorkcenterDispatchTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> projectId = const Value.absent(),
-                Value<String> targetId = const Value.absent(),
-                Value<DispatchRule> rule = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => WorkcenterDispatchCompanion(
-                projectId: projectId,
-                targetId: targetId,
-                rule: rule,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String projectId,
-                required String targetId,
-                required DispatchRule rule,
-                required DateTime updatedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => WorkcenterDispatchCompanion.insert(
-                projectId: projectId,
-                targetId: targetId,
-                rule: rule,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$WorkcenterDispatchTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({projectId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (projectId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.projectId,
-                                referencedTable:
-                                    $$WorkcenterDispatchTableReferences
-                                        ._projectIdTable(db),
-                                referencedColumn:
-                                    $$WorkcenterDispatchTableReferences
-                                        ._projectIdTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$WorkcenterDispatchTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $WorkcenterDispatchTable,
-      WorkcenterDispatchData,
-      $$WorkcenterDispatchTableFilterComposer,
-      $$WorkcenterDispatchTableOrderingComposer,
-      $$WorkcenterDispatchTableAnnotationComposer,
-      $$WorkcenterDispatchTableCreateCompanionBuilder,
-      $$WorkcenterDispatchTableUpdateCompanionBuilder,
-      (WorkcenterDispatchData, $$WorkcenterDispatchTableReferences),
-      WorkcenterDispatchData,
-      PrefetchHooks Function({bool projectId})
-    >;
 typedef $$SimulationRunsTableCreateCompanionBuilder =
     SimulationRunsCompanion Function({
       required String id,
-      required String projectId,
+      required String documentId,
       required String dispatch,
       required DateTime runStart,
       required DateTime runEnd,
       required DateTime guard,
       Value<String?> abortReason,
+      Value<DateTime?> scheduleHorizon,
+      Value<String?> appVersion,
       required DateTime createdAt,
       Value<int> rowid,
     });
 typedef $$SimulationRunsTableUpdateCompanionBuilder =
     SimulationRunsCompanion Function({
       Value<String> id,
-      Value<String> projectId,
+      Value<String> documentId,
       Value<String> dispatch,
       Value<DateTime> runStart,
       Value<DateTime> runEnd,
       Value<DateTime> guard,
       Value<String?> abortReason,
+      Value<DateTime?> scheduleHorizon,
+      Value<String?> appVersion,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -26958,23 +31623,6 @@ final class $$SimulationRunsTableReferences
     super.$_table,
     super.$_typedResult,
   );
-
-  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
-      db.projects.createAlias('simulation_runs__project_id__projects__id');
-
-  $$ProjectsTableProcessedTableManager get projectId {
-    final $_column = $_itemColumn<String>('project_id')!;
-
-    final manager = $$ProjectsTableTableManager(
-      $_db,
-      $_db.projects,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
 
   static MultiTypedResultKey<
     $SimulationRunStudiesTable,
@@ -27072,31 +31720,6 @@ final class $$SimulationRunsTableReferences
   }
 
   static MultiTypedResultKey<
-    $SimulationRunDispatchTable,
-    List<SimulationRunDispatchData>
-  >
-  _simulationRunDispatchRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.simulationRunDispatch,
-        aliasName: 'simulation_runs__id__simulation_run_dispatch__run_id',
-      );
-
-  $$SimulationRunDispatchTableProcessedTableManager
-  get simulationRunDispatchRefs {
-    final manager = $$SimulationRunDispatchTableTableManager(
-      $_db,
-      $_db.simulationRunDispatch,
-    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _simulationRunDispatchRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
     $SimulationRunWorkcentersTable,
     List<SimulationRunWorkcenter>
   >
@@ -27120,6 +31743,78 @@ final class $$SimulationRunsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SimulationRunLanesTable, List<SimulationRunLane>>
+  _simulationRunLanesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunLanes,
+        aliasName: 'simulation_runs__id__simulation_run_lanes__run_id',
+      );
+
+  $$SimulationRunLanesTableProcessedTableManager get simulationRunLanesRefs {
+    final manager = $$SimulationRunLanesTableTableManager(
+      $_db,
+      $_db.simulationRunLanes,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunLanesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SimulationRunLaneVisitsTable,
+    List<SimulationRunLaneVisit>
+  >
+  _simulationRunLaneVisitsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunLaneVisits,
+        aliasName: 'simulation_runs__id__simulation_run_lane_visits__run_id',
+      );
+
+  $$SimulationRunLaneVisitsTableProcessedTableManager
+  get simulationRunLaneVisitsRefs {
+    final manager = $$SimulationRunLaneVisitsTableTableManager(
+      $_db,
+      $_db.simulationRunLaneVisits,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunLaneVisitsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SimulationRunWorkcenterMonthsTable,
+    List<SimulationRunWorkcenterMonth>
+  >
+  _simulationRunWorkcenterMonthsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.simulationRunWorkcenterMonths,
+        aliasName:
+            'simulation_runs__id__simulation_run_workcenter_months__run_id',
+      );
+
+  $$SimulationRunWorkcenterMonthsTableProcessedTableManager
+  get simulationRunWorkcenterMonthsRefs {
+    final manager = $$SimulationRunWorkcenterMonthsTableTableManager(
+      $_db,
+      $_db.simulationRunWorkcenterMonths,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _simulationRunWorkcenterMonthsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SimulationRunsTableFilterComposer
@@ -27133,6 +31828,11 @@ class $$SimulationRunsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get documentId => $composableBuilder(
+    column: $table.documentId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -27161,33 +31861,20 @@ class $$SimulationRunsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get scheduleHorizon => $composableBuilder(
+    column: $table.scheduleHorizon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get appVersion => $composableBuilder(
+    column: $table.appVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$ProjectsTableFilterComposer get projectId {
-    final $$ProjectsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableFilterComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 
   Expression<bool> simulationRunStudiesRefs(
     Expression<bool> Function($$SimulationRunStudiesTableFilterComposer f) f,
@@ -27290,32 +31977,6 @@ class $$SimulationRunsTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> simulationRunDispatchRefs(
-    Expression<bool> Function($$SimulationRunDispatchTableFilterComposer f) f,
-  ) {
-    final $$SimulationRunDispatchTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.simulationRunDispatch,
-          getReferencedColumn: (t) => t.runId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$SimulationRunDispatchTableFilterComposer(
-                $db: $db,
-                $table: $db.simulationRunDispatch,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
   Expression<bool> simulationRunWorkcentersRefs(
     Expression<bool> Function($$SimulationRunWorkcentersTableFilterComposer f)
     f,
@@ -27342,6 +32003,86 @@ class $$SimulationRunsTableFilterComposer
         );
     return f(composer);
   }
+
+  Expression<bool> simulationRunLanesRefs(
+    Expression<bool> Function($$SimulationRunLanesTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunLanesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.simulationRunLanes,
+      getReferencedColumn: (t) => t.runId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunLanesTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRunLanes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunLaneVisitsRefs(
+    Expression<bool> Function($$SimulationRunLaneVisitsTableFilterComposer f) f,
+  ) {
+    final $$SimulationRunLaneVisitsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunLaneVisits,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunLaneVisitsTableFilterComposer(
+                $db: $db,
+                $table: $db.simulationRunLaneVisits,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> simulationRunWorkcenterMonthsRefs(
+    Expression<bool> Function(
+      $$SimulationRunWorkcenterMonthsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$SimulationRunWorkcenterMonthsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunWorkcenterMonths,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunWorkcenterMonthsTableFilterComposer(
+                $db: $db,
+                $table: $db.simulationRunWorkcenterMonths,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$SimulationRunsTableOrderingComposer
@@ -27355,6 +32096,11 @@ class $$SimulationRunsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get documentId => $composableBuilder(
+    column: $table.documentId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -27383,33 +32129,20 @@ class $$SimulationRunsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get scheduleHorizon => $composableBuilder(
+    column: $table.scheduleHorizon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get appVersion => $composableBuilder(
+    column: $table.appVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$ProjectsTableOrderingComposer get projectId {
-    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableOrderingComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$SimulationRunsTableAnnotationComposer
@@ -27423,6 +32156,11 @@ class $$SimulationRunsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get documentId => $composableBuilder(
+    column: $table.documentId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get dispatch =>
       $composableBuilder(column: $table.dispatch, builder: (column) => column);
@@ -27441,31 +32179,18 @@ class $$SimulationRunsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get scheduleHorizon => $composableBuilder(
+    column: $table.scheduleHorizon,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get appVersion => $composableBuilder(
+    column: $table.appVersion,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  $$ProjectsTableAnnotationComposer get projectId {
-    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.projectId,
-      referencedTable: $db.projects,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$ProjectsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.projects,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 
   Expression<T> simulationRunStudiesRefs<T extends Object>(
     Expression<T> Function($$SimulationRunStudiesTableAnnotationComposer a) f,
@@ -27572,32 +32297,6 @@ class $$SimulationRunsTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> simulationRunDispatchRefs<T extends Object>(
-    Expression<T> Function($$SimulationRunDispatchTableAnnotationComposer a) f,
-  ) {
-    final $$SimulationRunDispatchTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.simulationRunDispatch,
-          getReferencedColumn: (t) => t.runId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$SimulationRunDispatchTableAnnotationComposer(
-                $db: $db,
-                $table: $db.simulationRunDispatch,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
   Expression<T> simulationRunWorkcentersRefs<T extends Object>(
     Expression<T> Function($$SimulationRunWorkcentersTableAnnotationComposer a)
     f,
@@ -27624,6 +32323,88 @@ class $$SimulationRunsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> simulationRunLanesRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunLanesTableAnnotationComposer a) f,
+  ) {
+    final $$SimulationRunLanesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunLanes,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunLanesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunLanes,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> simulationRunLaneVisitsRefs<T extends Object>(
+    Expression<T> Function($$SimulationRunLaneVisitsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$SimulationRunLaneVisitsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunLaneVisits,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunLaneVisitsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunLaneVisits,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> simulationRunWorkcenterMonthsRefs<T extends Object>(
+    Expression<T> Function(
+      $$SimulationRunWorkcenterMonthsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$SimulationRunWorkcenterMonthsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.simulationRunWorkcenterMonths,
+          getReferencedColumn: (t) => t.runId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SimulationRunWorkcenterMonthsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.simulationRunWorkcenterMonths,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$SimulationRunsTableTableManager
@@ -27640,13 +32421,14 @@ class $$SimulationRunsTableTableManager
           (SimulationRun, $$SimulationRunsTableReferences),
           SimulationRun,
           PrefetchHooks Function({
-            bool projectId,
             bool simulationRunStudiesRefs,
             bool simulationRunOrdersRefs,
             bool simulationRunStepsRefs,
             bool simulationRunEmptySlotsRefs,
-            bool simulationRunDispatchRefs,
             bool simulationRunWorkcentersRefs,
+            bool simulationRunLanesRefs,
+            bool simulationRunLaneVisitsRefs,
+            bool simulationRunWorkcenterMonthsRefs,
           })
         > {
   $$SimulationRunsTableTableManager(
@@ -27665,44 +32447,52 @@ class $$SimulationRunsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> projectId = const Value.absent(),
+                Value<String> documentId = const Value.absent(),
                 Value<String> dispatch = const Value.absent(),
                 Value<DateTime> runStart = const Value.absent(),
                 Value<DateTime> runEnd = const Value.absent(),
                 Value<DateTime> guard = const Value.absent(),
                 Value<String?> abortReason = const Value.absent(),
+                Value<DateTime?> scheduleHorizon = const Value.absent(),
+                Value<String?> appVersion = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunsCompanion(
                 id: id,
-                projectId: projectId,
+                documentId: documentId,
                 dispatch: dispatch,
                 runStart: runStart,
                 runEnd: runEnd,
                 guard: guard,
                 abortReason: abortReason,
+                scheduleHorizon: scheduleHorizon,
+                appVersion: appVersion,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String id,
-                required String projectId,
+                required String documentId,
                 required String dispatch,
                 required DateTime runStart,
                 required DateTime runEnd,
                 required DateTime guard,
                 Value<String?> abortReason = const Value.absent(),
+                Value<DateTime?> scheduleHorizon = const Value.absent(),
+                Value<String?> appVersion = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunsCompanion.insert(
                 id: id,
-                projectId: projectId,
+                documentId: documentId,
                 dispatch: dispatch,
                 runStart: runStart,
                 runEnd: runEnd,
                 guard: guard,
                 abortReason: abortReason,
+                scheduleHorizon: scheduleHorizon,
+                appVersion: appVersion,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -27716,13 +32506,14 @@ class $$SimulationRunsTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
-                projectId = false,
                 simulationRunStudiesRefs = false,
                 simulationRunOrdersRefs = false,
                 simulationRunStepsRefs = false,
                 simulationRunEmptySlotsRefs = false,
-                simulationRunDispatchRefs = false,
                 simulationRunWorkcentersRefs = false,
+                simulationRunLanesRefs = false,
+                simulationRunLaneVisitsRefs = false,
+                simulationRunWorkcenterMonthsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -27731,44 +32522,14 @@ class $$SimulationRunsTableTableManager
                     if (simulationRunOrdersRefs) db.simulationRunOrders,
                     if (simulationRunStepsRefs) db.simulationRunSteps,
                     if (simulationRunEmptySlotsRefs) db.simulationRunEmptySlots,
-                    if (simulationRunDispatchRefs) db.simulationRunDispatch,
                     if (simulationRunWorkcentersRefs)
                       db.simulationRunWorkcenters,
+                    if (simulationRunLanesRefs) db.simulationRunLanes,
+                    if (simulationRunLaneVisitsRefs) db.simulationRunLaneVisits,
+                    if (simulationRunWorkcenterMonthsRefs)
+                      db.simulationRunWorkcenterMonths,
                   ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (projectId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.projectId,
-                                    referencedTable:
-                                        $$SimulationRunsTableReferences
-                                            ._projectIdTable(db),
-                                    referencedColumn:
-                                        $$SimulationRunsTableReferences
-                                            ._projectIdTable(db)
-                                            .id,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
+                  addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (simulationRunStudiesRefs)
@@ -27855,27 +32616,6 @@ class $$SimulationRunsTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (simulationRunDispatchRefs)
-                        await $_getPrefetchedData<
-                          SimulationRun,
-                          $SimulationRunsTable,
-                          SimulationRunDispatchData
-                        >(
-                          currentTable: table,
-                          referencedTable: $$SimulationRunsTableReferences
-                              ._simulationRunDispatchRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$SimulationRunsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).simulationRunDispatchRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.runId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
                       if (simulationRunWorkcentersRefs)
                         await $_getPrefetchedData<
                           SimulationRun,
@@ -27891,6 +32631,69 @@ class $$SimulationRunsTableTableManager
                                 table,
                                 p0,
                               ).simulationRunWorkcentersRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunLanesRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunLane
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunLanesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunLanesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunLaneVisitsRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunLaneVisit
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunLaneVisitsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunLaneVisitsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.runId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (simulationRunWorkcenterMonthsRefs)
+                        await $_getPrefetchedData<
+                          SimulationRun,
+                          $SimulationRunsTable,
+                          SimulationRunWorkcenterMonth
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SimulationRunsTableReferences
+                              ._simulationRunWorkcenterMonthsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SimulationRunsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).simulationRunWorkcenterMonthsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.runId == item.id,
@@ -27918,13 +32721,14 @@ typedef $$SimulationRunsTableProcessedTableManager =
       (SimulationRun, $$SimulationRunsTableReferences),
       SimulationRun,
       PrefetchHooks Function({
-        bool projectId,
         bool simulationRunStudiesRefs,
         bool simulationRunOrdersRefs,
         bool simulationRunStepsRefs,
         bool simulationRunEmptySlotsRefs,
-        bool simulationRunDispatchRefs,
         bool simulationRunWorkcentersRefs,
+        bool simulationRunLanesRefs,
+        bool simulationRunLaneVisitsRefs,
+        bool simulationRunWorkcenterMonthsRefs,
       })
     >;
 typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
@@ -27934,8 +32738,16 @@ typedef $$SimulationRunStudiesTableCreateCompanionBuilder =
       required String name,
       required int releaseSeconds,
       Value<String?> releaseCalendarId,
-      required int priority,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
+      Value<DateTime?> nextTaktChange,
+      Value<DateTime?> cadenceEndedAt,
       Value<int?> wipCap,
+      Value<int> startBufferDays,
+      Value<String?> productionCellId,
+      Value<String?> productionCellName,
+      Value<String?> productionLineId,
+      Value<String?> productionLineName,
       Value<int> rowid,
     });
 typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
@@ -27945,8 +32757,16 @@ typedef $$SimulationRunStudiesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> releaseSeconds,
       Value<String?> releaseCalendarId,
-      Value<int> priority,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
+      Value<DateTime?> nextTaktChange,
+      Value<DateTime?> cadenceEndedAt,
       Value<int?> wipCap,
+      Value<int> startBufferDays,
+      Value<String?> productionCellId,
+      Value<String?> productionCellName,
+      Value<String?> productionLineId,
+      Value<String?> productionLineName,
       Value<int> rowid,
     });
 
@@ -28010,13 +32830,53 @@ class $$SimulationRunStudiesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get priority => $composableBuilder(
-    column: $table.priority,
+  ColumnFilters<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextTaktChange => $composableBuilder(
+    column: $table.nextTaktChange,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get cadenceEndedAt => $composableBuilder(
+    column: $table.cadenceEndedAt,
     builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<int> get wipCap => $composableBuilder(
     column: $table.wipCap,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startBufferDays => $composableBuilder(
+    column: $table.startBufferDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionCellId => $composableBuilder(
+    column: $table.productionCellId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionCellName => $composableBuilder(
+    column: $table.productionCellName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionLineId => $composableBuilder(
+    column: $table.productionLineId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productionLineName => $composableBuilder(
+    column: $table.productionLineName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28073,13 +32933,53 @@ class $$SimulationRunStudiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get priority => $composableBuilder(
-    column: $table.priority,
+  ColumnOrderings<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextTaktChange => $composableBuilder(
+    column: $table.nextTaktChange,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get cadenceEndedAt => $composableBuilder(
+    column: $table.cadenceEndedAt,
     builder: (column) => ColumnOrderings(column),
   );
 
   ColumnOrderings<int> get wipCap => $composableBuilder(
     column: $table.wipCap,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startBufferDays => $composableBuilder(
+    column: $table.startBufferDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionCellId => $composableBuilder(
+    column: $table.productionCellId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionCellName => $composableBuilder(
+    column: $table.productionCellName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionLineId => $composableBuilder(
+    column: $table.productionLineId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productionLineName => $composableBuilder(
+    column: $table.productionLineName,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -28132,11 +33032,49 @@ class $$SimulationRunStudiesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get priority =>
-      $composableBuilder(column: $table.priority, builder: (column) => column);
+  GeneratedColumn<double> get taktValue =>
+      $composableBuilder(column: $table.taktValue, builder: (column) => column);
+
+  GeneratedColumn<String> get taktUnit =>
+      $composableBuilder(column: $table.taktUnit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextTaktChange => $composableBuilder(
+    column: $table.nextTaktChange,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get cadenceEndedAt => $composableBuilder(
+    column: $table.cadenceEndedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get wipCap =>
       $composableBuilder(column: $table.wipCap, builder: (column) => column);
+
+  GeneratedColumn<int> get startBufferDays => $composableBuilder(
+    column: $table.startBufferDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionCellId => $composableBuilder(
+    column: $table.productionCellId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionCellName => $composableBuilder(
+    column: $table.productionCellName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionLineId => $composableBuilder(
+    column: $table.productionLineId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productionLineName => $composableBuilder(
+    column: $table.productionLineName,
+    builder: (column) => column,
+  );
 
   $$SimulationRunsTableAnnotationComposer get runId {
     final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
@@ -28203,8 +33141,16 @@ class $$SimulationRunStudiesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> releaseSeconds = const Value.absent(),
                 Value<String?> releaseCalendarId = const Value.absent(),
-                Value<int> priority = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
+                Value<DateTime?> nextTaktChange = const Value.absent(),
+                Value<DateTime?> cadenceEndedAt = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
+                Value<int> startBufferDays = const Value.absent(),
+                Value<String?> productionCellId = const Value.absent(),
+                Value<String?> productionCellName = const Value.absent(),
+                Value<String?> productionLineId = const Value.absent(),
+                Value<String?> productionLineName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunStudiesCompanion(
                 runId: runId,
@@ -28212,8 +33158,16 @@ class $$SimulationRunStudiesTableTableManager
                 name: name,
                 releaseSeconds: releaseSeconds,
                 releaseCalendarId: releaseCalendarId,
-                priority: priority,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
+                nextTaktChange: nextTaktChange,
+                cadenceEndedAt: cadenceEndedAt,
                 wipCap: wipCap,
+                startBufferDays: startBufferDays,
+                productionCellId: productionCellId,
+                productionCellName: productionCellName,
+                productionLineId: productionLineId,
+                productionLineName: productionLineName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -28223,8 +33177,16 @@ class $$SimulationRunStudiesTableTableManager
                 required String name,
                 required int releaseSeconds,
                 Value<String?> releaseCalendarId = const Value.absent(),
-                required int priority,
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
+                Value<DateTime?> nextTaktChange = const Value.absent(),
+                Value<DateTime?> cadenceEndedAt = const Value.absent(),
                 Value<int?> wipCap = const Value.absent(),
+                Value<int> startBufferDays = const Value.absent(),
+                Value<String?> productionCellId = const Value.absent(),
+                Value<String?> productionCellName = const Value.absent(),
+                Value<String?> productionLineId = const Value.absent(),
+                Value<String?> productionLineName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunStudiesCompanion.insert(
                 runId: runId,
@@ -28232,8 +33194,16 @@ class $$SimulationRunStudiesTableTableManager
                 name: name,
                 releaseSeconds: releaseSeconds,
                 releaseCalendarId: releaseCalendarId,
-                priority: priority,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
+                nextTaktChange: nextTaktChange,
+                cadenceEndedAt: cadenceEndedAt,
                 wipCap: wipCap,
+                startBufferDays: startBufferDays,
+                productionCellId: productionCellId,
+                productionCellName: productionCellName,
+                productionLineId: productionLineId,
+                productionLineName: productionLineName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -28321,6 +33291,8 @@ typedef $$SimulationRunOrdersTableCreateCompanionBuilder =
       required DateTime needDate,
       Value<DateTime?> released,
       Value<DateTime?> delivered,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
       Value<int?> theoreticalSeconds,
       Value<int> rowid,
     });
@@ -28340,6 +33312,8 @@ typedef $$SimulationRunOrdersTableUpdateCompanionBuilder =
       Value<DateTime> needDate,
       Value<DateTime?> released,
       Value<DateTime?> delivered,
+      Value<double?> taktValue,
+      Value<String?> taktUnit,
       Value<int?> theoreticalSeconds,
       Value<int> rowid,
     });
@@ -28449,6 +33423,16 @@ class $$SimulationRunOrdersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get theoreticalSeconds => $composableBuilder(
     column: $table.theoreticalSeconds,
     builder: (column) => ColumnFilters(column),
@@ -28552,6 +33536,16 @@ class $$SimulationRunOrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get taktValue => $composableBuilder(
+    column: $table.taktValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taktUnit => $composableBuilder(
+    column: $table.taktUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get theoreticalSeconds => $composableBuilder(
     column: $table.theoreticalSeconds,
     builder: (column) => ColumnOrderings(column),
@@ -28639,6 +33633,12 @@ class $$SimulationRunOrdersTableAnnotationComposer
   GeneratedColumn<DateTime> get delivered =>
       $composableBuilder(column: $table.delivered, builder: (column) => column);
 
+  GeneratedColumn<double> get taktValue =>
+      $composableBuilder(column: $table.taktValue, builder: (column) => column);
+
+  GeneratedColumn<String> get taktUnit =>
+      $composableBuilder(column: $table.taktUnit, builder: (column) => column);
+
   GeneratedColumn<int> get theoreticalSeconds => $composableBuilder(
     column: $table.theoreticalSeconds,
     builder: (column) => column,
@@ -28718,6 +33718,8 @@ class $$SimulationRunOrdersTableTableManager
                 Value<DateTime> needDate = const Value.absent(),
                 Value<DateTime?> released = const Value.absent(),
                 Value<DateTime?> delivered = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
                 Value<int?> theoreticalSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunOrdersCompanion(
@@ -28735,6 +33737,8 @@ class $$SimulationRunOrdersTableTableManager
                 needDate: needDate,
                 released: released,
                 delivered: delivered,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
                 theoreticalSeconds: theoreticalSeconds,
                 rowid: rowid,
               ),
@@ -28754,6 +33758,8 @@ class $$SimulationRunOrdersTableTableManager
                 required DateTime needDate,
                 Value<DateTime?> released = const Value.absent(),
                 Value<DateTime?> delivered = const Value.absent(),
+                Value<double?> taktValue = const Value.absent(),
+                Value<String?> taktUnit = const Value.absent(),
                 Value<int?> theoreticalSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunOrdersCompanion.insert(
@@ -28771,6 +33777,8 @@ class $$SimulationRunOrdersTableTableManager
                 needDate: needDate,
                 released: released,
                 delivered: delivered,
+                taktValue: taktValue,
+                taktUnit: taktUnit,
                 theoreticalSeconds: theoreticalSeconds,
                 rowid: rowid,
               ),
@@ -28854,6 +33862,11 @@ typedef $$SimulationRunStepsTableCreateCompanionBuilder =
       required DateTime processStart,
       required DateTime processEnd,
       Value<bool> changeoverIncurred,
+      Value<int?> changeoverSeconds,
+      Value<int?> processSeconds,
+      Value<int?> processSecondsBeforeRework,
+      Value<String?> laneNodeId,
+      Value<int> blockedSeconds,
       Value<int> rowid,
     });
 typedef $$SimulationRunStepsTableUpdateCompanionBuilder =
@@ -28867,6 +33880,11 @@ typedef $$SimulationRunStepsTableUpdateCompanionBuilder =
       Value<DateTime> processStart,
       Value<DateTime> processEnd,
       Value<bool> changeoverIncurred,
+      Value<int?> changeoverSeconds,
+      Value<int?> processSeconds,
+      Value<int?> processSecondsBeforeRework,
+      Value<String?> laneNodeId,
+      Value<int> blockedSeconds,
       Value<int> rowid,
     });
 
@@ -28950,6 +33968,31 @@ class $$SimulationRunStepsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get changeoverSeconds => $composableBuilder(
+    column: $table.changeoverSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get processSeconds => $composableBuilder(
+    column: $table.processSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get processSecondsBeforeRework => $composableBuilder(
+    column: $table.processSecondsBeforeRework,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get laneNodeId => $composableBuilder(
+    column: $table.laneNodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get blockedSeconds => $composableBuilder(
+    column: $table.blockedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SimulationRunsTableFilterComposer get runId {
     final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -29023,6 +34066,31 @@ class $$SimulationRunStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get changeoverSeconds => $composableBuilder(
+    column: $table.changeoverSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get processSeconds => $composableBuilder(
+    column: $table.processSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get processSecondsBeforeRework => $composableBuilder(
+    column: $table.processSecondsBeforeRework,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get laneNodeId => $composableBuilder(
+    column: $table.laneNodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get blockedSeconds => $composableBuilder(
+    column: $table.blockedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SimulationRunsTableOrderingComposer get runId {
     final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -29087,6 +34155,31 @@ class $$SimulationRunStepsTableAnnotationComposer
 
   GeneratedColumn<bool> get changeoverIncurred => $composableBuilder(
     column: $table.changeoverIncurred,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get changeoverSeconds => $composableBuilder(
+    column: $table.changeoverSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get processSeconds => $composableBuilder(
+    column: $table.processSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get processSecondsBeforeRework => $composableBuilder(
+    column: $table.processSecondsBeforeRework,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get laneNodeId => $composableBuilder(
+    column: $table.laneNodeId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get blockedSeconds => $composableBuilder(
+    column: $table.blockedSeconds,
     builder: (column) => column,
   );
 
@@ -29156,6 +34249,11 @@ class $$SimulationRunStepsTableTableManager
                 Value<DateTime> processStart = const Value.absent(),
                 Value<DateTime> processEnd = const Value.absent(),
                 Value<bool> changeoverIncurred = const Value.absent(),
+                Value<int?> changeoverSeconds = const Value.absent(),
+                Value<int?> processSeconds = const Value.absent(),
+                Value<int?> processSecondsBeforeRework = const Value.absent(),
+                Value<String?> laneNodeId = const Value.absent(),
+                Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunStepsCompanion(
                 runId: runId,
@@ -29167,6 +34265,11 @@ class $$SimulationRunStepsTableTableManager
                 processStart: processStart,
                 processEnd: processEnd,
                 changeoverIncurred: changeoverIncurred,
+                changeoverSeconds: changeoverSeconds,
+                processSeconds: processSeconds,
+                processSecondsBeforeRework: processSecondsBeforeRework,
+                laneNodeId: laneNodeId,
+                blockedSeconds: blockedSeconds,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -29180,6 +34283,11 @@ class $$SimulationRunStepsTableTableManager
                 required DateTime processStart,
                 required DateTime processEnd,
                 Value<bool> changeoverIncurred = const Value.absent(),
+                Value<int?> changeoverSeconds = const Value.absent(),
+                Value<int?> processSeconds = const Value.absent(),
+                Value<int?> processSecondsBeforeRework = const Value.absent(),
+                Value<String?> laneNodeId = const Value.absent(),
+                Value<int> blockedSeconds = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunStepsCompanion.insert(
                 runId: runId,
@@ -29191,6 +34299,11 @@ class $$SimulationRunStepsTableTableManager
                 processStart: processStart,
                 processEnd: processEnd,
                 changeoverIncurred: changeoverIncurred,
+                changeoverSeconds: changeoverSeconds,
+                processSeconds: processSeconds,
+                processSecondsBeforeRework: processSecondsBeforeRework,
+                laneNodeId: laneNodeId,
+                blockedSeconds: blockedSeconds,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -29582,326 +34695,6 @@ typedef $$SimulationRunEmptySlotsTableProcessedTableManager =
       SimulationRunEmptySlot,
       PrefetchHooks Function({bool runId})
     >;
-typedef $$SimulationRunDispatchTableCreateCompanionBuilder =
-    SimulationRunDispatchCompanion Function({
-      required String runId,
-      required String targetId,
-      required String name,
-      required String rule,
-      Value<int> rowid,
-    });
-typedef $$SimulationRunDispatchTableUpdateCompanionBuilder =
-    SimulationRunDispatchCompanion Function({
-      Value<String> runId,
-      Value<String> targetId,
-      Value<String> name,
-      Value<String> rule,
-      Value<int> rowid,
-    });
-
-final class $$SimulationRunDispatchTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $SimulationRunDispatchTable,
-          SimulationRunDispatchData
-        > {
-  $$SimulationRunDispatchTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
-      .createAlias('simulation_run_dispatch__run_id__simulation_runs__id');
-
-  $$SimulationRunsTableProcessedTableManager get runId {
-    final $_column = $_itemColumn<String>('run_id')!;
-
-    final manager = $$SimulationRunsTableTableManager(
-      $_db,
-      $_db.simulationRuns,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$SimulationRunDispatchTableFilterComposer
-    extends Composer<_$AppDatabase, $SimulationRunDispatchTable> {
-  $$SimulationRunDispatchTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get rule => $composableBuilder(
-    column: $table.rule,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$SimulationRunsTableFilterComposer get runId {
-    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.runId,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableFilterComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$SimulationRunDispatchTableOrderingComposer
-    extends Composer<_$AppDatabase, $SimulationRunDispatchTable> {
-  $$SimulationRunDispatchTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get targetId => $composableBuilder(
-    column: $table.targetId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get rule => $composableBuilder(
-    column: $table.rule,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$SimulationRunsTableOrderingComposer get runId {
-    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.runId,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableOrderingComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$SimulationRunDispatchTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SimulationRunDispatchTable> {
-  $$SimulationRunDispatchTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get targetId =>
-      $composableBuilder(column: $table.targetId, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get rule =>
-      $composableBuilder(column: $table.rule, builder: (column) => column);
-
-  $$SimulationRunsTableAnnotationComposer get runId {
-    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.runId,
-      referencedTable: $db.simulationRuns,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SimulationRunsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.simulationRuns,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$SimulationRunDispatchTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SimulationRunDispatchTable,
-          SimulationRunDispatchData,
-          $$SimulationRunDispatchTableFilterComposer,
-          $$SimulationRunDispatchTableOrderingComposer,
-          $$SimulationRunDispatchTableAnnotationComposer,
-          $$SimulationRunDispatchTableCreateCompanionBuilder,
-          $$SimulationRunDispatchTableUpdateCompanionBuilder,
-          (SimulationRunDispatchData, $$SimulationRunDispatchTableReferences),
-          SimulationRunDispatchData,
-          PrefetchHooks Function({bool runId})
-        > {
-  $$SimulationRunDispatchTableTableManager(
-    _$AppDatabase db,
-    $SimulationRunDispatchTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SimulationRunDispatchTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$SimulationRunDispatchTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SimulationRunDispatchTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<String> runId = const Value.absent(),
-                Value<String> targetId = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> rule = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SimulationRunDispatchCompanion(
-                runId: runId,
-                targetId: targetId,
-                name: name,
-                rule: rule,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String runId,
-                required String targetId,
-                required String name,
-                required String rule,
-                Value<int> rowid = const Value.absent(),
-              }) => SimulationRunDispatchCompanion.insert(
-                runId: runId,
-                targetId: targetId,
-                name: name,
-                rule: rule,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$SimulationRunDispatchTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({runId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (runId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.runId,
-                                referencedTable:
-                                    $$SimulationRunDispatchTableReferences
-                                        ._runIdTable(db),
-                                referencedColumn:
-                                    $$SimulationRunDispatchTableReferences
-                                        ._runIdTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$SimulationRunDispatchTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SimulationRunDispatchTable,
-      SimulationRunDispatchData,
-      $$SimulationRunDispatchTableFilterComposer,
-      $$SimulationRunDispatchTableOrderingComposer,
-      $$SimulationRunDispatchTableAnnotationComposer,
-      $$SimulationRunDispatchTableCreateCompanionBuilder,
-      $$SimulationRunDispatchTableUpdateCompanionBuilder,
-      (SimulationRunDispatchData, $$SimulationRunDispatchTableReferences),
-      SimulationRunDispatchData,
-      PrefetchHooks Function({bool runId})
-    >;
 typedef $$SimulationRunWorkcentersTableCreateCompanionBuilder =
     SimulationRunWorkcentersCompanion Function({
       required String runId,
@@ -29909,6 +34702,14 @@ typedef $$SimulationRunWorkcentersTableCreateCompanionBuilder =
       required String name,
       required int busySeconds,
       required int openSeconds,
+      Value<int> blockedSeconds,
+      Value<int> units,
+      Value<String?> poolId,
+      Value<String?> poolName,
+      Value<String?> queueType,
+      Value<int?> queueCapacity,
+      Value<String?> typeId,
+      Value<String?> typeName,
       Value<int> rowid,
     });
 typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
@@ -29918,6 +34719,14 @@ typedef $$SimulationRunWorkcentersTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> busySeconds,
       Value<int> openSeconds,
+      Value<int> blockedSeconds,
+      Value<int> units,
+      Value<String?> poolId,
+      Value<String?> poolName,
+      Value<String?> queueType,
+      Value<int?> queueCapacity,
+      Value<String?> typeId,
+      Value<String?> typeName,
       Value<int> rowid,
     });
 
@@ -29981,6 +34790,46 @@ class $$SimulationRunWorkcentersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get blockedSeconds => $composableBuilder(
+    column: $table.blockedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get units => $composableBuilder(
+    column: $table.units,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get poolId => $composableBuilder(
+    column: $table.poolId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get poolName => $composableBuilder(
+    column: $table.poolName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get queueType => $composableBuilder(
+    column: $table.queueType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get queueCapacity => $composableBuilder(
+    column: $table.queueCapacity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get typeId => $composableBuilder(
+    column: $table.typeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get typeName => $composableBuilder(
+    column: $table.typeName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SimulationRunsTableFilterComposer get runId {
     final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -30034,6 +34883,46 @@ class $$SimulationRunWorkcentersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get blockedSeconds => $composableBuilder(
+    column: $table.blockedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get units => $composableBuilder(
+    column: $table.units,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get poolId => $composableBuilder(
+    column: $table.poolId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get poolName => $composableBuilder(
+    column: $table.poolName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get queueType => $composableBuilder(
+    column: $table.queueType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get queueCapacity => $composableBuilder(
+    column: $table.queueCapacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get typeId => $composableBuilder(
+    column: $table.typeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get typeName => $composableBuilder(
+    column: $table.typeName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SimulationRunsTableOrderingComposer get runId {
     final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -30084,6 +34973,34 @@ class $$SimulationRunWorkcentersTableAnnotationComposer
     column: $table.openSeconds,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get blockedSeconds => $composableBuilder(
+    column: $table.blockedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get units =>
+      $composableBuilder(column: $table.units, builder: (column) => column);
+
+  GeneratedColumn<String> get poolId =>
+      $composableBuilder(column: $table.poolId, builder: (column) => column);
+
+  GeneratedColumn<String> get poolName =>
+      $composableBuilder(column: $table.poolName, builder: (column) => column);
+
+  GeneratedColumn<String> get queueType =>
+      $composableBuilder(column: $table.queueType, builder: (column) => column);
+
+  GeneratedColumn<int> get queueCapacity => $composableBuilder(
+    column: $table.queueCapacity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get typeId =>
+      $composableBuilder(column: $table.typeId, builder: (column) => column);
+
+  GeneratedColumn<String> get typeName =>
+      $composableBuilder(column: $table.typeName, builder: (column) => column);
 
   $$SimulationRunsTableAnnotationComposer get runId {
     final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
@@ -30153,6 +35070,14 @@ class $$SimulationRunWorkcentersTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> busySeconds = const Value.absent(),
                 Value<int> openSeconds = const Value.absent(),
+                Value<int> blockedSeconds = const Value.absent(),
+                Value<int> units = const Value.absent(),
+                Value<String?> poolId = const Value.absent(),
+                Value<String?> poolName = const Value.absent(),
+                Value<String?> queueType = const Value.absent(),
+                Value<int?> queueCapacity = const Value.absent(),
+                Value<String?> typeId = const Value.absent(),
+                Value<String?> typeName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion(
                 runId: runId,
@@ -30160,6 +35085,14 @@ class $$SimulationRunWorkcentersTableTableManager
                 name: name,
                 busySeconds: busySeconds,
                 openSeconds: openSeconds,
+                blockedSeconds: blockedSeconds,
+                units: units,
+                poolId: poolId,
+                poolName: poolName,
+                queueType: queueType,
+                queueCapacity: queueCapacity,
+                typeId: typeId,
+                typeName: typeName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -30169,6 +35102,14 @@ class $$SimulationRunWorkcentersTableTableManager
                 required String name,
                 required int busySeconds,
                 required int openSeconds,
+                Value<int> blockedSeconds = const Value.absent(),
+                Value<int> units = const Value.absent(),
+                Value<String?> poolId = const Value.absent(),
+                Value<String?> poolName = const Value.absent(),
+                Value<String?> queueType = const Value.absent(),
+                Value<int?> queueCapacity = const Value.absent(),
+                Value<String?> typeId = const Value.absent(),
+                Value<String?> typeName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SimulationRunWorkcentersCompanion.insert(
                 runId: runId,
@@ -30176,6 +35117,14 @@ class $$SimulationRunWorkcentersTableTableManager
                 name: name,
                 busySeconds: busySeconds,
                 openSeconds: openSeconds,
+                blockedSeconds: blockedSeconds,
+                units: units,
+                poolId: poolId,
+                poolName: poolName,
+                queueType: queueType,
+                queueCapacity: queueCapacity,
+                typeId: typeId,
+                typeName: typeName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -30247,6 +35196,1088 @@ typedef $$SimulationRunWorkcentersTableProcessedTableManager =
       SimulationRunWorkcenter,
       PrefetchHooks Function({bool runId})
     >;
+typedef $$SimulationRunLanesTableCreateCompanionBuilder =
+    SimulationRunLanesCompanion Function({
+      required String runId,
+      required String studyId,
+      required String nodeId,
+      Value<String?> name,
+      required int position,
+      Value<String?> rule,
+      Value<int?> capacity,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunLanesTableUpdateCompanionBuilder =
+    SimulationRunLanesCompanion Function({
+      Value<String> runId,
+      Value<String> studyId,
+      Value<String> nodeId,
+      Value<String?> name,
+      Value<int> position,
+      Value<String?> rule,
+      Value<int?> capacity,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunLanesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunLanesTable,
+          SimulationRunLane
+        > {
+  $$SimulationRunLanesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_lanes__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunLanesTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunLanesTable> {
+  $$SimulationRunLanesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get capacity => $composableBuilder(
+    column: $table.capacity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunLanesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunLanesTable> {
+  $$SimulationRunLanesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get capacity => $composableBuilder(
+    column: $table.capacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunLanesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunLanesTable> {
+  $$SimulationRunLanesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get studyId =>
+      $composableBuilder(column: $table.studyId, builder: (column) => column);
+
+  GeneratedColumn<String> get nodeId =>
+      $composableBuilder(column: $table.nodeId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<int> get capacity =>
+      $composableBuilder(column: $table.capacity, builder: (column) => column);
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunLanesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunLanesTable,
+          SimulationRunLane,
+          $$SimulationRunLanesTableFilterComposer,
+          $$SimulationRunLanesTableOrderingComposer,
+          $$SimulationRunLanesTableAnnotationComposer,
+          $$SimulationRunLanesTableCreateCompanionBuilder,
+          $$SimulationRunLanesTableUpdateCompanionBuilder,
+          (SimulationRunLane, $$SimulationRunLanesTableReferences),
+          SimulationRunLane,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunLanesTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunLanesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunLanesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SimulationRunLanesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SimulationRunLanesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<String?> rule = const Value.absent(),
+                Value<int?> capacity = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunLanesCompanion(
+                runId: runId,
+                studyId: studyId,
+                nodeId: nodeId,
+                name: name,
+                position: position,
+                rule: rule,
+                capacity: capacity,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String studyId,
+                required String nodeId,
+                Value<String?> name = const Value.absent(),
+                required int position,
+                Value<String?> rule = const Value.absent(),
+                Value<int?> capacity = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunLanesCompanion.insert(
+                runId: runId,
+                studyId: studyId,
+                nodeId: nodeId,
+                name: name,
+                position: position,
+                rule: rule,
+                capacity: capacity,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunLanesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunLanesTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunLanesTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunLanesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunLanesTable,
+      SimulationRunLane,
+      $$SimulationRunLanesTableFilterComposer,
+      $$SimulationRunLanesTableOrderingComposer,
+      $$SimulationRunLanesTableAnnotationComposer,
+      $$SimulationRunLanesTableCreateCompanionBuilder,
+      $$SimulationRunLanesTableUpdateCompanionBuilder,
+      (SimulationRunLane, $$SimulationRunLanesTableReferences),
+      SimulationRunLane,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$SimulationRunLaneVisitsTableCreateCompanionBuilder =
+    SimulationRunLaneVisitsCompanion Function({
+      required String runId,
+      required String studyId,
+      required String orderId,
+      required String targetId,
+      required String stepNodeId,
+      required DateTime enteredAt,
+      Value<DateTime?> leftAt,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunLaneVisitsTableUpdateCompanionBuilder =
+    SimulationRunLaneVisitsCompanion Function({
+      Value<String> runId,
+      Value<String> studyId,
+      Value<String> orderId,
+      Value<String> targetId,
+      Value<String> stepNodeId,
+      Value<DateTime> enteredAt,
+      Value<DateTime?> leftAt,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunLaneVisitsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunLaneVisitsTable,
+          SimulationRunLaneVisit
+        > {
+  $$SimulationRunLaneVisitsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) => db.simulationRuns
+      .createAlias('simulation_run_lane_visits__run_id__simulation_runs__id');
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunLaneVisitsTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunLaneVisitsTable> {
+  $$SimulationRunLaneVisitsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stepNodeId => $composableBuilder(
+    column: $table.stepNodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get enteredAt => $composableBuilder(
+    column: $table.enteredAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get leftAt => $composableBuilder(
+    column: $table.leftAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunLaneVisitsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunLaneVisitsTable> {
+  $$SimulationRunLaneVisitsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get studyId => $composableBuilder(
+    column: $table.studyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get orderId => $composableBuilder(
+    column: $table.orderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetId => $composableBuilder(
+    column: $table.targetId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stepNodeId => $composableBuilder(
+    column: $table.stepNodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get enteredAt => $composableBuilder(
+    column: $table.enteredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get leftAt => $composableBuilder(
+    column: $table.leftAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunLaneVisitsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunLaneVisitsTable> {
+  $$SimulationRunLaneVisitsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get studyId =>
+      $composableBuilder(column: $table.studyId, builder: (column) => column);
+
+  GeneratedColumn<String> get orderId =>
+      $composableBuilder(column: $table.orderId, builder: (column) => column);
+
+  GeneratedColumn<String> get targetId =>
+      $composableBuilder(column: $table.targetId, builder: (column) => column);
+
+  GeneratedColumn<String> get stepNodeId => $composableBuilder(
+    column: $table.stepNodeId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get enteredAt =>
+      $composableBuilder(column: $table.enteredAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get leftAt =>
+      $composableBuilder(column: $table.leftAt, builder: (column) => column);
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunLaneVisitsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunLaneVisitsTable,
+          SimulationRunLaneVisit,
+          $$SimulationRunLaneVisitsTableFilterComposer,
+          $$SimulationRunLaneVisitsTableOrderingComposer,
+          $$SimulationRunLaneVisitsTableAnnotationComposer,
+          $$SimulationRunLaneVisitsTableCreateCompanionBuilder,
+          $$SimulationRunLaneVisitsTableUpdateCompanionBuilder,
+          (SimulationRunLaneVisit, $$SimulationRunLaneVisitsTableReferences),
+          SimulationRunLaneVisit,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunLaneVisitsTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunLaneVisitsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunLaneVisitsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SimulationRunLaneVisitsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunLaneVisitsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> studyId = const Value.absent(),
+                Value<String> orderId = const Value.absent(),
+                Value<String> targetId = const Value.absent(),
+                Value<String> stepNodeId = const Value.absent(),
+                Value<DateTime> enteredAt = const Value.absent(),
+                Value<DateTime?> leftAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunLaneVisitsCompanion(
+                runId: runId,
+                studyId: studyId,
+                orderId: orderId,
+                targetId: targetId,
+                stepNodeId: stepNodeId,
+                enteredAt: enteredAt,
+                leftAt: leftAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String studyId,
+                required String orderId,
+                required String targetId,
+                required String stepNodeId,
+                required DateTime enteredAt,
+                Value<DateTime?> leftAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunLaneVisitsCompanion.insert(
+                runId: runId,
+                studyId: studyId,
+                orderId: orderId,
+                targetId: targetId,
+                stepNodeId: stepNodeId,
+                enteredAt: enteredAt,
+                leftAt: leftAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunLaneVisitsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunLaneVisitsTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunLaneVisitsTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunLaneVisitsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunLaneVisitsTable,
+      SimulationRunLaneVisit,
+      $$SimulationRunLaneVisitsTableFilterComposer,
+      $$SimulationRunLaneVisitsTableOrderingComposer,
+      $$SimulationRunLaneVisitsTableAnnotationComposer,
+      $$SimulationRunLaneVisitsTableCreateCompanionBuilder,
+      $$SimulationRunLaneVisitsTableUpdateCompanionBuilder,
+      (SimulationRunLaneVisit, $$SimulationRunLaneVisitsTableReferences),
+      SimulationRunLaneVisit,
+      PrefetchHooks Function({bool runId})
+    >;
+typedef $$SimulationRunWorkcenterMonthsTableCreateCompanionBuilder =
+    SimulationRunWorkcenterMonthsCompanion Function({
+      required String runId,
+      required String workcenterId,
+      required DateTime month,
+      required int openSeconds,
+      Value<int> rowid,
+    });
+typedef $$SimulationRunWorkcenterMonthsTableUpdateCompanionBuilder =
+    SimulationRunWorkcenterMonthsCompanion Function({
+      Value<String> runId,
+      Value<String> workcenterId,
+      Value<DateTime> month,
+      Value<int> openSeconds,
+      Value<int> rowid,
+    });
+
+final class $$SimulationRunWorkcenterMonthsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SimulationRunWorkcenterMonthsTable,
+          SimulationRunWorkcenterMonth
+        > {
+  $$SimulationRunWorkcenterMonthsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SimulationRunsTable _runIdTable(_$AppDatabase db) =>
+      db.simulationRuns.createAlias(
+        'simulation_run_workcenter_months__run_id__simulation_runs__id',
+      );
+
+  $$SimulationRunsTableProcessedTableManager get runId {
+    final $_column = $_itemColumn<String>('run_id')!;
+
+    final manager = $$SimulationRunsTableTableManager(
+      $_db,
+      $_db.simulationRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableFilterComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcenterMonthsTable> {
+  $$SimulationRunWorkcenterMonthsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SimulationRunsTableFilterComposer get runId {
+    final $$SimulationRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcenterMonthsTable> {
+  $$SimulationRunWorkcenterMonthsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SimulationRunsTableOrderingComposer get runId {
+    final $$SimulationRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SimulationRunWorkcenterMonthsTable> {
+  $$SimulationRunWorkcenterMonthsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get workcenterId => $composableBuilder(
+    column: $table.workcenterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<int> get openSeconds => $composableBuilder(
+    column: $table.openSeconds,
+    builder: (column) => column,
+  );
+
+  $$SimulationRunsTableAnnotationComposer get runId {
+    final $$SimulationRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.simulationRuns,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SimulationRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.simulationRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SimulationRunWorkcenterMonthsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SimulationRunWorkcenterMonthsTable,
+          SimulationRunWorkcenterMonth,
+          $$SimulationRunWorkcenterMonthsTableFilterComposer,
+          $$SimulationRunWorkcenterMonthsTableOrderingComposer,
+          $$SimulationRunWorkcenterMonthsTableAnnotationComposer,
+          $$SimulationRunWorkcenterMonthsTableCreateCompanionBuilder,
+          $$SimulationRunWorkcenterMonthsTableUpdateCompanionBuilder,
+          (
+            SimulationRunWorkcenterMonth,
+            $$SimulationRunWorkcenterMonthsTableReferences,
+          ),
+          SimulationRunWorkcenterMonth,
+          PrefetchHooks Function({bool runId})
+        > {
+  $$SimulationRunWorkcenterMonthsTableTableManager(
+    _$AppDatabase db,
+    $SimulationRunWorkcenterMonthsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SimulationRunWorkcenterMonthsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SimulationRunWorkcenterMonthsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SimulationRunWorkcenterMonthsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> runId = const Value.absent(),
+                Value<String> workcenterId = const Value.absent(),
+                Value<DateTime> month = const Value.absent(),
+                Value<int> openSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunWorkcenterMonthsCompanion(
+                runId: runId,
+                workcenterId: workcenterId,
+                month: month,
+                openSeconds: openSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String runId,
+                required String workcenterId,
+                required DateTime month,
+                required int openSeconds,
+                Value<int> rowid = const Value.absent(),
+              }) => SimulationRunWorkcenterMonthsCompanion.insert(
+                runId: runId,
+                workcenterId: workcenterId,
+                month: month,
+                openSeconds: openSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SimulationRunWorkcenterMonthsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({runId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (runId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.runId,
+                                referencedTable:
+                                    $$SimulationRunWorkcenterMonthsTableReferences
+                                        ._runIdTable(db),
+                                referencedColumn:
+                                    $$SimulationRunWorkcenterMonthsTableReferences
+                                        ._runIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SimulationRunWorkcenterMonthsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SimulationRunWorkcenterMonthsTable,
+      SimulationRunWorkcenterMonth,
+      $$SimulationRunWorkcenterMonthsTableFilterComposer,
+      $$SimulationRunWorkcenterMonthsTableOrderingComposer,
+      $$SimulationRunWorkcenterMonthsTableAnnotationComposer,
+      $$SimulationRunWorkcenterMonthsTableCreateCompanionBuilder,
+      $$SimulationRunWorkcenterMonthsTableUpdateCompanionBuilder,
+      (
+        SimulationRunWorkcenterMonth,
+        $$SimulationRunWorkcenterMonthsTableReferences,
+      ),
+      SimulationRunWorkcenterMonth,
+      PrefetchHooks Function({bool runId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -30284,6 +36315,8 @@ class $AppDatabaseManager {
         _db,
         _db.workcenterSchedulePeriods,
       );
+  $$ProjectQueuesTableTableManager get projectQueues =>
+      $$ProjectQueuesTableTableManager(_db, _db.projectQueues);
   $$StudiesTableTableManager get studies =>
       $$StudiesTableTableManager(_db, _db.studies);
   $$FlowNodesTableTableManager get flowNodes =>
@@ -30296,8 +36329,6 @@ class $AppDatabaseManager {
       $$PartProcessTimesTableTableManager(_db, _db.partProcessTimes);
   $$DemandOrdersTableTableManager get demandOrders =>
       $$DemandOrdersTableTableManager(_db, _db.demandOrders);
-  $$WorkcenterDispatchTableTableManager get workcenterDispatch =>
-      $$WorkcenterDispatchTableTableManager(_db, _db.workcenterDispatch);
   $$SimulationRunsTableTableManager get simulationRuns =>
       $$SimulationRunsTableTableManager(_db, _db.simulationRuns);
   $$SimulationRunStudiesTableTableManager get simulationRunStudies =>
@@ -30311,11 +36342,22 @@ class $AppDatabaseManager {
         _db,
         _db.simulationRunEmptySlots,
       );
-  $$SimulationRunDispatchTableTableManager get simulationRunDispatch =>
-      $$SimulationRunDispatchTableTableManager(_db, _db.simulationRunDispatch);
   $$SimulationRunWorkcentersTableTableManager get simulationRunWorkcenters =>
       $$SimulationRunWorkcentersTableTableManager(
         _db,
         _db.simulationRunWorkcenters,
+      );
+  $$SimulationRunLanesTableTableManager get simulationRunLanes =>
+      $$SimulationRunLanesTableTableManager(_db, _db.simulationRunLanes);
+  $$SimulationRunLaneVisitsTableTableManager get simulationRunLaneVisits =>
+      $$SimulationRunLaneVisitsTableTableManager(
+        _db,
+        _db.simulationRunLaneVisits,
+      );
+  $$SimulationRunWorkcenterMonthsTableTableManager
+  get simulationRunWorkcenterMonths =>
+      $$SimulationRunWorkcenterMonthsTableTableManager(
+        _db,
+        _db.simulationRunWorkcenterMonths,
       );
 }

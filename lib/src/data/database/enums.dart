@@ -63,7 +63,7 @@ enum CalendarExceptionScope { plant, productionLine, workcenter }
 /// How a takt is entered and read back.
 ///
 /// **`days` here means working days of a workcenter**, not 24 hours — a takt is
-/// resolved against each station's own capacity (DESIGN.md §6.1). That is why
+/// resolved against each workcenter's own capacity (DESIGN.md §6.1). That is why
 /// this is a separate type from [DurationUnit], where a day is a day.
 enum TaktUnit { days, hours, minutes, seconds }
 
@@ -77,7 +77,7 @@ enum DurationUnit { days, hours, minutes, seconds }
 
 /// How a workcenter chooses which waiting order to run next (DESIGN.md §7.4).
 ///
-/// **Here rather than beside the engine that reads it**, because a station may
+/// **Here rather than beside the engine that reads it**, because a workcenter may
 /// now override the run's rule and that override is stored (§7.4). `sim_model`
 /// re-exports it, so the engine still names it without importing the schema —
 /// but the enum itself has to live somewhere a table definition can reach, and
@@ -85,6 +85,12 @@ enum DurationUnit { days, hours, minutes, seconds }
 enum DispatchRule {
   /// By arrival at the step. The default, and what a shop floor does.
   fifo,
+
+  /// Last in, first out — the top of the stack. Real on a plant that stacks
+  /// material rather than channelling it, and the reason a queue type is drawn
+  /// on the map: a LIFO lane behaves nothing like the FIFO beside it and
+  /// nothing on a current-state map used to say which one a workcenter had.
+  lifo,
 
   /// Earliest need date first — "what if we dispatched by due date" is exactly
   /// the experiment this app exists to run.
@@ -94,8 +100,9 @@ enum DispatchRule {
   shortestProcessing;
 
   /// Every rule falls back to the same three keys, so a run of the same inputs
-  /// always produces the same output (§4.4): arrival, then the study's
-  /// priority, then its position in the sequence.
+  /// always produces the same output (§4.4): arrival, then the **need date**,
+  /// then its position in the sequence. The study's priority held the middle
+  /// slot until v28 dropped it (#6).
   bool get isDefault => this == DispatchRule.fifo;
 }
 

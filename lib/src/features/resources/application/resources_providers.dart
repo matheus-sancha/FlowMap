@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/database/database_providers.dart';
+import '../../documents/application/documents_providers.dart';
 import '../data/resources_repository.dart';
 
 part 'resources_providers.g.dart';
@@ -105,13 +106,21 @@ class ShowArchived extends _$ShowArchived {
 
 /// The plant the Resources screen is showing.
 ///
-/// A project specifies one plant (DESIGN.md §3), but Resources spans them all,
-/// so the screen needs its own selection. Null means "the first one", resolved
-/// where it is read so the initial load needs no write.
+/// A project specifies one plant (DESIGN.md §3), but a document may hold
+/// several, so the screen needs its own selection. Null means **the open
+/// project's plant**, resolved where it is read so the initial load needs no
+/// write.
+///
+/// **Forgotten when another document opens.** A plant id picked in one document
+/// names nothing in the next, and falling back to the first plant is how
+/// Resources came to show a plant the project does not use.
 @riverpod
 class SelectedPlant extends _$SelectedPlant {
   @override
-  String? build() => null;
+  String? build() {
+    ref.watch(openDocumentProvider);
+    return null;
+  }
 
   void select(String? plantId) => state = plantId;
 }

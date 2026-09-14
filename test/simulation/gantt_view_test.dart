@@ -3,6 +3,8 @@ import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/data/database/enums.dart';
 import 'package:flowmap/src/features/simulation/application/gantt_layout.dart';
 import 'package:flowmap/src/features/simulation/application/run_metrics.dart';
+import 'package:flowmap/src/features/simulation/application/sim_model.dart'
+    show SimWorkcenterPool;
 import 'package:flowmap/src/features/simulation/application/sim_result.dart';
 import 'package:flowmap/src/features/simulation/data/simulation_runs_repository.dart';
 import 'package:flowmap/src/features/simulation/presentation/gantt_view.dart';
@@ -10,6 +12,7 @@ import 'package:flowmap/src/l10n/generated/app_localizations.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flowmap/src/features/simulation/application/run_filter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The zoom cluster. `find.byTooltip` reaches the `Tooltip` an `IconButton`
@@ -69,11 +72,15 @@ void main() {
     required List<SimOrderOutcome> orders,
     Map<String, String> partNumbers = const {'p1': 'PN1', 'p2': 'PN2'},
     List<SimulationRunStudy> studies = const [],
+    List<SimLane> lanes = const [],
     // The view rebuilds its chart when the id changes and not otherwise, which
     // is right for an app where a run is written once and never edited — so a
     // test pumping a second run into the same tree has to give it its own id or
     // it is asserting against the first one's chart.
     String id = 'run-1',
+    // Empty by default, which is what a chart with nothing to say beyond the
+    // steps looks like — and is exactly a run stored before v12 and v13.
+    List<ProductionPlanRow> plan = const [],
   }) {
     final result = SimRunResult(
       start: jan1,
@@ -84,17 +91,19 @@ void main() {
       emptySlots: const [],
       busyByWorkcenter: const {},
       openByWorkcenter: const {},
+      lanes: lanes,
     );
 
     return StoredRun(
       id: id,
       projectId: 'project-1',
       createdAt: jan1,
-      dispatch: DispatchRule.fifo,
-      dispatchOverrides: const [],
+      queues: const RunQueues([
+        (name: 'CLAD04', rule: DispatchRule.fifo),
+      ]),
       studies: studies,
       result: result,
-      plan: const [],
+      plan: plan,
       metrics: summariseRun(
         result: result,
         partNumbers: partNumbers,
@@ -104,11 +113,11 @@ void main() {
     );
   }
 
-  /// Two orders through a two-station routing, CLAD04 then CEU27, plus a
+  /// Two orders through a two-workcenter routing, CLAD04 then CEU27, plus a
   /// twenty-second step that is under the floor at whole-run scale and over it
   /// near the ceiling.
   ///
-  /// **The queue is all at the second station**, so the Queue table ranks CEU27
+  /// **The queue is all at the second workcenter**, so the Queue table ranks CEU27
   /// first and the chart has to put CLAD04 there anyway — which is what makes
   /// the row order a real assertion rather than one alphabetical order would
   /// satisfy by accident. The tests below still reach for a row by name, so
@@ -159,38 +168,69 @@ void main() {
     ],
   );
 
+  /// The same run with a lane in front of CEU27, so a chart under test has
+  /// one band of each kind in it.
+  StoredRun laned() => runOf(
+    id: 'run-laned',
+    orders: twoDayRun().result.orders,
+    steps: [
+      for (final step in twoDayRun().result.steps)
+        if (step.workcenterId == 'W2')
+          SimOrderStep(
+            studyId: step.studyId,
+            orderId: step.orderId,
+            nodeId: step.nodeId,
+            workcenterId: step.workcenterId,
+            queueStart: step.queueStart,
+            processStart: step.processStart,
+            processEnd: step.processEnd,
+            changeoverIncurred: step.changeoverIncurred,
+            laneNodeId: 'lane-1',
+          )
+        else
+          step,
+    ],
+    lanes: const [
+      SimLane(
+        studyId: 'study-1',
+        nodeId: 'lane-1',
+        position: 1,
+        name: 'FIFO CEU27',
+      ),
+    ],
+  );
+
   Future<void> pump(WidgetTester tester, StoredRun run) async {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: GanttView(run: run)),
+        // The whole run, unfiltered — this file is about the chart, and
+        // filtering is `run_filter_test.dart`'s subject.
+        home: Scaffold(body: GanttView(slice: filterRun(run, const RunFilter()))),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  /// Where the pointer has to be to sit on [bar]'s row, in global coordinates.
+  /// A point on [hit], in global coordinates.
   ///
   /// Built from the same `layoutGantt` the view drew with, which is the point of
   /// having the geometry outside the widget: a test can ask where a bar is
   /// without reading pixels back off a canvas.
-  Offset onBar(WidgetTester tester, GanttPlacedBar bar) {
+  ///
+  /// It aims at the rect's own middle rather than at a row's. That used to be
+  /// computed by dividing the band index out of the rect's top, which held only
+  /// while every band was `rowHeight` tall — it would aim at the wrong row on
+  /// any chart with a buffer in it now, and it has to work for a lane's slot as
+  /// well as for a workcenter's bar.
+  Offset onBar(WidgetTester tester, GanttHit hit) {
     final origin = tester.getTopLeft(find.byKey(ganttCanvasKey));
-    final rowIndex =
-        ((bar.rect.top - GanttMetrics.axisHeight) / GanttMetrics.rowHeight)
-            .floor();
-    return origin +
-        Offset(
-          bar.rect.left + 2,
-          GanttMetrics.axisHeight +
-              rowIndex * GanttMetrics.rowHeight +
-              GanttMetrics.rowHeight / 2,
-        );
+    return origin + Offset(hit.rect.left + 2, hit.rect.center.dy);
   }
 
   GanttRowLayout rowNamed(GanttLayout layout, String name) =>
-      layout.rows.firstWhere((row) => row.row.name == name);
+      layout.rows.firstWhere((row) => row.band.name == name);
 
   /// A mouse parked at [at], for the scroll signals the zoom listens to.
   TestPointer testPointer(Offset at) =>
@@ -207,12 +247,12 @@ void main() {
     );
   }
 
-  testWidgets('one row per station, named as the run named them', (
+  testWidgets('one row per workcenter, named as the run named them', (
     tester,
   ) async {
     await pump(tester, twoDayRun());
 
-    // The names the stations had when the run was made (§7.10).
+    // The names the workcenters had when the run was made (§7.10).
     expect(find.text('CLAD04'), findsOne);
     expect(find.text('CEU27'), findsOne);
 
@@ -283,14 +323,14 @@ void main() {
             studyId: 'study-1',
             name: 'Célula 11B',
             releaseSeconds: 3600,
-            priority: 0,
+            startBufferDays: 0,
           ),
           SimulationRunStudy(
             runId: 'run-1',
             studyId: 'study-2',
             name: 'Célula 12A',
             releaseSeconds: 3600,
-            priority: 0,
+            startBufferDays: 0,
           ),
         ],
         partNumbers: const {'p1': 'PN2', 'p2': 'PN2'},
@@ -320,7 +360,7 @@ void main() {
     expect(find.text('PN2 · Célula 12A'), findsOne);
   });
 
-  testWidgets('hovering a bar names the order, the part and the station', (
+  testWidgets('hovering a bar names the order, the part and the workcenter', (
     tester,
   ) async {
     final run = twoDayRun();
@@ -344,6 +384,67 @@ void main() {
     expect(find.text('Committed'), findsOne);
     expect(find.text('Waited before starting'), findsOne);
   });
+
+  testWidgets('hovering an order waiting in a lane names it and the lane', (
+    tester,
+  ) async {
+    // The same run, with the buffer CEU27 pulls from carried on it. Both orders
+    // waited there — o1 from 10:00 and o2 from 20:00 — so the band has stays in
+    // it to pick.
+    final run = runOf(
+      id: 'run-lane',
+      orders: twoDayRun().result.orders,
+      steps: [
+        for (final step in twoDayRun().result.steps)
+          if (step.workcenterId == 'W2')
+            SimOrderStep(
+              studyId: step.studyId,
+              orderId: step.orderId,
+              nodeId: step.nodeId,
+              workcenterId: step.workcenterId,
+              queueStart: step.queueStart,
+              processStart: step.processStart,
+              processEnd: step.processEnd,
+              changeoverIncurred: step.changeoverIncurred,
+              laneNodeId: 'lane-1',
+            )
+          else
+            step,
+      ],
+      lanes: const [
+        SimLane(
+          studyId: 'study-1',
+          nodeId: 'lane-1',
+          position: 1,
+          name: 'FIFO CEU27',
+          capacity: 2,
+        ),
+      ],
+    );
+    await pump(tester, run);
+
+    final layout = shownLayout(tester, run);
+    final lane = rowNamed(layout, 'FIFO CEU27');
+    expect(lane.band, isA<GanttLaneRow>());
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(onBar(tester, lane.visits.first));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order 1  ·  PN1'), findsOne);
+    // What it stood there for — the lane's own question, and the same label the
+    // workcenter below uses for the same duration.
+    expect(find.text('Waited before starting'), findsOne);
+    // The lane's real depth, which is not necessarily the depth it is drawn at.
+    expect(find.text('Lane holds 2 orders'), findsOne);
+    // A workcenter's card would say this; a lane's must not.
+    expect(find.text('Committed'), findsNothing);
+  });
+
 
   testWidgets('the card says a changeover was paid, at any zoom', (
     tester,
@@ -450,14 +551,511 @@ void main() {
     expect(find.textContaining('drawn wider'), findsNothing);
   });
 
-  testWidgets('what a gap means is on screen, not left to be inferred', (
+  testWidgets('the chart paints no explanation of itself (§12.7b)', (
     tester,
   ) async {
     await pump(tester, twoDayRun());
 
-    // Both halves said: the chart cannot tell closed from starved, and where
-    // that is answered is named (§8.6).
-    expect(find.textContaining('A gap is a station not running'), findsOne);
-    expect(find.textContaining('Queue table'), findsOne);
+    // **What a gap means moved to the Gantt tab's own `ⓘ`** and the chart
+    // paints none of it. This asserts the absence, because the caption is the
+    // thing that grows back: 352 characters above the bars, on every visit,
+    // was the worst instance of the 2026-08-31 complaint. What it says is
+    // still said — `simulation_tab_test` holds the tab label to it.
+    expect(find.textContaining('A gap is a workcenter not running'), findsNothing);
+    expect(find.textContaining('One row per workcenter'), findsNothing);
+  });
+
+  /// Following one order down the plant (§7.5).
+  ///
+  /// The bars are painted, so a selection has no widget to find — what is
+  /// asserted is that the painter was handed the order the tap named, which is
+  /// the whole of the wiring. What the dimming *looks* like is a drive.
+  group('selecting a bar follows its order (§7.5)', () {
+    String? selectedIn(WidgetTester tester) =>
+        (tester.widget<CustomPaint>(find.byKey(ganttCanvasKey)).painter
+                as GanttPainter)
+            .selected;
+
+    /// Taps the canvas at [at], in content coordinates.
+    Future<void> tapAt(WidgetTester tester, Offset at) async {
+      await tester.tapAt(tester.getTopLeft(find.byKey(ganttCanvasKey)) + at);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('nothing is followed until a bar is tapped', (tester) async {
+      await pump(tester, twoDayRun());
+
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('tapping a bar follows its order, and tapping it again stops', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bar = rowNamed(shownLayout(tester, run), 'CLAD04').bars.first;
+      final at = Offset(bar.rect.left + 2, bar.rect.center.dy);
+
+      await tapAt(tester, at);
+      expect(selectedIn(tester), bar.bar.orderId);
+
+      await tapAt(tester, at);
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('tapping a different order follows that one instead', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bars = rowNamed(shownLayout(tester, run), 'CLAD04').bars;
+      final first = bars.first;
+      final other = bars.firstWhere(
+        (placed) => placed.bar.orderId != first.bar.orderId,
+      );
+
+      await tapAt(tester, Offset(first.rect.left + 2, first.rect.center.dy));
+      expect(selectedIn(tester), first.bar.orderId);
+
+      await tapAt(tester, Offset(other.rect.left + 2, other.rect.center.dy));
+      expect(selectedIn(tester), other.bar.orderId);
+    });
+
+    testWidgets('tapping where there is no bar stops following', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bar = rowNamed(shownLayout(tester, run), 'CLAD04').bars.first;
+      await tapAt(tester, Offset(bar.rect.left + 2, bar.rect.center.dy));
+      expect(selectedIn(tester), isNotNull);
+
+      // The axis strip, which `barAt` answers null for at any zoom.
+      await tapAt(tester, const Offset(4, 2));
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('an order waiting in a lane can be the one followed', (
+      tester,
+    ) async {
+      // A stay is a hit like a bar is, and it belongs to the same order — so
+      // reaching for an order where it is *queuing* has to work, which is often
+      // exactly where a reader spots it.
+      final run = laned();
+      await pump(tester, run);
+
+      final visit = rowNamed(shownLayout(tester, run), 'FIFO CEU27')
+          .visits
+          .first;
+      await tapAt(
+        tester,
+        Offset(visit.rect.left + 2, visit.rect.center.dy),
+      );
+
+      expect(selectedIn(tester), visit.visit.orderId);
+    });
+
+    testWidgets('a different run stops following, since the order may be gone', (
+      tester,
+    ) async {
+      final run = twoDayRun();
+      await pump(tester, run);
+
+      final bar = rowNamed(shownLayout(tester, run), 'CLAD04').bars.first;
+      await tapAt(tester, Offset(bar.rect.left + 2, bar.rect.center.dy));
+      expect(selectedIn(tester), isNotNull);
+
+      // A second run with the same work in it, so there is still a canvas to
+      // ask — the point is the id changing, which is what `didUpdateWidget`
+      // treats as a different run.
+      await pump(
+        tester,
+        runOf(
+          id: 'run-2',
+          orders: run.result.orders,
+          steps: run.result.steps,
+        ),
+      );
+      expect(selectedIn(tester), isNull);
+    });
+  });
+
+  /// What the card says beyond the run's own steps (§7.5).
+  ///
+  /// Both come off the Production Plan (§8.5), which is where they were stored —
+  /// `customer_project` in v12 and `part_description` in v13 — and neither is
+  /// ever drawn on a bar, so the chart's geometry knows nothing about them.
+  group('the project and the description on the card (§7.5)', () {
+    ProductionPlanRow planRow(
+      SimOrderOutcome outcome, {
+      required String partNumber,
+      String? project,
+      String? description,
+    }) => ProductionPlanRow(
+      outcome: outcome,
+      partNumber: partNumber,
+      partDescription: description,
+      customerProject: project,
+      batchNumber: null,
+      batchSize: null,
+      materialDate: null,
+      theoreticalLeadTime: null,
+    );
+
+    /// The two-day run with the plan the real database would have beside it.
+    StoredRun described({String? project = 'MANIFOLD', String? description = 'PWB 10K 1.0'}) {
+      final base = twoDayRun();
+      return runOf(
+        id: 'run-described',
+        orders: base.result.orders,
+        steps: base.result.steps,
+        plan: [
+          for (final outcome in base.result.orders)
+            planRow(
+              outcome,
+              partNumber: outcome.partId == 'p1' ? 'PN1' : 'PN2',
+              project: project,
+              description: description,
+            ),
+        ],
+      );
+    }
+
+    Future<void> hoverFirstBar(WidgetTester tester, StoredRun run) async {
+      final layout = shownLayout(tester, run);
+      final bar = rowNamed(layout, 'CLAD04').bars.first;
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+      await gesture.moveTo(onBar(tester, bar));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the card names the project and the description', (
+      tester,
+    ) async {
+      final run = described();
+      await pump(tester, run);
+      await hoverFirstBar(tester, run);
+
+      expect(find.text('Project'), findsOne);
+      expect(find.text('MANIFOLD'), findsOne);
+      expect(find.text('PWB 10K 1.0'), findsOne);
+      // And it still says everything it said before.
+      expect(find.text('Order 1  ·  PN1'), findsOne);
+      expect(find.text('Committed'), findsOne);
+    });
+
+    testWidgets('a run stored before v12 leaves the lines out rather than '
+        'blanking them', (tester) async {
+      // Exactly what `loadRun` produces for a pre-v12 run: plan rows that exist
+      // and answer null. A labelled empty value would read as a project called
+      // nothing, which is the one thing worse than not saying.
+      final run = described(project: null, description: null);
+      await pump(tester, run);
+      await hoverFirstBar(tester, run);
+
+      expect(find.text('Order 1  ·  PN1'), findsOne);
+      expect(find.text('Project'), findsNothing);
+    });
+
+    testWidgets('an order with no project keeps its description', (
+      tester,
+    ) async {
+      // 11 % of the live database's orders are this: the run recorded a project
+      // column and this order simply has none.
+      final run = described(project: null);
+      await pump(tester, run);
+      await hoverFirstBar(tester, run);
+
+      expect(find.text('PWB 10K 1.0'), findsOne);
+      expect(find.text('Project'), findsNothing);
+    });
+
+    testWidgets('an order waiting in a lane is asked the same two things', (
+      tester,
+    ) async {
+      // The project and the description belong to the order, not to what it is
+      // standing in front of, so a lane's card answers them exactly as a bar's
+      // does. This is the assertion behind `_orderIdOf` switching on both kinds.
+      final base = twoDayRun();
+      final run = runOf(
+        id: 'run-lane-described',
+        orders: base.result.orders,
+        steps: [
+          for (final step in base.result.steps)
+            if (step.workcenterId == 'W2')
+              SimOrderStep(
+                studyId: step.studyId,
+                orderId: step.orderId,
+                nodeId: step.nodeId,
+                workcenterId: step.workcenterId,
+                queueStart: step.queueStart,
+                processStart: step.processStart,
+                processEnd: step.processEnd,
+                changeoverIncurred: step.changeoverIncurred,
+                laneNodeId: 'lane-1',
+              )
+            else
+              step,
+        ],
+        lanes: const [
+          SimLane(
+            studyId: 'study-1',
+            nodeId: 'lane-1',
+            position: 1,
+            name: 'FIFO CEU27',
+            capacity: 2,
+          ),
+        ],
+        plan: [
+          for (final outcome in base.result.orders)
+            planRow(
+              outcome,
+              partNumber: outcome.partId == 'p1' ? 'PN1' : 'PN2',
+              project: 'MANIFOLD',
+              description: 'PWB 10K 1.0',
+            ),
+        ],
+      );
+
+      await pump(tester, run);
+      final layout = shownLayout(tester, run);
+      final lane = rowNamed(layout, 'FIFO CEU27');
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+      await gesture.moveTo(onBar(tester, lane.visits.first));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Waited before starting'), findsOne);
+      expect(find.text('MANIFOLD'), findsOne);
+      expect(find.text('PWB 10K 1.0'), findsOne);
+    });
+  });
+
+  /// The frozen label column, once the pool started travelling on the rows.
+  ///
+  /// The field's report was a picture of five rows all reading
+  /// `CLAD Pool - Célula 11B/…`: the pool name on the real plant is 24
+  /// characters, it filled a 168 px column by itself, and the trailing ellipsis
+  /// dropped the machine name — the one word that told the five rows apart.
+  group('the label column (§8.6)', () {
+    /// A run whose workcenters sit in a pool named [pool].
+    StoredRun pooledRun(String pool) {
+      final run = twoDayRun();
+      return StoredRun(
+        id: 'run-pooled',
+        projectId: run.projectId,
+        createdAt: run.createdAt,
+        queues: run.queues,
+        studies: run.studies,
+        result: run.result,
+        plan: run.plan,
+        metrics: summariseRun(
+          result: run.result,
+          partNumbers: const {'p1': 'PN1', 'p2': 'PN2'},
+          workcenterNames: const {'W1': 'CLAD04', 'W2': 'CEU27'},
+          theoreticalByOrder: const {},
+          pools: {
+            'W1': SimWorkcenterPool(id: 'pool-1', name: pool),
+            'W2': SimWorkcenterPool(id: 'pool-1', name: pool),
+          },
+        ),
+      );
+    }
+
+    /// The style the column drew [name] in. Each label is its own `Text` since
+    /// the pool and the name stopped being two spans of one, so this reads the
+    /// style that was actually applied rather than one merged at paint time.
+    /// `.first` because a pool prefix repeats down every row of its pool —
+    /// which is the reason it is drawn dimmer in the first place.
+    TextStyle styleOf(WidgetTester tester, String name) => tester
+        .widget<Text>(
+          find
+              .descendant(
+                of: find.byKey(ganttLabelsKey),
+                matching: find.text(name),
+              )
+              .first,
+        )
+        .style!;
+
+    /// The width the column settled on.
+    double columnWidth(WidgetTester tester) =>
+        tester.getSize(find.byKey(ganttLabelsKey)).width;
+
+    testWidgets('a long pool name widens the column rather than cutting the '
+        'name it qualifies', (tester) async {
+      await pump(tester, pooledRun('CLAD Pool - Célula 11B/C'));
+
+      // The defect, stated as its absence: the workcenter name is a `Text` of its
+      // own, laid out at the size it needs before the prefix gets any of the
+      // column. An ellipsised `CLAD04` is a different string and would not be
+      // found at all.
+      expect(find.text('CLAD04'), findsOne);
+      expect(find.text('CEU27'), findsOne);
+      expect(find.text('CLAD Pool - Célula 11B/C · '), findsNWidgets(2));
+
+      // And the column grew past its minimum to hold them.
+      expect(columnWidth(tester), greaterThan(168.0));
+      expect(columnWidth(tester), lessThanOrEqualTo(260.0));
+    });
+
+    testWidgets('a pool name past any width cuts the pool, never the workcenter', (
+      tester,
+    ) async {
+      await pump(tester, pooledRun('A' * 200));
+
+      // Clamped, or one long name would leave no chart beside it.
+      expect(columnWidth(tester), 260.0);
+      expect(find.text('CLAD04'), findsOne);
+      expect(find.text('CEU27'), findsOne);
+    });
+
+    testWidgets('a run with no pools leaves the column where it was', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+
+      expect(columnWidth(tester), 168.0);
+    });
+
+    testWidgets('a lane is italic and dimmed, a workcenter is upright', (
+      tester,
+    ) async {
+      await pump(tester, laned());
+
+      final workcenter = styleOf(tester, 'CEU27');
+      final lane = styleOf(tester, 'FIFO CEU27');
+
+      expect(workcenter.fontStyle, FontStyle.normal);
+      expect(lane.fontStyle, FontStyle.italic);
+      expect(lane.color, isNot(workcenter.color));
+      // Same size — a lane is a different kind of row, not a smaller one.
+      expect(lane.fontSize, workcenter.fontSize);
+    });
+
+    testWidgets('the pool prefix is dimmer and a size smaller than the name, '
+        'and keeps its row own slant', (tester) async {
+      await pump(tester, pooledRun('CAL Pool'));
+
+      final name = styleOf(tester, 'CLAD04');
+      final prefix = styleOf(tester, 'CAL Pool · ');
+
+      expect(prefix.fontSize, lessThan(name.fontSize!));
+      expect(prefix.color, isNot(name.color));
+      // Upright over a workcenter, so the row still reads as one label.
+      expect(prefix.fontStyle, name.fontStyle);
+    });
+  });
+
+  /// Dragging the chart to move it (#10).
+  ///
+  /// **Asserted through the scroll offset**, which is the point of the design:
+  /// the drag drives the same controller the scrollbar does, so there is one
+  /// answer to "where is the window" and a test can read it without rendering
+  /// anything. What a grab *feels* like is a drive.
+  group('dragging the chart pans it (#10)', () {
+    ScrollController acrossIn(WidgetTester tester) => tester
+        .widgetList<Scrollable>(find.byType(Scrollable))
+        .firstWhere((s) => s.axisDirection == AxisDirection.right)
+        .controller!;
+
+    String? selectedIn(WidgetTester tester) =>
+        (tester.widget<CustomPaint>(find.byKey(ganttCanvasKey)).painter
+                as GanttPainter)
+            .selected;
+
+    /// Zooms in so there is something to pan. At the fit the chart is exactly
+    /// its pane, `maxScrollExtent` is zero, and a pan that did nothing would
+    /// pass a test that asserts nothing.
+    Future<void> zoomIn(WidgetTester tester) async {
+      await tester.tap(_zoomIn);
+      await tester.pumpAndSettle();
+      await tester.tap(_zoomIn);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the middle button pans, and the scrollbar still governs', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+      await zoomIn(tester);
+      final across = acrossIn(tester);
+      expect(
+        across.position.maxScrollExtent,
+        greaterThan(0),
+        reason: 'nothing to pan means nothing under test',
+      );
+      final before = across.offset;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(ganttCanvasKey)),
+        kind: PointerDeviceKind.mouse,
+        buttons: kMiddleMouseButton,
+      );
+      await gesture.moveBy(const Offset(-120, 0));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Pulling the content left moves the window right.
+      expect(across.offset, greaterThan(before));
+      // §12.6's rule survives: the offset is still what says where the window
+      // is, so the bar still has something true to draw.
+      expect(across.position.maxScrollExtent, greaterThan(0));
+    });
+
+    testWidgets('space and the left button pan without following an order', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+      await zoomIn(tester);
+      final across = acrossIn(tester);
+      final before = across.offset;
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+      addTearDown(() => tester.sendKeyUpEvent(LogicalKeyboardKey.space));
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(ganttCanvasKey)),
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(-120, 0));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(across.offset, greaterThan(before));
+      // The grab landed on the canvas like any other press. Without the guard
+      // in `onTapDown` it would have followed whatever bar it started on.
+      expect(selectedIn(tester), isNull);
+    });
+
+    testWidgets('a plain left drag does nothing, which keeps it free', (
+      tester,
+    ) async {
+      await pump(tester, twoDayRun());
+      await zoomIn(tester);
+      final across = acrossIn(tester);
+      final before = across.offset;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(ganttCanvasKey)),
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(-120, 0));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(across.offset, before);
+    });
   });
 }

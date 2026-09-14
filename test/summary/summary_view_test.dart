@@ -37,19 +37,27 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
-    priority: 100,
+    startBufferDays: 0,
     createdAt: now,
     updatedAt: now,
   );
 
-  FlowNode step(int position, String workcenterId, {int changeover = 0}) =>
+  FlowNode step(
+    int position,
+    String workcenterId, {
+    int changeover = 0,
+    double? samePartPercent,
+  }) =>
       FlowNode(
         id: 'node-$position',
         studyId: 'study-1',
         position: position,
         kind: FlowNodeKind.step,
         workcenterId: workcenterId,
-        changeoverSeconds: changeover,
+        changeoverSeconds: 0,
+        setupValue: changeover == 0 ? null : changeover.toDouble(),
+        setupUnit: TaktUnit.seconds,
+        samePartPercent: samePartPercent,
         inventoryUsesWorkingTime: false,
         createdAt: now,
         updatedAt: now,
@@ -60,6 +68,7 @@ void main() {
     List<int> operators = const [1],
     double availability = 1,
     double rework = 0,
+    int units = 1,
   }) {
     final schedule = WorkcenterScheduleSpec([
       WorkcenterSchedulePeriodSpec(
@@ -74,6 +83,7 @@ void main() {
       workcenter: Workcenter(
         id: id,
         plantId: 'plant-1',
+        parallelCapacity: units,
         name: id,
         createdAt: now,
         updatedAt: now,
@@ -148,7 +158,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [
@@ -164,6 +174,42 @@ void main() {
       expect(target.isOverloaded, isFalse);
     });
 
+    test('a second unit doubles the hours, as a second pool member does', () {
+      SummaryView summaryWith(int units) => buildSummary(
+        flow: flowOf(
+          nodes: [step(0, 'TTAT')],
+          contexts: {'TTAT': context('TTAT', units: units)},
+        ),
+        demand: DemandTable(
+          parts: [part('p1', 'PN1')],
+          columns: oneColumn,
+          times: {
+            'p1': {'node-0': const Duration(hours: 10)},
+          },
+        ),
+        orders: [
+          for (var i = 0; i < 31; i++) order('o$i', i, 'p1'),
+        ],
+      );
+
+      final alone = summaryWith(1).targets.single;
+      final pair = summaryWith(2).targets.single;
+
+      // 31 days x 10 h against 31 orders x 10 h: exactly full on one unit.
+      expect(alone.availableProductive, const Duration(hours: 310));
+      expect(alone.occupation, closeTo(1.0, 0.0001));
+
+      // A second unit is the same arithmetic a second pool member gets, and it
+      // has to be — otherwise the Summary calls TTAT overloaded while the run
+      // has it idle half the time.
+      expect(pair.availableProductive, const Duration(hours: 620));
+      expect(pair.occupation, closeTo(0.5, 0.0001));
+
+      // The work itself is untouched. Units are capacity, not a discount on
+      // what a part needs — §4.4's oldest trap, arriving from a new direction.
+      expect(pair.required, alone.required);
+    });
+
     test('availability derates the hours once, never twice', () {
       final summary = buildSummary(
         flow: flowOf(
@@ -174,7 +220,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [order('o0', 0, 'p1')],
@@ -197,7 +243,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 100)},
+            'p1': {'node-0': const Duration(hours: 100)},
           },
         ),
         orders: [order('o0', 0, 'p1')],
@@ -219,7 +265,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 1)},
+            'p1': {'node-0': const Duration(hours: 1)},
           },
         ),
         orders: [order('o0', 0, 'p1', batch: 10)],
@@ -238,7 +284,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [
@@ -252,7 +298,7 @@ void main() {
       expect(summary.targets.single.work, const Duration(hours: 10));
     });
 
-    test('a station two steps visit carries both visits', () {
+    test('a workcenter two steps visit carries both visits', () {
       final summary = buildSummary(
         flow: flowOf(
           nodes: [
@@ -274,8 +320,12 @@ void main() {
           ],
           times: {
             'p1': {
-              'CLAD04': const Duration(hours: 10),
-              'TTAT': const Duration(hours: 1),
+              // **Two passes, and since §9 they may cost different amounts.**
+              // Twelve and eight rather than ten twice, so the total could not
+              // come out right by doubling either one of them.
+              'node-0': const Duration(hours: 12),
+              'node-1': const Duration(hours: 1),
+              'node-2': const Duration(hours: 8),
             },
           },
         ),
@@ -284,12 +334,12 @@ void main() {
 
       final clad = summary.targets.firstWhere((t) => t.targetId == 'CLAD04');
       expect(clad.visits, 2);
-      // One machine, two passes: 20 hours against one set of 310.
+      // One machine, two passes, each charged its own work.
       expect(clad.work, const Duration(hours: 20));
       expect(summary.bottleneck?.title, 'CLAD04');
     });
 
-    test('a station with no hours is not ranked as the bottleneck', () {
+    test('a workcenter with no hours is not ranked as the bottleneck', () {
       final summary = buildSummary(
         flow: flowOf(
           nodes: [step(0, 'OPEN'), step(1, 'SHUT')],
@@ -306,8 +356,8 @@ void main() {
           ],
           times: {
             'p1': {
-              'OPEN': const Duration(hours: 10),
-              'SHUT': const Duration(hours: 10),
+              'node-0': const Duration(hours: 10),
+              'node-1': const Duration(hours: 10),
             },
           },
         ),
@@ -315,7 +365,7 @@ void main() {
       );
 
       // A division by zero dressed up as "infinitely busy" would rank a shut
-      // station first and hide the real constraint.
+      // workcenter first and hide the real constraint.
       final shut = summary.targets.firstWhere((t) => t.targetId == 'SHUT');
       expect(shut.occupation, isNull);
       expect(summary.bottleneck?.targetId, 'OPEN');
@@ -331,7 +381,7 @@ void main() {
           parts: [part('p1', 'PN1'), part('p2', 'PN2')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [order('o0', 0, 'p1'), order('o1', 1, 'p2')],
@@ -342,18 +392,29 @@ void main() {
   });
 
   group('changeover', () {
-    Duration requiredWith(List<String> sequence, {int changeover = 3600}) {
+    Duration requiredWith(
+      List<String> sequence, {
+      int changeover = 3600,
+      double? samePartPercent,
+    }) {
       final summary = buildSummary(
         flow: flowOf(
-          nodes: [step(0, 'CLAD04', changeover: changeover)],
+          nodes: [
+            step(
+              0,
+              'CLAD04',
+              changeover: changeover,
+              samePartPercent: samePartPercent,
+            ),
+          ],
           contexts: {'CLAD04': context('CLAD04')},
         ),
         demand: DemandTable(
           parts: [part('p1', 'PN1'), part('p2', 'PN2')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 1)},
-            'p2': {'CLAD04': const Duration(hours: 1)},
+            'p1': {'node-0': const Duration(hours: 1)},
+            'p2': {'node-0': const Duration(hours: 1)},
           },
         ),
         orders: [
@@ -366,9 +427,28 @@ void main() {
 
     test('is charged only when the part changes', () {
       // Like with like is genuinely cheaper, which is what makes the sequence
-      // worth optimising (§7.6, §6.3).
-      expect(requiredWith(['p1', 'p1', 'p1']), Duration.zero);
-      expect(requiredWith(['p1', 'p2', 'p1']), const Duration(hours: 2));
+      // worth optimising (§7.6, §6.3). Both sequences pay one setup for the
+      // cold start — an empty workcenter is set up for nothing — so what the
+      // sequence buys is the two changes it avoids, not all three setups.
+      expect(requiredWith(['p1', 'p1', 'p1']), const Duration(hours: 1));
+      expect(requiredWith(['p1', 'p2', 'p1']), const Duration(hours: 3));
+    });
+
+    test('a repeat pays a percentage of it rather than nothing (§7.6)', () {
+      // The lever the field asked for: like-with-like need not be *free*, and
+      // saying it is free is only right for a workcenter that keeps its tooling.
+      // At 50 % the two repeats cost half a setup each, which is what makes
+      // this the Summary agreeing with the engine rather than a second opinion.
+      expect(
+        requiredWith(['p1', 'p1', 'p1'], samePartPercent: 50),
+        const Duration(hours: 2),
+      );
+      // 100 % is the pathological end: batching buys nothing at all, and the
+      // smooth sequence costs exactly what the mixed one does.
+      expect(
+        requiredWith(['p1', 'p1', 'p1'], samePartPercent: 100),
+        const Duration(hours: 3),
+      );
     });
 
     test('the first order of the period is compared with the one before it', () {
@@ -381,8 +461,8 @@ void main() {
           parts: [part('p1', 'PN1'), part('p2', 'PN2')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 1)},
-            'p2': {'CLAD04': const Duration(hours: 1)},
+            'p1': {'node-0': const Duration(hours: 1)},
+            'p2': {'node-0': const Duration(hours: 1)},
           },
         ),
         orders: [
@@ -410,7 +490,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 310)},
+            'p1': {'node-0': const Duration(hours: 310)},
           },
         ),
         orders: [order('o0', 0, 'p1')],
@@ -437,8 +517,8 @@ void main() {
           times: {
             // The takt is one day = 10 productive hours here, so PN1 is worth
             // one equivalent and PN2 three.
-            'p1': {'CLAD04': const Duration(hours: 10)},
-            'p2': {'CLAD04': const Duration(hours: 30)},
+            'p1': {'node-0': const Duration(hours: 10)},
+            'p2': {'node-0': const Duration(hours: 30)},
           },
         ),
         orders: [order('o0', 0, 'p1'), order('o1', 1, 'p2')],
@@ -467,7 +547,7 @@ void main() {
           parts: [part('p1', 'PN1')],
           columns: oneColumn,
           times: {
-            'p1': {'CLAD04': const Duration(hours: 10)},
+            'p1': {'node-0': const Duration(hours: 10)},
           },
         ),
         orders: [order('o0', 0, 'p1', month: 9)],
@@ -541,7 +621,9 @@ void main() {
             ),
           ],
           times: {
-            'p1': {'pool-1': const Duration(hours: 310)},
+            // Keyed by the step, and the step targets the pool - so the two
+            // lathes still share one time (§3.1, §9).
+            'p1': {'node-0': const Duration(hours: 310)},
           },
         ),
         orders: [order('o0', 0, 'p1')],

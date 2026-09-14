@@ -113,21 +113,27 @@ void main() {
       name: name,
     );
     final steps = targets ?? [cladId, millId];
+    // **The ids the steps came back with**, because §9 keys a process time by
+    // the node rather than by the workcenter it points at - and the foreign key
+    // refuses a workcenter id standing in for one.
+    final stepIds = <String>[];
     for (var i = 0; i < steps.length; i++) {
-      await studies.insertStep(
-        studyId: studyId,
-        atPosition: i,
-        workcenterId: steps[i],
+      stepIds.add(
+        await studies.insertStep(
+          studyId: studyId,
+          atPosition: i,
+          workcenterId: steps[i],
+        ),
       );
     }
     final partId = await demand.createPart(
       studyId: studyId,
       partNumber: 'PN1',
     );
-    for (final target in steps) {
+    for (final stepId in stepIds) {
       await demand.setProcessTime(
         partId: partId,
-        targetId: target,
+        nodeId: stepId,
         time: const Duration(hours: 2),
       );
     }
@@ -153,7 +159,7 @@ void main() {
     expect(input.studies.single.name, 'Current state');
     expect(input.readiness.single.problems, isEmpty);
 
-    // Both stations of the flow are in the model, each once, with the
+    // Both workcenters of the flow are in the model, each once, with the
     // project's calendar under them.
     expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
     expect(
@@ -183,7 +189,13 @@ void main() {
     final result = await compute(runSimulationOffThread, (
       studies: input.studies,
       workcenters: input.workcenters,
-      dispatch: DispatchRule.earliestDueDate,
+      // A second map of `SimWorkcenter`, and a workcenter in it may be in neither
+      // study — phase 9 sends the plant's scheduled set across as well.
+      scheduledWorkcenters: input.scheduledWorkcenters,
+      // A `DateTime` has to cross the isolate too, and null is not a test of
+      // that — the horizon is what §11.1's warning is built on, so a value
+      // that could not be sent would surface as Simulate throwing.
+      scheduleHorizon: input.scheduleHorizon,
     ));
 
     expect(result.orders, hasLength(2));
@@ -256,12 +268,18 @@ void main() {
       productionLineId: lineId,
       name: 'With the pool',
     );
-    await studies.insertStep(studyId: studyId, atPosition: 0, poolId: poolId);
+    final poolStep = await studies.insertStep(
+      studyId: studyId,
+      atPosition: 0,
+      poolId: poolId,
+    );
     final partId = await demand.createPart(studyId: studyId, partNumber: 'PN1');
-    // Keyed by the **pool**, never a member standing in for it (§9).
+    // **Keyed by the step, and the step targets the pool** — so the members
+    // still share one time, which is the rule §3.1 cared about and which §9
+    // left standing: a part has one process time at a pool, not one per lathe.
     await demand.setProcessTime(
       partId: partId,
-      targetId: poolId,
+      nodeId: poolStep,
       time: const Duration(hours: 2),
     );
     await demand.createOrder(
@@ -278,7 +296,12 @@ void main() {
     final step = input.studies.single.steps.single;
     expect(step.isPool, isTrue);
     expect(step.candidates, unorderedEquals([lathe1, lathe2]));
-    expect(step.demandKey, poolId);
+    // **The step, not the pool** (§9). What the members share is the step
+    // that targets them; the key is the node, and `poolId` is what that node
+    // points at — which is why a part still has one time here rather than one
+    // per lathe.
+    expect(step.demandKey, poolStep);
+    expect(step.poolId, poolId);
   });
 
   test('an unbound step blocks the run and names the study', () async {
@@ -406,7 +429,7 @@ void main() {
       productionLineId: lineId,
       name: 'Current state',
     );
-    await studies.insertStep(
+    final cladStep = await studies.insertStep(
       studyId: studyId,
       atPosition: 0,
       workcenterId: cladId,
@@ -416,7 +439,7 @@ void main() {
     // comfortably inside the earlier period rather than a few hours before it.
     await demand.setProcessTime(
       partId: partId,
-      targetId: cladId,
+      nodeId: cladStep,
       time: const Duration(hours: 400),
     );
     await demand.createOrder(
@@ -430,4 +453,228 @@ void main() {
 
     expect(input.studies.single.releaseInterval, const Duration(hours: 3));
   });
+
+  test('a line that changes takt reaches the run as both (§7.9)', () async {
+    // **The end-to-end claim of the round**, through the real assembly rather
+    // than a hand-built study: a takt period says how often orders open in it,
+    // so a line stating two of them hands the engine two cadences and the
+    // engine picks per release. Before this, `taktOn(runStart)` was read once
+    // and the second period could not reach a run at all.
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026),
+      endDate: DateTime(2026, 6, 30),
+      takt: 6,
+      unit: TaktUnit.hours,
+    );
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026, 7),
+      endDate: DateTime(2026, 12, 31),
+      takt: 12,
+      unit: TaktUnit.hours,
+    );
+    await seedStudy(name: 'Current state', line: lineId);
+
+    final input = await simulation.assembleRun(projectId);
+    final study = input.studies.single;
+
+    expect(study.taktPeriods, hasLength(2));
+    expect(study.taktAt(DateTime(2026, 3, 1))?.interval, const Duration(hours: 6));
+    expect(study.taktAt(DateTime(2026, 9, 1))?.interval, const Duration(hours: 12));
+
+    // And the study still reports one takt as its own — the one it first
+    // releases at (§7.7.2). That is what a run stores and what its header says;
+    // what it *ran* at is now read off its orders.
+    //
+    // **It is the second period's here**, and that is the fixture being useful
+    // rather than a stray: this demand is needed in late August, so the cold
+    // start lands past 1 July. Which is exactly the shape the round exists for
+    // — before it, the 6-hour period was unreachable by any run of this study,
+    // and now it is one instant's lookup away.
+    expect(study.taktValue, 12);
+    expect(study.releaseInterval, const Duration(hours: 12));
+  });
+
+  test('an instant no takt covers has no cadence at all (§7.9.2)', () async {
+    // The takt table stops at the end of June. A study whose releases would run
+    // past it does not carry a 6-hour cadence into July — it carries none, and
+    // the engine stops opening orders rather than inventing a rate the plant
+    // never stated.
+    await schedules.createTaktPeriod(
+      projectId: projectId,
+      productionLineId: lineId,
+      startDate: DateTime(2026),
+      endDate: DateTime(2026, 6, 30),
+      takt: 6,
+      unit: TaktUnit.hours,
+    );
+    await seedStudy(name: 'Current state', line: lineId);
+
+    final study = (await simulation.assembleRun(projectId)).studies.single;
+
+    expect(study.taktAt(DateTime(2026, 9, 1)), isNull);
+    expect(study.intervalAt(DateTime(2026, 9, 1)), isNull);
+    expect(study.cadenceResumesAfter(DateTime(2026, 9, 1)), isNull);
+  });
+
+  group('the schedule horizon (§11.1)', () {
+    test('is the last date every schedule is defined for', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+
+      // Everything seeded runs to the end of 2026.
+      final input = await simulation.assembleRun(projectId);
+      expect(input.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+
+    test('takes the earliest of them, not the latest', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+
+      // One workcenter defined only to mid-August. Past that date the run is
+      // carrying its schedule forward, whatever the others say — so a figure
+      // is only as defined as the least-defined thing that produced it.
+      // Taking the maximum here would report the run covered to December.
+      await schedules.createWorkcenterSchedulePeriod(
+        projectId: projectId,
+        workcenterId: cladId,
+        startDate: DateTime(2027),
+        endDate: DateTime(2027, 8, 15),
+        operatorsPerShift: const [1, 1, 1],
+        availability: 1,
+        rework: 0,
+      );
+
+      final input = await simulation.assembleRun(projectId);
+      expect(input.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+
+  test('reaches the stored run, so the warning survives a reload', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      final input = await simulation.assembleRun(projectId);
+
+      final result = runSimulation(
+        studies: input.studies,
+        workcenters: input.workcenters,
+        scheduleHorizon: input.scheduleHorizon,
+      );
+
+      // The engine carries it without reading it: past the horizon a schedule
+      // is simply carried forward, and the run's job is to say so.
+      expect(result.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+  });
+
+  group('capacity follows the schedule, not the demand (phase 9)', () {
+    /// A workcenter the plant has scheduled and no study routes to — and it stops
+    /// **half a year before** the two that carry work, which is the shape of
+    /// the trap this phase is mostly about.
+    Future<String> idleWorkcenter() async {
+      final id = await resources.createWorkcenter(
+        plantId: plantId,
+        name: 'IDLE01',
+        lineIds: {lineId},
+      );
+      await schedules.createWorkcenterSchedulePeriod(
+        projectId: projectId,
+        workcenterId: id,
+        startDate: DateTime(2026),
+        endDate: DateTime(2026, 6, 30),
+        operatorsPerShift: const [1, 1, 1],
+        availability: 1,
+        rework: 0,
+      );
+      return id;
+    }
+
+    test('it is capacity, and deliberately not a resource', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      final idle = await idleWorkcenter();
+
+      final input = await simulation.assembleRun(projectId);
+
+      // The resource model is what the routings reach, unchanged.
+      expect(input.workcenters.keys, unorderedEquals([cladId, millId]));
+      // The capacity set is what the plant has scheduled — a superset.
+      expect(
+        input.scheduledWorkcenters.keys,
+        unorderedEquals([cladId, millId, idle]),
+      );
+    });
+
+    test('a workcenter with no schedule at all stays out of both', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      // Scheduled by nobody, in any project: *unmodelled*, not idle. A row of
+      // zeroes for it would invent a machine no one has said anything about.
+      await resources.createWorkcenter(
+        plantId: plantId,
+        name: 'UNKNOWN01',
+        lineIds: {lineId},
+      );
+
+      final input = await simulation.assembleRun(projectId);
+
+      expect(
+        input.scheduledWorkcenters.values.map((w) => w.name),
+        isNot(contains('UNKNOWN01')),
+      );
+    });
+
+    test('the idle workcenter does not drag the horizon back', () async {
+      // **The trap in the phase.** `scheduleHorizon` is the *minimum* of each
+      // schedule's last end date, so admitting a workcenter with no work to the
+      // resource model in order to give it capacity rows would pull the
+      // horizon back to whenever that machine happens to stop — here half a
+      // year — and start firing §11.1's warning on a run with nothing wrong
+      // with it. The horizon is computed over the workcenters the run uses.
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      await idleWorkcenter();
+
+      final input = await simulation.assembleRun(projectId);
+
+      expect(input.scheduleHorizon, DateTime(2026, 12, 31));
+    });
+
+    test('it gets capacity rows, bounded by its own schedule', () async {
+      await taktFor(lineId);
+      await seedStudy(name: 'Current state', line: lineId);
+      final idle = await idleWorkcenter();
+
+      final input = await simulation.assembleRun(projectId);
+      final result = runSimulation(
+        studies: input.studies,
+        workcenters: input.workcenters,
+        scheduledWorkcenters: input.scheduledWorkcenters,
+        scheduleHorizon: input.scheduleHorizon,
+      );
+
+      // Nothing ran on it, and it is on the chart anyway — which is the whole
+      // point: occupation is demand against capacity, and a denominator
+      // clipped to its own numerator cannot draw a plant with room to spare.
+      expect(result.steps.every((step) => step.workcenterId != idle), isTrue);
+      final months = result.openByWorkcenterMonth[idle];
+      expect(months, isNotNull);
+      expect(
+        months!.keys,
+        unorderedEquals([for (var m = 1; m <= 6; m++) DateTime(2026, m)]),
+        reason: 'January to June, and the grid goes ragged after it',
+      );
+      expect(months.values.every((open) => open > Duration.zero), isTrue);
+
+      // And the workcenters that do carry work span their own full schedule,
+      // which outlasts the run rather than stopping with it.
+      expect(
+        result.openByWorkcenterMonth[cladId]!.keys,
+        unorderedEquals([for (var m = 1; m <= 12; m++) DateTime(2026, m)]),
+      );
+    });
+  });
+
 }

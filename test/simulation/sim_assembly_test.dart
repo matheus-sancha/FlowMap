@@ -16,7 +16,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: true,
-    priority: 7,
+    startBufferDays: 0,
     wipCap: 3,
     createdAt: now,
     updatedAt: now,
@@ -27,14 +27,23 @@ void main() {
     String? workcenterId,
     String? poolId,
     int changeover = 0,
+    bool? pinned,
   }) => FlowNode(
-    id: 'node-$position',
+    // **The workcenter's own id, since §9.** A process time is keyed by the flow
+    // node now, so these fixtures would otherwise have to restate every
+    // `processTimes` map as node positions and stop reading as a routing.
+    // Giving the node the id of what it targets keeps them legible and keeps
+    // what they are about — assembly, takt and balance — in view.
+    id: workcenterId ?? poolId ?? 'node-$position',
     studyId: 'study-1',
     position: position,
     kind: FlowNodeKind.step,
     workcenterId: workcenterId,
     poolId: poolId,
-    changeoverSeconds: changeover,
+    changeoverSeconds: 0,
+    balanceDisabled: pinned,
+    setupValue: changeover == 0 ? null : changeover.toDouble(),
+    setupUnit: TaktUnit.seconds,
     inventoryUsesWorkingTime: false,
     createdAt: now,
     updatedAt: now,
@@ -102,7 +111,13 @@ void main() {
       'W': Duration(hours: 10),
       'X': Duration(hours: 10),
     },
+    /// The open day, which is what a release cadence is measured in (§7.2).
+    /// Defaults to the productive one so a test that does not care about the
+    /// distinction reads as it always did — the tests that do care state both.
+    Map<String, Duration>? open,
+    Map<String, String> types = const {},
   }) => SimResourceContext(
+    workcenterTypeNames: types,
     workcenterNames: const {
       'W': 'CLAD04',
       'X': 'TTAT',
@@ -112,6 +127,9 @@ void main() {
     poolNames: const {'pool-1': 'CNC Lathes'},
     poolMembers: pools,
     productivePerWorkingDay: productive,
+    openPerWorkingDay: open ?? productive,
+    cellNames: const {'cell-1': 'Cell A'},
+    lineNames: const {'line-1': 'Line 1'},
   );
 
   test('a plain flow assembles into steps, parts and a sequence', () {
@@ -133,12 +151,24 @@ void main() {
 
     expect(built, isNotNull);
     expect(built!.steps.map((s) => s.title), ['CLAD04', 'TTAT']);
-    expect(built.steps.first.changeover, const Duration(minutes: 30));
+    // The setup travels as a value and a unit rather than a duration, because
+    // `days` would mean a different thing at each member of a pool (§7.6).
+    expect(built.steps.first.setupValue, 1800);
+    expect(built.steps.first.setupUnit, TaktUnit.seconds);
     expect(built.orders.map((o) => o.batchSize), [1, 4]);
     expect(built.parts['p1']!.timeAt('W'), const Duration(hours: 2));
-    // The study's own dispatch keys travel with it (§7.4, §7.3).
-    expect(built.priority, 7);
+    // The study's own dispatch key travels with it (§7.3). Priority was the
+    // other one until v28 dropped it (#6).
     expect(built.wipCap, 3);
+
+    // And where it sat in the plant, ids and names both, so §12.1's filters can
+    // read a stored run without joining back to a study that may have moved
+    // (§7.10). Assembled rather than looked up at save time, which is what
+    // makes the run a record of the moment it ran (§8.5).
+    expect(built.productionCellId, 'cell-1');
+    expect(built.productionCellName, 'Cell A');
+    expect(built.productionLineId, 'line-1');
+    expect(built.productionLineName, 'Line 1');
   });
 
   group('release cadence (§7.2)', () {
@@ -159,9 +189,17 @@ void main() {
       expect(built!.releaseInterval, const Duration(hours: 4));
     });
 
-    test('a takt in days is that many productive days of the pace-setter', () {
-      // W carries far more work than X, so it sets the pace — and a day there
-      // is 10 productive hours (§6.1).
+    test('a takt in days is that many OPEN days of the pace-setter', () {
+      // W carries far more work than X, so it sets the pace. Its day is 12 open
+      // hours of which 10 are productive, and the cadence is the open figure:
+      // the engine spends this interval on `WorkingCalendar.advance`, which
+      // consumes open time, so a takt resolved against the productive day comes
+      // round *early* by exactly the availability.
+      //
+      // That is the defect this pins. On célula 11D a 4-day takt at 83.2 %
+      // released every 3.33 working days rather than 4 — an order every 15 h
+      // 13 min sooner than any workcenter filled to one takt could take one, which
+      // stacked into a 55-day queue at the first cladding workcenter.
       final built = assembleSimStudy(
         study: study,
         nodes: [
@@ -176,16 +214,52 @@ void main() {
         taktSchedule: taktOf(3, TaktUnit.days),
         resources: resources(
           productive: const {'W': Duration(hours: 10), 'X': Duration(hours: 4)},
+          open: const {'W': Duration(hours: 12), 'X': Duration(hours: 5)},
         ),
         asOf: now,
       );
 
       expect(built!.releaseCalendarId, 'W');
-      expect(built.releaseInterval, const Duration(hours: 30));
+      expect(built.releaseInterval, const Duration(hours: 36));
+      // And emphatically not 30, which is three *productive* days.
+      expect(built.releaseInterval, isNot(const Duration(hours: 30)));
+      // The whole schedule moves with it, not just the interval in force at
+      // the start (§7.9).
+      expect(
+        built.taktPeriods.map((p) => p.interval),
+        [const Duration(hours: 36)],
+      );
+    });
+
+    test('the pace setter is still chosen on productive work content', () {
+      // The two days answer different questions and only one of them moved.
+      // Which workcenter is busiest is a question about work, so it reads the
+      // productive day; how often a slot opens is a question about the clock.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [
+          step(0, workcenterId: 'W'),
+          step(1, workcenterId: 'X'),
+        ],
+        parts: [part('p1', 'PN1')],
+        processTimes: {
+          'p1': {'W': const Duration(hours: 1), 'X': const Duration(hours: 9)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: taktOf(3, TaktUnit.days),
+        resources: resources(
+          productive: const {'W': Duration(hours: 10), 'X': Duration(hours: 4)},
+          open: const {'W': Duration(hours: 12), 'X': Duration(hours: 5)},
+        ),
+        asOf: now,
+      );
+
+      expect(built!.releaseCalendarId, 'X');
+      expect(built.releaseInterval, const Duration(hours: 15));
     });
 
     test('work content counts batch size, so the mix can move the pace', () {
-      // Two parts that barely touch each other's station. Which one is built
+      // Two parts that barely touch each other's workcenter. Which one is built
       // in larger batches decides where the work lands — batch size cannot
       // flip the ranking within a single order, because it scales every step
       // of that order alike.
@@ -216,12 +290,15 @@ void main() {
   });
 
   group('buffers (§5.5)', () {
-    /// A run carries a buffer as a node and nothing else.
+    /// A buffer node reaches the run as nothing at all.
     ///
-    /// Whatever was typed on it — a wait in hours, or a count of pieces — stays
-    /// on the node for the map's lead-time ladder and never reaches the engine.
-    /// The figure is an *observation* of a current state, and how long an order
-    /// really waits is the question the run exists to answer.
+    /// **This used to assert it arrived as a node carrying no time.** Since v19
+    /// a queue belongs to what a step targets rather than to a study's spine,
+    /// so an inventory node is not read at all — the rows are kept as the
+    /// recovery path for what the fold discarded, and the engine walks steps.
+    ///
+    /// What the figure meant is unchanged: an observation of a current state,
+    /// for the map's lead-time ladder, never a delay the run charges.
     void expectsNoTime(InventoryMode mode, {int? seconds, int? quantity}) {
       final built = assembleSimStudy(
         study: study,
@@ -242,9 +319,9 @@ void main() {
         asOf: now,
       );
 
-      // Still a node, so the engine's view of a flow stays a faithful image of
-      // the map's — same nodes, same positions.
-      expect(built!.nodes.whereType<SimBuffer>().single.position, 1);
+      // The two steps, and nothing between them: the buffer is not a node the
+      // engine walks any more.
+      expect(built!.nodes.map((n) => n.demandKey), ['W', 'X']);
     }
 
     test('a fixed wait reaches the run carrying no time', () {
@@ -427,64 +504,388 @@ void main() {
     expect(built.orders, hasLength(2));
   });
 
-  group('queue disciplines resolve onto the station (§7.4)', () {
-    // Two pools over overlapping members, so every branch below is reachable.
-    const members = {
-      'poolA': ['W1', 'W2'],
-      'poolB': ['W2', 'W3'],
-    };
+  group('simWorkcenterPools — which pool a run says a workcenter ran in (§3.1)', () {
+    SimStudy built({
+      required List<FlowNode> nodes,
+      Map<String, List<String>> pools = const {},
+    }) => assembleSimStudy(
+      study: study,
+      nodes: nodes,
+      parts: [part('p1', 'PN1')],
+      processTimes: {
+        'p1': {
+          'W': const Duration(hours: 1),
+          'pool-1': const Duration(hours: 1),
+          'pool-2': const Duration(hours: 1),
+        },
+      },
+      orders: [order(0, 'p1')],
+      taktSchedule: taktOf(1, TaktUnit.hours),
+      resources: resources(pools: pools),
+      asOf: now,
+    )!;
 
-    DispatchRule? resolve(
-      String workcenterId,
-      Map<String, DispatchRule> rules,
-    ) => resolveDispatch(
-      workcenterId: workcenterId,
-      byTarget: rules,
-      poolMembers: members,
+    test('a pool names every one of its members', () {
+      final map = simWorkcenterPools([
+        built(
+          nodes: [step(0, poolId: 'pool-1')],
+          pools: {
+            'pool-1': ['L1', 'L2'],
+          },
+        ),
+      ]);
+
+      // Both members, under the name the reader typed — which is the whole
+      // complaint: three loose machines where a pool was drawn.
+      expect(map['L1']!.id, 'pool-1');
+      expect(map['L1']!.name, 'CNC Lathes');
+      expect(map['L2']!.id, 'pool-1');
+    });
+
+    test('a workcenter named directly is absent, not grouped under nothing', () {
+      final map = simWorkcenterPools([
+        built(nodes: [step(0, workcenterId: 'W')]),
+      ]);
+
+      // Absent rather than present-with-a-null-id: a workcenter that no step
+      // reached through a pool has nothing to say, and a row saying "no pool"
+      // would be a row the views have to skip.
+      expect(map.containsKey('W'), isFalse);
+    });
+
+    test('two pools over one workcenter leave it ungrouped, naming both', () {
+      // The case §7.7 makes reachable and `WorkcenterPoolMembers` allows: two
+      // studies in one run, each reaching L1 through a different pool. There is
+      // no correct single answer, so there is no grouping — and the names still
+      // say why it is standing on its own.
+      final map = simWorkcenterPools([
+        built(
+          nodes: [step(0, poolId: 'pool-1')],
+          pools: {
+            'pool-1': ['L1'],
+          },
+        ),
+        built(
+          nodes: [step(0, poolId: 'pool-2')],
+          pools: {
+            'pool-2': ['L1'],
+          },
+        ),
+      ]);
+
+      expect(map['L1']!.id, isNull);
+      // Sorted, so the label cannot depend on the order the project happens to
+      // list its studies in.
+      expect(map['L1']!.name, 'CNC Lathes · pool-2');
+    });
+  });
+
+  /// The takt rebalancing a run of like machines, as the engine gets it (§7.4).
+  ///
+  /// The rule is pinned in `takt_balance_test.dart`; what matters here is that
+  /// assembly feeds it the run's takt and hands each step a *per part* share.
+  group('a group of like machines is rebalanced (§7.4)', () {
+    /// Two workcenters, both 10-hour productive days, under a 3-hour takt.
+    SimStudy? twoWorkcenters({
+      Map<String, String> types = const {'W': 'Cladding', 'X': 'Cladding'},
+      Map<String, Map<String, Duration>> processTimes = const {
+        'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+      },
+      List<DemandPart>? parts,
+    }) => assembleSimStudy(
+      study: study,
+      nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+      parts: parts ?? [part('p1', 'PN1')],
+      processTimes: processTimes,
+      orders: [order(0, 'p1')],
+      taktSchedule: taktOf(3, TaktUnit.hours),
+      resources: resources(types: types),
+      asOf: now,
     );
 
-    test('a station nobody set follows the run', () {
-      expect(resolve('W1', const {}), isNull);
-    });
+    // The takt the fixture's schedule states, which is the key a balanced
+    // figure has to be asked for by since §7.9 — an order carries the takt it
+    // opened under, so a step cannot answer "what is this worth" without one.
+    const takt3h = (value: 3.0, unit: TaktUnit.hours);
 
-    test("a station's own rule is used as it stands", () {
+    test('the first fills to takt and the last takes the remainder', () {
+      final built = twoWorkcenters()!;
+
+      // Four hours of cladding at a 3-hour takt: 3 on the first, 1 on the last.
       expect(
-        resolve('W1', const {'W1': DispatchRule.shortestProcessing}),
-        DispatchRule.shortestProcessing,
+        built.steps.first.processTimeFor('p1', built.parts['p1'], takt: takt3h),
+        const Duration(hours: 3),
+      );
+      expect(
+        built.steps.last.processTimeFor('p1', built.parts['p1'], takt: takt3h),
+        const Duration(hours: 1),
       );
     });
 
-    test("a pool's rule reaches every member", () {
-      final rules = {'poolA': DispatchRule.earliestDueDate};
-      expect(resolve('W1', rules), DispatchRule.earliestDueDate);
-      expect(resolve('W2', rules), DispatchRule.earliestDueDate);
-      // W3 is not in poolA, so it is untouched.
-      expect(resolve('W3', rules), isNull);
-    });
+    test('asked without a takt, a step is worth what was measured', () {
+      // **Not a fallback nobody reaches** (§7.9): the map reads its own split
+      // elsewhere, and every caller here that has no order in hand — a step
+      // outside any group, a walk before a release instant exists — is asking
+      // what the plant measured. A share belongs to an order, and an order
+      // arrives with a takt.
+      final built = twoWorkcenters()!;
 
-    test('a station set directly outranks the pool it belongs to', () {
       expect(
-        resolve('W1', const {
-          'poolA': DispatchRule.earliestDueDate,
-          'W1': DispatchRule.fifo,
-        }),
-        // Its own, not the pool's — and FIFO here is a deliberate choice, not
-        // an absence, which is exactly the distinction the null case above
-        // protects.
-        DispatchRule.fifo,
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 2),
       );
     });
 
-    test('two pools that disagree resolve by the lowest pool id', () {
-      // W2 is in both. Arbitrary, but fixed: two runs of one project must not
-      // rank the same queue two different ways (§4.4).
+    test('a takt the line never states has no split', () {
+      // Keys are figures, so asking at 4 hours a line that only runs at 3 is
+      // asking about a plant that does not exist. The measurement stands rather
+      // than the nearest split being substituted for it.
+      final built = twoWorkcenters()!;
+
       expect(
-        resolve('W2', const {
-          'poolB': DispatchRule.shortestProcessing,
-          'poolA': DispatchRule.earliestDueDate,
-        }),
-        DispatchRule.earliestDueDate,
+        built.steps.first.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 4.0, unit: TaktUnit.hours),
+        ),
+        const Duration(hours: 2),
       );
+    });
+
+    test('the stored times are untouched — only the step carries the split', () {
+      // §5.5's rule: the rule never overwrites the observation. `SimPart` is
+      // what the run stores and what a reader gets back.
+      final built = twoWorkcenters()!;
+
+      expect(built.parts['p1']!.timeAt('W'), const Duration(hours: 2));
+      expect(built.parts['p1']!.timeAt('X'), const Duration(hours: 2));
+    });
+
+    test('two workcenters of different types are not a group', () {
+      // Which is every flow that existed before this rule, so it has to come
+      // out byte for byte as it did.
+      final built = twoWorkcenters(types: const {'W': 'Cladding', 'X': 'Testing'})!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1'], takt: takt3h),
+        const Duration(hours: 2),
+      );
+    });
+
+    test('a run with no types at all balances nothing', () {
+      final built = twoWorkcenters(types: const {})!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+    });
+
+    test('two parts balance separately', () {
+      // The work content being split is a part's, and two parts of one flow
+      // legitimately balance differently — which is why the share is keyed by
+      // part rather than folded into the step.
+      final built = twoWorkcenters(
+        parts: [part('p1', 'PN1'), part('p2', 'PN2')],
+        processTimes: const {
+          'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+          'p2': {'W': Duration(minutes: 30), 'X': Duration(minutes: 30)},
+        },
+      )!;
+
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1'], takt: takt3h),
+        const Duration(hours: 3),
+      );
+      // One hour of work fits inside a 3-hour takt, so the first takes it all
+      // and the last takes nothing.
+      expect(
+        built.steps.first.processTimeFor('p2', built.parts['p2'], takt: takt3h),
+        const Duration(hours: 1),
+      );
+      expect(
+        built.steps.last.processTimeFor('p2', built.parts['p2'], takt: takt3h),
+        Duration.zero,
+      );
+    });
+
+    test('a workcenter this part does not run on is not a member (§7.7.1)', () {
+      // The engine reads the same rule as the map, so the defect had to be
+      // fixed in one place — a run that put 94.3 h on a machine the part never
+      // visits would have queued and costed an operation that does not exist.
+      final built = twoWorkcenters(
+        processTimes: const {
+          'p1': {'W': Duration.zero, 'X': Duration(hours: 4)},
+        },
+      )!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        Duration.zero,
+      );
+      expect(
+        built.steps.last.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 4),
+      );
+    });
+
+    test('a pinned step is honoured by the run too (§7.7.4)', () {
+      // The map and the Gantt have to place work the same way, so the flag
+      // cannot live only on the surface that draws it.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [
+          step(0, workcenterId: 'W', pinned: true),
+          step(1, workcenterId: 'X'),
+        ],
+        parts: [part('p1', 'PN1')],
+        processTimes: {
+          'p1': {'W': const Duration(hours: 2), 'X': const Duration(hours: 2)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: taktOf(3, TaktUnit.hours),
+        resources: resources(types: const {'W': 'Cladding', 'X': 'Cladding'}),
+        asOf: now,
+      )!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
+      expect(
+        built.steps.first.processTimeFor('p1', built.parts['p1']),
+        const Duration(hours: 2),
+      );
+    });
+
+    test('a line that changes takt carries a split for each (§7.9)', () {
+      // The round's whole point, at the assembly seam: a run spans as many
+      // takts as its releases reach, so the split is resolved for every figure
+      // the line states rather than for the one in force at the start.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+        parts: [part('p1', 'PN1')],
+        processTimes: const {
+          'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: TaktScheduleSpec([
+          TaktPeriodSpec(
+            startDate: DateTime(2026),
+            endDate: DateTime(2026, 6, 30),
+            value: 3,
+            unit: TaktUnit.hours,
+          ),
+          TaktPeriodSpec(
+            startDate: DateTime(2026, 7),
+            endDate: DateTime(2026, 12, 31),
+            value: 5,
+            unit: TaktUnit.hours,
+          ),
+        ]),
+        resources: resources(types: const {'W': 'Cladding', 'X': 'Cladding'}),
+        asOf: now,
+      )!;
+
+      // Four hours of work: 3 + 1 at the first takt, and all four on the first
+      // workcenter at the second, where one takt is wider than the whole group.
+      expect(
+        built.steps.first.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 3.0, unit: TaktUnit.hours),
+        ),
+        const Duration(hours: 3),
+      );
+      expect(
+        built.steps.first.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 5.0, unit: TaktUnit.hours),
+        ),
+        const Duration(hours: 4),
+      );
+      expect(
+        built.steps.last.processTimeFor(
+          'p1',
+          built.parts['p1'],
+          takt: (value: 5.0, unit: TaktUnit.hours),
+        ),
+        Duration.zero,
+      );
+
+      // And the cadence itself is resolved period by period, which is what the
+      // engine walks instead of one interval.
+      expect(built.taktPeriods, hasLength(2));
+      expect(built.taktPeriods.first.interval, const Duration(hours: 3));
+      expect(built.taktPeriods.last.interval, const Duration(hours: 5));
+      expect(
+        built.taktAt(DateTime(2026, 8, 1))?.takt,
+        (value: 5.0, unit: TaktUnit.hours),
+      );
+    });
+
+    test('two periods stating one figure are one key, not a change', () {
+      // `TaktScheduleSpec.changeAfter` already decides that a boundary is not a
+      // change where the number either side is the same, and the split is keyed
+      // on the figure for that reason — so a schedule of two periods at 3 hours
+      // holds one split, not two identical ones.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [step(0, workcenterId: 'W'), step(1, workcenterId: 'X')],
+        parts: [part('p1', 'PN1')],
+        processTimes: const {
+          'p1': {'W': Duration(hours: 2), 'X': Duration(hours: 2)},
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: TaktScheduleSpec([
+          TaktPeriodSpec(
+            startDate: DateTime(2026),
+            endDate: DateTime(2026, 6, 30),
+            value: 3,
+            unit: TaktUnit.hours,
+          ),
+          TaktPeriodSpec(
+            startDate: DateTime(2026, 7),
+            endDate: DateTime(2026, 12, 31),
+            value: 3,
+            unit: TaktUnit.hours,
+          ),
+        ]),
+        resources: resources(types: const {'W': 'Cladding', 'X': 'Cladding'}),
+        asOf: now,
+      )!;
+
+      expect(built.steps.first.balancedProcessTimes, hasLength(1));
+    });
+
+    test('a pool step is in no group', () {
+      // Its members are interchangeable and it is one target with one queue
+      // (§3.1), so "the first workcenter and the last of the same type in the
+      // sequence" names nothing inside it.
+      final built = assembleSimStudy(
+        study: study,
+        nodes: [step(0, poolId: 'pool-1'), step(1, workcenterId: 'X')],
+        parts: [part('p1', 'PN1')],
+        processTimes: {
+          'p1': {
+            'pool-1': const Duration(hours: 2),
+            'X': const Duration(hours: 2),
+          },
+        },
+        orders: [order(0, 'p1')],
+        taktSchedule: taktOf(3, TaktUnit.hours),
+        resources: resources(
+          pools: {
+            'pool-1': ['L1'],
+          },
+          productive: const {
+            'L1': Duration(hours: 10),
+            'X': Duration(hours: 10),
+          },
+          types: const {'L1': 'Cladding', 'X': 'Cladding'},
+        ),
+        asOf: now,
+      )!;
+
+      expect(built.steps.every((s) => s.balancedProcessTimes.isEmpty), isTrue);
     });
   });
 }

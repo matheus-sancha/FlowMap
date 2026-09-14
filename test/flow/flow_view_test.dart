@@ -7,6 +7,7 @@ import 'package:flowmap/src/features/calendar/application/shift_pattern_spec.dar
 import 'package:flowmap/src/features/calendar/application/working_calendar.dart';
 import 'package:flowmap/src/features/flow/application/flow_layout.dart';
 import 'package:flowmap/src/features/flow/application/flow_view.dart';
+import 'package:flowmap/src/features/flow/application/takt_balance.dart';
 import 'package:flowmap/src/features/schedules/application/takt_schedule.dart';
 import 'package:flowmap/src/features/schedules/application/workcenter_schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,7 +55,7 @@ void main() {
     productionLineId: 'line-1',
     name: 'Current state',
     includeInSimulation: false,
-    priority: 100,
+    startBufferDays: 0,
     createdAt: now,
     updatedAt: now,
   );
@@ -62,6 +63,7 @@ void main() {
   Workcenter workcenter(String id, {DateTime? archivedAt}) => Workcenter(
     id: id,
     plantId: 'plant-1',
+    parallelCapacity: 1,
     name: id,
     archivedAt: archivedAt,
     createdAt: now,
@@ -73,9 +75,9 @@ void main() {
     String? workcenterId,
     String? poolId,
     int changeoverSeconds = 0,
+    bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
-    String? label,
   }) => FlowNode(
     id: 'node-$position',
     studyId: 'study-1',
@@ -84,30 +86,35 @@ void main() {
     workcenterId: workcenterId,
     poolId: poolId,
     changeoverSeconds: changeoverSeconds,
+    balanceDisabled: balanceDisabled,
     equivalentValue: equivalentValue,
     equivalentUnit: equivalentUnit,
     inventoryUsesWorkingTime: false,
-    label: label,
     createdAt: now,
     updatedAt: now,
   );
 
-  FlowNode inventory(
-    int position, {
-    required InventoryMode mode,
+  /// The queue in front of one dispatch target (§7.3).
+  ///
+  /// Keyed by target rather than carried on a node, which is the whole
+  /// re-model: two steps feeding CLAD04 read this one row.
+  ProjectQueue queue(
+    String targetId, {
+    DispatchRule? rule,
+    int? capacity,
+    InventoryMode mode = InventoryMode.quantity,
     int? quantity,
     int? seconds,
-    bool usesWorkingTime = false,
-  }) => FlowNode(
-    id: 'node-$position',
-    studyId: 'study-1',
-    position: position,
-    kind: FlowNodeKind.inventory,
-    changeoverSeconds: 0,
-    inventoryMode: mode,
-    inventoryQuantity: quantity,
-    inventorySeconds: seconds,
-    inventoryUsesWorkingTime: usesWorkingTime,
+    DurationUnit? unit,
+  }) => ProjectQueue(
+    projectId: 'project-1',
+    targetId: targetId,
+    rule: rule,
+    capacity: capacity,
+    stockMode: mode,
+    stockQuantity: quantity,
+    stockSeconds: seconds,
+    stockUnit: unit,
     createdAt: now,
     updatedAt: now,
   );
@@ -155,17 +162,27 @@ void main() {
     TaktScheduleSpec? takt,
     Map<String, WorkcenterPool> pools = const {},
     Map<String, List<String>> members = const {},
-    Map<String, DispatchRule> dispatch = const {},
+    List<ProjectQueue> queues = const [],
     int? wipCap,
+    Value<int?> inbound = const Value.absent(),
+    Value<int?> outbound = const Value.absent(),
+    FlowDataSource dataSource = FlowDataSource.flowEquivalent,
+    FlowDemandInput demand = const FlowDemandInput(),
   }) => buildFlowView(
-    study: wipCap == null ? study() : study().copyWith(wipCap: Value(wipCap)),
+    dataSource: dataSource,
+    demand: demand,
+    study: study().copyWith(
+      wipCap: wipCap == null ? const Value.absent() : Value(wipCap),
+      inboundStock: inbound,
+      outboundStock: outbound,
+    ),
     nodes: nodes,
     contexts: contexts,
     pools: pools,
     poolMembers: members,
+    queues: {for (final row in queues) row.targetId: row},
     taktSchedule: takt ?? taktOf(3, TaktUnit.days),
     asOf: asOf,
-    dispatchByTarget: dispatch,
   );
 
   group('the flow equivalent', () {
@@ -243,7 +260,7 @@ void main() {
     });
 
     test('availability is in the capacity; rework is not', () {
-      // Availability belongs to the station's capacity. Rework is a loss on the
+      // Availability belongs to the workcenter's capacity. Rework is a loss on the
       // work a *part* needs, so it attaches to demand process times (M3) and
       // must not move the equivalent.
       final derated = build(
@@ -268,7 +285,7 @@ void main() {
 
     test('one takt reads as exactly the takt on the ladder', () {
       // Availability cancels: 50.32 h ÷ 16.77 h = 3.0 days. This is why a 3-day
-      // takt must show 3 days however bad the station's uptime.
+      // takt must show 3 days however bad the workcenter's uptime.
       for (final availability in [1.0, 0.74, 0.5]) {
         final view = build(
           nodes: [step(0, workcenterId: 'WC')],
@@ -307,7 +324,7 @@ void main() {
       expect(steps[1].usesLocalEquivalent, isTrue);
     });
 
-    test('a step equivalent in days means productive days of that station', () {
+    test('a step equivalent in days means productive days of that workcenter', () {
       // `1 day` equals one takt-day, so a step overridden to the takt's own
       // value reads identically to one left alone.
       final view = build(
@@ -361,38 +378,43 @@ void main() {
       expect(view.steps.single.processTime, const Duration(hours: 4));
     });
 
-    test('a quantity buffer keeps using the line takt, not a step override', () {
+    test('a queue keeps using the line takt, not a step override', () {
       // Stock drains at the rate units leave the line; a step's equivalent is a
       // yardstick, not a local production rate.
       final withOverride = build(
         nodes: [
-          inventory(0, mode: InventoryMode.quantity, quantity: 2),
           step(
-            1,
+            0,
             workcenterId: 'WC',
             equivalentValue: 1,
             equivalentUnit: TaktUnit.hours,
           ),
         ],
         contexts: {'WC': context('WC')},
+        queues: [queue('WC', quantity: 2)],
       );
       final without = build(
-        nodes: [
-          inventory(0, mode: InventoryMode.quantity, quantity: 2),
-          step(1, workcenterId: 'WC'),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC')},
+        queues: [queue('WC', quantity: 2)],
       );
-      expect(withOverride.buffers.single.wait, without.buffers.single.wait);
+      expect(
+        withOverride.queues.single.wait,
+        without.queues.single.wait,
+      );
     });
 
     test('PCE compares like with like', () {
       final view = build(
-        nodes: [
-          step(0, workcenterId: 'WC'),
-          inventory(1, mode: InventoryMode.duration, seconds: 68 * 3600),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC')},
+        queues: [
+          queue(
+            'WC',
+            mode: InventoryMode.duration,
+            seconds: 68 * 3600,
+          ),
+        ],
       );
       // Half process, half waiting: the box, the ladder and the totals all read
       // the one figure, so the ratio is of like with like.
@@ -400,8 +422,8 @@ void main() {
     });
 
     test('one takt is one working day of the ladder, whatever the shifts', () {
-      // The ladder renders days against the station's own working day, so a
-      // 1-day takt reads 1.0 d on a three-shift station and on a one-shift one.
+      // The ladder renders days against the workcenter's own working day, so a
+      // 1-day takt reads 1.0 d on a three-shift workcenter and on a one-shift one.
       for (final operators in [
         const [1, 1, 1],
         const [1, 0, 0],
@@ -540,100 +562,187 @@ void main() {
     });
   });
 
-  group('inventory', () {
-    test('a quantity buffer is pieces times the takt of what drains it', () {
+  group('the queue in front of a step (§7.3)', () {
+    test('a quantity is pieces times the takt of what drains it', () {
       final view = build(
-        nodes: [
-          inventory(0, mode: InventoryMode.quantity, quantity: 2),
-          step(1, workcenterId: 'WC'),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC')},
+        queues: [queue('WC', quantity: 2)],
       );
       // 2 pieces × a 68-hour takt at that step.
-      expect(view.buffers.single.wait, const Duration(hours: 136));
-      expect(view.buffers.single.quantity, 2);
+      expect(view.queues.single.wait, const Duration(hours: 136));
+      expect(view.queues.single.quantity, 2);
     });
 
-    test('a duration buffer is exactly what was entered', () {
+    test('a fixed wait is exactly what was entered', () {
       final view = build(
-        nodes: [
-          inventory(0, mode: InventoryMode.duration, seconds: 24 * 3600),
-          step(1, workcenterId: 'WC'),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC')},
+        queues: [
+          queue('WC', mode: InventoryMode.duration, seconds: 24 * 3600),
+        ],
       );
-      expect(view.buffers.single.wait, const Duration(hours: 24));
+      expect(view.queues.single.wait, const Duration(hours: 24));
     });
 
-    test('a calendar wait is measured in calendar days', () {
+    test('a fixed wait is measured in calendar days', () {
       // The bug this replaced: a 48-hour cooling wait was divided by the
-      // station's 16.77-hour productive day and read as 2.9 d, so the map
+      // workcenter's 16.77-hour productive day and read as 2.9 d, so the map
       // disagreed with the "2 days" that had been typed into it.
+      //
+      // **Every fixed wait is a calendar wait now.** `project_queues` carries no
+      // working-time flag, and §5.5 leaves a genuine process delay open rather
+      // than inventing the column inside a re-model.
       final view = build(
-        nodes: [
-          inventory(0, mode: InventoryMode.duration, seconds: 48 * 3600),
-          step(1, workcenterId: 'WC'),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC', availability: 0.74)},
+        queues: [
+          queue('WC', mode: InventoryMode.duration, seconds: 48 * 3600),
+        ],
       );
-      final buffer = view.buffers.single;
 
-      expect(buffer.isCalendarWait, isTrue);
+      expect(view.queues.single.isCalendarWait, isTrue);
       expect(
-        buffer.referenceWorkingDay,
+        view.queues.single.rungWorkingDay,
         isNull,
         reason: 'null makes the ladder fall back to 24-hour days',
       );
     });
 
-    test('a working-time wait is measured in productive days', () {
-      // It only advances while the station runs, so it is counted in the same
-      // days that station's process time is.
+    test('a quantity is measured in the productive days of what drains it', () {
       final view = build(
-        nodes: [
-          inventory(
-            0,
-            mode: InventoryMode.duration,
-            seconds: 48 * 3600,
-            usesWorkingTime: true,
-          ),
-          step(1, workcenterId: 'WC'),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC', availability: 0.74)},
+        queues: [queue('WC', quantity: 2)],
       );
-      final buffer = view.buffers.single;
 
-      expect(buffer.isCalendarWait, isFalse);
+      expect(view.queues.single.isCalendarWait, isFalse);
       expect(
-        buffer.referenceWorkingDay!.inSeconds / 3600,
+        view.queues.single.rungWorkingDay!.inSeconds / 3600,
         closeTo(16.77, 0.01),
       );
     });
 
-    test('a one-piece buffer reads the same as the step it feeds', () {
-      // Both are one takt of the same station, so the triangle and the box
+    test('a one-piece queue reads the same as the step it feeds', () {
+      // Both are one takt of the same workcenter, so the triangle and the box
       // beside it must agree.
       final view = build(
-        nodes: [
-          inventory(0, mode: InventoryMode.quantity, quantity: 1),
-          step(1, workcenterId: 'WC'),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC', availability: 0.74)},
+        queues: [queue('WC', quantity: 1)],
       );
 
-      expect(view.buffers.single.wait, view.steps.single.processTime);
+      expect(view.queues.single.wait, view.steps.single.processTime);
       expect(
-        view.buffers.single.referenceWorkingDay,
+        view.queues.single.rungWorkingDay,
         view.steps.single.referenceWorkingDay,
       );
     });
 
-    test('a quantity buffer with nothing downstream waits no time', () {
+    test('a step with no schedule has a queue that waits no time', () {
       final view = build(
-        nodes: [inventory(0, mode: InventoryMode.quantity, quantity: 5)],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {},
+        queues: [queue('WC', quantity: 5)],
       );
-      expect(view.buffers.single.wait, Duration.zero);
+      expect(view.queues.single.wait, Duration.zero);
+    });
+
+    test('a target nobody has configured still has a queue', () {
+      // Every step has one in front of it (§7.3); an absent row means unlimited
+      // and empty, which is what a floor space nobody has described is. It is
+      // also what gives the connector something to click before the first edit.
+      final view = build(
+        nodes: [step(0, workcenterId: 'WC')],
+        contexts: {'WC': context('WC')},
+      );
+
+      final queue = view.queues.single;
+      expect(queue.targetId, 'WC');
+      expect(queue.rule, isNull);
+      expect(queue.capacity, isNull);
+      expect(queue.hasStock, isFalse);
+    });
+
+    test('two steps on one workcenter share one queue, counted once', () {
+      // The doubling the field reported, as arithmetic: the plant has one floor
+      // space in front of CLAD04 and the ladder must not charge for two.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'WC'),
+          step(1, workcenterId: 'WC'),
+        ],
+        contexts: {'WC': context('WC')},
+        queues: [queue('WC', quantity: 1)],
+      );
+
+      expect(view.queues, hasLength(1));
+      // Two steps of 68 h, one queue of 68 h — not two.
+      expect(view.leadTime, const Duration(hours: 204));
+    });
+
+    test('a step targeting nothing has no queue', () {
+      final view = build(nodes: [step(0)], contexts: {});
+      expect(view.steps.single.queue, isNull);
+      expect(view.queues, isEmpty);
+    });
+
+    test('a pool has one queue its members pull from', () {
+      // Keyed by the pool, not by whichever member stands for it on the map
+      // (§3.1): an order goes to whoever frees first, which only means anything
+      // if they all wait in one line.
+      final view = build(
+        nodes: [step(0, poolId: 'POOL')],
+        contexts: {'A': context('A'), 'B': context('B')},
+        pools: {
+          'POOL': WorkcenterPool(
+            id: 'POOL',
+            plantId: 'plant-1',
+            name: 'CAL Pool',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        },
+        members: const {
+          'POOL': ['A', 'B'],
+        },
+        queues: [queue('POOL', rule: DispatchRule.fifo)],
+      );
+
+      expect(view.queues.single.targetId, 'POOL');
+      // **The pool's own name, which the caption is derived from** (#5, v27).
+      // The queue used to carry `FIFO CAL`, typed by hand and free to disagree
+      // with the pool it stood in front of; there is now one name in play.
+      expect(view.queues.single.targetName, 'CAL Pool');
+      expect(view.queues.single.rule, DispatchRule.fifo);
+    });
+
+    test('the inventory nodes a v18 database still holds are not drawn', () {
+      // The fold left the rows in place as the recovery path for a name it
+      // discarded (§7.3), and drawing them beside the queue on the connector
+      // would show one floor space twice — which is the doubling the re-model
+      // exists to undo.
+      final view = build(
+        nodes: [
+          FlowNode(
+            id: 'old-buffer',
+            studyId: 'study-1',
+            position: 0,
+            kind: FlowNodeKind.inventory,
+            changeoverSeconds: 0,
+            inventoryMode: InventoryMode.quantity,
+            inventoryQuantity: 9,
+            inventoryUsesWorkingTime: false,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          step(1, workcenterId: 'WC'),
+        ],
+        contexts: {'WC': context('WC')},
+      );
+
+      expect(view.nodes, hasLength(1));
+      expect(view.leadTime, const Duration(hours: 68));
     });
   });
 
@@ -641,11 +750,13 @@ void main() {
     test('lead time is process plus waiting; PCE is their ratio', () {
       final view = build(
         nodes: [
-          step(0, workcenterId: 'WC'),
-          inventory(1, mode: InventoryMode.duration, seconds: 68 * 3600),
-          step(2, workcenterId: 'WC'),
+          step(0, workcenterId: 'ONE'),
+          step(1, workcenterId: 'WC'),
         ],
-        contexts: {'WC': context('WC')},
+        contexts: {'WC': context('WC'), 'ONE': context('ONE')},
+        queues: [
+          queue('WC', mode: InventoryMode.duration, seconds: 68 * 3600),
+        ],
       );
 
       expect(view.processTime, const Duration(hours: 136));
@@ -662,8 +773,8 @@ void main() {
     });
 
     test('the totals are the sum of the rungs above them', () {
-      // Three steps, each one takt of its own station: 3 + 3 + 3 = 9 days,
-      // whatever the stations' hours (DESIGN.md §17.4).
+      // Three steps, each one takt of its own workcenter: 3 + 3 + 3 = 9 days,
+      // whatever the workcenters' hours (DESIGN.md §17.4).
       final view = build(
         nodes: [
           step(0, workcenterId: 'THREE'),
@@ -678,7 +789,7 @@ void main() {
 
       expect(view.processTimeInDays, closeTo(9, 1e-9));
       expect(view.leadTimeInDays, closeTo(9, 1e-9));
-      // Not any one station's day: a weighted one that makes the total agree
+      // Not any one workcenter's day: a weighted one that makes the total agree
       // with the rungs it totals.
       expect(
         view.leadTime.inSeconds / view.leadTimeWorkingDay!.inSeconds,
@@ -689,11 +800,11 @@ void main() {
     test('a calendar wait counts as the 24-hour days its rung reads', () {
       // 48 h of cooling is 2 days on the ladder, beside a step worth 3.
       final view = build(
-        nodes: [
-          step(0, workcenterId: 'WC'),
-          inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC')},
+        queues: [
+          queue('WC', mode: InventoryMode.duration, seconds: 48 * 3600),
+        ],
       );
 
       expect(view.leadTimeInDays, closeTo(5, 1e-9));
@@ -756,6 +867,8 @@ void main() {
       expect(view.scheduleVariesInPeriod, isFalse);
       expect(view.asOf, DateTime(2026));
       expect(view.periodEnd, DateTime(2026, 12, 31));
+      // No takt change to caption when the takt holds all year (§7.7.3).
+      expect(view.taktChange, isNull);
     });
 
     test('a takt change inside the span is flagged, not averaged', () {
@@ -787,6 +900,12 @@ void main() {
       // The map still shows one real takt — the one in force on 1 January —
       // rather than an average the line never runs at.
       expect(view.takt!.value, 3);
+      // And the caption can name it: from the shown takt, to the next, on the
+      // day it moves (§7.7.3).
+      expect(view.taktChange, isNotNull);
+      expect(view.taktChange!.at, DateTime(2026, 7, 1));
+      expect(view.taktChange!.from.value, 3);
+      expect(view.taktChange!.to.value, 4);
     });
 
     test('a staffing change inside the span is flagged too', () {
@@ -822,6 +941,9 @@ void main() {
         granularity: PeriodGranularity.year,
       );
       expect(view.scheduleVariesInPeriod, isTrue);
+      // A staffing move has no single takt to name, so the caption falls back to
+      // the icon (§7.7.3) and there is no takt change.
+      expect(view.taktChange, isNull);
     });
 
     test('the same change is not flagged when the span sits inside it', () {
@@ -849,143 +971,98 @@ void main() {
         granularity: PeriodGranularity.quarter,
       );
       expect(view.scheduleVariesInPeriod, isFalse);
+      // The change is on 1 July, outside Q1 — not this map's caveat (§7.7.3).
+      expect(view.taktChange, isNull);
     });
   });
 
-  group('the running-days walk', () {
-    // The walk always starts at the first day of the viewed period, so every
-    // case here begins 1 August 2026 — a Saturday. ABC works Monday to Friday,
-    // so nothing moves until Monday the 3rd at 05:45, and each takt-day of
-    // 22:40 spills into the following morning.
-    FlowView withNodes(List<FlowNode> nodes, {double availability = 1}) =>
-        buildFlowView(
-          study: study(),
-          nodes: nodes,
-          contexts: {'WC': context('WC', availability: availability)},
-          pools: const {},
-          poolMembers: const {},
-          taktSchedule: taktOf(1, TaktUnit.days),
-          asOf: DateTime(2026, 8),
-        );
+  group('the footer lead times', () {
+    // The map is a **generic** view of the flow (§7.9): the calendar's only job
+    // here is to say what a day is worth in this period, so neither figure
+    // depends on which weekday the period happens to open on. Every case below
+    // starts 1 August 2026 — a Saturday — and none of them cares.
+    FlowView withNodes(
+      List<FlowNode> nodes, {
+      double availability = 1,
+      List<ProjectQueue> queues = const [],
+    }) => buildFlowView(
+      study: study(),
+      nodes: nodes,
+      contexts: {'WC': context('WC', availability: availability)},
+      pools: const {},
+      poolMembers: const {},
+      queues: {for (final row in queues) row.targetId: row},
+      taktSchedule: taktOf(1, TaktUnit.days),
+      asOf: DateTime(2026, 8),
+    );
 
-    test('walks the real calendar from the first day of the period', () {
-      // Three takt-days from Saturday the 1st: the weekend passes, then Monday
-      // 05:45 → Tuesday 05:05 → Wednesday → Thursday the 6th.
+    test('running days are the working-day lead time × 1.4', () {
       final view = withNodes([
-        step(0, workcenterId: 'WC'),
-        step(1, workcenterId: 'WC'),
-        step(2, workcenterId: 'WC'),
+        for (var i = 0; i < 3; i++) step(i, workcenterId: 'WC'),
       ]);
 
-      expect(view.endDate!.month, 8);
-      expect(view.endDate!.day, 6);
-      // 1st to 6th inclusive.
-      expect(view.runningDays, 6);
+      // A restatement rather than a measurement, and deliberately so: the field
+      // asked for the seven-over-five convention after seeing a calendar walk
+      // on screen and rejecting it. The two figures therefore cannot disagree,
+      // which is what a planner reading a working-day lead time expects beside
+      // it (§17.2).
+      expect(
+        view.leadTimeInRunningDays.inSeconds,
+        (view.leadTime.inSeconds * 1.4).round(),
+      );
+      expect(FlowView.runningDayFactor, 1.4);
     });
 
-    test('running days count the closed time that lead time does not', () {
+    test('the lead time is work content, not an elapsed span', () {
       final view = withNodes([
         for (var i = 0; i < 6; i++) step(i, workcenterId: 'WC'),
       ]);
 
-      // Six takt-days of working time, whatever the calendar does with them.
+      // Six takt-days of working time, whatever the calendar does with them —
+      // and the weekends those six days actually span are **not** in here. An
+      // elapsed walk sat in this slot for a while under a label reading
+      // `working days`, which is the regression §17.2 records.
       expect(view.leadTime, const Duration(hours: 136));
-      // But they span two weekends' worth of calendar.
-      expect(view.runningDays, greaterThan(6));
-      expect(
-        view.runningDays! - 6,
-        greaterThanOrEqualTo(4),
-        reason: 'the gap is the weekends, and is the reason to show both',
-      );
     });
 
-    test('a longer flow ends later', () {
-      final short = withNodes([step(0, workcenterId: 'WC')]);
-      final long = withNodes([
-        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
-      ]);
-      expect(long.endDate!.isAfter(short.endDate!), isTrue);
-      expect(long.runningDays!, greaterThan(short.runningDays!));
-    });
-
-    test('running days stay consistent with the end date', () {
-      final view = withNodes([
-        step(0, workcenterId: 'WC'),
-        inventory(1, mode: InventoryMode.duration, seconds: 24 * 3600),
-        step(2, workcenterId: 'WC'),
-      ]);
-      expect(
-        view.runningDays,
-        view.endDate!.difference(view.asOf).inDays + 1,
-      );
-    });
-
-    test('a calendar buffer spends the weekend; a working one waits it out',
-        () {
-      final calendarWait = withNodes([
-        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
-        inventory(4, mode: InventoryMode.duration, seconds: 48 * 3600),
-        step(5, workcenterId: 'WC'),
-      ]);
-      final workingWait = withNodes([
-        for (var i = 0; i < 4; i++) step(i, workcenterId: 'WC'),
-        inventory(
-          4,
-          mode: InventoryMode.duration,
-          seconds: 48 * 3600,
-          usesWorkingTime: true,
-        ),
-        step(5, workcenterId: 'WC'),
-      ]);
-
-      // Both wait 48 h, but only the working-time one has to skip the weekend
-      // to spend them.
-      expect(
-        workingWait.endDate!.isAfter(calendarWait.endDate!),
-        isTrue,
-        reason: 'the wall clock runs through a weekend; working time does not',
-      );
-    });
-
-    test('a trailing working-time buffer still uses a calendar', () {
-      // It feeds nothing, so it falls back to the station it just left rather
-      // than silently spending its hours on the wall clock.
-      final trailing = withNodes([
-        step(0, workcenterId: 'WC'),
-        inventory(
-          1,
-          mode: InventoryMode.duration,
-          seconds: 48 * 3600,
-          usesWorkingTime: true,
-        ),
-      ]);
-      final onTheClock = withNodes([
-        step(0, workcenterId: 'WC'),
-        inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
-      ]);
-      expect(trailing.endDate!.isAfter(onTheClock.endDate!), isTrue);
-    });
-
-    test('an uncostable step yields a dash, not a guess', () {
-      final view = withNodes([step(0)]);
-      expect(view.endDate, isNull);
-      expect(view.runningDays, isNull);
-    });
-
-    test('a workcenter that never opens does not hang the walk', () {
-      final view = buildFlowView(
+    test('neither figure moves with the weekday the period opens on', () {
+      // The same flow read at the start of two different months. A generic
+      // figure cannot change because one month happens to open on a Saturday
+      // and the other on a Tuesday; an elapsed walk would.
+      FlowView at(DateTime asOf) => buildFlowView(
         study: study(),
-        nodes: [step(0, workcenterId: 'WC')],
-        contexts: {'WC': context('WC', operators: const [0, 0, 0])},
+        nodes: [for (var i = 0; i < 3; i++) step(i, workcenterId: 'WC')],
+        contexts: {'WC': context('WC')},
         pools: const {},
         poolMembers: const {},
         taktSchedule: taktOf(1, TaktUnit.days),
-        asOf: DateTime(2026, 8),
+        asOf: asOf,
       );
-      // The calendar can never supply the time, so the walk reports nothing
-      // rather than searching to its ten-year limit and throwing.
-      expect(view.endDate, isNull);
-      expect(view.runningDays, isNull);
+
+      final saturday = at(DateTime(2026, 8));
+      final tuesday = at(DateTime(2026, 9));
+
+      expect(DateTime(2026, 8).weekday, DateTime.saturday);
+      expect(DateTime(2026, 9).weekday, DateTime.tuesday);
+      expect(saturday.leadTime, tuesday.leadTime);
+      expect(saturday.leadTimeInRunningDays, tuesday.leadTimeInRunningDays);
+    });
+
+    test('queue stock is in the lead time and not in the process time', () {
+      final bare = withNodes([step(0, workcenterId: 'WC')]);
+      final stocked = withNodes(
+        [step(0, workcenterId: 'WC')],
+        queues: [queue('WC', quantity: 2)],
+      );
+
+      expect(stocked.processTime, bare.processTime);
+      expect(stocked.leadTime, greaterThan(bare.leadTime));
+      // And the running-days figure restates the lead time including it, so the
+      // ×1.4 relationship a reader checks on screen still holds.
+      expect(
+        stocked.leadTimeInRunningDays.inSeconds,
+        (stocked.leadTime.inSeconds * 1.4).round(),
+      );
     });
   });
 
@@ -995,11 +1072,11 @@ void main() {
       () {
         final view = build(
           nodes: [
-            step(0, workcenterId: 'WC'),
-            inventory(1, mode: InventoryMode.quantity, quantity: 1),
-            step(2, workcenterId: 'WC'),
+            step(0, workcenterId: 'A'),
+            step(1, workcenterId: 'B'),
+            step(2, workcenterId: 'C'),
           ],
-          contexts: {'WC': context('WC')},
+          contexts: {'A': context('A'), 'B': context('B'), 'C': context('C')},
         );
         final layout = layoutFlow(view);
 
@@ -1017,24 +1094,130 @@ void main() {
       },
     );
 
-    test('each rung is centred on its own node', () {
+    test('each process rung is centred on its own box', () {
       final view = build(
         nodes: [
-          step(0, workcenterId: 'WC'),
-          inventory(1, mode: InventoryMode.quantity, quantity: 1),
-          step(2, workcenterId: 'WC'),
+          step(0, workcenterId: 'A'),
+          step(1, workcenterId: 'B'),
+          step(2, workcenterId: 'C'),
         ],
-        contexts: {'WC': context('WC')},
+        contexts: {'A': context('A'), 'B': context('B'), 'C': context('C')},
       );
       final layout = layoutFlow(view);
 
+      final processing = layout.ladder.where((r) => !r.isWaiting).toList();
+      expect(processing, hasLength(3));
       for (var i = 0; i < layout.nodes.length; i++) {
         expect(
-          layout.ladder[i].rect.center.dx,
+          processing[i].rect.center.dx,
           closeTo(layout.nodes[i].rect.center.dx, 0.01),
           reason: 'a rung offset from its node reads as the wrong step\'s time',
         );
       }
+    });
+
+    test('a queue rung sits over the link it belongs to', () {
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'A'),
+          step(1, workcenterId: 'B'),
+        ],
+        contexts: {'A': context('A'), 'B': context('B')},
+        queues: [queue('B', quantity: 2)],
+      );
+      final layout = layoutFlow(view);
+
+      // One per link into a box, alternating with the boxes' own rungs.
+      final waiting = layout.ladder.where((r) => r.isWaiting).toList();
+      expect(waiting, hasLength(2));
+      // The link into B — the second connection, since the first runs from the
+      // supplier into A.
+      expect(waiting[1].rect.left, layout.connections[1].from.dx);
+      expect(waiting[1].rect.right, layout.connections[1].to.dx);
+      expect(waiting[1].duration, isNot(Duration.zero));
+      // And the link into A, whose queue holds nothing, still has its rung.
+      expect(waiting[0].duration, Duration.zero);
+    });
+
+    test('every rung is the same width, and tiles edge to edge', () {
+      // The defect this replaced: a queue rung spanned its 64 px gap while a
+      // process rung reached half a gap either side of its box, so the two
+      // overlapped by 32 px — and `LeadTimeLadderPainter` draws its riser at
+      // each rung's `left`, so the path doubled back at every queue and the
+      // teeth came out stubby and in the wrong place.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'A'),
+            step(1, workcenterId: 'B'),
+            step(2, workcenterId: 'C'),
+          ],
+          contexts: {'A': context('A'), 'B': context('B'), 'C': context('C')},
+          queues: [queue('B', quantity: 2)],
+        ),
+      );
+
+      // Strictly alternating: link, box, link, box, link, box.
+      expect(
+        layout.ladder.map((r) => r.isWaiting),
+        [true, false, true, false, true, false],
+      );
+      for (final rung in layout.ladder) {
+        expect(rung.rect.width, FlowMetrics.nodeWidth);
+      }
+      for (var i = 0; i < layout.ladder.length - 1; i++) {
+        expect(
+          layout.ladder[i + 1].rect.left,
+          closeTo(layout.ladder[i].rect.right, 0.01),
+          reason: 'a rung overlapping the next makes the painter double back',
+        );
+      }
+    });
+
+    test('a workcenter visited twice is charged to the ladder once', () {
+      // §17.4's rule is that the footer totals are the sum of the rungs, and
+      // §7.3's is that one floor space is one queue — so the second link into a
+      // workcenter reads zero rather than repeating the wait.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'WC'),
+            step(1, workcenterId: 'WC'),
+          ],
+          contexts: {'WC': context('WC')},
+          queues: [queue('WC', quantity: 1)],
+        ),
+      );
+
+      final waiting = layout.ladder.where((r) => r.isWaiting).toList();
+      expect(waiting[0].duration, const Duration(hours: 68));
+      expect(waiting[1].duration, Duration.zero);
+      expect(
+        layout.ladder.fold(
+          Duration.zero,
+          (total, rung) => total + rung.duration,
+        ),
+        const Duration(hours: 204),
+      );
+    });
+
+    test('a flow with nothing standing in it still alternates, at zero', () {
+      // Alternation is what makes the comb regular. A queue that holds nothing
+      // has a real answer — no time is spent there — rather than no answer, and
+      // a missing rung would leave a hole in the timeline.
+      final layout = layoutFlow(
+        build(
+          nodes: [step(0, workcenterId: 'A'), step(1, workcenterId: 'B')],
+          contexts: {'A': context('A'), 'B': context('B')},
+          queues: [queue('B')],
+        ),
+      );
+
+      expect(layout.ladder, hasLength(4));
+      expect(
+        layout.ladder.where((r) => r.isWaiting).map((r) => r.duration),
+        everyElement(Duration.zero),
+      );
     });
 
     test('the rungs stay edge to edge, so the sawtooth is continuous', () {
@@ -1058,32 +1241,29 @@ void main() {
 
     test('the ladder puts waiting high and processing low', () {
       final view = build(
-        nodes: [
-          step(0, workcenterId: 'WC'),
-          inventory(1, mode: InventoryMode.duration, seconds: 3600),
-        ],
+        nodes: [step(0, workcenterId: 'WC')],
         contexts: {'WC': context('WC')},
+        queues: [queue('WC', mode: InventoryMode.duration, seconds: 3600)],
       );
       final layout = layoutFlow(view);
 
-      final processing = layout.ladder[0];
-      final waiting = layout.ladder[1];
+      // The queue comes first: an order joins the line in front of the workcenter
+      // before the workcenter touches it.
+      final waiting = layout.ladder[0];
+      final processing = layout.ladder[1];
       expect(processing.isWaiting, isFalse);
       expect(waiting.isWaiting, isTrue);
       expect(waiting.rect.top, lessThan(processing.rect.top));
     });
 
     test('every + sits on the middle of its own arrow', () {
-      // It was on the middle of the *gap*, which is the same point everywhere
-      // except beside a buffer: the arrow there is inset by bufferInset on the
-      // triangle's side, so its midpoint is 28px away and the button sat
-      // visibly off the line it belongs to.
+      // Derived from the connection rather than from the gap, so there is one
+      // place the arrow's extent is decided and this reads it.
       final layout = layoutFlow(
         build(
           nodes: [
             step(0, workcenterId: 'CLAD04'),
-            inventory(1, mode: InventoryMode.duration, seconds: 48 * 3600),
-            step(2, workcenterId: 'CEU27'),
+            step(1, workcenterId: 'CEU27'),
           ],
           contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
         ),
@@ -1100,12 +1280,12 @@ void main() {
         expect(layout.insertionPoints[i].center.y, connection.from.dy);
       }
 
-      // The two links either side of the buffer really are inset, so the test
-      // above is exercising the case it was written for rather than passing
-      // because every segment happens to be a plain gap.
+      // A link into a box is a queue's slot, as wide as the box, so the ladder
+      // rung over it matches the ones either side. The last link runs into the
+      // customer, which is not a workcenter and has no queue to make room for.
       expect(
-        layout.connections[1].to.dx - layout.connections[1].from.dx,
-        greaterThan(FlowMetrics.gap),
+        layout.connections.map((c) => c.to.dx - c.from.dx),
+        [FlowMetrics.queueSlot, FlowMetrics.queueSlot, FlowMetrics.gap],
       );
     });
 
@@ -1117,80 +1297,100 @@ void main() {
     });
   });
 
-  group('what an arrow is (§5.2)', () {
-    List<FlowConnectionKind> kinds({
-      Map<String, DispatchRule> dispatch = const {},
-      int? wipCap,
-    }) => layoutFlow(
-      build(
-        nodes: [
-          step(0, workcenterId: 'CLAD04'),
-          step(1, workcenterId: 'CEU27'),
-        ],
-        contexts: {'CLAD04': context('CLAD04'), 'CEU27': context('CEU27')},
-        dispatch: dispatch,
-        wipCap: wipCap,
-      ),
-    ).connections.map((c) => c.kind).toList();
+  group('what an arrow is (§5.2, §7.3)', () {
+    /// Two workcenters, and the queue in front of the second. The rule lives on
+    /// the queue now, keyed by the target the link runs into — which is the
+    /// workcenter the reader can see it in front of.
+    List<FlowConnectionKind> kinds({DispatchRule? rule, int? wipCap}) =>
+        layoutFlow(
+          build(
+            nodes: [
+              step(0, workcenterId: 'CLAD04'),
+              step(1, workcenterId: 'CEU27'),
+            ],
+            contexts: {
+              'CLAD04': context('CLAD04'),
+              'CEU27': context('CEU27'),
+            },
+            queues: [queue('CEU27', rule: rule)],
+            wipCap: wipCap,
+          ),
+        ).connections.map((c) => c.kind).toList();
 
     test('an uncapped flow is push all the way through', () {
       // Which is honest rather than lazy: with no supermarkets in the model
-      // (§5.5) and no WIP cap, nothing here is pulled.
-      expect(kinds(), [
-        FlowConnectionKind.push,
-        FlowConnectionKind.push,
-        FlowConnectionKind.push,
-      ]);
+      // (§5.5) and no discipline set, nothing here is pulled and everything
+      // piles up where it lands.
+      expect(kinds(), everyElement(FlowConnectionKind.push));
     });
 
     test('a CONWIP cap pulls the whole spine', () {
       // A release requiring a completion (§7.3) is the only real pull lever
       // FlowMap has, and it is study-wide — so it reaches every link.
-      expect(kinds(wipCap: 4), [
-        FlowConnectionKind.pull,
-        FlowConnectionKind.pull,
-        FlowConnectionKind.pull,
-      ]);
+      expect(kinds(wipCap: 4), everyElement(FlowConnectionKind.pull));
     });
 
-    test('a station set to FIFO is fed by a lane', () {
-      expect(kinds(dispatch: const {'CEU27': DispatchRule.fifo}), [
-        // Into CLAD04, which has no rule of its own.
-        FlowConnectionKind.push,
-        // Into CEU27, which does.
-        FlowConnectionKind.fifoLane,
-        // Into the customer, which is not a station.
-        FlowConnectionKind.push,
-      ]);
+    test('each rule draws its own channel, labelled', () {
+      // Supplier -> CLAD04 -> CEU27 -> customer. Only the link into the workcenter
+      // whose queue carries the rule is a channel, because that is the one the
+      // rule describes.
+      for (final (rule, expected, label) in [
+        (DispatchRule.fifo, FlowConnectionKind.fifoLane, 'FIFO'),
+        (DispatchRule.lifo, FlowConnectionKind.lifoLane, 'LIFO'),
+        (DispatchRule.earliestDueDate, FlowConnectionKind.eddLane, 'EDD'),
+        (DispatchRule.shortestProcessing, FlowConnectionKind.sptLane, 'SPT'),
+      ]) {
+        expect(kinds(rule: rule), [
+          FlowConnectionKind.push,
+          expected,
+          FlowConnectionKind.push,
+        ]);
+        expect(expected.channelLabel, label);
+      }
     });
 
-    test('a station following the run draws no lane', () {
-      // The whole point of storing only overrides (§7.4): under the default
-      // rule every station in the plant is FIFO, so "is it FIFO" would be true
-      // everywhere and a lane on every link would say nothing.
-      expect(kinds(dispatch: const {}), isNot(contains(FlowConnectionKind.fifoLane)));
+    test('a queue nobody has given a rule draws no channel', () {
+      // The whole point of not storing a default (§7.3): the engine takes a
+      // pile in arrival order because something has to be first, so "is it
+      // FIFO" would be true everywhere and a channel on every link would say
+      // nothing. A push arrow is what an uncontrolled pile is.
+      expect(kinds(), everyElement(FlowConnectionKind.push));
+      expect(FlowConnectionKind.push.isChannel, isFalse);
+      expect(FlowConnectionKind.pull.isChannel, isFalse);
     });
 
-    test('a lane beats the cap on the link it marks', () {
-      // The cap describes the flow; the lane describes one queue in it. Where
+    test('a queue beats the cap on the link it marks', () {
+      // The cap describes the flow; the queue describes one line in it. Where
       // both apply the more specific one is drawn, and the rest stay pull.
-      expect(
-        kinds(wipCap: 4, dispatch: const {'CEU27': DispatchRule.fifo}),
-        [
-          FlowConnectionKind.pull,
-          FlowConnectionKind.fifoLane,
-          FlowConnectionKind.pull,
-        ],
-      );
+      expect(kinds(wipCap: 4, rule: DispatchRule.lifo), [
+        FlowConnectionKind.pull,
+        FlowConnectionKind.lifoLane,
+        FlowConnectionKind.pull,
+      ]);
     });
 
-    test('a station set to EDD is not a lane', () {
-      // Only FIFO is a sequenced lane. A queue re-ordered by due date is not
-      // first-in-first-out, whatever else it is.
-      expect(
-        kinds(dispatch: const {'CEU27': DispatchRule.earliestDueDate}),
-        isNot(contains(FlowConnectionKind.fifoLane)),
+    test('a shared queue is drawn once, on the first link into it', () {
+      // Two steps on one workcenter: the plant has one floor space there, and a
+      // triangle on both links would be the doubling all over again.
+      final layout = layoutFlow(
+        build(
+          nodes: [
+            step(0, workcenterId: 'WC'),
+            step(1, workcenterId: 'WC'),
+          ],
+          contexts: {'WC': context('WC')},
+          queues: [queue('WC', quantity: 3)],
+        ),
       );
+
+      expect(layout.connections.map((c) => c.queue?.targetId), [
+        'WC',
+        null,
+        null,
+      ]);
+      // The kind still follows the queue on every link into that workcenter: what
+      // is deduplicated is the stock, not the discipline.
+      expect(layout.connections.last.kind, FlowConnectionKind.push);
     });
   });
 
@@ -1261,6 +1461,444 @@ void main() {
     test('a viewport with no width yet fits nothing', () {
       expect(refit(viewport: const Size(0, 600)), isFalse);
       expect(refit(viewport: const Size(double.infinity, 600)), isFalse);
+    });
+  });
+
+  /// Rebalancing a run of like machines against the takt (§7.4), on the map.
+  ///
+  /// The rule itself is pinned in `takt_balance_test.dart`; what these ask is
+  /// that the flow feeds it the right three things — the type, the measurement
+  /// and one takt of each workcenter's capacity — and that the totals follow.
+  group('the takt rebalances a group of like machines', () {
+    /// Three cladding workcenters in a row, each measured at [each] hours.
+    FlowView threeClads({
+      required List<int> measured,
+      String type = 'Cladding',
+      String lastType = 'Cladding',
+    }) => build(
+      nodes: [
+        step(0, workcenterId: 'CLAD07'),
+        step(1, workcenterId: 'CLAD08'),
+        step(2, workcenterId: 'CLAD09'),
+      ],
+      contexts: {
+        'CLAD07': context('CLAD07', typeName: type),
+        'CLAD08': context('CLAD08', typeName: type),
+        'CLAD09': context('CLAD09', typeName: lastType),
+      },
+      dataSource: FlowDataSource.singlePart,
+      demand: FlowDemandInput(
+        processTimes: {
+          'p1': {
+            // Keyed by the step, not the workcenter it aims at (§9).
+            for (var i = 0; i < 3; i++) 'node-$i': Duration(hours: measured[i]),
+          },
+        },
+        selectedPartId: 'p1',
+      ),
+    );
+
+    test('each fills to takt and the last takes the remainder', () {
+      // A 3-day takt at ABC three shifts is 68 hours, and there are 180 hours
+      // of cladding to place: 68, 68, and 44 left on the last.
+      final view = threeClads(measured: [60, 60, 60]);
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 68),
+        const Duration(hours: 68),
+        const Duration(hours: 44),
+      ]);
+    });
+
+    test('the measurement is kept beside the derived share', () {
+      // §5.5's rule applied a third time: the rule never overwrites the
+      // observation, so the demand grid still has something to show.
+      final view = threeClads(measured: [60, 60, 60]);
+
+      expect(
+        view.steps.map((s) => s.measuredProcessTime),
+        List.filled(3, const Duration(hours: 60)),
+      );
+      expect(view.steps.map((s) => s.isBalanced), [true, true, true]);
+    });
+
+    test('no work is created or lost', () {
+      // The whole point is a redistribution. `Process time` is the sum of the
+      // rungs, so if the split invented work the footer would say so.
+      final view = threeClads(measured: [60, 60, 60]);
+
+      expect(view.processTime, const Duration(hours: 180));
+    });
+
+    test('a different type at the end leaves it out of the group', () {
+      // Two claddings and a furnace: only the first two share the work, so the
+      // furnace keeps exactly what was measured at it.
+      final view = threeClads(measured: [60, 60, 60], lastType: 'Heat treat');
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 68),
+        const Duration(hours: 52),
+        const Duration(hours: 60),
+      ]);
+      expect(view.steps.last.isBalanced, isFalse);
+    });
+
+    test('changing the takt moves the balance with no other edit', () {
+      // The ask, on the map: the same measurements read at two takts.
+      FlowView at(double days) => build(
+        nodes: [
+          step(0, workcenterId: 'CLAD07'),
+          step(1, workcenterId: 'CLAD08'),
+        ],
+        contexts: {
+          'CLAD07': context('CLAD07', typeName: 'Cladding'),
+          'CLAD08': context('CLAD08', typeName: 'Cladding'),
+        },
+        takt: taktOf(days, TaktUnit.days),
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'node-0': Duration(hours: 40),
+              'node-1': Duration(hours: 40),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      // One takt is 22:40 a day. At three days the first fills to 68 and 12 is
+      // left; at one day it fills to 22:40 and the rest piles on the last.
+      expect(at(3).steps.first.processTime, const Duration(hours: 68));
+      expect(at(3).steps.last.processTime, const Duration(hours: 12));
+      expect(
+        at(1).steps.first.processTime,
+        const Duration(hours: 22, minutes: 40),
+      );
+      expect(
+        at(1).steps.last.processTime,
+        const Duration(hours: 57, minutes: 20),
+      );
+      // And neither takt changed the total.
+      expect(at(3).processTime, at(1).processTime);
+    });
+
+    test('the flow equivalent is a fixed point of the balance', () {
+      // Under the equivalent every step costs one takt of its own capacity by
+      // construction (§6.1), so the split has nothing to move — and a map that
+      // is not showing a real part must read exactly as it did before this rule
+      // existed.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CLAD07'),
+          step(1, workcenterId: 'CLAD08'),
+        ],
+        contexts: {
+          'CLAD07': context('CLAD07', typeName: 'Cladding'),
+          'CLAD08': context('CLAD08', typeName: 'Cladding'),
+        },
+      );
+
+      expect(view.steps.map((s) => s.processTime), [
+        const Duration(hours: 68),
+        const Duration(hours: 68),
+      ]);
+      expect(view.steps.map((s) => s.isBalanced), [false, false]);
+    });
+
+    test('a workcenter this part does not run on keeps its zero (§7.7.1)', () {
+      // The defect §7.4 shipped with, on the shape that found it: a zero is how
+      // the plant says a part does not route through a workcenter, and this test
+      // used to assert the opposite — that the takt could put work there.
+      //
+      // Against the real database, `P1000247599` stores 0 h at CEU30 and 146 h
+      // at CEU32, and the map showed CEU30 94.3 h.
+      final view = threeClads(measured: [60, 60, 0]);
+
+      expect(view.steps.last.processTime, Duration.zero);
+      expect(view.steps.last.isBalanced, isFalse);
+      // The two that do run it still share their own work across each other.
+      expect(view.steps.first.processTime, const Duration(hours: 68));
+      expect(view.steps.elementAt(1).processTime, const Duration(hours: 52));
+    });
+
+    test('one workcenter of a pair at zero leaves the other whole', () {
+      // The live case, exactly: one member is not a group, so nothing moves.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CEU30'),
+          step(1, workcenterId: 'CEU32'),
+        ],
+        contexts: {
+          'CEU30': context('CEU30', typeName: 'Machining - HBM'),
+          'CEU32': context('CEU32', typeName: 'Machining - HBM'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {'node-0': Duration.zero, 'node-1': Duration(hours: 146)},
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.first.processTime, Duration.zero);
+      expect(view.steps.last.processTime, const Duration(hours: 146));
+      expect(view.steps.every((s) => s.isBalanced), isFalse);
+    });
+
+    test('a pinned workcenter keeps its measurement (§7.7.4)', () {
+      // The flag reaches the map. Pinning one of a pair means nothing moves at
+      // all, which is the case the real plant will see — every group on it is
+      // exactly two workcenters.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CEU30', balanceDisabled: true),
+          step(1, workcenterId: 'CEU32'),
+        ],
+        contexts: {
+          'CEU30': context('CEU30', typeName: 'Machining - HBM'),
+          'CEU32': context('CEU32', typeName: 'Machining - HBM'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'node-0': Duration(hours: 71),
+              'node-1': Duration(hours: 167),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.first.processTime, const Duration(hours: 71));
+      expect(view.steps.last.processTime, const Duration(hours: 167));
+      expect(view.steps.first.isPinned, isTrue);
+      expect(view.steps.first.standing, BalanceStanding.pinned);
+    });
+
+    test('the map carries why a step is not sharing work', () {
+      // The caption the step dialog reads. Computed from the same walk as the
+      // split, so it cannot disagree with the figure on the box.
+      final view = threeClads(measured: [60, 60, 60], lastType: 'Heat treat');
+
+      expect(view.steps.first.standing, BalanceStanding.balanced);
+      expect(view.steps.last.standing, BalanceStanding.noLikeNeighbour);
+    });
+
+    test('a blank blocks the step again (§7.7.1)', () {
+      // §7.4 weakened this so a group member with no time could take a share.
+      // A blank is an unanswered question, not a statement that the part skips
+      // the workcenter — the two were collapsed and that is what caused the bug.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CEU30'),
+          step(1, workcenterId: 'CEU32'),
+        ],
+        contexts: {
+          'CEU30': context('CEU30', typeName: 'Machining - HBM'),
+          'CEU32': context('CEU32', typeName: 'Machining - HBM'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {'node-1': Duration(hours: 146)},
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.first.problems, contains(StepProblem.noProcessTime));
+      expect(view.steps.first.processTime, isNull);
+    });
+
+    test('two workcenters of a type that are not adjacent are two groups', () {
+      // Adjacency is what makes the rule physical — work cannot move across an
+      // intervening furnace — so neither cladding is balanced against the
+      // other and both keep what was measured.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'CLAD07'),
+          step(1, workcenterId: 'TTAT'),
+          step(2, workcenterId: 'CLAD08'),
+        ],
+        contexts: {
+          'CLAD07': context('CLAD07', typeName: 'Cladding'),
+          'TTAT': context('TTAT', typeName: 'Heat treat'),
+          'CLAD08': context('CLAD08', typeName: 'Cladding'),
+        },
+        dataSource: FlowDataSource.singlePart,
+        demand: const FlowDemandInput(
+          processTimes: {
+            'p1': {
+              'node-0': Duration(hours: 90),
+              'node-1': Duration(hours: 10),
+              'node-2': Duration(hours: 90),
+            },
+          },
+          selectedPartId: 'p1',
+        ),
+      );
+
+      expect(view.steps.map((s) => s.isBalanced), [false, false, false]);
+      expect(view.steps.first.processTime, const Duration(hours: 90));
+    });
+  });
+
+  /// Stock at the two ends of the flow (§7.3) — the raw material in front of
+  /// the first box and the finished goods after the last.
+  group('the flow ends carry stock', () {
+    // One step on a three-shift workcenter under a 3-day takt, so a piece is 68
+    // hours and the arithmetic below is checkable by hand.
+    FlowView oneStep({
+      Value<int?> inbound = const Value.absent(),
+      Value<int?> outbound = const Value.absent(),
+    }) => build(
+      nodes: [step(0, workcenterId: 'CLAD04')],
+      contexts: {'CLAD04': context('CLAD04')},
+      inbound: inbound,
+      outbound: outbound,
+    );
+
+    test('a study nobody has counted has no end stock at all', () {
+      final view = oneStep();
+
+      expect(view.inbound, isNull);
+      expect(view.outbound, isNull);
+      expect(view.endStock, isEmpty);
+      // And the map is exactly what it was before the feature existed: no rung
+      // for either end, and a lead time that is only the step.
+      expect(view.leadTime, const Duration(hours: 68));
+      expect(layoutFlow(view).ladder, hasLength(2));
+    });
+
+    test('pieces become days at the line takt', () {
+      final view = oneStep(inbound: const Value(2));
+
+      // Two pieces at one 3-day takt each, where a day at ABC three shifts is
+      // 22:40 — the same conversion a quantity queue makes.
+      expect(view.inbound!.quantity, 2);
+      expect(view.inbound!.wait, const Duration(hours: 136));
+      expect(view.inbound!.waitDays, closeTo(6, 0.001));
+    });
+
+    test('both ends count towards the lead time and the days of stock', () {
+      final view = oneStep(
+        inbound: const Value(2),
+        outbound: const Value(1),
+      );
+
+      expect(view.endStockInDays, closeTo(9, 0.001));
+      // The step's 68 hours, plus three takts of stock across the two ends.
+      expect(view.leadTime, const Duration(hours: 68 * 4));
+      expect(view.leadTimeInDays, closeTo(12, 0.001));
+      // Process time is untouched: stock is waiting, not work.
+      expect(view.processTime, const Duration(hours: 68));
+    });
+
+    test('the footer still equals the rungs drawn above it (§17.4)', () {
+      // The one invariant this feature could break: the ladder is where the
+      // totals are read from, so an end that charges the lead time and draws no
+      // rung would put a footer on screen that does not add up.
+      final view = oneStep(
+        inbound: const Value(2),
+        outbound: const Value(1),
+      );
+      final ladder = layoutFlow(view).ladder;
+
+      expect(
+        ladder.fold(Duration.zero, (total, rung) => total + rung.duration),
+        view.leadTime,
+      );
+    });
+
+    test('a counted zero is not the same as nobody counting', () {
+      final counted = oneStep(inbound: const Value(0));
+
+      // It exists, so it draws its triangle and its rung — someone looked and
+      // found the rack empty, which is a finding rather than silence.
+      expect(counted.inbound, isNotNull);
+      expect(counted.inbound!.quantity, 0);
+      expect(counted.inbound!.wait, Duration.zero);
+      expect(layoutFlow(counted).ladder, hasLength(3));
+      expect(layoutFlow(counted).inboundStock, isNotNull);
+
+      // Where nobody counted there is no rung and no triangle.
+      expect(layoutFlow(oneStep()).inboundStock, isNull);
+    });
+
+    test('each end borrows the productive day of the box beside it', () {
+      // A three-shift workcenter at one end and a one-shift workcenter at the other,
+      // so a takt in `days` resolves differently at each — which is the whole
+      // reason the day is borrowed rather than assumed.
+      final view = build(
+        nodes: [
+          step(0, workcenterId: 'THREE'),
+          step(1, workcenterId: 'ONE'),
+        ],
+        contexts: {
+          'THREE': context('THREE'),
+          'ONE': context('ONE', operators: [1, 0, 0]),
+        },
+        inbound: const Value(1),
+        outbound: const Value(1),
+      );
+
+      expect(view.inbound!.referenceWorkingDay, view.steps.first.referenceWorkingDay);
+      expect(view.outbound!.referenceWorkingDay, view.steps.last.referenceWorkingDay);
+      // Different days, so the same one piece is a different span at each end.
+      expect(view.inbound!.wait, isNot(view.outbound!.wait));
+    });
+
+    test('an empty flow has nothing to borrow a day from', () {
+      // No step, so a takt in `days` cannot be resolved and the pile lands at
+      // zero rather than being charged against a day nobody works.
+      final view = build(
+        nodes: const [],
+        contexts: const {},
+        inbound: const Value(5),
+      );
+
+      expect(view.inbound!.quantity, 5);
+      expect(view.inbound!.wait, Duration.zero);
+    });
+
+    test('the triangles hang under their own endpoints', () {
+      // Under the endpoint rather than on a link, so the inbound pile cannot be
+      // read as the first step's queue — a different pile in a different place.
+      final view = oneStep(
+        inbound: const Value(2),
+        outbound: const Value(1),
+      );
+      final layout = layoutFlow(view);
+
+      expect(
+        layout.inboundStock!.rect.center.dx,
+        closeTo(layout.supplier.center.dx, 0.001),
+      );
+      expect(
+        layout.outboundStock!.rect.center.dx,
+        closeTo(layout.customer.center.dx, 0.001),
+      );
+      // Clear of the name printed under the factory symbol.
+      expect(
+        layout.inboundStock!.rect.top,
+        greaterThan(layout.supplier.bottom + FlowMetrics.endpointLabelHeight),
+      );
+    });
+
+    test('the end rungs bracket the comb', () {
+      final layout = layoutFlow(
+        oneStep(inbound: const Value(2), outbound: const Value(1)),
+      );
+
+      // Inbound, then the step's own pair, then outbound — in flow order, each
+      // rung over the thing it measures.
+      expect(layout.ladder.first.rect.left, layout.supplier.left);
+      expect(layout.ladder.first.isWaiting, isTrue);
+      expect(layout.ladder.last.rect.left, layout.customer.left);
+      expect(layout.ladder.last.isWaiting, isTrue);
     });
   });
 }

@@ -1,171 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/dialogs.dart';
+import '../../../common/help_icon.dart';
 import '../../../common/part_palette.dart';
 import '../../../common/result_table.dart';
 import '../../../common/unit_labels.dart';
-import '../../../data/database/database.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../projects/presentation/workspace_tabs.dart';
+import '../application/run_filter.dart';
 import '../application/run_metrics.dart';
 import '../application/sim_assembly.dart';
-import '../application/sim_model.dart';
 import '../application/sim_result.dart';
 import '../application/simulation_providers.dart';
 import '../data/simulation_runs_repository.dart';
+import '../../../data/database/database.dart';
+import 'compare_view.dart';
+import 'float_matrix_table.dart';
 import 'gantt_view.dart';
+import 'occupation_view.dart';
 import 'plan_excel.dart';
-
-/// The Simulation tab (DESIGN.md §12.1).
-///
-/// **Project-level, not per study**, because a run spans studies: every flagged
-/// study releases into one model of the plant, so line A's orders genuinely
-/// delay line B's (§7.7). Which studies are in is set on the studies
-/// themselves, so what is here is the rule to dispatch by, the readiness that
-/// gates the button, and what §8 makes of the result.
-class SimulationTab extends ConsumerWidget {
-  const SimulationTab({super.key, required this.project});
-
-  final Project project;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final input = ref.watch(simRunInputProvider(project.id));
-    final runner = ref.watch(simulationRunnerProvider(project.id));
-
-    return Column(
-      children: [
-        _RunBar(project: project, input: input.value, busy: runner.isLoading),
-        const Divider(height: 1),
-        Expanded(
-          child: switch (input) {
-            AsyncError(:final error) => _Message(
-              icon: Icons.error_outline,
-              title: '$error',
-            ),
-            AsyncValue(value: null) => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            AsyncValue(value: final assembled!) => _Body(
-              project: project,
-              input: assembled,
-              runner: runner,
-            ),
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _RunBar extends ConsumerWidget {
-  const _RunBar({
-    required this.project,
-    required this.input,
-    required this.busy,
-  });
-
-  final Project project;
-  final SimRunInput? input;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final rule = ref.watch(dispatchRuleSelectionProvider(project.id));
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          // The settings scroll and the button does not: Simulate is the one
-          // control that must be reachable at any window width.
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Text(
-                    l10n.simulationStudiesIn(input?.readiness.length ?? 0),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Tooltip(
-                    message: l10n.simulationDispatchHelp,
-                    child: Row(
-                      children: [
-                        Text(l10n.simulationDispatch),
-                        const SizedBox(width: 8),
-                        DropdownButtonHideUnderline(
-                          child: DropdownButton<DispatchRule>(
-                            value: rule,
-                            onChanged: busy
-                                ? null
-                                : (value) {
-                                    if (value != null) {
-                                      ref
-                                          .read(
-                                            dispatchRuleSelectionProvider(
-                                              project.id,
-                                            ).notifier,
-                                          )
-                                          .select(value);
-                                    }
-                                  },
-                            items: [
-                              for (final option in DispatchRule.values)
-                                DropdownMenuItem(
-                                  value: option,
-                                  child: Text(dispatchRuleLabel(l10n, option)),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Simulate itself is in the project's app bar (§12.1), so it can be
-          // pressed from any tab. What stays here is the setting the run is
-          // made with and the runs already made.
-          _RunsMenu(projectId: project.id),
-        ],
-      ),
-    );
-  }
-}
+import 'run_report_pdf.dart';
 
 /// The project's stored runs: open an earlier one, or delete one (§7.10).
 ///
 /// A run is ~4k rows for 500 orders, and nothing else in the app will ever
 /// remove one — so the list that makes them reachable is also the only place
 /// that can let them go.
-class _RunsMenu extends ConsumerWidget {
-  const _RunsMenu({required this.projectId});
+class RunsMenu extends ConsumerWidget {
+  const RunsMenu({super.key, required this.projectId});
 
   final String projectId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final locale = Localizations.localeOf(context).toString();
     final runs =
-        ref.watch(projectRunsProvider(projectId)).value ??
-        const <SimulationRun>[];
+        ref.watch(projectRunsProvider(projectId)).value ?? const <RunListing>[];
     if (runs.isEmpty) return const SizedBox.shrink();
 
-    String label(SimulationRun run) => l10n.simRunLabel(
-      formatDateInput(run.createdAt, locale),
-      dispatchRuleLabel(l10n, _ruleOf(run.dispatch)),
-    );
+    // The date, what the run dispatched by when every workcenter agreed — `mixed`
+    // when they did not (§7.3) — and the takt it ran at (§7.7.2). The takt is
+    // what tells two runs of one study apart in the menu, which is what makes
+    // "run it twice and compare" (§7.7) legible without opening each. A full
+    // breakdown does not fit a menu row; the per-workcenter list is on the run
+    // header the row opens.
+    String label(RunListing listing) => runListingLabel(context, listing);
 
     return PopupMenuButton<({String runId, bool delete})>(
       tooltip: l10n.simEarlierRuns,
@@ -174,7 +56,7 @@ class _RunsMenu extends ConsumerWidget {
         final runner = ref.read(simulationRunnerProvider(projectId).notifier);
         if (!action.delete) return runner.show(action.runId);
 
-        final run = runs.firstWhere((r) => r.id == action.runId);
+        final run = runs.firstWhere((r) => r.run.id == action.runId);
         final confirmed = await confirmAction(
           context,
           title: l10n.confirmDeleteTitle(label(run)),
@@ -185,12 +67,12 @@ class _RunsMenu extends ConsumerWidget {
         if (confirmed) await runner.delete(action.runId);
       },
       itemBuilder: (context) => [
-        for (final run in runs)
+        for (final listing in runs)
           PopupMenuItem(
-            value: (runId: run.id, delete: false),
+            value: (runId: listing.run.id, delete: false),
             child: Row(
               children: [
-                Expanded(child: Text(label(run))),
+                Expanded(child: Text(label(listing))),
                 const SizedBox(width: 12),
                 // In the row rather than a second menu: the run being deleted
                 // is the one being read, and a delete two levels away from it
@@ -198,8 +80,9 @@ class _RunsMenu extends ConsumerWidget {
                 IconButton(
                   tooltip: l10n.actionDelete,
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  onPressed: () =>
-                      Navigator.of(context).pop((runId: run.id, delete: true)),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop((runId: listing.run.id, delete: true)),
                 ),
               ],
             ),
@@ -207,154 +90,59 @@ class _RunsMenu extends ConsumerWidget {
       ],
     );
   }
-
-  static DispatchRule _ruleOf(String name) =>
-      DispatchRule.values.where((r) => r.name == name).firstOrNull ??
-      DispatchRule.fifo;
 }
 
-class _Body extends StatelessWidget {
-  const _Body({
-    required this.project,
-    required this.input,
-    required this.runner,
-  });
-
-  final Project project;
-  final SimRunInput input;
-  final AsyncValue<StoredRun?> runner;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-
-    if (input.isEmpty) {
-      return _Message(
-        icon: Icons.playlist_add_check_outlined,
-        title: l10n.simulationNoStudies,
-        detail: l10n.simulationNoStudiesHelp,
-      );
-    }
-
-    // A Column rather than the single scrolling page this was, because the
-    // Gantt takes the body's full height (§8.6) and a child of a `ListView`
-    // cannot. The readiness panel stays above whatever the body turns out to
-    // be: it is about the *next* run, not about the one being read.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!input.canRun)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: _ReadinessPanel(input: input),
-          ),
-        Expanded(
-          child: switch (runner) {
-            AsyncError(:final error) => SingleChildScrollView(
-              child: _Message(icon: Icons.error_outline, title: '$error'),
-            ),
-            AsyncLoading() => const Center(child: CircularProgressIndicator()),
-            AsyncValue(value: null) => SingleChildScrollView(
-              child: _Message(
-                icon: Icons.timeline_outlined,
-                title: l10n.simulationNeverRun,
-                detail: l10n.simulationNeverRunHelp,
-              ),
-            ),
-            AsyncValue(value: final run!) => _Results(
-              run: run,
-              projectName: project.name,
-            ),
-          },
-        ),
-      ],
-    );
-  }
-}
-
-/// §11's readiness, per study. Simulate is disabled while any of it stands.
-class _ReadinessPanel extends StatelessWidget {
-  const _ReadinessPanel({required this.input});
-
-  final SimRunInput input;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-
-    return Card(
-      color: theme.colorScheme.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.warning_amber, color: theme.colorScheme.error),
-                const SizedBox(width: 8),
-                Text(
-                  l10n.simulationNotReady,
-                  style: theme.textTheme.titleSmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            for (final study in input.readiness)
-              if (!study.isReady)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(study.name, style: theme.textTheme.labelLarge),
-                      for (final problem in study.problems)
-                        Text('• ${simProblemLabel(l10n, problem)}'),
-                    ],
-                  ),
-                ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Which of the two views of a run is showing.
-enum _RunView { results, gantt }
-
-/// Everything §8 asks a run to report, in two views of it.
+/// Everything §8 asks a run to report, in **five tabs of one destination**
+/// (#7).
 ///
 /// **The run header, the abort banner and the headline stay put**, because they
-/// describe *the run* rather than a view of it; the segmented control switches
-/// only the body beneath them. That is what lets the Gantt take the full body
-/// height — it was a section below the production plan in the first draft, which
-/// was one more block on a page already carrying a header, a headline, a metrics
-/// card, three tables and a thirteen-column plan, and it would have needed a
-/// height cap, a second vertical scrollbar and a nested scroll to fit there.
+/// describe *the run* rather than a view of it; the strip switches only the body
+/// beneath them. That is what lets the Gantt take the full body height — it was
+/// a section below the production plan in the first draft, which would have
+/// needed a height cap, a second vertical scrollbar and a nested scroll to fit.
 ///
-/// Held in an `IndexedStack`, so switching to the results and back returns the
-/// zoom the reader left rather than refitting the chart under them.
-class _Results extends StatefulWidget {
-  const _Results({required this.run, required this.projectName});
+/// **Five tabs, from three views and a scrolling page.** The production plan and
+/// the float matrix were sections inside the Results view, stacked under three
+/// tables; each is now a tab of its own, which is what lets the plan be a table
+/// rather than a block on a page — wrapped in that scrolling column it inherited
+/// `resultTableMaxHeight`'s 360 px cap and used a third of a tall window.
+///
+/// **The tab is the location, not this object's state.** It was
+/// `var _view = _RunView.results` behind a `SegmentedButton`, so three screens
+/// had no URL. `IndexedStack` still holds all five, so switching away and back
+/// returns the zoom the reader left rather than refitting the chart under them.
+///
+/// **One screen shows it.** It was public because two did — a study's Simulation
+/// tab and the project's workspace — and the whole argument for
+/// `run_filter.dart` was that two screens reading one `StoredRun` through one
+/// filter could not report different numbers. The tab is gone and the filter is
+/// what replaced it (§12.1).
+class RunResults extends StatelessWidget {
+  const RunResults({
+    super.key,
+    required this.slice,
+    required this.projectName,
+    required this.project,
+    required this.tab,
+  });
 
-  final StoredRun run;
+  /// The project whose float thresholds colour §10.4's matrix.
+  final Project project;
+
+  /// The run as this view of it reads (§12.1).
+  final FilteredRun slice;
 
   /// Stamped into the workbook the plan exports to (§13).
   final String projectName;
 
-  @override
-  State<_Results> createState() => _ResultsState();
-}
-
-class _ResultsState extends State<_Results> {
-  var _view = _RunView.results;
+  /// Which tab the location names (#7).
+  final SimulationTab tab;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final run = widget.run;
+    // The header, the abort banner and the horizon warning describe *the run*
+    // rather than a view of it, so they read the unfiltered one.
+    final run = slice.run;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -364,53 +152,328 @@ class _ResultsState extends State<_Results> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _RunHeader(run: run),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _RunHeader(run: run)),
+                  // **The report of this view, beside what it reports** (§13,
+                  // #27): the slice, like the plan's Excel button, because a
+                  // reader who filtered to one line is printing that line.
+                  TextButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: Text(AppLocalizations.of(context).simReportExport),
+                    onPressed: () => exportRunReport(
+                      context,
+                      slice: slice,
+                      projectName: projectName,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               if (run.result.abort != null) ...[
                 _AbortBanner(result: run.result),
                 const SizedBox(height: 12),
               ],
-              _Headline(metrics: run.metrics),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SegmentedButton<_RunView>(
-                  segments: [
-                    ButtonSegment(
-                      value: _RunView.results,
-                      label: Text(l10n.simResultsView),
-                      icon: const Icon(Icons.table_rows_outlined),
-                    ),
-                    ButtonSegment(
-                      value: _RunView.gantt,
-                      label: Text(l10n.simGanttView),
-                      icon: const Icon(Icons.view_timeline_outlined),
-                    ),
-                  ],
-                  selected: {_view},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      setState(() => _view = selection.first),
-                ),
-              ),
-              const SizedBox(height: 12),
+              // Beneath the abort banner and above the headline, because it
+              // qualifies every figure below it rather than replacing them.
+              if (run.result.ordersPastHorizon.isNotEmpty) ...[
+                _ScheduleTailBanner(result: run.result),
+                const SizedBox(height: 12),
+              ],
+              _Headline(metrics: slice.metrics),
             ],
           ),
         ),
+        _ResultsTabBar(project: project, tab: tab),
         Expanded(
           child: IndexedStack(
-            index: _view.index,
+            index: tab.index,
             sizing: StackFit.expand,
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _ResultTables(run: run, projectName: widget.projectName),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: _Overview(slice: slice),
               ),
-              GanttView(run: run),
+              _PlanTab(slice: slice, projectName: projectName, run: run),
+              GanttView(slice: slice),
+              OccupationView(slice: slice, project: project),
+              _FloatTab(slice: slice, project: project),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The five tabs, each of them a location (#7).
+///
+/// Scrollable for the same reason the study strip is: five labels of this length
+/// do not fit a narrow window, and a tab falling off the end is a screen with no
+/// way to it.
+class _ResultsTabBar extends StatefulWidget {
+  const _ResultsTabBar({required this.project, required this.tab});
+
+  final Project project;
+  final SimulationTab tab;
+
+  @override
+  State<_ResultsTabBar> createState() => _ResultsTabBarState();
+}
+
+class _ResultsTabBarState extends State<_ResultsTabBar>
+    with SingleTickerProviderStateMixin {
+  /// Paints the indicator and nothing else — the location decides which tab is
+  /// showing, and `onTap` navigates. Driven *from* the route on every build.
+  late final TabController _tabs = TabController(
+    length: SimulationTab.values.length,
+    initialIndex: widget.tab.index,
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (_tabs.index != widget.tab.index) _tabs.index = widget.tab.index;
+
+    return TabBar(
+      controller: _tabs,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      // **`?study=` is carried across**, or moving between tabs would silently
+      // widen a reader's filter from one study to the whole run.
+      onTap: (index) {
+        final study = GoRouterState.of(context).uri.queryParameters['study'];
+        context.go(
+          '/projects/${widget.project.id}/simulation'
+          '/${SimulationTab.values[index].slug}'
+          '${study == null ? '' : '?study=$study'}',
+        );
+      },
+      // **Each tab carries its own definition, not a caption above the table**
+      // (§12.7b). A results tab has no heading widget — the strip *is* the
+      // heading — so the `ⓘ` hangs here, beside the name of the thing it
+      // explains. Occupation has none: its chart and grid say what they are.
+      tabs: [
+        // The destination is *Simulation results* and this tab is *Simulation
+        // Overview*, deliberately not the same words — so the way in and the
+        // first thing inside never read as one thing (#7).
+        Tab(
+          child: namedHelp(context, l10n.simTabOverview, l10n.simRankingsHelp),
+        ),
+        Tab(
+          child: namedHelp(
+            context,
+            l10n.simTabPlan,
+            l10n.simProductionPlanHelp,
+          ),
+        ),
+        Tab(child: namedHelp(context, l10n.simGanttView, l10n.simGanttGapHelp)),
+        Tab(text: l10n.occupationView),
+        Tab(
+          child: namedHelp(
+            context,
+            l10n.floatMatrixTitle,
+            l10n.floatMatrixHelp,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The metrics card, the studies the run covers, and the three workcenter tables.
+///
+/// **The paired layout** (#7): Queue and Share side by side, because §8.1 makes
+/// them one ranking read two ways, with Parts full width beneath. Collapses back
+/// to stacked under 1100 px, where two half-width tables are two cramped ones.
+/// *Rejected: stacked, and a card-per-table grid.*
+class _Overview extends StatelessWidget {
+  const _Overview({required this.slice});
+
+  final FilteredRun slice;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final metrics = slice.metrics;
+
+    final queue = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(l10n.simByQueue, style: theme.textTheme.titleSmall),
+            // **Said, not left to be inferred.** Order-level figures follow the
+            // filter and these do not, because utilisation's denominator is a
+            // run total and the run does not carry what a windowed one would
+            // need (§12.1). A reader comparing a filtered count against an
+            // unfiltered utilisation would be comparing two different plants.
+            //
+            // *Rejected: repeating it on the filter bar* — a note on a bar that
+            // is usually irrelevant is a note people stop reading. It belongs
+            // beside the numbers that would be misread.
+            if (slice.workcentersAreWholeRun) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  l10n.simWorkcentersWholeRun,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        _QueueTable(metrics: metrics),
+      ],
+    );
+
+    final share = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(l10n.simByShare, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        _ShareTable(metrics: metrics),
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _MetricsCard(metrics: metrics),
+        const SizedBox(height: 24),
+        _RunCoverage(slice: slice),
+        const SizedBox(height: 24),
+        LayoutBuilder(
+          builder: (context, constraints) => constraints.maxWidth < 1100
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [queue, const SizedBox(height: 24), share],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: queue),
+                    const SizedBox(width: 24),
+                    Expanded(child: share),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 24),
+        Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        _PartsTable(slice: slice),
+      ],
+    );
+  }
+}
+
+/// Which studies this run covers, and which of them the filter is showing (#7).
+///
+/// **`StoredRun.studies` already held this and nothing showed it.** A reader
+/// looking at a filtered page had no way to tell a study that was never in the
+/// run from one their own filter had excluded — two very different statements
+/// that drew identically.
+class _RunCoverage extends StatelessWidget {
+  const _RunCoverage({required this.slice});
+
+  final FilteredRun slice;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final studies = slice.run.studies;
+    if (studies.isEmpty) return const SizedBox.shrink();
+
+    // Which studies still have a figure after the filter — read off the
+    // per-part rows, which is where a study's presence in the slice actually
+    // shows.
+    final shown = {for (final part in slice.metrics.parts) part.studyId};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.simRunCovers, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final study in studies)
+              if (shown.contains(study.studyId))
+                Chip(
+                  avatar: const Icon(Icons.check, size: 16),
+                  label: Text(
+                    qualifiedStudyLabel(
+                      study.name,
+                      study.productionCellName,
+                      study.productionLineName,
+                    ),
+                  ),
+                )
+              else
+                // Greyed and explained, rather than absent: a study missing
+                // from a list is indistinguishable from one that was never in
+                // the run, which is the thing this row exists to say.
+                Chip(
+                  label: Text(
+                    '${qualifiedStudyLabel(study.name, study.productionCellName, study.productionLineName)}'
+                    ' — ${l10n.simRunCoversFiltered}',
+                    style: TextStyle(color: theme.colorScheme.outline),
+                  ),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  backgroundColor: Colors.transparent,
+                ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// §10.4's matrix, on a tab of its own (#7).
+///
+/// It was the last section of a scrolling page, beneath the plan — *"the plan's
+/// own Float column read a second way"*, which is true and is why it is the tab
+/// next to the plan rather than a place elsewhere.
+class _FloatTab extends StatelessWidget {
+  const _FloatTab({required this.slice, required this.project});
+
+  final FilteredRun slice;
+  final Project project;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: FloatMatrixTable(slice: slice, project: project),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -425,34 +488,128 @@ class _RunHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
+
+    final date = dateStyle.format(run.createdAt);
+    final queues = runQueueLabel(l10n, run.queues);
+
+    // **What it ran at, read off the orders rather than the study rows**
+    // (§7.9). A study row carries the takt of its *first* release, which was
+    // the whole run's until an order took the takt in force when it opened —
+    // so a run that crossed 1 April reads `4 → 5 days` here and the study row
+    // would have said `4 days` and stopped.
+    //
+    // Falls back to the study rows where no order carries one, which is every
+    // run stored before v22: those really did hold one takt throughout.
+    final sequences = taktSequences([
+      for (final order in run.result.orders)
+        (
+          studyId: order.studyId,
+          at: order.released,
+          value: order.taktValue,
+          unit: order.taktUnit?.name,
+        ),
+    ]);
+    final takt = sequences.isEmpty
+        ? runTaktLabel(l10n, run.studies)
+        : taktLabelForValues(l10n, sequences);
+
+    // Studies whose cadence ran out before their sequence did (§7.9.2). Named
+    // rather than counted: a missing schedule row and a jammed plant produce
+    // the same unreleased orders and want opposite responses.
+    final stalled = [
+      for (final study in run.studies)
+        if (study.cadenceEndedAt case final at?)
+          (
+            name: study.name,
+            at: at,
+            unopened: run.result.orders
+                .where((o) => o.studyId == study.studyId && o.released == null)
+                .length,
+          ),
+    ];
+    // Only where the change actually falls inside what this run covered. The
+    // column records the schedule's next change after the run's start (§7.7.3),
+    // and a change three years after the last order is not this run's caveat.
+    final taktChange = run.studies
+        .map((s) => s.nextTaktChange)
+        .nonNulls
+        .where((at) => at.isBefore(run.result.end))
+        .fold<DateTime?>(
+          null,
+          (earliest, at) =>
+              earliest == null || at.isBefore(earliest) ? at : earliest,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '${l10n.simRunLabel(formatDateInput(run.createdAt, locale), dispatchRuleLabel(l10n, run.dispatch))}'
+          '${queues == null ? date : l10n.simRunLabel(date, queues)}'
           '  ·  '
-          '${l10n.simRunSpan(formatDateInput(run.result.start, locale), formatDateInput(run.result.end, locale))}'
-          // Named here rather than left to the reader to notice, because the
-          // rule beside the timestamp would otherwise describe a dispatch that
-          // did not happen at every station (§7.4).
-          '${run.dispatchOverrides.isEmpty ? '' : '  ·  ${l10n.simDispatchOverrides(run.dispatchOverrides.length)}'}',
+          '${l10n.simRunSpan(dateStyle.format(run.result.start), dateStyle.format(run.result.end))}',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
         ),
-        // Which stations, and to what. A count alone says the run is not what
-        // its header claims without saying what it actually was.
-        if (run.dispatchOverrides.isNotEmpty)
+        // **What this run ran at, and when that stops being true** (§7.7.2,
+        // §7.7.3). A run keeps one cadence throughout (§18.3), so the takt is
+        // the parameter the whole experiment turns on — and until v20 a stored
+        // run could not say it, which is why a Gantt drawn at one takt could not
+        // be told from a Gantt drawn at another.
+        //
+        // A line rather than an icon, deliberately: the same caveat lived behind
+        // a hover on the map and cost an evening.
+        if (takt != null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               [
-                for (final override in run.dispatchOverrides)
-                  l10n.simDispatchOverrideRow(
-                    override.name,
-                    dispatchRuleLabel(l10n, override.rule),
+                l10n.simRunTakt(takt),
+                if (taktChange != null)
+                  l10n.simRunTaktChanges(dateStyle.format(taktChange)),
+              ].join('  ·  '),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: taktChange == null
+                    ? theme.colorScheme.outline
+                    : theme.colorScheme.tertiary,
+              ),
+            ),
+          ),
+        // **A study that stopped opening orders for want of a takt** (§7.9.2).
+        // §11.1's horizon warning cannot stand in for this: it compares the
+        // run's *end* against the horizon, and a run that stops releasing early
+        // may well end before it with the warning silent. In the tertiary
+        // colour, like the takt caveat, because it qualifies every figure
+        // beneath it.
+        for (final study in stalled)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.simRunCadenceEnded(
+                study.name,
+                dateStyle.format(study.at),
+                study.unopened,
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.tertiary,
+              ),
+            ),
+          ),
+        // Which workcenter dispatched by what, and only when they disagree. A
+        // header saying `mixed` without saying what the mixture was tells the
+        // reader the run is not one thing without telling them what it is;
+        // repeating one shared rule per workcenter would be the same word ten
+        // times (§7.3).
+        if (run.queues.isMixed)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              [
+                for (final workcenter in run.queues.workcenters)
+                  l10n.simRunQueueRow(
+                    workcenter.name,
+                    dispatchRuleLabel(l10n, workcenter.rule),
                   ),
               ].join('  ·  '),
               style: theme.textTheme.bodySmall?.copyWith(
@@ -465,76 +622,288 @@ class _RunHeader extends StatelessWidget {
   }
 }
 
-/// The metrics card and the four tables — what the Results view is.
-class _ResultTables extends StatelessWidget {
-  const _ResultTables({required this.run, required this.projectName});
+/// The production plan, on a tab of its own, read one of two ways (#7).
+///
+/// **The plan is a table, not a page.** It was the fourth section of the
+/// scrolling Results view, where it inherited `resultTableMaxHeight`'s 360 px
+/// cap and used a third of a tall window. Here the heading and the export pin,
+/// and the rows take everything below.
+class _PlanTab extends StatefulWidget {
+  const _PlanTab({
+    required this.slice,
+    required this.projectName,
+    required this.run,
+  });
 
-  final StoredRun run;
+  final FilteredRun slice;
   final String projectName;
+  final StoredRun run;
+
+  @override
+  State<_PlanTab> createState() => _PlanTabState();
+}
+
+class _PlanTabState extends State<_PlanTab> {
+  /// **View state, deliberately not a route.** §12.1 argued the results filters
+  /// should not ride in the URL and #7 left that argument standing; this is the
+  /// same kind of thing — a way of reading one tab, not a place. `?study=` is
+  /// still the one exception, because it is the filter you navigate *from*.
+  bool _combined = false;
+
+  /// Start Date ascending by default, which is the order the plan happens in.
+  int _sortColumn = 3;
+  bool _ascending = true;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final metrics = run.metrics;
+    final slice = widget.slice;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _MetricsCard(metrics: metrics),
-        const SizedBox(height: 24),
-        Text(l10n.simByQueue, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 4),
-        Text(
-          l10n.simRankingsHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _QueueTable(metrics: metrics),
-        const SizedBox(height: 24),
-        Text(l10n.simByShare, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
-        _ShareTable(metrics: metrics),
-        const SizedBox(height: 24),
-        Text(l10n.simPerPart, style: theme.textTheme.titleSmall),
-        const SizedBox(height: 8),
-        _PartsTable(run: run),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.simProductionPlan,
-                style: theme.textTheme.titleSmall,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // **A row of controls, and only controls** (§12.7b). It used to open
+          // with a two-line paragraph, so a caption, a segmented button and an
+          // icon button read as one line of chrome — the *random text* half of
+          // the 2026-08-31 complaint. The paragraph is the Plan tab's own `ⓘ`
+          // now, and the cap that stopped it pushing the table out of the
+          // column (`RenderFlex overflowed by 5.0 pixels`) goes with it.
+          Row(
+            children: [
+              const Spacer(),
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(l10n.simPlanByStudy)),
+                  ButtonSegment(value: true, label: Text(l10n.simPlanCombined)),
+                ],
+                selected: {_combined},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _combined = s.first),
               ),
-            ),
-            // Beside the thing it exports rather than on the tab's chrome: the
-            // plan is one of several tables here, and a project-level export
-            // button would not say which one it takes (§13).
-            if (run.plan.isNotEmpty)
-              TextButton.icon(
-                icon: const Icon(Icons.table_view_outlined, size: 18),
-                label: Text(l10n.exportExcel),
-                onPressed: () => exportPlanExcel(
-                  context,
-                  run: run,
-                  projectName: projectName,
+              // Beside the thing it exports rather than on the tab's chrome:
+              // a project-level export button would not say which table it
+              // takes (§13).
+              if (slice.plan.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  icon: const Icon(Icons.table_view_outlined, size: 18),
+                  label: Text(l10n.exportExcel),
+                  // The slice, not the run: the button is over this table and
+                  // exports this table (§12.1).
+                  onPressed: () => exportPlanExcel(
+                    context,
+                    run: widget.run,
+                    plan: slice.plan,
+                    projectName: widget.projectName,
+                  ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.simProductionPlanHelp,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+              ],
+            ],
           ),
-        ),
-        const SizedBox(height: 8),
-        _ProductionPlan(run: run),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _combined
+                ? _CombinedPlan(
+                    slice: slice,
+                    sortColumn: _sortColumn,
+                    ascending: _ascending,
+                    onSort: (column) => setState(() {
+                      if (_sortColumn == column) {
+                        _ascending = !_ascending;
+                      } else {
+                        _sortColumn = column;
+                        _ascending = true;
+                      }
+                    }),
+                  )
+                : SingleChildScrollView(child: _ProductionPlan(slice: slice)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Every study's orders in one table, sortable on any column (#7).
+///
+/// **It carries Study, Cell and Line**, the three things §8.5's sectioning used
+/// to say and a flat table would otherwise lose. By study stays the default
+/// shape of the tab — a study is one production line and a planner takes the
+/// section for their line — and this is for the question sectioning cannot
+/// answer: *what is happening across the plant this week?*
+///
+/// **Why this sorts when #10 says the production plan does not.** The rule is
+/// *a surface sorts unless its row order is itself data*, and the two halves of
+/// this tab fall on opposite sides of it. **By study**, a section's rows are one
+/// study's release sequence — that order *is* the record, and sorting it would
+/// produce a plan that looks fine and says something false, which is exactly
+/// what #10 rejected. **Combined** has no such order to destroy: three studies
+/// release on three independent sequences, so there is no single sequence
+/// across them and whatever order the rows arrive in is already a presentation
+/// choice. Start Date ascending is the honest default for it.
+///
+/// So the two are one surface only in the sense that they share a tab. The rule
+/// holds unchanged; #7 and #10 do not actually disagree.
+class _CombinedPlan extends StatelessWidget {
+  const _CombinedPlan({
+    required this.slice,
+    required this.sortColumn,
+    required this.ascending,
+    required this.onSort,
+  });
+
+  final FilteredRun slice;
+  final int sortColumn;
+  final bool ascending;
+  final ValueChanged<int> onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _table(
+        context,
+        // **As tall as the pane it is given, which is not the same as no cap
+        // at all.** `maxHeight: null` means *the page I sit in scrolls*, and
+        // that is true of the by-study plan — it is inside a
+        // `SingleChildScrollView`. The combined plan is inside an `Expanded`
+        // with nothing scrolling above it, so an uncapped table simply grew
+        // past the pane and **clipped**: 130 orders and no way to reach row 30.
+        //
+        // Taking the constraint instead gives the intent the old comment
+        // wanted — as tall as the window — and gives it through the mechanism
+        // §12.6 already built: a bounded pane whose heading holds still and
+        // whose two bars pin to its edges.
+        constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : resultTableMaxHeight,
+      ),
+    );
+  }
+
+  Widget _table(BuildContext context, double maxHeight) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dateStyle = DateStyleScope.of(context);
+
+    String date(DateTime? value) =>
+        value == null ? '—' : dateStyle.format(value);
+
+    // What each study was called, and where it sat, when the run was made
+    // (§7.10) — so a study renamed or moved since still reads as the one that
+    // ran.
+    final studies = {
+      for (final study in slice.run.studies) study.studyId: study,
+    };
+
+    String cell(PlanEntry row) =>
+        studies[row.studyId]?.productionCellName ?? '—';
+    String line(PlanEntry row) =>
+        studies[row.studyId]?.productionLineName ?? '—';
+    String name(PlanEntry row) => studies[row.studyId]?.name ?? row.studyId;
+
+    /// What each sortable column compares.
+    Comparable<Object>? keyOf(PlanEntry row, int column) => switch (column) {
+      0 => name(row),
+      1 => cell(row),
+      2 => line(row),
+      3 => row.at ?? DateTime(9999),
+      4 => row is ProductionPlanRow ? row.orderNumber : null,
+      5 => row is ProductionPlanRow ? row.partNumber : null,
+      6 => row is ProductionPlanRow ? (row.customerProject ?? '') : null,
+      7 => row is ProductionPlanRow ? row.outcome.needDate : null,
+      8 => row is ProductionPlanRow ? (row.delivery ?? DateTime(9999)) : null,
+      _ => null,
+    };
+
+    final rows = [...slice.plan];
+    rows.sort((a, b) {
+      // **An empty release slot is not an order** (§7.2), so it cannot sort
+      // like one. It sorts **last whichever way the arrow points** — it is the
+      // absence of an order, not an extreme value of one, and letting it drift
+      // to the top under a descending sort would put "nothing happened" above
+      // everything that did.
+      final aEmpty = a is PlanEmptySlot;
+      final bEmpty = b is PlanEmptySlot;
+      if (aEmpty != bEmpty) return aEmpty ? 1 : -1;
+
+      final ka = keyOf(a, sortColumn);
+      final kb = keyOf(b, sortColumn);
+      if (ka == null || kb == null) return 0;
+      final order = ka.compareTo(kb);
+      return ascending ? order : -order;
+    });
+
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.outline,
+    );
+
+    return resultTable(
+      maxHeight: maxHeight,
+      fill: true,
+      sortColumn: sortColumn,
+      sortAscending: ascending,
+      onSort: onSort,
+      columns: [
+        ResultColumn(label: l10n.simPlanStudy, width: 140),
+        ResultColumn(label: l10n.simPlanCell, width: 130),
+        ResultColumn(label: l10n.simPlanLine, width: 130),
+        ResultColumn(label: l10n.simPlanOrderStart, width: 120),
+        ResultColumn(label: l10n.simPlanOrder, width: 72),
+        ResultColumn(label: l10n.demandPartNumber, width: 130),
+        ResultColumn(label: l10n.demandProject, width: 140),
+        ResultColumn(label: l10n.demandNeedDate, width: 120),
+        ResultColumn(label: l10n.simPlanOrderEnd, width: 120),
+        ResultColumn(label: l10n.simAverageFloat, width: 130),
       ],
+      rowCount: rows.length,
+      cellAt: (index, column) {
+        final row = rows[index];
+
+        // A slot that produced nothing keeps its study, cell, line and date and
+        // shows em-dashes elsewhere, drawn in the outline colour so it reads as
+        // an absence rather than a row with missing data.
+        if (row is PlanEmptySlot) {
+          return switch (column) {
+            0 => Text(name(row), style: muted),
+            1 => Text(cell(row), style: muted),
+            2 => Text(line(row), style: muted),
+            3 => Text(date(row.slotAt), style: muted),
+            5 => Text(
+              emptySlotReasonLabel(l10n, row.reason),
+              style: muted?.copyWith(fontStyle: FontStyle.italic),
+            ),
+            _ => Text('—', style: muted),
+          };
+        }
+        row as ProductionPlanRow;
+
+        return switch (column) {
+          0 => Text(name(row)),
+          1 => Text(cell(row)),
+          2 => Text(line(row)),
+          3 => Text(date(row.orderStart)),
+          4 => Text('${row.orderNumber}'),
+          5 => Text(row.partNumber),
+          6 => Text(
+            (row.customerProject?.isEmpty ?? true) ? '—' : row.customerProject!,
+          ),
+          7 => Text(date(row.outcome.needDate)),
+          8 => Text(date(row.delivery)),
+          // The one figure here that is a verdict rather than a fact, so late
+          // is coloured. Positive is early (§8).
+          _ => Text(
+            _duration(l10n, row.float),
+            style: (row.float?.isNegative ?? false)
+                ? theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  )
+                : null,
+          ),
+        };
+      },
     );
   }
 }
@@ -548,22 +917,29 @@ class _ResultTables extends StatelessWidget {
 /// release order, so "orders over time" needs no sort that could disagree with
 /// the Order column.
 class _ProductionPlan extends StatelessWidget {
-  const _ProductionPlan({required this.run});
+  const _ProductionPlan({required this.slice});
 
-  final StoredRun run;
+  /// **The slice, not the run.** `FilteredRun` has computed the filtered plan
+  /// since the combined view was built and nothing ever read it — this table
+  /// took `run.plan` and listed every order in the project under whatever
+  /// filter was set (§12.1).
+  final FilteredRun slice;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (run.plan.isEmpty) return const SizedBox.shrink();
+    if (slice.plan.isEmpty) return const SizedBox.shrink();
 
     // Study id → the name it had when the run was made (§7.10), so a study
-    // renamed since still reads as the one that ran.
-    final names = {for (final study in run.studies) study.studyId: study.name};
+    // renamed since still reads as the one that ran. A lookup over the whole
+    // run; which of them get a section is decided by the rows below.
+    final names = {
+      for (final study in slice.run.studies) study.studyId: study.name,
+    };
 
-    final byStudy = <String, List<ProductionPlanRow>>{};
-    for (final row in run.plan) {
-      byStudy.putIfAbsent(row.outcome.studyId, () => []).add(row);
+    final byStudy = <String, List<PlanEntry>>{};
+    for (final row in slice.plan) {
+      byStudy.putIfAbsent(row.studyId, () => []).add(row);
     }
 
     return Column(
@@ -592,16 +968,16 @@ class _ProductionPlan extends StatelessWidget {
 class _PlanTable extends StatelessWidget {
   const _PlanTable({required this.rows});
 
-  final List<ProductionPlanRow> rows;
+  final List<PlanEntry> rows;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
     String date(DateTime? value) =>
-        value == null ? '—' : formatDateInput(value, locale);
+        value == null ? '—' : dateStyle.format(value);
 
     return Card(
       child: resultTable(
@@ -616,15 +992,51 @@ class _PlanTable extends StatelessWidget {
           ResultColumn(label: l10n.demandMaterialDate, width: 130),
           ResultColumn(label: l10n.simPlanOrderStart, width: 120),
           ResultColumn(label: l10n.simPlanOrderEnd, width: 120),
+          // **What the order opened under** (§7.9), introducing the three
+          // figures it explains rather than sitting among the dates: an order's
+          // work at each workcenter is the balance's split against this, so two
+          // rows of one part with different Theoretical LTs differ here first.
+          //
+          // Blank on a run stored before v22, which held one takt throughout
+          // and said so on its header instead.
+          ResultColumn(label: l10n.simPlanTakt, width: 110),
           // Theoretical first: it is the baseline, and the actual beside it
           // is read against it. The gap between the two is the queueing.
           ResultColumn(label: l10n.simPlanTheoreticalLeadTime, width: 130),
           ResultColumn(label: l10n.simPlanActualLeadTime, width: 120),
+          // The ratio of the two beside them (§8.7). The card's headline drops
+          // the warm-up orders so it can be compared between runs; this column
+          // keeps every row, which is where the ramp those orders form becomes
+          // visible instead of being averaged away.
+          ResultColumn(label: l10n.simPlanLeadTimeEfficiency, width: 120),
           ResultColumn(label: l10n.simAverageFloat, width: 130),
         ],
         rowCount: rows.length,
         cellAt: (index, column) {
           final row = rows[index];
+          // A slot that produced nothing has no part, no numbers and no
+          // outcome — only when it came round and which gate held it. It takes
+          // the Order Start column, because that is the moment it happened.
+          if (row is PlanEmptySlot) {
+            return switch (column) {
+              1 => Text(
+                emptySlotReasonLabel(l10n, row.reason),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              8 => Text(
+                date(row.slotAt),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              _ => const Text(''),
+            };
+          }
+          row as ProductionPlanRow;
+
           return switch (column) {
             0 => Text('${row.orderNumber}'),
             1 => Text(row.partNumber),
@@ -644,8 +1056,22 @@ class _PlanTable extends StatelessWidget {
             7 => Text(date(row.materialDate)),
             8 => Text(date(row.orderStart)),
             9 => Text(date(row.delivery)),
-            10 => Text(_duration(l10n, row.theoreticalLeadTime)),
-            11 => Text(_duration(l10n, row.actualLeadTime)),
+            10 => Text(
+              row.outcome.taktValue == null || row.outcome.taktUnit == null
+                  ? '—'
+                  : taktLabel(
+                      l10n,
+                      row.outcome.taktValue!,
+                      row.outcome.taktUnit!,
+                    ),
+            ),
+            11 => Text(_duration(l10n, row.theoreticalLeadTime)),
+            12 => Text(_duration(l10n, row.actualLeadTime)),
+            13 => Text(
+              row.leadTimeEfficiency == null
+                  ? '—'
+                  : '${(row.leadTimeEfficiency! * 100).toStringAsFixed(0)}%',
+            ),
             // The one figure here that is a verdict rather than a fact, so
             // late is coloured. Positive is early (§8).
             _ => Text(
@@ -723,6 +1149,44 @@ class _AbortBanner extends StatelessWidget {
   }
 }
 
+/// The run went past the last schedule anyone defined (DESIGN.md §11.1).
+///
+/// **A warning rather than an error.** Schedule periods are finite while a run
+/// goes until the last order completes, so refusing here would make an
+/// overloaded plant unsimulatable exactly when the simulation is most
+/// informative — and the reader cannot know how far to extend their periods
+/// until they have run it. What the app owes them is to say which figures are
+/// standing on capacity nobody defined.
+class _ScheduleTailBanner extends StatelessWidget {
+  const _ScheduleTailBanner({required this.result});
+
+  final SimRunResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dateStyle = DateStyleScope.of(context);
+
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: ListTile(
+        leading: Icon(
+          Icons.event_busy_outlined,
+          color: theme.colorScheme.tertiary,
+        ),
+        title: Text(
+          l10n.simScheduleTail(
+            result.ordersPastHorizon.length,
+            dateStyle.format(result.scheduleHorizon),
+          ),
+        ),
+        subtitle: Text(l10n.simScheduleTailHelp),
+      ),
+    );
+  }
+}
+
 /// The one figure a reader takes away.
 class _Headline extends StatelessWidget {
   const _Headline({required this.metrics});
@@ -795,9 +1259,14 @@ class _MetricsCard extends StatelessWidget {
             ),
             _MetricRow(
               label: l10n.simLeadTimeEfficiency,
+              // A percentage, not a `×` multiple: the figure reads "how much of
+              // the standard did the flow beat", and above 100 % is good
+              // (§8.7). Printed as `0.73×` it read as a low number for a flow
+              // that was running well, which is how a metric shipped upside
+              // down and stayed that way.
               value: metrics.leadTimeEfficiency == null
                   ? '—'
-                  : '${metrics.leadTimeEfficiency!.toStringAsFixed(2)}×',
+                  : '${(metrics.leadTimeEfficiency! * 100).toStringAsFixed(0)}%',
               help: l10n.simLeadTimeEfficiencyHelp,
             ),
             _MetricRow(
@@ -842,6 +1311,48 @@ class _MetricRow extends StatelessWidget {
 }
 
 /// §8.1's first post-run ranking: where orders wait.
+/// A workcenter, and the pool it ran in where the run recorded one (DESIGN.md
+/// §3.1).
+///
+/// **Beside the name rather than as a grouping**, which is where this differs
+/// from the Gantt. §8.1's two tables *are* rankings — the first row is the
+/// workcenter that queued most — and clustering a pool's members together would
+/// mean the top row was no longer the answer to the question the table asks.
+/// The Gantt has no such ordering to lose: it goes down the page in flow order,
+/// where a pool's machines already sit together.
+///
+/// A workcenter reached through more than one pool carries both names and belongs
+/// to neither, which is exactly what the run stored (§7.10).
+class _WorkcenterName extends StatelessWidget {
+  const _WorkcenterName({required this.workcenter});
+
+  final WorkcenterRunMetrics workcenter;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pool = workcenter.poolName;
+    if (pool == null) return Text(workcenter.name);
+
+    // One line, because a `DataTable` row is a fixed height and a second line
+    // would be clipped rather than shown.
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: workcenter.name),
+          TextSpan(
+            text: '  $pool',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
 class _QueueTable extends StatelessWidget {
   const _QueueTable({required this.metrics});
 
@@ -855,29 +1366,54 @@ class _QueueTable extends StatelessWidget {
     }
 
     return Card(
-      child: resultTable(
+      // **Sortable** (#10): re-ranking is exactly what a reader comes to §8.1's
+      // two rankings to do. It arrives on queue time descending, which is the
+      // order `metrics.workcenters` already computed — so the table looks on
+      // arrival precisely as it did before it could sort at all.
+      child: SortableResultTable<WorkcenterRunMetrics>(
+        // The overview pairs Queue and Share side by side (#7), so these
+        // take the width they are given rather than leaving half a pane
+        // blank. `fill` never narrows a column below its declared width.
+        fill: true,
+        initialColumn: 2,
+        initialAscending: false,
         columns: [
-          ResultColumn(label: l10n.workcenter, width: 160),
+          // Wider than it was, for the pool a workcenter ran in (§3.1).
+          ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.utilization, width: 120),
           ResultColumn(label: l10n.simQueue, width: 130),
           ResultColumn(label: l10n.simQueueAverage, width: 130),
+          // Beside utilization rather than folded into it: a workcenter at 40 %
+          // and blocked half the run is a different plant from one at 40 % and
+          // idle, and only the first is fixed downstream (§8.3).
+          ResultColumn(label: l10n.simBlocked, width: 130),
           ResultColumn(label: l10n.simVisits, width: 100),
           ResultColumn(label: l10n.simChangeovers, width: 130),
         ],
-        rowCount: metrics.workcenters.length,
-        cellAt: (index, column) {
-          final station = metrics.workcenters[index];
-          return switch (column) {
-            0 => Text(station.name),
-            1 => Tooltip(
-              message: l10n.simUtilizationHelp,
-              child: Text(_percent(station.utilization)),
-            ),
-            2 => Text(_duration(l10n, station.queueTime)),
-            3 => Text(_duration(l10n, station.averageQueue)),
-            4 => Text('${station.visits}'),
-            _ => Text('${station.changeovers}'),
-          };
+        rows: metrics.workcenters,
+        sortKeyOf: (workcenter, column) => switch (column) {
+          0 => workcenter.name,
+          1 => workcenter.utilization,
+          2 => workcenter.queueTime,
+          3 => workcenter.averageQueue,
+          4 => workcenter.blocked,
+          5 => workcenter.visits,
+          _ => workcenter.changeovers,
+        },
+        cellAt: (workcenter, column) => switch (column) {
+          0 => _WorkcenterName(workcenter: workcenter),
+          1 => Tooltip(
+            message: l10n.simUtilizationHelp,
+            child: Text(_percent(workcenter.utilization)),
+          ),
+          2 => Text(_duration(l10n, workcenter.queueTime)),
+          3 => Text(_duration(l10n, workcenter.averageQueue)),
+          4 => Tooltip(
+            message: l10n.simBlockedHelp,
+            child: Text(_duration(l10n, workcenter.blocked)),
+          ),
+          5 => Text('${workcenter.visits}'),
+          _ => Text('${workcenter.changeovers}'),
         },
       ),
     );
@@ -897,20 +1433,32 @@ class _ShareTable extends StatelessWidget {
     if (metrics.workcenters.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      child: resultTable(
+      // Sortable for the same reason as the queue ranking, and arriving on the
+      // contribution `byContribution` already ordered it by (#10).
+      child: SortableResultTable<WorkcenterRunMetrics>(
+        // The overview pairs Queue and Share side by side (#7), so these
+        // take the width they are given rather than leaving half a pane
+        // blank. `fill` never narrows a column below its declared width.
+        fill: true,
+        initialColumn: 1,
+        initialAscending: false,
         columns: [
-          ResultColumn(label: l10n.workcenter, width: 160),
+          ResultColumn(label: l10n.workcenter, width: 210),
           ResultColumn(label: l10n.simContributed, width: 160),
           ResultColumn(label: l10n.simShareOfFlow, width: 140),
         ],
-        rowCount: metrics.byContribution.length,
-        cellAt: (index, column) {
-          final station = metrics.byContribution[index];
-          return switch (column) {
-            0 => Text(station.name),
-            1 => Text(_duration(l10n, station.contributedTime)),
-            _ => Text(_percent(metrics.shareOfFlow(station))),
-          };
+        rows: metrics.byContribution,
+        // Share of flow is contributed time over the same total, so the two
+        // columns are one ordering — sorting either gives the same rows in the
+        // same places, which is honest rather than redundant.
+        sortKeyOf: (workcenter, column) => switch (column) {
+          0 => workcenter.name,
+          _ => workcenter.contributedTime,
+        },
+        cellAt: (workcenter, column) => switch (column) {
+          0 => _WorkcenterName(workcenter: workcenter),
+          1 => Text(_duration(l10n, workcenter.contributedTime)),
+          _ => Text(_percent(metrics.shareOfFlow(workcenter))),
         },
       ),
     );
@@ -926,24 +1474,46 @@ class _ShareTable extends StatelessWidget {
 /// its study (§16.15), so two lines' `PN2` are two parts, and this is the only
 /// thing on the row that tells them apart.
 class _PartsTable extends StatelessWidget {
-  const _PartsTable({required this.run});
+  const _PartsTable({required this.slice});
 
-  final StoredRun run;
+  /// **The slice, not the run.** This table read `run.metrics` and so reported
+  /// every part in the project while the headline above it reported the
+  /// filtered ones — a page disagreeing with itself, which is worse than a
+  /// filter that does nothing at all (§12.1).
+  final FilteredRun slice;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final metrics = run.metrics;
+    final metrics = slice.metrics;
     if (metrics.parts.isEmpty) return const SizedBox.shrink();
 
     // The names the studies had when the run was made (§7.10), so a study
     // renamed since still reads as the one that ran — as `_ProductionPlan`
-    // does with the same map.
-    final names = {for (final study in run.studies) study.studyId: study.name};
-    final showStudy = run.studies.length > 1;
+    // does with the same map. Read from the whole run because it is a lookup:
+    // what narrows is which of them appear, which is the line below.
+    final names = {
+      for (final study in slice.run.studies) study.studyId: study.name,
+    };
+    // The slice's studies, so filtering to one line drops the column that would
+    // then hold the same answer on every row (§8.1.2).
+    final showStudy = slice.studyIds.length > 1;
+
+    // **The palette index travels with the row** (#10). The swatch is keyed on
+    // a part's position in `metrics.parts` — that is what `partColour` reads
+    // and what the Gantt draws — so a sorted table handing `_PartSwatch` its
+    // *displayed* row would recolour every part the moment a heading was
+    // pressed, and the legend would then disagree with the chart it is the
+    // legend for. Pairing each part with the index it had is what makes this
+    // table safe to sort at all.
+    final rows = metrics.parts.indexed.toList();
 
     return Card(
-      child: resultTable(
+      child: SortableResultTable<(int, PartMetrics)>(
+        // The overview pairs Queue and Share side by side (#7), so these
+        // take the width they are given rather than leaving half a pane
+        // blank. `fill` never narrows a column below its declared width.
+        fill: true,
         columns: [
           // Wider than the other tables' part number column by the width of
           // the swatch and its gap, so the number itself has the room it had
@@ -956,9 +1526,24 @@ class _PartsTable extends StatelessWidget {
           ResultColumn(label: l10n.simAverageLeadTime, width: 150),
           ResultColumn(label: l10n.simAverageFloat, width: 130),
         ],
-        rowCount: metrics.parts.length,
-        cellAt: (index, column) {
-          final part = metrics.parts[index];
+        rows: rows,
+        sortKeyOf: (row, column) {
+          final part = row.$2;
+          if (showStudy && column == 1) return names[part.studyId] ?? '';
+          return switch (showStudy && column > 0 ? column - 1 : column) {
+            0 => part.partNumber,
+            1 => part.orders,
+            2 => part.delivered,
+            3 => part.onTime,
+            // A part the run could not cost sorts as though it took no time,
+            // which puts it at one end rather than scattering it — the same
+            // choice the empty release slot makes on the combined plan.
+            4 => part.averageLeadTime ?? Duration.zero,
+            _ => part.averageFloat ?? Duration.zero,
+          };
+        },
+        cellAt: (row, column) {
+          final (index, part) = row;
           // Everything after Part Number shifts right by one when the Study
           // column is there, so the switch is written against the position the
           // column would have without it.
@@ -1018,40 +1603,6 @@ class _PartSwatch extends StatelessWidget {
         const SizedBox(width: 8),
         Text(partNumber),
       ],
-    );
-  }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.icon, required this.title, this.detail});
-
-  final IconData icon;
-  final String title;
-  final String? detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: theme.colorScheme.outline),
-          const SizedBox(height: 12),
-          Text(title, style: theme.textTheme.bodyLarge),
-          if (detail != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              detail!,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

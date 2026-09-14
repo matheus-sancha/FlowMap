@@ -1,5 +1,7 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database.dart';
@@ -141,7 +143,7 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
 
   List<List<String>> get _dataRows => _sheet.rows.skip(1).toList();
 
-  List<ImportRow> _validate(String locale) {
+  List<ImportRow> _validate(DateStyle dateStyle) {
     final mapped = applyMapping(dataRows: _dataRows, mapping: _mapping);
     // The header is line 1, so the first data row is line 2 — the number the
     // user will see in their own spreadsheet.
@@ -154,7 +156,7 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
       ImportTarget.sequence => validateSequenceImport(
         rows: mapped,
         table: widget.table,
-        locale: locale,
+        dateStyle: dateStyle,
         firstSourceRow: 2,
       ),
     };
@@ -164,9 +166,9 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
-    final rows = _validate(locale);
+    final rows = _validate(dateStyle);
     final blocked = rows.where((r) => r.isBlocked).length;
     final warned = rows.where((r) => !r.isBlocked && r.hasWarnings).length;
     final importable = rows.length - blocked;
@@ -294,14 +296,14 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
         FilledButton(
           onPressed: missingRequired.isNotEmpty || importable == 0 || _importing
               ? null
-              : () => _import(rows, locale),
+              : () => _import(rows, dateStyle),
           child: Text(l10n.importAccept('$importable')),
         ),
       ],
     );
   }
 
-  Future<void> _import(List<ImportRow> rows, String locale) async {
+  Future<void> _import(List<ImportRow> rows, DateStyle dateStyle) async {
     setState(() => _importing = true);
     final repository = ref.read(demandRepositoryProvider);
     final l10n = AppLocalizations.of(context);
@@ -321,7 +323,7 @@ class _DemandImportDialogState extends ConsumerState<DemandImportDialog> {
             planSequenceImport(
               rows: rows,
               table: widget.table,
-              locale: locale,
+              dateStyle: dateStyle,
             ),
           );
       }

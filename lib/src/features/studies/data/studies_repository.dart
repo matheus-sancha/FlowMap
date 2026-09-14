@@ -89,16 +89,60 @@ class StudiesRepository {
     String? supplierName,
     String? customerName,
     int? wipCap,
-    int? priority,
+    int? startBufferDays,
+    String? paceSetterTargetId,
+    bool paceSetterGiven = false,
     String? notes,
+    // **The end stock is deliberately not here** (§7.3). This method writes
+    // every field it is given unconditionally, so each caller has to read the
+    // whole study back and pass it through — six call sites that a seventh
+    // field would each have to learn about, and one of them already carries a
+    // comment about the bug that shape caused. [setFlowEnd] writes those two
+    // columns instead.
   }) => (_db.update(_db.studies)..where((s) => s.id.equals(id))).write(
     StudiesCompanion(
       name: Value(name),
       supplierName: Value(supplierName),
       customerName: Value(customerName),
       wipCap: Value(wipCap),
-      priority: priority == null ? const Value.absent() : Value(priority),
+      startBufferDays: startBufferDays == null
+          ? const Value.absent()
+          : Value(startBufferDays),
+      // Null is a real value here — "derive it" — so absence has to be said
+      // separately, or every caller that is not editing the pacemaker would
+      // silently clear it. The same shape `lineIds` uses on a workcenter.
+      paceSetterTargetId: paceSetterGiven
+          ? Value(paceSetterTargetId)
+          : const Value.absent(),
       notes: Value(notes),
+      updatedAt: Value(DateTime.now()),
+    ),
+  );
+
+  /// Names one end of the flow and records the stock standing there (§7.3).
+  ///
+  /// **Its own method rather than four more arguments on [updateStudy]**, and
+  /// the reason is that method's own history: it writes every field it is
+  /// given unconditionally, so each of its six callers has to read the whole
+  /// study back and pass it through, and `flow_tab.dart` carries a comment
+  /// about the bug that shape already caused once. An endpoint edit touches
+  /// exactly two columns at one end, and this says so — the other end and every
+  /// other field are absent, so nothing else can be clobbered by a caller that
+  /// forgot to mention it.
+  ///
+  /// A null [name] restores the default label; a null [stock] means *nobody has
+  /// counted*, which is not the same as a counted zero (§7.3).
+  Future<void> setFlowEnd(
+    String studyId, {
+    required bool inbound,
+    required String? name,
+    required int? stock,
+  }) => (_db.update(_db.studies)..where((s) => s.id.equals(studyId))).write(
+    StudiesCompanion(
+      supplierName: inbound ? Value(name) : const Value.absent(),
+      inboundStock: inbound ? Value(stock) : const Value.absent(),
+      customerName: inbound ? const Value.absent() : Value(name),
+      outboundStock: inbound ? const Value.absent() : Value(stock),
       updatedAt: Value(DateTime.now()),
     ),
   );
@@ -150,48 +194,44 @@ class StudiesRepository {
 
         final copyId = newId();
         final now = DateTime.now();
+        // **The row itself, not a list of its columns.** This was a hand-written
+        // companion, and it dropped `start_buffer_days` and
+        // `pace_setter_target_id` for as long as they had existed — found
+        // driving Compare, where a copy nobody had touched read a 0-day buffer
+        // against its original's 30 (2026-09-13). §2.6b had already caught
+        // this method dropping a column twice. A copy of the stored row cannot
+        // forget a column, including the next one.
         await _db
             .into(_db.studies)
             .insert(
-              StudiesCompanion.insert(
+              source.copyWith(
                 id: copyId,
-                projectId: source.projectId,
-                productionCellId: source.productionCellId,
-                productionLineId: source.productionLineId,
                 name: newName,
-                includeInSimulation: const Value(false),
-                priority: Value(source.priority),
-                wipCap: Value(source.wipCap),
-                supplierName: Value(source.supplierName),
-                customerName: Value(source.customerName),
-                notes: Value(source.notes),
+                // Never flagged: two flagged studies on one line is the state
+                // the edit-time rule forbids.
+                includeInSimulation: false,
                 createdAt: now,
                 updatedAt: now,
               ),
             );
 
         final nodes = await loadNodes(id);
+        // **Kept rather than generated inline**, because §9 keys a process
+        // time by its node: the demand copy below needs to know which new node
+        // each old one became, and a copy that reused the source's ids would
+        // hang every time off the original study's steps.
+        final nodeIds = {for (final node in nodes) node.id: newId()};
+
         await _db.batch((b) {
           for (final node in nodes) {
+            // Whole rows, for the study's reason: this list had lost
+            // `lane_rule` and `lane_capacity`, so a copy's FIFO lane came back
+            // as the run's default with no limit.
             b.insert(
               _db.flowNodes,
-              FlowNodesCompanion.insert(
-                id: newId(),
+              node.copyWith(
+                id: nodeIds[node.id]!,
                 studyId: copyId,
-                position: node.position,
-                kind: node.kind,
-                workcenterId: Value(node.workcenterId),
-                poolId: Value(node.poolId),
-                changeoverSeconds: Value(node.changeoverSeconds),
-                equivalentValue: Value(node.equivalentValue),
-                equivalentUnit: Value(node.equivalentUnit),
-                inventoryMode: Value(node.inventoryMode),
-                inventoryQuantity: Value(node.inventoryQuantity),
-                inventorySeconds: Value(node.inventorySeconds),
-                inventoryUnit: Value(node.inventoryUnit),
-                inventoryUsesWorkingTime: Value(node.inventoryUsesWorkingTime),
-                label: Value(node.label),
-                notes: Value(node.notes),
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -206,13 +246,9 @@ class StudiesRepository {
           for (final annotation in annotations) {
             b.insert(
               _db.flowAnnotations,
-              FlowAnnotationsCompanion.insert(
+              annotation.copyWith(
                 id: newId(),
                 studyId: copyId,
-                symbol: annotation.symbol,
-                x: annotation.x,
-                y: annotation.y,
-                caption: Value(annotation.caption),
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -224,7 +260,11 @@ class StudiesRepository {
         // re-sequenced against the same orders (§6.3, §10.1); one that arrived
         // empty would have to be re-imported before it could be compared with
         // the study it came from.
-        await _demand.copyDemandInto(fromStudyId: id, toStudyId: copyId);
+        await _demand.copyDemandInto(
+          fromStudyId: id,
+          toStudyId: copyId,
+          nodeIds: nodeIds,
+        );
 
         return copyId;
       });
@@ -253,10 +293,14 @@ class StudiesRepository {
     required int atPosition,
     String? workcenterId,
     String? poolId,
-    Duration changeover = Duration.zero,
+    double? setupValue,
+    TaktUnit? setupUnit,
+    double? teardownValue,
+    TaktUnit? teardownUnit,
+    double? samePartPercent,
+    bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
-    String? label,
     String? notes,
   }) => _insertNode(
     studyId: studyId,
@@ -268,45 +312,28 @@ class StudiesRepository {
       kind: FlowNodeKind.step,
       workcenterId: Value(workcenterId),
       poolId: Value(poolId),
-      changeoverSeconds: Value(changeover.inSeconds),
+      setupValue: Value(setupValue),
+      setupUnit: Value(setupUnit),
+      teardownValue: Value(teardownValue),
+      teardownUnit: Value(teardownUnit),
+      samePartPercent: Value(samePartPercent),
+      balanceDisabled: Value(balanceDisabled),
       equivalentValue: Value(equivalentValue),
       equivalentUnit: Value(equivalentUnit),
-      label: Value(label),
       notes: Value(notes),
       createdAt: now,
       updatedAt: now,
     ),
   );
 
-  Future<String> insertInventory({
-    required String studyId,
-    required int atPosition,
-    required InventoryMode mode,
-    int? quantity,
-    Duration? wait,
-    DurationUnit? waitUnit,
-    bool usesWorkingTime = false,
-    String? label,
-    String? notes,
-  }) => _insertNode(
-    studyId: studyId,
-    atPosition: atPosition,
-    build: (id, position, now) => FlowNodesCompanion.insert(
-      id: id,
-      studyId: studyId,
-      position: position,
-      kind: FlowNodeKind.inventory,
-      inventoryMode: Value(mode),
-      inventoryQuantity: Value(quantity),
-      inventorySeconds: Value(wait?.inSeconds),
-      inventoryUnit: Value(waitUnit),
-      inventoryUsesWorkingTime: Value(usesWorkingTime),
-      label: Value(label),
-      notes: Value(notes),
-      createdAt: now,
-      updatedAt: now,
-    ),
-  );
+  // **Nothing constructs an inventory node** (§7.3). It used to be the second
+  // kind on the spine, with its own name, discipline and capacity — and two
+  // studies through one machine therefore had two of them. The queue belongs to
+  // what a step targets now (`FlowQueuesRepository`), and the v19 fold folded
+  // every node onto its target. The rows stay as the recovery path for a name
+  // the fold discarded, so `FlowNodeKind.inventory` stays parseable; the writers
+  // went, because a repository that can still make one is how the old model
+  // comes back (§17.5).
 
   Future<String> _insertNode({
     required String studyId,
@@ -335,45 +362,28 @@ class StudiesRepository {
     String nodeId, {
     String? workcenterId,
     String? poolId,
-    required Duration changeover,
+    double? setupValue,
+    TaktUnit? setupUnit,
+    double? teardownValue,
+    TaktUnit? teardownUnit,
+    double? samePartPercent,
+    bool? balanceDisabled,
     double? equivalentValue,
     TaktUnit? equivalentUnit,
-    String? label,
     String? notes,
   }) async {
     await (_db.update(_db.flowNodes)..where((n) => n.id.equals(nodeId))).write(
       FlowNodesCompanion(
         workcenterId: Value(workcenterId),
         poolId: Value(poolId),
-        changeoverSeconds: Value(changeover.inSeconds),
+        setupValue: Value(setupValue),
+        setupUnit: Value(setupUnit),
+        teardownValue: Value(teardownValue),
+        teardownUnit: Value(teardownUnit),
+        samePartPercent: Value(samePartPercent),
+        balanceDisabled: Value(balanceDisabled),
         equivalentValue: Value(equivalentValue),
         equivalentUnit: Value(equivalentUnit),
-        label: Value(label),
-        notes: Value(notes),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-    await _touchStudyOfNode(nodeId);
-  }
-
-  Future<void> updateInventory(
-    String nodeId, {
-    required InventoryMode mode,
-    int? quantity,
-    Duration? wait,
-    DurationUnit? waitUnit,
-    required bool usesWorkingTime,
-    String? label,
-    String? notes,
-  }) async {
-    await (_db.update(_db.flowNodes)..where((n) => n.id.equals(nodeId))).write(
-      FlowNodesCompanion(
-        inventoryMode: Value(mode),
-        inventoryQuantity: Value(quantity),
-        inventorySeconds: Value(wait?.inSeconds),
-        inventoryUnit: Value(waitUnit),
-        inventoryUsesWorkingTime: Value(usesWorkingTime),
-        label: Value(label),
         notes: Value(notes),
         updatedAt: Value(DateTime.now()),
       ),

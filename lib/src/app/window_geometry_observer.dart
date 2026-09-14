@@ -77,6 +77,12 @@ class WindowGeometryObserver extends WindowListener {
 
   Future<void> _persist() async {
     try {
+      // **A minimised window has no frame worth keeping.** Windows parks it at
+      // -32000,-32000 and 160 by 28, and saving that meant the next launch
+      // read an offscreen window, threw the layout away and restored the
+      // default size (drive, 2026-09-13). Blur fires on minimise, which is how
+      // it got written.
+      if (await windowManager.isMinimized()) return;
       final maximized = await windowManager.isMaximized();
       if (!maximized) _normalBounds = await windowManager.getBounds();
       // Not seeded yet; nothing trustworthy to write.

@@ -2,6 +2,7 @@ import 'package:flowmap/src/data/database/database.dart';
 import 'package:flowmap/src/features/demand/application/demand_paste.dart';
 import 'package:flowmap/src/features/demand/data/demand_repository.dart';
 import 'package:flowmap/src/features/demand/application/demand_table.dart';
+import 'package:flowmap/src/common/date_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -77,14 +78,14 @@ void main() {
       expect(plan.parts.last.description, isNull);
 
       expect(
-        plan.times.map((t) => (t.partKey, t.targetId, t.time)),
+        plan.times.map((t) => (t.partKey, t.nodeId, t.time)),
         [
-          (partKeyOf('PN1'), 'wc-1', const Duration(hours: 55)),
-          (partKeyOf('PN1'), 'wc-2', const Duration(hours: 3)),
-          (partKeyOf('PN2'), 'wc-1', const Duration(hours: 8)),
+          (partKeyOf('PN1'), 'node-0', const Duration(hours: 55)),
+          (partKeyOf('PN1'), 'node-1', const Duration(hours: 3)),
+          (partKeyOf('PN2'), 'node-0', const Duration(hours: 8)),
           // Blank in the middle of a pasted row means "skips this step", and
           // says so explicitly rather than being dropped (§5.1).
-          (partKeyOf('PN2'), 'wc-2', null),
+          (partKeyOf('PN2'), 'node-1', null),
         ],
       );
     });
@@ -183,7 +184,7 @@ void main() {
         ],
       );
 
-      expect(plan.times.map((t) => t.targetId), ['wc-2']);
+      expect(plan.times.map((t) => t.nodeId), ['node-1']);
     });
 
     test('an emptied time cell clears it', () {
@@ -220,7 +221,7 @@ void main() {
         ],
       );
 
-      expect(plan.times.map((t) => t.targetId), ['wc-2']);
+      expect(plan.times.map((t) => t.nodeId), ['node-1']);
     });
 
     test('a block anchored past the last column stops at the edge', () {
@@ -235,8 +236,8 @@ void main() {
 
       // The second value falls on the read-only Total column and is dropped
       // rather than wrapping onto the next row.
-      expect(plan.times.map((t) => (t.targetId, t.time)), [
-        ('wc-2', const Duration(hours: 3)),
+      expect(plan.times.map((t) => (t.nodeId, t.time)), [
+        ('node-1', const Duration(hours: 3)),
       ]);
     });
   });
@@ -255,7 +256,7 @@ void main() {
           ['PN1', '', 'B-0012', '4', '2026-08-13', '2026-08-01'],
           ['PN2', '', '', '1', '2026-08-14', ''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.every((w) => w.isNew), isTrue);
@@ -280,7 +281,7 @@ void main() {
           ['PN1', '', 'LOT7', '1', '2026-08-13'],
           ['PN2', '', 'LOT7', '1', '2026-08-14'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, hasLength(2));
@@ -296,7 +297,7 @@ void main() {
         block: [
           [''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.batchNumber, isNull);
@@ -311,7 +312,7 @@ void main() {
         block: [
           ['10'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.batchSize, 10);
@@ -327,7 +328,7 @@ void main() {
         block: [
           ['PN404', '', '', '1', '2026-08-13'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, isEmpty);
@@ -344,7 +345,7 @@ void main() {
         block: [
           ['PN1', '', '', '1', ''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, isEmpty);
@@ -359,7 +360,7 @@ void main() {
         block: [
           ['10'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.id, 'o1');
@@ -379,7 +380,7 @@ void main() {
         block: [
           [''],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes.single.materialDate, isNull);
@@ -394,7 +395,7 @@ void main() {
         block: [
           ['0'],
         ],
-        locale: 'en',
+        dateStyle: const DateStyle(locale: 'en'),
       );
 
       expect(writes, isEmpty);
@@ -409,7 +410,7 @@ void main() {
         block: [
           ['PN1', '', '', '1', '03/08/2026'],
         ],
-        locale: 'pt_BR',
+        dateStyle: const DateStyle(locale: 'pt_BR'),
       );
       expect(ptBr.single.needDate, DateTime(2026, 8, 3));
 
@@ -421,7 +422,7 @@ void main() {
         block: [
           ['PN1', '', '', '1', '03/08/2026'],
         ],
-        locale: 'en_US',
+        dateStyle: const DateStyle(locale: 'en_US'),
       );
       expect(enUs.single.needDate, DateTime(2026, 3, 8));
     });

@@ -18,13 +18,17 @@
 /// the wrong column is a misread rather than a missing read.
 ///
 /// The gutters are set to nothing on purpose. `DataTable`'s 24 px margin and
-/// 56 px spacing would put 672 px of air into a thirteen-column plan and make
+/// 56 px spacing would put 728 px of air into a fourteen-column plan and make
 /// `ResultColumn.width` a number that does not describe the column it names.
 /// The breathing room belongs *inside* the declared width, where it can be seen.
 ///
 /// **Not the Takt table.** It fits, and §12.5 deliberately stretches it to fill
-/// its card — declared widths would end that stretch for no gain. It keeps
-/// `centredColumn` / `centredCell` from `centred_table.dart`.
+/// its card — declared widths would end that stretch for no gain. It is a
+/// [DataGrid] rather than a table at all now, which is what finally killed
+/// `centred_table.dart`: that file wrapped `DataColumn` and `DataCell` in a
+/// `Center` for the Takt table's sake, this pane centres its own cells through
+/// [ResultColumn.centred], and by the time #10 counted the callers it had none
+/// outside its own test. Centring lives here and in [DataGrid], nowhere else.
 ///
 /// **Not lazy.** A `DataTable` builds every row, so a §14-scale 2000-order plan
 /// constructs 2000 rows to show seven of them. That was true before this pane
@@ -85,6 +89,9 @@ Widget resultTable({
   required Widget Function(int row, int column) cellAt,
   double? maxHeight = resultTableMaxHeight,
   bool fill = false,
+  int? sortColumn,
+  bool sortAscending = true,
+  void Function(int column)? onSort,
 }) => _ResultTable(
   key: key,
   columns: columns,
@@ -92,7 +99,117 @@ Widget resultTable({
   cellAt: cellAt,
   maxHeight: maxHeight,
   fill: fill,
+  sortColumn: sortColumn,
+  sortAscending: sortAscending,
+  onSort: onSort,
 );
+
+/// A [resultTable] that sorts itself, for the surfaces the rule names (#10).
+///
+/// > **A surface sorts unless its row order is itself data.**
+///
+/// So the queue ranking, the share of flow, the parts table and the summary
+/// table sort — re-ranking is what a reader goes to those to do. The production
+/// plan does not: its order is the release sequence. The float matrix does not:
+/// row *r* means rank *r* in that column. No editable grid does: sequence order
+/// is the record. *Rejected: every read-only table sorts* — simpler to state,
+/// and clicking a heading on the plan or the matrix produces a table that looks
+/// fine and says something false.
+///
+/// **State lives here, not in four call sites.** Each surface would otherwise
+/// grow the same `int _sortColumn` / `bool _ascending` pair and the same
+/// three-line `onSort`, which is four chances to get the toggle subtly
+/// different.
+///
+/// [sortKeyOf] returns what a column compares, or **null for a column that does
+/// not sort** — a name column with an icon in it, say. A null key leaves the
+/// rows where they are rather than throwing, and the heading still shows no
+/// arrow because [onSort] is never called for it.
+class SortableResultTable<T> extends StatefulWidget {
+  const SortableResultTable({
+    super.key,
+    required this.columns,
+    required this.rows,
+    required this.cellAt,
+    required this.sortKeyOf,
+    this.initialColumn = 0,
+    this.initialAscending = true,
+    this.maxHeight = resultTableMaxHeight,
+    this.fill = false,
+  });
+
+  final List<ResultColumn> columns;
+  final List<T> rows;
+  final Widget Function(T row, int column) cellAt;
+
+  /// What column [column] compares on [row], or null if it does not sort.
+  final Comparable<Object>? Function(T row, int column) sortKeyOf;
+
+  /// Which column the surface arrives sorted on — **the order the metrics
+  /// already computed**, so a table looks on arrival exactly as it did before
+  /// it could sort at all.
+  final int initialColumn;
+  final bool initialAscending;
+
+  final double? maxHeight;
+  final bool fill;
+
+  @override
+  State<SortableResultTable<T>> createState() => _SortableResultTableState<T>();
+}
+
+class _SortableResultTableState<T> extends State<SortableResultTable<T>> {
+  late int _column = widget.initialColumn;
+  late bool _ascending = widget.initialAscending;
+
+  @override
+  Widget build(BuildContext context) {
+    // **Sorted here rather than in the caller's list**, which is the run's own
+    // ordering and is read by other surfaces. A copy costs one allocation per
+    // build on tables of tens of rows.
+    final rows = [...widget.rows];
+    final sortable = widget.rows.isEmpty
+        ? false
+        : widget.sortKeyOf(widget.rows.first, _column) != null;
+    if (sortable) {
+      rows.sort((a, b) {
+        final ka = widget.sortKeyOf(a, _column);
+        final kb = widget.sortKeyOf(b, _column);
+        if (ka == null || kb == null) return 0;
+        final order = ka.compareTo(kb);
+        return _ascending ? order : -order;
+      });
+    }
+
+    return resultTable(
+      columns: widget.columns,
+      maxHeight: widget.maxHeight,
+      fill: widget.fill,
+      sortColumn: sortable ? _column : null,
+      sortAscending: _ascending,
+      onSort: (column) {
+        // A column with no key is not offered: pressing it would move the
+        // arrow onto a heading that sorts nothing.
+        if (widget.rows.isEmpty) return;
+        if (widget.sortKeyOf(widget.rows.first, column) == null) return;
+        setState(() {
+          if (_column == column) {
+            _ascending = !_ascending;
+          } else {
+            _column = column;
+            // **A new column starts ascending**, rather than inheriting the
+            // previous column's direction — otherwise the first press on a
+            // heading can sort it the way the reader did not ask for and the
+            // second press is the one that looks like it worked.
+            _ascending = true;
+          }
+        });
+      },
+      rowCount: rows.length,
+      cellAt: (index, column) => widget.cellAt(rows[index], column),
+    );
+  }
+}
 
 class _ResultTable extends StatefulWidget {
   const _ResultTable({
@@ -102,6 +219,9 @@ class _ResultTable extends StatefulWidget {
     required this.cellAt,
     required this.maxHeight,
     required this.fill,
+    required this.sortColumn,
+    required this.sortAscending,
+    required this.onSort,
   });
 
   final List<ResultColumn> columns;
@@ -124,6 +244,16 @@ class _ResultTable extends StatefulWidget {
   /// less room than the widths ask for, they are kept as declared and the table
   /// scrolls — so this is a way of using space, never of losing legibility.
   final bool fill;
+
+  /// Which column the rows are ordered by, or null for a table that does not
+  /// sort. **Presentation only**: the caller does the ordering and hands over
+  /// rows already in it, so a table cannot claim an order its rows are not in.
+  final int? sortColumn;
+  final bool sortAscending;
+
+  /// Called with the column the reader pressed. Null leaves the heading inert,
+  /// which is what every table did before this existed.
+  final void Function(int column)? onSort;
 
   @override
   State<_ResultTable> createState() => _ResultTableState();
@@ -181,13 +311,13 @@ class _ResultTableState extends State<_ResultTable> {
             // column would otherwise run past the heading row's height and
             // overflow, and a label that overflows is one nobody can read
             // anyway.
-            Text(
-              widget.columns[i].label,
-              textAlign: widget.columns[i].centred
-                  ? TextAlign.center
-                  : TextAlign.start,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            _HeadingLabel(
+              column: widget.columns[i],
+              sorted: widget.sortColumn == i,
+              ascending: widget.sortAscending,
+              onSort: widget.onSort == null
+                  ? null
+                  : () => widget.onSort!(i),
             ),
           ),
         ),
@@ -290,6 +420,64 @@ class _ResultTableState extends State<_ResultTable> {
               notification.metrics.axis == Axis.vertical,
           child: MediaQuery(data: media, child: pane),
         ),
+      ),
+    );
+  }
+}
+
+/// A heading label, with a sort arrow when the table sorts.
+///
+/// **The arrow is inside the declared width**, like everything else in this
+/// table — a heading that grew to fit an arrow would stop agreeing with the
+/// body column beneath it, which is the one thing the two-table layout exists
+/// to prevent.
+class _HeadingLabel extends StatelessWidget {
+  const _HeadingLabel({
+    required this.column,
+    required this.sorted,
+    required this.ascending,
+    required this.onSort,
+  });
+
+  final ResultColumn column;
+  final bool sorted;
+  final bool ascending;
+  final VoidCallback? onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = Text(
+      column.label,
+      textAlign: column.centred ? TextAlign.center : TextAlign.start,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (onSort == null) return label;
+
+    return InkWell(
+      onTap: onSort,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: column.centred
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
+        children: [
+          Flexible(child: label),
+          // Reserved whether or not this column is the sorted one, so pressing
+          // a heading does not shuffle the labels either side of it.
+          SizedBox(
+            width: 18,
+            child: sorted
+                ? Icon(
+                    ascending ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
+          ),
+        ],
       ),
     );
   }

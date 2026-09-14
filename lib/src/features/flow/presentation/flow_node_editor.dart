@@ -1,128 +1,142 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../simulation/application/simulation_providers.dart';
+import '../../diagnostics/application/diagnostics.dart';
 import '../../studies/application/studies_providers.dart';
+import '../data/flow_queues_repository.dart';
 import '../application/flow_providers.dart';
 import '../application/flow_view.dart';
+import '../application/takt_balance.dart' show BalanceStanding;
 
-/// Offers the two things that can go between nodes.
+/// Adds a process step to the spine, and the queue in front of it.
+///
+/// **There is one thing to insert now** (§7.3). This offered a choice of two —
+/// a step or an inventory — and an inventory is no longer a node: every step has
+/// a queue in front of it, and the type of that queue is chosen here, when the
+/// workcenter is. A menu of one is a dialog with an extra click in it, so the
+/// step dialog opens directly.
 Future<void> showInsertNodeMenu(
   BuildContext context,
   WidgetRef ref, {
   required Study study,
   required int position,
-  required Map<String, DispatchRule> dispatchByTarget,
+  required Map<String, ProjectQueue> queues,
 }) async {
-  final l10n = AppLocalizations.of(context);
-  final choice = await showDialog<FlowNodeKind>(
+  final targets = await ref.read(flowTargetsProvider(study.id).future);
+  if (!context.mounted) return;
+
+  final draft = await showDialog<_StepDraft>(
     context: context,
-    builder: (context) => SimpleDialog(
-      title: Text(l10n.flowInsertHere),
-      children: [
-        SimpleDialogOption(
-          onPressed: () => Navigator.of(context).pop(FlowNodeKind.step),
-          child: ListTile(
-            leading: const Icon(Icons.crop_square_outlined),
-            title: Text(l10n.flowInsertStep),
-            subtitle: Text(l10n.flowInsertStepHelp),
-          ),
-        ),
-        SimpleDialogOption(
-          onPressed: () => Navigator.of(context).pop(FlowNodeKind.inventory),
-          child: ListTile(
-            leading: const Icon(Icons.change_history),
-            title: Text(l10n.flowInsertInventory),
-            subtitle: Text(l10n.flowInsertInventoryHelp),
-          ),
-        ),
-      ],
+    builder: (context) => _StepDialog(
+      workcenters: targets.workcenters,
+      pools: targets.pools,
+      queues: queues,
     ),
   );
-  if (choice == null || !context.mounted) return;
+  if (draft == null) return;
 
-  final repository = ref.read(studiesRepositoryProvider);
-  if (choice == FlowNodeKind.step) {
-    final targets = await ref.read(flowTargetsProvider(study.id).future);
-    if (!context.mounted) return;
-    final draft = await showDialog<_StepDraft>(
-      context: context,
-      builder: (context) => _StepDialog(
-        workcenters: targets.workcenters,
-        pools: targets.pools,
-        dispatchByTarget: dispatchByTarget,
-      ),
-    );
-    if (draft == null) return;
-    await repository.insertStep(
-      studyId: study.id,
-      atPosition: position,
-      workcenterId: draft.workcenterId,
-      poolId: draft.poolId,
-      changeover: draft.changeover,
-      equivalentValue: draft.equivalentValue,
-      equivalentUnit: draft.equivalentUnit,
-      label: draft.label,
-      notes: draft.notes,
-    );
-    await _writeDispatch(ref, study, draft, dispatchByTarget);
-  } else {
-    final draft = await showDialog<_InventoryDraft>(
-      context: context,
-      builder: (context) => const _InventoryDialog(),
-    );
-    if (draft == null) return;
-    await repository.insertInventory(
-      studyId: study.id,
-      atPosition: position,
-      mode: draft.mode,
-      quantity: draft.quantity,
-      wait: draft.wait,
-      waitUnit: draft.waitUnit,
-      usesWorkingTime: draft.usesWorkingTime,
-      label: draft.label,
-      notes: draft.notes,
-    );
+  // **Both repositories, before the first await.** After it the dialog has
+  // closed and this `ref` belongs to an unmounted widget; see `_saveQueue`.
+  final queueWrites = ref.read(flowQueuesRepositoryProvider);
+  await ref
+      .read(studiesRepositoryProvider)
+      .insertStep(
+        studyId: study.id,
+        atPosition: position,
+        workcenterId: draft.workcenterId,
+        poolId: draft.poolId,
+        setupValue: draft.setupValue,
+        setupUnit: draft.setupUnit,
+        teardownValue: draft.teardownValue,
+        teardownUnit: draft.teardownUnit,
+        samePartPercent: draft.samePartPercent,
+        balanceDisabled: draft.balanceDisabled,
+        equivalentValue: draft.equivalentValue,
+        equivalentUnit: draft.equivalentUnit,
+        notes: draft.notes,
+      );
+  await _saveQueue(queueWrites, projectId: study.projectId, draft: draft);
+}
+
+/// Writes the step's queue, and only when the dialog says it changed.
+///
+/// **A step's dialog is opened to change its notes or its times far more often
+/// than to change a queue**, and the row it would write is shared by every study
+/// whose flow reaches that target (§7.3) — five of them on the real database.
+/// Writing on every save would let one study revert another's capacity without
+/// either of them seeing it happen. So `_StepDraft.queue` is null unless a queue
+/// field actually differs from what the dialog loaded, and a target nobody has
+/// described keeps no row at all.
+///
+/// **Takes the repository rather than the `ref` it came from**, and that is the
+/// whole of a defect the field hit four times in one evening: *"I'm trying to
+/// input the lane capacity to 2, but it's not saving."* This runs after the
+/// step has been written, which is an `await` — by then the dialog has closed
+/// and the widget that owns the `ref` is unmounted, so `ref.read` throws
+/// `Using "ref" when a widget is about to or has been unmounted is unsafe`.
+/// The step row moved and the queue row did not, with nothing on screen to say
+/// why.
+///
+/// The caller reads both repositories **before** the first await, which is what
+/// `studiesRepositoryProvider` already did one line above and is why *it*
+/// survived.
+Future<void> _saveQueue(
+  FlowQueuesRepository queueWrites, {
+  required String projectId,
+  required _StepDraft draft,
+}) async {
+  final queue = draft.queue;
+  final targetId = draft.targetId;
+  if (queue == null || targetId == null) return;
+
+  // **Caught, because the alternative is silence.** This is awaited inside an
+  // async gap with no handler above it: a throw here unwinds into the framework,
+  // the dialog has already closed, and the only symptom is a row that did not
+  // move. Whatever else goes wrong with a queue write, it now says so.
+  try {
+    await queueWrites.saveQueue(
+          projectId: projectId,
+          targetId: targetId,
+          rule: queue.rule,
+          capacity: queue.capacity,
+          stockMode: queue.stockMode,
+          stockQuantity: queue.stockQuantity,
+          stockSeconds: queue.stockSeconds,
+          stockUnit: queue.stockUnit,
+        );
+  } catch (error, stack) {
+    Diag.error('queue.save', error, stack);
+    rethrow;
   }
 }
 
-/// Stores the step's target's queue discipline, if the user changed it (§7.4).
+/// Edits, moves or removes a process step — and the queue in front of it.
 ///
-/// **Only on a change.** The rule belongs to the station and not to this step,
-/// so saving a step for an unrelated reason must not rewrite it — and must not
-/// delete a rule another step set, which is what an unconditional write of a
-/// null would do.
-Future<void> _writeDispatch(
-  WidgetRef ref,
-  Study study,
-  _StepDraft draft,
-  Map<String, DispatchRule> before,
-) async {
-  final targetId = draft.targetId;
-  if (targetId == null) return;
-  if (before[targetId] == draft.dispatch) return;
-
-  await ref
-      .read(simulationRepositoryProvider)
-      .setDispatchRule(
-        projectId: study.projectId,
-        targetId: targetId,
-        rule: draft.dispatch,
-      );
-}
-
-/// Edits, moves or removes a process step.
+/// **[queues] is handed in rather than fetched here.** The canvas is already
+/// watching them — it cannot draw a channel without them — so the map has the
+/// answer before the click, and a dialog that went and asked again would be a
+/// second read of something already on screen. It also keeps this function
+/// testable without a database, which is what the queue section is worth
+/// testing through.
+///
+/// **The queue is set here, not on the connector** (§7.3, revised). It was on
+/// the channel, which is where a queue is *drawn* and where a planner is looking
+/// when they think of one; the field's answer was that choosing the type is part
+/// of putting a workcenter on the map, so it belongs in the same dialog as the
+/// workcenter. Clicking the channel opens this. _Rejected: both._ Two write
+/// paths into one shared row is how the two come to disagree (§12.6).
 Future<void> showStepEditor(
   BuildContext context,
   WidgetRef ref, {
   required Study study,
   required FlowStepView step,
-  required Map<String, DispatchRule> dispatchByTarget,
+  required Map<String, ProjectQueue> queues,
 }) async {
   final targets = await ref.read(flowTargetsProvider(study.id).future);
   if (!context.mounted) return;
@@ -132,27 +146,34 @@ Future<void> showStepEditor(
     builder: (context) => _StepDialog(
       workcenters: targets.workcenters,
       pools: targets.pools,
-      dispatchByTarget: dispatchByTarget,
+      queues: queues,
       existing: step,
     ),
   );
   if (result == null) return;
 
   final repository = ref.read(studiesRepositoryProvider);
+  // Read here rather than after the step is written: by then this `ref` is an
+  // unmounted widget's and reading it throws. See `_saveQueue`.
+  final queueWrites = ref.read(flowQueuesRepositoryProvider);
   switch (result) {
     case _StepDraft draft:
       await repository.updateStep(
         step.node.id,
         workcenterId: draft.workcenterId,
         poolId: draft.poolId,
-        changeover: draft.changeover,
+        setupValue: draft.setupValue,
+        setupUnit: draft.setupUnit,
+        teardownValue: draft.teardownValue,
+        teardownUnit: draft.teardownUnit,
+        samePartPercent: draft.samePartPercent,
+        balanceDisabled: draft.balanceDisabled,
         equivalentValue: draft.equivalentValue,
         equivalentUnit: draft.equivalentUnit,
-        label: draft.label,
         notes: draft.notes,
       );
-      await _writeDispatch(ref, study, draft, dispatchByTarget);
-    case _MoveNode move:
+      await _saveQueue(queueWrites, projectId: study.projectId, draft: draft);
+      case _MoveNode move:
       await repository.moveNode(
         study.id,
         step.position,
@@ -172,67 +193,20 @@ Future<void> showStepEditor(
   }
 }
 
-Future<void> showInventoryEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  required Study study,
-  required FlowInventoryView buffer,
-}) async {
-  final result = await showDialog<_InventoryResult>(
-    context: context,
-    builder: (context) => _InventoryDialog(existing: buffer),
-  );
-  if (result == null) return;
-
-  final repository = ref.read(studiesRepositoryProvider);
-  switch (result) {
-    case _InventoryDraft draft:
-      await repository.updateInventory(
-        buffer.node.id,
-        mode: draft.mode,
-        quantity: draft.quantity,
-        wait: draft.wait,
-        waitUnit: draft.waitUnit,
-        usesWorkingTime: draft.usesWorkingTime,
-        label: draft.label,
-        notes: draft.notes,
-      );
-    case _MoveNode move:
-      await repository.moveNode(
-        study.id,
-        buffer.position,
-        buffer.position + move.by,
-      );
-    case _DeleteNode():
-      if (!context.mounted) return;
-      final l10n = AppLocalizations.of(context);
-      final confirmed = await confirmAction(
-        context,
-        title: l10n.flowDeleteNodeTitle,
-        message: l10n.confirmDeleteBody,
-        confirmLabel: l10n.actionDelete,
-        destructive: true,
-      );
-      if (confirmed) await repository.deleteNode(study.id, buffer.node.id);
-  }
-}
-
 // --- Dialog results -------------------------------------------------------
 
 sealed class _StepResult {}
 
-sealed class _InventoryResult {}
-
 /// Reordering is expressed as a relative move rather than a target index: the
 /// gesture on the canvas is "one to the left", and a relative move needs no
 /// knowledge of the list's length.
-class _MoveNode implements _StepResult, _InventoryResult {
+class _MoveNode implements _StepResult {
   const _MoveNode(this.by);
 
   final int by;
 }
 
-class _DeleteNode implements _StepResult, _InventoryResult {
+class _DeleteNode implements _StepResult {
   const _DeleteNode();
 }
 
@@ -240,28 +214,44 @@ class _StepDraft implements _StepResult {
   const _StepDraft({
     this.workcenterId,
     this.poolId,
-    required this.changeover,
+    this.setupValue,
+    this.setupUnit,
+    this.teardownValue,
+    this.teardownUnit,
+    this.samePartPercent,
+    this.balanceDisabled,
     this.equivalentValue,
     this.equivalentUnit,
-    this.label,
-    this.dispatch,
     this.notes,
+    this.queue,
   });
+
+  /// The queue in front of [targetId], or **null when nothing about it
+  /// changed** — which is the usual case, because a step dialog is opened to
+  /// change a label far more often than to retune a floor space.
+  final _QueueDraft? queue;
 
   final String? workcenterId;
   final String? poolId;
-  final Duration changeover;
+
+  /// The two halves of a changeover, each a value and a [TaktUnit] (§7.6).
+  /// Null is none, which is what every step had before v17.
+  final double? setupValue;
+  final TaktUnit? setupUnit;
+  final double? teardownValue;
+  final TaktUnit? teardownUnit;
+
+  /// Pinned out of §6.2.1's takt rebalancing (§7.7.4). Null is off, so
+  /// rebalancing is on — the default every step already in the tree has.
+  final bool? balanceDisabled;
+
+  /// How much of the pair a repeat of the same part still pays. Null is 0 %.
+  final double? samePartPercent;
 
   /// Null follows the line's takt — the usual case.
   final double? equivalentValue;
   final TaktUnit? equivalentUnit;
 
-  final String? label;
-
-  /// This step's target's queue discipline, or null to follow the run's
-  /// (§7.4). Not a property of the step: it is written against [targetId],
-  /// which is the station, and every step pointing at that station gets it.
-  final DispatchRule? dispatch;
 
   /// What a current-state walk found here — a problem, an opportunity, a
   /// question to come back to (§5.4). Free text, on the node, affecting no
@@ -274,29 +264,59 @@ class _StepDraft implements _StepResult {
   String? get targetId => poolId ?? workcenterId;
 }
 
-class _InventoryDraft implements _InventoryResult {
-  const _InventoryDraft({
-    required this.mode,
-    this.quantity,
-    this.wait,
-    this.waitUnit,
-    required this.usesWorkingTime,
-    this.label,
-    this.notes,
+/// A whole queue row, as the dialog gives it back.
+///
+/// **Every field, every time.** The dialog is over the whole queue, so a null
+/// here means "unset" rather than "leave alone" — which is what keeps one write
+/// path into a row two studies read (§12.6).
+class _QueueDraft {
+  const _QueueDraft({
+    this.rule,
+    this.capacity,
+    this.stockMode,
+    this.stockQuantity,
+    this.stockSeconds,
+    this.stockUnit,
   });
 
-  /// What a walk found at this buffer — why the stock is here, what it costs.
-  final String? notes;
+  /// How the workcenter ahead picks out of it, or null for an untyped queue:
+  /// material piles up and nobody has decided in what order it comes off (§7.3).
+  final DispatchRule? rule;
 
-  final InventoryMode mode;
-  final int? quantity;
-  final Duration? wait;
+  /// Orders that fit, or null for unlimited.
+  final int? capacity;
 
-  /// The unit [wait] was typed in, kept so it reads back the same way.
-  final DurationUnit? waitUnit;
+  /// What is standing here, as an observation of today (§5.5). Its own figure,
+  /// never read as a rule about the future.
+  final InventoryMode? stockMode;
+  final int? stockQuantity;
+  final int? stockSeconds;
 
-  final bool usesWorkingTime;
-  final String? label;
+  /// The unit a fixed wait was typed in, kept so it reads back the same way.
+  final DurationUnit? stockUnit;
+
+  /// **Compared by value**, because that comparison is the rule: the dialog
+  /// keeps what it loaded and writes nothing when the two are equal, so editing
+  /// a step cannot rewrite a queue row two studies share (§12.6).
+  @override
+  bool operator ==(Object other) =>
+      other is _QueueDraft &&
+      other.rule == rule &&
+      other.capacity == capacity &&
+      other.stockMode == stockMode &&
+      other.stockQuantity == stockQuantity &&
+      other.stockSeconds == stockSeconds &&
+      other.stockUnit == stockUnit;
+
+  @override
+  int get hashCode => Object.hash(
+    rule,
+    capacity,
+    stockMode,
+    stockQuantity,
+    stockSeconds,
+    stockUnit,
+  );
 }
 
 // --- Dialogs --------------------------------------------------------------
@@ -305,17 +325,19 @@ class _StepDialog extends StatefulWidget {
   const _StepDialog({
     required this.workcenters,
     required this.pools,
-    required this.dispatchByTarget,
+    this.queues = const {},
     this.existing,
   });
 
   final List<Workcenter> workcenters;
   final List<WorkcenterPool> pools;
 
-  /// The project's stored queue disciplines, by target (§7.4). Only the
-  /// overrides are in here — an absent key means the station follows the run's
-  /// rule, which is why the control's null option is a real choice.
-  final Map<String, DispatchRule> dispatchByTarget;
+  /// Every queue the project has, by target (§7.3).
+  ///
+  /// The whole map's worth rather than this step's, because the target picker
+  /// above can be changed while the dialog is open and the queue section has to
+  /// follow it — including onto a workcenter another study has already described.
+  final Map<String, ProjectQueue> queues;
 
   final FlowStepView? existing;
 
@@ -328,14 +350,24 @@ class _StepDialogState extends State<_StepDialog> {
   /// targets exactly one of them and two dropdowns would let a user pick both.
   late String? _target = _initialTarget();
 
-  /// The selected target's queue discipline, null meaning "follow the run's".
-  ///
-  /// Re-read whenever the target changes, so pointing the step at another
-  /// station shows *that* station's rule rather than carrying the previous
-  /// one across — the setting belongs to the station, not to the step.
-  late DispatchRule? _dispatch = widget.dispatchByTarget[_targetId];
-  late final TextEditingController _changeover = TextEditingController(
-    text: '${(widget.existing?.changeover ?? Duration.zero).inMinutes}',
+  late final TextEditingController _setup = TextEditingController(
+    text: widget.existing?.node.setupValue == null
+        ? ''
+        : _formatNumber(widget.existing!.node.setupValue!),
+  );
+  late TaktUnit _setupUnit =
+      widget.existing?.node.setupUnit ?? TaktUnit.minutes;
+  late final TextEditingController _teardown = TextEditingController(
+    text: widget.existing?.node.teardownValue == null
+        ? ''
+        : _formatNumber(widget.existing!.node.teardownValue!),
+  );
+  late TaktUnit _teardownUnit =
+      widget.existing?.node.teardownUnit ?? TaktUnit.minutes;
+  late final TextEditingController _samePart = TextEditingController(
+    text: widget.existing?.node.samePartPercent == null
+        ? ''
+        : _formatNumber(widget.existing!.node.samePartPercent!),
   );
   late final TextEditingController _equivalent = TextEditingController(
     text: widget.existing?.node.equivalentValue == null
@@ -344,27 +376,86 @@ class _StepDialogState extends State<_StepDialog> {
   );
   late TaktUnit _equivalentUnit =
       widget.existing?.node.equivalentUnit ?? TaktUnit.hours;
-  late final TextEditingController _label = TextEditingController(
-    text: widget.existing?.node.label ?? '',
-  );
+
+  /// §7.7.4's pin, held as the positive question the checkbox asks. Null in
+  /// storage means off, so a step that has never been asked reads as on.
+  late bool _rebalances = !(widget.existing?.node.balanceDisabled ?? false);
   late final TextEditingController _notes = TextEditingController(
     text: widget.existing?.node.notes ?? '',
   );
 
+  // --- the queue in front of this step (§7.3) ------------------------------
+  //
+  // Loaded from whatever the target picker is on, and reloaded whenever it
+  // moves, so the heading and the row that Save writes are always the same
+  // workcenter. The controllers are rebuilt in place rather than recreated: a
+  // `TextEditingController` outlives the value it is showing.
+  final TextEditingController _queueCapacity = TextEditingController();
+  final TextEditingController _stockQuantity = TextEditingController();
+  final TextEditingController _stockWait = TextEditingController();
+  _QueueType _queueType = _QueueType.queue;
+  InventoryMode _stockMode = InventoryMode.quantity;
+  DurationUnit _stockUnit = DurationUnit.hours;
+
+  /// What the queue section held when it was last loaded from a target.
+  ///
+  /// Compared on save so an untouched queue is not written at all — see
+  /// `_saveQueue` for why a shared row must not be rewritten by a label edit.
+  _QueueDraft? _loadedQueue;
+
   static String _formatNumber(double value) =>
       value == value.roundToDouble() ? '${value.round()}' : '$value';
 
-  /// Blank means "follow the line's takt", which is why an empty field is
-  /// valid rather than an error.
-  double? get _equivalentValue {
-    final text = _equivalent.text.trim();
+  /// Blank means "follow the line's takt", and **so does zero**: a step that
+  /// consumes none of the flow's capacity is not a thing to state, so the two
+  /// ways of typing nothing agree rather than one of them erroring.
+  double? get _equivalentValue => _amountOrNull(_equivalent);
+
+  bool get _equivalentInvalid => _invalid(_equivalent);
+
+  /// **Blank and zero both mean none**, so neither is an error.
+  ///
+  /// Zero used to be refused, and the field then said `Required` on an optional
+  /// field — reported from the field, and the two halves of a changeover are the
+  /// place it bites, because clearing a number very often lands on `0` rather
+  /// than on an empty box. A setup of zero *is* no setup; it is stored as
+  /// nothing, which is what the field already did with a blank.
+  double? _amountOrNull(TextEditingController controller) {
+    final text = controller.text.trim();
     if (text.isEmpty) return null;
     final value = double.tryParse(text.replaceAll(',', '.'));
     return value != null && value > 0 ? value : null;
   }
 
-  bool get _equivalentInvalid =>
-      _equivalent.text.trim().isNotEmpty && _equivalentValue == null;
+  /// Only what cannot be read as a duration at all: letters, or a negative.
+  bool _invalid(TextEditingController controller) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return false;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value == null || value < 0;
+  }
+
+  double? get _setupValue => _amountOrNull(_setup);
+  double? get _teardownValue => _amountOrNull(_teardown);
+
+  /// A percentage, so zero is a meaningful answer and the > 0 rule above does
+  /// not apply: `0 %` and blank both mean a repeat is free, and a user who
+  /// types the zero deliberately should see it stay.
+  double? get _samePartValue {
+    final text = _samePart.text.trim();
+    if (text.isEmpty) return null;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value != null && value >= 0 && value <= 100 ? value : null;
+  }
+
+  bool get _samePartInvalid =>
+      _samePart.text.trim().isNotEmpty && _samePartValue == null;
+
+  /// Whether a changeover exists at all, which is what reveals the percentage.
+  /// A step with neither half shows five fields, exactly as it did before —
+  /// which is what "optional for the user" has to mean on a dialog that already
+  /// scrolls at the app's 700 px minimum height.
+  bool get _hasChangeover => _setupValue != null || _teardownValue != null;
 
   String? _initialTarget() {
     final node = widget.existing?.node;
@@ -374,29 +465,135 @@ class _StepDialogState extends State<_StepDialog> {
     return null;
   }
 
-  /// The bare id behind `_target`'s `wc:` / `pool:` prefix.
-  String? get _targetId {
-    final target = _target;
-    if (target == null) return null;
-    if (target.startsWith('wc:')) return target.substring(3);
-    if (target.startsWith('pool:')) return target.substring(5);
-    return null;
+  /// The dispatch target the queue is keyed by — the pool where there is one,
+  /// never whichever member stands for it on the map (§3.1).
+  String? get _targetId => switch (_target) {
+    final value? when value.startsWith('wc:') => value.substring(3),
+    final value? when value.startsWith('pool:') => value.substring(5),
+    _ => null,
+  };
+
+  /// `CLAD04` or `CAL Pool` — what the section is headed with, and what the
+  /// shared-queue line names. The workcenter's own name rather than the step's
+  /// label: the other study's step may call its visit something else, and both
+  /// wait in this one line.
+  String get _targetName {
+    final id = _targetId;
+    if (id == null) return '';
+    for (final pool in widget.pools) {
+      if (pool.id == id) return pool.name;
+    }
+    for (final workcenter in widget.workcenters) {
+      if (workcenter.id == id) return workcenter.name;
+    }
+    return id;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQueue();
+  }
+
+  /// Fills the queue section from the target the picker is on.
+  ///
+  /// **An absent row is a push with nothing in it**, which is what a floor space
+  /// nobody has described is (§7.3) — not an error, and not a reason to hide the
+  /// section on a step that is bound.
+  void _loadQueue() {
+    final row = widget.queues[_targetId];
+    _queueType = _QueueType.of(row?.rule);
+    _queueCapacity.text = row?.capacity?.toString() ?? '';
+    _stockMode = row?.stockMode ?? InventoryMode.quantity;
+    _stockQuantity.text = '${row?.stockQuantity ?? 0}';
+    _stockUnit = row?.stockUnit ?? DurationUnit.hours;
+    _stockWait.text = _formatNumber(
+      durationIn(Duration(seconds: row?.stockSeconds ?? 0), _stockUnit),
+    );
+    _loadedQueue = _queueDraft();
+  }
+
+  /// The queue section as it stands, ready to be stored or compared.
+  _QueueDraft _queueDraft() {
+    final isDuration = _stockMode == InventoryMode.duration;
+    return _QueueDraft(
+      rule: _queueType.rule,
+      capacity: _queueCapacityValue,
+      stockMode: _stockMode,
+      stockQuantity: isDuration
+          ? null
+          : (int.tryParse(_stockQuantity.text.trim()) ?? 0),
+      stockSeconds: isDuration
+          ? durationFrom(_stockWaitValue ?? 0, _stockUnit).inSeconds
+          : null,
+      stockUnit: isDuration ? _stockUnit : null,
+    );
+  }
+
+  /// Blank is unlimited; anything else has to be a positive whole number of
+  /// orders. Zero is refused rather than treated as unlimited — a queue that
+  /// holds nothing would stop the line for good, and is far more likely to be a
+  /// typo than an intention.
+  int? get _queueCapacityValue {
+    final text = _queueCapacity.text.trim();
+    if (text.isEmpty) return null;
+    final value = int.tryParse(text);
+    return value != null && value > 0 ? value : null;
+  }
+
+  bool get _queueCapacityInvalid =>
+      _queueCapacity.text.trim().isNotEmpty && _queueCapacityValue == null;
+
+  double? get _stockWaitValue {
+    final value = double.tryParse(_stockWait.text.trim().replaceAll(',', '.'));
+    return value != null && value >= 0 ? value : null;
+  }
+
+  /// An emptied stock field is **nothing standing there**, not an error.
+  ///
+  /// It used to disable Save with no message against it at all, which is worse
+  /// than a wrong message: the button greys out and the dialog does not say why.
+  bool get _stockInvalid {
+    if (_targetId == null) return false;
+    final text = (_stockMode == InventoryMode.quantity ? _stockQuantity
+            : _stockWait)
+        .text
+        .trim();
+    if (text.isEmpty) return false;
+    final value = double.tryParse(text.replaceAll(',', '.'));
+    return value == null || value < 0;
+  }
+
+  /// Rewrites the field so the number keeps its meaning when the unit changes:
+  /// `48 hours` becomes `2 days`, not `48 days`.
+  void _changeStockUnit(DurationUnit unit) {
+    final current = _stockWaitValue;
+    setState(() {
+      if (current != null) {
+        _stockWait.text = _formatNumber(
+          durationIn(durationFrom(current, _stockUnit), unit),
+        );
+      }
+      _stockUnit = unit;
+    });
   }
 
   @override
   void dispose() {
-    _changeover.dispose();
+    _setup.dispose();
+    _teardown.dispose();
+    _samePart.dispose();
     _equivalent.dispose();
-    _label.dispose();
     _notes.dispose();
+    _queueCapacity.dispose();
+    _stockQuantity.dispose();
+    _stockWait.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final minutes = int.tryParse(_changeover.text.trim());
-
     return AlertDialog(
       title: Text(
         widget.existing == null ? l10n.flowInsertStep : l10n.flowStep,
@@ -414,8 +611,7 @@ class _StepDialogState extends State<_StepDialog> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: l10n.flowStepTarget,
-                  helperText: l10n.flowStepTargetHelp,
-                  helperMaxLines: 3,
+                  suffixIcon: helpIcon(context, l10n.flowStepTargetHelp),
                 ),
                 items: [
                   DropdownMenuItem(value: null, child: Text(l10n.valueNone)),
@@ -430,124 +626,216 @@ class _StepDialogState extends State<_StepDialog> {
                       child: Text('${pool.name} (${l10n.workcenterPool})'),
                     ),
                 ],
+                // **The queue section follows this picker.** Repointing a step
+                // from CLAD17 to CLAD09 means the fields on screen describe a
+                // workcenter the step no longer feeds, so they are reloaded from
+                // the new target — including from a row another study has
+                // already configured, which is then shown rather than
+                // overwritten. What the heading names is what Save writes.
                 onChanged: (value) => setState(() {
                   _target = value;
-                  _dispatch = widget.dispatchByTarget[_targetId];
+                  _loadQueue();
                 }),
               ),
-              // Only with a target to hang it on: an unbound step has no queue,
-              // and a control that cannot be written anywhere is worse than an
-              // absent one.
-              if (_targetId != null) ...[
+              const SizedBox(height: 12),
+              // **No Label field** (#5, v27). What this step *is* was the
+              // workcenter above; what it costs is below. The caption in between
+              // let a box be called something its workcenter was not, and was only
+              // ever used to shorten a target name that did not fit.
+              _ValueAndUnit(
+                controller: _equivalent,
+                unit: _equivalentUnit,
+                label: l10n.stepEquivalentTime,
+                hint: l10n.stepEquivalentFollowsTakt,
+                // `days` here is this workcenter's productive day, exactly as for
+                // takt — so `1 day` equals one takt-day, and the same is true of
+                // the two fields below (§6.1.1, §17.4). A definition a wrong
+                // answer depends on, so it keeps an affordance rather than being
+                // deleted with the rest of the helper text.
+                help: l10n.stepEquivalentHelp,
+                invalid: _equivalentInvalid,
+                onChanged: () => setState(() {}),
+                onUnitChanged: (unit) => setState(() => _equivalentUnit = unit),
+              ),
+              const SizedBox(height: 8),
+              // §7.7.4. **Always here, greyed with a reason where it cannot
+              // apply** — the field asked for this switch after an evening
+              // spent unable to find out why a workcenter was not being
+              // rebalanced, and the three reasons are all things the app knows.
+              // Hiding it (§2.1's rule for the same-part percentage) would
+              // protect the dialog's height and leave all three silent.
+              _RebalanceField(
+                value: _rebalances,
+                standing: widget.existing?.standing,
+                workcenterName: _targetName,
+                typeName: widget.existing?.typeName,
+                filled: widget.existing?.processTime,
+                capacity: widget.existing?.equivalentProcessTime,
+                rework: widget.existing?.rework,
+                onChanged: (value) => setState(() => _rebalances = value),
+              ),
+              const SizedBox(height: 16),
+              _FieldGroup(label: l10n.stepChangeover),
+              const SizedBox(height: 8),
+              _ValueAndUnit(
+                controller: _setup,
+                unit: _setupUnit,
+                label: l10n.stepSetup,
+                invalid: _invalid(_setup),
+                onChanged: () => setState(() {}),
+                onUnitChanged: (unit) => setState(() => _setupUnit = unit),
+              ),
+              const SizedBox(height: 12),
+              _ValueAndUnit(
+                controller: _teardown,
+                unit: _teardownUnit,
+                label: l10n.stepTeardown,
+                help: l10n.stepTeardownHelp,
+                invalid: _invalid(_teardown),
+                onChanged: () => setState(() {}),
+                onUnitChanged: (unit) => setState(() => _teardownUnit = unit),
+              ),
+              // Revealed rather than always shown: it modifies a changeover, and
+              // a step with neither half has nothing for it to modify.
+              if (_hasChangeover) ...[
                 const SizedBox(height: 12),
-                DropdownButtonFormField<DispatchRule?>(
-                  initialValue: _dispatch,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: l10n.stepDispatch,
-                    // Says out loud that this is the station's setting and not
-                    // the step's — the one thing about it that can surprise.
-                    helperText: l10n.stepDispatchHelp,
-                    helperMaxLines: 3,
+                TextField(
+                  controller: _samePart,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  items: [
-                    DropdownMenuItem(
-                      value: null,
-                      child: Text(l10n.stepDispatchFollowsRun),
-                    ),
-                    for (final rule in DispatchRule.values)
-                      DropdownMenuItem(
-                        value: rule,
-                        child: Text(dispatchRuleLabel(l10n, rule)),
-                      ),
-                  ],
-                  onChanged: (rule) => setState(() => _dispatch = rule),
+                  decoration: InputDecoration(
+                    labelText: l10n.stepSamePart,
+                    suffixText: '%',
+                    suffixIcon: helpIcon(context, l10n.stepSamePartHelp),
+                    errorText: _samePartInvalid ? l10n.validationNumber : null,
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
               ],
-              const SizedBox(height: 12),
-              TextField(
-                controller: _changeover,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: l10n.stepChangeover,
-                  suffixText: l10n.unitMinutesShort,
-                  helperText: l10n.stepChangeoverHelp,
-                  helperMaxLines: 3,
-                  errorText: minutes == null || minutes < 0
-                      ? l10n.validationRequired
-                      : null,
+              // --- the queue in front of this step (§7.3) ---
+              //
+              // Only on a bound step: there is no floor space in front of a step
+              // that names no workcenter, and nothing to key a row by.
+              if (_targetId != null) ...[
+                const SizedBox(height: 16),
+                // **Headed by the caption the map will draw** (#5, v27), so the
+                // dialog and the box cannot disagree about what this queue is
+                // called — and so choosing a type visibly renames it.
+                _FieldGroup(
+                  label: flowQueueCaption(
+                    queueTypeShortLabel(l10n, _queueType.rule),
+                    _targetName,
+                  ),
                 ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _equivalent,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: l10n.stepEquivalentTime,
-                        hintText: l10n.stepEquivalentFollowsTakt,
-                        errorText: _equivalentInvalid
-                            ? l10n.validationRequired
-                            : null,
-                      ),
-                      onChanged: (_) => setState(() {}),
+                const SizedBox(height: 4),
+                // **Said, not left to be discovered.** One queue per workcenter is
+                // the whole correction §7.3 made, and a planner editing this
+                // from inside one study has to know the other study's orders
+                // stand in the same line.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.flowQueueShared(_targetName),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<TaktUnit>(
-                      initialValue: _equivalentUnit,
-                      decoration: InputDecoration(labelText: l10n.taktUnit),
-                      items: [
-                        for (final unit in TaktUnit.values)
-                          DropdownMenuItem(
-                            value: unit,
-                            child: Text(taktUnitLabel(l10n, unit)),
-                          ),
-                      ],
-                      onChanged: (unit) {
-                        if (unit != null) {
-                          setState(() => _equivalentUnit = unit);
-                        }
-                      },
+                ),
+                const SizedBox(height: 12),
+                _QueueTypeField(
+                  value: _queueType,
+                  onChanged: (type) => setState(() => _queueType = type),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _queueCapacity,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: l10n.laneCapacity,
+                    suffixIcon: helpIcon(context, l10n.laneCapacityHelp),
+                    // **Zero really is refused here**, and this is the one
+                    // field where it is: a queue that holds nothing would stop
+                    // the line for good, and is far more likely to be a typo
+                    // than an intention (§5.5). Blank is unlimited. So the
+                    // message says what is wrong rather than claiming a field
+                    // nobody has to fill in is required.
+                    errorText: _queueCapacityInvalid
+                        ? l10n.validationAboveZero
+                        : null,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
+                // **One section, not two** (#5, v27). The discipline and the
+                // stock were never two rows — `project_queues` has held both
+                // since v19 — and a second heading was what made them look like
+                // two things. §16.16's correction survives untouched: an
+                // observation must not be read as a rule, and it lives in this
+                // label and the help text on the fields, which is where it was
+                // actually put.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.flowQueueStock,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<InventoryMode>(
+                  segments: [
+                    ButtonSegment(
+                      value: InventoryMode.quantity,
+                      label: Text(l10n.inventoryModeQuantity),
+                    ),
+                    ButtonSegment(
+                      value: InventoryMode.duration,
+                      label: Text(l10n.inventoryModeDuration),
+                    ),
+                  ],
+                  selected: {_stockMode},
+                  onSelectionChanged: (s) =>
+                      setState(() => _stockMode = s.first),
+                ),
+                const SizedBox(height: 12),
+                if (_stockMode == InventoryMode.quantity)
+                  TextField(
+                    controller: _stockQuantity,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: l10n.inventoryPieces,
+                      // pieces × takt is the classic "days of stock" reading.
+                      suffixIcon: helpIcon(context, l10n.inventoryPiecesHelp),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  )
+                else ...[
+                  _ValueAndUnitDuration(
+                    controller: _stockWait,
+                    unit: _stockUnit,
+                    label: l10n.inventoryWait,
+                    // A day here is 24 h — §12.7's own `days` case, and the
+                    // reason that rule refuses to delete this class of text.
+                    // The working-time switch the inventory node carried has
+                    // not come across: `project_queues` stores no such flag,
+                    // and §5.5 leaves a genuine process delay open rather than
+                    // inventing the column inside a re-model.
+                    help: l10n.inventoryWaitHelp,
+                    invalid: _stockInvalid,
+                    onChanged: () => setState(() {}),
+                    onUnitChanged: _changeStockUnit,
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  // Days here are this station's productive days, exactly as
-                  // for takt — so `1 day` equals one takt-day.
-                  l10n.stepEquivalentHelp,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _label,
-                decoration: InputDecoration(
-                  labelText: l10n.flowNodeLabel,
-                  helperText: l10n.flowNodeLabelHelp,
-                  helperMaxLines: 2,
-                ),
-              ),
-              const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 16),
               TextField(
                 controller: _notes,
                 minLines: 2,
                 maxLines: 4,
                 decoration: InputDecoration(
                   labelText: l10n.flowNodeNotes,
-                  helperText: l10n.flowNodeNotesHelp,
-                  helperMaxLines: 3,
                   alignLabelWithHint: true,
                 ),
               ),
@@ -565,12 +853,35 @@ class _StepDialogState extends State<_StepDialog> {
           child: Text(l10n.actionCancel),
         ),
         FilledButton(
-          onPressed: minutes == null || minutes < 0 || _equivalentInvalid
+          onPressed:
+              _equivalentInvalid ||
+                  _invalid(_setup) ||
+                  _invalid(_teardown) ||
+                  _samePartInvalid ||
+                  _queueCapacityInvalid ||
+                  _stockInvalid
               ? null
               : () {
-                  final label = _label.text.trim();
                   final notes = _notes.text.trim();
                   final equivalent = _equivalentValue;
+                  final queue = _targetId == null ? null : _queueDraft();
+                  // **A write that decides to do nothing leaves no trace**,
+                  // and this one decides on a comparison the reader cannot
+                  // see. The field reported typing a lane capacity and saving,
+                  // and the step row moved while the queue row did not — which
+                  // is exactly what this branch does and exactly what nothing
+                  // recorded. One line either way, so the next report arrives
+                  // with its own answer.
+                  Diag.event(
+                    'queue.save',
+                    queue == null
+                        ? 'no target'
+                        : queue == _loadedQueue
+                        ? 'unchanged, not written '
+                              '(capacity ${_loadedQueue?.capacity})'
+                        : 'writing capacity ${_loadedQueue?.capacity} '
+                              '-> ${queue.capacity}, rule ${queue.rule?.name}',
+                  );
                   Navigator.of(context).pop(
                     _StepDraft(
                       workcenterId: _target?.startsWith('wc:') ?? false
@@ -579,19 +890,37 @@ class _StepDialogState extends State<_StepDialog> {
                       poolId: _target?.startsWith('pool:') ?? false
                           ? _target!.substring(5)
                           : null,
-                      changeover: Duration(minutes: minutes),
+                      setupValue: _setupValue,
+                      // The unit is meaningless without a value, and storing one
+                      // beside a null would leave a figure nobody typed.
+                      setupUnit: _setupValue == null ? null : _setupUnit,
+                      teardownValue: _teardownValue,
+                      teardownUnit: _teardownValue == null
+                          ? null
+                          : _teardownUnit,
+                      // Discarded with the changeover it modified, so a step
+                      // cleared of both halves does not keep a percentage that
+                      // now applies to nothing.
+                      samePartPercent: _hasChangeover ? _samePartValue : null,
+                      // Stored as the negative so null reads as on (§7.7.4),
+                      // and written as null rather than `false` when it is on
+                      // so an untouched step keeps the blank it has always had.
+                      balanceDisabled: _rebalances ? null : true,
                       equivalentValue: equivalent,
                       // The unit is meaningless without a value, so it is only
                       // stored alongside one.
                       equivalentUnit: equivalent == null
                           ? null
                           : _equivalentUnit,
-                      label: label.isEmpty ? null : label,
-                      dispatch: _dispatch,
                       // Emptying the box clears the note rather than storing a
                       // blank one, so "no findings here" and "a finding that
                       // happens to be empty" stay the same thing.
                       notes: notes.isEmpty ? null : notes,
+                      // Null unless a queue field moved. `_saveQueue` writes
+                      // nothing then, so a target nobody has described keeps no
+                      // row and one study cannot revert another's by saving a
+                      // label (§7.3, §12.6).
+                      queue: queue == _loadedQueue ? null : queue,
                     ),
                   );
                 },
@@ -609,6 +938,251 @@ class _StepDialogState extends State<_StepDialog> {
 /// — throws `_OverflowBarParentData is not a subtype of FlexParentData` on
 /// mount and leaves a blank grey dialog. Content is a Column; a Row inside it
 /// can space things however it likes.
+/// A heading over a run of related fields, with a rule to the right of it.
+///
+/// Setup and teardown are two halves of one operation and read wrong as two
+/// unrelated numbers between a takt and a label.
+/// Whether this step shares its work with the like machines beside it (§7.7.4).
+///
+/// **Greyed with a reason rather than hidden** where it cannot apply. The switch
+/// is on by default and does nothing on a workcenter that has no like neighbour —
+/// but "does nothing" is exactly what a reader needs told, because the question
+/// this round came out of was *why is my workcenter not being rebalanced?* and the
+/// answer was invisible in all three of its forms.
+class _RebalanceField extends StatelessWidget {
+  const _RebalanceField({
+    required this.value,
+    required this.standing,
+    required this.workcenterName,
+    required this.typeName,
+    required this.onChanged,
+    this.filled,
+    this.capacity,
+    this.rework,
+  });
+
+  final bool value;
+
+  /// Why the step is or is not taking a share, from the same walk that computed
+  /// the split — so the caption cannot disagree with the figure on the box.
+  ///
+  /// Null on a step being inserted, which has no place in the flow yet and so
+  /// no neighbours to be like.
+  final BalanceStanding? standing;
+
+  final String workcenterName;
+  final String? typeName;
+
+  /// What the balance filled this workcenter to, what one takt of its capacity is,
+  /// and the rework between them (§9.8).
+  ///
+  /// **Carried so the caption can explain a gap the box cannot.** A balanced
+  /// workcenter shows a derived share *below* its flow equivalent — 87.9 h against
+  /// 91.1 h on the plant this was found on — and that reads as the balance
+  /// stopping short. It is not: 87.9 h of content is charged 91.1 h once 3.7 %
+  /// rework is paid, which is exactly one takt. The box shows two figures and
+  /// the reason they differ is a sentence, so it goes here rather than becoming
+  /// a third row (§2.5, §6.4 each spent a round taking rows off that box).
+  final Duration? filled;
+  final Duration? capacity;
+  final double? rework;
+
+  final ValueChanged<bool> onChanged;
+
+  /// `87.9 h`, which is how the process box writes a time of this size.
+  static String _hours(Duration d) =>
+      '${(d.inMinutes / 60).toStringAsFixed(1)} h';
+
+  /// What to say under the switch, or null where the label already says it.
+  String? _reason(AppLocalizations l10n) => switch (standing) {
+    null => null,
+    BalanceStanding.balanced =>
+      // The plain sentence wherever there is no rework to explain — which is
+      // every workcenter that balanced exactly as it always did.
+      (rework ?? 0) <= 0 || filled == null || capacity == null
+          ? l10n.stepRebalanceOn(typeName ?? '')
+          : l10n.stepRebalanceOnWithRework(
+              typeName ?? '',
+              _hours(filled!),
+              _hours(capacity!),
+              (rework! * 100).toStringAsFixed(1),
+            ),
+    // **The last member holds the remainder, not a fill**, so the sentence
+    // above would be false of it: it says the content shown uses one whole
+    // takt, and the remainder is *"allowed to be under or over"* (§7.4). Read
+    // on CEU32 while driving §9.5, where it claimed 165.2 h used one takt of
+    // 90.7 h.
+    BalanceStanding.balancedRemainder =>
+      filled == null || capacity == null
+          ? l10n.stepRebalanceOn(typeName ?? '')
+          // Over when the *charged* content passes a takt, not the measured
+          // content: rework is what the workcenter pays on top, and comparing the
+          // two raw figures would call a workcenter over that is not.
+          : (filled!.inSeconds * (1 + (rework ?? 0)) > capacity!.inSeconds
+                ? l10n.stepRebalanceRemainderOver
+                : l10n.stepRebalanceRemainder)(
+              typeName ?? '',
+              _hours(filled!),
+              _hours(capacity!),
+            ),
+    BalanceStanding.noType => l10n.stepRebalanceNoType(workcenterName),
+    BalanceStanding.noWorkHere => l10n.stepRebalanceNoWork,
+    BalanceStanding.noLikeNeighbour => l10n.stepRebalanceNoNeighbour(
+      typeName ?? '',
+    ),
+    // Pinned is the user's own decision and the unticked box already says it.
+    BalanceStanding.pinned => null,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    // Nothing to share with, so the switch is inert — but visible, and
+    // captioned with why. A pinned workcenter keeps its switch live so it can be
+    // unpinned again.
+    final canApply =
+        standing == null ||
+        standing == BalanceStanding.balanced ||
+        standing == BalanceStanding.balancedRemainder ||
+        standing == BalanceStanding.pinned;
+    final reason = _reason(l10n);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Checkbox(
+              value: value,
+              onChanged: canApply ? (next) => onChanged(next ?? true) : null,
+            ),
+            Expanded(
+              child: Text(
+                l10n.stepRebalance,
+                style: canApply ? null : TextStyle(color: theme.disabledColor),
+              ),
+            ),
+            ?helpIcon(context, l10n.stepRebalanceHelp),
+          ],
+        ),
+        if (reason != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 2),
+            child: Text(
+              reason,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _FieldGroup extends StatelessWidget {
+  const _FieldGroup({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Divider(height: 1, color: theme.colorScheme.outlineVariant)),
+      ],
+    );
+  }
+}
+
+/// A number and the [TaktUnit] it is written in, which is how all three of this
+/// dialog's durations are stored (§6.1, §7.6).
+///
+/// **The help is an icon, not a line of text under the field.** Field feedback
+/// was that the dialogs explain too much; the rule that came out of it is that
+/// help restating a label is deleted and help carrying a *definition* keeps an
+/// affordance. `days` is the definition that matters here — it means this
+/// workcenter's productive day in all three fields, and §17.4 is the scar that
+/// makes saying so non-optional.
+class _ValueAndUnit extends StatelessWidget {
+  const _ValueAndUnit({
+    required this.controller,
+    required this.unit,
+    required this.label,
+    required this.invalid,
+    required this.onChanged,
+    required this.onUnitChanged,
+    this.hint,
+    this.help,
+  });
+
+  final TextEditingController controller;
+  final TaktUnit unit;
+  final String label;
+  final bool invalid;
+  final VoidCallback onChanged;
+  final ValueChanged<TaktUnit> onUnitChanged;
+  final String? hint;
+  final String? help;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: hint,
+              errorText: invalid ? l10n.validationNumber : null,
+            ),
+            onChanged: (_) => onChanged(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: DropdownButtonFormField<TaktUnit>(
+            initialValue: unit,
+            decoration: InputDecoration(labelText: l10n.taktUnit),
+            items: [
+              for (final value in TaktUnit.values)
+                DropdownMenuItem(
+                  value: value,
+                  child: Text(taktUnitLabel(l10n, value)),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) onUnitChanged(value);
+            },
+          ),
+        ),
+        if (help != null) ...[
+          const SizedBox(width: 4),
+          Padding(
+            // Aligns with the field rather than with the row, which is taller
+            // by the height of an error line that is usually absent.
+            padding: const EdgeInsets.only(top: 12),
+            child: helpIcon(context, help),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _NodeActionsRow extends StatelessWidget {
   const _NodeActionsRow();
 
@@ -641,235 +1215,164 @@ class _NodeActionsRow extends StatelessWidget {
   }
 }
 
-class _InventoryDialog extends StatefulWidget {
-  const _InventoryDialog({this.existing});
+/// What the queue-type picker offers (§7.3).
+///
+/// **Its own type rather than a nullable `DispatchRule`**, because two of the
+/// six entries are not rules: a push is the absence of one, and a supermarket is
+/// a rule the engine cannot honour yet. A dropdown asserts exactly one item
+/// matches its value, so two entries sharing `null` throws at mount — which is
+/// what the test that opens this dialog found.
+enum _QueueType {
+  /// **Renamed from `push` in v27** (#5). The dropdown says what the lane *is*;
+  /// `FlowConnectionKind.push` and the striped VSM arrow keep the word, because
+  /// §5.2's symbols say how material *moves* into a lane and push is the
+  /// standard VSM word for that. The same null still draws a *pull* arrow when
+  /// the study has a WIP cap.
+  queue(null),
+  fifo(DispatchRule.fifo),
+  lifo(DispatchRule.lifo),
+  earliestDueDate(DispatchRule.earliestDueDate),
+  shortestProcessing(DispatchRule.shortestProcessing),
+  supermarket(null);
 
-  final FlowInventoryView? existing;
+  const _QueueType(this.rule);
 
-  @override
-  State<_InventoryDialog> createState() => _InventoryDialogState();
+  /// What is stored, or null for the two that store nothing.
+  final DispatchRule? rule;
+
+  /// Null is an untyped queue rather than a supermarket: an unset row is a line
+  /// nobody has given a rule to, and the one entry that cannot be chosen can
+  /// never be what was stored.
+  static _QueueType of(DispatchRule? rule) => switch (rule) {
+    null => _QueueType.queue,
+    DispatchRule.fifo => _QueueType.fifo,
+    DispatchRule.lifo => _QueueType.lifo,
+    DispatchRule.earliestDueDate => _QueueType.earliestDueDate,
+    DispatchRule.shortestProcessing => _QueueType.shortestProcessing,
+  };
 }
 
-class _InventoryDialogState extends State<_InventoryDialog> {
-  late InventoryMode _mode =
-      widget.existing?.node.inventoryMode ?? InventoryMode.quantity;
-  late final TextEditingController _quantity = TextEditingController(
-    text: '${widget.existing?.node.inventoryQuantity ?? 0}',
-  );
+/// The queue in front of one dispatch target (§7.3, §5.5).
+///
+/// Four things, in two groups the schema keeps apart for a reason: the
+/// **discipline and the capacity** are rules about the future, and the **stock**
+/// is an observation of today. They share a unit and mean opposite things
+/// (§16.16), and §5.5's correction was precisely that an observation must not be
+/// read as a rule — so a divider separates them here as a column separates them
+/// there.
+/// The queue-type picker, on the step dialog (§7.3).
+///
+/// Its own widget because the list has a shape: five things that can be chosen
+/// and one that is named and cannot.
+class _QueueTypeField extends StatelessWidget {
+  const _QueueTypeField({required this.value, required this.onChanged});
 
-  /// Rows written before the unit was stored read as hours, which is what the
-  /// editor offered at the time.
-  late DurationUnit _waitUnit =
-      widget.existing?.node.inventoryUnit ?? DurationUnit.hours;
-
-  late final TextEditingController _wait = TextEditingController(
-    text: _formatNumber(
-      durationIn(
-        Duration(seconds: widget.existing?.node.inventorySeconds ?? 0),
-        _waitUnit,
-      ),
-    ),
-  );
-  late bool _workingTime =
-      widget.existing?.node.inventoryUsesWorkingTime ?? false;
-  late final TextEditingController _label = TextEditingController(
-    text: widget.existing?.node.label ?? '',
-  );
-  late final TextEditingController _notes = TextEditingController(
-    text: widget.existing?.node.notes ?? '',
-  );
-
-  @override
-  void dispose() {
-    _quantity.dispose();
-    _wait.dispose();
-    _label.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  double? get _waitValue {
-    final value = double.tryParse(_wait.text.trim().replaceAll(',', '.'));
-    return value != null && value >= 0 ? value : null;
-  }
-
-  /// Rewrites the field so the number keeps its meaning when the unit changes:
-  /// `48 hours` becomes `2 days`, not `48 days`.
-  void _changeUnit(DurationUnit unit) {
-    final current = _waitValue;
-    setState(() {
-      if (current != null) {
-        _wait.text = _formatNumber(
-          durationIn(durationFrom(current, _waitUnit), unit),
-        );
-      }
-      _waitUnit = unit;
-    });
-  }
-
-  static String _formatNumber(double value) =>
-      value == value.roundToDouble() ? '${value.round()}' : '$value';
+  final _QueueType value;
+  final ValueChanged<_QueueType> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final quantity = int.tryParse(_quantity.text.trim());
-    final valid = _mode == InventoryMode.quantity
-        ? quantity != null && quantity >= 0
-        : _waitValue != null;
+    final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: Text(
-        widget.existing == null ? l10n.flowInsertInventory : l10n.flowInventory,
+    return DropdownButtonFormField<_QueueType>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: l10n.flowQueueType,
+        suffixIcon: helpIcon(context, l10n.flowQueueTypeHelp),
       ),
-      // Scrolls for the same reason as the step dialog: it can outgrow a short
-      // window once the working-time switch and the actions row are in.
-      content: SizedBox(
-        width: 480,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SegmentedButton<InventoryMode>(
-                segments: [
-                  ButtonSegment(
-                    value: InventoryMode.quantity,
-                    label: Text(l10n.inventoryModeQuantity),
-                  ),
-                  ButtonSegment(
-                    value: InventoryMode.duration,
-                    label: Text(l10n.inventoryModeDuration),
-                  ),
-                ],
-                selected: {_mode},
-                onSelectionChanged: (s) => setState(() => _mode = s.first),
-              ),
-              const SizedBox(height: 16),
-              if (_mode == InventoryMode.quantity)
-                TextField(
-                  controller: _quantity,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: l10n.inventoryPieces,
-                    // pieces × takt is the classic "days of stock" reading.
-                    helperText: l10n.inventoryPiecesHelp,
-                    helperMaxLines: 3,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                )
-              else ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _wait,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: l10n.inventoryWait,
-                          errorText: _waitValue == null
-                              ? l10n.validationRequired
-                              : null,
-                        ),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<DurationUnit>(
-                        initialValue: _waitUnit,
-                        decoration: InputDecoration(labelText: l10n.taktUnit),
-                        items: [
-                          for (final unit in DurationUnit.values)
-                            DropdownMenuItem(
-                              value: unit,
-                              child: Text(durationUnitLabel(l10n, unit)),
-                            ),
-                        ],
-                        onChanged: (unit) {
-                          if (unit != null) _changeUnit(unit);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    // A day here is 24 h; whether those hours are wall clock or
-                    // only-while-the-plant-runs is the switch below.
-                    l10n.inventoryWaitHelp,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _workingTime,
-                  title: Text(l10n.inventoryWorkingTime),
-                  // A cooling rack does not stop for the weekend; a manual queue
-                  // does.
-                  subtitle: Text(l10n.inventoryWorkingTimeHelp),
-                  onChanged: (value) => setState(() => _workingTime = value),
-                ),
-              ],
-              const SizedBox(height: 12),
-              TextField(
-                controller: _label,
-                decoration: InputDecoration(labelText: l10n.flowNodeLabel),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _notes,
-                minLines: 2,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: l10n.flowNodeNotes,
-                  helperText: l10n.flowNodeNotesHelp,
-                  helperMaxLines: 3,
-                  alignLabelWithHint: true,
-                ),
-              ),
-              if (widget.existing != null) ...[
-                const Divider(height: 24),
-                const _NodeActionsRow(),
-              ],
-            ],
+      items: [
+        for (final type in _QueueType.values)
+          DropdownMenuItem(
+            value: type,
+            // **Supermarket is named and not selectable** (§7.3). It is the
+            // type the field asked for and the one the engine cannot honour: it
+            // decouples — downstream withdraws from stock rather than waiting
+            // for a specific order — and it needs stock levels, a replenishment
+            // trigger and stockout metrics (§9). A supermarket symbol over FIFO
+            // behaviour would be a map that lies about the plant. Listed rather
+            // than omitted so a reader looking for it finds out why it is not
+            // there.
+            enabled: type != _QueueType.supermarket,
+            child: Text(
+              switch (type) {
+                _QueueType.queue => l10n.queueTypeQueue,
+                _QueueType.supermarket => l10n.queueTypeSupermarket,
+                _ => dispatchRuleLabel(l10n, type.rule!),
+              },
+              style: type == _QueueType.supermarket
+                  ? TextStyle(color: theme.disabledColor)
+                  : null,
+            ),
+          ),
+      ],
+      onChanged: (type) {
+        if (type != null) onChanged(type);
+      },
+    );
+  }
+}
+
+/// [_ValueAndUnit] for a plain duration rather than a takt.
+///
+/// A separate widget rather than a generic one: `days` means this workcenter's
+/// productive day in a [TaktUnit] and a flat 24 hours in a [DurationUnit]
+/// (§17.3), and a control that took either would be one edit away from
+/// offering the wrong meaning of the word.
+class _ValueAndUnitDuration extends StatelessWidget {
+  const _ValueAndUnitDuration({
+    required this.controller,
+    required this.unit,
+    required this.label,
+    required this.invalid,
+    required this.onChanged,
+    required this.onUnitChanged,
+    this.help,
+  });
+
+  final TextEditingController controller;
+  final DurationUnit unit;
+  final String label;
+  final String? help;
+  final bool invalid;
+  final VoidCallback onChanged;
+  final ValueChanged<DurationUnit> onUnitChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: label,
+              suffixIcon: helpIcon(context, help),
+              errorText: invalid ? l10n.validationNumber : null,
+            ),
+            onChanged: (_) => onChanged(),
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.actionCancel),
-        ),
-        FilledButton(
-          onPressed: valid
-              ? () {
-                  final label = _label.text.trim();
-                  final notes = _notes.text.trim();
-                  final isDuration = _mode == InventoryMode.duration;
-                  Navigator.of(context).pop(
-                    _InventoryDraft(
-                      mode: _mode,
-                      quantity: _mode == InventoryMode.quantity
-                          ? quantity
-                          : null,
-                      wait: isDuration
-                          ? durationFrom(_waitValue!, _waitUnit)
-                          : null,
-                      waitUnit: isDuration ? _waitUnit : null,
-                      usesWorkingTime: _workingTime,
-                      label: label.isEmpty ? null : label,
-                      notes: notes.isEmpty ? null : notes,
-                    ),
-                  );
-                }
-              : null,
-          child: Text(l10n.actionSave),
+        const SizedBox(width: 12),
+        Expanded(
+          child: DropdownButtonFormField<DurationUnit>(
+            initialValue: unit,
+            decoration: InputDecoration(labelText: l10n.taktUnit),
+            items: [
+              for (final value in DurationUnit.values)
+                DropdownMenuItem(
+                  value: value,
+                  child: Text(durationUnitLabel(l10n, value)),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) onUnitChanged(value);
+            },
+          ),
         ),
       ],
     );

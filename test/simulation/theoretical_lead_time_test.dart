@@ -55,17 +55,20 @@ void main() {
     int position,
     String target, {
     Duration changeover = Duration.zero,
+    Duration stock = Duration.zero,
   }) => SimStep(
     id: 'node-$position',
     position: position,
     title: target,
     candidates: [target],
     demandKey: target,
-    changeover: changeover,
+    queue: SimQueue(targetId: target),
+    queueStock: stock,
+    setupValue: changeover == Duration.zero
+        ? null
+        : changeover.inSeconds.toDouble(),
+    setupUnit: TaktUnit.seconds,
   );
-
-  SimBuffer buffer(int position) =>
-      SimBuffer(id: 'node-$position', position: position);
 
   SimPart part(Map<String, Duration> times) =>
       SimPart(id: 'p1', partNumber: 'PN1', processTimes: times);
@@ -133,16 +136,16 @@ void main() {
     });
 
     test('a buffer costs nothing, because the run will not spend it', () {
-      // This figure is only meaningful as a **floor** under what a run
-      // observes: it is the denominator of lead-time efficiency, and the gap
-      // between it and the run is the queueing. §5.5's buffers no longer delay
-      // a run, so counting them here would put the floor above the ceiling —
-      // on célula 11B, 35.1 theoretical days against 25.8 actual ones.
+      // **`workingTime` is work content and nothing else** — no changeover and
+      // no stock, whatever `elapsed` beside it counts (§7.9). It is not a floor
+      // under a run and nothing divides by it today; what it is, is the one
+      // figure here that answers "how much work is in this order".
       //
-      // Friday 06:00, two hours of work, and a buffer either side of it: the
-      // answer is the same as if neither were there.
+      // Friday 06:00 and two hours of work. There is no buffer node to put
+      // either side of it any more — a queue belongs to the step now — and the
+      // point stands unchanged: what an order waits is not in this figure.
       final result = theoreticalLeadTime(
-        nodes: [buffer(0), step(1, 'CLAD04'), buffer(2)],
+        nodes: [step(1, 'CLAD04')],
         workcenters: {'CLAD04': workcenter('CLAD04')},
         part: part({'CLAD04': const Duration(hours: 2)}),
         batchSize: 1,
@@ -171,7 +174,7 @@ void main() {
       expect(problems, [TheoreticalLeadTimeProblem.noProcessTime]);
     });
 
-    test('a station that never opens fails loudly rather than looping', () {
+    test('a workcenter that never opens fails loudly rather than looping', () {
       final shut = WorkcenterScheduleSpec([
         WorkcenterSchedulePeriodSpec(
           startDate: DateTime(2026, 1, 1),
@@ -207,7 +210,7 @@ void main() {
 
   group('coldStartDate', () {
     test('is the walk run backwards, and lands where it started', () {
-      final nodes = [step(0, 'CLAD04'), buffer(1), step(2, 'TTAT')];
+      final nodes = [step(0, 'CLAD04'), step(2, 'TTAT')];
       final workcenters = {
         'CLAD04': workcenter('CLAD04'),
         'TTAT': workcenter('TTAT'),
@@ -266,6 +269,101 @@ void main() {
 
       expect(start, isNull);
       expect(problems, [TheoreticalLeadTimeProblem.unknownWorkcenter]);
+    });
+  });
+
+  group('the two walks invert each other (§7.9)', () {
+    /// Forward from [from] with this plant, or null if it cannot be walked.
+    DateTime? endOf(List<SimStep> nodes, DateTime from) => theoreticalLeadTime(
+      nodes: nodes,
+      workcenters: {'A': workcenter('A'), 'B': workcenter('B')},
+      part: part({
+        'A': const Duration(hours: 5),
+        'B': const Duration(hours: 5),
+      }),
+      batchSize: 1,
+      from: from,
+    )?.end;
+
+    DateTime? startFor(List<SimStep> nodes, DateTime need) => coldStartDate(
+      nodes: nodes,
+      workcenters: {'A': workcenter('A'), 'B': workcenter('B')},
+      part: part({
+        'A': const Duration(hours: 5),
+        'B': const Duration(hours: 5),
+      }),
+      batchSize: 1,
+      needDate: need,
+    );
+
+    // Tuesday 11 August 2026, 11:00 — mid-shift, so neither walk starts on a
+    // boundary that could hide a rounding difference.
+    final need = DateTime(2026, 8, 11, 11);
+
+    test('a straight flow round-trips to the need date', () {
+      final nodes = [step(0, 'A'), step(1, 'B')];
+      final start = startFor(nodes, need);
+
+      expect(start, isNotNull);
+      expect(endOf(nodes, start!), need);
+    });
+
+    test('a flow that revisits a workcenter round-trips too', () {
+      // **The case the two walks used to disagree on.** `A → B → A` shares one
+      // floor space at A, so the two days of stock there are charged once — and
+      // the backward walk has to charge them at the step the forward walk does,
+      // which is the *first* to reach A rather than the first it meets going
+      // back. Charged at opposite ends, a wall-clock jump lands the following
+      // work on a different side of the weekend and the walks come apart.
+      final nodes = [
+        step(0, 'A', stock: const Duration(days: 2)),
+        step(1, 'B'),
+        step(2, 'A', stock: const Duration(days: 2)),
+      ];
+
+      final start = startFor(nodes, need);
+
+      expect(start, isNotNull);
+      expect(
+        endOf(nodes, start!),
+        need,
+        reason: 'the first order start date and its stated lead time have to '
+            'add up to its need date, which is what row 1 of the plan shows',
+      );
+    });
+
+    test('it holds wherever in the week the need date falls', () {
+      // A weekend is what separates a wall-clock jump from an open-time one, so
+      // the invariant is worth checking on every weekday rather than the one
+      // that happened to be picked.
+      final nodes = [
+        step(0, 'A', stock: const Duration(days: 2)),
+        step(1, 'B'),
+        step(2, 'A', stock: const Duration(days: 2)),
+      ];
+
+      for (var day = 10; day <= 14; day++) {
+        final target = DateTime(2026, 8, day, 11);
+        final start = startFor(nodes, target);
+
+        expect(start, isNotNull, reason: 'August $day');
+        expect(endOf(nodes, start!), target, reason: 'August $day');
+      }
+    });
+
+    test('the stock is charged once, not once per visit', () {
+      // Two steps on one workcenter, and the plant has one pile in front of it —
+      // the dedup both walks share (§7.3). Two days of it, so charging it twice
+      // would move the start date by two more.
+      final once = startFor([
+        step(0, 'A', stock: const Duration(days: 2)),
+        step(1, 'A', stock: const Duration(days: 2)),
+      ], need);
+      final bare = startFor([step(0, 'A'), step(1, 'A')], need);
+
+      expect(once, isNotNull);
+      expect(bare, isNotNull);
+      expect(bare!.difference(once!), const Duration(days: 2));
     });
   });
 }

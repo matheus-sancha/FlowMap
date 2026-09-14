@@ -34,6 +34,114 @@ void main() {
     });
   });
 
+  group('how tall the grid wants to be (§8.2)', () {
+    /// Mounts [rows] rows inside a box of exactly [height], and reports the
+    /// vertical scroll extent left over.
+    Future<double> overflowAt(
+      WidgetTester tester, {
+      required int rows,
+      required double height,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                height: height,
+                child: DataGrid(
+                  columns: const [DataGridColumn(title: 'Part')],
+                  rowCount: rows,
+                  valueAt: (row, column) => 'r$row',
+                  onCommit: (row, column, block) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final vertical = tester
+          .stateList<ScrollableState>(find.byType(Scrollable))
+          .where((s) => s.position.axis == Axis.vertical)
+          .toList();
+      expect(vertical, isNotEmpty, reason: 'the rows scroll vertically');
+      return vertical.first.position.maxScrollExtent;
+    }
+
+    testWidgets('at the height it asks for, nothing is left to scroll', (
+      tester,
+    ) async {
+      // The claim `heightFor` makes is that it is exact rather than an
+      // estimate, which is only true while the rows keep their declared
+      // `itemExtent`. Asserted against the widget rather than against the
+      // formula, so the day someone makes a row size itself this fails.
+      expect(await overflowAt(tester, rows: 4, height: DataGrid.heightFor(4)),
+          0.0);
+    });
+
+    testWidgets('one row short of it, exactly one row is left to scroll', (
+      tester,
+    ) async {
+      final short = DataGrid.heightFor(4) - (DataGrid.heightFor(5) -
+          DataGrid.heightFor(4));
+      expect(await overflowAt(tester, rows: 4, height: short),
+          closeTo(DataGrid.heightFor(5) - DataGrid.heightFor(4), 0.5));
+    });
+
+    test('it grows by one row at a time, and starts above zero', () {
+      final one = DataGrid.heightFor(1);
+      final two = DataGrid.heightFor(2);
+      expect(two - one, DataGrid.heightFor(3) - two);
+      expect(
+        DataGrid.heightFor(0),
+        greaterThan(0),
+        reason: 'a grid with no rows is still a heading and a rule',
+      );
+    });
+
+    test('two periods want far less than the card ceiling, twelve want more', () {
+      // §8.2's whole case, in one line. The 320 px ceiling is right for a long
+      // schedule and was 180 px of blank under a short one.
+      expect(DataGrid.heightFor(3), lessThan(320));
+      expect(DataGrid.heightFor(12), greaterThan(320));
+    });
+  });
+
+  group('the headings centre (§8.3)', () {
+    testWidgets('over a numeric column and a plain one alike', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DataGrid(
+              columns: const [
+                DataGridColumn(title: 'Operators'),
+                DataGridColumn(title: 'Availability', numeric: true),
+              ],
+              rowCount: 1,
+              valueAt: (row, column) => '',
+              onCommit: (row, column, block) {},
+            ),
+          ),
+        ),
+      );
+
+      for (final title in ['Operators', 'Availability']) {
+        final column = tester.widget<Column>(
+          find
+              .ancestor(of: find.text(title), matching: find.byType(Column))
+              .first,
+        );
+        expect(
+          column.crossAxisAlignment,
+          CrossAxisAlignment.center,
+          reason: '$title heading centres regardless of its cells',
+        );
+      }
+    });
+  });
+
   group('DataGrid', () {
     /// Mounts a two-column grid over a mutable model, as the demand tab does.
     Future<List<String>> pump(
@@ -121,6 +229,126 @@ void main() {
 
       expect(commits, isEmpty);
       expect(model[0][1], '55:00:00');
+    });
+  });
+
+  // #10's rule: the arrows belong to the caret until it has nowhere left to go,
+  // and only then do they leave the cell. Asserted as a property — which cell
+  // holds focus, and where the caret sits — so it renders nothing and still
+  // catches the case a drive would have to hunt for.
+  group('DataGrid arrow keys', () {
+    Future<List<TextField>> pump(WidgetTester tester) async {
+      final model = [
+        ['PN1', '55:00:00'],
+        ['PN2', '8:00:00'],
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DataGrid(
+              columns: const [
+                DataGridColumn(title: 'Part'),
+                DataGridColumn(title: 'CLAD04'),
+              ],
+              rowCount: model.length,
+              valueAt: (row, column) => model[row][column],
+              onCommit: (row, column, block) {},
+            ),
+          ),
+        ),
+      );
+      return tester.widgetList<TextField>(find.byType(TextField)).toList();
+    }
+
+    /// Which cell holds focus, in reading order, or -1 if none does.
+    int focused(WidgetTester tester) {
+      final fields = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .toList();
+      for (var i = 0; i < fields.length; i++) {
+        if (fields[i].focusNode?.hasFocus ?? false) return i;
+      }
+      return -1;
+    }
+
+    Future<void> focus(WidgetTester tester, int cell) async {
+      await tester.tap(find.byType(TextField).at(cell));
+      await tester.pumpAndSettle();
+    }
+
+    void caretAt(List<TextField> fields, int cell, int offset) =>
+        fields[cell].controller!.selection = TextSelection.collapsed(
+          offset: offset,
+        );
+
+    testWidgets('down and up always change row, caret or no caret', (
+      tester,
+    ) async {
+      final fields = await pump(tester);
+      await focus(tester, 0);
+      // Mid-word: a single-line field has no caret to move vertically, so the
+      // row changes regardless.
+      caretAt(fields, 0, 1);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 2);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 0);
+    });
+
+    testWidgets('right leaves the cell only once the caret is at the end', (
+      tester,
+    ) async {
+      final fields = await pump(tester);
+      await focus(tester, 0);
+
+      caretAt(fields, 0, 1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 0, reason: 'the caret still had somewhere to go');
+
+      caretAt(fields, 0, 'PN1'.length);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+    });
+
+    testWidgets('left leaves the cell only from offset zero', (tester) async {
+      final fields = await pump(tester);
+      await focus(tester, 1);
+
+      caretAt(fields, 1, 3);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+
+      caretAt(fields, 1, 0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 0);
+    });
+
+    testWidgets('a selected value is at neither edge', (tester) async {
+      final fields = await pump(tester);
+      await focus(tester, 1);
+      // Select the whole value. Left here collapses the selection, as it does
+      // in every other text field; a cell that jumped away instead would make
+      // a selected value the one thing you cannot arrow out of.
+      fields[1].controller!.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 8,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(focused(tester), 1);
     });
   });
 

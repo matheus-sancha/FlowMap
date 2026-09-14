@@ -240,6 +240,7 @@ class ResourcesRepository {
     required String plantId,
     required String name,
     String? typeId,
+    int parallelCapacity = 1,
     Set<String> lineIds = const {},
   }) async {
     final id = newId();
@@ -252,6 +253,7 @@ class ResourcesRepository {
             plantId: plantId,
             name: name,
             typeId: Value(typeId),
+            parallelCapacity: Value(parallelCapacity),
             createdAt: now,
             updatedAt: now,
           ),
@@ -264,12 +266,18 @@ class ResourcesRepository {
     String id, {
     required String name,
     String? typeId,
+    int? parallelCapacity,
     Set<String>? lineIds,
   }) async {
     await (_db.update(_db.workcenters)..where((w) => w.id.equals(id))).write(
       WorkcentersCompanion(
         name: Value(name),
         typeId: Value(typeId),
+        // Absent rather than null when the caller was not editing it, so a
+        // screen that does not offer the field cannot reset a workcenter to one.
+        parallelCapacity: parallelCapacity == null
+            ? const Value.absent()
+            : Value(parallelCapacity),
         updatedAt: Value(DateTime.now()),
       ),
     );
@@ -385,6 +393,7 @@ class ResourcesRepository {
   Future<String> createWorkcenterType(
     String name, {
     WorkcenterIcon? icon,
+    bool labourPaced = false,
   }) async {
     final id = newId();
     await _db
@@ -393,6 +402,13 @@ class ResourcesRepository {
           WorkcenterTypesCompanion.insert(
             id: id,
             name: name,
+            // **The icon was accepted and dropped.** This took the parameter,
+            // never wrote it, and the editor guesses a glyph from the name —
+            // so a new type silently arrived with the default machine icon and
+            // the chosen one appeared only after a second edit. Found while
+            // adding the column beside it.
+            icon: Value(icon),
+            isLabourPaced: Value(labourPaced),
             createdAt: DateTime.now(),
           ),
         );
@@ -403,8 +419,13 @@ class ResourcesRepository {
     String id, {
     required String name,
     WorkcenterIcon? icon,
+    bool labourPaced = false,
   }) => (_db.update(_db.workcenterTypes)..where((t) => t.id.equals(id))).write(
-    WorkcenterTypesCompanion(name: Value(name), icon: Value(icon)),
+    WorkcenterTypesCompanion(
+      name: Value(name),
+      icon: Value(icon),
+      isLabourPaced: Value(labourPaced),
+    ),
   );
 
   Future<void> renameWorkcenterType(String id, String name) =>

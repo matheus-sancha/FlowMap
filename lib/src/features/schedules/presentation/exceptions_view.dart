@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/dialogs.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/enums.dart';
@@ -19,7 +20,7 @@ import 'date_range_field.dart';
 /// every other workcenter shares.
 ///
 /// Project-scoped, and shown on the Workcenters tab beside the schedules it
-/// overrides: the two answer one question — what is this station open for —
+/// overrides: the two answer one question — what is this workcenter open for —
 /// and separating them would make the answer live in two places.
 class CalendarExceptionsView extends ConsumerWidget {
   const CalendarExceptionsView({
@@ -31,6 +32,7 @@ class CalendarExceptionsView extends ConsumerWidget {
   final Project project;
   final List<String> shiftLabels;
 
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
@@ -39,43 +41,38 @@ class CalendarExceptionsView extends ConsumerWidget {
         ref.watch(calendarExceptionsProvider(project.id)).value ??
         const <CalendarException>[];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Text(l10n.exceptions, style: theme.textTheme.titleSmall),
-                const Spacer(),
-                OutlinedButton.icon(
-                  onPressed: () => _edit(context, ref),
-                  icon: const Icon(Icons.add),
-                  label: Text(l10n.exceptionNew),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
+            namedHelp(
+              context,
+              l10n.exceptions,
               l10n.exceptionsHelp,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
+              style: theme.textTheme.titleSmall,
             ),
-            const SizedBox(height: 12),
-            if (exceptions.isEmpty)
-              Text(l10n.exceptionsEmpty, style: theme.textTheme.bodyMedium)
-            else
-              _Groups(
-                project: project,
-                exceptions: exceptions,
-                shiftLabels: shiftLabels,
-              ),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: () => _edit(context, ref),
+              icon: const Icon(Icons.add),
+              label: Text(l10n.exceptionNew),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        if (exceptions.isEmpty)
+          Text(l10n.exceptionsEmpty, style: theme.textTheme.bodyMedium)
+        else
+          _Groups(
+            project: project,
+            exceptions: exceptions,
+            shiftLabels: shiftLabels,
+          ),
+      ],
     );
+
+    return Card(child: Padding(padding: const EdgeInsets.all(16), child: body));
   }
 
   Future<void> _edit(BuildContext context, WidgetRef ref) async {
@@ -359,7 +356,7 @@ class _ExceptionDialogState extends ConsumerState<_ExceptionDialog> {
         const <String, List<String>>{};
 
     // Pools are offered in the same picker as workcenters and expanded on
-    // save. A pool is a name for a set of stations, not a fourth kind of
+    // save. A pool is a name for a set of workcenters, not a fourth kind of
     // place, so the schema needs no fourth scope.
     final targets = <({String id, String label})>[
       for (final pool in pools)
@@ -417,8 +414,7 @@ class _ExceptionDialogState extends ConsumerState<_ExceptionDialog> {
                 initialValue: _scope,
                 decoration: InputDecoration(
                   labelText: l10n.exceptionScope,
-                  helperText: l10n.exceptionScopeHelp,
-                  helperMaxLines: 3,
+                  suffixIcon: helpIcon(context, l10n.exceptionScopeHelp),
                 ),
                 items: [
                   DropdownMenuItem(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common/help_icon.dart';
 import '../../../common/workcenter_icons.dart';
 import '../../../data/database/enums.dart';
 import '../../../data/database/seed_data.dart';
@@ -7,9 +8,16 @@ import '../../../l10n/generated/app_localizations.dart';
 
 /// What the workcenter type editor produced.
 class WorkcenterTypeDraft {
-  const WorkcenterTypeDraft({required this.name, this.icon});
+  const WorkcenterTypeDraft({
+    required this.name,
+    this.icon,
+    this.labourPaced = false,
+  });
 
   final String name;
+
+  /// Whether the crew is this type's throughput (§7.5, v30).
+  final bool labourPaced;
 
   /// Null draws the default machine glyph — a type without an icon is a
   /// perfectly ordinary type, not an unfinished one.
@@ -26,6 +34,7 @@ Future<WorkcenterTypeDraft?> showWorkcenterTypeEditor(
   required Set<String> takenNames,
   String initialName = '',
   WorkcenterIcon? initialIcon,
+  bool initialLabourPaced = false,
 }) {
   return showDialog<WorkcenterTypeDraft>(
     context: context,
@@ -33,6 +42,7 @@ Future<WorkcenterTypeDraft?> showWorkcenterTypeEditor(
       takenNames: takenNames,
       initialName: initialName,
       initialIcon: initialIcon,
+      initialLabourPaced: initialLabourPaced,
     ),
   );
 }
@@ -42,11 +52,13 @@ class _WorkcenterTypeDialog extends StatefulWidget {
     required this.takenNames,
     required this.initialName,
     this.initialIcon,
+    this.initialLabourPaced = false,
   });
 
   final Set<String> takenNames;
   final String initialName;
   final WorkcenterIcon? initialIcon;
+  final bool initialLabourPaced;
 
   @override
   State<_WorkcenterTypeDialog> createState() => _WorkcenterTypeDialogState();
@@ -57,6 +69,7 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
     text: widget.initialName,
   );
   late WorkcenterIcon? _icon = widget.initialIcon;
+  late bool _labourPaced = widget.initialLabourPaced;
 
   /// Whether the user has chosen a glyph by hand. Until they do, typing a name
   /// keeps re-guessing — so "Welding" lands on the welding icon without a
@@ -75,9 +88,13 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
 
   void _submit(String value) {
     if (value.isEmpty || _error(value) != null) return;
-    Navigator.of(
-      context,
-    ).pop(WorkcenterTypeDraft(name: value, icon: _icon));
+    Navigator.of(context).pop(
+      WorkcenterTypeDraft(
+        name: value,
+        icon: _icon,
+        labourPaced: _labourPaced,
+      ),
+    );
   }
 
   @override
@@ -113,14 +130,51 @@ class _WorkcenterTypeDialogState extends State<_WorkcenterTypeDialog> {
                   },
                   onSubmitted: (_) => _submit(value),
                 ),
-                const SizedBox(height: 16),
-                Text(l10n.workcenterTypeIcon, style: theme.textTheme.labelLarge),
-                Text(
-                  l10n.workcenterTypeIconHelp,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+                const SizedBox(height: 8),
+                // **The one thing here that changes a number.** §12.7b: a
+                // definition a wrong conclusion depends on, and the field drew
+                // exactly that conclusion — crewing a workcenter up and expecting
+                // it to go faster, on a model that said every workcenter was
+                // machine-paced.
+                // **A named choice between two, not a switch.** A switch says
+                // *on or off* and leaves the reader to guess what off is; the
+                // two pacings are peers, and the one nobody picks is a real
+                // answer about the machine rather than the absence of one.
+                // **The `ⓘ` sits beside a heading, not inside the field's
+                // label.** A floating label is painted through a scale
+                // transform that `_RenderDecoration.hitTestChildren` does not
+                // apply when it hit-tests — its own comment says the label
+                // *must be handled specially* and then handles it like every
+                // other child. So anything interactive in a floating label is
+                // painted in one place and hit in another, and this dropdown
+                // always floats its label because it always has a value. The
+                // icon grid below already names itself this way.
+                namedHelp(
+                  context,
+                  l10n.workcenterCapacityType,
+                  l10n.workcenterTypeLabourPacedHelp,
+                  style: theme.textTheme.labelLarge,
                 ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<bool>(
+                  initialValue: _labourPaced,
+                  items: [
+                    DropdownMenuItem(
+                      value: false,
+                      child: Text(l10n.workcenterCapacityMachine),
+                    ),
+                    DropdownMenuItem(
+                      value: true,
+                      child: Text(l10n.workcenterCapacityOperator),
+                    ),
+                  ],
+                  onChanged: (picked) =>
+                      setState(() => _labourPaced = picked ?? false),
+                ),
+                const SizedBox(height: 16),
+                // *Deleted, not moved* (§12.7b): "workcenters of this type are
+                // drawn with it" restates what picking an icon visibly does.
+                Text(l10n.workcenterTypeIcon, style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 220),

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../common/formatters.dart';
+import '../../../common/help_icon.dart';
+import '../../../common/period_varies_caption.dart';
 import '../../../common/unit_labels.dart';
 import '../../../data/database/database.dart';
 import '../../../data/database/staffing_codec.dart';
-import '../../../common/dialogs.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../demand/application/demand_providers.dart';
 import '../../demand/application/demand_table.dart' show demandTargetOf;
-import '../../simulation/application/simulation_providers.dart';
 import '../../studies/application/studies_providers.dart';
 import '../../summary/application/summary_providers.dart';
 import '../application/flow_layout.dart';
@@ -55,6 +54,15 @@ class FlowTab extends ConsumerWidget {
   }
 }
 
+/// What the map is showing, and one way to get it out (DESIGN.md §12.1).
+///
+/// **Two controls, from eight.** The period stepper and its granularity moved
+/// to the tab strip, where one control serves the whole workspace instead of a
+/// copy per tab. What is left were never two choices: `Part` only exists under
+/// `FlowDataSource.singlePart`, so a source dropdown and a part dropdown were
+/// one decision split across two controls with a label in front of each. They
+/// are one list now — the yardstick, the mix, then the parts — and a dropdown
+/// reading `Weighted mix` does not need the words `Data source` beside it.
 class _Toolbar extends ConsumerWidget {
   const _Toolbar({required this.study});
 
@@ -63,7 +71,6 @@ class _Toolbar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final period = ref.watch(viewedPeriodProvider(study.id));
     final source = ref.watch(flowDataSourceSelectionProvider(study.id));
     final view = ref.watch(flowViewProvider(study.id)).value;
     final parts =
@@ -79,135 +86,203 @@ class _Toolbar extends ConsumerWidget {
             ?.id ??
         parts.firstOrNull?.id;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            IconButton(
-              tooltip: l10n.periodPrevious,
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () =>
-                  ref.read(viewedPeriodProvider(study.id).notifier).previous(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Text(
+            l10n.flowShowing,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
             ),
-            // Every number on the map is period-dependent, so the period is
-            // part of the map's identity, not a filter.
-            SizedBox(
-              width: 96,
-              child: Text(
-                periodLabel(context, period.anchor, period.granularity),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ),
-            IconButton(
-              tooltip: l10n.periodNext,
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () =>
-                  ref.read(viewedPeriodProvider(study.id).notifier).next(),
-            ),
+          ),
+          const SizedBox(width: 8),
+          _ShowingPicker(
+            study: study,
+            source: source,
+            parts: parts,
+            selectedPart: selectedPart,
+          ),
+          // How many pieces the boxes are costing (§7.6). Beside the part,
+          // because it is the other half of "which order is this" — and absent
+          // under the flow equivalent, whose dummy part is one piece by
+          // definition (§6.1) and for which a lot size would be meaningless.
+          if (source.isDemandPart) ...[
+            const SizedBox(width: 12),
+            _BatchField(study: study, batch: view?.demandBatchSize ?? 1),
+          ],
+          // The schedule varies inside the period the map is drawn for, so the
+          // figures are one moment of several (§4.2). A takt change reads in
+          // words (§7.7.3); a staffing-only change keeps the icon. Flexible so a
+          // long caption ellipsises on a narrow toolbar rather than overflowing.
+          if (view != null &&
+              (view.taktChange != null || view.scheduleVariesInPeriod)) ...[
             const SizedBox(width: 8),
-            DropdownButtonHideUnderline(
-              child: DropdownButton<PeriodGranularity>(
-                value: period.granularity,
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(viewedPeriodProvider(study.id).notifier)
-                        .setGranularity(value);
-                  }
-                },
-                items: [
-                  for (final granularity in PeriodGranularity.values)
-                    DropdownMenuItem(
-                      value: granularity,
-                      child: Text(granularityLabel(l10n, granularity)),
-                    ),
-                ],
+            Flexible(
+              child: PeriodVariesCaption(
+                taktChange: view.taktChange,
+                scheduleVaries: view.scheduleVariesInPeriod,
               ),
-            ),
-            if (view?.scheduleVariesInPeriod ?? false)
-              Tooltip(
-                message: l10n.periodVariesHelp,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.tertiary,
-                  ),
-                ),
-              ),
-            const SizedBox(width: 16),
-            Text(
-              l10n.flowDataSource,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(width: 8),
-            DropdownButtonHideUnderline(
-              child: DropdownButton<FlowDataSource>(
-                value: source,
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(
-                          flowDataSourceSelectionProvider(study.id).notifier,
-                        )
-                        .select(value);
-                  }
-                },
-                items: [
-                  for (final source in FlowDataSource.values)
-                    DropdownMenuItem(
-                      value: source,
-                      // The two demand sources need a part to read. Offered but
-                      // not selectable until there is one, so the shape of the
-                      // choice stays visible and the reason it is unavailable
-                      // is in the tooltip rather than in a support call.
-                      enabled: !source.isDemandPart || parts.isNotEmpty,
-                      child: Tooltip(
-                        message: !source.isDemandPart || parts.isNotEmpty
-                            ? ''
-                            : l10n.flowSourceNeedsDemand,
-                        child: Text(flowDataSourceLabel(l10n, source)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Which part, when the map is showing one. The weighted source
-            // reads every part, so it needs no picker.
-            if (source == FlowDataSource.singlePart && parts.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              Text(l10n.flowPart, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(width: 8),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedPart,
-                  onChanged: (value) => ref
-                      .read(selectedDemandPartProvider(study.id).notifier)
-                      .select(value),
-                  items: [
-                    for (final part in parts)
-                      DropdownMenuItem(
-                        value: part.id,
-                        child: Text(part.partNumber),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(width: 16),
-            TextButton.icon(
-              onPressed: view == null
-                  ? null
-                  : () => exportFlowPdf(context, ref, view: view),
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: Text(l10n.exportPdf),
             ),
           ],
+          const Spacer(),
+          IconButton(
+            tooltip: l10n.exportPdf,
+            onPressed: view == null
+                ? null
+                : () => exportFlowPdf(context, ref, view: view),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// How many pieces a box is costing (DESIGN.md §7.6).
+///
+/// **Shows the batch in force, whether or not anyone typed it.** It opens on the
+/// one the selected part's orders actually use, so the map reconciles with a run
+/// without being told to; typing over it is the lot-sizing experiment, and
+/// emptying it hands the question back to the demand table.
+class _BatchField extends ConsumerStatefulWidget {
+  const _BatchField({required this.study, required this.batch});
+
+  final Study study;
+
+  /// What the map is using — the override if there is one, else the demand's.
+  final int batch;
+
+  @override
+  ConsumerState<_BatchField> createState() => _BatchFieldState();
+}
+
+class _BatchFieldState extends ConsumerState<_BatchField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: '${widget.batch}',
+  );
+
+  @override
+  void didUpdateWidget(_BatchField old) {
+    super.didUpdateWidget(old);
+    // Follows the demand when nothing has been typed — switching parts has to
+    // move the number, or the field would show the last part's lot.
+    final override = ref.read(flowBatchOverrideProvider(widget.study.id));
+    if (override == null && _controller.text != '${widget.batch}') {
+      _controller.text = '${widget.batch}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
+      width: 120,
+      child: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: l10n.demandBatchSize,
+          isDense: true,
+          suffixIcon: helpIcon(context, l10n.flowBatchHelp),
         ),
+        onChanged: (text) {
+          final value = int.tryParse(text.trim());
+          ref
+              .read(flowBatchOverrideProvider(widget.study.id).notifier)
+              // Blank, or anything that is not a lot, hands the question back
+              // to the demand table rather than freezing the map at one piece.
+              .set(value != null && value >= 1 ? value : null);
+        },
+      ),
+    );
+  }
+}
+
+/// The source and the part, as the single choice they always were.
+///
+/// A part number is only meaningful under [FlowDataSource.singlePart], so
+/// choosing one *is* choosing that source — which is why the two dropdowns
+/// could be merged without inventing a state either of them could not express.
+class _ShowingPicker extends ConsumerWidget {
+  const _ShowingPicker({
+    required this.study,
+    required this.source,
+    required this.parts,
+    required this.selectedPart,
+  });
+
+  final Study study;
+  final FlowDataSource source;
+  final List<DemandPart> parts;
+  final String? selectedPart;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    // A part is identified by `part:<id>`, so one dropdown can hold two kinds
+    // of choice without a sentinel that could collide with a real id.
+    final value = source == FlowDataSource.singlePart && selectedPart != null
+        ? 'part:$selectedPart'
+        : source.name;
+
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: value,
+        onChanged: (choice) {
+          if (choice == null) return;
+          if (choice.startsWith('part:')) {
+            ref
+                .read(selectedDemandPartProvider(study.id).notifier)
+                .select(choice.substring(5));
+            ref
+                .read(flowDataSourceSelectionProvider(study.id).notifier)
+                .select(FlowDataSource.singlePart);
+            return;
+          }
+          ref
+              .read(flowDataSourceSelectionProvider(study.id).notifier)
+              .select(FlowDataSource.values.byName(choice));
+        },
+        items: [
+          DropdownMenuItem(
+            value: FlowDataSource.flowEquivalent.name,
+            child: Text(
+              flowDataSourceLabel(l10n, FlowDataSource.flowEquivalent),
+            ),
+          ),
+          DropdownMenuItem(
+            value: FlowDataSource.weightedVariants.name,
+            // Offered but dead until there is demand to weight, so the shape of
+            // the choice stays visible and the reason is in the tooltip rather
+            // than in a support call.
+            enabled: parts.isNotEmpty,
+            child: Tooltip(
+              message: parts.isEmpty ? l10n.flowSourceNeedsDemand : '',
+              child: Text(
+                flowDataSourceLabel(l10n, FlowDataSource.weightedVariants),
+              ),
+            ),
+          ),
+          // The parts themselves, under a rule: they are the same kind of
+          // choice as the two above and a different kind of thing.
+          if (parts.isNotEmpty)
+            const DropdownMenuItem(
+              enabled: false,
+              child: Divider(height: 1),
+            ),
+          for (final part in parts)
+            DropdownMenuItem(
+              value: 'part:${part.id}',
+              child: Text(part.partNumber),
+            ),
+        ],
       ),
     );
   }
@@ -224,6 +299,10 @@ class _Canvas extends ConsumerStatefulWidget {
 }
 
 class _CanvasState extends ConsumerState<_Canvas> {
+  /// The position of the step currently being dragged, or null (§8.4). Held so
+  /// the gaps it cannot move to can say so while it is in the air.
+  int? _draggingFrom;
+
   /// Owned here rather than by the toolbar: the transform belongs to the
   /// viewport, and fit-to-screen needs the viewport's measured size.
   final _controller = TransformationController();
@@ -272,31 +351,20 @@ class _CanvasState extends ConsumerState<_Canvas> {
     });
   }
 
-  /// Renames one endpoint, leaving the other alone.
+  /// Writes one end of the flow — its name and the stock standing there.
   ///
-  /// `updateStudy` takes both names, so passing only the one that changed would
-  /// null the other — the same shape of bug that left these fields unwritable
-  /// in the first place (§17.5).
-  Future<void> _renameEndpoint(
+  /// This used to read the whole study back and pass every field through, with
+  /// a comment explaining that naming only the endpoint that changed would null
+  /// the other one. `setFlowEnd` writes the two columns of one end and leaves
+  /// everything else absent, so there is nothing left here to get wrong.
+  Future<void> _writeEndpoint(
     WidgetRef ref, {
-    String? supplier,
-    String? customer,
-    bool supplierGiven = false,
-    bool customerGiven = false,
-  }) {
-    final study = widget.study;
-    return ref
-        .read(studiesRepositoryProvider)
-        .updateStudy(
-          study.id,
-          name: study.name,
-          supplierName: supplierGiven ? supplier : study.supplierName,
-          customerName: customerGiven ? customer : study.customerName,
-          wipCap: study.wipCap,
-          priority: study.priority,
-          notes: study.notes,
-        );
-  }
+    required bool inbound,
+    required String? name,
+    required int? stock,
+  }) => ref
+      .read(studiesRepositoryProvider)
+      .setFlowEnd(widget.study.id, inbound: inbound, name: name, stock: stock);
 
   /// Zooms about the centre of [viewport], keeping what is under it there.
   ///
@@ -416,42 +484,174 @@ class _CanvasState extends ConsumerState<_Canvas> {
             _Endpoint(
               rect: layout.supplier,
               label: view.study.supplierName ?? l10n.flowSupplier,
-              onRename: (name) =>
-                  _renameEndpoint(ref, supplier: name, supplierGiven: true),
+              title: l10n.flowEndStockInbound,
+              stock: view.study.inboundStock,
+              onCommit: ({required name, required stock}) => _writeEndpoint(
+                ref,
+                inbound: true,
+                name: name,
+                stock: stock,
+              ),
             ),
             _Endpoint(
               rect: layout.customer,
               label: view.study.customerName ?? l10n.flowCustomer,
-              onRename: (name) =>
-                  _renameEndpoint(ref, customer: name, customerGiven: true),
+              title: l10n.flowEndStockOutbound,
+              stock: view.study.outboundStock,
+              onCommit: ({required name, required stock}) => _writeEndpoint(
+                ref,
+                inbound: false,
+                name: name,
+                stock: stock,
+              ),
             ),
+            // **Dragging a box reorders it; dragging the canvas still pans**
+            // (§8.4). A `Draggable` claims the gesture where it starts, so the
+            // `InteractiveViewer` above only sees the drags that begin on empty
+            // canvas — which is the split a reader expects and needs no handle
+            // to explain.
             for (final placed in layout.nodes)
               Positioned(
                 left: placed.rect.left,
                 top: placed.rect.top,
                 width: placed.rect.width,
                 height: placed.rect.height,
-                child: switch (placed.view) {
-                  final FlowStepView step => _StepBox(
-                    step: step,
+                child: Draggable<int>(
+                  data: placed.view.node.position,
+                  dragAnchorStrategy: pointerDragAnchorStrategy,
+                  onDragStarted: () => setState(
+                    () => _draggingFrom = placed.view.node.position,
+                  ),
+                  onDraggableCanceled: (_, _) =>
+                      setState(() => _draggingFrom = null),
+                  onDragEnd: (_) => setState(() => _draggingFrom = null),
+                  // Under the cursor and a little smaller, so the gap it is
+                  // heading for stays visible past it.
+                  feedback: Transform.translate(
+                    offset: Offset(
+                      -placed.rect.width / 2,
+                      -placed.rect.height / 2,
+                    ),
+                    child: Opacity(
+                      opacity: 0.85,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: SizedBox(
+                          width: placed.rect.width,
+                          height: placed.rect.height,
+                          child: _StepBox(
+                            step: placed.view,
+                            study: study,
+                            layout: layout,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // **Left in place rather than removed.** A spine that closed
+                  // up under the cursor would move every gap the reader is
+                  // aiming at, including the one they set out for.
+                  childWhenDragging: Opacity(
+                    opacity: 0.3,
+                    child: _StepBox(
+                      step: placed.view,
+                      study: study,
+                      layout: layout,
+                    ),
+                  ),
+                  child: _StepBox(
+                    step: placed.view,
                     study: study,
                     layout: layout,
                   ),
-                  final FlowInventoryView buffer => _InventoryNode(
-                    buffer: buffer,
+                ),
+              ),
+            // The queue each link runs into (§7.3) — the stock standing there,
+            // and the click that opens the step that owns it. **After the
+            // connections painter and before the insert buttons**: it draws
+            // under the shaft the painter put down, and the `+` keeps its own
+            // 36 px of the same segment.
+            //
+            // Indexed against the nodes rather than walked over the connections,
+            // because the link into a box and that box are the same entry: the
+            // queue is drawn on the link and set in the dialog of the step it
+            // feeds.
+            for (var i = 0; i < layout.nodes.length; i++)
+              if (layout.connections[i].queue case final queue?)
+                Positioned(
+                  left: layout.connections[i].from.dx,
+                  // From just above the shaft, so the **channel itself** is the
+                  // click target §7.3 settled on — not only the triangle under
+                  // it, which a queue with nothing standing in it does not draw.
+                  top: layout.spineY - FlowMetrics.stockOffset,
+                  width:
+                      layout.connections[i].to.dx -
+                      layout.connections[i].from.dx,
+                  height:
+                      FlowMetrics.stockSymbol +
+                      34 +
+                      FlowMetrics.stockOffset * 2,
+                  child: _QueueNode(
+                    queue: queue,
+                    step: layout.nodes[i].view,
                     study: study,
                   ),
-                },
+                ),
+            // The two end piles (§7.3), under their own endpoints rather than
+            // on a link — so the inbound one cannot be mistaken for the first
+            // step's queue, which is a different pile in a different place.
+            for (final placed in [?layout.inboundStock, ?layout.outboundStock])
+              Positioned(
+                left: placed.rect.left - 40,
+                top: placed.rect.top,
+                width: placed.rect.width + 80,
+                child: _EndStock(stock: placed.view, study: study),
               ),
+            // **The `+` is the drop target too**, and deliberately not a
+            // wider band: the gap already carries §7.3's queue, whose whole
+            // channel is a click target, and a drop zone spread across the
+            // link would have taken those clicks. The affordance that already
+            // means "something goes here" is the one that accepts a step.
             for (final insertion in layout.insertionPoints)
               Positioned(
                 left: insertion.center.x - 18,
                 top: insertion.center.y - 18,
                 width: 36,
                 height: 36,
-                child: _InsertButton(
-                  study: study,
-                  position: insertion.position,
+                child: DragTarget<int>(
+                  onWillAcceptWithDetails: (details) =>
+                      dropTarget(
+                        from: details.data,
+                        gap: insertion.position,
+                      ) !=
+                      null,
+                  onAcceptWithDetails: (details) {
+                    final to = dropTarget(
+                      from: details.data,
+                      gap: insertion.position,
+                    );
+                    if (to == null) return;
+                    ref
+                        .read(studiesRepositoryProvider)
+                        .moveNode(study.id, details.data, to);
+                  },
+                  builder: (context, candidate, _) => _InsertButton(
+                    study: study,
+                    position: insertion.position,
+                    // Grown and filled while a step is over it, so the gap the
+                    // drop will use says so before the mouse comes up.
+                    highlighted: candidate.isNotEmpty,
+                    // Dimmed on the two gaps this step already sits between:
+                    // they accept nothing, and a target that looks live and
+                    // does nothing is worse than one that looks spent.
+                    inert:
+                        _draggingFrom != null &&
+                        dropTarget(
+                              from: _draggingFrom!,
+                              gap: insertion.position,
+                            ) ==
+                            null,
+                  ),
                 ),
               ),
             // Centred over the rung it belongs to: a left-aligned label sits
@@ -482,20 +682,41 @@ class _CanvasState extends ConsumerState<_Canvas> {
 ///
 /// One writer for both, so the field the caller does not name keeps its value
 /// rather than being nulled by an update that was not about it.
+///
+/// **The tap owns both the name and the end stock** (§7.3). The stock could
+/// have hung its own affordance on the canvas, and that was rejected: it would
+/// have to be drawn on every map, including the ones that have never counted an
+/// end pile, and §5.2's rule is that the map draws decisions rather than
+/// defaults. The endpoint is already there and already clickable, so an
+/// uncounted end costs nothing on screen and is still one click away.
 class _Endpoint extends StatelessWidget {
   const _Endpoint({
     required this.rect,
     required this.label,
-    required this.onRename,
+    required this.title,
+    required this.stock,
+    required this.onCommit,
   });
 
   final Rect rect;
   final String label;
 
-  /// Naming the real supplier and customer is the whole point of the fields
-  /// (§16.2): they were stored and drawn from M2, and until now nothing could
-  /// write them, so both endpoints always read their defaults.
-  final ValueChanged<String?> onRename;
+  /// What this end of the flow is called in the dialog's heading — the pile is
+  /// raw material at one end and finished goods at the other, and a dialog
+  /// headed `Supplier` would not say which figure is being typed.
+  final String title;
+
+  /// Pieces standing at this end, or null where nobody has counted (§7.3).
+  final int? stock;
+
+  /// Naming the real supplier and customer is the whole point of the name
+  /// fields (§16.2): they were stored and drawn from M2, and until the round
+  /// that added this nothing could write them.
+  ///
+  /// Both values go back together because the dialog sets both — sending only
+  /// the one that changed is the shape of bug the endpoint writer already
+  /// carries a comment about.
+  final void Function({required String? name, required int? stock}) onCommit;
 
   @override
   Widget build(BuildContext context) {
@@ -505,20 +726,29 @@ class _Endpoint extends StatelessWidget {
       left: rect.left,
       top: rect.top,
       width: rect.width,
-      height: rect.height + 24,
+      height: rect.height + FlowMetrics.endpointLabelHeight,
       child: Tooltip(
         message: l10n.flowEndpointRename,
         child: InkWell(
           onTap: () async {
-            final name = await promptForName(
-              context,
-              title: l10n.flowEndpointRename,
-              label: l10n.fieldName,
-              initialValue: label,
+            final result = await showDialog<({String? name, int? stock})>(
+              context: context,
+              builder: (context) => _EndpointDialog(
+                title: title,
+                name: label,
+                stock: stock,
+              ),
             );
             // An emptied name puts the default back, rather than leaving a
             // blank factory nobody can click.
-            if (name != null) onRename(name.trim().isEmpty ? null : name.trim());
+            if (result != null) {
+              onCommit(
+                name: (result.name?.trim().isEmpty ?? true)
+                    ? null
+                    : result.name!.trim(),
+                stock: result.stock,
+              );
+            }
           },
           child: Column(
             children: [
@@ -539,6 +769,152 @@ class _Endpoint extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// What one end of the flow is called, and what is standing there (§7.3).
+///
+/// Two fields rather than two dialogs, because they are one question — *what is
+/// at this end of the line* — and because `updateStudy` writes a study rather
+/// than a field, so two dialogs would be two write paths into one row (§12.6).
+class _EndpointDialog extends StatefulWidget {
+  const _EndpointDialog({
+    required this.title,
+    required this.name,
+    required this.stock,
+  });
+
+  final String title;
+  final String name;
+  final int? stock;
+
+  @override
+  State<_EndpointDialog> createState() => _EndpointDialogState();
+}
+
+class _EndpointDialogState extends State<_EndpointDialog> {
+  late final _name = TextEditingController(text: widget.name);
+  late final _stock = TextEditingController(
+    text: widget.stock == null ? '' : '${widget.stock}',
+  );
+
+  /// Set once the field has been typed into badly, so the error appears on the
+  /// second keystroke rather than greeting an empty dialog.
+  String? _stockError;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _stock.dispose();
+    super.dispose();
+  }
+
+  /// Blank is a real answer — *nobody has counted* — and is not the same as
+  /// zero, which is *someone looked and there is none*. Only the second draws a
+  /// triangle and charges the lead time (§7.3).
+  ({bool ok, int? value}) _readStock() {
+    final text = _stock.text.trim();
+    if (text.isEmpty) return (ok: true, value: null);
+    final value = int.tryParse(text);
+    if (value == null || value < 0) return (ok: false, value: null);
+    return (ok: true, value: value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _name,
+            autofocus: true,
+            decoration: InputDecoration(labelText: l10n.fieldName),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _stock,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: l10n.flowEndStockQuantity,
+              hintText: l10n.flowEndStockNone,
+              errorText: _stockError,
+              suffixIcon: helpIcon(context, l10n.flowEndStockHelp),
+            ),
+            onChanged: (_) {
+              if (_stockError == null) return;
+              setState(() => _stockError = _readStock().ok
+                  ? null
+                  : l10n.validationNumber);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          onPressed: () {
+            final stock = _readStock();
+            if (!stock.ok) {
+              setState(() => _stockError = l10n.validationNumber);
+              return;
+            }
+            Navigator.of(context).pop((name: _name.text, stock: stock.value));
+          },
+          child: Text(l10n.actionSave),
+        ),
+      ],
+    );
+  }
+}
+
+/// The triangle for a counted end pile, under its endpoint (§7.3).
+///
+/// **Drawn whenever it exists, including at zero** — which is where it parts
+/// company with [_QueueNode], and deliberately. A queue is in front of every
+/// step whether or not anyone has thought about it, so a triangle there has to
+/// mean *stock stands here*. An end pile only exists once somebody has counted
+/// it, so the triangle means *this was counted* and the figure under it says
+/// what the count was. A counted zero is a finding.
+class _EndStock extends ConsumerWidget {
+  const _EndStock({required this.stock, required this.study});
+
+  final FlowEndStockView stock;
+  final Study study;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: FlowMetrics.stockSymbol,
+          height: FlowMetrics.stockSymbol,
+          child: CustomPaint(
+            painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+          ),
+        ),
+        Text('${stock.quantity}', style: theme.textTheme.bodySmall),
+        Text(
+          stock.end == FlowEnd.inbound
+              ? l10n.flowEndStockInbound
+              : l10n.flowEndStockOutbound,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
@@ -581,6 +957,10 @@ class _StepBox extends ConsumerWidget {
     final theme = Theme.of(context);
     final hasProblem = step.problems.isNotEmpty;
     final notes = step.node.notes;
+    // Watched here rather than plumbed down from the canvas: the dialog needs
+    // every target's queue so its section can follow the target picker, and
+    // this is already loaded — the map cannot draw a channel without it.
+    final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
 
     return Tooltip(
       // A note is the reader's own writing and outranks the box's description
@@ -595,14 +975,7 @@ class _StepBox extends ConsumerWidget {
           ref,
           study: study,
           step: step,
-          // Watched here rather than read inside the editor: a `ref.read` of a
-          // stream's future can be cancelled by auto-dispose before the stream
-          // emits, and a dialog that never opens is a worse failure than a
-          // dialog opened with a stale map. A real watch is also what makes it
-          // reopen with the rule another study just changed.
-          dispatchByTarget:
-              ref.watch(workcenterDispatchProvider(study.projectId)).value ??
-              const {},
+          queues: queues ?? const {},
         ),
         child: Container(
           decoration: BoxDecoration(
@@ -638,7 +1011,7 @@ class _StepBox extends ConsumerWidget {
                     ),
                     // A pool is several machines behind one box, and a reader
                     // comparing two boxes has to know which one is four
-                    // stations. `#4` is how a shop floor writes it — drawn
+                    // workcenters. `#4` is how a shop floor writes it — drawn
                     // rather than chipped, so it is part of the map.
                     if (step.poolMemberCount != null) ...[
                       const SizedBox(width: 6),
@@ -684,14 +1057,33 @@ class _StepBox extends ConsumerWidget {
                         // A step whose equivalent is its own, not one takt,
                         // is marked — a reader comparing two boxes has to know
                         // one of them is not measured in takts.
-                        label: step.usesLocalEquivalent
-                            ? '${l10n.stepProcessTime} *'
-                            : l10n.stepProcessTime,
+                        //
+                        // **And a rebalanced step is marked too** (§7.4). What
+                        // is shown there is the group's work split against the
+                        // takt, not what was measured at this workcenter, so a
+                        // reader comparing the box with the demand grid would
+                        // otherwise find two numbers and no explanation — which
+                        // is exactly how §7.6's inverted metric survived.
+                        label: switch (step) {
+                          _ when step.isBalanced =>
+                            '${l10n.stepProcessTime} ${l10n.stepBalancedMark}',
+                          _ when step.usesLocalEquivalent =>
+                            '${l10n.stepProcessTime} *',
+                          _ => l10n.stepProcessTime,
+                        },
+                        help: step.isBalanced
+                            ? l10n.stepBalancedHelp(
+                                step.typeName ?? '',
+                                formatDurationHms(
+                                  step.measuredProcessTime ?? Duration.zero,
+                                ),
+                              )
+                            : null,
                         value: step.processTime == null
                             ? '—'
                             : formatDurationHms(step.processTime!),
                       ),
-                      // One takt of this station's own capacity (§6.1) — the
+                      // One takt of this workcenter's own capacity (§6.1) — the
                       // yardstick the row above is measured against. Shown
                       // whatever the data source, so a part's process time can
                       // be read against the takt without changing anything;
@@ -703,7 +1095,7 @@ class _StepBox extends ConsumerWidget {
                             ? '—'
                             : formatDurationHms(step.equivalentProcessTime!),
                       ),
-                      // How many takts of this station's capacity the part
+                      // How many takts of this workcenter's capacity the part
                       // actually consumes (DESIGN.md §6.2). Only under a demand
                       // source: the equivalent's own equivalence is 1.00 by
                       // construction, and a row of ones says nothing.
@@ -739,7 +1131,7 @@ class _StepBox extends ConsumerWidget {
                       // Required hours over available productive hours for
                       // the period (§8.1). It comes from the Summary because
                       // that is the only thing that knows what demand asks of
-                      // this station; a station two steps both visit reports
+                      // this workcenter; a workcenter two steps both visit reports
                       // the load of both, because it is one machine.
                       _DataRow(
                         label: l10n.occupation,
@@ -767,7 +1159,7 @@ class _StepBox extends ConsumerWidget {
 
   String _occupation(WidgetRef ref, FlowStepView step) {
     final value = _occupationValue(ref, step);
-    // A dash, never a zero: a station nobody has given demand to is not idle,
+    // A dash, never a zero: a workcenter nobody has given demand to is not idle,
     // it is unmeasured, and the two must not look alike.
     return value == null ? '—' : '${(value * 100).round()}%';
   }
@@ -807,6 +1199,7 @@ class _DataRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.warning = false,
+    this.help,
   });
 
   final String label;
@@ -816,11 +1209,19 @@ class _DataRow extends StatelessWidget {
   /// constraint: occupation above 100 % (DESIGN.md §8.1).
   final bool warning;
 
+  /// Said on hover where the figure is not simply what somebody typed — §7.4's
+  /// rebalanced process time is the case it was added for.
+  ///
+  /// A bare `Tooltip` with no affordance, which is the convention the flow
+  /// footer's `_Metric` already uses. The box has no room for an info icon and
+  /// the mark on the label is the affordance.
+  final String? help;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.bodySmall;
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -840,86 +1241,111 @@ class _DataRow extends StatelessWidget {
         ],
       ),
     );
+    return help == null ? row : Tooltip(message: help!, child: row);
   }
 }
 
-class _InventoryNode extends ConsumerWidget {
-  const _InventoryNode({required this.buffer, required this.study});
+/// The queue standing in front of one step, under the link that runs into it
+/// (DESIGN.md §7.3, §5.5).
+///
+/// **Under the connector, not in a slot of its own.** An inventory used to be a
+/// node on the spine with a whole process box's width to itself; the queue
+/// belongs to what a step targets, so it is drawn where the material actually
+/// waits — between the box before it and the box it feeds.
+///
+/// The whole segment is the click target, and it **opens the step dialog of the
+/// step this link feeds** (§7.3, revised). The queue was editable on the channel
+/// itself for one round; the field's answer was that choosing the type is part
+/// of putting a workcenter on the map, so it moved into the dialog that puts the
+/// workcenter there — and one row keeps one write path (§12.6). Clicking here
+/// still works, because the map is where a planner is looking when they think of
+/// a queue.
+class _QueueNode extends ConsumerWidget {
+  const _QueueNode({
+    required this.queue,
+    required this.step,
+    required this.study,
+  });
 
-  final FlowInventoryView buffer;
+  final FlowQueueView queue;
+
+  /// The step this link runs into — the one whose dialog owns the queue.
+  final FlowStepView step;
   final Study study;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final notes = buffer.node.notes;
+    final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
+
     return Tooltip(
-      message: (notes?.isNotEmpty ?? false) ? notes! : '',
+      message: l10n.flowQueueEdit,
       child: InkWell(
-      onTap: () =>
-          showInventoryEditor(context, ref, study: study, buffer: buffer),
-      // A Stack rather than a Column: the triangle has to sit *on* the spine,
-      // and a centred column of symbol-plus-two-labels puts its middle above
-      // the line the arrows run along.
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          const SizedBox(
-            width: FlowMetrics.bufferSymbol,
-            height: FlowMetrics.bufferSymbol,
-          ),
-          Center(
-            child: SizedBox(
-              width: FlowMetrics.bufferSymbol,
-              height: FlowMetrics.bufferSymbol,
-              child: CustomPaint(
-                painter: _TrianglePainter(color: theme.colorScheme.onSurface),
+        onTap: () => showStepEditor(
+          context,
+          ref,
+          study: study,
+          step: step,
+          queues: queues ?? const {},
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Clear of the shaft the painter drew along the spine.
+            const SizedBox(height: FlowMetrics.stockOffset * 2),
+            // Only where something is standing. A triangle on every link would
+            // claim stock the plant does not have, which is the same lie §5.5
+            // corrected when fixed-wait buffers reported a delay no run charged.
+            SizedBox(
+              width: FlowMetrics.stockSymbol,
+              height: FlowMetrics.stockSymbol,
+              child: queue.hasStock
+                  ? CustomPaint(
+                      painter: _TrianglePainter(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    )
+                  : null,
+            ),
+            if (queue.hasStock)
+              Text(
+                queue.quantity != null
+                    ? '${queue.quantity}'
+                    // The same rendering as this queue's own rung on the ladder
+                    // below it. Showing the value as typed instead put two
+                    // different numbers for one wait on the screen at once.
+                    : formatAdaptiveDuration(
+                        l10n,
+                        queue.wait,
+                        workingDay: queue.rungWorkingDay,
+                      ),
+                style: theme.textTheme.bodySmall,
               ),
-            ),
-          ),
-          Positioned(
-            top: FlowMetrics.nodeHeight / 2 + FlowMetrics.bufferSymbol / 2 + 4,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Text(
-                  buffer.quantity == null ? '' : '${buffer.quantity}',
-                  style: theme.textTheme.titleSmall,
-                ),
-                Text(
-            // The same rendering as this node's own rung on the ladder
-            // directly below it. Showing the value as typed instead put two
-            // different numbers for one wait on the screen at once.
-            buffer.label.isNotEmpty
-                ? buffer.label
-                : formatAdaptiveDuration(
-                    l10n,
-                    buffer.wait,
-                    workingDay: buffer.referenceWorkingDay,
-                  ),
-                  style: theme.textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          // Same marker as a process box carries, in the triangle's own
-          // corner: a buffer is exactly where a walk finds something to say.
-          if (notes?.isNotEmpty ?? false)
-            Positioned(
-              top: FlowMetrics.nodeHeight / 2 - FlowMetrics.bufferSymbol / 2,
-              right: FlowMetrics.bufferInset - 14,
-              child: Icon(
-                Icons.sticky_note_2_outlined,
-                size: 14,
-                color: theme.colorScheme.tertiary,
+            // `FIFO · CEU27` — derived from the type and the workcenter, never
+            // typed (#5, v27). Drawn on every queue, including an empty one:
+            // the caption is the only permanent mark a queue with nothing in it
+            // has, and it is now always available because an unset rule is
+            // `Queue` rather than nothing.
+            //
+            // **This is where the seven stale names showed.** Those queues were
+            // called `FIFO CEU27` with `rule = null`, so the map printed FIFO
+            // over a push arrow. They now read `Queue · CEU27` over the arrow
+            // they already drew.
+            Text(
+              flowQueueCaption(
+                queueTypeShortLabel(l10n, queue.rule),
+                queue.targetName,
               ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -1018,18 +1444,34 @@ class _ZoomControls extends StatelessWidget {
 
 /// The `+ Insert here` affordance between two nodes (DESIGN.md §5.3).
 class _InsertButton extends ConsumerWidget {
-  const _InsertButton({required this.study, required this.position});
+  const _InsertButton({
+    required this.study,
+    required this.position,
+    this.highlighted = false,
+    this.inert = false,
+  });
 
   final Study study;
   final int position;
 
+  /// A dragged step is over this gap and would land here (§8.4).
+  final bool highlighted;
+
+  /// A step is in the air and this gap is one of the two it already sits
+  /// between, so it would accept nothing (§8.4).
+  final bool inert;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    return Tooltip(
+    final scheme = Theme.of(context).colorScheme;
+    final queues = ref.watch(projectQueuesProvider(study.projectId)).value;
+    return Opacity(
+      opacity: inert ? 0.25 : 1,
+      child: Tooltip(
       message: l10n.flowInsertHere,
       child: Material(
-        color: Theme.of(context).colorScheme.primary,
+        color: highlighted ? scheme.tertiary : scheme.primary,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -1038,16 +1480,15 @@ class _InsertButton extends ConsumerWidget {
             ref,
             study: study,
             position: position,
-            dispatchByTarget:
-                ref.watch(workcenterDispatchProvider(study.projectId)).value ??
-                const {},
+            queues: queues ?? const {},
           ),
           child: Icon(
-            Icons.add,
-            size: 18,
-            color: Theme.of(context).colorScheme.onPrimary,
+            highlighted ? Icons.arrow_downward : Icons.add,
+            size: highlighted ? 22 : 18,
+            color: highlighted ? scheme.onTertiary : scheme.onPrimary,
           ),
         ),
+      ),
       ),
     );
   }
@@ -1094,6 +1535,20 @@ class _FooterMetrics extends StatelessWidget {
               ),
               help: l10n.footerProcessTimeHelp,
             ),
+            // Two lead times, and the second is the first restated. The map
+            // states the seven-over-five planning convention rather than
+            // measuring the calendar — a walk was built first and rejected in
+            // use, and `FlowView.runningDayFactor` records why.
+            //
+            // Both render against the same working-day divisor, so the running
+            // figure reads as exactly 1.4× the working one and a reader can
+            // check it. PCE divides the working figure, which is also on
+            // screen, so that stays checkable too.
+            //
+            // **The sum of the rungs, not a walk.** An elapsed calendar span sat
+            // in this slot for a while, under a label reading *working days* and
+            // counting the weekends — §17.2 has the story, and it is why both
+            // figures here are stated in the same working day.
             _Metric(
               label: l10n.footerLeadTime,
               value: formatAdaptiveDuration(
@@ -1104,16 +1559,13 @@ class _FooterMetrics extends StatelessWidget {
               help: l10n.footerLeadTimeHelp,
             ),
             _Metric(
-              label: l10n.footerEndDate,
-              value: view!.runningDays == null
-                  ? '—'
-                  : l10n.footerRunningDays(
-                      '${view!.runningDays}',
-                      DateFormat.yMMMd(
-                        Localizations.localeOf(context).toString(),
-                      ).format(view!.endDate!),
-                    ),
-              help: l10n.footerEndDateHelp,
+              label: l10n.footerLeadTimeRunning,
+              value: formatAdaptiveDuration(
+                l10n,
+                view!.leadTimeInRunningDays,
+                workingDay: view!.leadTimeWorkingDay,
+              ),
+              help: l10n.footerLeadTimeRunningHelp,
             ),
             if (view!.flowEquivalence != null)
               _Metric(

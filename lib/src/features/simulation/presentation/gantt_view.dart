@@ -1,7 +1,7 @@
 /// The Gantt (DESIGN.md §8.6).
 ///
 /// Y is the workcenter, X is time, the bars are orders — one chart for the whole
-/// run, all studies together, because a station is shared and splitting per
+/// run, all studies together, because a workcenter is shared and splitting per
 /// study would draw it idle during hours it was running another line's order.
 ///
 /// **Everything geometric is in `gantt_layout.dart`** and nothing here decides a
@@ -17,6 +17,7 @@
 /// than a second piece of state that could disagree with it.
 library;
 
+import '../../../data/database/enums.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -26,30 +27,79 @@ import 'package:flutter/services.dart';
 // the one the painter's `TextPainter` needs.
 import 'package:intl/intl.dart' show DateFormat;
 
-import '../../../common/date_input.dart';
+import '../../../common/date_style_scope.dart';
 import '../../../common/formatters.dart';
 import '../../../common/horizontal_scroll.dart';
 import '../../../common/part_palette.dart';
 import '../../../common/unit_labels.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../flow/application/flow_view.dart' show flowQueueCaption;
 import '../application/gantt_layout.dart';
+import '../application/run_filter.dart';
 import '../data/simulation_runs_repository.dart';
 
-/// The frozen left column carrying the station names.
+/// The frozen left column carrying the workcenter names.
 ///
 /// Outside the horizontal scroll view, so the row a bar belongs to is readable
 /// however far into the run the reader has scrolled — the answer `DataGrid`
 /// already gives its row header (§12.6).
-const _labelWidth = 168.0;
+///
+/// **It is measured, not fixed.** A row's label is `pool · name` since the
+/// heading band went away, and a pool name is free text: the real plant's is
+/// `CLAD Pool - Célula 11B/C`, which at 168 px filled the column by itself and
+/// ellipsised away the machine name on every row of the pool. Five rows then
+/// read identically and the one word distinguishing them was the one that had
+/// been cut. So the column takes the width its widest label actually needs,
+/// between these two bounds.
+const _labelMinWidth = 168.0;
+
+/// The widest the column may grow.
+///
+/// A pool name has no length limit, and a column that honoured one would be a
+/// chart with no room left for the run. Past this the label ellipsises — and
+/// [_LabelText] is careful about *what* it drops.
+const _labelMaxWidth = 260.0;
+
+/// The horizontal padding inside the column, which the measurement has to add
+/// back. Kept beside the two bounds so the three cannot drift apart.
+const _labelPaddingLeft = 12.0;
+const _labelPaddingRight = 10.0;
+const _labelPadding = _labelPaddingLeft + _labelPaddingRight;
 
 /// The hover card's size. The height is used only to keep the card inside the
 /// pane; being a few pixels out puts it somewhere slightly less convenient,
 /// never off screen.
 const _cardWidth = 300.0;
-const _cardHeight = 132.0;
+
+/// Never exact — the card is `mainAxisSize.min` and a lane's lines are not a
+/// bar's — so it is the tallest the card gets. It grew by two lines when the
+/// project and the description joined it, by one more when the work content did
+/// (v21), and by one again when the takt that set that work joined it (v22).
+const _cardHeight = 204.0;
 
 /// The narrowest bar that can carry its own part number.
 const _labelledBarWidth = 46.0;
+
+/// What a bar fades to while another order is being followed (§7.5).
+///
+/// Low enough that the followed order is unmistakable at a glance, and high
+/// enough that the rest of the plant is still *there* — a reader following one
+/// order is asking what it queued behind, and dimming the answer to nothing
+/// would remove the context the selection exists to put it in.
+const _dimmedBar = 0.16;
+
+/// And what a stay in a lane fades to. Smaller because a stay is already drawn
+/// at 0.30 rather than solid, so the same visual step is a smaller number.
+const _dimmedVisit = 0.08;
+
+/// The narrowest that can carry the order number after it.
+///
+/// A part number alone is what a bar has always shown, so the threshold for it
+/// is untouched and the order number is strictly additional: a bar between the
+/// two widths reads exactly as it did before. `_text` still ellipsizes at the
+/// bar's own width, so an unusually long part number cannot push the number
+/// past the edge — this decides whether to *offer* it, not whether it fits.
+const _numberedBarWidth = 92.0;
 
 /// The painted chart itself, so a test can put a pointer on a known bar.
 ///
@@ -59,10 +109,54 @@ const _labelledBarWidth = 46.0;
 @visibleForTesting
 const ganttCanvasKey = ValueKey('gantt-canvas');
 
-class GanttView extends StatefulWidget {
-  const GanttView({super.key, required this.run});
+/// The frozen label column, so a test can measure the width it settled on.
+const ganttLabelsKey = ValueKey('gantt-labels');
 
-  final StoredRun run;
+/// What the plan knows about an order that the run's steps do not (§8.5).
+///
+/// A class rather than a record so both fields are named at every use, and so
+/// the doc explaining why they are nullable has somewhere to live.
+class _OrderFacts {
+  const _OrderFacts({this.project, this.description, this.takt});
+
+  /// The customer project this batch is for — `MANIFOLD`, `Global 23`.
+  ///
+  /// **The order's, not the part's.** §16.15 moved it off `demand_parts` on the
+  /// field's own correction: a part is a part, and the project is what a given
+  /// batch of it is for. Null on a run stored before v12, and null for the 11 %
+  /// of live orders that simply have none.
+  final String? project;
+
+  /// The part's own description — `PWB 10K 1.0`. Null before v13.
+  ///
+  /// It identifies nothing: two parts legitimately share one, which is why it
+  /// is a label on the card rather than anything the chart is keyed by.
+  final String? description;
+
+  /// The takt this order **opened** under, already written (§7.9).
+  ///
+  /// **The cause of the figure above it.** Two bars of one part are different
+  /// widths because their orders opened under different takts and the balance
+  /// split the group's work differently for each — and the card is where that
+  /// question gets asked, because the reader is looking at *that bar* wondering
+  /// why it differs from the one above.
+  ///
+  /// Null on a run stored before v22, which held one takt throughout and says
+  /// so on its header instead.
+  ///
+  /// **The figure and its unit, not the words.** These are gathered in
+  /// `initState`, where no `AppLocalizations` exists yet — the card formats them
+  /// with `taktLabel` at paint time, which is also what keeps this the same
+  /// spelling the plan and the run header use.
+  final (double, TaktUnit)? takt;
+}
+
+class GanttView extends StatefulWidget {
+  const GanttView({super.key, required this.slice});
+
+  /// The run as this view of it reads (§12.1). A study's own tab passes its
+  /// slice; the combined workspace passes whatever its filters resolved to.
+  final FilteredRun slice;
 
   @override
   State<GanttView> createState() => _GanttViewState();
@@ -87,29 +181,136 @@ class _GanttViewState extends State<GanttView> {
   /// The bar under the pointer, if any. One at a time and no widget per bar: a
   /// `Tooltip` carries a fixed message, so naming the bar under the cursor that
   /// way would mean 231 widgets on the real run and 20 000 at §14 scale.
-  GanttPlacedBar? _hovered;
+  GanttHit? _hovered;
+
+  /// The order the reader is following, or null.
+  ///
+  /// **An order id, not a hit.** An order is on the chart many times over — one
+  /// bar per workcenter it visited and one stay per lane it waited in — and
+  /// following it is the whole point, so what is remembered is the order rather
+  /// than the bar that was clicked. It is also why this cannot be the order
+  /// *number*: that is a position in one study's sequence, so on a two-study run
+  /// it names two different orders and would light up both (§7.5).
+  String? _selected;
 
   GanttLayout? _cached;
+
+  /// How wide the frozen label column is for *this* chart's labels.
+  ///
+  /// **Measured here rather than in `build`, because `build` runs on hover.**
+  /// Moving the pointer across the chart sets [_hovered], and re-laying out
+  /// thirty `TextPainter`s per mouse-move to reach a number that only changes
+  /// with the chart would be paid on every frame of a gesture that cannot
+  /// change it.
+  double _labelWidth = _labelMinWidth;
+
+  /// What the hover card says about an order beyond what the run's steps do:
+  /// the customer project the batch is for, and the part's own description.
+  ///
+  /// **Read from the plan rather than from the chart**, and deliberately not
+  /// carried on `GanttBar`. Neither is ever drawn on a bar — the canvas has room
+  /// for a part number and an order number and no more — so putting them
+  /// through `buildGanttChart` would push two label fields into a file whose
+  /// subject is geometry, and would put `ProductionPlanRow` in front of an
+  /// `application/` library that is careful to have no data layer in it.
+  ///
+  /// Keyed by order, because that is how `run.plan` is keyed and it answers
+  /// both: the project belongs to the order, and the description reaches this
+  /// map on the same row it is stored on (§8.5).
+  late Map<String, _OrderFacts> _facts;
 
   @override
   void initState() {
     super.initState();
+    _facts = _readFacts();
+  }
+
+  /// **The chart is built here rather than in `initState`** (#5, v27).
+  ///
+  /// Since v27 a lane's caption is derived and therefore localized, and
+  /// `AppLocalizations.of` cannot be reached from `initState` — the same reason
+  /// `_OrderFacts` carries a takt's figure and unit rather than its words.
+  /// `didChangeDependencies` runs immediately after `initState` and before the
+  /// first build, so nothing is drawn from an unbuilt chart.
+  ///
+  /// It also runs again when the locale changes, which is exactly right: the
+  /// lane bands re-caption into the new language. The chart is a pure function
+  /// of the slice, so rebuilding it costs a fit and nothing else — the cached
+  /// layout goes with it, because a band's label is measured into the frozen
+  /// column's width.
+
+
+  /// **Nullable all the way down, and never invented.** `customer_project`
+  /// arrived in v12 and `part_description` in v13, so a run stored before either
+  /// has no answer and the card leaves the line out rather than showing a blank
+  /// one. 11 % of the live database's orders genuinely have no project, which is
+  /// the same absence and reads the same way.
+  Map<String, _OrderFacts> _readFacts() {
+    final facts = <String, _OrderFacts>{};
+    // Orders only: a slot that produced nothing has no bar to caption (§8.5).
+    for (final entry in widget.slice.plan) {
+      if (entry is! ProductionPlanRow) continue;
+      final takt =
+          entry.outcome.taktValue == null || entry.outcome.taktUnit == null
+          ? null
+          : (entry.outcome.taktValue!, entry.outcome.taktUnit!);
+      if (entry.customerProject == null &&
+          entry.partDescription == null &&
+          takt == null) {
+        continue;
+      }
+      facts[entry.outcome.orderId] = _OrderFacts(
+        project: entry.customerProject,
+        description: entry.partDescription,
+        takt: takt,
+      );
+    }
+    return facts;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // **The chart is built here rather than in `initState`** (#5, v27). A
+    // lane's caption is derived and therefore localized, and
+    // `AppLocalizations.of` cannot be reached from `initState` — the same
+    // reason `_OrderFacts` carries a takt's figure and unit rather than its
+    // words. This runs immediately after `initState` and before the first
+    // build, so nothing is ever drawn from an unbuilt chart.
+    //
+    // It runs again when the locale changes, which is exactly right: the lane
+    // bands re-caption into the new language. The chart is a pure function of
+    // the slice, so rebuilding costs a fit and nothing else.
     _chart = _buildChart();
+    _cached = null;
+    // The theme is what the measurement is made in, so it is remade when the
+    // theme changes as well as when the chart does.
+    _measureLabels();
   }
 
   @override
   void didUpdateWidget(GanttView old) {
     super.didUpdateWidget(old);
-    if (old.run.id == widget.run.id) return;
+    if (old.slice.signature == widget.slice.signature) return;
     // A different run is a different chart, a different fit, and nothing under
     // the pointer.
     _chart = _buildChart();
+    _facts = _readFacts();
+    _measureLabels();
     _cached = null;
     _scale = null;
     _hovered = null;
+    // **The selection goes with it, and only here.** A zoom or a lane toggle
+    // leaves the order on the chart, so following it survives both; a different
+    // run or a narrowed filter may not contain it at all, and an id matching
+    // nothing would dim every bar and light none.
+    _selected = null;
     if (_across.hasClients) _across.jumpTo(0);
     if (_down.hasClients) _down.jumpTo(0);
   }
+
+  void _measureLabels() =>
+      _labelWidth = ganttLabelWidth(_chart, Theme.of(context));
 
   @override
   void dispose() {
@@ -118,8 +319,49 @@ class _GanttViewState extends State<GanttView> {
     super.dispose();
   }
 
-  GanttChart _buildChart() =>
-      buildGanttChart(result: widget.run.result, metrics: widget.run.metrics);
+  /// Whether the queue bands between workcenters are drawn (§8.6).
+  ///
+  /// **View state, not a stored preference.** It survives switching to the
+  /// results and back, the way the zoom does, and resets on restart — a setting
+  /// that silently hid rows would be a chart lying to whoever opened the app
+  /// next.
+  bool _showLanes = true;
+
+  GanttChart _buildChart() {
+    // **The lane caption is composed here, where the locale is** (#5, v27). A
+    // run stored since v27 keeps no lane name: `<type> · <target>` is derived
+    // from the rule and the workcenter the run already copied in, so one stored run
+    // reads `Queue · CEU27` in English and `Fila · CEU27` in Portuguese. A run
+    // stored before v27 carries the name someone typed, and that is drawn as it
+    // always was — it is what the map said when the run happened (§7.10).
+    final l10n = AppLocalizations.of(context);
+    final targetNames = {
+      for (final workcenter in widget.slice.metrics.workcenters) ...{
+        workcenter.workcenterId: workcenter.name,
+        if (workcenter.poolId != null && workcenter.poolName != null)
+          workcenter.poolId!: workcenter.poolName!,
+      },
+    };
+    final rules = {
+      for (final lane in widget.slice.result.lanes) lane.nodeId: lane.rule,
+    };
+
+    return buildGanttChart(
+      result: widget.slice.result,
+      metrics: widget.slice.metrics,
+      includeLanes: _showLanes,
+      laneCaption: (lane) {
+        final stored = lane.name;
+        if (stored != null && stored.isNotEmpty) return stored;
+        return flowQueueCaption(
+          queueTypeShortLabel(l10n, rules[lane.nodeId]),
+          // The lane is keyed by the queue's *target*, so this names the
+          // workcenter or the pool the line stands in front of.
+          targetNames[lane.nodeId],
+        );
+      },
+    );
+  }
 
   /// The layout at [scale], remembered so that scrolling does not re-measure
   /// every bar in the run on every frame. A cache of a pure function of state
@@ -197,7 +439,7 @@ class _GanttViewState extends State<GanttView> {
   /// renamed since still reads as the one that ran — the map `_PartsTable` and
   /// `_ProductionPlan` build for the same reason.
   Map<String, String> get _studyNames => {
-    for (final study in widget.run.studies) study.studyId: study.name,
+    for (final study in widget.slice.run.studies) study.studyId: study.name,
   };
 
   @override
@@ -230,27 +472,25 @@ class _GanttViewState extends State<GanttView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              // Said rather than left to be inferred: a gap is a station not
-              // running, and this chart cannot tell closed from starved.
-              // Splitting a bar at closed time would need calendars a stored
-              // run does not have (§7.10).
-              child: Text(
-                l10n.simGanttGapHelp,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ),
             Expanded(
               child: _Chart(
                 layout: layout,
                 across: _across,
                 down: _down,
                 pane: pane,
+                labelWidth: _labelWidth,
+                facts: _facts,
                 hovered: _hovered,
+                selected: _selected,
                 onHover: (bar) => setState(() => _hovered = bar),
+                // **Tapping the order again clears it, and so does tapping
+                // nothing.** Both are needed: a reader who has found what they
+                // came for reaches for the bar they are looking at, and one who
+                // has lost the thread reaches for the empty space around it.
+                onSelect: (hit) => setState(() {
+                  final order = hit == null ? null : _Chart._orderIdOf(hit);
+                  _selected = order == _selected ? null : order;
+                }),
                 onCtrlScroll: (event) => _zoomAtPointer(event, pane),
                 studies: _studyNames,
               ),
@@ -264,6 +504,15 @@ class _GanttViewState extends State<GanttView> {
               canZoomIn: scale < bounds.max,
               onZoomOut: () => _zoom(1 / GanttMetrics.zoomStep, pane),
               onZoomIn: () => _zoom(GanttMetrics.zoomStep, pane),
+              showLanes: _showLanes,
+              onShowLanes: (value) => setState(() {
+                _showLanes = value;
+                _chart = _buildChart();
+                // The rows moved, so nothing is under the pointer any more and
+                // the cached layout describes a chart that no longer exists.
+                _cached = null;
+                _hovered = null;
+              }),
             ),
           ],
         );
@@ -279,8 +528,12 @@ class _Chart extends StatelessWidget {
     required this.across,
     required this.down,
     required this.pane,
+    required this.labelWidth,
+    required this.facts,
     required this.hovered,
+    required this.selected,
     required this.onHover,
+    required this.onSelect,
     required this.onCtrlScroll,
     required this.studies,
   });
@@ -289,15 +542,23 @@ class _Chart extends StatelessWidget {
   final ScrollController across;
   final ScrollController down;
   final double pane;
-  final GanttPlacedBar? hovered;
-  final ValueChanged<GanttPlacedBar?> onHover;
+  final double labelWidth;
+  final Map<String, _OrderFacts> facts;
+  final GanttHit? hovered;
+
+  /// The order being followed, or null. See `_GanttViewState._selected`.
+  final String? selected;
+
+  /// The hit that was tapped, or null where the tap landed on no bar at all.
+  final ValueChanged<GanttHit?> onSelect;
+  final ValueChanged<GanttHit?> onHover;
   final ValueChanged<PointerScrollEvent> onCtrlScroll;
   final Map<String, String> studies;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
     return LayoutBuilder(
       builder: (context, constraints) => AnimatedBuilder(
@@ -315,7 +576,7 @@ class _Chart extends StatelessWidget {
               from: offset,
               to: offset + pane,
             ))
-              (x: tick.x, label: _tickLabel(layout.unit, tick.at, locale)),
+              (x: tick.x, label: _tickLabel(layout.unit, tick.at, dateStyle.locale)),
           ];
 
           return Stack(
@@ -325,7 +586,7 @@ class _Chart extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Labels(layout: layout),
+                    _Labels(layout: layout, width: labelWidth),
                     Expanded(
                       child: HorizontalScroll(
                         controller: across,
@@ -341,16 +602,38 @@ class _Chart extends StatelessWidget {
                               if (!identical(hit, hovered)) onHover(hit);
                             },
                             onExit: (_) => onHover(null),
-                            child: _CtrlScroll(
+                            child: _DragPan(
+                              across: across,
+                              down: down,
+                              child: _CtrlScroll(
                               onZoom: onCtrlScroll,
-                              child: CustomPaint(
+                              // **Inside the scroll views, like the ctrl-scroll
+                              // above it**, so the position it reports is in the
+                              // same content coordinates `barAt` answers in and
+                              // no scroll offset has to be subtracted back out.
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                // **Not while space is held**, which is the one
+                                // gesture that reaches this detector and does
+                                // not mean "select": a space-drag starts with a
+                                // pointer-down like any other, and without this
+                                // beginning a pan would select whatever bar the
+                                // grab started on. Read at the moment of the
+                                // event rather than held as state, so there is
+                                // no second copy of "is space down" to disagree
+                                // with [_DragPan]'s.
+                                onTapDown: (details) => _panModifierHeld
+                                    ? null
+                                    : onSelect(barAt(layout, details.localPosition)),
+                                child: CustomPaint(
                                 key: ganttCanvasKey,
-                                painter: _GanttPainter(
+                                painter: GanttPainter(
                                   layout: layout,
                                   ticks: ticks,
                                   visibleFrom: offset,
                                   visibleTo: offset + pane,
                                   hovered: hovered,
+                                  selected: selected,
                                   band: theme.colorScheme.onSurface.withValues(
                                     alpha: 0.04,
                                   ),
@@ -362,7 +645,9 @@ class _Chart extends StatelessWidget {
                                       const TextStyle(fontSize: 12),
                                   outline: theme.colorScheme.onSurface,
                                 ),
+                                ),
                               ),
+                            ),
                             ),
                           ),
                         ),
@@ -373,13 +658,17 @@ class _Chart extends StatelessWidget {
               ),
               if (hovered case final bar?)
                 _HoverCard(
-                  bar: bar,
+                  hit: bar,
+                  bandTop: layout.rows[bar.bandIndex].top,
+                  bandHeight: layout.rows[bar.bandIndex].band.height,
                   across: offset,
                   down: scrolledDown,
                   pane: pane,
                   paneHeight: constraints.maxHeight,
+                  labelWidth: labelWidth,
+                  facts: facts[_orderIdOf(bar)],
                   studies: studies,
-                  station: _stationOf(layout, bar),
+                  workcenter: _workcenterOf(layout, bar),
                 ),
             ],
           );
@@ -388,15 +677,24 @@ class _Chart extends StatelessWidget {
     );
   }
 
-  /// Which row the bar was placed on, from the rect alone.
+  /// Which band the hit was placed on.
   ///
-  /// `layoutGantt` puts a bar at `axisHeight + i × rowHeight` plus a fixed
-  /// inset, so the index divides straight back out. Searching the rows for it
-  /// would be a walk over every bar in the run on every hover.
-  static String _stationOf(GanttLayout layout, GanttPlacedBar bar) {
-    final index = _rowIndexOf(bar);
-    return index < layout.rows.length ? layout.rows[index].row.name : '';
-  }
+  /// This used to divide the index back out of the rect's top, which worked
+  /// while every band was `rowHeight` tall. Lane bands are as deep as the lane
+  /// is (§8.6), so the index is carried on the hit instead — the layout knows
+  /// it for nothing and no arithmetic can drift from it.
+  static String _workcenterOf(GanttLayout layout, GanttHit hit) =>
+      hit.bandIndex < layout.rows.length
+      ? layout.rows[hit.bandIndex].band.name
+      : '';
+
+  /// The order behind a hit, whichever kind it is. A stay in a lane belongs to
+  /// an order exactly as a bar does, so the card says the same two things about
+  /// both — the project and the description are the order's, not the workcenter's.
+  static String _orderIdOf(GanttHit hit) => switch (hit) {
+    GanttPlacedBar(:final bar) => bar.orderId,
+    GanttPlacedVisit(:final visit) => visit.orderId,
+  };
 }
 
 /// Turns ctrl-scroll over the chart into a zoom, and leaves every other scroll
@@ -434,21 +732,203 @@ class _CtrlScroll extends StatelessWidget {
   );
 }
 
-int _rowIndexOf(GanttPlacedBar bar) =>
-    ((bar.rect.top - GanttMetrics.axisHeight) / GanttMetrics.rowHeight).floor();
+/// Whether the modifier that turns a drag into a pan is down right now.
+///
+/// Space rather than a plain left-drag, decided by #10. §12.6's rule — *a wide
+/// thing must scroll and say so* — is why the scrollbars stay and why the drag
+/// drives their offsets rather than a transform of its own; reserving plain
+/// left-drag is what leaves room for a marquee or a time brush later without
+/// having to take panning back off it first.
+bool get _panModifierHeld =>
+    HardwareKeyboard.instance.logicalKeysPressed.contains(
+      LogicalKeyboardKey.space,
+    );
 
-/// The station names, one per row, aligned to the bands beside them.
+/// Drag the chart to move it, without the window position becoming a second
+/// piece of state (#10).
+///
+/// **It drives the two `ScrollController`s rather than a transform**, so the
+/// scroll offset stays the single source of truth for where the window is —
+/// which is what `gantt_layout.dart`'s ticks, zoom bounds and hit testing are
+/// all derived from. The bars keep saying how much run is off each edge, so
+/// §12.6's objection to drag-to-pan does not apply: this is a second way to
+/// move the same offset, not a replacement for the first.
+///
+/// Middle-button always pans; left-button pans only while space is held. Both
+/// go through `Listener` rather than a `GestureDetector`, because a pan must
+/// not enter the arena against the tap that selects an order.
+class _DragPan extends StatefulWidget {
+  const _DragPan({
+    required this.across,
+    required this.down,
+    required this.child,
+  });
+
+  final ScrollController across;
+  final ScrollController down;
+  final Widget child;
+
+  @override
+  State<_DragPan> createState() => _DragPanState();
+}
+
+class _DragPanState extends State<_DragPan> {
+  /// The pointer currently panning, so a second button pressed mid-drag cannot
+  /// start a second pan against the same controllers.
+  int? _pointer;
+  Offset _last = Offset.zero;
+
+  /// Mirrored into state only to choose the cursor — every decision that acts
+  /// on the modifier reads [_panModifierHeld] live.
+  bool _modifier = false;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    super.dispose();
+  }
+
+  /// Never handles the event — it only watches for space going up or down, and
+  /// swallowing it would take the key away from anything else that wants it.
+  bool _onKey(KeyEvent event) {
+    final held = _panModifierHeld;
+    if (held != _modifier && mounted) setState(() => _modifier = held);
+    return false;
+  }
+
+  void _scrollBy(ScrollController controller, double delta) {
+    if (!controller.hasClients || delta == 0) return;
+    final position = controller.position;
+    controller.jumpTo(
+      (position.pixels - delta).clamp(0.0, position.maxScrollExtent),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: _pointer != null
+        ? SystemMouseCursors.grabbing
+        : _modifier
+        ? SystemMouseCursors.grab
+        : MouseCursor.defer,
+    child: Listener(
+      onPointerDown: (event) {
+        if (_pointer != null) return;
+        final middle = event.buttons & kMiddleMouseButton != 0;
+        final spaceLeft =
+            event.buttons & kPrimaryMouseButton != 0 && _panModifierHeld;
+        if (!middle && !spaceLeft) return;
+        setState(() {
+          _pointer = event.pointer;
+          _last = event.position;
+        });
+      },
+      onPointerMove: (event) {
+        if (event.pointer != _pointer) return;
+        final delta = event.position - _last;
+        _last = event.position;
+        // Dragging the content left moves the window right, which is what
+        // grabbing a chart and pulling it means everywhere else.
+        _scrollBy(widget.across, delta.dx);
+        _scrollBy(widget.down, delta.dy);
+      },
+      onPointerUp: (event) => _release(event.pointer),
+      onPointerCancel: (event) => _release(event.pointer),
+      child: widget.child,
+    ),
+  );
+
+  void _release(int pointer) {
+    if (pointer != _pointer) return;
+    setState(() => _pointer = null);
+  }
+}
+
+/// The pool a band is qualified by, or null where it stands on its own name.
+String? _poolOf(GanttBand band) => switch (band) {
+  GanttRow(:final poolName) => poolName,
+  GanttLaneRow(:final poolName) => poolName,
+};
+
+/// How a band's own name is set.
+///
+/// **A lane is italic and dimmed; a workcenter is upright and plain.** That is the
+/// one distinction the label column carries, so it is stated once here and read
+/// by both the measurement and the widget — two copies of it would be two rules
+/// that agree until one is edited.
+TextStyle _bandNameStyle(GanttBand band, ThemeData theme) {
+  final base = theme.textTheme.bodySmall ?? const TextStyle(fontSize: 12);
+  return switch (band) {
+    GanttLaneRow() => base.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontStyle: FontStyle.italic,
+    ),
+    GanttRow() => base.copyWith(fontStyle: FontStyle.normal),
+  };
+}
+
+/// How the `CLAD Pool · ` prefix in front of that name is set.
+///
+/// Dimmer and a size smaller than the name it qualifies, because it repeats
+/// down every member of the pool and the machine is what the reader is looking
+/// for. **It keeps the row's own slant** — italic over a lane, upright over a
+/// workcenter — so the row still reads as one label rather than as two fragments
+/// that happen to be adjacent.
+TextStyle _poolStyle(GanttBand band, ThemeData theme) =>
+    _bandNameStyle(band, theme).copyWith(
+      color: theme.colorScheme.outline,
+      fontSize: 10,
+    );
+
+/// The width the frozen label column needs for [chart]'s labels, bounded.
+///
+/// Measured rather than assumed, for the reason [_labelMinWidth] gives: the
+/// pool prefix is free text and a long one used to consume the column on its
+/// own. Exported for a test, which is the only way to assert a width that
+/// depends on a font.
+double ganttLabelWidth(GanttChart chart, ThemeData theme) {
+  final painter = TextPainter(textDirection: TextDirection.ltr);
+  var widest = 0.0;
+
+  for (final band in chart.rows) {
+    painter.text = TextSpan(
+      children: [
+        if (_poolOf(band) case final pool?)
+          TextSpan(text: '$pool · ', style: _poolStyle(band, theme)),
+        TextSpan(text: band.name, style: _bandNameStyle(band, theme)),
+      ],
+    );
+    painter.layout();
+    if (painter.width > widest) widest = painter.width;
+  }
+  painter.dispose();
+
+  // Half a pixel of slack, so a label measured at exactly the width it was
+  // given does not ellipsise on a rounding difference between this pass and
+  // the one the framework makes.
+  return (widest + _labelPadding + 0.5).clamp(_labelMinWidth, _labelMaxWidth);
+}
+
+/// The workcenter and lane names, one per band, aligned to the bands beside them.
 class _Labels extends StatelessWidget {
-  const _Labels({required this.layout});
+  const _Labels({required this.layout, required this.width});
 
   final GanttLayout layout;
 
+  /// From [ganttLabelWidth], measured once per chart.
+  final double width;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SizedBox(
-      width: _labelWidth,
+      key: ganttLabelsKey,
+      width: width,
       height: layout.size.height,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -458,18 +938,26 @@ class _Labels extends StatelessWidget {
           const SizedBox(height: GanttMetrics.axisHeight),
           for (final row in layout.rows)
             SizedBox(
-              height: GanttMetrics.rowHeight,
+              height: row.band.height,
               child: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 10),
+                padding: const EdgeInsets.only(
+                  left: _labelPaddingLeft,
+                  right: _labelPaddingRight,
+                ),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Tooltip(
-                    message: row.row.name,
-                    child: Text(
-                      row.row.name,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: theme.textTheme.bodySmall,
+                    message: switch (row.band) {
+                      // The capacity is on the label rather than only implied
+                      // by the band's depth, so a lane drawn shallower than it
+                      // is (§8.6's cap) still says how deep it really was.
+                      final GanttLaneRow lane when lane.capacity != null =>
+                        '${_qualified(lane)} (${lane.capacity})',
+                      final band => _qualified(band),
+                    },
+                    child: _LabelText(
+                      band: row.band,
+                      available: width - _labelPadding,
                     ),
                   ),
                 ),
@@ -478,6 +966,73 @@ class _Labels extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// What the tooltip says: the whole label, pool included, since the tooltip
+  /// exists for exactly the case where the drawn one was cut.
+  static String _qualified(GanttBand band) {
+    final pool = _poolOf(band);
+    return pool == null ? band.name : '$pool · ${band.name}';
+  }
+}
+
+/// One band's label: `CLAD Pool · CLAD07`, or just `CLAD07`.
+///
+/// **The pool travels on the row**, rather than on a heading band above the
+/// rows it named. That band read as a lane — an empty strip between the axis
+/// and the first thing with bars — so it is gone, and every member and every
+/// lane feeding the pool now says which pool it is. What belongs together says
+/// so without a band that belongs to nothing.
+///
+/// **When it still does not fit, the pool is what gets cut, never the name.**
+/// This was one `Text.rich` with a trailing ellipsis, which drops from the end
+/// — so `CLAD Pool - Célula 11B/C · CLAD07` lost `CLAD07`, the only word on the
+/// row that was not on the four rows around it. The name is laid out first at
+/// the size it needs and the prefix flexes into what is left, which is the
+/// ordering `Row` already gives an inflexible child.
+class _LabelText extends StatelessWidget {
+  const _LabelText({required this.band, required this.available});
+
+  final GanttBand band;
+
+  /// The content width, padding already taken off.
+  final double available;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final name = ConstrainedBox(
+      // Bounded, so a name longer than the whole column ellipsises rather than
+      // overflowing the row it is in. It cannot be laid out unbounded here:
+      // an inflexible child of a `Row` is offered infinite width.
+      constraints: BoxConstraints(maxWidth: math.max(available, 0)),
+      child: Text(
+        band.name,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: _bandNameStyle(band, theme),
+      ),
+    );
+
+    if (_poolOf(band) case final pool?) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              '$pool · ',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: _poolStyle(band, theme),
+            ),
+          ),
+          name,
+        ],
+      );
+    }
+    return name;
   }
 }
 
@@ -491,6 +1046,8 @@ class _Footer extends StatelessWidget {
     required this.canZoomIn,
     required this.onZoomOut,
     required this.onZoomIn,
+    required this.showLanes,
+    required this.onShowLanes,
   });
 
   final GanttChart chart;
@@ -500,6 +1057,8 @@ class _Footer extends StatelessWidget {
   final bool canZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onZoomIn;
+  final bool showLanes;
+  final ValueChanged<bool> onShowLanes;
 
   @override
   Widget build(BuildContext context) {
@@ -557,6 +1116,20 @@ class _Footer extends StatelessWidget {
                 ),
               ),
             ),
+          // Beside the zoom, because both are view controls over the same
+          // chart. **One toggle rather than two labelled segments**: the labels
+          // are 216 px the footer does not have, and taking them squeezed the
+          // legend to nothing and overflowed the row. The tooltip carries what
+          // the labels would have said, including which state it is in.
+          IconButton(
+            isSelected: showLanes,
+            icon: const Icon(Icons.view_stream_outlined),
+            selectedIcon: const Icon(Icons.table_rows_outlined),
+            tooltip:
+                '${showLanes ? l10n.simGanttRowsWithLanes : l10n.simGanttRowsWorkcenters}'
+                ' — ${l10n.simGanttRowsHelp}',
+            onPressed: () => onShowLanes(!showLanes),
+          ),
           IconButton(
             icon: const Icon(Icons.zoom_out),
             tooltip: l10n.simGanttZoomOut,
@@ -619,48 +1192,97 @@ class _LegendEntry extends StatelessWidget {
 /// stops it from taking the hover away from the bar it is describing.
 class _HoverCard extends StatelessWidget {
   const _HoverCard({
-    required this.bar,
+    required this.hit,
+    required this.bandTop,
+    required this.bandHeight,
     required this.across,
     required this.down,
     required this.pane,
     required this.paneHeight,
+    required this.labelWidth,
+    required this.facts,
     required this.studies,
-    required this.station,
+    required this.workcenter,
   });
 
-  final GanttPlacedBar bar;
+  /// The bar or the stay in a lane. One card describes both, because a reader
+  /// asking "what is this" wants the same six answers either way — which order,
+  /// which part, where, when, how long, and what it was doing.
+  final GanttHit hit;
+
+  /// The top of the band it sits in, so the card can be put under it without
+  /// assuming every band is the same height.
+  final double bandTop;
+
+  /// And that band's height, for the same reason.
+  final double bandHeight;
+
   final double across;
   final double down;
   final double pane;
   final double paneHeight;
+
+  /// The frozen column the card is offset past, which is measured per chart
+  /// rather than fixed — so the card follows it instead of assuming a constant.
+  final double labelWidth;
+
+  /// The plan's answers for this order, or null on a run stored before they
+  /// were recorded.
+  final _OrderFacts? facts;
+
   final Map<String, String> studies;
-  final String station;
+  final String workcenter;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).toString();
+    final dateStyle = DateStyleScope.of(context);
 
-    final rowTop =
-        GanttMetrics.axisHeight + _rowIndexOf(bar) * GanttMetrics.rowHeight;
-    final left = (_labelWidth + bar.rect.left - across)
+    // The band's own top, carried on the hit. It used to be divided back out
+    // of the rect, which held only while every band was `rowHeight` tall.
+    final rowTop = bandTop;
+    final left = (labelWidth + hit.rect.left - across)
         .clamp(
-          _labelWidth + 4,
-          math.max(_labelWidth + 4, _labelWidth + pane - _cardWidth - 4),
+          labelWidth + 4,
+          math.max(labelWidth + 4, labelWidth + pane - _cardWidth - 4),
         )
         .toDouble();
-    final top = (rowTop + GanttMetrics.rowHeight + 6 - down)
+    // Below the band, whatever height the band is — a lane's is its depth.
+    final top = (rowTop + bandHeight + 6 - down)
         .clamp(0.0, math.max(0.0, paneHeight - _cardHeight))
         .toDouble();
 
     String instant(DateTime value) =>
-        '${formatDateInput(value, locale)} '
+        '${dateStyle.format(value)} '
         '${formatMinuteOfDay(value.hour * 60 + value.minute)}';
 
-    final study = studies.length > 1
-        ? studies[bar.bar.studyId] ?? bar.bar.studyId
-        : null;
+    // The two kinds, reduced to what the card actually shows. Pulled apart
+    // once here rather than switched at every line below.
+    final (
+      GanttPart part,
+      int orderNumber,
+      String studyId,
+      DateTime from,
+      DateTime to,
+    ) = switch (hit) {
+      GanttPlacedBar(:final bar) => (
+        bar.part,
+        bar.orderNumber,
+        bar.studyId,
+        bar.start,
+        bar.end,
+      ),
+      GanttPlacedVisit(:final visit) => (
+        visit.part,
+        visit.orderNumber,
+        visit.studyId,
+        visit.entered,
+        visit.left,
+      ),
+    };
+
+    final study = studies.length > 1 ? studies[studyId] ?? studyId : null;
 
     return Positioned(
       left: left,
@@ -683,43 +1305,105 @@ class _HoverCard extends StatelessWidget {
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: partColour(bar.bar.part.colourIndex).fill,
+                          color: partColour(part.colourIndex).fill,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${l10n.simGanttOrder('${bar.bar.orderNumber}')}'
-                          '  ·  ${bar.bar.part.partNumber}',
+                          '${l10n.simGanttOrder('$orderNumber')}'
+                          '  ·  ${part.partNumber}',
                           style: theme.textTheme.titleSmall,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
+                  // **Directly under the part number it describes**, and
+                  // indented past the swatch so it reads as a subtitle of the
+                  // title rather than as the first of the facts below. It is a
+                  // label and not a key — two parts legitimately share one — so
+                  // it is dimmed like every other line the reader is not meant
+                  // to identify the bar by.
+                  if (facts?.description case final description?)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 20),
+                      child: _CardLine(text: description),
+                    ),
                   const SizedBox(height: 6),
                   _CardLine(
-                    text: study == null ? station : '$station  ·  $study',
+                    text: study == null ? workcenter : '$workcenter  ·  $study',
                   ),
-                  _CardLine(
-                    text: l10n.simRunSpan(
-                      instant(bar.bar.start),
-                      instant(bar.bar.end),
+                  // What the batch is *for*, which is the order's own answer and
+                  // the reason §16.15 moved it off the part. Omitted rather than
+                  // blanked when the order has none — a labelled empty value
+                  // would read as a project called nothing.
+                  if (facts?.project case final project?)
+                    _CardValue(label: l10n.simGanttProject, value: project),
+                  _CardLine(text: l10n.simRunSpan(instant(from), instant(to))),
+                  switch (hit) {
+                    // What the workcenter was committed to it for — elapsed, so
+                    // closed time is in it (§8.6).
+                    GanttPlacedBar(:final bar) => _CardValue(
+                      label: l10n.simGanttCommitted,
+                      value: formatAdaptiveDuration(l10n, bar.occupied),
                     ),
-                  ),
-                  _CardValue(
-                    label: l10n.simGanttCommitted,
-                    value: formatAdaptiveDuration(l10n, bar.bar.occupied),
-                  ),
-                  _CardValue(
-                    label: l10n.simGanttWaited,
-                    value: formatAdaptiveDuration(l10n, bar.bar.wait),
-                  ),
-                  // Said at every scale, including the zooms where the mark on
-                  // the bar itself is omitted for want of room.
-                  if (bar.bar.changeover)
-                    _CardLine(text: l10n.simGanttChangeover),
+                    // What it stood in the lane for, which is the same question
+                    // the row below answers as `Waited before starting`.
+                    GanttPlacedVisit(:final visit) => _CardValue(
+                      label: l10n.simGanttWaited,
+                      value: formatAdaptiveDuration(l10n, visit.waited),
+                    ),
+                  },
+                  if (hit case GanttPlacedBar(:final bar)) ...[
+                    // **The work, above the wait, under the elapsed span it
+                    // cannot be read out of** (§7.4, v21). `Committed` is this
+                    // laid on the calendar, so the two differ by the nights and
+                    // weekends the bar crossed — and only this one says what the
+                    // workcenter was asked to do, which is where §7.4's balance
+                    // between two like machines becomes checkable at all.
+                    // Omitted on a pre-v21 run rather than shown as zero: a step
+                    // the part does not route through legitimately records zero
+                    // work, and the two must not look alike.
+                    if (bar.process case final process?)
+                      _CardValue(
+                        label: l10n.simGanttProcess,
+                        value: formatAdaptiveDuration(l10n, process),
+                      ),
+                    // **And what set it** (§7.9, v22). The work above is the
+                    // balance's split of the group against this figure, so two
+                    // bars of one part differing in width differ here first.
+                    // Omitted rather than dashed on a pre-v22 run: that run
+                    // held one takt throughout and its header says which.
+                    if (facts?.takt case final takt?)
+                      _CardValue(
+                        label: l10n.simGanttTakt,
+                        value: taktLabel(l10n, takt.$1, takt.$2),
+                      ),
+                    _CardValue(
+                      label: l10n.simGanttWaited,
+                      value: formatAdaptiveDuration(l10n, bar.wait),
+                    ),
+                    // Said at every scale, including the zooms where the mark
+                    // on the bar itself is omitted for want of room.
+                    if (bar.changeover)
+                      _CardLine(text: l10n.simGanttChangeover),
+                  ],
+                  if (hit case GanttPlacedVisit(:final lane, :final visit)) ...[
+                    // How deep the lane really is, not how deep it is drawn:
+                    // §8.6 caps the band, and a reader measuring the stack
+                    // against the capacity would otherwise be measuring the cap.
+                    _CardLine(
+                      text: lane.capacity == null
+                          ? l10n.simGanttLaneUncapped
+                          : l10n.simGanttLaneHolds(lane.capacity!),
+                    ),
+                    // The order never left. Its bar ends at the run's end
+                    // because that is where the chart stops, not because
+                    // anything happened there.
+                    if (visit.open) _CardLine(text: l10n.simGanttStillWaiting),
+                  ],
                 ],
               ),
             ),
@@ -797,13 +1481,21 @@ String _tickLabel(GanttTickUnit unit, DateTime at, String locale) =>
     };
 
 /// Draws what the layout decided, and decides nothing itself.
-class _GanttPainter extends CustomPainter {
-  const _GanttPainter({
+///
+/// **Public only so a test can read what it was handed.** The bars are painted
+/// rather than built, so a selection has no widget to find and no text to match
+/// — the only honest assertion is that the painter was given the order the tap
+/// named. The same reasoning made [ganttCanvasKey] and `ganttLabelWidth`
+/// public; nothing outside this file constructs one.
+@visibleForTesting
+class GanttPainter extends CustomPainter {
+  const GanttPainter({
     required this.layout,
     required this.ticks,
     required this.visibleFrom,
     required this.visibleTo,
     required this.hovered,
+    required this.selected,
     required this.band,
     required this.rule,
     required this.axisStyle,
@@ -818,11 +1510,20 @@ class _GanttPainter extends CustomPainter {
   final double visibleFrom;
   final double visibleTo;
 
-  final GanttPlacedBar? hovered;
+  final GanttHit? hovered;
+
+  /// The order being followed, or null for the ordinary chart.
+  final String? selected;
+
   final Color band;
   final Color rule;
   final TextStyle axisStyle;
   final Color outline;
+
+  /// Whether [orderId] is one the reader is not following, and is therefore
+  /// drawn back. False whenever nothing is selected, which is what keeps an
+  /// unselected chart pixel-for-pixel what it was.
+  bool _isDimmed(String orderId) => selected != null && orderId != selected;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -832,17 +1533,38 @@ class _GanttPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     // Alternate bands, so a bar hours away from its label still reads as that
-    // row's.
-    for (var i = 1; i < layout.rows.length; i += 2) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          0,
-          layout.rows[i].top,
-          size.width,
-          GanttMetrics.rowHeight,
-        ),
-        bandPaint,
-      );
+    // row's. Counted over **workcenters only**: the lanes between them get a fill
+    // of their own below, and striping the merged sequence would put the
+    // stripe on a lane half the time and break the alternation a reader is
+    // using to follow one workcenter across.
+    var workcenters = 0;
+    for (final row in layout.rows) {
+      switch (row.band) {
+        case GanttRow():
+          if (workcenters.isOdd) {
+            canvas.drawRect(
+              Rect.fromLTWH(0, row.top, size.width, row.band.height),
+              bandPaint,
+            );
+          }
+          workcenters++;
+
+        case GanttLaneRow():
+          // A lane is a channel, and the map draws it as one (§2.5): a fill
+          // between two rails, so the band reads as somewhere orders stand
+          // rather than as another machine.
+          canvas.drawRect(
+            Rect.fromLTWH(0, row.top, size.width, row.band.height),
+            bandPaint,
+          );
+          for (final y in [row.top, row.top + row.band.height]) {
+            canvas.drawLine(
+              Offset(visibleFrom, y),
+              Offset(visibleTo, y),
+              rulePaint,
+            );
+          }
+      }
     }
 
     // Down to the last row and no further: below it is the gutter the
@@ -864,6 +1586,48 @@ class _GanttPainter extends CustomPainter {
       rulePaint,
     );
 
+    // The waiting orders, under the bars so a workcenter's work always wins the
+    // pixel where the two meet.
+    for (final row in layout.rows) {
+      for (final placed in row.visits) {
+        if (placed.rect.right < visibleFrom || placed.rect.left > visibleTo) {
+          continue;
+        }
+        final colour = partColour(placed.visit.part.colourIndex);
+        final shape = RRect.fromRectAndRadius(
+          placed.rect,
+          const Radius.circular(1),
+        );
+        // **Washed out and outlined, never solid.** The same part colour, so an
+        // order is followed down the chart by hue, but a waiting order must not
+        // read as a running one — which is the whole reason §2.7 refused to
+        // draw queue spans on a workcenter's own row.
+        //
+        // A stay already sits at 0.30, so following an order takes it down
+        // rather than up: the dimmed figure is a fraction of a fraction, and
+        // the 1 px edge that makes an empty-looking slot readable goes with it,
+        // or every dimmed stay would still be outlined on a chart whose point is
+        // that one order is.
+        final dimmed = _isDimmed(placed.visit.orderId);
+        canvas.drawRRect(
+          shape,
+          Paint()
+            ..color = colour.fill.withValues(
+              alpha: dimmed ? _dimmedVisit : 0.30,
+            ),
+        );
+        if (!dimmed) {
+          canvas.drawRRect(
+            shape,
+            Paint()
+              ..color = colour.fill
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1,
+          );
+        }
+      }
+    }
+
     for (final row in layout.rows) {
       for (final placed in row.bars) {
         if (placed.rect.right < visibleFrom || placed.rect.left > visibleTo) {
@@ -874,7 +1638,22 @@ class _GanttPainter extends CustomPainter {
           placed.rect,
           const Radius.circular(2),
         );
-        canvas.drawRRect(shape, Paint()..color = colour.fill);
+        final dimmed = _isDimmed(placed.bar.orderId);
+        canvas.drawRRect(
+          shape,
+          Paint()
+            ..color = dimmed
+                ? colour.fill.withValues(alpha: _dimmedBar)
+                : colour.fill,
+        );
+
+        // **Nothing else is drawn on a bar that is not the one being followed.**
+        // The changeover mark and the part number are the detail a reader is
+        // reading *this* bar for, and left at full strength over a washed-out
+        // fill they would be the loudest thing on a chart whose subject is
+        // somewhere else. The fill still carries the part's hue, so the plant is
+        // legible as shape and colour while one order is legible as text.
+        if (dimmed) continue;
 
         // A stroke, never a prefix with a width: the run stores only *that* a
         // changeover was paid, so anything measurable against the axis would be
@@ -892,16 +1671,27 @@ class _GanttPainter extends CustomPainter {
         }
 
         if (placed.rect.width >= _labelledBarWidth) {
+          // The part number first and the order number after it, and only when
+          // there is room for both — so every label that reads correctly at a
+          // given zoom today reads the same way, and the order number is what
+          // the extra width buys rather than what it costs.
+          final label = placed.rect.width >= _numberedBarWidth
+              ? '${placed.bar.part.partNumber}  #${placed.bar.orderNumber}'
+              : placed.bar.part.partNumber;
           _text(
             canvas,
-            placed.bar.part.partNumber,
+            label,
             Offset(placed.rect.left + 6, placed.rect.top + 2),
             axisStyle.copyWith(color: colour.onFill),
             maxWidth: placed.rect.width - 10,
           );
         }
 
-        if (identical(placed, hovered)) {
+        // The same stroke answers both, because they mean the same thing to a
+        // reader — *this* is the one you are asking about. A bar of the followed
+        // order is outlined whether or not the pointer is on it, which is what
+        // makes the order findable at a glance rather than by sweeping for it.
+        if (identical(placed, hovered) || selected != null) {
           canvas.drawRRect(
             shape,
             Paint()
@@ -932,12 +1722,13 @@ class _GanttPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GanttPainter old) =>
+  bool shouldRepaint(covariant GanttPainter old) =>
       old.layout != layout ||
       old.ticks != ticks ||
       old.visibleFrom != visibleFrom ||
       old.visibleTo != visibleTo ||
       !identical(old.hovered, hovered) ||
+      old.selected != selected ||
       old.band != band ||
       old.rule != rule ||
       old.outline != outline;
