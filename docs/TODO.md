@@ -51,7 +51,7 @@ Unchanged from v2.0, and worth restating because the audience changed:
 | 5 | Small surface | — | [#31](https://github.com/matheus-sancha/FlowMap/issues/31), [#32](https://github.com/matheus-sancha/FlowMap/issues/32) | **built** |
 | 6 | The mark and the PDF | — | [#33](https://github.com/matheus-sancha/FlowMap/issues/33), [#27](https://github.com/matheus-sancha/FlowMap/issues/27) | **built** |
 | 7 | The drop | — | [#28](https://github.com/matheus-sancha/FlowMap/issues/28) | **built**, cold install owed |
-| 8 | A plant you can see, name and move | — | field report, 2026-09-13 | **built**, drive owed |
+| 8 | A plant you can see, name and move | — | field report, 2026-09-13 | **shipped in 2.1.2**, field feedback owed |
 
 **Grouped by what one sitting can build and drive.** A phase too big to drive in one sitting is a
 phase that will not be driven, which is v2.0's own lesson: five phases were built between
@@ -336,8 +336,59 @@ not a template's stub, and a made workcenter is filed under the lines that came 
 - **Still unchecked:** stored runs keep old workcenter ids and copy names in, so Compare should read
   across a move. Owed to the drive, on a run from each side.
 
-**Evidence owed: a drive.** Open a new project then Q1 and see Q1's tree; build a plant from empty;
-name a new project's plant; move Q1 to a second plant and back and simulate on both sides.
+**5. Two small asks, the same evening.** The document menu moved from first on the project bar to
+**between Simulate and the settings gear**, and opening, creating or saving a copy of a project shows a
+whole-window **"Opening {name}…"** screen for exactly as long as the work (`opening_screen.dart`).
+
+**6. Templates never appeared on the shelf — fixed in 2.1.2.** Saving a study as a template ran inside
+an auto-disposing `FutureProvider` read once for its side effect; by the time the file was written the
+provider was disposed, `ref.invalidate(templatesProvider)` threw, and the Templates screen — kept alive
+in its shell branch — went on showing its old list. The file was on disk all along
+(`Documents\FlowMap\Templates\Célula 11B.flowtemplate`). `applyTemplate` had the same shape, plus a
+cache that could apply the same template twice as once. Both are plain functions now; the caller
+refreshes the shelf through the `ProviderContainer`. **Watch for the pattern elsewhere:** a
+`@riverpod` provider used as a command is disposed under its own `await`.
+
+**7. The Projects page lost its paragraph** ("Open a project file, or create one…"), on request.
+
+### The drops
+
+| Drop | Commit | |
+|---|---|---|
+| ~~2.1.0~~ | `13b0dd4` | **Withdrawn.** Switching or creating projects emptied the file being left |
+| 2.1.1 | `303fc3b` | Items 0–5 |
+| **2.1.2** | `6fc04a3` | Items 6–7 · [download](https://github.com/matheus-sancha/FlowMap/releases/download/v2.1.2/FlowMap-2.1.2-2026-09-13.zip) |
+
+Published as **GitHub releases** on the public repo, which is how the link reaches the users; the
+steps are in `README.md`. Each zip was unpacked and launched before publishing, and 2.1.2's Templates
+screen was seen listing a template saved under 2.1.1.
+
+**The zips carry the real plant.** `tool/drop/example.flowmap` is `VSM 2026 Q1` as it stood at 15:15
+on 2026-09-13 — plant 4001, 42 workcenters, 250 orders — and the repository and releases are public.
+Recorded, not decided: replace it with an invented example if that plant should not be public.
+
+**`VSM 2026 Q1.flowmap` was restored from that example** after the first loss. The last run before
+the loss matched the 2026-09-12 run step for step, so nothing that changes results was lost; anything
+that does not (notes, names, thresholds, annotations) edited between 15:30 and 16:28 was. `VSM 2026
+Q2` could not be recovered.
+
+### Waiting on: field feedback, 2026-09-14
+
+The user tests 2.1.2 at work. Nothing in this phase has been driven by the person who asked for it,
+and the suite renders only the empty-plant and opening-screen widgets. What the test should cover:
+
+1. Open a project, then another, then back: each shows its own Resources tree, and neither file
+   shrinks.
+2. New project: asks for the plant's name; its Plant tab offers *New production cell* and *New
+   workcenter*.
+3. Save a study as a template: it appears in Study Templates **without restarting**; apply it, and
+   apply it again.
+4. Project settings → Plant → *New plant…*: read the confirmation, move, simulate; move back, and
+   nothing is copied the second time. Compare a run from before the move with one after.
+5. The "Opening…" screen shows while a project loads; the document menu sits between Simulate and
+   the gear.
+
+Continue from the feedback rather than from this list.
 
 ### Standing constraints
 
