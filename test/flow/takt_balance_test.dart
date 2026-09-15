@@ -182,7 +182,7 @@ void main() {
   /// (§7.7.1). Giving one a share puts work on a machine the part never visits.
   group('a workcenter this part does not run on', () {
     test('a zero keeps its zero and is not a member', () {
-      // The defect, as data. `P1000247599` stores 0 h at CEU30 and 146 h at
+      // The defect, as data. `PN-1043` stores 0 h at CEU30 and 146 h at
       // CEU32; §7.4 gave CEU30 94.3 h of CEU32's work.
       final groups = balanceFlow([
         step('Machining', measured: 0),

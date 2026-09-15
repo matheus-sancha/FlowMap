@@ -100,8 +100,8 @@ void main() {
 
   test('the file name suggests the project name, so New asks once', () {
     expect(
-      NewDocument.projectNameFor(r'C:\work\VSM 2026 Q2.flowmap'),
-      'VSM 2026 Q2',
+      NewDocument.projectNameFor(r'C:\work\Plan Q2.flowmap'),
+      'Plan Q2',
     );
     expect(NewDocument.projectNameFor(r'C:\work\.flowmap'), 'Project');
   });

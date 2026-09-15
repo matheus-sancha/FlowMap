@@ -2277,7 +2277,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get documentsExampleHelp =>
-      'Uma fábrica real, pronta para simular. Abre como a sua própria cópia, então nada do que mudar mexe no original.';
+      'Uma fábrica de exemplo, pronta para simular. Abre como a sua própria cópia, então nada do que mudar mexe no original.';
 
   @override
   String get documentsExampleFile => 'Exemplo do FlowMap.flowmap';

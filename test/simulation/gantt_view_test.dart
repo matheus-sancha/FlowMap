@@ -706,7 +706,7 @@ void main() {
     );
 
     /// The two-day run with the plan the real database would have beside it.
-    StoredRun described({String? project = 'MANIFOLD', String? description = 'PWB 10K 1.0'}) {
+    StoredRun described({String? project = 'MANIFOLD', String? description = 'Body D S 1.0'}) {
       final base = twoDayRun();
       return runOf(
         id: 'run-described',
@@ -744,7 +744,7 @@ void main() {
 
       expect(find.text('Project'), findsOne);
       expect(find.text('MANIFOLD'), findsOne);
-      expect(find.text('PWB 10K 1.0'), findsOne);
+      expect(find.text('Body D S 1.0'), findsOne);
       // And it still says everything it said before.
       expect(find.text('Order 1  ·  PN1'), findsOne);
       expect(find.text('Committed'), findsOne);
@@ -772,7 +772,7 @@ void main() {
       await pump(tester, run);
       await hoverFirstBar(tester, run);
 
-      expect(find.text('PWB 10K 1.0'), findsOne);
+      expect(find.text('Body D S 1.0'), findsOne);
       expect(find.text('Project'), findsNothing);
     });
 
@@ -818,7 +818,7 @@ void main() {
               outcome,
               partNumber: outcome.partId == 'p1' ? 'PN1' : 'PN2',
               project: 'MANIFOLD',
-              description: 'PWB 10K 1.0',
+              description: 'Body D S 1.0',
             ),
         ],
       );
@@ -835,7 +835,7 @@ void main() {
 
       expect(find.text('Waited before starting'), findsOne);
       expect(find.text('MANIFOLD'), findsOne);
-      expect(find.text('PWB 10K 1.0'), findsOne);
+      expect(find.text('Body D S 1.0'), findsOne);
     });
   });
 

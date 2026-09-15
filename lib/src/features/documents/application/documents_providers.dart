@@ -104,7 +104,7 @@ class OpenDocument extends _$OpenDocument {
     }
     // **The open document gets out of the way before anything touches the
     // tables under it** — see [DocumentSession.detach] for what closing it
-    // afterwards did to `VSM 2026 Q1.flowmap`.
+    // afterwards did to `Plan Q1.flowmap`.
     if (previous != null && !await previous.detach()) {
       await previous.resume(reload: false);
       return const OpenOutcome.unsaved();

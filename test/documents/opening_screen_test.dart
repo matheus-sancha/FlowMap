@@ -22,7 +22,7 @@ void main() {
             builder: (context) => TextButton(
               onPressed: () => result = whileOpening(
                 context,
-                'VSM 2026 Q1',
+                'Plan Q1',
                 () => work.future,
               ),
               child: const Text('open'),
@@ -35,13 +35,13 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text(l10n.documentsOpening('VSM 2026 Q1')), findsOneWidget);
+    expect(find.text(l10n.documentsOpening('Plan Q1')), findsOneWidget);
 
     work.complete('done');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text(l10n.documentsOpening('VSM 2026 Q1')), findsNothing);
+    expect(find.text(l10n.documentsOpening('Plan Q1')), findsNothing);
     expect(await result, 'done');
   });
 

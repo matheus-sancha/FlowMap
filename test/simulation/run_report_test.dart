@@ -115,7 +115,7 @@ void main() {
         parts: {
           'part-1': SimPart(
             id: 'part-1',
-            partNumber: 'P7000089688-01',
+            partNumber: 'PN-1085-1',
             processTimes: const {'wc-1': Duration(hours: 8)},
           ),
         },

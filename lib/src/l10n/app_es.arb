@@ -1041,7 +1041,7 @@
   "aboutDiagnostics": "Diagnóstico",
   "aboutOpenFolder": "Abrir carpeta",
   "documentsExample": "Abrir el ejemplo",
-  "documentsExampleHelp": "Una planta real, lista para simular. Se abre como tu propia copia, así que nada de lo que cambies toca el original.",
+  "documentsExampleHelp": "Una planta de muestra, lista para simular. Se abre como tu propia copia, así que nada de lo que cambies toca el original.",
   "documentsExampleFile": "Ejemplo de FlowMap.flowmap",
   "aboutUserGuide": "Guía de uso",
   "startupOpening": "Abriendo tus datos…",

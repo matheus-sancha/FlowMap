@@ -398,7 +398,7 @@ void main() {
   /// | order | study | cell | line | part | project |
   /// |---|---|---|---|---|---|
   /// | `o1` | a | Cell 1 | Line 1 | PN1 | MANIFOLD |
-  /// | `o2` | b | Cell 2 | Line 2 | PN2 | Global 23 |
+  /// | `o2` | b | Cell 2 | Line 2 | PN2 | Project B |
   ///
   /// Shared by the picker group and #29's study-naming group, which are about
   /// the same two menus: what they offer, and what each entry is called.
@@ -446,7 +446,7 @@ void main() {
             outcome: o,
             partNumber: o.partId == 'p1' ? 'PN1' : 'PN2',
             partDescription: null,
-            customerProject: o.orderId == 'o1' ? 'MANIFOLD' : 'Global 23',
+            customerProject: o.orderId == 'o1' ? 'MANIFOLD' : 'Project B',
             batchNumber: null,
             batchSize: 1,
             materialDate: null,
@@ -469,7 +469,7 @@ void main() {
       expect(options.cells.keys, {'cell-1', 'cell-2'});
       expect(options.lines.keys, {'line-1', 'line-2'});
       expect(options.parts.keys, {'PN1', 'PN2'});
-      expect(options.projects.keys, {'MANIFOLD', 'Global 23'});
+      expect(options.projects.keys, {'MANIFOLD', 'Project B'});
       expect(options.studiesInView, 2);
     });
 
@@ -604,7 +604,7 @@ void main() {
     /// | order | study | seq | part | project |
     /// |---|---|---|---|---|
     /// | `o1` | a | 0 | PN1 | MANIFOLD |
-    /// | `o2` | a | 1 | PN2 | Global 23 |
+    /// | `o2` | a | 1 | PN2 | Project B |
     /// | `o3` | b | 0 | PN1 | *none* |
     StoredRun booked() {
       final orders = [
@@ -618,7 +618,7 @@ void main() {
         ),
         outcome('o3', studyId: 'b', need: DateTime(2026, 5, 1), sequence: 0),
       ];
-      final projects = {'o1': 'MANIFOLD', 'o2': 'Global 23', 'o3': null};
+      final projects = {'o1': 'MANIFOLD', 'o2': 'Project B', 'o3': null};
       final result = SimRunResult(
         start: start,
         end: DateTime(2026, 12, 31),
@@ -683,7 +683,7 @@ void main() {
     test('two projects are a union, not an intersection', () {
       final view = filterRun(
         booked(),
-        const RunFilter(customerProjects: {'MANIFOLD', 'Global 23'}),
+        const RunFilter(customerProjects: {'MANIFOLD', 'Project B'}),
       );
 
       expect(orderIds(view), {'o1', 'o2'});
@@ -756,7 +756,7 @@ void main() {
           filterRun(
             booked(),
             const RunFilter(
-              customerProjects: {'MANIFOLD', 'Global 23'},
+              customerProjects: {'MANIFOLD', 'Project B'},
               partNumbers: {'PN1'},
             ),
           ),
@@ -808,7 +808,7 @@ void main() {
       final view = filterRun(booked(), RunFilter(customerProjects: projects));
       final taken = view.signature;
 
-      projects.add('Global 23');
+      projects.add('Project B');
 
       expect(view.signature, taken);
     });

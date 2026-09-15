@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/flowmap_mark.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
-/// Runs [work] behind a whole-window "Opening VSM 2026 Q1…" screen.
+/// Runs [work] behind a whole-window "Opening Plan Q1…" screen.
 ///
 /// **Opening a project is not instant, and the start screen used to sit still
 /// through it.** Reading the file, taking the lock, saving whatever was open

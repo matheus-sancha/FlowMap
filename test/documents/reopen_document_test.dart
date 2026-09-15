@@ -35,10 +35,10 @@ void main() {
   });
 
   test('opening the open document again is not a lock conflict', () async {
-    final path = p.join(dir.path, 'VSM 2026 Q1.flowmap');
+    final path = p.join(dir.path, 'Plan Q1.flowmap');
     await NewDocument(
       db,
-    ).create(path, projectName: 'VSM 2026 Q1', plantName: 'Planta');
+    ).create(path, projectName: 'Plan Q1', plantName: 'Planta');
 
     final notifier = container.read(openDocumentProvider.notifier);
     final first = await notifier.open(path, user: 'mathe', machine: 'Desktop');

@@ -20,7 +20,7 @@ import 'package:path/path.dart' as p;
 /// closed A — and closing always writes. A's session captured a database that
 /// now held B, found no row for A's project, and wrote B's plant and an empty
 /// project over A's file. Every switch that day handed the loaded plant on to
-/// the next file, and `VSM 2026 Q1.flowmap` ended as 1.8 KB of empty plants.
+/// the next file, and `Plan Q1.flowmap` ended as 1.8 KB of empty plants.
 ///
 /// The rule these tests hold: **a session stops following, and writes for the
 /// last time, before anything replaces the tables under it.**
@@ -40,14 +40,14 @@ void main() {
     container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
     );
-    pathA = p.join(dir.path, 'a', 'VSM 2026 Q1.flowmap');
-    pathB = p.join(dir.path, 'b', 'VSM 2026 Q2.flowmap');
+    pathA = p.join(dir.path, 'a', 'Plan Q1.flowmap');
+    pathB = p.join(dir.path, 'b', 'Plan Q2.flowmap');
     await NewDocument(
       db,
-    ).create(pathA, projectName: 'VSM 2026 Q1', plantName: '4001');
+    ).create(pathA, projectName: 'Plan Q1', plantName: 'Plant 1');
     await NewDocument(
       db,
-    ).create(pathB, projectName: 'VSM 2026 Q2', plantName: '4002');
+    ).create(pathB, projectName: 'Plan Q2', plantName: 'Plant 2');
   });
 
   tearDown(() async {
@@ -76,17 +76,17 @@ void main() {
 
   test('opening B leaves A\'s file holding A', () async {
     await notifier().open(pathA, user: user, machine: machine);
-    await renameProject('VSM 2026 Q1 edited');
+    await renameProject('Plan Q1 edited');
 
     await notifier().open(pathB, user: user, machine: machine);
 
     final a = onDisk(pathA);
     expect(a.project['projects']!.map((r) => r['name']), [
-      'VSM 2026 Q1 edited',
+      'Plan Q1 edited',
     ], reason: 'the edit made before switching reached A');
-    expect(a.plant['plants']!.map((r) => r['name']), ['4001']);
+    expect(a.plant['plants']!.map((r) => r['name']), ['Plant 1']);
     // And B is what is open, whole.
-    expect(await projectNames(), ['VSM 2026 Q2']);
+    expect(await projectNames(), ['Plan Q2']);
     expect(DocumentLock.holderOf(pathA), isNull);
     expect(DocumentLock.holderOf(pathB), isNotNull);
   });
@@ -97,9 +97,9 @@ void main() {
     await notifier().open(pathA, user: user, machine: machine);
     await notifier().open(pathB, user: user, machine: machine);
 
-    expect(onDisk(pathA).plant['plants']!.map((r) => r['name']), ['4001']);
+    expect(onDisk(pathA).plant['plants']!.map((r) => r['name']), ['Plant 1']);
     expect(onDisk(pathA).project['projects'], hasLength(1));
-    expect(onDisk(pathB).plant['plants']!.map((r) => r['name']), ['4002']);
+    expect(onDisk(pathB).plant['plants']!.map((r) => r['name']), ['Plant 2']);
     expect(onDisk(pathB).project['projects'], hasLength(1));
   });
 
@@ -120,7 +120,7 @@ void main() {
 
     final a = onDisk(pathA);
     expect(a.project['projects']!.single['name'], 'Kept');
-    expect(a.plant['plants']!.map((r) => r['name']), ['4001']);
+    expect(a.plant['plants']!.map((r) => r['name']), ['Plant 1']);
   });
 
   test('a document someone else holds leaves the open one open and following',
@@ -133,7 +133,7 @@ void main() {
 
     expect(outcome.taken, isTrue);
     expect(container.read(openDocumentProvider), same(session));
-    expect(await projectNames(), ['VSM 2026 Q1']);
+    expect(await projectNames(), ['Plan Q1']);
 
     // Still following: an edit after the refusal reaches A's file.
     await renameProject('After the refusal');
@@ -217,12 +217,12 @@ void main() {
         .listen(seen.add);
     addTearDown(sub.cancel);
     await pumpEventQueue();
-    expect(seen.last, ['4001']);
+    expect(seen.last, ['Plant 1']);
 
     await notifier().open(pathB, user: user, machine: machine);
     await pumpEventQueue();
 
-    expect(seen.last, ['4002']);
+    expect(seen.last, ['Plant 2']);
     // And the announcement did not read as an edit to the session now open.
     expect(container.read(openDocumentProvider)!.state, SaveState.saved);
   });
@@ -244,8 +244,8 @@ void main() {
 
     expect(outcome.taken, isFalse);
     expect(outcome.unsaved, isFalse);
-    expect(await projectNames(), ['VSM 2026 Q2'], reason: 'what is on disk');
-    expect(onDisk(pathA).project['projects']!.single['name'], 'VSM 2026 Q2');
+    expect(await projectNames(), ['Plan Q2'], reason: 'what is on disk');
+    expect(onDisk(pathA).project['projects']!.single['name'], 'Plan Q2');
     expect(outcome.conflictCopy, isNotNull);
     expect(
       onDisk(outcome.conflictCopy!.path).project['projects']!.single['name'],
@@ -268,12 +268,12 @@ void main() {
 
     expect(outcome.unsaved, isFalse, reason: 'nothing there to keep');
     expect(outcome.conflictCopy, isNull, reason: 'and nothing written for it');
-    expect(await projectNames(), ['VSM 2026 Q2']);
+    expect(await projectNames(), ['Plan Q2']);
     expect(File(pathA).readAsBytesSync(), restored);
 
     // Leaving it again does not touch the restored file either, beyond saving
     // what is really open.
     await notifier().close();
-    expect(onDisk(pathA).project['projects']!.single['name'], 'VSM 2026 Q2');
+    expect(onDisk(pathA).project['projects']!.single['name'], 'Plan Q2');
   });
 }

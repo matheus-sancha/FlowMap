@@ -2276,7 +2276,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get documentsExampleHelp =>
-      'Una planta real, lista para simular. Se abre como tu propia copia, así que nada de lo que cambies toca el original.';
+      'Una planta de muestra, lista para simular. Se abre como tu propia copia, así que nada de lo que cambies toca el original.';
 
   @override
   String get documentsExampleFile => 'Ejemplo de FlowMap.flowmap';
