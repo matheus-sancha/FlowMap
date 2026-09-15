@@ -68,7 +68,7 @@ class DocumentMigration {
 
   /// A file name a person will recognise, from a project name they chose.
   ///
-  /// Project names are free text and have been since M2 — `VSM 2026 Q1` is the
+  /// Project names are free text and have been since M2 — `Plan Q1` is the
   /// live one, and nothing has ever stopped someone typing a slash. So the name
   /// is reduced to what Windows will accept, and a collision takes a suffix
   /// rather than overwriting a document that is already there.

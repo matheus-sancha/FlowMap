@@ -917,7 +917,7 @@ void main() {
         ..execute(
           'INSERT INTO demand_parts (id, study_id, part_number, '
           'customer_project, description, created_at, updated_at) '
-          "VALUES ('part-1', 'study-1', 'PN2', 'Wing 7', 'AWB 10K 1.0', "
+          "VALUES ('part-1', 'study-1', 'PN2', 'Wing 7', 'Body B S 1.0', "
           '$now, $now)',
         )
         ..execute(
@@ -964,7 +964,7 @@ void main() {
       expect((await db.select(db.simulationRuns).get()).single.id, 'run-1');
       expect(
         (await db.select(db.demandParts).get()).single.description,
-        'AWB 10K 1.0',
+        'Body B S 1.0',
       );
     },
   );

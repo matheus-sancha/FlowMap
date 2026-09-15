@@ -119,7 +119,7 @@ const ganttLabelsKey = ValueKey('gantt-labels');
 class _OrderFacts {
   const _OrderFacts({this.project, this.description, this.takt});
 
-  /// The customer project this batch is for — `MANIFOLD`, `Global 23`.
+  /// The customer project this batch is for — `MANIFOLD`, `Project B`.
   ///
   /// **The order's, not the part's.** §16.15 moved it off `demand_parts` on the
   /// field's own correction: a part is a part, and the project is what a given
@@ -127,7 +127,7 @@ class _OrderFacts {
   /// of live orders that simply have none.
   final String? project;
 
-  /// The part's own description — `PWB 10K 1.0`. Null before v13.
+  /// The part's own description — `Body D S 1.0`. Null before v13.
   ///
   /// It identifies nothing: two parts legitimately share one, which is why it
   /// is a label on the card rather than anything the chart is keyed by.

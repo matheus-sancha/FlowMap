@@ -882,7 +882,7 @@ is the same operation, so the members either side of it still balance with each 
 
 _This was got wrong and shipped._ The first version read a zero as an unmeasured member of the group
 and gave it a share, on the reading that inside a group the work belongs to the group. Against
-célula 11D, `P1000247599` stores 0 h at CEU30 and 146 h at CEU32, and the map showed **94.3 h at
+célula 11D, `PN-1043` stores 0 h at CEU30 and 146 h at CEU32, and the map showed **94.3 h at
 CEU30** — ninety-four hours of work on a machine the part never visits, and eighty-nine taken off the
 one that does it. That reasoning is right for a *blank* and wrong for a *zero*, and nothing
 distinguished them.
@@ -932,7 +932,7 @@ the workcenter alone and the map obeys quietly.
 
 _Worth knowing, and it follows from the rule rather than qualifying it:_ **the split can empty a
 workcenter out of a part's routing.** Where a group's whole work content fits inside one takt, the first
-workcenter takes all of it and the rest derive zero — on 11D, `P7000109738P01` has 15 h stored at CEU32
+workcenter takes all of it and the rest derive zero — on 11D, `PN-1106-2` has 15 h stored at CEU32
 and the map shows 0 h there. That is "top the first workcenter at the takt" working as specified,
 and it means a derived zero and a stored zero look alike on the map while meaning different things.
 
@@ -2809,7 +2809,7 @@ under it.
 - **Before a run exists every menu is empty**, which is honest: the pane below says nothing has been
   run, and a menu of things that cannot narrow it would be describing the plant.
 - **Each picker ignores its own selection and honours every other.** That is what keeps a
-  multi-select usable — ticking `MANIFOLD` must not make `Global 23` vanish from the menu it was
+  multi-select usable — ticking `MANIFOLD` must not make `Project B` vanish from the menu it was
   ticked in — while still letting a study narrow the parts beside it. The standard faceted-search
   rule; narrowing by *all* filters instead leaves every menu holding exactly what is already ticked.
 - **One pass over the orders, not one `filterRun` per picker.** This runs on every keystroke of the
@@ -3990,7 +3990,7 @@ rejected twice, in §16.13 and in §8.5, and rejecting it a third time is the ru
 than a decision being re-litigated.
 
 - **It identifies nothing.** Two parts legitimately share one description — the field's own
-  database has `PN2` and `PN4` both reading `AWB 10K 1.0` — so it is a label on the row, never a
+  database has `PN2` and `PN4` both reading `Body B S 1.0` — so it is a label on the row, never a
   key, and it takes no part in any unique constraint. That is what separates it from
   `customer_project`, which had to be identity (§9.3) and is therefore blank-not-null.
   `part_description` is genuinely nullable: a part nobody described carries no description.

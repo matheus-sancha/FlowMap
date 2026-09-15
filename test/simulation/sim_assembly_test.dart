@@ -449,7 +449,7 @@ void main() {
       study: study,
       nodes: [step(0, workcenterId: 'W')],
       parts: [
-        part('p1', 'PN1', description: 'PWB 10K'),
+        part('p1', 'PN1', description: 'Body D S'),
         part('p2', 'PN2'),
       ],
       processTimes: {
@@ -470,7 +470,7 @@ void main() {
     // them into the run (§7.10) — the only moment they are still guaranteed to
     // describe the demand this run was assembled from.
     expect(built!.parts['p1']!.partNumber, 'PN1');
-    expect(built.parts['p1']!.description, 'PWB 10K');
+    expect(built.parts['p1']!.description, 'Body D S');
     expect(built.parts['p2']!.description, isNull);
 
     // Both orders point at the same part and its single set of process times,

@@ -261,7 +261,9 @@ tag, builds with the label, adds the Visual C++ runtime, `READ ME FIRST.txt`, `m
 `example.flowmap` from `tool/drop/`, zips to `dist/`, and prints the tag command rather than running
 it. **The example rehearsed the upgrade on the way**: `test/tools/make_example.dart` copies the live
 database, migrates the copy v30 → v32 with no dangling rows, runs the one-time document conversion,
-reopens the 30 KB result in a fresh database and simulates it (250 orders, 200 on time). The app
+reopens the 30 KB result in a fresh database and simulates it (250 orders, 200 on time). *That tool
+is gone since 2.1.4*: the live database it read has been converted, and the example is now a frozen,
+anonymised file (see *The drops*). The app
 offers it by name while there are no recent documents, and opens it as the reader's own copy in
 `Documents\FlowMap`; About links the manual. **Still owed: the cold install**, on a machine that is
 not the developer's.
@@ -357,43 +359,78 @@ refreshes the shelf through the `ProviderContainer`. **Watch for the pattern els
 |---|---|---|
 | ~~2.1.0~~ | `13b0dd4` | **Withdrawn.** Switching or creating projects emptied the file being left |
 | 2.1.1 | `303fc3b` | Items 0–5 |
-| **2.1.2** | `6fc04a3` | Items 6–7 · [download](https://github.com/matheus-sancha/FlowMap/releases/download/v2.1.2/FlowMap-2.1.2-2026-09-13.zip) |
+| 2.1.2 | `6fc04a3` | Items 6–7 |
+| 2.1.3 | `bb077b2` | The window's caption on screen; the unblock step leads `READ ME FIRST.txt`; the exe names itself |
+| **2.1.4** | — | The example is a sample plant · [download](https://github.com/matheus-sancha/FlowMap/releases/download/v2.1.4/FlowMap-2.1.4-2026-09-14.zip) |
 
 Published as **GitHub releases** on the public repo, which is how the link reaches the users; the
-steps are in `README.md`. Each zip was unpacked and launched before publishing, and 2.1.2's Templates
-screen was seen listing a template saved under 2.1.1.
+steps are in `README.md`. 2.1.0–2.1.2 were unpacked and launched before publishing, and 2.1.2's
+Templates screen was seen listing a template saved under 2.1.1. **2.1.3 and 2.1.4 were not**: both are
+the CI drop published as built, and 2.1.4's cold install is the first launch of either.
 
-**The zips carry the real plant.** `tool/drop/example.flowmap` is `VSM 2026 Q1` as it stood at 15:15
-on 2026-09-13 — plant 4001, 42 workcenters, 250 orders — and the repository and releases are public.
-Recorded, not decided: replace it with an invented example if that plant should not be public.
+**2.1.0–2.1.3 carried the real plant; 2.1.4 does not.** Their `example.flowmap` was the developer's
+own project as it stood on 2026-09-13 — real part numbers and product families, the customer projects
+orders were for, demand dates, process times — in a public zip. **Decided 2026-09-14: anonymise from
+2.1.4 on, and leave the past alone.** No history rewrite and no release deleted: the copies already
+downloaded cannot be recalled, and a force-push would break every clone to hide what they hold.
 
-**`VSM 2026 Q1.flowmap` was restored from that example** after the first loss. The last run before
+- **What changed in the file.** Every free-text value that names the plant, a part, a product or a
+  customer is replaced (`Demo Plant`, `Cell 2B`, `HBM-07`, `PN-1043-1`, `Body B S 1.0`, `Project C`);
+  every duration is scaled by one factor and every demand date moved by a whole number of weeks, both
+  chosen at random and **kept nowhere** — the script that did it lived outside the repository and is
+  deleted. Built-in workcenter type names, crew labels and units are generic and stayed. Same 42
+  workcenters, 3 studies and 250 orders; it simulates to **149 on time** where the real plant made
+  200, which is a busier plant rather than a different lesson.
+- **What proves it.** A private check that no real text and no unscaled time or date survived, run
+  once and not kept, because it had to contain the real values; and
+  `test/documents/shipped_example_test.dart`, which opens the shipped file, checks integrity and
+  simulates it on every CI run, since nothing else reads it before a user does.
+- **The tree too, but only the high-signal ids.** Part numbers, product families, the customer
+  project, the plant's number and the project's name are gone from code, tests and docs. Workcenter,
+  cell and line codes (`CEU27`, `Célula 11B`) stay: on their own they are shop-floor labels, and
+  renaming forty files of fixtures while the history is public buys little.
+- **What it does not reach.** A machine that already pressed *Open the example* keeps its copy —
+  an existing `FlowMap example.flowmap` is reopened, never replaced — so the plant PCs still hold the
+  real one. That is inside the company, and was accepted.
+
+**The developer's own project was restored from that example** after the first loss. The last run before
 the loss matched the 2026-09-12 run step for step, so nothing that changes results was lost; anything
-that does not (notes, names, thresholds, annotations) edited between 15:30 and 16:28 was. `VSM 2026
-Q2` could not be recovered.
+that does not (notes, names, thresholds, annotations) edited between 15:30 and 16:28 was. Its Q2
+sibling could not be recovered.
 
-### Waiting on: field feedback, 2026-09-14
+### Closing v2.1 — decided 2026-09-14
 
-The user tests 2.1.2 at work. Nothing in this phase has been driven by the person who asked for it,
-and the suite renders only the empty-plant and opening-screen widgets. What the test should cover:
+**v2.1 closes when 2.1.4 is published and has been installed once, cold.** Nothing else is owed.
 
-1. Open a project, then another, then back: each shows its own Resources tree, and neither file
-   shrinks.
-2. New project: asks for the plant's name; its Plant tab offers *New production cell* and *New
-   workcenter*.
-3. Save a study as a template: it appears in Study Templates **without restarting**; apply it, and
-   apply it again.
-4. Project settings → Plant → *New plant…*: read the confirmation, move, simulate; move back, and
-   nothing is copied the second time. Compare a run from before the move with one after.
-5. The "Opening…" screen shows while a project loads; the document menu sits between Simulate and
-   the gear.
+**The cold install** is one machine that is not the developer's — no dev tooling, no `%APPDATA%`
+data folder — taking the zip from the release link. Recorded here with its date, machine and Windows
+edition:
 
-Continue from the feedback rather than from this list.
+1. Download → *Unblock* → unzip → `flowmap.exe` opens, with no prompt.
+2. *Open the example* → *Simulate* runs.
+3. The window's caption and its three buttons are on screen.
+4. About → *User guide* opens.
+
+**A policy block is a result, not a failure.** If WDAC, AppLocker or Smart App Control leaves no *Run
+anyway*, v2.1 closes anyway and code signing becomes a `maintenance` issue: the fix is a purchase or
+an IT rule, not a commit.
+
+**Abandoned rather than owed**, and said so in the closing comment on #21: the drive sheets for
+phases 3–6, phase 1's live-database query, *reopen the last document on launch*, and the five-point
+field checklist this section used to hold for 2.1.2.
+
+**After the close.** Anything from the field is its own GitHub issue labelled `maintenance`, and a fix
+ships as 2.1.x from `main`; v3.0 (#34) is not touched by it. `v2.0` is tagged at its branch tip, and
+the merged branches — `v2.0`, `v2.1`, `m1-m2-foundation`, `claude/windows-publisher-blocking-exe-x7fdx9`
+— are deleted. `docs/HISTORY.md` gains the section that says what happened, and this file shrinks to
+pointers at the tags: `git show v2.1.4:docs/TODO.md` is where this plan is read from afterwards, so
+the shrink lands after that tag and never before. **When v3.0 starts on `main`, a 2.1.x fix can no
+longer come from it** — decide then whether v3.0 branches or a maintenance branch is cut from `v2.1.4`.
 
 ### Deferred: which code-signing certificate — a purchase, not a commit
 
 Field report, 2026-09-14: **Windows blocks the publisher when the exe is opened.** The free half is
-done and shipped in the next drop — the zip is unblocked before unzipping, which is what actually
+done and shipped in 2.1.3 — the zip is unblocked before unzipping, which is what actually
 arms SmartScreen, and `tool/package_windows.ps1` now signs the staged folder the moment a certificate
 exists. `docs/HISTORY.md` §10 is what was done; **`docs/SIGNING.md` is the decision and the numbers**.
 

@@ -58,7 +58,7 @@ void main() {
     required int sequence,
     String studyId = 'study-1',
     String partNumber = 'PN1',
-    String? description = 'PWB 10K',
+    String? description = 'Body D S',
     String? project = 'Wing 7',
     String? batchNumber = 'B-001',
     int? batchSize = 4,
@@ -247,7 +247,7 @@ void main() {
 
   group('the rows', () {
     xl.Excel single({
-      String? description = 'PWB 10K',
+      String? description = 'Body D S',
       String? project = 'Wing 7',
       String? batchNumber = 'B-001',
       int? batchSize = 4,

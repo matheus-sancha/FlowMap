@@ -202,7 +202,7 @@ List<BalanceGroup> balanceFlow(List<BalanceStep> steps) {
     // **Only the workcenters this part actually runs on** (§7.7.1). A zero is how
     // the plant says a part does not route through a workcenter, and giving one a
     // share puts work on a machine the part never visits — 94.3 h onto CEU30
-    // for `P1000247599`, which is the defect this rule was corrected for.
+    // for `PN-1043`, which is the defect this rule was corrected for.
     //
     // **Left out without breaking the run.** A workcenter that does not take a
     // share is transparent to the ones either side of it: it is the same

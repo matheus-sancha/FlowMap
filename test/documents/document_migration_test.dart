@@ -45,14 +45,14 @@ void main() {
   }
 
   test('a project becomes a document named after itself', () async {
-    await seedProject('proj-1', 'VSM 2026 Q1');
+    await seedProject('proj-1', 'Plan Q1');
 
     final written = await migration.run(dir);
 
     expect(written, hasLength(1));
-    expect(p.basename(written.single.path), 'VSM 2026 Q1.flowmap');
+    expect(p.basename(written.single.path), 'Plan Q1.flowmap');
     final doc = FlowmapDocument.read(written.single.readAsBytesSync());
-    expect(doc.manifest.projectName, 'VSM 2026 Q1');
+    expect(doc.manifest.projectName, 'Plan Q1');
     expect(doc.project['projects']!.single['id'], 'proj-1');
   });
 
@@ -60,12 +60,12 @@ void main() {
     // The conversion is one-way and the data is irreplaceable, so it only
     // writes. Clearing the working database is what *opening* a document does,
     // and that happens later and on purpose.
-    await seedProject('proj-1', 'VSM 2026 Q1');
+    await seedProject('proj-1', 'Plan Q1');
     await migration.run(dir);
 
     final projects = await db.select(db.projects).get();
     expect(projects, hasLength(1));
-    expect(projects.single.name, 'VSM 2026 Q1');
+    expect(projects.single.name, 'Plan Q1');
   });
 
   test('every project is converted, not just the first', () async {
@@ -83,15 +83,15 @@ void main() {
   test('it never runs twice', () async {
     // A second pass would overwrite documents that have since been edited,
     // which is the one way this could destroy work rather than preserve it.
-    await seedProject('proj-1', 'VSM 2026 Q1');
+    await seedProject('proj-1', 'Plan Q1');
     expect(await migration.run(dir), hasLength(1));
 
-    await File(p.join(dir.path, 'VSM 2026 Q1.flowmap'))
+    await File(p.join(dir.path, 'Plan Q1.flowmap'))
         .writeAsString('edited since');
 
     expect(await migration.run(dir), isEmpty);
     expect(
-      File(p.join(dir.path, 'VSM 2026 Q1.flowmap')).readAsStringSync(),
+      File(p.join(dir.path, 'Plan Q1.flowmap')).readAsStringSync(),
       'edited since',
     );
   });
@@ -146,14 +146,14 @@ void main() {
       // conversion can never collide with itself. What it can collide with is a
       // file already sitting there — an earlier export, or a document someone
       // put in the folder by hand.
-      File(p.join(dir.path, 'VSM 2026 Q1.flowmap')).writeAsStringSync('mine');
-      await seedProject('proj-1', 'VSM 2026 Q1');
+      File(p.join(dir.path, 'Plan Q1.flowmap')).writeAsStringSync('mine');
+      await seedProject('proj-1', 'Plan Q1');
 
       final written = await migration.run(dir);
 
-      expect(p.basename(written.single.path), 'VSM 2026 Q1 (2).flowmap');
+      expect(p.basename(written.single.path), 'Plan Q1 (2).flowmap');
       expect(
-        File(p.join(dir.path, 'VSM 2026 Q1.flowmap')).readAsStringSync(),
+        File(p.join(dir.path, 'Plan Q1.flowmap')).readAsStringSync(),
         'mine',
       );
     });

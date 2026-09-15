@@ -46,10 +46,10 @@ void main() {
   test('the name follows the project, not the file', () async {
     // The list reads in the user's words. A project renamed inside the document
     // shows its new name the next time it is opened.
-    await recents.remember(r'C:\plan.flowmap', name: 'VSM 2026 Q1');
-    await recents.remember(r'C:\plan.flowmap', name: 'VSM 2026 Q2');
+    await recents.remember(r'C:\plan.flowmap', name: 'Plan Q1');
+    await recents.remember(r'C:\plan.flowmap', name: 'Plan Q2');
 
-    expect((await recents.load()).single.name, 'VSM 2026 Q2');
+    expect((await recents.load()).single.name, 'Plan Q2');
   });
 
   test('the list is capped', () async {

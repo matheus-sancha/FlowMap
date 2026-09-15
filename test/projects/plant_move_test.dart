@@ -16,9 +16,9 @@ void main() {
     Future<void> run(String sql) => db.customStatement(sql);
     await run('PRAGMA foreign_keys = OFF');
 
-    // --- plant 4001, which the project uses ---------------------------------
+    // --- Plant 1, which the project uses ------------------------------------
     await run("INSERT INTO plants (id,name,created_at,updated_at) "
-        "VALUES ('p1','4001',0,0)");
+        "VALUES ('p1','Plant 1',0,0)");
     await run("INSERT INTO production_cells (id,plant_id,name,created_at,"
         "updated_at) VALUES ('c1','p1','Célula 11',0,0)");
     await run("INSERT INTO production_lines (id,cell_id,name,created_at,"
@@ -45,22 +45,22 @@ void main() {
     await run("INSERT INTO workcenter_pool_members (pool_id,workcenter_id,"
         "created_at) VALUES ('pool1','w2',0)");
 
-    // --- plant 4002, which has some of the same names ------------------------
+    // --- Plant 2, which has some of the same names --------------------------
     await run("INSERT INTO plants (id,name,created_at,updated_at) "
-        "VALUES ('p2','4002',0,0)");
+        "VALUES ('p2','Plant 2',0,0)");
     await run("INSERT INTO production_cells (id,plant_id,name,created_at,"
         "updated_at) VALUES ('c2','p2','Célula 11',0,0)");
     await run("INSERT INTO workcenters (id,plant_id,type_id,name,"
         "parallel_capacity,created_at,updated_at) "
         "VALUES ('x1','p2','t1','CLAD07',1,0,0)");
 
-    // --- the project, pointing at 4001 in every way it can ------------------
+    // --- the project, pointing at Plant 1 in every way it can ---------------
     await run("INSERT INTO shift_patterns (id,name,cycle_type,working_weekdays,"
         "created_at,updated_at) VALUES ('sp1','P','fixedWeekly',62,0,0)");
     await run("INSERT INTO projects (id,name,plant_id,shift_pattern_id,"
         "float_red_days,float_green_days,occupation_amber_pct,"
         "occupation_red_pct,created_at,updated_at) "
-        "VALUES ('prj1','VSM 2026 Q1','p1','sp1',0,30,85,100,0,0)");
+        "VALUES ('prj1','Plan Q1','p1','sp1',0,30,85,100,0,0)");
     await run("INSERT INTO studies (id,project_id,production_cell_id,"
         "production_line_id,name,include_in_simulation,start_buffer_days,"
         "pace_setter_target_id,created_at,updated_at) "
@@ -103,7 +103,7 @@ void main() {
 
     expect(report.matched, containsAll(['CLAD07', 'Célula 11']));
     expect(await one("SELECT workcenter_id FROM flow_nodes WHERE id = 'n1'"),
-        'x1', reason: 'the CLAD07 already on 4002, not a copy of it');
+        'x1', reason: 'the CLAD07 already on Plant 2, not a copy of it');
     expect(await one("SELECT production_cell_id FROM studies"), 'c2');
     expect(await one("SELECT plant_id FROM projects"), 'p2');
   });
@@ -124,7 +124,7 @@ void main() {
         reason: 'a copy, not a stub with a capacity of one');
     expect(clad08.data['type_id'], 't1');
 
-    // The pool over its members on 4002, never a subset (#23).
+    // The pool over its members on Plant 2, never a subset (#23).
     final poolId = await one("SELECT pool_id FROM flow_nodes WHERE id = 'n2'");
     final members = await db
         .customSelect("SELECT w.plant_id, w.name FROM workcenter_pool_members m "
@@ -196,7 +196,7 @@ void main() {
   test('the old plant is left as it was', () async {
     await PlantMove(db).apply(projectId: 'prj1', toPlantId: 'p2');
 
-    expect(await one("SELECT name FROM plants WHERE id = 'p1'"), '4001');
+    expect(await one("SELECT name FROM plants WHERE id = 'p1'"), 'Plant 1');
     final left = await db
         .customSelect("SELECT COUNT(*) AS n FROM workcenters WHERE plant_id = 'p1'")
         .getSingle();

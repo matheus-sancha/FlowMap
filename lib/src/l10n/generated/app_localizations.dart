@@ -3978,7 +3978,7 @@ abstract class AppLocalizations {
   /// No description provided for @documentsExampleHelp.
   ///
   /// In en, this message translates to:
-  /// **'A real plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.'**
+  /// **'A sample plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.'**
   String get documentsExampleHelp;
 
   /// No description provided for @documentsExampleFile.

@@ -306,7 +306,7 @@ class DocumentSession {
   }
 
   /// A sibling of [path] that says it holds work its file could not take —
-  /// `VSM 2026 Q1 (conflict 2026-09-13 2031).flowmap` — and is never a name
+  /// `Plan Q1 (conflict 2026-09-13 2031).flowmap` — and is never a name
   /// already taken.
   static String conflictPathFor(String path, DateTime at) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -338,7 +338,7 @@ class DocumentSession {
   /// document, or creating one. Closing afterwards is too late, because a close
   /// writes and by then the tables hold the other document: A's session
   /// captured B, found no row for A's project, and wrote B's plant and an empty
-  /// project over A's file. That is what emptied `VSM 2026 Q1.flowmap` on
+  /// project over A's file. That is what emptied `Plan Q1.flowmap` on
   /// 2026-09-13.
   ///
   /// Returns whether the work is now in a file — this session's own, or a

@@ -401,7 +401,7 @@ class SimPart {
   /// still guaranteed to describe the demand the run was made from.
   final String partNumber;
 
-  /// `PWB 10K`, for the Production Plan's own column (§8.5). Identifies
+  /// `Body D S`, for the Production Plan's own column (§8.5). Identifies
   /// nothing — two parts may share one — and is null when none was typed.
   final String? description;
 

@@ -50,7 +50,7 @@ void main() {
 
     await run("INSERT INTO projects (id,name,plant_id,shift_pattern_id,float_red_days,"
         "float_green_days,occupation_amber_pct,occupation_red_pct,created_at,updated_at) "
-        "VALUES ('$projectId','VSM 2026 Q1','plant-1','sp-1',0,30,85,100,$now,$now)");
+        "VALUES ('$projectId','Plan Q1','plant-1','sp-1',0,30,85,100,$now,$now)");
     await run("INSERT INTO studies (id,project_id,production_cell_id,production_line_id,name,"
         "include_in_simulation,start_buffer_days,created_at,updated_at) "
         "VALUES ('study-1','$projectId','cell-1','line-1','Célula 11B',1,0,$now,$now)");
@@ -74,7 +74,7 @@ void main() {
   Future<FlowmapDocument> capture() => FlowmapDocument.fromDatabase(
     db,
     projectId: 'proj-1',
-    projectName: 'VSM 2026 Q1',
+    projectName: 'Plan Q1',
   );
 
   test('every table in the database is accounted for', () async {
@@ -180,7 +180,7 @@ void main() {
     final manifest = FlowmapDocument.readManifest(bytes);
 
     expect(manifest.format, DocumentManifest.currentFormat);
-    expect(manifest.projectName, 'VSM 2026 Q1');
+    expect(manifest.projectName, 'Plan Q1');
     expect(manifest.schemaVersion, db.schemaVersion);
     expect(manifest.counts['workcenters'], 1);
     expect(manifest.isFromNewerFormat, isFalse);
@@ -276,6 +276,6 @@ void main() {
     final back = FlowmapDocument.read(doc.write());
     expect(back.project['studies'], isEmpty);
     expect(back.project['projects'], hasLength(1));
-    expect(back.manifest.projectName, 'VSM 2026 Q1');
+    expect(back.manifest.projectName, 'Plan Q1');
   });
 }

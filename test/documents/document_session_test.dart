@@ -41,12 +41,12 @@ void main() {
     await run("INSERT INTO projects (id,name,plant_id,shift_pattern_id,"
         "float_red_days,float_green_days,occupation_amber_pct,"
         "occupation_red_pct,created_at,updated_at) "
-        "VALUES ('proj-1','VSM 2026 Q1','plant-1','sp-1',0,30,85,100,0,0)");
+        "VALUES ('proj-1','Plan Q1','plant-1','sp-1',0,30,85,100,0,0)");
     await db.customStatement('PRAGMA foreign_keys = ON');
 
     final doc = await DocumentStore(db).capture(
       projectId: 'proj-1',
-      projectName: 'VSM 2026 Q1',
+      projectName: 'Plan Q1',
     );
     await DocumentStore.writeAtomically(File(path), doc.write());
   });
@@ -350,7 +350,7 @@ void main() {
     await Future<void>.delayed(settle);
     await session.save();
 
-    expect(nameOnDisk(), 'VSM 2026 Q1');
+    expect(nameOnDisk(), 'Plan Q1');
     expect(session.state, SaveState.failed);
   });
 }

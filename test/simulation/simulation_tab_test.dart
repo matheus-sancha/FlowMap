@@ -111,7 +111,7 @@ void main() {
           ProductionPlanRow(
             outcome: outcome,
             partNumber: 'PN1',
-            partDescription: 'PWB 10K',
+            partDescription: 'Body D S',
             customerProject: 'Wing 7',
             batchNumber: 'B-00${outcome.sequence}',
             batchSize: 4,
@@ -604,7 +604,7 @@ void main() {
     // The description rides in on the same snapshot, and is read from the run
     // rather than from the part it names (§16.14).
     expect(find.text('Description'), findsOne);
-    expect(find.text('PWB 10K'), findsWidgets);
+    expect(find.text('Body D S'), findsWidgets);
 
     // Both lead times, theoretical first. Actual is order end minus order
     // start, so it is not the stored figure beside it — the two disagreeing is
@@ -1021,7 +1021,7 @@ void main() {
               partDescription: row.partDescription,
               customerProject: row.outcome.studyId == 'study-1'
                   ? 'MANIFOLD'
-                  : 'Global 23',
+                  : 'Project B',
               batchNumber: row.batchNumber,
               batchSize: row.batchSize,
               materialDate: row.materialDate,
@@ -1123,7 +1123,7 @@ void main() {
       // Both, and nothing else — in particular no `(no project)`, because every
       // order in this run is booked to one.
       expect(find.widgetWithText(CheckboxMenuButton, 'MANIFOLD'), findsOne);
-      expect(find.widgetWithText(CheckboxMenuButton, 'Global 23'), findsOne);
+      expect(find.widgetWithText(CheckboxMenuButton, 'Project B'), findsOne);
       expect(
         find.widgetWithText(CheckboxMenuButton, '(no project)'),
         findsNothing,
