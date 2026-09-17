@@ -3421,6 +3421,71 @@ _Not changed: which tab a mode returns to._ §12.1's *"the location is the memor
 a mode by way of the switch is a fresh arrival at it"* still holds. What is fixed is state *within*
 a tab, not which tab is showing.
 
+### 12.10 The app scales, by being told the window is a different size
+
+Field complaint: *"when using a smaller screen the app is too cramped."* The screen in question is a
+**14" laptop**, which at 1920×1080 with Windows' default 150 % scaling is **1280×720 logical
+pixels** — against a `minimumSize` of 1100×700 and a `defaultSize` of 1600×1000 that such a machine
+cannot open at all (§12.9 tells the other half of that story). The answer is one app-wide scale the
+user sets, and `AppScale` is the mechanism (#47).
+
+**The tree is told the window is `size / scale`, and the result is drawn back through a box that
+scales it.** At 80 % a 1280×720 window lays out as 1600×900. **Every hardcoded pixel in the app
+therefore multiplies for free**: §12.6's 110–150 column widths, the Gantt's `_labelWidth`, the
+`maxWidth < 1100` branch on the Simulation overview, each one-off `SizedBox` — none of them are
+touched, and each behaves as it does on a large monitor. That is the whole reason a change this
+broad is an audit rather than a rewrite.
+
+_Rejected: scaling the design tokens._ Multiplying `Space`, the text theme and `visualDensity` is
+crisper to reason about and reaches only the values that go through `tokens.dart` — leaving every
+stray literal fixed, so the conversion of those literals *becomes* the work. `tokens.dart`'s own rule
+says a value not on a scale is wrong, and this section does not disagree; it declines to make that
+cleanup a precondition for the laptop fitting.
+
+_Rejected: changing the window's device pixel ratio in `windows/runner`._ Not a public Flutter API,
+native C++ in a Dart-only codebase, and it composes with real display scaling in ways nobody can
+test on one machine.
+
+**It is a `FittedBox`, and the reason is hit testing rather than layout.** The obvious build —
+`Transform.scale` with an `OverflowBox` inside it to loosen the tight constraints that arrive from
+`MaterialApp.builder` — draws perfectly at 70 % and leaves **only the top-left corner of the app
+answering the mouse**. `RenderTransform` deliberately does not bounds-check itself; the
+`OverflowBox` within it does, and its own size is the *real* window while its child is larger, so
+every tap past 1280×720 in child space is discarded before it reaches anything. A screenshot cannot
+show that and neither can reading the build method — `app_scale_test.dart` caught it, and holds both
+directions, because a scale below 1 lays the app out larger than the window and a scale above 1 lays
+it out smaller.
+
+**`filterQuality` is left null, deliberately.** Passing one pushes the child through an image filter,
+which is the bitmap blur this must not have. Left null it is a layer matrix, so text and vectors are
+rasterised at the final on-screen scale: measured at 0.8, glyph stems are clean and a 1-px
+`VerticalDivider` is still one unbroken device pixel.
+
+**At 100 % the widget is not in the tree at all** — no `MediaQuery` override, no scaling box, no
+layer. A feature nobody has switched on costs nothing, and the default path is the one that shipped.
+
+**A value nobody chose cannot make the app unreachable.** The scale is clamped, and NaN is turned
+into 1.0 rather than clamped, because NaN compares false against every bound and would paint an
+empty window with no error — on a machine belonging to someone who cannot read a stack trace. This is
+`window.json`'s *type-tested rather than cast* rule (§12.9) applied to a number rather than a field.
+
+**The window and the tree now disagree about their size, and that is correct.** `window_manager`'s
+minimum, `WindowGeometryObserver`'s saved bounds, `screen_retriever`'s work areas and the native
+caption bar all describe *the window*; this describes what is drawn inside it. Nothing in `lib/`
+reads `MediaQuery.size` — every layout decision goes through `LayoutBuilder` constraints — so there
+is no place where the two numbers can be compared and confused. What the minimum and default sizes
+should *become* is a separate question and is not answered here.
+
+**The scale sits inside `CloseGuard` and outside `StartupGate`.** Inside, because `CloseGuard.build`
+is `widget.child` and its listener registers in `initState`, so a scale that threw while building
+would take the guard with it — and a window that cannot flush the open document is the one failure
+that stack exists to prevent. Outside the gate, because the startup *error* screen is the thing most
+worth being able to read on a small laptop.
+
+Until there is somewhere to store a chosen scale and a control to set one, the value is 1.0, with a
+`--dart-define=flowmap.scale=` override so the mechanism can be driven a step at a time without a
+rebuild.
+
 ---
 
 ## 13. Exports

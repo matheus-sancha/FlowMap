@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common/date_style_scope.dart';
 import '../features/settings/application/settings_providers.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'app_scale.dart';
 import 'close_guard.dart';
 import 'router.dart';
 import 'startup_gate.dart';
@@ -46,9 +47,21 @@ class FlowMapApp extends ConsumerWidget {
       // The close guard wraps the gate rather than sitting inside it: the window
       // refuses to close until the guard lets it, so a guard that failed to
       // mount behind a failed start would leave a window nobody can close.
+      //
+      // **The scale sits inside the guard for that same reason** (#47), and
+      // outside everything else. Inside, because `CloseGuard.build` is
+      // `widget.child` and its listener is registered in `initState` — so a
+      // scale that threw while building would take the guard's child with it,
+      // and a window that cannot flush the open document is the one failure
+      // this stack exists to prevent. Outside the gate, because the startup
+      // *error* screen is the thing most worth being able to read on a small
+      // laptop, and it should be scaled like everything else.
       builder: (context, child) => CloseGuard(
-        child: StartupGate(
-          child: DateStyleProvider(child: child ?? const SizedBox.shrink()),
+        child: AppScale(
+          scale: AppScale.configured,
+          child: StartupGate(
+            child: DateStyleProvider(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );
