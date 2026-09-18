@@ -3482,6 +3482,29 @@ would take the guard with it — and a window that cannot flush the open documen
 that stack exists to prevent. Outside the gate, because the startup *error* screen is the thing most
 worth being able to read on a small laptop.
 
+**The steps are 70 / 80 / 90 / 100 / 125 / 150, and they were walked rather than argued** (#49). On
+the Demand grid at 1280x720 — the densest surface in the app — 100 % shows six and a half of nine
+columns and scrolls both ways; 90 % fixes the height and still clips a column; **80 % is where the
+grid stops scrolling altogether**; 70 % adds a per-row delete column and about a quarter of the width
+in dead space. **60 % shows the same content as 70 %, only smaller**, which is why the floor is 70
+and not lower. The ceiling is 150 % because zooming *in* answers a different question — not *will it
+fit* but *can I read it*.
+
+**A step is absolute, never relative to the display scaling Windows has already applied.** 80 % is
+80 % of the design size on every machine and 100 % is always the app as drawn. _Rejected: dividing
+Windows' scaling out_, so that a step means the same amount of content on any display: on a 14"
+laptop at 150 % it makes 100 % mean 67 % — the app not at its design size on the very machine this
+is for — clamps 70 % at the guard rail, and lands the two useful steps at 53 % and 60 %, past the
+floor this walk established. What that rule reaches for is a **default chosen from the screen**,
+which keeps the number meaning one thing; that is §12.9's file's business and is settled with the
+store.
+
+**There is no Reset.** 100 % is a step in the list, so a Reset item would be a second control writing
+a field that already has one — §12.6's rule, arriving where the two cannot even disagree. _Rejected:
+Reset meaning fit-to-window_, which would put a second *fit* in the app beside the VSM canvas's own
+Fit to Screen, meaning something different, and would have to guess at a content size the app does
+not have.
+
 Until there is somewhere to store a chosen scale and a control to set one, the value is 1.0, with a
 `--dart-define=flowmap.scale=` override so the mechanism can be driven a step at a time without a
 rebuild.

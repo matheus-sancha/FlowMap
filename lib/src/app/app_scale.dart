@@ -53,6 +53,34 @@ class AppScale extends StatelessWidget {
   static const minScale = 0.5;
   static const maxScale = 2.0;
 
+  /// The scales a user may actually pick, decided by walking the range on a
+  /// 1280x720 window against the live plant document (#49).
+  ///
+  /// **The floor is 0.7 because that is where zooming out stops buying
+  /// anything.** On the Demand grid — the densest surface in the app — 1.0
+  /// shows six and a half of nine columns and scrolls both ways; 0.9 fixes the
+  /// height and still clips a column; **0.8 is where the grid stops scrolling
+  /// altogether**; 0.7 adds a per-row delete column and about a quarter of the
+  /// width in dead space. At 0.6 the same content is merely smaller, so it is
+  /// not offered.
+  ///
+  /// **The ceiling is 1.5 because zooming in answers a different question** —
+  /// not *will it fit* but *can I read it*, on a large panel or by someone who
+  /// wants bigger type.
+  ///
+  /// **Absolute, never relative to the display scaling Windows has already
+  /// applied.** 0.8 is 80 % of the app's design size on every machine and 1.0
+  /// is always the app as drawn. Dividing Windows' scaling out was considered
+  /// and rejected: on a 14" laptop at 150 % it would make 1.0 mean 0.67 — the
+  /// app no longer at its design size on the very machine this effort is for —
+  /// and land the two useful steps at 0.53 and 0.6, past the floor above. What
+  /// that rule was reaching for is a **default chosen from the screen**, which
+  /// keeps the number meaning one thing; that belongs with the store, in #48.
+  ///
+  /// **There is no Reset**, because [noScale] is a step in this list and a
+  /// second control writing the same field is one control too many.
+  static const steps = <double>[0.7, 0.8, 0.9, noScale, 1.25, 1.5];
+
   /// The scale to run at, until there is somewhere to store one (#48) and a
   /// control to set it (#51).
   ///

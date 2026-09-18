@@ -215,6 +215,25 @@ void main() {
     });
   });
 
+  group('the steps a user may pick (#49)', () {
+    test('are inside the guard rails, which are wider on purpose', () {
+      // The clamp is a guard against a corrupt value, not the menu. Every
+      // offered step must sit inside it, or the control could hand the widget
+      // a scale it refuses.
+      for (final step in AppScale.steps) {
+        expect(AppScale.clamp(step), step, reason: '$step is outside the clamp');
+      }
+      expect(AppScale.minScale, lessThan(AppScale.steps.first));
+      expect(AppScale.maxScale, greaterThan(AppScale.steps.last));
+    });
+
+    test('are ordered, and include the identity', () {
+      expect(AppScale.steps, orderedEquals([...AppScale.steps]..sort()));
+      // There is no Reset item; 100 % is reached by being in this list.
+      expect(AppScale.steps, contains(AppScale.noScale));
+    });
+  });
+
   group('the command-line override', () {
     test('is the identity when nothing was defined', () {
       // The tests do not pass --dart-define, so this is the shipped default and
