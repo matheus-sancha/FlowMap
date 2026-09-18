@@ -132,7 +132,7 @@ void main() {
         'part-a': const SimPart(
           id: 'part-a',
           partNumber: 'PN1',
-          description: 'PWB 10K',
+          description: 'Body D S',
           processTimes: {
             'wc-1': Duration(hours: 4),
             'wc-2': Duration(hours: 2),
@@ -1231,7 +1231,7 @@ void main() {
     // Copied in, not joined: nothing here reads demand_parts or demand_orders,
     // which is what keeps the plan readable after either is edited (§7.10).
     expect(first.customerProject, 'Wing 7');
-    expect(first.partDescription, 'PWB 10K');
+    expect(first.partDescription, 'Body D S');
     expect(first.batchNumber, 'B-0012');
     expect(first.batchSize, 4);
     expect(first.materialDate, DateTime(2026, 8, 1));

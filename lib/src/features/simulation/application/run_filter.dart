@@ -60,7 +60,7 @@ class RunFilter {
   final Set<String> cellIds;
   final Set<String> lineIds;
 
-  /// The customer project the order is for — `MANIFOLD`, `Global 23` (§7.5).
+  /// The customer project the order is for — `MANIFOLD`, `Project B` (§7.5).
   ///
   /// **The order's, not the part's** (§16.15), and therefore read off the run's
   /// plan rather than off its metrics: the plan is the only projection that
@@ -385,7 +385,7 @@ class RunFilterOptions {
 ///
 /// **Each picker ignores its own selection and honours every other.** That is
 /// what keeps a multi-select usable — ticking `MANIFOLD` must not make
-/// `Global 23` vanish from the menu it was ticked in — while still letting a
+/// `Project B` vanish from the menu it was ticked in — while still letting a
 /// study narrow the parts beside it. It is the standard faceted-search rule, and
 /// the alternative was tried in the head and discarded: options narrowed by
 /// *all* filters leave every menu holding exactly what is already ticked.

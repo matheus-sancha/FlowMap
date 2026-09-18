@@ -24,7 +24,7 @@ void main() {
     String plant = 'plant-1',
     String workcenter = 'CLAD07',
     String project = 'proj-1',
-    String projectName = 'VSM 2026 Q1',
+    String projectName = 'Plan Q1',
   }) async {
     await db.customStatement('PRAGMA foreign_keys = OFF');
     Future<void> run(String sql) => db.customStatement(sql);
@@ -51,7 +51,7 @@ void main() {
     await seedPlant();
     final incoming = await store.capture(
       projectId: 'proj-1',
-      projectName: 'VSM 2026 Q1',
+      projectName: 'Plan Q1',
     );
 
     // A different plant is now in the database — the state a second document

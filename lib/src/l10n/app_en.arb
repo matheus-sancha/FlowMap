@@ -1269,7 +1269,7 @@
   "aboutDiagnostics": "Diagnostics",
   "aboutOpenFolder": "Open folder",
   "documentsExample": "Open the example",
-  "documentsExampleHelp": "A real plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.",
+  "documentsExampleHelp": "A sample plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.",
   "documentsExampleFile": "FlowMap example.flowmap",
   "aboutUserGuide": "User guide",
   "startupOpening": "Opening your data…",

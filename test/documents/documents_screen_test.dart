@@ -71,7 +71,7 @@ void main() {
       recents: [
         RecentDocument(
           path: file.path,
-          name: 'VSM 2026 Q1',
+          name: 'Plan Q1',
           openedAt: DateTime(2026, 9, 12),
         ),
       ],
@@ -80,7 +80,7 @@ void main() {
     // The list reads in the user's words; the file name is a detail of where it
     // happens to live.
     expect(find.text(l10n.documentsRecent), findsOneWidget);
-    expect(find.text('VSM 2026 Q1'), findsOneWidget);
+    expect(find.text('Plan Q1'), findsOneWidget);
     expect(find.textContaining(dir.path), findsOneWidget);
     expect(find.byIcon(Icons.description_outlined), findsOneWidget);
   });

@@ -14895,7 +14895,7 @@ class SimulationRunOrder extends DataClass
   final int? batchSize;
   final DateTime? materialDate;
 
-  /// `PWB 10K` — the part's own description, v13.
+  /// `Body D S` — the part's own description, v13.
   ///
   /// Copied rather than joined to `demand_parts` for the reason [partNumber]
   /// is: a part re-described or deleted since would silently change what a

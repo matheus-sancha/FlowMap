@@ -1041,7 +1041,7 @@
   "aboutDiagnostics": "Diagnóstico",
   "aboutOpenFolder": "Abrir pasta",
   "documentsExample": "Abrir o exemplo",
-  "documentsExampleHelp": "Uma fábrica real, pronta para simular. Abre como a sua própria cópia, então nada do que mudar mexe no original.",
+  "documentsExampleHelp": "Uma fábrica de exemplo, pronta para simular. Abre como a sua própria cópia, então nada do que mudar mexe no original.",
   "documentsExampleFile": "Exemplo do FlowMap.flowmap",
   "aboutUserGuide": "Guia do usuário",
   "startupOpening": "Abrindo seus dados…",

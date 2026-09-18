@@ -1611,7 +1611,7 @@ void main() {
       // the plant says a part does not route through a workcenter, and this test
       // used to assert the opposite — that the takt could put work there.
       //
-      // Against the real database, `P1000247599` stores 0 h at CEU30 and 146 h
+      // Against the real database, `PN-1043` stores 0 h at CEU30 and 146 h
       // at CEU32, and the map showed CEU30 94.3 h.
       final view = threeClads(measured: [60, 60, 0]);
 

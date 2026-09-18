@@ -20,5 +20,5 @@ File? shippedFile(String name) {
 /// The user guide in the zip (#28).
 const manualFileName = 'manual.html';
 
-/// The worked example in the zip — the real plant, as a document (#28, #37).
+/// The worked example in the zip — a sample plant, as a document (#28, #37).
 const exampleFileName = 'example.flowmap';

@@ -2254,7 +2254,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get documentsExampleHelp =>
-      'A real plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.';
+      'A sample plant, ready to simulate. It opens as your own copy, so nothing you change touches the original.';
 
   @override
   String get documentsExampleFile => 'FlowMap example.flowmap';

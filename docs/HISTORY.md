@@ -435,8 +435,8 @@ the header now records the evidence so this is not re-done a third time. What wa
   field looks like on the day it ships (§1.1).
 - **The four pre-v12 runs show blanks and the fifth does not**, which is §8.5's predicted behaviour
   observed on real data rather than on a fixture.
-- **`parts.description` is populated on all five parts** — `PWB 10K`, `AWB 10K 1.0`, `AWB 10K 2.0`,
-  `AWB 10K 1.0`, `PXVB 20K`. So §2.3's new column has real content on day one, and PN2 and PN4
+- **`parts.description` is populated on all five parts** — `Body D S`, `Body B S 1.0`, `Body B S 2.0`,
+  `Body B S 1.0`, `Body C L`. So §2.3's new column has real content on day one, and PN2 and PN4
   sharing a description is a free reminder that it identifies nothing.
 - `flutter analyze` clean, 501 tests passing, and the `v11 → v12` fixture §1.1 asked for is in
   `migration_test.dart:595`.

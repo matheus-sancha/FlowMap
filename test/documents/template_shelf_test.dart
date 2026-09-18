@@ -20,7 +20,7 @@ void main() {
     Future<void> run(String sql) => db.customStatement(sql);
     await run('PRAGMA foreign_keys = OFF');
     await run("INSERT INTO plants (id,name,created_at,updated_at) "
-        "VALUES ('p1','4001',0,0)");
+        "VALUES ('p1','Plant 1',0,0)");
     await run("INSERT INTO production_cells (id,plant_id,name,created_at,"
         "updated_at) VALUES ('c1','p1','Célula 11',0,0)");
     await run("INSERT INTO production_lines (id,cell_id,name,created_at,"
@@ -32,7 +32,7 @@ void main() {
     await run("INSERT INTO projects (id,name,plant_id,shift_pattern_id,"
         "float_red_days,float_green_days,occupation_amber_pct,"
         "occupation_red_pct,created_at,updated_at) "
-        "VALUES ('prj1','VSM 2026 Q1','p1','sp1',0,30,85,100,0,0)");
+        "VALUES ('prj1','Plan Q1','p1','sp1',0,30,85,100,0,0)");
     await run("INSERT INTO studies (id,project_id,production_cell_id,"
         "production_line_id,name,include_in_simulation,start_buffer_days,"
         "created_at,updated_at) "
