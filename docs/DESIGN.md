@@ -3505,9 +3505,38 @@ Reset meaning fit-to-window_, which would put a second *fit* in the app beside t
 Fit to Screen, meaning something different, and would have to guess at a content size the app does
 not have.
 
-Until there is somewhere to store a chosen scale and a control to set one, the value is 1.0, with a
-`--dart-define=flowmap.scale=` override so the mechanism can be driven a step at a time without a
-rebuild.
+**The chosen scale lives in `window.json`, and the reason is ordering rather than taste** (#48). A
+scale read from `app_settings` — where Language, Theme and Date format live, and which needs no
+migration to gain a key — could not be applied until the database was open, so every launch would
+draw at 100 %, wait out a 178 MB open and whatever migrations it needs, and then snap the whole app
+to size. A json file beside it is readable with plain `dart:io` in `main`, next to
+`WindowGeometry.restore()`, so **the first frame is already right**. §12.9's *window chrome is not
+domain state* is why the file was already there to put it in, and `studiesPaneCollapsed` is the
+precedent; the file now has a third writer and still merges rather than overwrites.
+
+*Whether it travels was never a live question*: `flowmap_document.dart` excludes `app_settings` from
+every `.flowmap` — *"`app_settings` is the machine's, not the document's"* — so both candidate
+stores were machine-local already. A scale is a property of the screen in front of you, and carrying
+one to another machine inside a document would be a bug in either.
+
+The value is **seeded into the `ProviderScope` from `main`**, not read by a provider once the tree is
+up. The sibling `StudiesPaneCollapsed` starts at a default and corrects itself when the file
+arrives — a pane that appears and then collapses is a small wrong; an app that does it is every
+launch changing size. Setting a scale is optimistic in the same way the pane is: the app moves now
+and the write follows, because making the whole tree wait on a file write is worse than forgetting
+by tomorrow.
+
+**A first run measures the screen rather than assuming 100 %.** The work area divided by
+`WindowChrome.comfortableSize` — 1600x900, which is not a fourth opinion but #49's walk written
+down, since 1280x720 at the 0.8 it measured *is* 1600x900 — smaller axis wins, snapped **down** to a
+step, and never above 1.0. Rounding up would pick a scale the screen was measured as too small for,
+and scaling *up* on a large monitor would be guessing at a preference rather than solving a fit
+problem, which is how a setting earns a reputation for meddling. So a 14" laptop opens at 80 % and a
+1080p desktop at 100 %, and **a stored value always wins thereafter** — docking and undocking never
+silently moves a scale someone chose. Measured once, on the launch that finds nothing stored.
+
+A hand-edited value that is not a number is treated as absent, which is §12.9's rule for the
+geometry fields; one that is a number is clamped. Neither can stop the app opening.
 
 ---
 

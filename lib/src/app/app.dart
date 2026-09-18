@@ -5,6 +5,7 @@ import '../common/date_style_scope.dart';
 import '../features/settings/application/settings_providers.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'app_scale.dart';
+import 'app_scale_setting.dart';
 import 'close_guard.dart';
 import 'router.dart';
 import 'startup_gate.dart';
@@ -58,7 +59,7 @@ class FlowMapApp extends ConsumerWidget {
       // laptop, and it should be scaled like everything else.
       builder: (context, child) => CloseGuard(
         child: AppScale(
-          scale: AppScale.configured,
+          scale: ref.watch(appScaleSettingProvider),
           child: StartupGate(
             child: DateStyleProvider(child: child ?? const SizedBox.shrink()),
           ),

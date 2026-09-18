@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../data/app_directory.dart';
 import '../features/diagnostics/application/diagnostics.dart';
+import 'app_scale.dart';
 
 /// Remembers where the window was, and puts it back.
 ///
@@ -308,6 +309,7 @@ class WindowGeometry {
 /// the app losing a pane for a reason nobody can see.
 abstract final class WindowChrome {
   static const _paneKey = 'studiesPaneCollapsed';
+  static const _scaleKey = 'scale';
 
   static Future<bool> studiesPaneCollapsed() async =>
       (await WindowGeometry._readAll())[_paneKey] == true;
@@ -317,6 +319,88 @@ abstract final class WindowChrome {
       await WindowGeometry._writeMerged({_paneKey: collapsed});
     } catch (error, stack) {
       Diag.error('window.pane', error, stack);
+    }
+  }
+
+  /// The size the app is comfortable at, which is what the first-run scale is
+  /// measured against (#48).
+  ///
+  /// **Derived from #49's walk rather than chosen.** That walk found 0.8 to be
+  /// the scale at which a 1280x720 laptop stops scrolling the densest screen in
+  /// the app, and 1280x720 at 0.8 lays out as exactly 1600x900. So this is not
+  /// a fourth opinion about how big FlowMap wants to be — it is the measured
+  /// one, written down.
+  ///
+  /// Deliberately **not** [WindowGeometry.defaultSize]'s 1600x1000: that is how
+  /// large a window to *open*, which may be generous, while this is the size
+  /// below which the app starts to hurt.
+  static const comfortableSize = Size(1600, 900);
+
+  /// The scale to open at on a screen whose work area is [workArea], when the
+  /// user has never chosen one.
+  ///
+  /// The smaller of the two axes, snapped down to a step, and **never above
+  /// [AppScale.noScale]**: a large monitor gets the app as drawn rather than an
+  /// automatic zoom *in*, because wanting it bigger is a preference and not a
+  /// fit problem, and guessing at a preference is how a setting gets a
+  /// reputation for meddling.
+  static double defaultScaleIn(Rect workArea) {
+    final raw = math.min(
+      workArea.width / comfortableSize.width,
+      workArea.height / comfortableSize.height,
+    );
+    return math.min(AppScale.noScale, AppScale.snapDown(raw));
+  }
+
+  /// The scale to run at: the stored one, or a first-run default measured from
+  /// the screen and then written down.
+  ///
+  /// **Read before `runApp`, which is the whole reason it is in this file and
+  /// not in `app_settings`.** A scale that arrived from the database could not
+  /// be applied until the database was open — so every launch would draw at
+  /// 100 %, wait out a 170 MB open and its migrations, and then snap. A json
+  /// file next to it is readable with plain `dart:io` in `main`, so the first
+  /// frame is already right. That ordering is the argument; *window chrome is
+  /// not domain state* is why the file was already there to put it in.
+  ///
+  /// **A stored value always wins**, so docking a laptop to a large panel and
+  /// undocking it again never silently moves a scale the user chose. The
+  /// measurement happens once, on the launch that finds nothing stored.
+  ///
+  /// Failure in either direction is [AppScale.noScale]: a hand-edited value
+  /// that is not a number is treated as absent (the rule the geometry fields
+  /// already follow), and a screen that cannot be measured is not guessed at.
+  static Future<double> scale() async {
+    try {
+      final stored = (await WindowGeometry._readAll())[_scaleKey];
+      if (stored is num) return AppScale.clamp(stored.toDouble());
+    } catch (error, stack) {
+      Diag.error('window.scale', error, stack);
+      return AppScale.noScale;
+    }
+
+    try {
+      final work = WindowGeometry.workAreaOf(
+        await screenRetriever.getPrimaryDisplay(),
+      );
+      final derived = defaultScaleIn(work);
+      Diag.event(
+        'window.scale',
+        'first run: ${work.width.round()}x${work.height.round()} -> $derived',
+      );
+      await setScale(derived);
+      return derived;
+    } catch (error, stack) {
+      Diag.error('window.scale.derive', error, stack);
+      return AppScale.noScale;
+    }
+  }
+
+  static Future<void> setScale(double scale) async {
+    try {
+      await WindowGeometry._writeMerged({_scaleKey: AppScale.clamp(scale)});
+    } catch (error, stack) {
+      Diag.error('window.scale.save', error, stack);
     }
   }
 }

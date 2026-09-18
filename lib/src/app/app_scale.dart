@@ -81,21 +81,20 @@ class AppScale extends StatelessWidget {
   /// second control writing the same field is one control too many.
   static const steps = <double>[0.7, 0.8, 0.9, noScale, 1.25, 1.5];
 
-  /// The scale to run at, until there is somewhere to store one (#48) and a
-  /// control to set it (#51).
+  /// The largest step at or below [raw], for choosing a scale from a
+  /// measurement (#48's first-run default).
   ///
-  /// Overridable from the command line so the mechanism can be driven without
-  /// a rebuild per step — which is what #49's walk and #52's sweep both need:
-  ///
-  /// ```
-  /// flutter run -d windows --dart-define=flowmap.scale=0.8
-  /// ```
-  /// Parsed rather than `const`: there is no `double.fromEnvironment`, only
-  /// the three `String`/`int`/`bool` forms, so the value arrives as text. An
-  /// unparseable one is [noScale] rather than a crash — a mistyped
-  /// `--dart-define` should start the app, not refuse to.
-  static final double configured =
-      double.tryParse(const String.fromEnvironment('flowmap.scale')) ?? noScale;
+  /// **Down, never to the nearest.** Rounding up picks a scale the screen was
+  /// measured as too small for, which is the one direction that reintroduces
+  /// the cramping this exists to fix. A [raw] below every step gets the floor,
+  /// because the floor is the floor.
+  static double snapDown(double raw) {
+    var chosen = steps.first;
+    for (final step in steps) {
+      if (step <= raw) chosen = step;
+    }
+    return chosen;
+  }
 
   /// [scale] brought inside [minScale]..[maxScale], and never NaN.
   ///

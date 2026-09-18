@@ -6,6 +6,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'src/app/app.dart';
+import 'src/app/app_scale.dart';
+import 'src/app/app_scale_setting.dart';
 import 'src/app/window_geometry.dart';
 import 'package:flutter/foundation.dart';
 
@@ -29,6 +31,7 @@ Future<void> main() async {
 
   // Desktop only: Windows does not remember a window's size, position or
   // maximised state for an application, so the app does it.
+  var scale = AppScale.noScale;
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
     final windowObserver = WindowGeometryObserver();
@@ -38,12 +41,19 @@ Future<void> main() async {
     // Seeding the observer matters: a user whose first action is to maximise
     // has no stored frame yet, so nothing would be saved at all.
     windowObserver.rememberNormalBounds(await WindowGeometry.restore());
+    // Beside the geometry and for the same reason: the window is placed while
+    // it is still hidden, and the scale it will be drawn at has to be known by
+    // then too. Read here rather than from a provider inside the tree so the
+    // first frame is already the right size — a scale that arrived later would
+    // snap the whole app on every launch (#48).
+    scale = await WindowChrome.scale();
   }
 
   runApp(
-    const ProviderScope(
-      observers: [DiagnosticsObserver()],
-      child: FlowMapApp(),
+    ProviderScope(
+      observers: const [DiagnosticsObserver()],
+      overrides: [initialAppScaleProvider.overrideWithValue(scale)],
+      child: const FlowMapApp(),
     ),
   );
 }

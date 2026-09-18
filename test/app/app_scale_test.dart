@@ -234,11 +234,23 @@ void main() {
     });
   });
 
-  group('the command-line override', () {
-    test('is the identity when nothing was defined', () {
-      // The tests do not pass --dart-define, so this is the shipped default and
-      // asserts that an absent or unparseable value cannot stop the app.
-      expect(AppScale.configured, AppScale.noScale);
+  group('choosing a scale from a measurement (#48)', () {
+    test('snaps down to a step, never up', () {
+      // Up would pick a scale the screen was measured as too small for, which
+      // is the one direction that puts the cramping back.
+      expect(AppScale.snapDown(0.85), 0.8);
+      expect(AppScale.snapDown(0.96), 0.9);
+      expect(AppScale.snapDown(1.24), AppScale.noScale);
+    });
+
+    test('lands on a step that is already one', () {
+      for (final step in AppScale.steps) {
+        expect(AppScale.snapDown(step), step);
+      }
+    });
+
+    test('a measurement below every step gets the floor', () {
+      expect(AppScale.snapDown(0.1), AppScale.steps.first);
     });
   });
 }
