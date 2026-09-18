@@ -3583,6 +3583,15 @@ knowingly so the caption bar stayed reachable. That machine now opens at 80 %, w
 `WindowGeometry.restore` rather than beside it: the scale decides the minimum, and the minimum
 decides what the default may be fitted into.
 
+**Driven at both extremes in a 1280x720 window** (#52,
+`docs/DRIVE-2026-09-17.md`): seventeen checks over every screen produced **one** layout failure —
+Occupation's header squeezes its grid at 150 % (#54). Nothing else needed touching, which is the
+claim at the top of this section holding up: `simulation_tab.dart`'s `maxWidth < 1100` branch,
+`result_table.dart`'s column widths and the Gantt's label width were never edited and never
+misbehaved, because none of them can tell anything changed. **Clipping is not breakage**: the
+results filter bar and both tab strips all run out of room at 150 % and all three scroll, because
+they were made scrollable long before there was a zoom.
+
 **It is shown at 100 %, and this section's own rule is what decides it.** *"A permanently dead
 control is worse than an absent one"* is why the period control is hidden on the tabs it does not
 govern — and here it resolves the other way, because this control is never dead and, with no
