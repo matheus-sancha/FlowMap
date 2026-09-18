@@ -40,13 +40,16 @@ Future<void> main() async {
     // runner's first-frame callback reveals it already in the right spot.
     // Seeding the observer matters: a user whose first action is to maximise
     // has no stored frame yet, so nothing would be saved at all.
-    windowObserver.rememberNormalBounds(await WindowGeometry.restore());
-    // Beside the geometry and for the same reason: the window is placed while
-    // it is still hidden, and the scale it will be drawn at has to be known by
-    // then too. Read here rather than from a provider inside the tree so the
-    // first frame is already the right size — a scale that arrived later would
-    // snap the whole app on every launch (#48).
+    // **Before the window is placed, not after** (#50). The scale decides the
+    // window's minimum size, and the minimum decides what `restore` may fit the
+    // default into — so reading it second would place the window against last
+    // run's floor. It is also what the first frame is drawn at, which is why it
+    // is read here at all rather than from a provider inside the tree: a scale
+    // that arrived later would snap the whole app on every launch (#48).
     scale = await WindowChrome.scale();
+    windowObserver.rememberNormalBounds(
+      await WindowGeometry.restore(scale: scale),
+    );
   }
 
   runApp(

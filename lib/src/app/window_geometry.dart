@@ -34,7 +34,29 @@ class WindowGeometry {
 
   /// Below this the VSM canvas and the demand grids cannot lay out, so the
   /// window refuses to go smaller rather than presenting an unusable workspace.
+  ///
+  /// **This is the floor at 100 %.** What the window may actually shrink to is
+  /// [minimumSizeAt], because the scale changes how much the tree sees of a
+  /// given window (#50).
   static const minimumSize = Size(1100, 700);
+
+  /// [minimumSize] as it applies at [scale] — **shrinking only**.
+  ///
+  /// The reason for a floor is that the tree must still see 1100x700 to lay
+  /// out, and at 80 % an 880 px window already does. So zooming out may lower
+  /// the floor, and FlowMap can finally be half of a 1920 screen.
+  ///
+  /// **Zooming in does not raise it**, which is the whole reason for the
+  /// `min(scale, 1)`. Proportional in both directions is the tidier rule and
+  /// was rejected on a number: at 150 % it would demand 1650x1050, which is
+  /// larger than the entire screen of the 14" laptop this effort exists for —
+  /// so zooming in would have to either fail or drag the window out from under
+  /// the reader. Someone who zooms in has asked for bigger text and accepted
+  /// seeing less; that is a choice, not a fault to be corrected.
+  static Size minimumSizeAt(double scale) {
+    final factor = math.min(AppScale.noScale, AppScale.clamp(scale));
+    return Size(minimumSize.width * factor, minimumSize.height * factor);
+  }
 
   /// Used on a first run, and whenever a stored position no longer lands on a
   /// display that exists.
@@ -148,10 +170,18 @@ class WindowGeometry {
   /// the demand grids cannot lay out below it. On a screen too short for even
   /// that, the window hangs off the **bottom** — where the caption bar is
   /// still reachable, which is the thing that must never be given up.
-  static Size fitSize(Size desired, Rect workArea) => Size(
-    math.max(minimumSize.width, math.min(desired.width, workArea.width)),
-    math.max(minimumSize.height, math.min(desired.height, workArea.height)),
-  );
+  /// **[defaultSize] is not changed by the scale**, deliberately. It is how
+  /// large a window to *open*, and shrinking it to the target screen is this
+  /// function's job; the floor is what was wrong. With [minimumSizeAt] in
+  /// place, a 1280x672 work area now yields a 1280x672 window rather than one
+  /// 700 tall that hangs 28 px off the bottom (#50).
+  static Size fitSize(Size desired, Rect workArea, {double scale = 1.0}) {
+    final floor = minimumSizeAt(scale);
+    return Size(
+      math.max(floor.width, math.min(desired.width, workArea.width)),
+      math.max(floor.height, math.min(desired.height, workArea.height)),
+    );
+  }
 
   /// Where a window with no remembered position should open on [workArea]:
   /// [defaultSize] fitted to it, and centred.
@@ -160,8 +190,8 @@ class WindowGeometry {
   /// centring a window larger than the screen is exactly what produced a
   /// negative top. The offsets are floored at zero, so an oversized window
   /// starts at the work area's own corner instead of outside it.
-  static Rect defaultBoundsIn(Rect workArea) {
-    final size = fitSize(defaultSize, workArea);
+  static Rect defaultBoundsIn(Rect workArea, {double scale = 1.0}) {
+    final size = fitSize(defaultSize, workArea, scale: scale);
     return Rect.fromLTWH(
       workArea.left + math.max(0.0, (workArea.width - size.width) / 2),
       workArea.top + math.max(0.0, (workArea.height - size.height) / 2),
@@ -235,7 +265,7 @@ class WindowGeometry {
   ///
   /// Returns the unmaximised frame the window ended up with, for
   /// [WindowGeometryObserver.rememberNormalBounds].
-  static Future<Rect> restore() async {
+  static Future<Rect> restore({double scale = 1.0}) async {
     final saved = await load();
 
     // **The displays are read before the size is chosen, not after.** The
@@ -256,7 +286,9 @@ class WindowGeometry {
 
     // Null only when the displays could not be read at all, and then there is
     // nothing to fit to and centring blind is the best that can be done.
-    final fitted = primary == null ? null : defaultBoundsIn(primary);
+    final fitted = primary == null
+        ? null
+        : defaultBoundsIn(primary, scale: scale);
 
     Rect? target;
     if (saved != null &&
@@ -271,7 +303,7 @@ class WindowGeometry {
 
     final options = WindowOptions(
       size: target?.size ?? defaultSize,
-      minimumSize: minimumSize,
+      minimumSize: minimumSizeAt(scale),
       center: target == null,
       title: 'FlowMap',
     );
@@ -288,6 +320,40 @@ class WindowGeometry {
     final normal = target ?? await windowManager.getBounds();
     if (saved?.maximized ?? false) await windowManager.maximize();
     return normal;
+  }
+
+  /// Re-applies the window's minimum for [scale], and grows the window if it
+  /// is now below it.
+  ///
+  /// Called when the scale changes while the app is running. Growing is the
+  /// cost [WindowGeometry.minimumSizeAt] accepts knowingly: someone who
+  /// shrank the window at 70 % and then picks 100 % has asked for a layout
+  /// their window can no longer hold, and a window quietly overflowing its
+  /// content is worse than one that moved because they told it to. It never
+  /// grows past the work area.
+  ///
+  /// Failures are swallowed and not awaited, as in `CloseGuard`: under
+  /// `flutter test` there is no window plugin, and a setting that could throw
+  /// while being applied is worse than one that is merely not applied.
+  static Future<void> applyMinimumFor(double scale) async {
+    final floor = minimumSizeAt(scale);
+    await windowManager.setMinimumSize(floor);
+
+    final bounds = await windowManager.getBounds();
+    if (bounds.width >= floor.width && bounds.height >= floor.height) return;
+
+    var work = Rect.fromLTWH(0, 0, double.infinity, double.infinity);
+    try {
+      work = workAreaOf(await screenRetriever.getPrimaryDisplay());
+    } catch (_) {
+      // Without a work area the floor is still the better of the two numbers.
+    }
+    await windowManager.setSize(
+      Size(
+        math.min(math.max(bounds.width, floor.width), work.width),
+        math.min(math.max(bounds.height, floor.height), work.height),
+      ),
+    );
   }
 }
 
@@ -334,7 +400,7 @@ abstract final class WindowChrome {
   /// Deliberately **not** [WindowGeometry.defaultSize]'s 1600x1000: that is how
   /// large a window to *open*, which may be generous, while this is the size
   /// below which the app starts to hurt.
-  static const comfortableSize = Size(1600, 900);
+  static const comfortableSize = Size(1600, 840);
 
   /// The scale to open at on a screen whose work area is [workArea], when the
   /// user has never chosen one.

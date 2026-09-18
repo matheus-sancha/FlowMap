@@ -3529,7 +3529,11 @@ by tomorrow.
 **A first run measures the screen rather than assuming 100 %.** The work area divided by
 `WindowChrome.comfortableSize` — 1600x900, which is not a fourth opinion but #49's walk written
 down, since 1280x720 at the 0.8 it measured *is* 1600x900 — smaller axis wins, snapped **down** to a
-step, and never above 1.0. Rounding up would pick a scale the screen was measured as too small for,
+step, and never above 1.0. *That height is 840 rather than the 900 the walk implies, and the taskbar
+is why* (#50): #49 was run in a 1280x720 **window**, while what this measures is the **work area**,
+about 48 px shorter on the same machine. At 900 the height term dragged the target laptop to 70 % —
+one step below the answer that was actually measured, and the one #49 rejected as a quarter of the
+width in dead space. Rounding up would pick a scale the screen was measured as too small for,
 and scaling *up* on a large monitor would be guessing at a preference rather than solving a fit
 problem, which is how a setting earns a reputation for meddling. So a 14" laptop opens at 80 % and a
 1080p desktop at 100 %, and **a stored value always wins thereafter** — docking and undocking never
@@ -3552,6 +3556,32 @@ permanently: it is the one bare number in the chrome and it sits under a timesta
 tooltip instead of an icon that would explain it to everyone forever. It is written with
 `NumberFormat.percentPattern`, so it is `80%` in English and `80 %` in Portuguese and Spanish rather
 than a convention invented here (§12.4).
+
+**The window's floor moves with the scale, downwards only** (#50). §12.9's 1100x700 exists because
+the canvas and the demand grids cannot lay out below it — and that is a statement about what the
+*tree* sees, which the scale now changes. So the minimum becomes `1100x700 x min(scale, 1)`: at 80 %
+an 880 px window already gives the tree its 1100, and **FlowMap can finally be half of a 1920
+screen**, which was one of the cases that opened this effort. Measured: at 100 % the window still
+clamps a 960x600 request to 1100x700, and at 80 % it accepts 960x600 with the whole workspace intact.
+
+*Zooming in does not raise the floor, and the `min(scale, 1)` is that clause.* Proportional in both
+directions is the tidier rule and was rejected on a number: at 150 % it would demand 1650x1050, which
+is larger than the entire screen of the 14" laptop this effort exists for, so zooming in would have
+to either fail or drag the window out from under the reader. Someone who zooms in has asked for
+bigger text and accepted seeing less of the model; that is a choice, not a fault to correct. The one
+case that does move the window is a reader who shrank it at 70 % and then picks 100 %: the floor they
+are now under is re-applied and the window grows, because a window quietly overflowing its content is
+worse than one that moved because they told it to.
+
+**`defaultSize` does not change.** 1600x1000 is how large a window to *open*, and `fitSize` already
+shrinks it to the work area; the floor was the thing that was wrong. On a 1280x672 work area the
+700 px minimum used to win, leaving a window 28 px taller than the screen — §12.9 accepted that
+knowingly so the caption bar stayed reachable. That machine now opens at 80 %, where the floor is
+560, so the window is simply 1280x672 and the trade is no longer needed.
+
+**The scale is read before the window is placed**, which is why `main` reads it ahead of
+`WindowGeometry.restore` rather than beside it: the scale decides the minimum, and the minimum
+decides what the default may be fitted into.
 
 **It is shown at 100 %, and this section's own rule is what decides it.** *"A permanently dead
 control is worse than an absent one"* is why the period control is hidden on the tabs it does not

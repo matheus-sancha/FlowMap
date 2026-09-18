@@ -147,16 +147,20 @@ void main() {
         WindowChrome.defaultScaleIn(Rect.fromLTWH(0, 0, w, h));
 
     test('a 14-inch laptop opens at the scale #49 measured', () {
-      // 1920x1080 at Windows' default 150 % scaling, which is the screen this
-      // whole effort is designed against. #49 walked the range on exactly this
-      // window and found 0.8; nothing here was tuned to make that come out.
+      // 1920x1080 at Windows' default 150 % scaling is a 1280x720 *screen*, and
+      // a ~48 px taskbar leaves this **work area** — which is what the
+      // derivation is handed. #50 lowered `comfortableSize`'s height to 840 for
+      // exactly this: at 900 the height term dragged the target to 0.7, one
+      // step below what #49 measured on this very screen.
+      expect(forWorkArea(1280, 672), 0.8);
+      // And the full-screen figure, for a machine with the taskbar hidden.
       expect(forWorkArea(1280, 720), 0.8);
     });
 
-    test('other real screens', () {
-      expect(forWorkArea(1366, 768), 0.8);
-      expect(forWorkArea(1536, 864), 0.9);
-      expect(forWorkArea(1920, 1080), AppScale.noScale);
+    test('other real screens, work area rather than panel', () {
+      expect(forWorkArea(1366, 720), 0.8);
+      expect(forWorkArea(1536, 816), 0.9);
+      expect(forWorkArea(1920, 1032), AppScale.noScale);
     });
 
     test('never zooms in on a large monitor', () {
@@ -167,14 +171,82 @@ void main() {
     });
 
     test('the short axis decides, not the wide one', () {
-      // An ultrawide is not a big screen vertically, and height is what a 720
-      // px laptop is actually short of.
+      // An ultrawide is not a big screen vertically, and height is what a short
+      // work area is actually short of.
       expect(forWorkArea(3440, 900), AppScale.noScale);
-      expect(forWorkArea(3440, 800), 0.8);
+      expect(forWorkArea(3440, 800), 0.9);
+      expect(forWorkArea(3440, 640), 0.7);
     });
 
     test('a screen smaller than any step still gets the floor', () {
       expect(forWorkArea(800, 480), AppScale.steps.first);
+    });
+  });
+
+  /// What the window may shrink to, now that the scale changes how much of the
+  /// app a given window holds (#50).
+  group('the floor moves with the scale, downwards only', () {
+    test('zooming out lowers it', () {
+      // Compared with a tolerance: 1100 * 0.7 is 770.0000000000001 in binary
+      // floating point, and a window minimum does not care about the tail.
+      void expectFloor(double scale, double w, double h) {
+        final floor = WindowGeometry.minimumSizeAt(scale);
+        expect(floor.width, moreOrLessEquals(w));
+        expect(floor.height, moreOrLessEquals(h));
+      }
+
+      expectFloor(0.8, 880, 560);
+      expectFloor(0.7, 770, 490);
+    });
+
+    test('at 100 % it is the floor this section always had', () {
+      expect(
+        WindowGeometry.minimumSizeAt(AppScale.noScale),
+        WindowGeometry.minimumSize,
+      );
+    });
+
+    test('zooming IN never raises it', () {
+      // The reason for the min(scale, 1): proportional both ways would demand
+      // 1650x1050 at 150 %, which is larger than the whole screen of the 14"
+      // laptop this effort exists for.
+      expect(WindowGeometry.minimumSizeAt(1.25), WindowGeometry.minimumSize);
+      expect(WindowGeometry.minimumSizeAt(1.5), WindowGeometry.minimumSize);
+    });
+
+    test('a nonsense scale cannot lower the floor to nothing', () {
+      expect(WindowGeometry.minimumSizeAt(double.nan), WindowGeometry.minimumSize);
+      // Clamped to minScale rather than honoured, so the floor is half the
+      // original and not nothing.
+      expect(
+        WindowGeometry.minimumSizeAt(0.0001).width,
+        moreOrLessEquals(WindowGeometry.minimumSize.width * AppScale.minScale),
+      );
+    });
+
+    test('FlowMap can now be half of a 1920 screen', () {
+      // One of the cases that opened this map: 960 wide, beside a spreadsheet.
+      // At 100 % the floor still refuses it, which is correct — the tree would
+      // see 960 and the grids cannot lay out in that.
+      const half = Rect.fromLTWH(0, 0, 960, 1032);
+      expect(WindowGeometry.fitSize(const Size(1600, 1000), half).width, 1100);
+      expect(
+        WindowGeometry.fitSize(const Size(1600, 1000), half, scale: 0.8).width,
+        960,
+      );
+    });
+
+    test('the default no longer hangs off a short work area', () {
+      // 1280x672 is the target laptop. At 100 % the 700 px floor won over the
+      // work area and the window was 28 px taller than the screen — deliberate
+      // once (the caption stays reachable) but no longer necessary, because the
+      // machine opens at 80 % where the floor is 560.
+      const work = Rect.fromLTWH(0, 0, 1280, 672);
+      expect(WindowGeometry.fitSize(WindowGeometry.defaultSize, work).height, 700);
+      expect(
+        WindowGeometry.fitSize(WindowGeometry.defaultSize, work, scale: 0.8).height,
+        672,
+      );
     });
   });
 }

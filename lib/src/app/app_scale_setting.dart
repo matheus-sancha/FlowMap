@@ -15,9 +15,12 @@
 /// tree wait on a file write would be worse than forgetting by tomorrow.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../features/diagnostics/application/diagnostics.dart';
 import 'app_scale.dart';
 import 'window_geometry.dart';
 
@@ -47,5 +50,14 @@ class AppScaleSetting extends _$AppScaleSetting {
     if (next == state) return;
     state = next;
     WindowChrome.setScale(next);
+    // The floor moves with the scale (#50), so the window's minimum has to be
+    // re-applied here rather than only at launch. Not awaited and failures
+    // swallowed, as in `CloseGuard`: under `flutter test` there is no window
+    // plugin, and the scale must still change if the window will not listen.
+    unawaited(
+      WindowGeometry.applyMinimumFor(next).catchError((Object error, StackTrace s) {
+        Diag.error('window.minimum', error, s);
+      }),
+    );
   }
 }
