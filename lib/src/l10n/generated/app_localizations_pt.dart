@@ -2240,6 +2240,9 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get navScaleTooltip => 'Escala da interface';
+
+  @override
   String get navAbout => 'Acerca de';
 
   @override

@@ -3538,6 +3538,29 @@ silently moves a scale someone chose. Measured once, on the launch that finds no
 A hand-edited value that is not a number is treated as absent, which is §12.9's rule for the
 geometry fields; one that is a number is clamped. Neither can stop the app opening.
 
+**The control is the percentage at the foot of the rail** (#51), under `SaveIndicator` and for the
+argument #37 wrote there: *"where it is always visible and never in the way … belongs to the window
+rather than to any one screen."* The rail is the only chrome every screen has, so the scale is
+reachable from Projects and Settings as well as from a study, and it is nowhere near the VSM canvas's
+own zoom card at `right: 12, bottom: 12` — two zoom controls stacked in one corner is how a reader
+comes to zoom the wrong thing. `SaveIndicator` shrinks to nothing when no document is open, so on the
+opening screen the scale is the only row there.
+
+**The number alone, with no icon.** The rail already carries six destinations and a save line, and a
+glyph beside the figure would be decoration. The cost is real and is paid on hover rather than
+permanently: it is the one bare number in the chrome and it sits under a timestamp, so it carries a
+tooltip instead of an icon that would explain it to everyone forever. It is written with
+`NumberFormat.percentPattern`, so it is `80%` in English and `80 %` in Portuguese and Spanish rather
+than a convention invented here (§12.4).
+
+**It is shown at 100 %, and this section's own rule is what decides it.** *"A permanently dead
+control is worse than an absent one"* is why the period control is hidden on the tabs it does not
+govern — and here it resolves the other way, because this control is never dead and, with no
+keyboard shortcut and no Settings row, hiding it at 100 % would make the scale unreachable rather
+than merely tidy. **Its layout does not change with the scale**: everything scales together, so in
+the tree it is always the same number of logical pixels in the same rail, and only its physical size
+moves — which is the thing #49's walk already judged.
+
 ---
 
 ## 13. Exports

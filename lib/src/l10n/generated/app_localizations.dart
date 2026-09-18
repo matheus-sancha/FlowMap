@@ -3909,6 +3909,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 step} other{{count} steps}}'**
   String templatesStepCount(int count);
 
+  /// No description provided for @navScaleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface scale'**
+  String get navScaleTooltip;
+
   /// No description provided for @navAbout.
   ///
   /// In en, this message translates to:

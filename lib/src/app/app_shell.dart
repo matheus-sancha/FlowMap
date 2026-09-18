@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/documents/application/documents_providers.dart';
 import '../features/documents/presentation/save_indicator.dart';
+import 'app_scale_button.dart';
 import '../l10n/generated/app_localizations.dart';
 
 /// The persistent left rail around the top-level destinations (DESIGN.md §12.1).
@@ -73,12 +74,20 @@ class AppShell extends ConsumerWidget {
             // Under the rail, where it is always visible and never in the way:
             // the save state belongs to the window rather than to any one
             // screen, because every screen can change the document (#37).
+            // The scale joins the save state here on the same argument (#51):
+            // both belong to the window rather than to any one screen, and the
+            // rail is the only chrome every screen has. `SaveIndicator` shrinks
+            // to nothing when no document is open, so on Projects and Settings
+            // the scale is the only row.
             trailing: const Expanded(
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
                   padding: EdgeInsets.only(bottom: 12),
-                  child: SaveIndicator(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [SaveIndicator(), AppScaleButton()],
+                  ),
                 ),
               ),
             ),
