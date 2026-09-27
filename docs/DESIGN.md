@@ -3611,6 +3611,20 @@ misbehaved, because none of them can tell anything changed. **Clipping is not br
 results filter bar and both tab strips all run out of room at 150 % and all three scroll, because
 they were made scrollable long before there was a zoom.
 
+**Windows' own Text size is divided out, at every scale** (#58). The embedder reads
+`TextScaleFactor` from the registry and follows it live, and passed through it multiplied with the
+app scale, so 150 % at 150 % drew text at 225 % (#57, `docs/DRIVE-2026-09-27.md`). It is the
+opposite of the app scale: it grows the text and not the box the text sits in. So the Flow footer lost
+every value, the canvas's step boxes lost rows, and every Delivery Float cell overflowed, with
+the same pixel counts at every app scale. Capacity, Demand, the Plan and the Gantt clipped part
+numbers and dates **with no error at all**, which no console sweep can find. **Bigger text in FlowMap
+is 125 % or 150 % from the control at the foot of the rail**, which keeps every proportion #52 proved
+and is always in view. `AppScale` therefore sets `TextScaler.noScaling` even at 100 %, where the
+rest of it leaves the tree. *Rejected: honouring it everywhere but the canvas* and rebuilding the
+boxes to grow. That fixes the overflows and keeps the silent clipping. *Clamping it was also rejected*:
+it is the same breakage by fewer pixels. The canvas had a reason of its own, too: its PDF is drawn with no text
+scale, so a scaled step box would disagree with the page it prints.
+
 **It is shown at 100 %, and this section's own rule is what decides it.** *"A permanently dead
 control is worse than an absent one"* is why the period control is hidden on the tabs it does not
 govern — and here it resolves the other way, because this control is never dead and, with no

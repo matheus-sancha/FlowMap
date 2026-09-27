@@ -134,10 +134,41 @@ void main() {
       await tester.pumpWidget(scaled(AppScale.noScale));
 
       // A feature nobody has switched on should cost nothing: no scaling box,
-      // no layer, no MediaQuery override — the path that shipped.
+      // no layer, the window's real size — the path that shipped.
       expect(find.byType(FittedBox), findsNothing);
       expect(tester.renderObject<RenderBox>(find.byKey(childKey)).size, window);
     });
+  });
+
+  /// Windows' Text size reaches the app and follows the setting live (#57). It
+  /// grows the text and not the box, so it overflowed four fixed boxes and
+  /// clipped four grids silently; the % control is FlowMap's text size (#58).
+  group("Windows' Text size", () {
+    for (final scale in AppScale.steps) {
+      testWidgets('is divided out at ${(scale * 100).round()} %', (
+        tester,
+      ) async {
+        sizeWindow(tester);
+        tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        late TextScaler reported;
+        await tester.pumpWidget(
+          scaled(
+            scale,
+            child: Builder(
+              builder: (context) {
+                reported = MediaQuery.textScalerOf(context);
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+
+        // 100 % included: the widget leaves the scaling out of the tree there,
+        // and the text scale is the one thing that must not leave with it.
+        expect(reported.scale(10), 10);
+      });
+    }
   });
 
   group('a value nobody chose', () {

@@ -23,9 +23,24 @@ import 'package:flutter/widgets.dart';
 /// transform is a layer matrix, text and vectors are rasterised at the final
 /// on-screen scale, and a 70 % view is as sharp as a 100 % one.
 ///
-/// **At [noScale] this widget is not in the tree at all** — no [MediaQuery]
-/// override, no [Transform], no layer. A feature nobody has switched on should
-/// cost nothing, and it means the default path is the one that shipped.
+/// **At [noScale] the scaling is not in the tree at all** — no [Transform], no
+/// layer, and the window's real size. A feature nobody has switched on should
+/// cost nothing, and it means the default path is the one that shipped. What
+/// is left at every scale is the one line below.
+///
+/// **Windows' own Text size is divided out, at every scale** (#58). The
+/// embedder reads it from the registry and follows it live (#57), and passed
+/// through it multiplied with this: 150 % here at 150 % there drew text at
+/// 225 %. Unlike this scale it grows the text and not the box it sits in, so
+/// the Flow footer lost every value, the canvas's step boxes lost rows, every
+/// Delivery Float cell overflowed, and Capacity, Demand, the Plan and the Gantt
+/// clipped part numbers and dates **with no error at all**. #52 proved every
+/// screen holds across [steps] because they keep every proportion; so bigger
+/// text in FlowMap is 125 % or 150 % from the control at the foot of the rail,
+/// which is always visible. *Rejected: honouring it outside the canvas* and
+/// rebuilding the boxes to grow — it leaves the silent clipping, which only an
+/// eye can find; *and clamping it*, which is the same breakage by fewer pixels.
+/// The canvas has a second reason to refuse it: its PDF is drawn with none.
 ///
 /// What still sees the *real* window, and now disagrees with the tree:
 /// `window_manager`'s minimum size, `WindowGeometryObserver` and the bounds it
@@ -108,7 +123,7 @@ class AppScale extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effective = clamp(scale);
-    if (effective == noScale) return child;
+    if (effective == noScale) return MediaQuery.withNoTextScaling(child: child);
 
     final media = MediaQuery.of(context);
     final size = media.size / effective;
@@ -117,12 +132,12 @@ class AppScale extends StatelessWidget {
       // Every measurement in logical pixels is divided, not just the size: an
       // inset left at its real value would be the wrong number of *scaled*
       // pixels, and the scrollbar gutters in `result_table.dart` are laid out
-      // against exactly these. `devicePixelRatio` and `textScaler` are left
-      // alone on purpose — the first is the physical truth the transform does
-      // not change, and the second is the user's own accessibility choice,
-      // which this must not quietly multiply.
+      // against exactly these. `devicePixelRatio` is left alone on purpose:
+      // it is the physical truth the transform does not change. `textScaler`
+      // is Windows' Text size, divided out here as at 100 % (#58).
       data: media.copyWith(
         size: size,
+        textScaler: TextScaler.noScaling,
         padding: media.padding / effective,
         viewPadding: media.viewPadding / effective,
         viewInsets: media.viewInsets / effective,
