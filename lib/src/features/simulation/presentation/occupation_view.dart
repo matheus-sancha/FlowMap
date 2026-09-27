@@ -230,7 +230,11 @@ class _OccupationViewState extends State<OccupationView> {
       // words instead of bars. **The same period at the same grain, not the
       // same glyphs**: the heading is `08/26` where this is `Aug 2026`, which
       // is a difference of room rather than of meaning.
-      return cellFrom(cell, nameOf(row), periodLabel(context, month, _granularity));
+      return cellFrom(
+        cell,
+        nameOf(row),
+        periodLabel(context, month, _granularity),
+      );
     }
 
     /// The frozen right edge: this row across every month shown.
@@ -260,176 +264,209 @@ class _OccupationViewState extends State<OccupationView> {
       });
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // **No `Chart | Grid` switch** (#16). It was added by `795ac6e`
-              // when the field wanted the chart back, and #13 chose which side
-              // it opened on — three answers to one question in three rounds.
-              // The fourth is to stop asking: both are on the page, the chart
-              // drawn as the grid's own header so they share a column width, a
-              // left gutter and one horizontal scrollbar.
-              //
-              // These two switches govern the grid half only; the chart is
-              // always the aggregate of the workcenters in view. Adjacency is what
-              // says so — they sit directly over the rows they reorder.
-              SegmentedButton<OccupationGrouping>(
-                segments: [
-                  ButtonSegment(
-                    value: OccupationGrouping.workcenter,
-                    label: Text(l10n.occupationByWorkcenter),
-                  ),
-                  ButtonSegment(
-                    value: OccupationGrouping.line,
-                    label: Text(l10n.occupationByLine),
-                  ),
-                  // **The third grouping, and the only one whose rows
-                  // partition** — a workcenter carries exactly one type, so unlike
-                  // the line rows these sum to TOTAL.
-                  ButtonSegment(
-                    value: OccupationGrouping.type,
-                    label: Text(l10n.occupationByType),
-                  ),
-                ],
-                selected: {_grouping},
-                showSelectedIcon: false,
-                onSelectionChanged: (s) => setState(() => _grouping = s.first),
-              ),
-              SegmentedButton<OccupationUnit>(
-                segments: [
-                  ButtonSegment(
-                    value: OccupationUnit.percent,
-                    label: Text(l10n.occupationUnitPercent),
-                  ),
-                  ButtonSegment(
-                    value: OccupationUnit.hours,
-                    label: Text(l10n.occupationUnitHours),
-                  ),
-                  ButtonSegment(
-                    value: OccupationUnit.gap,
-                    label: Text(l10n.occupationUnitGap),
-                  ),
-                ],
-                selected: {_unit},
-                showSelectedIcon: false,
-                onSelectionChanged: (s) => setState(() => _unit = s.first),
-              ),
-              // **The third switch, and the only one that moves the columns.**
-              // A dropdown rather than a fourth segmented button: four values
-              // beside five other segments is a toolbar nobody can scan, and
-              // this is set once and read often — `PeriodControl` made the same
-              // call on the study side for the same reason.
-              MenuAnchor(
-                menuChildren: [
-                  for (final granularity in PeriodGranularity.values)
-                    MenuItemButton(
-                      onPressed: () =>
-                          setState(() => _granularity = granularity),
-                      leadingIcon: Icon(
-                        granularity == _granularity
-                            ? Icons.check
-                            : Icons.check_box_outline_blank,
-                        size: 18,
-                        color: granularity == _granularity
-                            ? null
-                            : Colors.transparent,
-                      ),
-                      child: Text(granularityLabel(l10n, granularity)),
-                    ),
-                ],
-                builder: (context, controller, _) => OutlinedButton.icon(
-                  onPressed: () =>
-                      controller.isOpen ? controller.close() : controller.open(),
-                  icon: const Icon(Icons.calendar_view_month, size: 18),
-                  label: Text(granularityLabel(l10n, _granularity)),
+    final controls = Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        // **No `Chart | Grid` switch** (#16). It was added by `795ac6e`
+        // when the field wanted the chart back, and #13 chose which side
+        // it opened on — three answers to one question in three rounds.
+        // The fourth is to stop asking: both are on the page, the chart
+        // drawn as the grid's own header so they share a column width, a
+        // left gutter and one horizontal scrollbar.
+        //
+        // These two switches govern the grid half only; the chart is
+        // always the aggregate of the workcenters in view. Adjacency is what
+        // says so — they sit directly over the rows they reorder.
+        SegmentedButton<OccupationGrouping>(
+          segments: [
+            ButtonSegment(
+              value: OccupationGrouping.workcenter,
+              label: Text(l10n.occupationByWorkcenter),
+            ),
+            ButtonSegment(
+              value: OccupationGrouping.line,
+              label: Text(l10n.occupationByLine),
+            ),
+            // **The third grouping, and the only one whose rows
+            // partition** — a workcenter carries exactly one type, so unlike
+            // the line rows these sum to TOTAL.
+            ButtonSegment(
+              value: OccupationGrouping.type,
+              label: Text(l10n.occupationByType),
+            ),
+          ],
+          selected: {_grouping},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => setState(() => _grouping = s.first),
+        ),
+        SegmentedButton<OccupationUnit>(
+          segments: [
+            ButtonSegment(
+              value: OccupationUnit.percent,
+              label: Text(l10n.occupationUnitPercent),
+            ),
+            ButtonSegment(
+              value: OccupationUnit.hours,
+              label: Text(l10n.occupationUnitHours),
+            ),
+            ButtonSegment(
+              value: OccupationUnit.gap,
+              label: Text(l10n.occupationUnitGap),
+            ),
+          ],
+          selected: {_unit},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => setState(() => _unit = s.first),
+        ),
+        // **The third switch, and the only one that moves the columns.**
+        // A dropdown rather than a fourth segmented button: four values
+        // beside five other segments is a toolbar nobody can scan, and
+        // this is set once and read often — `PeriodControl` made the same
+        // call on the study side for the same reason.
+        MenuAnchor(
+          menuChildren: [
+            for (final granularity in PeriodGranularity.values)
+              MenuItemButton(
+                onPressed: () => setState(() => _granularity = granularity),
+                leadingIcon: Icon(
+                  granularity == _granularity
+                      ? Icons.check
+                      : Icons.check_box_outline_blank,
+                  size: 18,
+                  color: granularity == _granularity
+                      ? null
+                      : Colors.transparent,
                 ),
+                child: Text(granularityLabel(l10n, granularity)),
               ),
-              _Bands(project: widget.project),
+          ],
+          builder: (context, controller, _) => OutlinedButton.icon(
+            onPressed: () =>
+                controller.isOpen ? controller.close() : controller.open(),
+            icon: const Icon(Icons.calendar_view_month, size: 18),
+            label: Text(granularityLabel(l10n, _granularity)),
+          ),
+        ),
+        _Bands(project: widget.project),
+      ],
+    );
+
+    final matrix = PeriodMatrix(
+      // **The chart, as the grid's header** (#16) — split into the
+      // half that stays put and the half that scrolls. The axis
+      // sits over the frozen labels, which is what keeps #13's rule
+      // that a bar is never measured against nothing; the plot sits
+      // over the month columns and is laid out to exactly their
+      // width, so a bar cannot drift off the cells it describes.
+      banner: graph == null
+          ? null
+          : (
+              height: 240,
+              gutter: _ChartAxis(graph: graph),
+              body: _ChartPlot(graph: graph, columnWidth: columnWidth),
+            ),
+      monthWidth: columnWidth,
+      months: grid.months,
+      headerLabel: switch (_grouping) {
+        OccupationGrouping.workcenter => l10n.occupationWorkcenter,
+        OccupationGrouping.line => l10n.occupationLine,
+        OccupationGrouping.type => l10n.occupationWorkcenterType,
+      },
+      // **The heading is numeric, the hover is not.** A column is
+      // 72 pt with eleven like it either side, where `08/26` reads
+      // faster than `Aug 2026` and the year is the part that tells
+      // them apart. The hover has a whole card and spells it out.
+      columnLabel: (month) => periodColumnLabel(context, month, _granularity),
+      rows: [
+        for (final row in rows)
+          PeriodMatrixRow(label: row.name, qualifier: row.qualifier),
+      ],
+      cellAt: (row, month) => cellOf(rows[row], month),
+      sortedMonth: _sortedMonth,
+      sortAscending: _sortAscending,
+      onSortMonth: (index) => setState(() {
+        if (_sortedMonth == index) {
+          _sortAscending = !_sortAscending;
+        } else {
+          _sortedMonth = index;
+          _sortAscending = false;
+        }
+      }),
+      // **Along the bottom, and always** (#14). #9 hid this row
+      // the moment a filter narrowed the workcenters, because a
+      // partial total wearing the *plant's* name is a lie. Calling
+      // it TOTAL makes it true again — it claims only the rows
+      // above it — and a narrowed view is exactly when someone
+      // wants a total of what they narrowed to.
+      aggregate: PeriodMatrixRow(label: l10n.occupationTotal, emphasis: true),
+      aggregateCellAt: (month) => cellOf(grid.total, month),
+      // The other frozen edge, so the months scroll between a row's
+      // name and that row's summary.
+      trailingLabel: l10n.occupationTotal,
+      trailingCellAt: (row) => totalOf(rows[row]),
+      aggregateTrailingCell: totalOf(grid.total),
+    );
+
+    // **The legend scrolls with the chart it keys** (#54). It names the bars'
+    // three colours and counts the workcenters they aggregate, and the chart is
+    // the grid's scrolling header (#16) — so a legend pinned beside the
+    // controls was keying a chart that had already scrolled away, and spending
+    // height the pane did not have to do it.
+    final scrolled = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (graph != null) ...[
+          _Legend(graph: graph),
+          const SizedBox(height: 8),
+        ],
+        matrix,
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // **Too short to pin anything, the pane scrolls as one** (#54). At
+        // 150 % in a 1280x720 window this pane is handed ~150 px and the
+        // controls alone wrap to two runs, which is what overflowed in #52's
+        // sweep. The controls then scroll away with the grid — but they are
+        // still directly over the rows they reorder, which is the adjacency
+        // the comment on them is about. Anywhere that fits today is untouched.
+        if (constraints.maxHeight < _pinnedMinHeight) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [controls, const SizedBox(height: 12), scrolled],
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              controls,
+              const SizedBox(height: 12),
+              Expanded(child: SingleChildScrollView(child: scrolled)),
             ],
           ),
-          const SizedBox(height: 12),
-          if (graph != null) ...[
-            _Legend(graph: graph),
-            const SizedBox(height: 8),
-          ],
-          Expanded(
-            child: SingleChildScrollView(
-              child: PeriodMatrix(
-                // **The chart, as the grid's header** (#16) — split into the
-                // half that stays put and the half that scrolls. The axis
-                // sits over the frozen labels, which is what keeps #13's rule
-                // that a bar is never measured against nothing; the plot sits
-                // over the month columns and is laid out to exactly their
-                // width, so a bar cannot drift off the cells it describes.
-                banner: graph == null
-                    ? null
-                    : (
-                        height: 240,
-                        gutter: _ChartAxis(graph: graph),
-                        body: _ChartPlot(
-                          graph: graph,
-                          columnWidth: columnWidth,
-                        ),
-                      ),
-                monthWidth: columnWidth,
-                months: grid.months,
-                headerLabel: switch (_grouping) {
-                  OccupationGrouping.workcenter => l10n.occupationWorkcenter,
-                  OccupationGrouping.line => l10n.occupationLine,
-                  OccupationGrouping.type => l10n.occupationWorkcenterType,
-                },
-                // **The heading is numeric, the hover is not.** A column is
-                // 72 pt with eleven like it either side, where `08/26` reads
-                // faster than `Aug 2026` and the year is the part that tells
-                // them apart. The hover has a whole card and spells it out.
-                columnLabel: (month) =>
-                    periodColumnLabel(context, month, _granularity),
-                rows: [
-                  for (final row in rows)
-                    PeriodMatrixRow(label: row.name, qualifier: row.qualifier),
-                ],
-                cellAt: (row, month) => cellOf(rows[row], month),
-                sortedMonth: _sortedMonth,
-                sortAscending: _sortAscending,
-                onSortMonth: (index) => setState(() {
-                  if (_sortedMonth == index) {
-                    _sortAscending = !_sortAscending;
-                  } else {
-                    _sortedMonth = index;
-                    _sortAscending = false;
-                  }
-                }),
-                // **Along the bottom, and always** (#14). #9 hid this row
-                // the moment a filter narrowed the workcenters, because a
-                // partial total wearing the *plant's* name is a lie. Calling
-                // it TOTAL makes it true again — it claims only the rows
-                // above it — and a narrowed view is exactly when someone
-                // wants a total of what they narrowed to.
-                aggregate: PeriodMatrixRow(
-                  label: l10n.occupationTotal,
-                  emphasis: true,
-                ),
-                aggregateCellAt: (month) => cellOf(grid.total, month),
-                // The other frozen edge, so the months scroll between a row's
-                // name and that row's summary.
-                trailingLabel: l10n.occupationTotal,
-                trailingCellAt: (row) => totalOf(rows[row]),
-                aggregateTrailingCell: totalOf(grid.total),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
+
+/// Below this pane height the controls stop being pinned (#54).
+///
+/// **Chosen so a pinned header always leaves the grid more than the chart.**
+/// The controls take ~60 px on one run and ~110 on two; under 360 that leaves
+/// the scroll beneath them less than the chart's own 240, so a reader scrolling
+/// for rows would be scrolling a window smaller than the header of what it
+/// shows. The sweep's 1280x720 window hands this pane ~390 at 100 %, so the
+/// fallback is reached only by zooming in.
+const _pinnedMinHeight = 360.0;
 
 /// The hover both Occupation surfaces carry (#14).
 ///

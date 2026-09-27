@@ -3585,7 +3585,10 @@ decides what the default may be fitted into.
 
 **Driven at both extremes in a 1280x720 window** (#52,
 `docs/DRIVE-2026-09-17.md`): seventeen checks over every screen produced **one** layout failure —
-Occupation's header squeezes its grid at 150 % (#54). Nothing else needed touching, which is the
+Occupation's header squeezes its grid at 150 % (#54). **Fixed without unpinning anything that
+fits**: below a pane height of 360 the controls stop being pinned and the pane scrolls as one, so they
+leave with the grid but stay directly over the rows they reorder, and the legend moved into the
+scroll beside the chart it keys, which it should always have been. Nothing else needed touching, which is the
 claim at the top of this section holding up: `simulation_tab.dart`'s `maxWidth < 1100` branch,
 `result_table.dart`'s column widths and the Gantt's label width were never edited and never
 misbehaved, because none of them can tell anything changed. **Clipping is not breakage**: the
