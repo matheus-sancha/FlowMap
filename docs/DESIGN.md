@@ -3537,7 +3537,23 @@ width in dead space. Rounding up would pick a scale the screen was measured as t
 and scaling *up* on a large monitor would be guessing at a preference rather than solving a fit
 problem, which is how a setting earns a reputation for meddling. So a 14" laptop opens at 80 % and a
 1080p desktop at 100 %, and **a stored value always wins thereafter** — docking and undocking never
-silently moves a scale someone chose. Measured once, on the launch that finds nothing stored.
+silently moves a scale someone chose. Measured once per display, on the launch that finds nothing
+stored for it.
+
+**One scale per display, chosen at launch** (#56). With one scale per machine, a laptop that first
+ran docked opened at the panel's 100 % on its own 14" screen — the cramped case this section exists
+for — and the first-run measurement read the *primary*, which on a docked laptop is the monitor even
+when the window restores onto the laptop. So `window.json` holds a `scales` table keyed by
+`Display.id`, which on Windows is the monitor's PnP DeviceID and survives docking; `Display.name`
+(`\\.\DISPLAY1`) renumbers and would not. At launch the scale is read for the display the window is
+about to open on, by the rule `restore` places it: the display the stored frame covers most, or the
+primary when it lands nowhere. **A display never seen is measured, not handed the last scale used**,
+because the last one used is the other screen's. Picking a step writes it for the display the window
+is on at that moment. The single `scale` a file from before holds is adopted by the first display it
+is read on and removed. _Rejected: switching live when the window is dragged to another display_,
+which resizes the whole app under the pointer mid-drag and moves the window's floor with it — the
+next launch is soon enough. _Rejected: keeping one scale and only fixing the primary_, which leaves
+every docking laptop re-picking its scale by hand.
 
 A hand-edited value that is not a number is treated as absent, which is §12.9's rule for the
 geometry fields; one that is a number is clamped. Neither can stop the app opening.

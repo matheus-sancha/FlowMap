@@ -112,9 +112,13 @@ class WindowGeometry {
     }
   }
 
+  /// A `null` in [changes] removes that key rather than writing `null`, so a
+  /// field that has been superseded can leave the file (#56).
   static Future<void> _writeMerged(Map<String, Object?> changes) async {
-    final merged = await _readAll()
-      ..addAll(changes);
+    final merged = await _readAll();
+    changes.forEach(
+      (key, value) => value == null ? merged.remove(key) : merged[key] = value,
+    );
     await (await _file()).writeAsString(jsonEncode(merged), flush: true);
   }
 
@@ -212,23 +216,62 @@ class WindowGeometry {
   /// and can undo by hand, so they are left exactly as they were found.
   static Rect withCaptionOnScreen(Rect bounds, List<Rect> workAreas) {
     if (workAreas.isEmpty) return bounds;
-    // The work area the window sits in most. Which one wins only matters when
-    // a window straddles two, and then either answer puts the caption on a
-    // screen the user is looking at.
-    var best = workAreas.first;
+    // Which one wins only matters when a window straddles two, and then either
+    // answer puts the caption on a screen the user is looking at.
+    final best = workAreas[mostCovered(bounds, workAreas)];
+    if (bounds.top >= best.top) return bounds;
+    return Rect.fromLTWH(bounds.left, best.top, bounds.width, bounds.height);
+  }
+
+  /// The index of the work area [bounds] covers most — the first when it
+  /// covers none. [workAreas] must not be empty.
+  static int mostCovered(Rect bounds, List<Rect> workAreas) {
+    var best = 0;
     var most = -1.0;
-    for (final area in workAreas) {
-      final overlap = area.intersect(bounds);
+    for (var i = 0; i < workAreas.length; i++) {
+      final overlap = workAreas[i].intersect(bounds);
       final covered = overlap.width <= 0 || overlap.height <= 0
           ? 0.0
           : overlap.width * overlap.height;
       if (covered > most) {
         most = covered;
-        best = area;
+        best = i;
       }
     }
-    if (bounds.top >= best.top) return bounds;
-    return Rect.fromLTWH(bounds.left, best.top, bounds.width, bounds.height);
+    return best;
+  }
+
+  /// The display a window at [bounds] is on, by the same rule [restore] places
+  /// it: the one it covers most if it lands on any, otherwise [primary], where
+  /// [restore] would put a window whose position no longer lands anywhere.
+  ///
+  /// So the display a scale is read for at launch is the display the window
+  /// then opens on (#56). [bounds] is null on a first run.
+  static Display displayFor(
+    Rect? bounds,
+    List<Display> displays,
+    Display primary,
+  ) {
+    if (bounds == null || displays.isEmpty) return primary;
+    final areas = workAreasOf(displays);
+    final placed = WindowGeometry(bounds: bounds, maximized: false);
+    if (!placed.isOnSomeWorkArea(areas)) return primary;
+    return displays[mostCovered(bounds, areas)];
+  }
+
+  /// [displayFor] the window as it stands now. Null when the displays cannot be
+  /// read, which callers treat as *no better answer than before*.
+  static Future<Display?> displayUnderWindow() async {
+    try {
+      return displayFor(
+        await windowManager.getBounds(),
+        await screenRetriever.getAllDisplays(),
+        await screenRetriever.getPrimaryDisplay(),
+      );
+    } catch (error, stack) {
+      Diag.error('window.display', error, stack);
+      return null;
+    }
   }
 
   /// Whether [bounds] still lands on a display that exists.
@@ -342,12 +385,13 @@ class WindowGeometry {
     final bounds = await windowManager.getBounds();
     if (bounds.width >= floor.width && bounds.height >= floor.height) return;
 
-    var work = Rect.fromLTWH(0, 0, double.infinity, double.infinity);
-    try {
-      work = workAreaOf(await screenRetriever.getPrimaryDisplay());
-    } catch (_) {
-      // Without a work area the floor is still the better of the two numbers.
-    }
+    // The display the window is on, not the primary: growing a window on a
+    // laptop panel must stop at the laptop panel (#56). Without a work area the
+    // floor is still the better of the two numbers.
+    final display = await displayUnderWindow();
+    final work = display == null
+        ? Rect.fromLTWH(0, 0, double.infinity, double.infinity)
+        : workAreaOf(display);
     await windowManager.setSize(
       Size(
         math.min(math.max(bounds.width, floor.width), work.width),
@@ -356,7 +400,6 @@ class WindowGeometry {
     );
   }
 }
-
 
 /// Window chrome that is not geometry, in the same file and for the same
 /// reason (#18).
@@ -375,7 +418,10 @@ class WindowGeometry {
 /// the app losing a pane for a reason nobody can see.
 abstract final class WindowChrome {
   static const _paneKey = 'studiesPaneCollapsed';
-  static const _scaleKey = 'scale';
+  static const _scalesKey = 'scales';
+
+  /// Where the single machine-wide scale lived before #56.
+  static const _legacyScaleKey = 'scale';
 
   static Future<bool> studiesPaneCollapsed() async =>
       (await WindowGeometry._readAll())[_paneKey] == true;
@@ -418,8 +464,27 @@ abstract final class WindowChrome {
     return math.min(AppScale.noScale, AppScale.snapDown(raw));
   }
 
-  /// The scale to run at: the stored one, or a first-run default measured from
-  /// the screen and then written down.
+  /// The scale to open at: [scaleFor] the display the window is about to be
+  /// placed on. Called by `main`, before [WindowGeometry.restore].
+  static Future<double> launchScale() async {
+    final Display display;
+    try {
+      display = WindowGeometry.displayFor(
+        (await WindowGeometry.load())?.bounds,
+        await screenRetriever.getAllDisplays(),
+        await screenRetriever.getPrimaryDisplay(),
+      );
+    } catch (error, stack) {
+      // Without the displays there is no knowing whose scale to read.
+      Diag.error('window.scale.display', error, stack);
+      return AppScale.noScale;
+    }
+    launchDisplayId = display.id;
+    return scaleFor(display);
+  }
+
+  /// The scale to run at on [display]: the one stored for it, or a default
+  /// measured from its work area and then written down.
   ///
   /// **Read before `runApp`, which is the whole reason it is in this file and
   /// not in `app_settings`.** A scale that arrived from the database could not
@@ -429,44 +494,98 @@ abstract final class WindowChrome {
   /// frame is already right. That ordering is the argument; *window chrome is
   /// not domain state* is why the file was already there to put it in.
   ///
-  /// **A stored value always wins**, so docking a laptop to a large panel and
-  /// undocking it again never silently moves a scale the user chose. The
-  /// measurement happens once, on the launch that finds nothing stored.
+  /// **One scale per display, chosen at launch** (#56). A laptop that first ran
+  /// docked used to carry the big panel's 100 % onto its own 14" screen, which
+  /// is the cramped case this whole effort exists for. [display] is the one the
+  /// window is about to open on — [WindowGeometry.displayFor] — not the primary,
+  /// which on a docked laptop is the monitor.
   ///
-  /// Failure in either direction is [AppScale.noScale]: a hand-edited value
-  /// that is not a number is treated as absent (the rule the geometry fields
-  /// already follow), and a screen that cannot be measured is not guessed at.
-  static Future<double> scale() async {
+  /// Failure is [AppScale.noScale]: a screen that cannot be measured is not
+  /// guessed at.
+  static Future<double> scaleFor(Display display) async {
     try {
-      final stored = (await WindowGeometry._readAll())[_scaleKey];
-      if (stored is num) return AppScale.clamp(stored.toDouble());
+      final resolved = resolveScale(
+        await WindowGeometry._readAll(),
+        display.id,
+        WindowGeometry.workAreaOf(display),
+      );
+      if (resolved.write != null) {
+        Diag.event(
+          'window.scale',
+          'display ${display.id} -> ${resolved.scale}',
+        );
+        await WindowGeometry._writeMerged(resolved.write!);
+      }
+      return resolved.scale;
     } catch (error, stack) {
       Diag.error('window.scale', error, stack);
       return AppScale.noScale;
     }
-
-    try {
-      final work = WindowGeometry.workAreaOf(
-        await screenRetriever.getPrimaryDisplay(),
-      );
-      final derived = defaultScaleIn(work);
-      Diag.event(
-        'window.scale',
-        'first run: ${work.width.round()}x${work.height.round()} -> $derived',
-      );
-      await setScale(derived);
-      return derived;
-    } catch (error, stack) {
-      Diag.error('window.scale.derive', error, stack);
-      return AppScale.noScale;
-    }
   }
 
+  /// The scale stored in [file] for the display [displayId], and what to write
+  /// back, if anything. Pure, so the rules below are tested without a screen.
+  ///
+  /// - **A stored value always wins**, clamped. A hand-edited value that is not
+  ///   a number is treated as absent, as for the geometry fields (§12.9).
+  /// - **A display never seen before gets a default measured from
+  ///   [workArea]**, not the scale last used elsewhere. The last one used is
+  ///   exactly the wrong answer this exists to fix: it is the other screen's.
+  /// - **The one scale a file from before #56 holds** is adopted by the first
+  ///   display it is read on and then removed, so nobody's chosen scale is
+  ///   re-derived out from under them.
+  ///
+  /// The key is `Display.id`, which on Windows is the monitor's PnP DeviceID
+  /// and survives docking — unlike `Display.name`, `\\.\DISPLAY1`, which
+  /// renumbers. An empty id is still a key: every display the plugin cannot
+  /// identify shares one scale, which is how the app behaved before.
+  static ({double scale, Map<String, Object?>? write}) resolveScale(
+    Map<String, Object?> file,
+    String displayId,
+    Rect workArea,
+  ) {
+    final scales = _scalesIn(file);
+    final stored = scales[displayId];
+    if (stored is num) {
+      return (scale: AppScale.clamp(stored.toDouble()), write: null);
+    }
+
+    final legacy = file[_legacyScaleKey];
+    final scale = legacy is num
+        ? AppScale.clamp(legacy.toDouble())
+        : defaultScaleIn(workArea);
+    return (
+      scale: scale,
+      write: {
+        _scalesKey: {...scales, displayId: scale},
+        _legacyScaleKey: null,
+      },
+    );
+  }
+
+  /// A copy of [file]'s scales table, empty when it is missing or is not a map.
+  static Map<String, Object?> _scalesIn(Map<String, Object?> file) {
+    final table = file[_scalesKey];
+    return table is Map ? {...table.cast<String, Object?>()} : {};
+  }
+
+  /// Remembers [scale] for the display the window is on **now** — which may
+  /// not be the one it opened on, if it was dragged across since. Falls back to
+  /// [launchDisplayId] when the displays cannot be read.
   static Future<void> setScale(double scale) async {
     try {
-      await WindowGeometry._writeMerged({_scaleKey: AppScale.clamp(scale)});
+      final display = await WindowGeometry.displayUnderWindow();
+      final id = display?.id ?? launchDisplayId;
+      final scales = _scalesIn(await WindowGeometry._readAll());
+      await WindowGeometry._writeMerged({
+        _scalesKey: {...scales, id: AppScale.clamp(scale)},
+        _legacyScaleKey: null,
+      });
     } catch (error, stack) {
       Diag.error('window.scale.save', error, stack);
     }
   }
+
+  /// The display [scaleFor] was read for, set by `main`.
+  static String launchDisplayId = '';
 }

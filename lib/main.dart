@@ -46,7 +46,9 @@ Future<void> main() async {
     // run's floor. It is also what the first frame is drawn at, which is why it
     // is read here at all rather than from a provider inside the tree: a scale
     // that arrived later would snap the whole app on every launch (#48).
-    scale = await WindowChrome.scale();
+    // Read for the display the window is about to open on, not the primary
+    // (#56).
+    scale = await WindowChrome.launchScale();
     windowObserver.rememberNormalBounds(
       await WindowGeometry.restore(scale: scale),
     );

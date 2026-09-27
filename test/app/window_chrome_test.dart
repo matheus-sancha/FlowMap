@@ -6,6 +6,7 @@ import 'package:flowmap/src/app/app_scale.dart';
 import 'package:flowmap/src/app/window_geometry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -99,45 +100,155 @@ void main() {
   });
 
   /// The scale moved in beside the pane (#48), and the file now has a third
-  /// writer — which is the risk this whole file was written about.
+  /// writer — which is the risk this whole file was written about. Since #56
+  /// it is one scale per display, so each test names the display it is on.
   group('the scale', () {
+    // A 14" laptop at 150 % and the 27" panel it docks to.
+    const laptop = Display(
+      id: r'MONITOR\LEN40B2\{4d36e96e}\0000',
+      size: Size(1280, 720),
+      visibleSize: Size(1280, 672),
+    );
+    const panel = Display(
+      id: r'MONITOR\DEL40F4\{4d36e96e}\0003',
+      size: Size(2560, 1440),
+      visibleSize: Size(2560, 1392),
+    );
+
+    // Under `flutter test` there is no window to ask which display it is on,
+    // so `setScale` falls back to the one the app launched on.
+    void launchedOn(Display display) =>
+        WindowChrome.launchDisplayId = display.id;
+
     test('a stored value is read back, and wins', () async {
-      await WindowChrome.setScale(0.8);
-      expect(await WindowChrome.scale(), 0.8);
-      expect(onDisk()['scale'], 0.8);
+      launchedOn(laptop);
+      await WindowChrome.setScale(0.9);
+      expect(await WindowChrome.scaleFor(laptop), 0.9);
+    });
+
+    test('each display keeps its own', () async {
+      // **The case #56 exists for.** A laptop that first ran docked carried
+      // the panel's 100 % onto its own screen, the cramped case this whole
+      // effort is about.
+      launchedOn(panel);
+      await WindowChrome.setScale(1.25);
+      launchedOn(laptop);
+      await WindowChrome.setScale(0.7);
+
+      expect(await WindowChrome.scaleFor(panel), 1.25);
+      expect(await WindowChrome.scaleFor(laptop), 0.7);
+    });
+
+    test('a display never seen is measured, not given the last one', () async {
+      launchedOn(panel);
+      await WindowChrome.setScale(1.5);
+      // The panel's choice is the other screen's answer, so it is exactly the
+      // wrong thing to hand the laptop.
+      expect(await WindowChrome.scaleFor(laptop), 0.8);
+      // And the measurement is written down, so it is a stored value now.
+      expect((onDisk()['scales'] as Map)[laptop.id], 0.8);
+    });
+
+    test('a scale from before #56 is adopted, not re-derived', () async {
+      file().writeAsStringSync('{"scale": 0.9, "maximized": true}');
+      expect(await WindowChrome.scaleFor(laptop), 0.9);
+
+      final json = onDisk();
+      expect(json.containsKey('scale'), isFalse);
+      expect((json['scales'] as Map)[laptop.id], 0.9);
+      expect(json['maximized'], isTrue);
+      // Adopted once: the next display is measured.
+      expect(await WindowChrome.scaleFor(panel), AppScale.noScale);
     });
 
     test('does not drop the keys beside it', () async {
+      launchedOn(laptop);
       await geometry.save();
       await WindowChrome.setStudiesPaneCollapsed(true);
       await WindowChrome.setScale(0.9);
 
       final json = onDisk();
-      expect(json['scale'], 0.9);
+      expect((json['scales'] as Map)[laptop.id], 0.9);
       expect(json['studiesPaneCollapsed'], isTrue);
       expect(json['maximized'], geometry.maximized);
       expect(json['width'], geometry.bounds.width);
     });
 
     test('and is not dropped BY the keys beside it', () async {
+      launchedOn(laptop);
       await WindowChrome.setScale(0.7);
       // A window move writes geometry through a different path entirely.
       await geometry.save();
-      expect(onDisk()['scale'], 0.7);
-      expect(await WindowChrome.scale(), 0.7);
+      expect(await WindowChrome.scaleFor(laptop), 0.7);
     });
 
     test('an out-of-range value is clamped, not honoured', () async {
+      launchedOn(laptop);
       await WindowChrome.setScale(9);
-      expect(await WindowChrome.scale(), AppScale.maxScale);
+      expect(await WindowChrome.scaleFor(laptop), AppScale.maxScale);
     });
 
-    test('a hand-edited value that is not a number is treated as absent', () {
-      // Absent means *derive from the screen*, which needs a display this test
-      // has no way to provide — so the assertion is that it does not throw and
-      // does not return the nonsense, rather than what it returns.
-      file().writeAsStringSync('{"scale": "big please"}');
-      expect(WindowChrome.scale(), completion(isNot('big please')));
+    test(
+      'a hand-edited value that is not a number is treated as absent',
+      () async {
+        file().writeAsStringSync(
+          jsonEncode({
+            'scales': {laptop.id: 'big please'},
+          }),
+        );
+        expect(await WindowChrome.scaleFor(laptop), 0.8);
+      },
+    );
+
+    test(
+      'a hand-edited table that is not a map is treated as absent',
+      () async {
+        file().writeAsStringSync('{"scales": [0.7]}');
+        expect(await WindowChrome.scaleFor(laptop), 0.8);
+      },
+    );
+  });
+
+  /// Which display a scale is read for at launch (#56): the one the window is
+  /// about to open on, by the rule `restore` places it.
+  group('the display a window opens on', () {
+    const primary = Display(
+      id: 'panel',
+      size: Size(2560, 1440),
+      visibleSize: Size(2560, 1392),
+    );
+    const laptop = Display(
+      id: 'laptop',
+      size: Size(1280, 720),
+      visiblePosition: Offset(2560, 0),
+      visibleSize: Size(1280, 672),
+    );
+    const both = [primary, laptop];
+
+    Display on(Rect? bounds, [List<Display> displays = both]) =>
+        WindowGeometry.displayFor(bounds, displays, primary);
+
+    test('is the one the stored window covers most', () {
+      expect(on(const Rect.fromLTWH(2600, 20, 1200, 600)).id, 'laptop');
+      // Straddling: the larger share wins.
+      expect(on(const Rect.fromLTWH(2400, 20, 1200, 600)).id, 'laptop');
+      expect(on(const Rect.fromLTWH(1800, 20, 1200, 600)).id, 'panel');
+    });
+
+    test('is the primary on a first run', () {
+      // **Not only a first run's default.** Before #56 the first-run scale
+      // was measured on the primary even when the window then restored onto
+      // the laptop's own panel.
+      expect(on(null).id, 'panel');
+    });
+
+    test('is the primary when the stored display has gone', () {
+      // Undocked: `restore` fits the default to the primary, so the scale
+      // must be the primary's too.
+      expect(
+        on(const Rect.fromLTWH(2600, 20, 1200, 600), [primary]).id,
+        'panel',
+      );
     });
   });
 
@@ -215,7 +326,10 @@ void main() {
     });
 
     test('a nonsense scale cannot lower the floor to nothing', () {
-      expect(WindowGeometry.minimumSizeAt(double.nan), WindowGeometry.minimumSize);
+      expect(
+        WindowGeometry.minimumSizeAt(double.nan),
+        WindowGeometry.minimumSize,
+      );
       // Clamped to minScale rather than honoured, so the floor is half the
       // original and not nothing.
       expect(
@@ -242,9 +356,16 @@ void main() {
       // once (the caption stays reachable) but no longer necessary, because the
       // machine opens at 80 % where the floor is 560.
       const work = Rect.fromLTWH(0, 0, 1280, 672);
-      expect(WindowGeometry.fitSize(WindowGeometry.defaultSize, work).height, 700);
       expect(
-        WindowGeometry.fitSize(WindowGeometry.defaultSize, work, scale: 0.8).height,
+        WindowGeometry.fitSize(WindowGeometry.defaultSize, work).height,
+        700,
+      );
+      expect(
+        WindowGeometry.fitSize(
+          WindowGeometry.defaultSize,
+          work,
+          scale: 0.8,
+        ).height,
         672,
       );
     });
