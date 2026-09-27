@@ -41,7 +41,7 @@ final class AppScaleSettingProvider
   }
 }
 
-String _$appScaleSettingHash() => r'0e4572dfe6bf6a09c2e25764bc679cd6544c8001';
+String _$appScaleSettingHash() => r'f3b8aa764322bec220a370f7fb89ca0813a579f9';
 
 abstract class _$AppScaleSetting extends $Notifier<double> {
   double build();
