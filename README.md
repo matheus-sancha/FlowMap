@@ -37,7 +37,8 @@ certificate.**
 
 | Drop | Date | |
 |---|---|---|
-| **2.1.4** | 2026-09-14 | The example is a sample plant rather than a real one |
+| **2.2.0** | 2026-09-27 | Zoom: a % control under the rail scales the whole app, and a 14" laptop opens at 80 %; stored runs and settings left behind by 2.1.3 are brought back |
+| 2.1.4 | 2026-09-14 | Not released; the sample-plant example ships in 2.2.0 |
 | 2.1.3 | 2026-09-14 | The window opens where its title bar can be reached; unblock the zip before unzipping and Windows stops asking about the publisher |
 | 2.1.2 | 2026-09-13 | Saved templates appear on the shelf; simpler Projects page |
 | 2.1.1 | 2026-09-13 | Fixes two ways a project file could be emptied; plant name on New project; move a project to another plant; opening screen |
@@ -62,7 +63,7 @@ the same commit; `l10n_test.dart` fails the build if `lib/src/l10n/untranslated.
 From a clean tree, after `flutter analyze` and `flutter test`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1 -Label 2.1.4-2026-09-14 -Tag v2.1.4
+powershell -ExecutionPolicy Bypass -File tool\package_windows.ps1 -Label 2.2.0-2026-09-27 -Tag v2.2.0
 ```
 
 It refuses a dirty tree, an existing tag, or a `version:` in `pubspec.yaml` that disagrees with the
@@ -83,9 +84,9 @@ Add one of these to sign the drop, which is what stops Windows calling the publi
 Then:
 
 ```bash
-git tag -a v2.1.4 -m "FlowMap 2.1.4-2026-09-14" <commit>
-git push origin v2.1.4
-gh release create v2.1.4 dist/FlowMap-2.1.4-2026-09-14.zip --title "FlowMap 2.1.4" --notes-file notes.md --verify-tag
+git tag -a v2.2.0 -m "FlowMap 2.2.0-2026-09-27" <commit>
+git push origin v2.2.0
+gh release create v2.2.0 dist/FlowMap-2.2.0-2026-09-27.zip --title "FlowMap 2.2.0" --notes-file notes.md --verify-tag
 ```
 
 The link users get is
@@ -153,8 +154,13 @@ through to its file a couple of seconds after each change.
 - **Templates** are `.flowtemplate` files in `Documents\FlowMap\Templates\` — one study's flow, applied
   to any project by matching workcenters by name.
 
-`%APPDATA%\Roaming\com.sancha\flowmap\` holds `flowmap.sqlite` (the working copy of whichever project
+`%APPDATA%\Matheus Sancha\FlowMap\` holds `flowmap.sqlite` (the working copy of whichever project
 is open, plus stored simulation runs, which stay on the machine that made them), `log.txt` and
 `window.json`. Deliberately not Documents: OneDrive's Known Folder Move syncs that, and a sync client
 uploading a live SQLite file mid-write can corrupt it — which is why a project on OneDrive is a file
 written whole and renamed into place, never the database itself.
+
+**That folder is named from `Runner.rc`'s CompanyName and ProductName**, so editing either moves every
+user's data. 2.1.3 did, unnoticed: up to 2.1.2 it was `%APPDATA%\com.sancha\flowmap`. From 2.2.0 a
+machine whose new folder has no database copies the old one's across once, at startup, and leaves
+the original where it was (`lib/src/data/app_directory.dart`).

@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../data/app_directory.dart';
 import '../features/diagnostics/application/diagnostics.dart';
+import 'app_scale.dart';
 
 /// Remembers where the window was, and puts it back.
 ///
@@ -33,7 +34,29 @@ class WindowGeometry {
 
   /// Below this the VSM canvas and the demand grids cannot lay out, so the
   /// window refuses to go smaller rather than presenting an unusable workspace.
+  ///
+  /// **This is the floor at 100 %.** What the window may actually shrink to is
+  /// [minimumSizeAt], because the scale changes how much the tree sees of a
+  /// given window (#50).
   static const minimumSize = Size(1100, 700);
+
+  /// [minimumSize] as it applies at [scale] — **shrinking only**.
+  ///
+  /// The reason for a floor is that the tree must still see 1100x700 to lay
+  /// out, and at 80 % an 880 px window already does. So zooming out may lower
+  /// the floor, and FlowMap can finally be half of a 1920 screen.
+  ///
+  /// **Zooming in does not raise it**, which is the whole reason for the
+  /// `min(scale, 1)`. Proportional in both directions is the tidier rule and
+  /// was rejected on a number: at 150 % it would demand 1650x1050, which is
+  /// larger than the entire screen of the 14" laptop this effort exists for —
+  /// so zooming in would have to either fail or drag the window out from under
+  /// the reader. Someone who zooms in has asked for bigger text and accepted
+  /// seeing less; that is a choice, not a fault to be corrected.
+  static Size minimumSizeAt(double scale) {
+    final factor = math.min(AppScale.noScale, AppScale.clamp(scale));
+    return Size(minimumSize.width * factor, minimumSize.height * factor);
+  }
 
   /// Used on a first run, and whenever a stored position no longer lands on a
   /// display that exists.
@@ -89,9 +112,13 @@ class WindowGeometry {
     }
   }
 
+  /// A `null` in [changes] removes that key rather than writing `null`, so a
+  /// field that has been superseded can leave the file (#56).
   static Future<void> _writeMerged(Map<String, Object?> changes) async {
-    final merged = await _readAll()
-      ..addAll(changes);
+    final merged = await _readAll();
+    changes.forEach(
+      (key, value) => value == null ? merged.remove(key) : merged[key] = value,
+    );
     await (await _file()).writeAsString(jsonEncode(merged), flush: true);
   }
 
@@ -147,10 +174,18 @@ class WindowGeometry {
   /// the demand grids cannot lay out below it. On a screen too short for even
   /// that, the window hangs off the **bottom** — where the caption bar is
   /// still reachable, which is the thing that must never be given up.
-  static Size fitSize(Size desired, Rect workArea) => Size(
-    math.max(minimumSize.width, math.min(desired.width, workArea.width)),
-    math.max(minimumSize.height, math.min(desired.height, workArea.height)),
-  );
+  /// **[defaultSize] is not changed by the scale**, deliberately. It is how
+  /// large a window to *open*, and shrinking it to the target screen is this
+  /// function's job; the floor is what was wrong. With [minimumSizeAt] in
+  /// place, a 1280x672 work area now yields a 1280x672 window rather than one
+  /// 700 tall that hangs 28 px off the bottom (#50).
+  static Size fitSize(Size desired, Rect workArea, {double scale = 1.0}) {
+    final floor = minimumSizeAt(scale);
+    return Size(
+      math.max(floor.width, math.min(desired.width, workArea.width)),
+      math.max(floor.height, math.min(desired.height, workArea.height)),
+    );
+  }
 
   /// Where a window with no remembered position should open on [workArea]:
   /// [defaultSize] fitted to it, and centred.
@@ -159,8 +194,8 @@ class WindowGeometry {
   /// centring a window larger than the screen is exactly what produced a
   /// negative top. The offsets are floored at zero, so an oversized window
   /// starts at the work area's own corner instead of outside it.
-  static Rect defaultBoundsIn(Rect workArea) {
-    final size = fitSize(defaultSize, workArea);
+  static Rect defaultBoundsIn(Rect workArea, {double scale = 1.0}) {
+    final size = fitSize(defaultSize, workArea, scale: scale);
     return Rect.fromLTWH(
       workArea.left + math.max(0.0, (workArea.width - size.width) / 2),
       workArea.top + math.max(0.0, (workArea.height - size.height) / 2),
@@ -181,23 +216,62 @@ class WindowGeometry {
   /// and can undo by hand, so they are left exactly as they were found.
   static Rect withCaptionOnScreen(Rect bounds, List<Rect> workAreas) {
     if (workAreas.isEmpty) return bounds;
-    // The work area the window sits in most. Which one wins only matters when
-    // a window straddles two, and then either answer puts the caption on a
-    // screen the user is looking at.
-    var best = workAreas.first;
+    // Which one wins only matters when a window straddles two, and then either
+    // answer puts the caption on a screen the user is looking at.
+    final best = workAreas[mostCovered(bounds, workAreas)];
+    if (bounds.top >= best.top) return bounds;
+    return Rect.fromLTWH(bounds.left, best.top, bounds.width, bounds.height);
+  }
+
+  /// The index of the work area [bounds] covers most — the first when it
+  /// covers none. [workAreas] must not be empty.
+  static int mostCovered(Rect bounds, List<Rect> workAreas) {
+    var best = 0;
     var most = -1.0;
-    for (final area in workAreas) {
-      final overlap = area.intersect(bounds);
+    for (var i = 0; i < workAreas.length; i++) {
+      final overlap = workAreas[i].intersect(bounds);
       final covered = overlap.width <= 0 || overlap.height <= 0
           ? 0.0
           : overlap.width * overlap.height;
       if (covered > most) {
         most = covered;
-        best = area;
+        best = i;
       }
     }
-    if (bounds.top >= best.top) return bounds;
-    return Rect.fromLTWH(bounds.left, best.top, bounds.width, bounds.height);
+    return best;
+  }
+
+  /// The display a window at [bounds] is on, by the same rule [restore] places
+  /// it: the one it covers most if it lands on any, otherwise [primary], where
+  /// [restore] would put a window whose position no longer lands anywhere.
+  ///
+  /// So the display a scale is read for at launch is the display the window
+  /// then opens on (#56). [bounds] is null on a first run.
+  static Display displayFor(
+    Rect? bounds,
+    List<Display> displays,
+    Display primary,
+  ) {
+    if (bounds == null || displays.isEmpty) return primary;
+    final areas = workAreasOf(displays);
+    final placed = WindowGeometry(bounds: bounds, maximized: false);
+    if (!placed.isOnSomeWorkArea(areas)) return primary;
+    return displays[mostCovered(bounds, areas)];
+  }
+
+  /// [displayFor] the window as it stands now. Null when the displays cannot be
+  /// read, which callers treat as *no better answer than before*.
+  static Future<Display?> displayUnderWindow() async {
+    try {
+      return displayFor(
+        await windowManager.getBounds(),
+        await screenRetriever.getAllDisplays(),
+        await screenRetriever.getPrimaryDisplay(),
+      );
+    } catch (error, stack) {
+      Diag.error('window.display', error, stack);
+      return null;
+    }
   }
 
   /// Whether [bounds] still lands on a display that exists.
@@ -234,7 +308,7 @@ class WindowGeometry {
   ///
   /// Returns the unmaximised frame the window ended up with, for
   /// [WindowGeometryObserver.rememberNormalBounds].
-  static Future<Rect> restore() async {
+  static Future<Rect> restore({double scale = 1.0}) async {
     final saved = await load();
 
     // **The displays are read before the size is chosen, not after.** The
@@ -255,7 +329,9 @@ class WindowGeometry {
 
     // Null only when the displays could not be read at all, and then there is
     // nothing to fit to and centring blind is the best that can be done.
-    final fitted = primary == null ? null : defaultBoundsIn(primary);
+    final fitted = primary == null
+        ? null
+        : defaultBoundsIn(primary, scale: scale);
 
     Rect? target;
     if (saved != null &&
@@ -270,7 +346,7 @@ class WindowGeometry {
 
     final options = WindowOptions(
       size: target?.size ?? defaultSize,
-      minimumSize: minimumSize,
+      minimumSize: minimumSizeAt(scale),
       center: target == null,
       title: 'FlowMap',
     );
@@ -288,8 +364,42 @@ class WindowGeometry {
     if (saved?.maximized ?? false) await windowManager.maximize();
     return normal;
   }
-}
 
+  /// Re-applies the window's minimum for [scale], and grows the window if it
+  /// is now below it.
+  ///
+  /// Called when the scale changes while the app is running. Growing is the
+  /// cost [WindowGeometry.minimumSizeAt] accepts knowingly: someone who
+  /// shrank the window at 70 % and then picks 100 % has asked for a layout
+  /// their window can no longer hold, and a window quietly overflowing its
+  /// content is worse than one that moved because they told it to. It never
+  /// grows past the work area.
+  ///
+  /// Failures are swallowed and not awaited, as in `CloseGuard`: under
+  /// `flutter test` there is no window plugin, and a setting that could throw
+  /// while being applied is worse than one that is merely not applied.
+  static Future<void> applyMinimumFor(double scale) async {
+    final floor = minimumSizeAt(scale);
+    await windowManager.setMinimumSize(floor);
+
+    final bounds = await windowManager.getBounds();
+    if (bounds.width >= floor.width && bounds.height >= floor.height) return;
+
+    // The display the window is on, not the primary: growing a window on a
+    // laptop panel must stop at the laptop panel (#56). Without a work area the
+    // floor is still the better of the two numbers.
+    final display = await displayUnderWindow();
+    final work = display == null
+        ? Rect.fromLTWH(0, 0, double.infinity, double.infinity)
+        : workAreaOf(display);
+    await windowManager.setSize(
+      Size(
+        math.min(math.max(bounds.width, floor.width), work.width),
+        math.min(math.max(bounds.height, floor.height), work.height),
+      ),
+    );
+  }
+}
 
 /// Window chrome that is not geometry, in the same file and for the same
 /// reason (#18).
@@ -308,6 +418,10 @@ class WindowGeometry {
 /// the app losing a pane for a reason nobody can see.
 abstract final class WindowChrome {
   static const _paneKey = 'studiesPaneCollapsed';
+  static const _scalesKey = 'scales';
+
+  /// Where the single machine-wide scale lived before #56.
+  static const _legacyScaleKey = 'scale';
 
   static Future<bool> studiesPaneCollapsed() async =>
       (await WindowGeometry._readAll())[_paneKey] == true;
@@ -319,4 +433,159 @@ abstract final class WindowChrome {
       Diag.error('window.pane', error, stack);
     }
   }
+
+  /// The size the app is comfortable at, which is what the first-run scale is
+  /// measured against (#48).
+  ///
+  /// **Derived from #49's walk rather than chosen.** That walk found 0.8 to be
+  /// the scale at which a 1280x720 laptop stops scrolling the densest screen in
+  /// the app, and 1280x720 at 0.8 lays out as exactly 1600x900. So this is not
+  /// a fourth opinion about how big FlowMap wants to be — it is the measured
+  /// one, written down.
+  ///
+  /// Deliberately **not** [WindowGeometry.defaultSize]'s 1600x1000: that is how
+  /// large a window to *open*, which may be generous, while this is the size
+  /// below which the app starts to hurt.
+  static const comfortableSize = Size(1600, 840);
+
+  /// The scale to open at on a screen whose work area is [workArea], when the
+  /// user has never chosen one.
+  ///
+  /// The smaller of the two axes, snapped down to a step, and **never above
+  /// [AppScale.noScale]**: a large monitor gets the app as drawn rather than an
+  /// automatic zoom *in*, because wanting it bigger is a preference and not a
+  /// fit problem, and guessing at a preference is how a setting gets a
+  /// reputation for meddling.
+  static double defaultScaleIn(Rect workArea) {
+    final raw = math.min(
+      workArea.width / comfortableSize.width,
+      workArea.height / comfortableSize.height,
+    );
+    return math.min(AppScale.noScale, AppScale.snapDown(raw));
+  }
+
+  /// The scale to open at: [scaleFor] the display the window is about to be
+  /// placed on. Called by `main`, before [WindowGeometry.restore].
+  static Future<double> launchScale() async {
+    final Display display;
+    try {
+      display = WindowGeometry.displayFor(
+        (await WindowGeometry.load())?.bounds,
+        await screenRetriever.getAllDisplays(),
+        await screenRetriever.getPrimaryDisplay(),
+      );
+    } catch (error, stack) {
+      // Without the displays there is no knowing whose scale to read.
+      Diag.error('window.scale.display', error, stack);
+      return AppScale.noScale;
+    }
+    launchDisplayId = display.id;
+    return scaleFor(display);
+  }
+
+  /// The scale to run at on [display]: the one stored for it, or a default
+  /// measured from its work area and then written down.
+  ///
+  /// **Read before `runApp`, which is the whole reason it is in this file and
+  /// not in `app_settings`.** A scale that arrived from the database could not
+  /// be applied until the database was open — so every launch would draw at
+  /// 100 %, wait out a 170 MB open and its migrations, and then snap. A json
+  /// file next to it is readable with plain `dart:io` in `main`, so the first
+  /// frame is already right. That ordering is the argument; *window chrome is
+  /// not domain state* is why the file was already there to put it in.
+  ///
+  /// **One scale per display, chosen at launch** (#56). A laptop that first ran
+  /// docked used to carry the big panel's 100 % onto its own 14" screen, which
+  /// is the cramped case this whole effort exists for. [display] is the one the
+  /// window is about to open on — [WindowGeometry.displayFor] — not the primary,
+  /// which on a docked laptop is the monitor.
+  ///
+  /// Failure is [AppScale.noScale]: a screen that cannot be measured is not
+  /// guessed at.
+  static Future<double> scaleFor(Display display) async {
+    try {
+      final resolved = resolveScale(
+        await WindowGeometry._readAll(),
+        display.id,
+        WindowGeometry.workAreaOf(display),
+      );
+      if (resolved.write != null) {
+        Diag.event(
+          'window.scale',
+          'display ${display.id} -> ${resolved.scale}',
+        );
+        await WindowGeometry._writeMerged(resolved.write!);
+      }
+      return resolved.scale;
+    } catch (error, stack) {
+      Diag.error('window.scale', error, stack);
+      return AppScale.noScale;
+    }
+  }
+
+  /// The scale stored in [file] for the display [displayId], and what to write
+  /// back, if anything. Pure, so the rules below are tested without a screen.
+  ///
+  /// - **A stored value always wins**, clamped. A hand-edited value that is not
+  ///   a number is treated as absent, as for the geometry fields (§12.9).
+  /// - **A display never seen before gets a default measured from
+  ///   [workArea]**, not the scale last used elsewhere. The last one used is
+  ///   exactly the wrong answer this exists to fix: it is the other screen's.
+  /// - **The one scale a file from before #56 holds** is adopted by the first
+  ///   display it is read on and then removed, so nobody's chosen scale is
+  ///   re-derived out from under them.
+  ///
+  /// The key is `Display.id`, which on Windows is the monitor's PnP DeviceID
+  /// and survives docking — unlike `Display.name`, `\\.\DISPLAY1`, which
+  /// renumbers. An empty id is still a key: every display the plugin cannot
+  /// identify shares one scale, which is how the app behaved before.
+  static ({double scale, Map<String, Object?>? write}) resolveScale(
+    Map<String, Object?> file,
+    String displayId,
+    Rect workArea,
+  ) {
+    final scales = _scalesIn(file);
+    final stored = scales[displayId];
+    if (stored is num) {
+      return (scale: AppScale.clamp(stored.toDouble()), write: null);
+    }
+
+    final legacy = file[_legacyScaleKey];
+    final scale = legacy is num
+        ? AppScale.clamp(legacy.toDouble())
+        : defaultScaleIn(workArea);
+    return (
+      scale: scale,
+      write: {
+        _scalesKey: {...scales, displayId: scale},
+        _legacyScaleKey: null,
+      },
+    );
+  }
+
+  /// A copy of [file]'s scales table, empty when it is missing or is not a map.
+  static Map<String, Object?> _scalesIn(Map<String, Object?> file) {
+    final table = file[_scalesKey];
+    return table is Map ? {...table.cast<String, Object?>()} : {};
+  }
+
+  /// Remembers [scale] for the display the window is on **now** — which may
+  /// not be the one it opened on, if it was dragged across since. Falls back to
+  /// [launchDisplayId] when the displays cannot be read.
+  static Future<void> setScale(double scale) async {
+    try {
+      final display = await WindowGeometry.displayUnderWindow();
+      final id = display?.id ?? launchDisplayId;
+      final scales = _scalesIn(await WindowGeometry._readAll());
+      await WindowGeometry._writeMerged({
+        _scalesKey: {...scales, id: AppScale.clamp(scale)},
+        _legacyScaleKey: null,
+      });
+    } catch (error, stack) {
+      Diag.error('window.scale.save', error, stack);
+    }
+  }
+
+  /// The display [scaleFor] was read for, set by `main`.
+  static String launchDisplayId = '';
 }

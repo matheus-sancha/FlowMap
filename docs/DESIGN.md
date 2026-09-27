@@ -3421,6 +3421,218 @@ _Not changed: which tab a mode returns to._ §12.1's *"the location is the memor
 a mode by way of the switch is a fresh arrival at it"* still holds. What is fixed is state *within*
 a tab, not which tab is showing.
 
+### 12.10 The app scales, by being told the window is a different size
+
+Field complaint: *"when using a smaller screen the app is too cramped."* The screen in question is a
+**14" laptop**, which at 1920×1080 with Windows' default 150 % scaling is **1280×720 logical
+pixels** — against a `minimumSize` of 1100×700 and a `defaultSize` of 1600×1000 that such a machine
+cannot open at all (§12.9 tells the other half of that story). The answer is one app-wide scale the
+user sets, and `AppScale` is the mechanism (#47).
+
+**The tree is told the window is `size / scale`, and the result is drawn back through a box that
+scales it.** At 80 % a 1280×720 window lays out as 1600×900. **Every hardcoded pixel in the app
+therefore multiplies for free**: §12.6's 110–150 column widths, the Gantt's `_labelWidth`, the
+`maxWidth < 1100` branch on the Simulation overview, each one-off `SizedBox` — none of them are
+touched, and each behaves as it does on a large monitor. That is the whole reason a change this
+broad is an audit rather than a rewrite.
+
+_Rejected: scaling the design tokens._ Multiplying `Space`, the text theme and `visualDensity` is
+crisper to reason about and reaches only the values that go through `tokens.dart` — leaving every
+stray literal fixed, so the conversion of those literals *becomes* the work. `tokens.dart`'s own rule
+says a value not on a scale is wrong, and this section does not disagree; it declines to make that
+cleanup a precondition for the laptop fitting.
+
+_Rejected: changing the window's device pixel ratio in `windows/runner`._ Not a public Flutter API,
+native C++ in a Dart-only codebase, and it composes with real display scaling in ways nobody can
+test on one machine.
+
+**It is a `FittedBox`, and the reason is hit testing rather than layout.** The obvious build —
+`Transform.scale` with an `OverflowBox` inside it to loosen the tight constraints that arrive from
+`MaterialApp.builder` — draws perfectly at 70 % and leaves **only the top-left corner of the app
+answering the mouse**. `RenderTransform` deliberately does not bounds-check itself; the
+`OverflowBox` within it does, and its own size is the *real* window while its child is larger, so
+every tap past 1280×720 in child space is discarded before it reaches anything. A screenshot cannot
+show that and neither can reading the build method — `app_scale_test.dart` caught it, and holds both
+directions, because a scale below 1 lays the app out larger than the window and a scale above 1 lays
+it out smaller.
+
+**`filterQuality` is left null, deliberately.** Passing one pushes the child through an image filter,
+which is the bitmap blur this must not have. Left null it is a layer matrix, so text and vectors are
+rasterised at the final on-screen scale: measured at 0.8, glyph stems are clean and a 1-px
+`VerticalDivider` is still one unbroken device pixel.
+
+**At 100 % the widget is not in the tree at all** — no `MediaQuery` override, no scaling box, no
+layer. A feature nobody has switched on costs nothing, and the default path is the one that shipped.
+
+**A value nobody chose cannot make the app unreachable.** The scale is clamped, and NaN is turned
+into 1.0 rather than clamped, because NaN compares false against every bound and would paint an
+empty window with no error — on a machine belonging to someone who cannot read a stack trace. This is
+`window.json`'s *type-tested rather than cast* rule (§12.9) applied to a number rather than a field.
+
+**The window and the tree now disagree about their size, and that is correct.** `window_manager`'s
+minimum, `WindowGeometryObserver`'s saved bounds, `screen_retriever`'s work areas and the native
+caption bar all describe *the window*; this describes what is drawn inside it. Nothing in `lib/`
+reads `MediaQuery.size` — every layout decision goes through `LayoutBuilder` constraints — so there
+is no place where the two numbers can be compared and confused. What the minimum and default sizes
+should *become* is a separate question and is not answered here.
+
+**The scale sits inside `CloseGuard` and outside `StartupGate`.** Inside, because `CloseGuard.build`
+is `widget.child` and its listener registers in `initState`, so a scale that threw while building
+would take the guard with it — and a window that cannot flush the open document is the one failure
+that stack exists to prevent. Outside the gate, because the startup *error* screen is the thing most
+worth being able to read on a small laptop.
+
+**The steps are 70 / 80 / 90 / 100 / 125 / 150, and they were walked rather than argued** (#49). On
+the Demand grid at 1280x720 — the densest surface in the app — 100 % shows six and a half of nine
+columns and scrolls both ways; 90 % fixes the height and still clips a column; **80 % is where the
+grid stops scrolling altogether**; 70 % adds a per-row delete column and about a quarter of the width
+in dead space. **60 % shows the same content as 70 %, only smaller**, which is why the floor is 70
+and not lower. The ceiling is 150 % because zooming *in* answers a different question — not *will it
+fit* but *can I read it*.
+
+**A step is absolute, never relative to the display scaling Windows has already applied.** 80 % is
+80 % of the design size on every machine and 100 % is always the app as drawn. _Rejected: dividing
+Windows' scaling out_, so that a step means the same amount of content on any display: on a 14"
+laptop at 150 % it makes 100 % mean 67 % — the app not at its design size on the very machine this
+is for — clamps 70 % at the guard rail, and lands the two useful steps at 53 % and 60 %, past the
+floor this walk established. What that rule reaches for is a **default chosen from the screen**,
+which keeps the number meaning one thing; that is §12.9's file's business and is settled with the
+store.
+
+**There is no Reset.** 100 % is a step in the list, so a Reset item would be a second control writing
+a field that already has one — §12.6's rule, arriving where the two cannot even disagree. _Rejected:
+Reset meaning fit-to-window_, which would put a second *fit* in the app beside the VSM canvas's own
+Fit to Screen, meaning something different, and would have to guess at a content size the app does
+not have.
+
+**The chosen scale lives in `window.json`, and the reason is ordering rather than taste** (#48). A
+scale read from `app_settings` — where Language, Theme and Date format live, and which needs no
+migration to gain a key — could not be applied until the database was open, so every launch would
+draw at 100 %, wait out a 178 MB open and whatever migrations it needs, and then snap the whole app
+to size. A json file beside it is readable with plain `dart:io` in `main`, next to
+`WindowGeometry.restore()`, so **the first frame is already right**. §12.9's *window chrome is not
+domain state* is why the file was already there to put it in, and `studiesPaneCollapsed` is the
+precedent; the file now has a third writer and still merges rather than overwrites.
+
+*Whether it travels was never a live question*: `flowmap_document.dart` excludes `app_settings` from
+every `.flowmap` — *"`app_settings` is the machine's, not the document's"* — so both candidate
+stores were machine-local already. A scale is a property of the screen in front of you, and carrying
+one to another machine inside a document would be a bug in either.
+
+The value is **seeded into the `ProviderScope` from `main`**, not read by a provider once the tree is
+up. The sibling `StudiesPaneCollapsed` starts at a default and corrects itself when the file
+arrives — a pane that appears and then collapses is a small wrong; an app that does it is every
+launch changing size. Setting a scale is optimistic in the same way the pane is: the app moves now
+and the write follows, because making the whole tree wait on a file write is worse than forgetting
+by tomorrow.
+
+**A first run measures the screen rather than assuming 100 %.** The work area divided by
+`WindowChrome.comfortableSize` — 1600x900, which is not a fourth opinion but #49's walk written
+down, since 1280x720 at the 0.8 it measured *is* 1600x900 — smaller axis wins, snapped **down** to a
+step, and never above 1.0. *That height is 840 rather than the 900 the walk implies, and the taskbar
+is why* (#50): #49 was run in a 1280x720 **window**, while what this measures is the **work area**,
+about 48 px shorter on the same machine. At 900 the height term dragged the target laptop to 70 % —
+one step below the answer that was actually measured, and the one #49 rejected as a quarter of the
+width in dead space. Rounding up would pick a scale the screen was measured as too small for,
+and scaling *up* on a large monitor would be guessing at a preference rather than solving a fit
+problem, which is how a setting earns a reputation for meddling. So a 14" laptop opens at 80 % and a
+1080p desktop at 100 %, and **a stored value always wins thereafter** — docking and undocking never
+silently moves a scale someone chose. Measured once per display, on the launch that finds nothing
+stored for it.
+
+**One scale per display, chosen at launch** (#56). With one scale per machine, a laptop that first
+ran docked opened at the panel's 100 % on its own 14" screen — the cramped case this section exists
+for — and the first-run measurement read the *primary*, which on a docked laptop is the monitor even
+when the window restores onto the laptop. So `window.json` holds a `scales` table keyed by
+`Display.id`, which on Windows is the monitor's PnP DeviceID and survives docking; `Display.name`
+(`\\.\DISPLAY1`) renumbers and would not. At launch the scale is read for the display the window is
+about to open on, by the rule `restore` places it: the display the stored frame covers most, or the
+primary when it lands nowhere. **A display never seen is measured, not handed the last scale used**,
+because the last one used is the other screen's. Picking a step writes it for the display the window
+is on at that moment. The single `scale` a file from before holds is adopted by the first display it
+is read on and removed. _Rejected: switching live when the window is dragged to another display_,
+which resizes the whole app under the pointer mid-drag and moves the window's floor with it — the
+next launch is soon enough. _Rejected: keeping one scale and only fixing the primary_, which leaves
+every docking laptop re-picking its scale by hand.
+
+A hand-edited value that is not a number is treated as absent, which is §12.9's rule for the
+geometry fields; one that is a number is clamped. Neither can stop the app opening.
+
+**The control is the percentage at the foot of the rail** (#51), under `SaveIndicator` and for the
+argument #37 wrote there: *"where it is always visible and never in the way … belongs to the window
+rather than to any one screen."* The rail is the only chrome every screen has, so the scale is
+reachable from Projects and Settings as well as from a study, and it is nowhere near the VSM canvas's
+own zoom card at `right: 12, bottom: 12` — two zoom controls stacked in one corner is how a reader
+comes to zoom the wrong thing. `SaveIndicator` shrinks to nothing when no document is open, so on the
+opening screen the scale is the only row there.
+
+**The number alone, with no icon.** The rail already carries six destinations and a save line, and a
+glyph beside the figure would be decoration. The cost is real and is paid on hover rather than
+permanently: it is the one bare number in the chrome and it sits under a timestamp, so it carries a
+tooltip instead of an icon that would explain it to everyone forever. It is written with
+`NumberFormat.percentPattern`, so it is `80%` in English and `80 %` in Portuguese and Spanish rather
+than a convention invented here (§12.4).
+
+**The window's floor moves with the scale, downwards only** (#50). §12.9's 1100x700 exists because
+the canvas and the demand grids cannot lay out below it — and that is a statement about what the
+*tree* sees, which the scale now changes. So the minimum becomes `1100x700 x min(scale, 1)`: at 80 %
+an 880 px window already gives the tree its 1100, and **FlowMap can finally be half of a 1920
+screen**, which was one of the cases that opened this effort. Measured: at 100 % the window still
+clamps a 960x600 request to 1100x700, and at 80 % it accepts 960x600 with the whole workspace intact.
+
+*Zooming in does not raise the floor, and the `min(scale, 1)` is that clause.* Proportional in both
+directions is the tidier rule and was rejected on a number: at 150 % it would demand 1650x1050, which
+is larger than the entire screen of the 14" laptop this effort exists for, so zooming in would have
+to either fail or drag the window out from under the reader. Someone who zooms in has asked for
+bigger text and accepted seeing less of the model; that is a choice, not a fault to correct. The one
+case that does move the window is a reader who shrank it at 70 % and then picks 100 %: the floor they
+are now under is re-applied and the window grows, because a window quietly overflowing its content is
+worse than one that moved because they told it to.
+
+**`defaultSize` does not change.** 1600x1000 is how large a window to *open*, and `fitSize` already
+shrinks it to the work area; the floor was the thing that was wrong. On a 1280x672 work area the
+700 px minimum used to win, leaving a window 28 px taller than the screen — §12.9 accepted that
+knowingly so the caption bar stayed reachable. That machine now opens at 80 %, where the floor is
+560, so the window is simply 1280x672 and the trade is no longer needed.
+
+**The scale is read before the window is placed**, which is why `main` reads it ahead of
+`WindowGeometry.restore` rather than beside it: the scale decides the minimum, and the minimum
+decides what the default may be fitted into.
+
+**Driven at both extremes in a 1280x720 window** (#52,
+`docs/DRIVE-2026-09-17.md`): seventeen checks over every screen produced **one** layout failure —
+Occupation's header squeezes its grid at 150 % (#54). **Fixed without unpinning anything that
+fits**: below a pane height of 360 the controls stop being pinned and the pane scrolls as one, so they
+leave with the grid but stay directly over the rows they reorder, and the legend moved into the
+scroll beside the chart it keys, which it should always have been. Nothing else needed touching, which is the
+claim at the top of this section holding up: `simulation_tab.dart`'s `maxWidth < 1100` branch,
+`result_table.dart`'s column widths and the Gantt's label width were never edited and never
+misbehaved, because none of them can tell anything changed. **Clipping is not breakage**: the
+results filter bar and both tab strips all run out of room at 150 % and all three scroll, because
+they were made scrollable long before there was a zoom.
+
+**Windows' own Text size is divided out, at every scale** (#58). The embedder reads
+`TextScaleFactor` from the registry and follows it live, and passed through it multiplied with the
+app scale, so 150 % at 150 % drew text at 225 % (#57, `docs/DRIVE-2026-09-27.md`). It is the
+opposite of the app scale: it grows the text and not the box the text sits in. So the Flow footer lost
+every value, the canvas's step boxes lost rows, and every Delivery Float cell overflowed, with
+the same pixel counts at every app scale. Capacity, Demand, the Plan and the Gantt clipped part
+numbers and dates **with no error at all**, which no console sweep can find. **Bigger text in FlowMap
+is 125 % or 150 % from the control at the foot of the rail**, which keeps every proportion #52 proved
+and is always in view. `AppScale` therefore sets `TextScaler.noScaling` even at 100 %, where the
+rest of it leaves the tree. *Rejected: honouring it everywhere but the canvas* and rebuilding the
+boxes to grow. That fixes the overflows and keeps the silent clipping. *Clamping it was also rejected*:
+it is the same breakage by fewer pixels. The canvas had a reason of its own, too: its PDF is drawn with no text
+scale, so a scaled step box would disagree with the page it prints.
+
+**It is shown at 100 %, and this section's own rule is what decides it.** *"A permanently dead
+control is worse than an absent one"* is why the period control is hidden on the tabs it does not
+govern — and here it resolves the other way, because this control is never dead and, with no
+keyboard shortcut and no Settings row, hiding it at 100 % would make the scale unreachable rather
+than merely tidy. **Its layout does not change with the scale**: everything scales together, so in
+the tree it is always the same number of logical pixels in the same rail, and only its physical size
+moves — which is the thing #49's walk already judged.
+
 ---
 
 ## 13. Exports

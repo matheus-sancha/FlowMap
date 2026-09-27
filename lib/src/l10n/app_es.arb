@@ -1030,6 +1030,7 @@
   "templatesWithDemand": "con demanda",
   "templatesNoDemand": "solo flujo",
   "templatesStepCount": "{count, plural, =1{1 paso} other{{count} pasos}}",
+  "navScaleTooltip": "Escala de la interfaz",
   "navAbout": "Acerca de",
   "aboutBuild": "Versión",
   "aboutCopy": "Copiar",

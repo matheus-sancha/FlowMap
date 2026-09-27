@@ -2465,3 +2465,23 @@ reads as one identity claiming to be another.
 first signed drop may still prompt — reputation accrues to the certificate, not to the build — so
 the unblock instruction and the published SHA-256 stay until a drop reaches a machine that is not
 the developer's without a prompt. That is the same cold install phase 7 has owed since 2026-09-13.
+
+## 11. The folder 2.1.3 moved, 2026-09-27
+
+**Found while updating the drop's readme for 2.2.0: every machine that took 2.1.3 opened on an empty
+database.** §10's fix to `Runner.rc`, from company `com.sancha` and product `flowmap` to `Matheus
+Sancha` and `FlowMap`, was also a move. `path_provider` names the Application Support folder from
+those two strings, so the app went on reading and writing a new, empty folder beside the old one.
+Projects were never touched, because they are `.flowmap` files of the user's own. **Stored runs,
+settings and the log were left behind**, and the 2.1.3 release notes said *"your projects,
+templates and settings … are kept."* Nothing reported it. A fresh database is the normal state of a
+new machine, and the developer's own had both folders without anyone noticing: 186 MB in the old
+one and 2 MB in the new.
+
+**2.2.0 copies the old folder across once**: at startup, before the log opens, and only when the new
+folder has no database but the old one has. The database is copied and never moved, and it is renamed into place last, so an interrupted copy is simply
+tried again. A machine that already ran 2.1.3 keeps its newer database, because replacing it would
+lose whatever was done since; the release notes point those users at the old folder by name.
+`READ ME FIRST.txt`, the README and the About screen's comment name the new path. **The lesson is in
+`app_directory.dart`'s doc comment, where the next edit to `Runner.rc` will pass it: those two
+strings are a path.**

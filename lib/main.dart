@@ -6,11 +6,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'src/app/app.dart';
+import 'src/app/app_scale.dart';
+import 'src/app/app_scale_setting.dart';
 import 'src/app/window_geometry.dart';
 import 'package:flutter/foundation.dart';
 
 import 'src/app/build_info.dart';
 import 'src/app/window_geometry_observer.dart';
+import 'src/data/app_directory.dart';
 import 'src/features/diagnostics/application/diagnostics.dart';
 
 /// Wiring only, and the order is load-bearing.
@@ -23,12 +26,31 @@ Future<void> main() async {
   // format dates outside the widget tree (DESIGN.md §13), so we cannot rely on
   // the symbols flutter_localizations lazily loads for the active one.
   await initializeDateFormatting();
+  // Before anything writes to the data folder, since a folder with a log or a
+  // database in it no longer looks new: 2.1.3 moved it by renaming the exe,
+  // and this brings the old one's contents across once.
+  final legacy = legacyAppDataDirectory();
+  final adopted = legacy == null
+      ? null
+      : await adoptLegacyDataFolder(
+          legacy: legacy,
+          current: await appDataDirectory(),
+        );
   // First, so the session header precedes anything worth logging and the error
   // hooks are in place before any code that could trip them (DESIGN.md §15).
   await Diag.install();
+  if (adopted != null) {
+    Diag.event(
+      'data.adopt',
+      adopted.error == null
+          ? 'from ${legacy!.path}: ${adopted.copied.join(', ')}'
+          : 'failed after ${adopted.copied}: ${adopted.error}',
+    );
+  }
 
   // Desktop only: Windows does not remember a window's size, position or
   // maximised state for an application, so the app does it.
+  var scale = AppScale.noScale;
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
     final windowObserver = WindowGeometryObserver();
@@ -37,13 +59,25 @@ Future<void> main() async {
     // runner's first-frame callback reveals it already in the right spot.
     // Seeding the observer matters: a user whose first action is to maximise
     // has no stored frame yet, so nothing would be saved at all.
-    windowObserver.rememberNormalBounds(await WindowGeometry.restore());
+    // **Before the window is placed, not after** (#50). The scale decides the
+    // window's minimum size, and the minimum decides what `restore` may fit the
+    // default into — so reading it second would place the window against last
+    // run's floor. It is also what the first frame is drawn at, which is why it
+    // is read here at all rather than from a provider inside the tree: a scale
+    // that arrived later would snap the whole app on every launch (#48).
+    // Read for the display the window is about to open on, not the primary
+    // (#56).
+    scale = await WindowChrome.launchScale();
+    windowObserver.rememberNormalBounds(
+      await WindowGeometry.restore(scale: scale),
+    );
   }
 
   runApp(
-    const ProviderScope(
-      observers: [DiagnosticsObserver()],
-      child: FlowMapApp(),
+    ProviderScope(
+      observers: const [DiagnosticsObserver()],
+      overrides: [initialAppScaleProvider.overrideWithValue(scale)],
+      child: const FlowMapApp(),
     ),
   );
 }

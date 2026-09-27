@@ -150,7 +150,7 @@ class _Copyable extends StatelessWidget {
 /// A folder, its path, and a button that opens it.
 ///
 /// **The button is the point.** Nobody being supported can be walked to
-/// `%APPDATA%\com.sancha\flowmap` over a phone call, and asking them to type it
+/// `%APPDATA%\Matheus Sancha\FlowMap` over a phone call, and asking them to type it
 /// is how a support call becomes an afternoon.
 class _FolderRow extends StatelessWidget {
   const _FolderRow({required this.future, required this.caption});

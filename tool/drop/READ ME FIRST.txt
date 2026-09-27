@@ -40,12 +40,12 @@ Where your work is
   can have a project open at a time.
 
   FlowMap's own files (settings, simulation results, the diagnostics log) are
-  in %APPDATA%\com.sancha\flowmap. Paste that into the Explorer address bar,
+  in %APPDATA%\Matheus Sancha\FlowMap. Paste that into the Explorer address bar,
   or use About > Open folder.
 
 Installing a newer version
   1. Close FlowMap.
-  2. Copy the folder %APPDATA%\com.sancha\flowmap somewhere safe.
+  2. Copy the folder %APPDATA%\Matheus Sancha\FlowMap somewhere safe.
   3. Unzip the new version over this folder.
   Your .flowmap files are not in this folder, so replacing it does not touch
   them.
@@ -91,12 +91,12 @@ Dónde está tu trabajo
   puede tener un proyecto abierto a la vez.
 
   Los archivos propios de FlowMap (ajustes, resultados de simulación, el
-  registro de diagnóstico) están en %APPDATA%\com.sancha\flowmap, o en
+  registro de diagnóstico) están en %APPDATA%\Matheus Sancha\FlowMap, o en
   Acerca de > Abrir carpeta.
 
 Instalar una versión nueva
   1. Cierra FlowMap.
-  2. Copia la carpeta %APPDATA%\com.sancha\flowmap a un lugar seguro.
+  2. Copia la carpeta %APPDATA%\Matheus Sancha\FlowMap a un lugar seguro.
   3. Descomprime la versión nueva encima de esta carpeta.
   Tus archivos .flowmap no están en esta carpeta.
 
@@ -141,12 +141,12 @@ Onde fica o seu trabalho
   Guardar. Só uma pessoa por vez pode ter um projeto aberto.
 
   Os arquivos do próprio FlowMap (configurações, resultados de simulação, o
-  registro de diagnóstico) ficam em %APPDATA%\com.sancha\flowmap, ou em
+  registro de diagnóstico) ficam em %APPDATA%\Matheus Sancha\FlowMap, ou em
   Acerca de > Abrir pasta.
 
 Instalar uma versão nova
   1. Feche o FlowMap.
-  2. Copie a pasta %APPDATA%\com.sancha\flowmap para um lugar seguro.
+  2. Copie a pasta %APPDATA%\Matheus Sancha\FlowMap para um lugar seguro.
   3. Descompacte a versão nova por cima desta pasta.
   Os seus arquivos .flowmap não ficam nesta pasta.
 

@@ -2217,6 +2217,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get navScaleTooltip => 'Interface scale';
+
+  @override
   String get navAbout => 'About';
 
   @override
