@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 
 import 'src/app/build_info.dart';
 import 'src/app/window_geometry_observer.dart';
+import 'src/data/app_directory.dart';
 import 'src/features/diagnostics/application/diagnostics.dart';
 
 /// Wiring only, and the order is load-bearing.
@@ -25,9 +26,27 @@ Future<void> main() async {
   // format dates outside the widget tree (DESIGN.md §13), so we cannot rely on
   // the symbols flutter_localizations lazily loads for the active one.
   await initializeDateFormatting();
+  // Before anything writes to the data folder, since a folder with a log or a
+  // database in it no longer looks new: 2.1.3 moved it by renaming the exe,
+  // and this brings the old one's contents across once.
+  final legacy = legacyAppDataDirectory();
+  final adopted = legacy == null
+      ? null
+      : await adoptLegacyDataFolder(
+          legacy: legacy,
+          current: await appDataDirectory(),
+        );
   // First, so the session header precedes anything worth logging and the error
   // hooks are in place before any code that could trip them (DESIGN.md §15).
   await Diag.install();
+  if (adopted != null) {
+    Diag.event(
+      'data.adopt',
+      adopted.error == null
+          ? 'from ${legacy!.path}: ${adopted.copied.join(', ')}'
+          : 'failed after ${adopted.copied}: ${adopted.error}',
+    );
+  }
 
   // Desktop only: Windows does not remember a window's size, position or
   // maximised state for an application, so the app does it.
